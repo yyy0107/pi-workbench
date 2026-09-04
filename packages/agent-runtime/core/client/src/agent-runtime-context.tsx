@@ -9,6 +9,16 @@ import type {
   WorkbenchAgentThreadStore,
   WorkbenchWorkspaceFileSearchPort,
 } from "./agent-runtime-environment";
+import type {
+  WorkbenchAgentRuntimeCapabilities,
+  WorkbenchAttachmentUnderstandingCapability,
+  WorkbenchContextCapability,
+  WorkbenchInteractionCapability,
+  WorkbenchModelSelectionCapability,
+  WorkbenchRuntimeHostCapability,
+  WorkbenchScratchSessionCapability,
+  WorkbenchWorkspaceCapability,
+} from "./capabilities";
 
 export const EMPTY_WORKBENCH_AGENT_THREAD_SNAPSHOT: WorkbenchAgentThreadSnapshot = Object.freeze({
   isRunning: false,
@@ -18,6 +28,7 @@ export const EMPTY_WORKBENCH_AGENT_THREAD_SNAPSHOT: WorkbenchAgentThreadSnapshot
 });
 
 const EMPTY_THREAD_ACTIONS: WorkbenchAgentThreadActions = Object.freeze({});
+const EMPTY_RUNTIME_CAPABILITIES: WorkbenchAgentRuntimeCapabilities = Object.freeze({});
 const EMPTY_SUBSCRIBE = () => () => undefined;
 const ZERO_REVISION = () => 0;
 
@@ -27,6 +38,17 @@ export interface WorkbenchAgentRuntimeEnvironment {
   readonly commands: readonly WorkbenchAgentCommand[];
   readonly threadStore?: WorkbenchAgentThreadStore;
   readonly workspaceFiles?: WorkbenchWorkspaceFileSearchPort;
+  readonly capabilities: WorkbenchAgentRuntimeCapabilities;
+}
+
+export interface WorkbenchAgentRuntimeEnvironmentProviderProps {
+  readonly id: string;
+  readonly threadId?: string;
+  readonly commands: readonly WorkbenchAgentCommand[];
+  readonly capabilities?: WorkbenchAgentRuntimeCapabilities;
+  readonly threadStore?: WorkbenchAgentThreadStore;
+  readonly workspaceFiles?: WorkbenchWorkspaceFileSearchPort;
+  readonly children: ReactNode;
 }
 
 const WorkbenchAgentRuntimeContext = createContext<WorkbenchAgentRuntimeEnvironment | null>(null);
@@ -35,26 +57,21 @@ export function WorkbenchAgentRuntimeEnvironmentProvider({
   id,
   threadId,
   commands,
+  capabilities = EMPTY_RUNTIME_CAPABILITIES,
   threadStore,
   workspaceFiles,
   children,
-}: Readonly<{
-  id: string;
-  threadId?: string;
-  commands: readonly WorkbenchAgentCommand[];
-  threadStore?: WorkbenchAgentThreadStore;
-  workspaceFiles?: WorkbenchWorkspaceFileSearchPort;
-  children: ReactNode;
-}>) {
+}: WorkbenchAgentRuntimeEnvironmentProviderProps) {
   const value = useMemo<WorkbenchAgentRuntimeEnvironment>(
     () => ({
       id,
       ...(threadId ? { threadId } : {}),
       commands,
+      capabilities,
       ...(threadStore ? { threadStore } : {}),
       ...(workspaceFiles ? { workspaceFiles } : {}),
     }),
-    [commands, id, threadId, threadStore, workspaceFiles],
+    [capabilities, commands, id, threadId, threadStore, workspaceFiles],
   );
 
   return (
@@ -90,6 +107,44 @@ export function useWorkbenchAgentWorkspaceFileSearch():
   | WorkbenchWorkspaceFileSearchPort
   | undefined {
   return useWorkbenchAgentRuntimeEnvironment().workspaceFiles;
+}
+
+export function useWorkbenchRuntimeHostCapability(): WorkbenchRuntimeHostCapability | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.host;
+}
+
+export function useWorkbenchWorkspaceCapability(): WorkbenchWorkspaceCapability | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.workspace;
+}
+
+export function useWorkbenchModelSelectionCapability():
+  | WorkbenchModelSelectionCapability
+  | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.models;
+}
+
+export function useWorkbenchInteractionCapability(): WorkbenchInteractionCapability | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.interactions;
+}
+
+export function useWorkbenchScratchSessionCapability():
+  | WorkbenchScratchSessionCapability
+  | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.scratchSessions;
+}
+
+export function useWorkbenchContextCapability(): WorkbenchContextCapability | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.context;
+}
+
+export function useWorkbenchAutomationCapability(): WorkbenchAgentRuntimeCapabilities["automation"] {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.automation;
+}
+
+export function useWorkbenchAttachmentUnderstandingCapability():
+  | WorkbenchAttachmentUnderstandingCapability
+  | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.attachmentUnderstanding;
 }
 
 /** Subscribe to the selected implementation's live presentation state for one thread. */

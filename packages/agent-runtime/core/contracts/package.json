@@ -30,6 +30,11 @@
       "import": "./src/message-metadata.ts",
       "default": "./src/message-metadata.ts"
     },
+    "./runtime-capabilities": {
+      "types": "./src/runtime-capabilities.ts",
+      "import": "./src/runtime-capabilities.ts",
+      "default": "./src/runtime-capabilities.ts"
+    },
     "./settings": {
       "types": "./src/settings.ts",
       "import": "./src/settings.ts",

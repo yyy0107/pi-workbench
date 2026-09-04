@@ -325,6 +325,131 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  packages/agent-runtime/core/client:
+    dependencies:
+      '@workbench/agent-runtime-contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@workbench/agent-runtime-core':
+        specifier: workspace:*
+        version: link:../runtime
+      '@workbench/attachment-understanding-contracts':
+        specifier: workspace:*
+        version: link:../../../contracts/attachment-understanding
+      '@workbench/automation-contracts':
+        specifier: workspace:*
+        version: link:../../../contracts/automation
+      '@workbench/contracts':
+        specifier: workspace:*
+        version: link:../../../contracts/core
+      '@workbench/host-contracts':
+        specifier: workspace:*
+        version: link:../../../workbench/host-contracts
+      use-sync-external-store:
+        specifier: ^1.6.0
+        version: 1.6.0(react@19.2.8)
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      '@types/use-sync-external-store':
+        specifier: ^1.5.0
+        version: 1.5.0
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/agent-runtime/core/contracts:
+    dependencies:
+      '@workbench/contracts':
+        specifier: workspace:*
+        version: link:../../../contracts/core
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/agent-runtime/core/runtime:
+    dependencies:
+      '@workbench/agent-runtime-contracts':
+        specifier: workspace:*
+        version: link:../contracts
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/agent-runtime/core/server:
+    dependencies:
+      '@workbench/agent-runtime-contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@workbench/automation-contracts':
+        specifier: workspace:*
+        version: link:../../../contracts/automation
+      '@workbench/contracts':
+        specifier: workspace:*
+        version: link:../../../contracts/core
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/agent-runtime/core/testkit:
+    dependencies:
+      '@workbench/agent-runtime-client':
+        specifier: workspace:*
+        version: link:../client
+      '@workbench/agent-runtime-contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@workbench/agent-runtime-core':
+        specifier: workspace:*
+        version: link:../runtime
+      '@workbench/agent-runtime-server':
+        specifier: workspace:*
+        version: link:../server
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   packages/agent-runtime/runtimes/pi/client:
     dependencies:
       '@workbench/agent-runtime-client':
@@ -572,122 +697,6 @@ importers:
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/agent-runtime/core/client:
-    dependencies:
-      '@workbench/agent-runtime-contracts':
-        specifier: workspace:*
-        version: link:../contracts
-      '@workbench/agent-runtime-core':
-        specifier: workspace:*
-        version: link:../runtime
-      '@workbench/automation-contracts':
-        specifier: workspace:*
-        version: link:../../../contracts/automation
-      use-sync-external-store:
-        specifier: ^1.6.0
-        version: 1.6.0(react@19.2.8)
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.4
-        version: 19.2.4(@types/react@19.2.18)
-      '@types/use-sync-external-store':
-        specifier: ^1.5.0
-        version: 1.5.0
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/agent-runtime/core/contracts:
-    dependencies:
-      '@workbench/contracts':
-        specifier: workspace:*
-        version: link:../../../contracts/core
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/agent-runtime/core/runtime:
-    dependencies:
-      '@workbench/agent-runtime-contracts':
-        specifier: workspace:*
-        version: link:../contracts
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/agent-runtime/core/server:
-    dependencies:
-      '@workbench/agent-runtime-contracts':
-        specifier: workspace:*
-        version: link:../contracts
-      '@workbench/automation-contracts':
-        specifier: workspace:*
-        version: link:../../../contracts/automation
-      '@workbench/contracts':
-        specifier: workspace:*
-        version: link:../../../contracts/core
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/agent-runtime/core/testkit:
-    dependencies:
-      '@workbench/agent-runtime-client':
-        specifier: workspace:*
-        version: link:../client
-      '@workbench/agent-runtime-contracts':
-        specifier: workspace:*
-        version: link:../contracts
-      '@workbench/agent-runtime-core':
-        specifier: workspace:*
-        version: link:../runtime
-      '@workbench/agent-runtime-server':
-        specifier: workspace:*
-        version: link:../server
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.4
-        version: 19.2.4(@types/react@19.2.18)
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

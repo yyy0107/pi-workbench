@@ -16,6 +16,7 @@ import {
 } from "../runtime/manager";
 import type { PiClientTransport } from "../transport/client-transport";
 import { usePiAgentCommandCatalog } from "./command-catalog";
+import { createPiAgentRuntimeCapabilities } from "./capabilities";
 import { PiAgentRuntimeCopyProvider, type PiAgentRuntimeCopy } from "./copy";
 import { beginPiSessionManagerLifecycle } from "./session-manager-lifecycle";
 import { createPiAgentThreadStore, createPiWorkspaceFileSearchPort } from "./thread-store";
@@ -32,6 +33,7 @@ function PiRuntimeEnvironmentHost({
 }: Readonly<{ children: ReactNode; manager: PiSessionManager }>) {
   const current = useCurrentSession();
   const commands = usePiAgentCommandCatalog(manager);
+  const capabilities = useMemo(() => createPiAgentRuntimeCapabilities(manager), [manager]);
   const threadStore = useMemo(() => createPiAgentThreadStore(manager), [manager]);
   const workspaceFiles = useMemo(() => createPiWorkspaceFileSearchPort(manager), [manager]);
   const session = current.sessionId ? manager.session(current.sessionId) : undefined;
@@ -48,6 +50,7 @@ function PiRuntimeEnvironmentHost({
       id={PI_AGENT_RUNTIME_DESCRIPTOR.id}
       threadId={current.threadId ?? current.sessionId}
       commands={commands}
+      capabilities={capabilities}
       threadStore={threadStore}
       workspaceFiles={workspaceFiles}
     >

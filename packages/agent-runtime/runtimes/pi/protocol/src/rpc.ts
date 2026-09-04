@@ -4,7 +4,16 @@ import type {
   ComposerCommandEffect as WorkbenchComposerCommandEffect,
   ComposerSubmission as WorkbenchComposerSubmission,
 } from "@workbench/contracts/composer";
-import type { OcrAdapterPresetId } from "@workbench/attachment-understanding-contracts/ocr-adapter";
+import type {
+  AttachmentUnderstandingDescribeValue,
+  AttachmentUnderstandingEngine,
+  AttachmentUnderstandingOcrAdapterSettingsValue,
+  AttachmentUnderstandingOcrProvider,
+  AttachmentUnderstandingRouting,
+  AttachmentUnderstandingSettingsPatch,
+  AttachmentUnderstandingSettingsValue,
+  AttachmentUnderstandingUpdatePayload,
+} from "@workbench/attachment-understanding-contracts/settings";
 import type { ModelSelection } from "@workbench/contracts/model-selection";
 import type {
   WorkbenchSettingsPreferences,
@@ -721,97 +730,27 @@ export interface WorkbenchSettingsUpdateValue {
   revision: number;
 }
 
-export type ImageUnderstandingRouting = "auto" | "always-preprocess" | "native-only" | "disabled";
-export type ImageUnderstandingEngine = "ocr" | "multimodal";
-export type ImageUnderstandingOcrProvider = "glm-ocr" | "paddleocr";
+export type {
+  AttachmentUnderstandingDescribeValue,
+  AttachmentUnderstandingEngine,
+  AttachmentUnderstandingOcrAdapterSettingsValue,
+  AttachmentUnderstandingOcrProvider,
+  AttachmentUnderstandingRouting,
+  AttachmentUnderstandingSettingsPatch,
+  AttachmentUnderstandingSettingsValue,
+  AttachmentUnderstandingUpdatePayload,
+};
 
-export interface ImageUnderstandingOcrAdapterSettingsValue {
-  /** A built-in template identifier, or `custom` after the source is edited. */
-  preset: OcrAdapterPresetId;
-  /** Declarative TypeScript. The server parses this as data and never evaluates JavaScript. */
-  source: string;
-  endpoint: string;
-  model: string;
-  credentialConfigured: boolean;
-  pollIntervalMs: number;
-  pollTimeoutMs: number;
-}
-
-export interface ImageUnderstandingSettingsValue {
-  routing: ImageUnderstandingRouting;
-  engine: ImageUnderstandingEngine;
-  ocrProvider: ImageUnderstandingOcrProvider;
-  glm: {
-    endpoint: string;
-    model: string;
-    credentialConfigured: boolean;
-  };
-  paddle: {
-    endpoint: string;
-    model: string;
-    credentialConfigured: boolean;
-    pollIntervalMs: number;
-    pollTimeoutMs: number;
-  };
-  ocrAdapter: ImageUnderstandingOcrAdapterSettingsValue;
-  multimodal: {
-    provider: string;
-    model: string;
-  };
-}
-
-export interface ImageUnderstandingDescribeValue {
-  revision: number;
-  value: ImageUnderstandingSettingsValue;
-}
-
-export interface ImageUnderstandingSettingsPatch {
-  routing?: ImageUnderstandingRouting;
-  engine?: ImageUnderstandingEngine;
-  ocrProvider?: ImageUnderstandingOcrProvider;
-  glm?: {
-    endpoint?: string;
-    model?: string;
-    /** Omit or use an empty string to retain the current secret; null removes it. */
-    apiKey?: string | null;
-  };
-  paddle?: {
-    endpoint?: string;
-    model?: string;
-    /** Omit or use an empty string to retain the current secret; null removes it. */
-    apiKey?: string | null;
-    pollIntervalMs?: number;
-    pollTimeoutMs?: number;
-  };
-  ocrAdapter?: {
-    preset?: OcrAdapterPresetId;
-    source?: string;
-    endpoint?: string;
-    model?: string;
-    /** Omit or use an empty string to retain the active adapter credential; null removes it. */
-    apiKey?: string | null;
-    pollIntervalMs?: number;
-    pollTimeoutMs?: number;
-  };
-  multimodal?: {
-    provider?: string;
-    model?: string;
-  };
-}
-
-export interface ImageUnderstandingUpdatePayload {
-  patch: ImageUnderstandingSettingsPatch;
-  expectedRevision?: number;
-}
-
-/** Canonical attachment-neutral settings names; the wire endpoint remains stable. */
-export type AttachmentUnderstandingRouting = ImageUnderstandingRouting;
-export type AttachmentUnderstandingEngine = ImageUnderstandingEngine;
-export type AttachmentUnderstandingOcrProvider = ImageUnderstandingOcrProvider;
-export type AttachmentUnderstandingSettingsValue = ImageUnderstandingSettingsValue;
-export type AttachmentUnderstandingDescribeValue = ImageUnderstandingDescribeValue;
-export type AttachmentUnderstandingSettingsPatch = ImageUnderstandingSettingsPatch;
-export type AttachmentUnderstandingUpdatePayload = ImageUnderstandingUpdatePayload;
+/** Legacy image-specific names retained on the unchanged Pi wire contract. */
+export type ImageUnderstandingRouting = AttachmentUnderstandingRouting;
+export type ImageUnderstandingEngine = AttachmentUnderstandingEngine;
+export type ImageUnderstandingOcrProvider = AttachmentUnderstandingOcrProvider;
+export type ImageUnderstandingOcrAdapterSettingsValue =
+  AttachmentUnderstandingOcrAdapterSettingsValue;
+export type ImageUnderstandingSettingsValue = AttachmentUnderstandingSettingsValue;
+export type ImageUnderstandingDescribeValue = AttachmentUnderstandingDescribeValue;
+export type ImageUnderstandingSettingsPatch = AttachmentUnderstandingSettingsPatch;
+export type ImageUnderstandingUpdatePayload = AttachmentUnderstandingUpdatePayload;
 
 export interface PiAgentSettingsPatch {
   systemPrompt?: string;

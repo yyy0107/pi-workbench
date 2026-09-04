@@ -8,6 +8,7 @@ import { PI_AGENT_RUNTIME_DESCRIPTOR } from "@workbench/agent-runtime-pi-shared/
 
 import { usePiSessionManager } from "../runtime/context";
 import { useBoundPiAgentCommandCatalog } from "./command-catalog";
+import { createPiAgentRuntimeCapabilities } from "./capabilities";
 import { createPiAgentThreadStore, createPiWorkspaceFileSearchPort } from "./thread-store";
 
 /** Bind a nested conversation to one Pi session without changing global selection. */
@@ -18,6 +19,7 @@ export function PiBoundSessionProvider({
   const manager = usePiSessionManager();
   const session = manager.session(sessionId);
   const commands = useBoundPiAgentCommandCatalog(manager, sessionId);
+  const capabilities = useMemo(() => createPiAgentRuntimeCapabilities(manager), [manager]);
   const threadStore = useMemo(() => createPiAgentThreadStore(manager), [manager]);
   const workspaceFiles = useMemo(() => createPiWorkspaceFileSearchPort(manager), [manager]);
 
@@ -34,6 +36,7 @@ export function PiBoundSessionProvider({
         id={PI_AGENT_RUNTIME_DESCRIPTOR.id}
         threadId={sessionId}
         commands={commands}
+        capabilities={capabilities}
         threadStore={threadStore}
         workspaceFiles={workspaceFiles}
       >

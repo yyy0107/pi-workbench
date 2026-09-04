@@ -1,6 +1,6 @@
 # Workbench Agent Runtime 边界与 Pi Implementation 重构计划
 
-状态：阶段 1–2 已完成（2026-09-04）；阶段 3–8 未开始。
+状态：阶段 1–3 已完成（2026-09-04）；阶段 4–8 未开始。
 
 本计划是已完成的
 [`assistant-ui-removal-and-custom-runtime-plan.md`](./assistant-ui-removal-and-custom-runtime-plan.md)
@@ -171,7 +171,7 @@ Pi 实现内部的结构性命名调整：
 
 - [x] 阶段 1：建立边界保护（2026-09-04）
 - [x] 阶段 2：移动目录并纠正结构命名（2026-09-04）
-- [ ] 阶段 3：增加最小 Workbench Capability 层
+- [x] 阶段 3：增加最小 Workbench Capability 层（2026-09-04）
 - [ ] 阶段 4：迁移已经与 Pi 无关的通用扩展
 - [ ] 阶段 5：迁移 Workspace / Host 垂直切片
 - [ ] 阶段 6：迁移会话级通用能力
@@ -272,11 +272,21 @@ Desktop 使用同一序列，并在末尾追加 `workbench.desktop-runtime-lifec
 
 ### 6.3 阶段 3：最小 Workbench Capability 层
 
-- [ ] 扩展 Runtime Environment 与 provider props。
-- [ ] 定义通用 DTO、窄能力接口、hooks 和 capability error。
-- [ ] `PiAgentRuntimeProvider` 使用现有 facade/RPC 组装 capabilities。
-- [ ] Pi facade 暂时作为实现内部桥接；消费者迁完后才删除无用 export。
-- [ ] 每个 capability 增加一个最小 contract/projection 测试，不建立 registry。
+- [x] 扩展 Runtime Environment 与 provider props。
+- [x] 定义通用 DTO、窄能力接口、hooks 和 capability error。
+- [x] `PiAgentRuntimeProvider` 使用现有 facade/RPC 组装 capabilities。
+- [x] Pi facade 暂时作为实现内部桥接；消费者迁完后才删除无用 export。
+- [x] 每个 capability 增加一个最小 contract/projection 测试，不建立 registry。
+
+验证记录：
+
+- Attachment Understanding、Host、Agent Runtime Contracts/Client、Pi Protocol/Client 共 6 个受影响
+  package 的定向 typecheck 通过。
+- Agent Runtime Client 24 项与 Pi Client 276 项测试通过；新增投影测试覆盖 8 个 capability、缺失能力
+  和 Pi error 到 Workbench error 的映射。
+- `pnpm check:workspace-dependencies`、Shell/Core dependency boundary tests 与 `pnpm lint` 通过。
+- `pnpm build` 通过 Runtime Node、Web、Desktop Renderer 与 Desktop Electron artifact 组合。
+- 本阶段改动作为独立提交提交；按验证策略未运行 Browser/E2E，因为没有 UI 交互或渲染变化。
 
 ### 6.4 阶段 4：迁移无 Pi 语义的通用扩展
 
