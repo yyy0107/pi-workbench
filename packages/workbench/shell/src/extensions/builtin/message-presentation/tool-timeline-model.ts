@@ -9,10 +9,6 @@ import type {
   DataPresentationDefinition,
   ToolPresentationDefinition,
 } from "@workbench/extension-sdk";
-import {
-  legacyDataPresentationPart,
-  legacyToolPresentationPart,
-} from "../../../assistant-ui/renderer-compat";
 
 export type ToolTimelineStepKind = "thinking" | "read" | "ran" | "edited" | "searched" | "used";
 
@@ -36,7 +32,7 @@ export type TimelineSourceBlock = ReasoningBlock | ToolCallBlock | DataBlock;
 
 export type ToolTimelineEntry =
   | {
-      kind: "part";
+      kind: "block";
       block: TimelineSourceBlock;
       sourceIndex: number;
     }
@@ -62,23 +58,21 @@ export function dataTimelineState(
     ? presentations[block.name]
     : undefined;
   if (!presentation || presentation.display !== "timeline") return undefined;
-  const part = legacyDataPresentationPart(block);
-
   try {
-    if (presentation.isVisible && !presentation.isVisible(part)) return undefined;
+    if (presentation.isVisible && !presentation.isVisible(block)) return undefined;
   } catch {
     return undefined;
   }
 
   let active = false;
   try {
-    active = presentation.isActive?.(part) === true;
+    active = presentation.isActive?.(block) === true;
   } catch {
     // Optional presentation chrome must not hide an otherwise valid data step.
   }
 
   try {
-    const key = presentation.group?.getKey(part)?.trim();
+    const key = presentation.group?.getKey(block)?.trim();
     return {
       active,
       ...(key && presentation.group ? { group: { ...presentation.group, key } } : {}),
@@ -120,7 +114,7 @@ export function activeToolPresentationLabel(
   if (!presentation.getActiveLabel) return presentation.activeLabel;
 
   try {
-    const activeLabel = presentation.getActiveLabel(legacyToolPresentationPart(block));
+    const activeLabel = presentation.getActiveLabel(block);
     if (activeLabel === undefined) return presentation.activeLabel;
     return activeLabel;
   } catch {
@@ -152,7 +146,7 @@ export function timelineEntries(blocks: readonly TimelineSourceBlock[]): ToolTim
   blocks.forEach((block, sourceIndex) => {
     const batchId = block.kind === "tool-call" ? block.parallelGroup?.key : undefined;
     if (!batchId || block.kind !== "tool-call") {
-      entries.push({ kind: "part", block, sourceIndex });
+      entries.push({ kind: "block", block, sourceIndex });
       return;
     }
 
@@ -184,7 +178,7 @@ function registeredToolChip(
   if (!presentation?.summarize) return undefined;
 
   try {
-    const summary = presentation.summarize(legacyToolPresentationPart(block));
+    const summary = presentation.summarize(block);
     if (typeof summary === "string") return summary.trim() ? compact(summary) : undefined;
     return summary;
   } catch {

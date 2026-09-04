@@ -28,7 +28,7 @@ Automation 的定义、存储和调度位于
 flowchart TD
   UI["Browser / Workbench UI"] --> HEADLESS["Workbench AgentRuntime / Session"]
   HEADLESS --> CM["PiSessionManager / PiClientSession"]
-  UI -.->|"temporary renderer compatibility"| PORT["WorkbenchAgentRuntimeAdapter"]
+  UI -.->|"temporary message-row compatibility"| PORT["WorkbenchAgentRuntimeAdapter"]
   PORT --> CM
   CM --> ASSEMBLER["Pi Conversation Assembler"]
   ASSEMBLER --> SNAPSHOT["Workbench ConversationSnapshot"]
@@ -877,21 +877,21 @@ sessionId
   再调用 read，避免每次完整上下文快照都在 WebSocket 中广播。
 
 只有 `prompt-composition` mux 摘要会由 `PiClientSession` 投影为最多三个名为
-`workbench.pi-context-trace-event` 的 assistant-ui `data` Part，分别展示非空的 System Prompt、Tools
-和 Extensions 注入状态，并与 `reasoning` 和 `tool-call`
+`workbench.pi-context-trace-event` 的 Workbench Data Block，分别展示非空的 System Prompt、Tools
+和 Extensions 注入状态，并与 Reasoning/Tool Call Block
 进入同一个 Assistant 消息工作时间线；Round、Run、Turn、Provider、模型输出、工具执行等 trace
-事件只留在审计界面，不进入聊天 Parts。哪些 Part 存在由最后注册的 `context` 观察器在 Pi 真实模型调用
+事件只留在审计界面，不进入聊天 Blocks。哪些 Block 存在由最后注册的 `context` 观察器在 Pi 真实模型调用
 边界写入 `promptInjections`；Tools 使用当次实际 active tool 清单，客户端只验证并渲染该列表，不再从
 `promptResources` 反推注入项。Skills、工作目录与 context files 已包含在完整 System Prompt 中，因此
-不再重复投影为聊天 Part，但仍保留在 Context Trace 审计资源中。Pi 的累计式 `message_update` 每次重建原生 Parts 时，客户端按
-事件被观测时的原生 Part 边界重新插入 Prompt Data Part。冷启动时，客户端把 `session.history` 与
+不再重复投影为聊天 Block，但仍保留在 Context Trace 审计资源中。Pi 的累计式 `message_update` 每次重建原生内容时，客户端按
+事件被观测时的原生内容边界重新插入 Prompt Data Block。冷启动时，客户端把 `session.history` 与
 `session.contextTrace.promptParts` 并行加载，再以持久摘要关联的 AssistantMessage timestamp 把 Prompt
-Part 插到对应原生消息内容之前；分页回填、分支切换和运行结束后的 rebaseline 都复用同一个投影。
+Block 插到对应原生消息内容之前；分页回填、分支切换和运行结束后的 rebaseline 都复用同一个投影。
 `prompt-composition` 摘要携带当前工作目录、每一层 System Prompt 的注入类型、作用域和文件路径，以及最终 Skill、
 Extension、context-file 路径和实际提供给模型的 tool 清单及计数，供 Data Renderer 直接展示。来源可以区分 Pi
 内置默认提示词、用户目录或项目目录的 `SYSTEM.md`、追加提示词及临时覆盖；完整 system prompt、工具
 Schema、context-file 正文、provider payload 和其它 trace 详情仍只存在审计 journal，不会复制进
-assistant-ui 消息状态。用户展开 System Prompt Part 时，Renderer 通过现有 read RPC 按需读取 journal
+临时消息兼容投影。用户展开 System Prompt Block 时，Renderer 通过现有 read RPC 按需读取 journal
 中的完整详情并展示该事件捕获的完整最终正文。
 
 浏览器侧对应的 typed helpers 是 `listPiRpcSessionContextTraceActivations()`、
@@ -1171,7 +1171,8 @@ packages/agent-runtime/adapters/pi/
   Conversation Snapshot 和 per-node observable。`PiSessionManager` 同时通过稳定 observable 暴露通用
   `AgentRuntime` 的 thread catalog、current selection、catalog actions 和同一 Session cache；本地
   `sessionId` 在 draft promotion 前后保持稳定，晋升后的 durable `threadId` 独立用于路由。`assistant-ui/`
-  只保留从当前 Session 派生的只读消息/renderer 兼容投影。Provider 以 `RuntimeProvider` 安装唯一
+  只保留从当前 Session 派生的只读消息行兼容投影；Extension Renderer 已直接消费 Workbench Node/Block。
+  Provider 以 `RuntimeProvider` 安装唯一
   manager，再把同一当前 Session 投影给临时兼容 Provider，不建立第二个 reducer、连接、SessionManager
   或消息 store。该 package
   还拥有后台 thread presentation、通用 extras 和 callback 映射，以及 Pi manager、命令目录、workspace

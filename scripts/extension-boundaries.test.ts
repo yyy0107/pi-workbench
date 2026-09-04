@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -14,6 +14,7 @@ const PI_BUILTIN_ROOT = resolve(
 const BUILTIN_ROOTS = [SHELL_BUILTIN_ROOT, PI_BUILTIN_ROOT];
 const SHARED_BUILTIN_TARGETS = new Set([resolve(PI_BUILTIN_ROOT, "project-trust-dialog-copy")]);
 const INSTALLABLE_ROOT = resolve(SHELL_SOURCE_ROOT, "extensions/installable");
+const BUSINESS_EXTENSION_ROOTS = [...BUILTIN_ROOTS, INSTALLABLE_ROOT].filter(existsSync);
 const COMPONENT_ROOTS = [
   resolve(SHELL_SOURCE_ROOT, "assistant-ui"),
   resolve(SHELL_SOURCE_ROOT, "chat"),
@@ -178,7 +179,7 @@ test("built-in contributions do not import sibling feature internals", () => {
 test("all business extension modules use only public SDK contracts and Host runtime hooks", () => {
   const violations: string[] = [];
 
-  for (const sourcePath of [...BUILTIN_ROOTS, INSTALLABLE_ROOT].flatMap(sourceFiles)) {
+  for (const sourcePath of BUSINESS_EXTENSION_ROOTS.flatMap(sourceFiles)) {
     const sourceRelative = relative(PROJECT_ROOT, sourcePath).replaceAll("\\", "/");
     for (const specifier of moduleSpecifiers(sourcePath)) {
       if (
@@ -214,7 +215,7 @@ test("production consumers import contracts from SDK instead of the Host runtime
 });
 
 test("extension definitions use the pure authoring entry", () => {
-  const violations = [...BUILTIN_ROOTS, INSTALLABLE_ROOT].flatMap((root) =>
+  const violations = BUSINESS_EXTENSION_ROOTS.flatMap((root) =>
     sourceFiles(root)
       .filter((sourcePath) => /(?:^|[\\/])extension\.tsx?$/.test(sourcePath))
       .flatMap((sourcePath) => {

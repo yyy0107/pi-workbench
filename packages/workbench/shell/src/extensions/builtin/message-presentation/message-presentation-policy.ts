@@ -16,8 +16,8 @@ export function messageTextPresentation(
 }
 
 interface ReferenceableMessagePart {
-  readonly type: string;
-  readonly mimeType?: string;
+  readonly kind: string;
+  readonly mediaType?: string;
 }
 
 /** Returns the one-based, per-kind reference shown on user attachment parts. */
@@ -27,9 +27,9 @@ export function messageAttachmentReference(
 ): AttachmentReference | undefined {
   const target = parts[index];
   const kind =
-    target?.type === "image"
+    target?.kind === "file" && target.mediaType?.startsWith("image/")
       ? "image"
-      : target?.type === "file" && target.mimeType === "application/pdf"
+      : target?.kind === "file" && target.mediaType === "application/pdf"
         ? "pdf"
         : undefined;
   if (!kind) return undefined;
@@ -38,8 +38,8 @@ export function messageAttachmentReference(
   for (let partIndex = 0; partIndex <= index; partIndex += 1) {
     const part = parts[partIndex];
     if (
-      (kind === "image" && part?.type === "image") ||
-      (kind === "pdf" && part?.type === "file" && part.mimeType === "application/pdf")
+      (kind === "image" && part?.kind === "file" && part.mediaType?.startsWith("image/")) ||
+      (kind === "pdf" && part?.kind === "file" && part.mediaType === "application/pdf")
     ) {
       sequence += 1;
     }

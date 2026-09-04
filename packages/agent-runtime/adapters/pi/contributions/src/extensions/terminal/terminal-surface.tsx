@@ -2,7 +2,6 @@
 
 import "@xterm/xterm/css/xterm.css";
 
-import { useAuiState } from "@assistant-ui/react";
 import { FitAddon } from "@xterm/addon-fit";
 import {
   Terminal,
@@ -11,7 +10,8 @@ import {
   type ITheme,
 } from "@xterm/xterm";
 import { SquareIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useAgentRuntime, useCurrentSession } from "@workbench/agent-runtime-client";
 import { createRuntimeWebSocketFactory, type RuntimeWebSocket } from "@workbench/host-client";
 import {
   createTerminalFrameWriter,
@@ -49,7 +49,6 @@ import {
 import {
   bashCommandFromArgs,
   findBashToolCall,
-  findBashToolCallMessage,
   terminalOutputAppendDelta,
   terminalResultLines,
 } from "./terminal-tool-transcript";
@@ -70,6 +69,43 @@ type ToolConnectionStatus =
   | { phase: "exited"; exitCode: number }
   | { phase: "fallback" }
   | { phase: "error" };
+
+function useCurrentBashToolCall(toolCallId: string) {
+  const runtime = useAgentRuntime();
+  const current = useCurrentSession();
+  const session = current.sessionId ? runtime.session(current.sessionId) : undefined;
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      if (!session) return () => {};
+      let nodeSubscriptions: (() => void)[] = [];
+      const subscribeNodes = () => {
+        nodeSubscriptions.forEach((dispose) => dispose());
+        nodeSubscriptions = session.snapshot
+          .getSnapshot()
+          .nodeKeys.map((key) => session.node(key).subscribe(listener));
+      };
+      subscribeNodes();
+      const disposeSnapshot = session.snapshot.subscribe(() => {
+        subscribeNodes();
+        listener();
+      });
+      return () => {
+        disposeSnapshot();
+        nodeSubscriptions.forEach((dispose) => dispose());
+      };
+    },
+    [session],
+  );
+  const getSnapshot = useCallback(() => {
+    if (!session) return undefined;
+    const nodes = session.snapshot
+      .getSnapshot()
+      .nodeKeys.flatMap((key) => session.node(key).getSnapshot() ?? []);
+    return findBashToolCall(nodes, toolCallId);
+  }, [session, toolCallId]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
 
 const TERMINAL_MONOSPACE_FALLBACK =
   'ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
@@ -275,26 +311,22 @@ function TerminalTranscriptSurface({
   const [connection, setConnection] = useState<ToolConnectionStatus>({ phase: "connecting" });
   const [interactionState, setInteractionState] = useState<TerminalInteractionState>("none");
   const { piSessionId, toolCallId } = target;
-  const message = useAuiState((state) =>
-    findBashToolCallMessage(state.thread.messages, toolCallId),
-  );
-  const part = message ? findBashToolCall([message], toolCallId) : undefined;
-  const command = bashCommandFromArgs(part?.args) ?? target.command;
-  const output = terminalResultLines(part?.result ?? part?.artifact).join("\n");
-  const statusType = message?.status.type;
-  const running = statusType === "running" && part?.result === undefined;
-  const userInputRequested = running && workbenchBashInputFromArgs(part?.args)?.source === "user";
-  const failed =
-    Boolean(part?.isError) || (statusType === "incomplete" && part?.result === undefined);
+  const block = useCurrentBashToolCall(toolCallId);
+  const command = bashCommandFromArgs(block?.arguments) ?? target.command;
+  const output = terminalResultLines(block?.result ?? block?.error?.message).join("\n");
+  const running = block?.status === "running";
+  const userInputRequested =
+    running && workbenchBashInputFromArgs(block?.arguments)?.source === "user";
+  const failed = block?.status === "error" || block?.status === "incomplete";
   useEffect(() => {
     synchronizeVisibilityRef.current();
   }, [isVisible]);
 
-  const statusLabel = !part
+  const statusLabel = !block
     ? t("extensions.terminal.transcript.unavailable")
     : failed
       ? t("extensions.terminal.transcript.failed")
-      : statusType === "requires-action"
+      : block.status === "requires-action"
         ? t("extensions.terminal.transcript.waiting")
         : running
           ? t("extensions.terminal.transcript.running")

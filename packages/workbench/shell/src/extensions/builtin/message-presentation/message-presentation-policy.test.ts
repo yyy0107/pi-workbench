@@ -59,12 +59,12 @@ test("renders user text through the shared Composer document presentation", () =
 
 test("numbers image and PDF references independently in message order", () => {
   const parts = [
-    { type: "text" },
-    { type: "image" },
-    { type: "file", mimeType: "application/pdf" },
-    { type: "image" },
-    { type: "file", mimeType: "text/plain" },
-    { type: "file", mimeType: "application/pdf" },
+    { kind: "text" },
+    { kind: "file", mediaType: "image/png" },
+    { kind: "file", mediaType: "application/pdf" },
+    { kind: "file", mediaType: "image/jpeg" },
+    { kind: "file", mediaType: "text/plain" },
+    { kind: "file", mediaType: "application/pdf" },
   ];
 
   assert.equal(messageAttachmentReference(parts, 0), undefined);

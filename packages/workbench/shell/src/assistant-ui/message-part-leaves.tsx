@@ -8,7 +8,6 @@ import type {
 import { ExternalLinkIcon } from "lucide-react";
 
 import { ScrollCompensatedDetails } from "../elements/scroll-compensated-details";
-import { LegacyEnrichedToolDataRenderer, LegacyMessagePartRendererHost } from "./renderer-compat";
 
 type SharedMessagePartLeaf = Extract<
   EnrichedPartState,
@@ -124,7 +123,7 @@ export function MessagePartLeaf({
   part,
   sourceFallbackLabel,
   sourceVariant = "plain",
-  toolFallback = DefaultMessageToolFallback,
+  toolFallback: ToolFallback = DefaultMessageToolFallback,
 }: Readonly<{
   dataFallback?: DataMessagePartComponent;
   part: SharedMessagePartLeaf;
@@ -142,21 +141,16 @@ export function MessagePartLeaf({
         />
       );
     case "tool-call":
+      return <ToolFallback {...part} />;
     case "data":
-      return (
-        <LegacyEnrichedToolDataRenderer
-          part={part}
-          toolFallback={toolFallback}
-          dataFallback={DataFallback}
-        />
-      );
+      return <DataFallback {...part} />;
     case "audio":
       return <audio controls src={messageAudioSource(part)} className="my-2 max-w-full" />;
     case "generative-ui": {
       const fallback = (
         <DataFallback type="data" name="generative-ui" data={part.spec} status={part.status} />
       );
-      return <LegacyMessagePartRendererHost part={part} fallback={fallback} />;
+      return fallback;
     }
   }
 }

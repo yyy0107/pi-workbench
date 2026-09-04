@@ -28,7 +28,7 @@ export interface ExtensionContext {
   readonly openers: OpenerRegistry;
   /** 注册 Composer 内的结构化命令 Token 及其提交期编译行为。 */
   readonly composerCommands: ComposerCommandRegistry;
-  /** 注册整条消息、可叠加消息 Part、按名称匹配的 Tool/Data Renderer 和时间线展示描述。 */
+  /** 注册整条消息、可叠加 Message Block、按名称匹配的 Tool/Data Renderer 和时间线展示描述。 */
   readonly renderers: RendererRegistry;
   /** 注册共享设置面板中的分区和功能自有设置项。 */
   readonly settings: SettingsRegistry;

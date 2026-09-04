@@ -17,24 +17,24 @@ const zhCNFormatters = {
     new Intl.RelativeTimeFormat("zh-CN", { numeric: "auto" }).format(value, unit),
 };
 
-test("keeps only the last text part outside completed work", () => {
+test("keeps only the last text block outside completed work", () => {
   assert.equal(
     completedWorkBoundary([
-      { type: "reasoning" },
-      { type: "text" },
-      { type: "tool-call" },
-      { type: "text" },
+      { kind: "reasoning" },
+      { kind: "text" },
+      { kind: "tool-call" },
+      { kind: "text" },
     ]),
     3,
   );
 });
 
-test("includes every part when a completed turn has no text body", () => {
-  assert.equal(completedWorkBoundary([{ type: "reasoning" }, { type: "tool-call" }]), 2);
+test("includes every block when a completed turn has no text body", () => {
+  assert.equal(completedWorkBoundary([{ kind: "reasoning" }, { kind: "tool-call" }]), 2);
 });
 
-test("folds every assistant work part before the final answer", () => {
-  const boundary = completedWorkBoundary([{ type: "data" }]);
+test("folds every assistant work block before the final answer", () => {
+  const boundary = completedWorkBoundary([{ kind: "data" }]);
 
   assert.equal(partBelongsToCompletedWork("user", 0, boundary), false);
   assert.equal(partBelongsToCompletedWork("assistant", 0, boundary), true);

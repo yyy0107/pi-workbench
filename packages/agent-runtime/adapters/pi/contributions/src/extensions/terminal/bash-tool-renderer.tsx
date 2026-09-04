@@ -1,25 +1,19 @@
 "use client";
 
-import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { KeyboardIcon, SquareTerminalIcon } from "lucide-react";
 
+import type { ToolRendererComponent } from "@workbench/extension-sdk";
 import { TooltipIconButton } from "@workbench/shell/assistant-ui";
 import { useRightWorkspace, useWorkspaceContext } from "@workbench/shell/right-workspace/react";
-import { ToolFallback } from "@workbench/shell/assistant-ui";
 import { TerminalBlock } from "@workbench/shell/elements";
 import { Button } from "@workbench/shell/ui";
 import { usePiI18n } from "../../i18n";
 import { useWorkbenchAgentThreadId } from "@workbench/agent-runtime-client/context";
 import { normalizeTerminalTabTitle } from "@workbench/terminal-client";
-import type { WorkbenchBashInput } from "@workbench/terminal-contracts";
+import { workbenchBashInputFromArgs, type WorkbenchBashInput } from "@workbench/terminal-contracts";
 
-import { terminalResultLines } from "./terminal-tool-transcript";
+import { bashCommandFromArgs, terminalResultLines } from "./terminal-tool-transcript";
 import { revealTerminalTranscript, TERMINAL_SURFACE_TITLE } from "./terminal-workspace-service";
-
-interface BashToolArgs {
-  command?: string;
-  input?: WorkbenchBashInput;
-}
 
 export interface BashTerminalProps {
   toolCallId: string;
@@ -88,22 +82,19 @@ export function BashTerminal({ toolCallId, command, result, running, input }: Ba
   );
 }
 
-export const BashToolRenderer: ToolCallMessagePartComponent<BashToolArgs, unknown> = (props) => {
-  const { args, result, artifact, status, isError } = props;
-  const failed = isError || status.type === "incomplete";
-  const requiresAction = status.type === "requires-action";
+export const BashToolRenderer: ToolRendererComponent = ({ block, fallback }) => {
+  const failed = block.status === "error" || block.status === "incomplete";
+  const requiresAction = block.status === "requires-action";
 
-  if (failed || requiresAction) {
-    return <ToolFallback {...props} />;
-  }
+  if (failed || requiresAction) return fallback;
 
   return (
     <BashTerminal
-      toolCallId={props.toolCallId}
-      command={args.command}
-      result={result ?? artifact}
-      running={status.type !== "complete"}
-      input={args.input}
+      toolCallId={block.callId}
+      command={bashCommandFromArgs(block.arguments)}
+      result={block.result}
+      running={block.status === "running"}
+      input={workbenchBashInputFromArgs(block.arguments)}
     />
   );
 };

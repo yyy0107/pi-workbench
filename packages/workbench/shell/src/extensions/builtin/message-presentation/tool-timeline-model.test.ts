@@ -65,12 +65,12 @@ test("maps reasoning and common Pi tools to compact timeline steps", () => {
   );
 });
 
-test("admits only data parts that opt into the shared work timeline", () => {
+test("admits only Data Blocks that opt into the shared work timeline", () => {
   const presentations = {
     "workbench.progress": {
       display: "timeline",
-      isVisible: (part) => part.data !== "hidden",
-      isActive: (part) => part.data === "running",
+      isVisible: (block) => block.data !== "hidden",
+      isActive: (block) => block.data === "running",
       group: {
         getKey: () => "context-1",
         label: "Context composed",
@@ -95,7 +95,7 @@ test("admits only data parts that opt into the shared work timeline", () => {
 
 test("keeps a data step in sequence with reasoning and tools", () => {
   const recognition = data("workbench.image-recognition", { status: "succeeded" });
-  const parts = [
+  const blocks = [
     {
       key: "reasoning-block",
       kind: "reasoning",
@@ -106,8 +106,8 @@ test("keeps a data step in sequence with reasoning and tools", () => {
   ];
 
   assert.deepEqual(
-    timelineEntries(parts).map((entry) =>
-      entry.kind === "part"
+    timelineEntries(blocks).map((entry) =>
+      entry.kind === "block"
         ? entry.block.kind === "data"
           ? entry.block.name
           : entry.block.kind === "reasoning"
@@ -118,7 +118,7 @@ test("keeps a data step in sequence with reasoning and tools", () => {
     ["reasoning", "workbench.image-recognition", "read"],
   );
   assert.deepEqual(
-    timelineSteps(parts).map((step) => step.kind),
+    timelineSteps(blocks).map((step) => step.kind),
     ["thinking", "data", "read"],
   );
 });
@@ -150,8 +150,8 @@ test("uses an exact registered tool presentation without changing fallback class
     label: "Deployed",
     activeLabel: "Deploying",
     icon: WrenchIcon,
-    summarize: (part) => {
-      const args = part.args as { environment?: unknown };
+    summarize: (block) => {
+      const args = block.arguments as { environment?: unknown };
       return typeof args.environment === "string" ? args.environment : undefined;
     },
   } satisfies ToolPresentationDefinition;
@@ -186,7 +186,7 @@ test("preserves a localizable registered tool summary until the timeline renders
 });
 
 test("resolves a stream-safe active label from partial tool arguments", () => {
-  const part = tool("ask_user", { questions: [{ id: "partial" }] });
+  const block = tool("ask_user", { questions: [{ id: "partial" }] });
   const presentation = {
     label: "Asked user",
     activeLabel: "Asking user",
@@ -195,11 +195,11 @@ test("resolves a stream-safe active label from partial tool arguments", () => {
   } satisfies ToolPresentationDefinition;
 
   assert.deepEqual(
-    activeToolPresentationLabel(part, presentation),
+    activeToolPresentationLabel(block, presentation),
     defineMessage("extensions.workspaceBrowser.navigateFailed"),
   );
   assert.equal(
-    activeToolPresentationLabel(part, {
+    activeToolPresentationLabel(block, {
       ...presentation,
       getActiveLabel: () => {
         throw new Error("broken active label");
@@ -269,7 +269,7 @@ test("groups only adjacent tools carrying the same parallel batch metadata", () 
   assert.equal(entries.length, 5);
   assert.deepEqual(
     entries.map((entry) =>
-      entry.kind === "part"
+      entry.kind === "block"
         ? entry.block.kind === "reasoning"
           ? "reasoning"
           : entry.block.kind === "data"

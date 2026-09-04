@@ -125,7 +125,7 @@ test("AI presentation leaves do not read session, transport, or external store s
   }
 });
 
-test("fallback and built-in message renderers share the stateless leaf layer", () => {
+test("fallback and built-in message renderers share the Workbench Block host and leaves", () => {
   const owners = [
     path.join(SOURCE_ROOT, "chat", "message-parts.tsx"),
     path.join(
@@ -140,20 +140,17 @@ test("fallback and built-in message renderers share the stateless leaf layer", (
   for (const owner of owners) {
     const source = readFileSync(owner, "utf8");
     assert.ok(
-      importSources(owner).some((source) => source.endsWith("assistant-ui/message-part-leaves")),
+      importSources(owner).some((source) => source.endsWith("/renderers/message-blocks")),
       packageRelative(owner),
     );
-    assert.doesNotMatch(source, /\bJSON\.stringify\s*\(/u, packageRelative(owner));
-    assert.doesNotMatch(source, /\^https\?\s*:/u, packageRelative(owner));
-    assert.doesNotMatch(source, /\bcomponents\s*=/u, packageRelative(owner));
+    assert.ok(
+      importSources(owner).includes("@workbench/extension-host/hosts/renderer-host"),
+      packageRelative(owner),
+    );
+    assert.doesNotMatch(
+      source,
+      /@assistant-ui\/|\b(?:MessagePrimitive|useAui)\w*/u,
+      packageRelative(owner),
+    );
   }
-
-  const leafSource = readFileSync(
-    path.join(SOURCE_ROOT, "assistant-ui", "message-part-leaves.tsx"),
-    "utf8",
-  );
-  assert.doesNotMatch(
-    leafSource,
-    /\b(?:useAui|useStore|useSession|useTransport|useWorkbenchAgent)\w*\s*\(/u,
-  );
 });

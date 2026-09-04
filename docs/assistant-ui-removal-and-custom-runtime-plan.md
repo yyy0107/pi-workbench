@@ -1,6 +1,6 @@
 # Workbench 移除 assistant-ui 与自有会话 Runtime 迁移计划
 
-状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1–6 已完成，下一步进入 Phase 7（2026-09-03）
+状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1–7 已完成，下一步进入 Phase 8（2026-09-03）
 
 ## 0. 决策摘要
 
@@ -915,16 +915,17 @@ Shell 消息区域开始按 vertical slice 消费这些 hooks。
 也直接从 Block 布局生成。`FileBlock.sourceType` 和文档型 `SourceBlock` 保留了安全下载与文档引用所需语义。
 
 4C 将 partial/raw arguments、running/complete/error/requires-action、timing 和并行分组统一投影到
-`ToolCallBlock`，tool/data timeline、chips、diff 和 activity 直接消费 Workbench Block；现有 tool/data
-扩展 renderer 与交互动作只经 `assistant-ui/renderer-compat.tsx` 这一处临时入口复用。
+`ToolCallBlock`，tool/data timeline、chips、diff 和 activity 直接消费 Workbench Block；当时尚未迁移的
+tool/data 扩展 renderer 与交互动作只经 `assistant-ui/renderer-compat.tsx` 这一处临时入口复用，该
+renderer 入口已在 Phase 7 删除。
 
 4D 用 Shell 原生 viewport hook 替换外层 Thread root、viewport、empty 和 scroll-to-bottom primitives；
 主会话与 Side Chat 共用 bottom-follow、用户滚动锁、prepend scroll-height anchor，并复用现有
 `ThreadScrollState` 持久化位置。外层 Message root primitive 同步删除。
 
-当前 assistant-ui 兼容入口只继续承担 Phase 7 前的扩展 renderer/message presentation scope；Thread
-List、Current Session 和路由已在 Phase 6 改读 Headless Runtime。后续切片在原位删除剩余兼容调用，
-不建立第二套 store。
+Phase 7 完成后，extension renderer/message presentation 已直接消费 Headless Node/Block；
+`assistant-ui/renderer-compat.tsx` 只剩外层 MessageByIndex seat，留待 Phase 8 随 assistant-ui runtime
+一起删除，不建立第二套 store。
 
 ### Phase 5：Composer、附件和消息 Actions（已完成，2026-09-03）
 
@@ -1002,7 +1003,7 @@ Sidebar、Header、归档设置和 Pi 的 Workspace、Git、Terminal、Model、T
 通过 Shell 366 项、Pi Contributions 226 项测试，以及全仓 typecheck、workspace dependency/runtime host
 ownership 检查、受影响文件 lint/format 和 Web/Desktop/Electron 生产构建。
 
-### Phase 7：Extension SDK、Host 和 Pi Contributions
+### Phase 7：Extension SDK、Host 和 Pi Contributions（已完成，2026-09-03）
 
 工作：
 
@@ -1018,6 +1019,25 @@ ownership 检查、受影响文件 lint/format 和 Web/Desktop/Electron 生产�
 - 所有工具状态和部分参数仍可渲染；
 - 一个 extension 的卸载不会破坏默认 Message/Block fallback；
 - Pi contribution 只使用 Pi Client 的 public capability。
+
+完成记录：
+
+- Extension SDK 的 Message/Block/Tool/Data renderer contracts 已直接使用 Workbench
+  `UserMessageNode`、`AssistantMessageNode`、`MessageBlock`、`ToolCallBlock` 和 `DataBlock`；predicate
+  registry 从 `parts` 收敛为 `blocks`，SDK 与 Host manifest 均不再依赖 `@assistant-ui/react`；
+- RendererHost 按 Block predicate、精确 Tool/Data 名称、调用方 fallback 的顺序解析，并继续由 extension
+  error boundary 隔离失败；组件测试覆盖 partial raw arguments、running 状态，以及卸载 extension 后恢复
+  默认 fallback；
+- Shell 默认 renderer 和 builtin message presentation 已直接遍历 Workbench Blocks，继续复用既有
+  Markdown、reasoning、tool/data timeline、并行工具、diff、附件、source/citation 与 completed-turn 叶子；
+  renderer compatibility 已缩减为 Phase 8 才删除的外层 MessageByIndex seat；
+- Pi Terminal、Context Trace、Image Understanding 和 Interaction contributions 已改读公开 Node/Block；
+  Terminal transcript 通过公开 Runtime/Session observable 跟踪 Bash Tool Block，不再读取 assistant-ui
+  state。已退役的静态 Toolbox renderer preview API 没有重新引入，只更新仍存在的 authoring recipes 与
+  test fixtures；
+- SDK 27 项、Host 20 项、Shell 366 项、Pi Contributions 226 项及根级 53 项测试通过；全仓
+  typecheck、workspace dependency check、lint/format 与 Web/Desktop/Electron 生产构建通过。根级 boundary
+  test 同步允许已退役的可安装扩展目录不存在，仍对所有实际存在的 builtin/installable roots 执行检查。
 
 ### Phase 8：删除兼容层和依赖
 

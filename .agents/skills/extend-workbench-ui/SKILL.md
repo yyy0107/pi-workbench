@@ -30,7 +30,7 @@ Implement the feature as an extension when it can be independently enabled or re
 - Use a **Command** for an action shared by the command palette, a shortcut, or UI controls.
 - Use a **Composer Command** for a structured command token that changes request compilation; it is separate from a global Command.
 - Use an **Opener** when one contribution needs to open a resource owned by another without importing its surface kind, component, or store.
-- Use a **Renderer** for a complete message presentation, a predicate-matched message Part, an exact-name Tool/Data Part, or its timeline presentation metadata.
+- Use a **Renderer** for a complete message presentation, a predicate-matched Message Block, an exact-name Tool/Data Block, or its timeline presentation metadata.
 - Use **Settings** for a navigation section or a feature-owned preference inside the shared floating settings surface.
 - Use a **Main View** for a transient feature page that replaces the central conversation without adding URL identity or persistent inspector state.
 - Use a **Workspace Surface** contribution for persistent inspector capabilities such as review, explorer, file, browser, and artifact views. RightWorkspace core owns only tabs, layout, scope restoration, persistence, status, and feedback chrome. `workspace.actions` remains its compact toolbar Slot for actions outside a Surface lifecycle.
@@ -87,7 +87,7 @@ When no existing Slot fits, add a typed host Slot first, then register the featu
   - `appearance`: Settings section/item plus `shell.background` contribution;
   - `model-selector`: active model context plus default-model Settings integration;
   - `toolbox`: `sidebar.toolbox` plus a Main View;
-  - `generative-ui`: installable Toolbox metadata plus a predicate-matched Message Part Renderer;
+  - `generative-ui`: installable Toolbox metadata plus a predicate-matched Message Block Renderer;
   - `message-presentation`, `terminal`, and `image-understanding`: Message Renderer, Tool/Data Renderer, and timeline presentation patterns.
 - Check whether the requested id, shortcut, tool name, or data name already exists.
 - Search project-wide global `keydown` listeners before assigning a shortcut. Non-Command listeners may accept extra modifiers and still collide with an otherwise exact Command shortcut.
@@ -181,16 +181,16 @@ When changing Pi transport or session behavior, also run the Pi tests documented
   `packages/workbench/shell/src/extensions/installable/`, never an owner package's
   `src/extensions/builtin/`.
 - Keep Toolbox component placement previews as a faithful, proportionally scaled reproduction of the current Workbench panorama (sidebar, header, conversation, composer, RightWorkspace, status bar, panels, and global overlays). Reuse the same design tokens and surface hierarchy, and highlight the exact typed target as a non-layout overlay instead of falling back to an abstract empty-box diagram.
-- In message placement previews, render concrete system, user, and assistant examples plus representative visible Part states (text, reasoning, tool, data, source, attachment, audio, generative UI, and error). Give `message.before`, `message.actions`, and `message.after` labeled role-specific examples while active so a valid message Slot never collapses into an invisible strip.
+- In message placement previews, render concrete system, user, and assistant examples plus representative visible Block states (text, reasoning, tool, data, source, attachment, and error). Give `message.before`, `message.actions`, and `message.after` labeled role-specific examples while active so a valid message Slot never collapses into an invisible strip.
 - Never deep-import a sibling `<owner-package>/src/extensions/builtin/<feature>`; collaborate through a public Registry, Renderer, Command, Opener, or promoted Service.
 - Localize every new or changed user-visible string, including accessibility text, in co-located `en-US` and `zh-CN` dictionaries. Register `LocalizableText` with `defineMessage(...)` and resolve component copy through the shared i18n API.
 - Register component types, not pre-created React nodes.
 - Never call `register()` during React render.
-- Keep Extension, Panel, Command, Composer Command, Slot contribution, Message Part Renderer, exact-name Renderer/presentation, Settings section/item, Main View, Open Handler, and Workspace Surface identifiers within their documented uniqueness scopes.
+- Keep Extension, Panel, Command, Composer Command, Slot contribution, Message Block Renderer, exact-name Renderer/presentation, Settings section/item, Main View, Open Handler, and Workspace Surface identifiers within their documented uniqueness scopes.
 - Audit both registered Commands and standalone global keyboard listeners before choosing a shortcut.
 - Use `order` only for Slot and Settings contributions. Panel, Command, and Renderer APIs have no numeric priority.
 - Treat tool arguments as partial while streaming; guard missing fields and all status variants.
-- Do not duplicate `messages`, composer content, or `isRunning` in Zustand; derive them from the active browser conversation Runtime.
+- Do not duplicate messages, composer content, or `isRunning` in Zustand; derive them from the active Workbench Agent Runtime.
 - Do not repeat the Panel title bar or close chrome inside Panel content.
 - Do not assume registering a Panel opens it; use PanelService or a Command.
 - Do not target `defaultLocation: "right"` or `panel.right.*` for new features while the current shell uses RightWorkspace instead of a right Panel host.

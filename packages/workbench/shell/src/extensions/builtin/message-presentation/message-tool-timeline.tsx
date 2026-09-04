@@ -33,13 +33,12 @@ import { useOpenerService, useWorkspaceContext } from "../../../right-workspace-
 import { useI18n } from "../../../i18n";
 import { formatCompactDuration } from "../../../format-duration";
 import { cn } from "../../../utils";
-import type { ToolPresentationDefinition } from "@workbench/extension-sdk";
+import type { MessageRendererNode, ToolPresentationDefinition } from "@workbench/extension-sdk";
 import {
-  legacyToolPresentationPart,
-  LegacyToolDataRenderer,
-  useLegacyDataPresentationMap,
-  useLegacyToolPresentationMap,
-} from "../../../assistant-ui/renderer-compat";
+  RendererHost,
+  useDataPresentationMap,
+  useToolPresentationMap,
+} from "@workbench/extension-host/hosts/renderer-host";
 
 import { useMessageDisclosure } from "./message-disclosure-context";
 import { toolDiffModel } from "./tool-diff-model";
@@ -69,7 +68,7 @@ const REASONING_STALL_DELAY_MS = 3_000;
 
 function isTimelineBlock(
   block: MessageBlock | undefined,
-  dataPresentations: ReturnType<typeof useLegacyDataPresentationMap>,
+  dataPresentations: ReturnType<typeof useDataPresentationMap>,
 ): block is TimelineBlock {
   if (block?.kind === "reasoning" || block?.kind === "tool-call") return true;
   return block?.kind === "data" && dataTimelineState(block, dataPresentations) !== undefined;
@@ -196,14 +195,14 @@ function TimelineReasoning({
 
 function TimelineToolCall({
   block,
-  partIndex,
   kind,
+  node,
   query,
   presentation,
 }: {
   block: ToolCallBlock;
-  partIndex: number;
   kind: ToolTimelineStepKind;
+  node: MessageRendererNode;
   query: string;
   presentation?: ToolPresentationDefinition;
 }) {
@@ -379,7 +378,7 @@ function TimelineToolCall({
         DisclosureController
           ? ({ open: disclosureOpen, onOpenChange }) => (
               <DisclosureController
-                part={legacyToolPresentationPart(block)}
+                block={block}
                 running={state.running}
                 open={disclosureOpen}
                 onOpenChange={onOpenChange}
@@ -416,10 +415,8 @@ function TimelineToolCall({
           onDiscard={(id) => decideHunk(id, "discarded")}
           className="max-w-none"
         />
-      ) : !state.failed && !state.cancelled ? (
-        <LegacyToolDataRenderer block={block} partIndex={partIndex} fallback={fallbackDetail} />
       ) : (
-        fallbackDetail
+        <RendererHost node={node} block={block} fallback={fallbackDetail} />
       )}
     </ToolCall>
   );
@@ -428,15 +425,15 @@ function TimelineToolCall({
 function ParallelToolGroup({
   batchId,
   blocks,
-  partIndices,
   kinds,
+  node,
   queries,
   presentations,
 }: {
   batchId: string;
   blocks: readonly ToolCallBlock[];
-  partIndices: readonly number[];
   kinds: readonly ToolTimelineStepKind[];
+  node: MessageRendererNode;
   queries: readonly string[];
   presentations: readonly (ToolPresentationDefinition | undefined)[];
 }) {
@@ -460,14 +457,13 @@ function ParallelToolGroup({
         {blocks.map((block, index) => {
           const kind = kinds[index];
           const query = queries[index];
-          const partIndex = partIndices[index];
-          if (!kind || query === undefined || partIndex === undefined) return null;
+          if (!kind || query === undefined) return null;
           return (
             <TimelineToolCall
               key={block.callId}
               block={block}
-              partIndex={partIndex}
               kind={kind}
+              node={node}
               query={query}
               presentation={presentations[index]}
             />
@@ -482,28 +478,30 @@ export function MessageToolTimeline({
   blocks,
   children,
   indices,
+  node,
   transportRecovering,
 }: PropsWithChildren<{
   blocks?: readonly MessageBlock[];
   indices: readonly number[];
+  node: MessageRendererNode;
   transportRecovering: boolean;
 }>) {
   const { t, text } = useI18n();
-  const toolPresentations = useLegacyToolPresentationMap();
-  const dataPresentations = useLegacyDataPresentationMap();
+  const toolPresentations = useToolPresentationMap();
+  const dataPresentations = useDataPresentationMap();
   const [open, setOpen] = useMessageDisclosure("steps", indices[0] ?? "empty");
   const timeline = useMemo(() => {
     const timelineBlocks: TimelineBlock[] = [];
-    const partIndices: number[] = [];
+    const blockIndices: number[] = [];
 
-    for (const partIndex of indices) {
-      const block = blocks?.[partIndex];
+    for (const blockIndex of indices) {
+      const block = blocks?.[blockIndex];
       if (!isTimelineBlock(block, dataPresentations)) continue;
       timelineBlocks.push(block);
-      partIndices.push(partIndex);
+      blockIndices.push(blockIndex);
     }
 
-    return { blocks: timelineBlocks, partIndices };
+    return { blocks: timelineBlocks, blockIndices };
   }, [blocks, dataPresentations, indices]);
   const timelineBlocks = timeline.blocks;
   const stepModels = useMemo(
@@ -536,8 +534,8 @@ export function MessageToolTimeline({
           <ParallelToolGroup
             batchId={entry.batchId}
             blocks={parallelBlocks}
-            partIndices={entry.sourceIndices.map((index) => timeline.partIndices[index] ?? index)}
             kinds={models.flatMap((model) => (model && model.kind !== "data" ? [model.kind] : []))}
+            node={node}
             queries={models.flatMap((model) =>
               model && model.kind !== "data" ? [text(model.chip)] : [],
             )}
@@ -558,13 +556,7 @@ export function MessageToolTimeline({
     if (block.kind === "data") {
       return {
         marker: false,
-        body: (
-          <LegacyToolDataRenderer
-            block={block}
-            partIndex={timeline.partIndices[sourceIndex] ?? sourceIndex}
-            fallback={null}
-          />
-        ),
+        body: <RendererHost node={node} block={block} fallback={null} />,
       };
     }
 
@@ -579,7 +571,7 @@ export function MessageToolTimeline({
             running={block.status === "running"}
             transportRecovering={transportRecovering}
             preview={text(model.chip)}
-            disclosureId={timeline.partIndices[sourceIndex] ?? sourceIndex}
+            disclosureId={timeline.blockIndices[sourceIndex] ?? sourceIndex}
           />
         ),
       };
@@ -590,8 +582,8 @@ export function MessageToolTimeline({
       body: (
         <TimelineToolCall
           block={block}
-          partIndex={timeline.partIndices[sourceIndex] ?? sourceIndex}
           kind={model.kind}
+          node={node}
           query={text(model.chip)}
           presentation={model.presentation}
         />

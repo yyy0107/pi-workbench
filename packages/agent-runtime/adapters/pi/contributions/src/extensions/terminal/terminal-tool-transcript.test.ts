@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ThreadMessage } from "@assistant-ui/react";
+import type { ConversationNode } from "@workbench/agent-runtime-contracts/conversation";
 
 import {
   bashCommandFromArgs,
@@ -12,39 +12,40 @@ import {
 } from "./terminal-tool-transcript";
 
 test("finds the authoritative bash tool call by id", () => {
-  const bashPart = {
-    type: "tool-call",
-    toolCallId: "call-2",
+  const bashBlock = {
+    key: "tool:call-2",
+    kind: "tool-call",
+    callId: "call-2",
     toolName: "bash",
-    args: { command: "pnpm test" },
-    argsText: '{"command":"pnpm test"}',
-    status: { type: "running" },
-    artifact: "starting",
-  };
-  const messages = [
+    arguments: { command: "pnpm test" },
+    argumentsText: '{"command":"pnpm test"}',
+    status: "running",
+    result: "starting",
+  } as const;
+  const nodes = [
     {
-      id: "message-1",
-      role: "assistant",
-      createdAt: new Date(0),
-      status: { type: "running" },
-      content: [
+      key: "message-1",
+      kind: "assistant",
+      createdAt: 0,
+      status: "running",
+      blocks: [
         {
-          type: "tool-call",
-          toolCallId: "call-1",
+          key: "tool:call-1",
+          kind: "tool-call",
+          callId: "call-1",
           toolName: "read",
-          args: {},
-          argsText: "{}",
-          status: { type: "complete" },
+          arguments: {},
+          argumentsText: "{}",
+          status: "complete",
         },
-        bashPart,
+        bashBlock,
       ],
-      metadata: {},
     },
-  ] as unknown as readonly ThreadMessage[];
+  ] satisfies readonly ConversationNode[];
 
-  assert.equal(findBashToolCall(messages, "call-2"), bashPart);
-  assert.equal(findBashToolCallMessage(messages, "call-2"), messages[0]);
-  assert.equal(findBashToolCall(messages, "missing"), undefined);
+  assert.equal(findBashToolCall(nodes, "call-2"), bashBlock);
+  assert.equal(findBashToolCallMessage(nodes, "call-2"), nodes[0]);
+  assert.equal(findBashToolCall(nodes, "missing"), undefined);
 });
 
 test("normalizes command output for both terminal presentations", () => {

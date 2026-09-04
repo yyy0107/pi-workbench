@@ -7,7 +7,7 @@
 本文对应当前代码：
 
 - Next.js 16 单应用；
-- assistant-ui 0.15.x；
+- Workbench Agent Runtime；
 - 扩展随应用静态打包；
 - 不支持从远程 URL 加载 JavaScript；
 - 不支持由扩展动态注册 Next.js 路由。
@@ -36,7 +36,7 @@ activeExtensions = 应用组合层提供的完整有序扩展列表
 - **Panel**：提供宿主管理尺寸与开关状态的左侧或底部辅助区域。
 - **Command**：提供可复用动作，同时进入命令面板和快捷键系统。
 - **Composer Command**：把 `/` 面板选项注册为结构化 Token，并在提交时编译为一次 Agent 请求。
-- **Renderer**：接管整条消息的 Parts/分组策略，或按 tool name、data name 渲染单个 assistant-ui Part。
+- **Renderer**：接管整条消息的 Blocks/分组策略，或按 tool name、data name 渲染单个 Workbench Block。
 - **Settings**：向共享悬浮设置面板注册导航分区或功能自有设置项。
 - **Sidebar Section**：注册由 Shell 统一导航和搜索 chrome 承载的完整侧边栏区域。
 - **Main View**：用完整功能页面替换中央对话区域；宿主管理“功能页 / 对话”的切换。
@@ -421,7 +421,8 @@ context.slots.register("header.right", {
 - `order` 相同时保持注册顺序；
 - contribution id 在同一个 Slot 内必须唯一；
 - 注册的是 `ComponentType<Props>`，不是预先创建的 ReactNode；
-- Slot 组件位于 AssistantRuntimeProvider 内，可以使用 `useAui()` 和 `useAuiState()`。
+- Slot 组件位于 Workbench `RuntimeProvider` 内；需要当前会话身份时使用
+  `useCurrentSession()`，只有明确位于 `SessionProvider` 内的 Slot 才使用 `useSessionState()`。
 
 ### 如何增加一个新的宿主 Slot
 
@@ -846,49 +847,35 @@ React 组件可通过 `useSettingsRegistry()` 读取稳定快照并订阅注册�
 
 ## 11. Renderer 开发参考
 
-Renderer 只负责展示消息 Part，不负责：
+Renderer 只负责展示 Workbench Conversation Node/Message Block，不负责：
 
 - 把工具定义暴露给模型；
 - 执行后端工具；
-- 让 Runtime 自动产生某个 data Part。
+- 让 Runtime 自动产生某个 Data Block。
 
-这些工作属于 assistant-ui Tool、Runtime 或后端协议。Tool/Data Renderer 只有在消息中实际出现匹配的 `toolName` 或 `data.name` 时才会生效。
+这些工作属于 Agent Runtime 或后端协议。Tool/Data Renderer 只有在消息中实际出现匹配的 `toolName` 或 `data.name` 时才会生效。
 
 ### Message Renderer：整体呈现与分组
 
-Message Renderer 接管一条消息内部的 `MessagePrimitive.Parts` 或
-`MessagePrimitive.GroupedParts`。它可以决定：
+Message Renderer 接收完整的 `UserMessageNode` 或 `AssistantMessageNode`，并接管其中的
+`blocks`。它可以决定：
 
 - reasoning、tool、data 是否分组以及如何嵌套；
 - reasoning block、tool group、正文流式状态和 fallback 的视觉样式；
-- 在叶子 `tool-call` / `data` Part 上是否继续交给 `RendererHost` 做精确名称匹配。
+- 在叶子 `tool-call` / `data` Block 上是否继续交给 `RendererHost` 做精确名称匹配。
 
 ```tsx
 "use client";
 
-import { groupPartByType, MessagePrimitive } from "@assistant-ui/react";
+import type { MessageRendererProps } from "@workbench/extension-sdk";
 import { RendererHost } from "@workbench/extension-host/hosts/renderer-host";
 
-export function CompactMessageRenderer() {
-  return (
-    <MessagePrimitive.GroupedParts
-      groupBy={groupPartByType({
-        reasoning: ["group-reasoning"],
-        "tool-call": ["group-tool"],
-      })}
-    >
-      {({ part, children }) => {
-        if (part.type === "group-reasoning") return <details>{children}</details>;
-        if (part.type === "group-tool") return <section>{children}</section>;
-        if (part.type === "text") return <p>{part.text}</p>;
-        if (part.type === "reasoning") return <p>{part.text}</p>;
-        if (part.type === "tool-call" || part.type === "data") {
-          return <RendererHost part={part} />;
-        }
-        return null;
-      }}
-    </MessagePrimitive.GroupedParts>
-  );
+export function CompactMessageRenderer({ node }: MessageRendererProps) {
+  return node.blocks.map((block) => {
+    const fallback =
+      block.kind === "text" || block.kind === "reasoning" ? <p>{block.text}</p> : null;
+    return <RendererHost key={block.key} node={node} block={block} fallback={fallback} />;
+  });
 }
 ```
 
@@ -902,32 +889,31 @@ const messageRenderer = context.renderers.message.register({
 ```
 
 同一时间只能启用一个 Message Renderer；重复注册会在 setup 阶段失败并回滚该扩展。
-卸载它后，Workbench 会恢复最小安全 fallback。Part/Tool/Data Renderer 是可叠加的叶子贡献，
+卸载它后，Workbench 会恢复最小安全 fallback。Block/Tool/Data Renderer 是可叠加的叶子贡献，
 通常由提供对应能力的扩展注册，例如 Terminal 扩展同时注册 Workspace Surface、Command 和 `bash`
 Tool Renderer。这样卸载能力扩展时，其入口和工具呈现会一起消失。
 
-### Part Renderer：按消息 Part 谓词扩展
+### Block Renderer：按消息 Block 谓词扩展
 
 当能力无法用 `toolName` 或 `data.name` 表达，但又不应接管整条消息时，使用
-`context.renderers.parts` 注册叶子 renderer。当前 Message Renderer 和最小安全 fallback 都应在
-对应 Part 分支挂载 `MessagePartRendererHost`，并传入原有展示作为 `fallback`：
+`context.renderers.blocks` 注册叶子 renderer。Host 会在精确 Tool/Data 匹配前按注册顺序执行谓词，
+并把调用方原有展示作为 `fallback` 传给命中的组件：
 
 ```tsx
-const fallback = <MarkdownText />;
-return <MessagePartRendererHost part={part} fallback={fallback} />;
+return <RendererHost node={node} block={block} fallback={fallback} />;
 ```
 
 扩展注册贡献：
 
 ```ts
-const structuredTextRenderer = context.renderers.parts.register({
+const structuredTextRenderer = context.renderers.blocks.register({
   id: "workbench.structured-text.renderer",
-  canRender: (part) => part.type === "text" && isStructuredText(part.text),
+  canRender: (block) => block.kind === "text" && isStructuredText(block.text),
   component: StructuredTextRenderer,
 });
 ```
 
-`canRender` 在 React render 期间运行，必须是纯函数并容忍 streaming 中的不完整 Part。多个贡献
+`canRender` 在 React render 期间运行，必须是纯函数并容忍 streaming 中的不完整 Block。多个贡献
 同时命中时，注册顺序靠前者优先；贡献 id 必须唯一。停用扩展会注销贡献，Host 随即恢复调用方
 提供的 fallback。
 
@@ -936,46 +922,28 @@ const structuredTextRenderer = context.renderers.parts.register({
 ```tsx
 "use client";
 
-import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import type { ToolRendererComponent } from "@workbench/extension-sdk";
 
-interface WeatherArgs {
-  city?: string;
-}
+export const WeatherRenderer: ToolRendererComponent = ({ block, fallback }) => {
+  const args =
+    block.arguments && typeof block.arguments === "object" && !Array.isArray(block.arguments)
+      ? block.arguments
+      : {};
 
-interface WeatherResult {
-  temperatureC: number;
-  summary: string;
-}
-
-export const WeatherRenderer: ToolCallMessagePartComponent<WeatherArgs, WeatherResult> = ({
-  args,
-  argsText,
-  result,
-  status,
-  isError,
-}) => {
-  if (status.type === "running") {
+  if (block.status === "running") {
     return (
       <div className="rounded-lg border p-3 text-sm">
-        Reading weather arguments: {argsText || "…"}
+        Reading weather arguments: {block.argumentsText || "…"}
       </div>
     );
   }
 
-  if (isError) {
-    return <div className="text-destructive">Weather lookup failed.</div>;
-  }
+  if (block.status !== "complete") return fallback;
 
   return (
     <div className="rounded-lg border p-3 text-sm">
-      <p>{args.city ?? "Unknown city"}</p>
-      {result ? (
-        <p>
-          {result.temperatureC}°C · {result.summary}
-        </p>
-      ) : (
-        <p>No result returned.</p>
-      )}
+      <p>{typeof args.city === "string" ? args.city : "Unknown city"}</p>
+      <pre>{JSON.stringify(block.result, null, 2)}</pre>
     </div>
   );
 };
@@ -987,27 +955,25 @@ export const WeatherRenderer: ToolCallMessagePartComponent<WeatherArgs, WeatherR
 const weatherRenderer = context.renderers.tools.register("get_weather", WeatherRenderer);
 ```
 
-注意：工具参数在 streaming 阶段只是部分解析结果，字段可能缺失。必须允许可选字段，并根据 `status`、`argsText` 或 `useToolArgsStatus()` 渲染中间状态。
-
-Tool renderer props 还提供 `addResult()`、`resume()` 和 `respondToApproval()`，分别用于前端结果、人机交互恢复和工具审批。只有对应 Runtime 状态允许时才能调用。
+注意：`block.arguments` 在 streaming 阶段只是尽力解析的部分结果，甚至可能为 `undefined`；
+`block.argumentsText` 保留原始增量文本。Renderer 必须处理 `running`、`complete`、`incomplete`、
+`requires-action` 和 `error`。执行、审批或恢复动作应调用所属 Runtime capability，不属于 Renderer
+展示契约。
 
 ### Data Renderer
 
 ```tsx
 "use client";
 
-import type { DataMessagePartComponent } from "@assistant-ui/react";
+import type { DataRendererComponent } from "@workbench/extension-sdk";
 
-interface CitationData {
-  label: string;
-  url: string;
-}
-
-export const CitationRenderer: DataMessagePartComponent<CitationData> = ({ data }) => (
-  <a href={data.url} target="_blank" rel="noopener noreferrer">
-    {data.label}
-  </a>
-);
+export const CitationRenderer: DataRendererComponent = ({ block, fallback }) => {
+  const data =
+    block.data && typeof block.data === "object" && !Array.isArray(block.data)
+      ? block.data
+      : undefined;
+  return typeof data?.label === "string" ? <span>{data.label}</span> : fallback;
+};
 ```
 
 注册：
@@ -1018,15 +984,14 @@ const citationRenderer = context.renderers.data.register("citation", CitationRen
 
 ### Renderer 匹配与优先顺序
 
-Message Renderer 全局唯一；Part Renderer 按贡献 id 唯一并按注册顺序匹配；Tool 和 Data Renderer
+Message Renderer 全局唯一；Block Renderer 按贡献 id 唯一并按注册顺序匹配；Tool 和 Data Renderer
 各自按名称唯一。这些 Registry 都没有 `order` 或 `priority` 字段。
 
 `RendererHost` 的解析顺序固定为：
 
-1. 扩展 Registry 中精确名称匹配的 Renderer；
-2. Part 自带的 `toolUI` 或 `dataRendererUI`；
-3. 当前 Message Renderer（或 Workbench 安全 fallback）提供的 Tool/Data Fallback；
-4. `RendererHost` 的 children。
+1. 第一个命中的 Block Renderer；
+2. `toolName` 或 `data.name` 精确匹配的 Renderer；
+3. 当前 Message Renderer（或 Workbench 安全 fallback）传入的 `fallback`。
 
 同一个 tool name 或 data name 重复注册会在开发阶段报错。名称来自模型或协议，必须使用精确匹配，不要依赖对象原型键或模糊匹配。
 匹配区分大小写：`get_weather` 与 `Get_Weather` 是两个不同名称。
@@ -1070,7 +1035,7 @@ export const resizeObserverExtension = defineExtension({
 
 ## 13. 状态应该放在哪里
 
-使用 assistant-ui Runtime 保存：
+使用 Workbench Agent Runtime 保存：
 
 - messages；
 - thread、composer；
@@ -1090,11 +1055,13 @@ Workbench Store 保存：
 - Panel 打开状态、位置、尺寸；
 - 宿主级 UI 偏好。
 
-不要再创建一份 `messages` 或 `isRunning` 并与 assistant-ui 双向同步。扩展组件已经位于 AssistantRuntimeProvider 内，应直接使用：
+不要再创建一份 `messages` 或 `isRunning` 与 Agent Runtime 双向同步。消息 Renderer 直接使用
+Host 传入的 `node`；位于 `SessionProvider` 内的会话组件使用 headless hooks：
 
 ```tsx
-const messages = useAuiState((state) => state.thread.messages);
-const isRunning = useAuiState((state) => state.thread.isRunning);
+const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
+const isRunning = useSessionState((snapshot) => snapshot.isRunning);
+const node = useConversationNode(nodeKeys.at(-1) ?? "");
 ```
 
 ## 14. ID 与注册规则
@@ -1108,6 +1075,7 @@ panel id:              notes
 command id:            notes.toggle
 open handler id:       workspace.file
 message renderer id:   workbench.compact-message
+block renderer id:     workbench.structured-text.renderer
 tool renderer name:    get_weather
 data renderer name:    citation
 ```
@@ -1120,6 +1088,7 @@ data renderer name:    citation
 - Command id：整个 CommandRegistry；
 - Open handler id：整个 OpenerRegistry；
 - Message renderer：整个 Message RendererRegistry 同时只能有一个；
+- Block renderer id：整个 MessageBlockRendererRegistry；
 - Tool renderer name：Tool RendererRegistry；
 - Data renderer name：Data RendererRegistry。
 - Settings section id：整个 SettingsRegistry；
@@ -1139,13 +1108,13 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 - 不要让两个扩展争用同一个 Panel、Command 或 Renderer id。
 - 不要假设 streaming Tool args 已经完整。
 - 不要把大型工作区塞进 Header 或 Composer Slot。
-- 不要复制 assistant-ui 的消息和 Composer 状态。
+- 不要复制 Workbench Agent Runtime 的消息和 Composer 状态。
 - 不要在前端扩展中放 API Key 或其他秘密。
 
 ## 16. 可参考的现有扩展
 
 - 最小 Slot：[`connection-status`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/connection-status/extension.ts)
-- assistant-ui ModelContext：[`model-selector`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/model-selector/extension.ts)
+- Model 选择与当前 Session bridge：[`model-selector`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/model-selector/extension.ts)
 - Settings + Pi RPC：[`skills`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/skills/extension.ts)
 - Workspace Surface + Open Handler：[`workspace-file`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/workspace-file/extension.ts)
 - Workspace Surface + Command + Tool Renderer：[`terminal`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/terminal/extension.ts)
@@ -1156,7 +1125,7 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 如果新需求无法自然归入 Slot、Panel、Command、Renderer 或 Settings，先判断它是不是：
 
 1. Next.js 路由职责；
-2. assistant-ui Runtime/Tool 职责；
+2. Workbench Agent Runtime/Tool 职责；
 3. 后端或持久化职责；
 4. 真正需要新增的 Workbench 宿主能力。
 

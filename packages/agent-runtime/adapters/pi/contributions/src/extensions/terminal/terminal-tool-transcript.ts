@@ -1,30 +1,30 @@
 import type {
-  ThreadAssistantMessage,
-  ThreadMessage,
-  ToolCallMessagePart,
-} from "@assistant-ui/react";
+  AssistantMessageNode,
+  ConversationNode,
+  ToolCallBlock,
+} from "@workbench/agent-runtime-contracts/conversation";
 
 export function findBashToolCallMessage(
-  messages: readonly ThreadMessage[],
+  nodes: readonly ConversationNode[],
   toolCallId: string,
-): ThreadAssistantMessage | undefined {
-  return messages.find(
-    (message): message is ThreadAssistantMessage =>
-      message.role === "assistant" &&
-      message.content.some(
-        (part) =>
-          part.type === "tool-call" && part.toolName === "bash" && part.toolCallId === toolCallId,
+): AssistantMessageNode | undefined {
+  return nodes.find(
+    (node): node is AssistantMessageNode =>
+      node.kind === "assistant" &&
+      node.blocks.some(
+        (block) =>
+          block.kind === "tool-call" && block.toolName === "bash" && block.callId === toolCallId,
       ),
   );
 }
 
 export function findBashToolCall(
-  messages: readonly ThreadMessage[],
+  nodes: readonly ConversationNode[],
   toolCallId: string,
-): ToolCallMessagePart | undefined {
-  return findBashToolCallMessage(messages, toolCallId)?.content.find(
-    (part): part is ToolCallMessagePart =>
-      part.type === "tool-call" && part.toolName === "bash" && part.toolCallId === toolCallId,
+): ToolCallBlock | undefined {
+  return findBashToolCallMessage(nodes, toolCallId)?.blocks.find(
+    (block): block is ToolCallBlock =>
+      block.kind === "tool-call" && block.toolName === "bash" && block.callId === toolCallId,
   );
 }
 

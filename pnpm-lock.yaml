@@ -737,9 +737,6 @@ importers:
 
   packages/extension-platform/host:
     dependencies:
-      '@assistant-ui/react':
-        specifier: 0.15.16
-        version: 0.15.16(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
       '@workbench/extension-sdk':
         specifier: workspace:*
         version: link:../sdk
@@ -765,9 +762,9 @@ importers:
 
   packages/extension-platform/sdk:
     dependencies:
-      '@assistant-ui/react':
-        specifier: 0.15.16
-        version: 0.15.16(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
+      '@workbench/agent-runtime-contracts':
+        specifier: workspace:*
+        version: link:../../agent-runtime/core/contracts
       '@workbench/contracts':
         specifier: workspace:*
         version: link:../../contracts/core
