@@ -39,6 +39,7 @@ export function PiBoundSessionProvider({
         capabilities={capabilities}
         threadStore={threadStore}
         workspaceFiles={workspaceFiles}
+        sessionBinding={PiBoundSessionProvider}
       >
         {children}
       </WorkbenchAgentRuntimeEnvironmentProvider>

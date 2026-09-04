@@ -1,3 +1,7 @@
+import type {
+  ModelProvidersValue,
+  ModelCatalogValue,
+} from "@workbench/agent-runtime-pi-protocol/rpc";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -98,11 +102,15 @@ function fixtureManager(transportOverride?: PiHttpTransport): PiSessionManager {
       update: async () => contextValue,
       compact: async () => contextValue,
     },
-    selectSessionModel: async (selection: {
+    selectSessionModel: async ({
+      provider,
+      model,
+      reasoningEffort,
+    }: {
       provider: string;
       model: string;
       reasoningEffort?: string;
-    }) => ({ selected: selection }),
+    }) => ({ selected: { provider, model, ...(reasoningEffort ? { reasoningEffort } : {}) } }),
     session: () => session,
   } as unknown as PiSessionManager;
 }
@@ -369,4 +377,284 @@ test("maps Pi implementation failures to stable Workbench capability errors", ()
       .details,
     undefined,
   );
+});
+
+test("session capabilities preserve interaction, scratch, model, and context behavior across the Pi boundary", async () => {
+  const manager = fixtureManager();
+  const calls: unknown[] = [];
+  const question = manager.getPendingInteractions()[0]!;
+  Object.assign(manager, {
+    getPendingInteractions: () => [
+      question,
+      {
+        kind: "approval",
+        rpcId: "approval-request",
+        sessionId: "session-1",
+        approvalId: "approval-1",
+        toolName: "bash",
+        callId: "call-1",
+      },
+    ],
+    restoreScratchSession: (scratch: unknown) => {
+      calls.push(["restore", scratch]);
+      return true;
+    },
+    releaseScratchSession: async (id: string) => {
+      calls.push(["release", id]);
+    },
+    promoteScratchSession: async (request: { sessionId: string; title?: string }) => {
+      calls.push(["promote", request]);
+      return { sessionId: request.sessionId, sourceSessionId: "session-1" };
+    },
+    respondInteraction: async (...args: unknown[]) => {
+      calls.push(["respond", ...args]);
+      return { accepted: true };
+    },
+    selectSessionModel: async ({
+      sessionId,
+      ...selection
+    }: {
+      sessionId: string;
+      provider: string;
+      model: string;
+      reasoningEffort?: string;
+    }) => {
+      calls.push(["select", sessionId, selection]);
+      return { selected: selection };
+    },
+  });
+  const {
+    interactions,
+    scratchSessions: scratch,
+    models,
+    context,
+  } = createPiAgentRuntimeCapabilities(manager);
+  assert.ok(interactions && scratch && models && context);
+  assert.deepEqual(interactions.getPendingInteractions()[1], {
+    kind: "approval",
+    requestId: "approval-request",
+    sessionId: "session-1",
+    approvalId: "approval-1",
+    toolName: "bash",
+    callId: "call-1",
+  });
+  await interactions.respondInteraction("approval-request", {
+    kind: "approval",
+    outcome: "allowed-once",
+  });
+  await interactions.respondInteraction("request-1", { kind: "cancel" });
+  const created = await scratch.createScratchSession({ sourceSessionId: "session-1" });
+  assert.equal(scratch.restoreScratchSession(created), true);
+  await scratch.releaseScratchSession(created.sessionId);
+  assert.deepEqual(
+    await scratch.promoteScratchSession({ sessionId: created.sessionId, title: "Kept" }),
+    { sessionId: "scratch-1", sourceSessionId: "session-1" },
+  );
+  assert.deepEqual(calls, [
+    ["respond", "approval-request", { kind: "approval", outcome: "allowed-once" }],
+    ["respond", "request-1", { kind: "cancel" }],
+    ["restore", created],
+    ["release", "scratch-1"],
+    ["promote", { sessionId: "scratch-1", title: "Kept" }],
+  ]);
+  for (const [reason, code] of [
+    ["not-pending", "request-ended"],
+    ["bad-response", "invalid-request"],
+  ] as const) {
+    Object.assign(manager, { respondInteraction: async () => ({ accepted: false, reason }) });
+    await assert.rejects(
+      interactions.respondInteraction("request-1", { kind: "question", answers: [] }),
+      { name: "WorkbenchAgentCapabilityError", code },
+    );
+  }
+  assert.equal(models.getCatalogRevision(), 2);
+  assert.equal(models.getSessionSelectionRevision("session-1"), 3);
+  const selection = { provider: "provider", model: "model", reasoningEffort: "high" };
+  assert.deepEqual(await models.selectSessionModel("session-1", selection), selection);
+  assert.deepEqual(calls.at(-1), ["select", "session-1", selection]);
+  models.setDraftSelection("draft-1", selection);
+  await models.reloadSession("session-1");
+  assert.equal(
+    await context.update("session-1", { mode: "custom", desiredContextTokens: 1000 }),
+    contextValue,
+  );
+  assert.equal(await context.compact("session-1"), contextValue);
+  const failed = { status: "failed", error: new PiApiError("agent-busy", 409) };
+  Object.assign(manager.contextPolicies, {
+    getSnapshot: () => failed,
+    compact: async () => {
+      throw failed.error;
+    },
+  });
+  const snapshot = context.getSnapshot("session-1");
+  assert.equal(
+    snapshot,
+    context.getSnapshot("session-1"),
+    "external-store snapshots retain identity",
+  );
+  assert.equal(snapshot.status, "failed");
+  assert.equal(snapshot.error?.code, "busy");
+  await assert.rejects(context.compact("session-1"), {
+    name: "WorkbenchAgentCapabilityError",
+    code: "busy",
+  });
+  Object.assign(manager, {
+    releaseScratchSession: async () => {
+      throw new PiApiError("session-not-found", 404);
+    },
+  });
+  await assert.rejects(scratch.releaseScratchSession("missing"), {
+    name: "WorkbenchAgentCapabilityError",
+    code: "not-found",
+  });
+});
+
+test("configured model catalogs filter Pi provider configuration before crossing into Workbench", async () => {
+  const directory = {
+    providers: [
+      {
+        provider: "configured",
+        displayName: "Configured Provider",
+        kind: "built-in",
+        settingsNs: "llm.configured",
+        settingsPath: [],
+        active: true,
+        configured: true,
+        apiKeyConfigurable: true,
+        removable: false,
+        configurationDefined: false,
+      },
+      {
+        provider: "custom",
+        displayName: "Custom Provider",
+        kind: "custom",
+        settingsNs: "",
+        settingsPath: [],
+        active: true,
+        configured: false,
+        apiKeyConfigurable: true,
+        removable: true,
+        configurationDefined: true,
+      },
+      {
+        provider: "unconfigured",
+        displayName: "Unconfigured Provider",
+        kind: "built-in",
+        settingsNs: "llm.unconfigured",
+        settingsPath: [],
+        active: true,
+        configured: false,
+        apiKeyConfigurable: true,
+        removable: false,
+        configurationDefined: false,
+      },
+      {
+        provider: "configured-text",
+        displayName: "Configured Text Provider",
+        kind: "custom",
+        settingsNs: "",
+        settingsPath: [],
+        active: true,
+        configured: true,
+        apiKeyConfigurable: true,
+        removable: true,
+        configurationDefined: true,
+      },
+      {
+        provider: "configured-unknown",
+        displayName: "Configured Unknown Provider",
+        kind: "custom",
+        settingsNs: "",
+        settingsPath: [],
+        active: true,
+        configured: true,
+        apiKeyConfigurable: true,
+        removable: true,
+        configurationDefined: true,
+      },
+    ],
+  } as const satisfies ModelProvidersValue;
+
+  const catalog = {
+    groups: [
+      {
+        id: "configured",
+        name: "Catalog Provider Name",
+        models: [
+          {
+            id: "vision",
+            name: "Vision Model",
+            input: ["text", "image"],
+            imageInput: "supported",
+          },
+          { id: "text", name: "Text Model", input: ["text"], imageInput: "unsupported" },
+        ],
+      },
+      {
+        id: "custom",
+        name: "Custom Provider",
+        models: [
+          {
+            id: "custom-vision",
+            name: "Custom Vision",
+            input: ["image"],
+            imageInput: "supported",
+          },
+        ],
+      },
+      {
+        id: "unconfigured",
+        name: "Unconfigured Provider",
+        models: [
+          {
+            id: "hidden-vision",
+            name: "Hidden Vision",
+            input: ["image"],
+            imageInput: "supported",
+          },
+        ],
+      },
+      {
+        id: "configured-text",
+        name: "Configured Text Provider",
+        models: [
+          {
+            id: "text-only",
+            name: "Text Only",
+            input: ["text"],
+            imageInput: "unsupported",
+          },
+        ],
+      },
+      {
+        id: "configured-unknown",
+        name: "Configured Unknown Provider",
+        models: [{ id: "unknown", name: "Unknown", imageInput: "unknown" }],
+      },
+    ],
+    failures: [],
+  } as const satisfies ModelCatalogValue;
+
+  const capabilities = createPiAgentRuntimeCapabilities(
+    fixtureManager(
+      transportFor({
+        "llm.providers": directory,
+        "llm.models": catalog,
+      }),
+    ),
+  );
+  const ordinary = await capabilities.models!.listCatalog();
+  assert.deepEqual(ordinary, catalog);
+  const configured = await capabilities.models!.listCatalog({ configuredOnly: true });
+  assert.deepEqual(
+    configured.groups.map(({ id, name }) => [id, name]),
+    [
+      ["configured", "Configured Provider"],
+      ["custom", "Custom Provider"],
+      ["configured-text", "Configured Text Provider"],
+      ["configured-unknown", "Configured Unknown Provider"],
+    ],
+  );
+  assert.deepEqual(configured.groups[0]?.models, catalog.groups[0].models);
+  assert.equal("providers" in configured, false);
 });

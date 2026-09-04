@@ -194,7 +194,11 @@ export interface WorkbenchInteractionQuestion {
   question: string;
   header?: string;
   detail?: string;
-  options?: Array<{ label: string; description?: string; recommended?: boolean }>;
+  options?: readonly {
+    readonly label: string;
+    readonly description?: string;
+    readonly recommended?: boolean;
+  }[];
   allowCustom?: boolean;
   multiSelect?: boolean;
   required?: boolean;
@@ -203,7 +207,7 @@ export interface WorkbenchInteractionQuestion {
 
 export interface WorkbenchInteractionAnswer {
   id: string;
-  selected: string[];
+  selected: readonly string[];
   custom?: string;
 }
 

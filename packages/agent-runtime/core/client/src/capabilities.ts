@@ -120,7 +120,7 @@ export interface WorkbenchModelSelectionCapability {
   subscribeCatalog(listener: () => void): () => void;
   getSessionSelectionRevision(sessionId: string): number;
   subscribeSessionSelection(sessionId: string, listener: () => void): () => void;
-  listCatalog(): Promise<WorkbenchModelCatalog>;
+  listCatalog(options?: { configuredOnly?: boolean }): Promise<WorkbenchModelCatalog>;
   listSessionModels(sessionId: string): Promise<WorkbenchSessionModelCatalog>;
   selectSessionModel(sessionId: string, selection: ModelSelection): Promise<ModelSelection>;
   setDraftSelection(sessionId: string, selection: ModelSelection | undefined): void;

@@ -20,7 +20,7 @@ Automation 的定义、存储和调度位于
 [`@workbench/automation-contracts`](../../../contracts/automation)。任务触发时会在目标工作区创建一个
 普通、可见的会话，再通过标准 Agent 执行端口提交用户配置的提示词。本目录保留 Automation 的 Pi
 会话启动实现和 Workbench 事件/RPC 接线；前端页面位于
-`contributions/src/extensions/automation`。
+[`packages/workbench/shell/src/extensions/builtin/automation`](../../../workbench/shell/src/extensions/builtin/automation)。
 
 ## 架构
 
@@ -1044,8 +1044,11 @@ Pi 浏览器适配器位于 [`client`](./client)，并只通过
 服务端实现；协议和跨端纯逻辑分别由 `@workbench/agent-runtime-pi-protocol` 与
 `@workbench/agent-runtime-pi-shared` 拥有。
 
-Workbench Explorer、Review 与 Terminal 扩展位于 `packages/workbench/shell/src/extensions/builtin`；
-本目录的 contributions 只保留仍需 Pi client/protocol 或 Pi 专属展示语义的扩展。
+Workbench Explorer、Review、Terminal、Workspace/Host、Interactive Requests、Side Chat、Automation、
+Model Selector、Image Understanding 和 Token Usage / Context Policy 扩展位于
+`packages/workbench/shell/src/extensions/builtin`，通过 Workbench capability 使用运行时能力。
+本目录的 contributions 保留 Agent Configuration、Provider/Model Configuration、Pi Settings、Toolbox、
+Context Trace、External Session Import、Pi Version/Connection Status、Running Indicator 和 branding。
 
 ```text
 packages/agent-runtime/runtimes/pi/

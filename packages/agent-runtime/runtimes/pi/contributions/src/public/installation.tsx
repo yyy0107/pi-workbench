@@ -7,15 +7,9 @@ import type { WorkbenchExtension } from "@workbench/extension-sdk";
 import { agentConfigurationExtension } from "../extensions/agent-configuration";
 import { connectionStatusExtension } from "../extensions/connection-status";
 import { contextTraceExtension } from "../extensions/context-trace";
-import { automationExtension } from "../extensions/automation";
 import { externalSessionImportExtension } from "../extensions/external-session-import";
-import { attachmentUnderstandingExtension } from "../extensions/image-understanding";
-import { interactiveRequestsExtension } from "../extensions/interactive-requests";
-import { modelSelectorExtension } from "../extensions/model-selector";
 import { settingModelConfigExtension } from "../extensions/setting-model-config";
 import { piSettingsActionExtension } from "../extensions/settings";
-import { sideChatExtension } from "../extensions/side-chat";
-import { tokenUsageExtension } from "../extensions/token-usage";
 import { toolboxExtension } from "../extensions/toolbox";
 import { PiWorkspaceFileRuntimeProvider } from "../services/workspace-file-runtime";
 
@@ -23,31 +17,23 @@ import { PiWorkspaceFileRuntimeProvider } from "../services/workspace-file-runti
  * Pi groups are intentionally semantic rather than one opaque catalog: the app interleaves them
  * with Shell's generic frame, workspace, and Settings groups to preserve registry tie ordering.
  */
-const piRuntimeExtensions: readonly WorkbenchExtension[] = Object.freeze([
-  agentConfigurationExtension,
-  interactiveRequestsExtension,
-  sideChatExtension,
-  settingModelConfigExtension,
-  piSettingsActionExtension,
-  attachmentUnderstandingExtension,
-  toolboxExtension,
-  automationExtension,
-  modelSelectorExtension,
-  connectionStatusExtension,
-  contextTraceExtension,
-  externalSessionImportExtension,
-  tokenUsageExtension,
-]);
-
-export const piAgentRuntimeExtensionGroups: Readonly<{
-  runtime: readonly WorkbenchExtension[];
-}> = Object.freeze({
-  runtime: piRuntimeExtensions,
+export const piAgentRuntimeExtensionGroups = Object.freeze({
+  agentConfiguration: Object.freeze([agentConfigurationExtension]),
+  configuration: Object.freeze([settingModelConfigExtension, piSettingsActionExtension]),
+  toolbox: Object.freeze([toolboxExtension]),
+  diagnostics: Object.freeze([
+    connectionStatusExtension,
+    contextTraceExtension,
+    externalSessionImportExtension,
+  ]),
 });
 
 /** All Pi UI contributions for consumers that do not need cross-owner ordering. */
 export const piAgentRuntimeExtensions: readonly WorkbenchExtension[] = Object.freeze([
-  ...piAgentRuntimeExtensionGroups.runtime,
+  ...piAgentRuntimeExtensionGroups.agentConfiguration,
+  ...piAgentRuntimeExtensionGroups.configuration,
+  ...piAgentRuntimeExtensionGroups.toolbox,
+  ...piAgentRuntimeExtensionGroups.diagnostics,
 ]);
 
 /**

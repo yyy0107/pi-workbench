@@ -16,6 +16,7 @@ import {
 } from "../runtime/manager";
 import type { PiClientTransport } from "../transport/client-transport";
 import { usePiAgentCommandCatalog } from "./command-catalog";
+import { PiBoundSessionProvider } from "./bound-session-provider";
 import { createPiAgentRuntimeCapabilities } from "./capabilities";
 import { PiAgentRuntimeCopyProvider, type PiAgentRuntimeCopy } from "./copy";
 import { beginPiSessionManagerLifecycle } from "./session-manager-lifecycle";
@@ -53,6 +54,7 @@ function PiRuntimeEnvironmentHost({
       capabilities={capabilities}
       threadStore={threadStore}
       workspaceFiles={workspaceFiles}
+      sessionBinding={PiBoundSessionProvider}
     >
       {children}
     </WorkbenchAgentRuntimeEnvironmentProvider>

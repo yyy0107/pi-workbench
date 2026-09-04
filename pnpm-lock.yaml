@@ -525,9 +525,6 @@ importers:
       '@workbench/attachment-understanding-contracts':
         specifier: workspace:*
         version: link:../../../../contracts/attachment-understanding
-      '@workbench/automation-contracts':
-        specifier: workspace:*
-        version: link:../../../../contracts/automation
       '@workbench/contracts':
         specifier: workspace:*
         version: link:../../../../contracts/core
@@ -543,9 +540,6 @@ importers:
       '@workbench/shell':
         specifier: workspace:*
         version: link:../../../../workbench/shell
-      cronstrue:
-        specifier: ^3.24.0
-        version: 3.24.0
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -1012,6 +1006,9 @@ importers:
       '@workbench/attachment-understanding-contracts':
         specifier: workspace:*
         version: link:../../contracts/attachment-understanding
+      '@workbench/automation-contracts':
+        specifier: workspace:*
+        version: link:../../contracts/automation
       '@workbench/contracts':
         specifier: workspace:*
         version: link:../../contracts/core
@@ -1048,6 +1045,9 @@ importers:
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      cronstrue:
+        specifier: ^3.24.0
+        version: 3.24.0
       get-east-asian-width:
         specifier: 1.6.0
         version: 1.6.0

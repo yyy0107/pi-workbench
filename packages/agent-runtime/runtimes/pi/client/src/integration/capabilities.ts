@@ -23,6 +23,7 @@ import {
   listPiHostDirectory,
   listPiLocalApps,
   listPiModelCatalog,
+  listPiModelProviders,
   listPiRpcSessionModels,
   listPiWorkspaceFiles,
   openPiHostPath,
@@ -179,7 +180,29 @@ export function createPiAgentRuntimeCapabilities(
       subscribeCatalog: manager.modelCatalogInvalidation.subscribe,
       getSessionSelectionRevision: manager.modelCatalogInvalidation.getSessionSelectionRevision,
       subscribeSessionSelection: manager.modelCatalogInvalidation.subscribeSessionSelection,
-      listCatalog: () => capabilityCall(() => listPiModelCatalog(options)),
+      listCatalog: (request) =>
+        capabilityCall(async () => {
+          if (!request?.configuredOnly) return listPiModelCatalog(options);
+          const [catalog, directory] = await Promise.all([
+            listPiModelCatalog(options),
+            listPiModelProviders(options),
+          ]);
+          const configured = new Map(
+            directory.providers
+              .filter(
+                (provider) =>
+                  provider.active && (provider.configured || provider.configurationDefined),
+              )
+              .map((provider) => [provider.provider, provider]),
+          );
+          return {
+            ...catalog,
+            groups: catalog.groups.flatMap((group) => {
+              const provider = configured.get(group.id);
+              return provider ? [{ ...group, name: provider.displayName || group.name }] : [];
+            }),
+          };
+        }),
       listSessionModels: (sessionId) =>
         capabilityCall(() => listPiRpcSessionModels({ sessionId }, options)),
       selectSessionModel: async (sessionId, selection) =>
@@ -206,7 +229,20 @@ export function createPiAgentRuntimeCapabilities(
       getPendingInteractions: (sessionId) =>
         manager.getPendingInteractions(sessionId).map(projectPendingInteraction),
       respondInteraction: async (requestId, response: WorkbenchInteractionResponse) => {
-        const receipt = await capabilityCall(() => manager.respondInteraction(requestId, response));
+        const receipt = await capabilityCall(() =>
+          manager.respondInteraction(
+            requestId,
+            response.kind === "question"
+              ? {
+                  ...response,
+                  answers: response.answers.map((answer) => ({
+                    ...answer,
+                    selected: [...answer.selected],
+                  })),
+                }
+              : response,
+          ),
+        );
         if (receipt.accepted) return;
         throw new WorkbenchAgentCapabilityError(
           receipt.reason === "not-pending" ? "request-ended" : "invalid-request",

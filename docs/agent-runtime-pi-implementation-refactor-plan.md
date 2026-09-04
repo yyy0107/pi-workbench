@@ -1,6 +1,6 @@
 # Workbench Agent Runtime 边界与 Pi Implementation 重构计划
 
-状态：阶段 1–5 已完成（2026-09-04）；阶段 6–8 未开始。
+状态：阶段 1–6 已完成（2026-09-04）；阶段 7–8 待继续。
 
 本计划是已完成的
 [`assistant-ui-removal-and-custom-runtime-plan.md`](./assistant-ui-removal-and-custom-runtime-plan.md)
@@ -174,7 +174,7 @@ Pi 实现内部的结构性命名调整：
 - [x] 阶段 3：增加最小 Workbench Capability 层（2026-09-04）
 - [x] 阶段 4：迁移已经与 Pi 无关的通用扩展（2026-09-04）
 - [x] 阶段 5：迁移 Workspace / Host 垂直切片
-- [ ] 阶段 6：迁移会话级通用能力
+- [x] 阶段 6：迁移会话级通用能力（2026-09-04）
 - [ ] 阶段 7：收缩 Pi Contributions
 - [ ] 阶段 8：清理与文档收尾
 
@@ -359,13 +359,44 @@ Desktop 使用同一序列，并在末尾追加 `workbench.desktop-runtime-lifec
 
 ### 6.6 阶段 6：会话级通用能力
 
-- [ ] Interactive Requests。
-- [ ] Side Chat 的 create/restore/release/promote 生命周期。
-- [ ] Automation，直接复用 `AutomationProtocol`。
-- [ ] Model Selector；Provider Configuration 留在 Pi。
-- [ ] Image Understanding，复用 attachment-understanding contracts。
-- [ ] Token Usage / Context Policy；Context Trace 留在 Pi。
-- [ ] 所有 Pi error 在实现边界映射。
+- [x] Interactive Requests。
+- [x] Side Chat 的 create/restore/release/promote 生命周期。
+- [x] Automation，直接复用 `AutomationProtocol`。
+- [x] Model Selector；Provider Configuration 留在 Pi。
+- [x] Image Understanding，复用 attachment-understanding contracts。
+- [x] Token Usage / Context Policy；Context Trace 留在 Pi。
+- [x] 所有 Pi error 在实现边界映射。
+
+实施记录（2026-09-04）：
+
+- 六组扩展及测试迁入 `packages/workbench/shell/src/extensions/builtin`；模型选择纯逻辑迁入
+  Shell 的 `src/model-selector`，对应双语词典和既有依赖随所有权移动。通用 UI 不再导入 Pi
+  Client、Protocol 或 `PiApiError`。
+- Interactive Requests 使用 Workbench question/approval DTO 和错误码；Side Chat 复用 scratch
+  capability，通过安装时注入的 `WorkbenchBoundSessionProvider` 绑定临时会话，保留 Pi 内部的
+  session/command 投影与打开逻辑。模型选择读取最近的会话绑定，不再误用外层会话。
+- Automation 复用 `AutomationProtocol`、Workbench host trust 与 Shell 会话导航；Image
+  Understanding 复用 attachment contracts。已配置 provider 的过滤和显示名称投影在 Pi model
+  capability 内完成，Shell 只接收 Workbench model catalog。
+- Context Policy hook 订阅实现方已有状态，不创建第二份缓存；busy、failed、compact 等错误由 Pi
+  capability 边界转换。Token Usage 通过现有 opener 判断 Context Trace 入口是否可用，Trace 本身
+  继续由 Pi 提供。
+- 能力缺失时隐藏功能入口，已恢复的页面显示双语不可用提示；设置、Automation 导航与命令按能力
+  presence 注册到现有扩展 registry，卸载时清理，历史工具结果仍可渲染。没有新增 Runtime registry、
+  workspace package 或 RPC；扩展 ID、设置键、持久化格式和 Web/Desktop 激活顺序保持兼容。
+- 为保持跨所有者的原始顺序，本阶段完成 Shell/Pi 语义化 extension groups 和应用交错组合；公开
+  facade 与 Contributions Provider 的剩余清理留在阶段 7。
+
+验证记录（2026-09-04）：
+
+- Core Client 26 项、Pi Client 280 项、Shell 503 项、Pi Contributions 76 项测试通过（共 885
+  项），覆盖 capability 缺失/恢复/卸载、嵌套会话绑定、问题/审批响应、scratch 生命周期、模型
+  选择和目录过滤、context 错误映射，以及迁移功能的原有测试。
+- Root 53 项测试、Web/Desktop 装配与边界 7 项测试通过；扩展 ID 顺序与阶段 1 基线一致。
+- Core Contracts、Core Client、Pi Client、Shell、Pi Contributions、Web、Desktop Renderer 类型
+  检查通过；`pnpm lint`、`pnpm check:workspace-dependencies` 和 `pnpm build` 通过，构建覆盖
+  Runtime Node、Web、Desktop Renderer 和 Desktop Electron artifact 组合。
+- 未运行 Browser/E2E；本次迁移的边界、装配和状态行为可由上述检查验证。全仓最终验收仍留在阶段 8。
 
 ### 6.7 阶段 7：收缩 Pi Contributions
 
@@ -374,8 +405,8 @@ Trace、External Session Import、Pi Version/Connection Status、Running Indicat
 
 - [ ] 缩减 `PiAgentRuntimeContributionsProvider` 的 assets、services 和 contexts。
 - [ ] 删除无 Pi 专属消费者的公开 facade。
-- [ ] Shell 与 Pi 导出语义化 extension groups，由应用按基线顺序交错组合。
-- [ ] 不引入动态 registry；保持 extension/command/settings/storage ID 与顺序不变。
+- [x] Shell 与 Pi 导出语义化 extension groups，由应用按基线顺序交错组合（阶段 6 迁移时完成）。
+- [x] 不引入动态 registry；保持 extension/command/settings/storage ID 与顺序不变。
 
 ### 6.8 阶段 8：清理与收尾
 

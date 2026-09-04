@@ -12,27 +12,21 @@ test("keeps Pi extension groups deeply frozen with their app-composition orderin
   }
   assert.equal(Object.isFrozen(piAgentRuntimeExtensions), true);
 
-  assert.deepEqual(groupIds(piAgentRuntimeExtensionGroups.runtime), [
+  assert.deepEqual(groupIds(piAgentRuntimeExtensions), [
     "workbench.agent-configuration",
-    "workbench.interactive-requests",
-    "workbench.side-chat",
     "workbench.setting-model-config",
     "workbench.pi.settings-action",
-    "workbench.image-understanding",
     "workbench.toolbox",
-    "workbench.automations",
-    "workbench.model-selector",
     "workbench.connection-status",
     "workbench.context-trace",
     "workbench.external-session-import",
-    "workbench.token-usage",
   ]);
   assert.deepEqual(groupIds(piAgentRuntimeExtensions), [
-    ...groupIds(piAgentRuntimeExtensionGroups.runtime),
+    ...Object.values(piAgentRuntimeExtensionGroups).flatMap(groupIds),
   ]);
   assert.throws(() => {
-    (piAgentRuntimeExtensionGroups.runtime as unknown as { push(extension: unknown): void }).push(
-      {},
-    );
+    (
+      piAgentRuntimeExtensionGroups.configuration as unknown as { push(extension: unknown): void }
+    ).push({});
   }, /not extensible/);
 });

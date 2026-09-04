@@ -25,13 +25,11 @@
     "@workbench/agent-runtime-pi-protocol": "workspace:*",
     "@workbench/agent-runtime-pi-shared": "workspace:*",
     "@workbench/attachment-understanding-contracts": "workspace:*",
-    "@workbench/automation-contracts": "workspace:*",
     "@workbench/contracts": "workspace:*",
     "@workbench/extension-host": "workspace:*",
     "@workbench/extension-sdk": "workspace:*",
     "@workbench/host-contracts": "workspace:*",
     "@workbench/shell": "workspace:*",
-    "cronstrue": "^3.24.0",
     "lucide-react": "^1.29.0",
     "shiki": "3.23.0",
     "zustand": "^5.0.14"
