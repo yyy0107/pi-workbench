@@ -1,6 +1,15 @@
 "use client";
 
-import { cloneElement, useId, type ComponentProps, type ReactElement, type ReactNode } from "react";
+import {
+  cloneElement,
+  useCallback,
+  useId,
+  useState,
+  type ComponentProps,
+  type CSSProperties,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { ChevronRightIcon } from "lucide-react";
 
 import type { SidebarDragBinding } from "../hooks/use-sidebar-pointer-reorder";
@@ -13,6 +22,7 @@ export function SidebarGroup({
   header,
   children,
   indent = false,
+  animateContent = false,
   dropPosition,
   className,
   ...props
@@ -20,8 +30,19 @@ export function SidebarGroup({
   header: ReactNode;
   children: ReactNode;
   indent?: boolean;
+  animateContent?: boolean;
   dropPosition?: SidebarDragBinding["dropPosition"];
 }) {
+  const [contentHeight, setContentHeight] = useState<number>();
+  const measureContent = useCallback((element: HTMLDivElement | null) => {
+    if (!element) return;
+    const measure = () => setContentHeight(element.getBoundingClientRect().height);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <Collapsible
       render={<section />}
@@ -34,8 +55,17 @@ export function SidebarGroup({
       <CollapsibleContent
         className={cn(collapsePanel, "sidebar-group-content outline-none")}
         data-indent={indent || undefined}
+        data-animate-content={animateContent || undefined}
+        style={(state) =>
+          animateContent &&
+          state.open &&
+          state.transitionStatus === "idle" &&
+          contentHeight !== undefined
+            ? ({ "--collapsible-panel-height": `${contentHeight}px` } as CSSProperties)
+            : undefined
+        }
       >
-        {children}
+        {animateContent ? <div ref={measureContent}>{children}</div> : children}
       </CollapsibleContent>
     </Collapsible>
   );

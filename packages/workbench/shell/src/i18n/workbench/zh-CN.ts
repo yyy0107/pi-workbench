@@ -270,7 +270,7 @@ export const workbenchZhCN = {
     chatSortPriority: "优先级",
     chatSortRecent: "最近更新",
     ungrouped: "未分组会话",
-    loadMore: "显示更多",
+    loadMore: "展示更多",
     generating: "正在生成",
     waitingForUserInput: "等待用户输入",
     completed: "已在后台完成",

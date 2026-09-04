@@ -448,8 +448,14 @@
     border-radius: var(--sidebar-row-radius);
     color: var(--muted-foreground);
     transition:
+      opacity var(--sidebar-row-motion-duration),
       color var(--sidebar-row-motion-duration),
       background-color var(--sidebar-row-motion-duration);
+  }
+  @starting-style {
+    .sidebar-group-content[data-animate-content] .sidebar-row {
+      opacity: 0;
+    }
   }
   .sidebar-row:is(:hover, :focus-within, [data-menu-open]) {
     background: var(--sidebar-accent);
@@ -534,6 +540,9 @@
   }
   .sidebar-row-label {
     grid-area: 1 / 2;
+  }
+  .sidebar-row[data-variant="item"] .sidebar-row-label {
+    color: var(--button-foreground-selected);
   }
   .sidebar-row[data-variant="folder"] .sidebar-row-label,
   .sidebar-section-label {

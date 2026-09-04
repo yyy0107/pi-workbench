@@ -27,7 +27,6 @@ import { useI18n } from "../i18n";
 import { useAppearancePreferences } from "../appearance";
 import { useWorkbenchNavigation } from "../navigation";
 import { NewThreadButton } from "./new-thread-button";
-import { DraftThreadListItem } from "./draft-thread-list-item";
 import { RunningThreadIndicator } from "./running-thread-indicator";
 import { WorkbenchThreadList } from "./thread-list";
 import {
@@ -187,6 +186,7 @@ function WorkspaceDirectorySection({
   return (
     <SidebarGroup
       open={expanded}
+      animateContent
       dropPosition={drag.dropPosition === "inside" ? undefined : drag.dropPosition}
       onOpenChange={(open) => {
         if (drag.shouldSuppressClick()) return;
@@ -282,12 +282,10 @@ function WorkspaceDirectorySection({
         />
       }
     >
-      {showNewThread ? (
-        <DraftThreadListItem workspaceId={directory.id} onNavigate={onNavigate} />
-      ) : null}
       <WorkbenchThreadList
         workspaceId={directory.id}
         showEmpty={!showNewThread && !query}
+        showNewThread={showNewThread}
         onNavigate={onNavigate}
       />
     </SidebarGroup>

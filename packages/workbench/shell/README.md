@@ -96,13 +96,13 @@ Projects and Pinned use a dedicated section heading; workspace folders, conversa
 use item rows. These primitives live in `src/ui/sidebar-items.tsx`, exported through
 `@workbench/shell/ui`:
 
-| Component | Contract |
-| --- | --- |
-| `SidebarGroup` | Controlled `open` / `onOpenChange`, `header`, and `children`; reuses `Collapsible` for expansion and animation. `indent` adds child indentation; `dropPosition` draws group-level insertion feedback. |
-| `SidebarSectionHeading` | Dedicated Projects / Pinned heading with `label`, `expanded`, `description`, `actions`, and an optional receiving `drag` binding. Uses `CollapsibleTrigger`, a chevron after the label, and no selectable or hover background. |
-| `SidebarRow` | `folder` or `item` variant with `icon`, `hoverIcon`, `label`, `description`, `status`, `actions`, `active`, `menuOpen`, and an optional `drag` binding. `trigger` defaults to `Button`; use `CollapsibleTrigger` for expandable folder rows. |
-| `SidebarStatus` | Trailing content with shared alignment and truncation. Set `secondary` for timestamps hidden on touch or narrow layouts; waiting and unread-completion indicators remain primary. |
-| `SidebarActions` | Put controls shared by all devices in `children`; `desktop` and `mobile` contain additional quick actions. Owns visibility, spacing, touch targets, and the `data-sidebar-actions` marker that prevents drag initiation. Folder menus reuse `DropdownMenu`. |
+| Component               | Contract                                                                                                                                                                                                                                                    |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SidebarGroup`          | Controlled `open` / `onOpenChange`, `header`, and `children`; reuses `Collapsible` for expansion and animation. `indent` adds child indentation; `dropPosition` draws group-level insertion feedback.                                                       |
+| `SidebarSectionHeading` | Dedicated Projects / Pinned heading with `label`, `expanded`, `description`, `actions`, and an optional receiving `drag` binding. Uses `CollapsibleTrigger`, a chevron after the label, and no selectable or hover background.                              |
+| `SidebarRow`            | `folder` or `item` variant with `icon`, `hoverIcon`, `label`, `description`, `status`, `actions`, `active`, `menuOpen`, and an optional `drag` binding. `trigger` defaults to `Button`; use `CollapsibleTrigger` for expandable folder rows.                |
+| `SidebarStatus`         | Trailing content with shared alignment and truncation. Set `secondary` for timestamps hidden on touch or narrow layouts; waiting and unread-completion indicators remain primary.                                                                           |
+| `SidebarActions`        | Put controls shared by all devices in `children`; `desktop` and `mobile` contain additional quick actions. Owns visibility, spacing, touch targets, and the `data-sidebar-actions` marker that prevents drag initiation. Folder menus reuse `DropdownMenu`. |
 
 The primary trigger and actions are sibling DOM elements. Supply navigation through `onActivate`,
 keep action buttons in `SidebarActions`, and pass controlled menu state to `menuOpen`. Row labels,
@@ -114,6 +114,16 @@ selection state. Both heading and row actions use `SidebarActions` as siblings o
 Workspace conversation and draft lists leave `SidebarGroup.indent` disabled. Their rows, including
 selection and hover backgrounds, span the same width as the folder header. Icon space belongs
 inside the row and does not inset its background.
+
+Each workspace folder, including pinned folders, initially shows five conversation rows (counting
+the draft when present). A trailing Show more button reveals five more at a time and disappears
+once all matches are visible. Closing keeps the current rows for the collapse animation; reopening
+resets the visible count to five before the panel measures its height.
+Workspace folders enable `SidebarGroup.animateContent`: the existing collapsible height transition
+also follows changes in the measured content height, and newly mounted rows fade in. Both effects
+respect reduced-motion preferences; measuring content avoids fixed heights across control densities.
+Pagination only limits rendering after search filtering; ordering and drag operations retain the
+complete conversation list.
 
 These primitives accept React content and callbacks. Runtime subscriptions, workspace operations,
 navigation, persistence, and localized copy belong to `src/sidebar/`; the shared UI does not import
@@ -171,14 +181,14 @@ through their menus.
 current model and commits operations. Pinned conversations precede pinned folders, and each type
 has its own order. A conversation's own pin state is independent of its folder's pin state.
 
-| Source and target | Result |
-| --- | --- |
-| Same list and type | Insert before or after the target. |
-| Folder to the other group or one of its folders | Change pin membership and append at the heading or insert beside the folder; preserve the moved folder's expansion state. |
-| Conversation to Pinned or a pinned conversation | Pin and append at the heading or insert beside the conversation; preserve workspace ownership. |
-| Pinned conversation to Projects heading | Unpin and restore the original workspace order, or return to the ungrouped list. |
-| Pinned conversation to its own folder or an unpinned conversation in that folder | Unpin; append when targeting the folder, or insert at the conversation's position. Collapsed folders accept this drop. |
-| Conversation to another workspace, or folders and conversations mixed in one order | Reject the drop. |
+| Source and target                                                                  | Result                                                                                                                    |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Same list and type                                                                 | Insert before or after the target.                                                                                        |
+| Folder to the other group or one of its folders                                    | Change pin membership and append at the heading or insert beside the folder; preserve the moved folder's expansion state. |
+| Conversation to Pinned or a pinned conversation                                    | Pin and append at the heading or insert beside the conversation; preserve workspace ownership.                            |
+| Pinned conversation to Projects heading                                            | Unpin and restore the original workspace order, or return to the ungrouped list.                                          |
+| Pinned conversation to its own folder or an unpinned conversation in that folder   | Unpin; append when targeting the folder, or insert at the conversation's position. Collapsed folders accept this drop.    |
+| Conversation to another workspace, or folders and conversations mixed in one order | Reject the drop.                                                                                                          |
 
 An empty Pinned receiving heading appears during dragging, including when the source is a single
 item. A non-empty search disables dragging and menu sorting while leaving pin toggles available.
