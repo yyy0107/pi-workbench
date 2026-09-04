@@ -10,7 +10,7 @@ importers:
     devDependencies:
       '@workbench/agent-runtime-pi-contributions':
         specifier: workspace:*
-        version: link:packages/agent-runtime/adapters/pi/contributions
+        version: link:packages/agent-runtime/runtimes/pi/contributions
       '@workbench/extension-sdk':
         specifier: workspace:*
         version: link:packages/extension-platform/sdk
@@ -47,7 +47,7 @@ importers:
         version: 26.2.0
       '@workbench/agent-runtime-pi-protocol':
         specifier: workspace:*
-        version: link:../../packages/agent-runtime/adapters/pi/protocol
+        version: link:../../packages/agent-runtime/runtimes/pi/protocol
       '@workbench/host-client':
         specifier: workspace:*
         version: link:../../packages/workbench/host-client
@@ -83,10 +83,10 @@ importers:
         version: 1.0.2(react@19.2.8)(supports-color@7.2.0)
       '@workbench/agent-runtime-pi-client':
         specifier: workspace:*
-        version: link:../../packages/agent-runtime/adapters/pi/client
+        version: link:../../packages/agent-runtime/runtimes/pi/client
       '@workbench/agent-runtime-pi-contributions':
         specifier: workspace:*
-        version: link:../../packages/agent-runtime/adapters/pi/contributions
+        version: link:../../packages/agent-runtime/runtimes/pi/contributions
       '@workbench/desktop-contracts':
         specifier: workspace:*
         version: link:../../packages/workbench/desktop-contracts
@@ -162,10 +162,10 @@ importers:
         version: 0.84.2(ws@8.21.3)
       '@workbench/agent-runtime-pi-protocol':
         specifier: workspace:*
-        version: link:../../packages/agent-runtime/adapters/pi/protocol
+        version: link:../../packages/agent-runtime/runtimes/pi/protocol
       '@workbench/agent-runtime-pi-server':
         specifier: workspace:*
-        version: link:../../packages/agent-runtime/adapters/pi/server
+        version: link:../../packages/agent-runtime/runtimes/pi/server
       '@workbench/agent-runtime-server':
         specifier: workspace:*
         version: link:../../packages/agent-runtime/core/server
@@ -238,13 +238,13 @@ importers:
         version: link:../../packages/agent-runtime/core/contracts
       '@workbench/agent-runtime-pi-client':
         specifier: workspace:*
-        version: link:../../packages/agent-runtime/adapters/pi/client
+        version: link:../../packages/agent-runtime/runtimes/pi/client
       '@workbench/agent-runtime-pi-contributions':
         specifier: workspace:*
-        version: link:../../packages/agent-runtime/adapters/pi/contributions
+        version: link:../../packages/agent-runtime/runtimes/pi/contributions
       '@workbench/agent-runtime-pi-protocol':
         specifier: workspace:*
-        version: link:../../packages/agent-runtime/adapters/pi/protocol
+        version: link:../../packages/agent-runtime/runtimes/pi/protocol
       '@workbench/extension-host':
         specifier: workspace:*
         version: link:../../packages/extension-platform/host
@@ -305,7 +305,7 @@ importers:
         version: 19.2.4(@types/react@19.2.18)
       '@workbench/agent-runtime-pi-shared':
         specifier: workspace:*
-        version: link:../../packages/agent-runtime/adapters/pi/shared
+        version: link:../../packages/agent-runtime/runtimes/pi/shared
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
@@ -325,7 +325,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/agent-runtime/adapters/pi/client:
+  packages/agent-runtime/runtimes/pi/client:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
@@ -377,7 +377,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/agent-runtime/adapters/pi/contributions:
+  packages/agent-runtime/runtimes/pi/contributions:
     dependencies:
       '@file-viewer/core':
         specifier: 2.3.0
@@ -480,7 +480,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/agent-runtime/adapters/pi/protocol:
+  packages/agent-runtime/runtimes/pi/protocol:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.84.2
@@ -505,7 +505,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/agent-runtime/adapters/pi/server:
+  packages/agent-runtime/runtimes/pi/server:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.84.2
@@ -557,7 +557,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/agent-runtime/adapters/pi/shared:
+  packages/agent-runtime/runtimes/pi/shared:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.84.2

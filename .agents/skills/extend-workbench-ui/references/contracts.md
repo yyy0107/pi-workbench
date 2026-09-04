@@ -736,7 +736,7 @@ importing or naming the contribution currently rendered in that pane.
 
 ## Pi runtime boundary
 
-Read `packages/agent-runtime/adapters/pi/README.md` completely before adding Pi-backed UI. It is the maintained architecture
+Read `packages/agent-runtime/runtimes/pi/README.md` completely before adding Pi-backed UI. It is the maintained architecture
 and capability reference. Verify exact shapes against:
 
 - `@workbench/agent-runtime-pi-protocol/rpc` for unary RPC envelopes and payload/value types;
@@ -750,7 +750,7 @@ second WebSocket/SSE connection, duplicate payload interfaces, or treat HTTP `20
 success without checking the RPC result envelope.
 
 `/api/pi/**`, legacy contracts, and `legacy-sse.ts` are compatibility paths, not the default for new
-features. Use one only when `packages/agent-runtime/adapters/pi/README.md` explicitly identifies a remaining exception (for
+features. Use one only when `packages/agent-runtime/runtimes/pi/README.md` explicitly identifies a remaining exception (for
 example the current queue-pause compatibility command). If a required method is missing, extend the
 wire contracts, validation/router, domain service, client helper, and tests before wiring the UI.
 Do not infer unimplemented Harness APIs or bypass the trust boundary from a component.

@@ -6,7 +6,7 @@
   },
   "overrides": [
     {
-      "files": ["packages/agent-runtime/adapters/pi/contributions/src/**/*"],
+      "files": ["packages/agent-runtime/runtimes/pi/contributions/src/**/*"],
       "excludeFiles": ["**/*.test.*", "**/*.spec.*", "**/*.bench.*"],
       "rules": {
         "no-restricted-imports": [

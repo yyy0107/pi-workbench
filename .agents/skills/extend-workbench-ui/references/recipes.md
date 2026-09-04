@@ -393,7 +393,7 @@ Promise returned by `open()`. Do not import the owner's component, store, or int
 
 ## Pi-backed extension
 
-Before adding Pi-backed UI, read `packages/agent-runtime/adapters/pi/README.md` completely and inspect the exact source file
+Before adding Pi-backed UI, read `packages/agent-runtime/runtimes/pi/README.md` completely and inspect the exact source file
 it names. Prefer:
 
 - `usePiThreadStateSnapshot()` or `usePiThreadStates()` from
@@ -615,7 +615,7 @@ Do not add a feature-specific Slot such as `notes.button`. Add a semantic host l
 - [ ] Register inspector kinds through `context.workspace`; keep feature branches and services out of RightWorkspace core.
 - [ ] Register cross-feature resource routing through `context.openers`; do not deep-import sibling builtin features.
 - [ ] Use `workspace.actions`/`workspace.empty.actions` only for compact controls outside a Surface lifecycle.
-- [ ] Read `packages/agent-runtime/adapters/pi/README.md` before Pi-backed UI and route server SDK work through `$pi-coding-agent-sdk` or `$pi-ai-sdk`.
+- [ ] Read `packages/agent-runtime/runtimes/pi/README.md` before Pi-backed UI and route server SDK work through `$pi-coding-agent-sdk` or `$pi-ai-sdk`.
 - [ ] Audit registered shortcuts and standalone global `keydown` listeners.
 - [ ] Return Disposables for external resources.
 - [ ] Avoid duplicate Panel chrome.

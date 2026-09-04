@@ -3,7 +3,7 @@ packages:
   - "packages/contracts/*"
   - "packages/server/*"
   - "packages/agent-runtime/core/*"
-  - "packages/agent-runtime/adapters/pi/*"
+  - "packages/agent-runtime/runtimes/pi/*"
   - "packages/extension-platform/*"
   - "packages/host/*"
   - "packages/terminal/*"

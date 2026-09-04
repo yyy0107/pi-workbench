@@ -14,8 +14,8 @@ Pi Workbench 是本地优先、以工作区为中心的 AI 编程工作台，同
   `src/runtime-connected-web-main.ts` 只消费已通过 admission 的 Runtime connection，不创建或关闭 Runtime
 - `packages/workbench/shell/`：通用 Workbench Shell、核心聊天、侧栏、布局与 Shell-owned extensions
 - `packages/extension-platform/`：扩展公共契约、Registry、Host 和生命周期
-- `packages/agent-runtime/adapters/pi/contributions/`：Pi-owned Workbench UI contributions
-- `packages/agent-runtime/adapters/pi/`：Pi 协议、client/server adapter、会话、模型、Workspace 和实时事件
+- `packages/agent-runtime/runtimes/pi/contributions/`：Pi-owned Workbench UI contributions
+- `packages/agent-runtime/runtimes/pi/`：Pi 协议、client/server implementation、会话、模型、Workspace 和实时事件
 - `apps/runtime-node/`：唯一的 API-only Node Runtime Host 应用组合、生命周期与 artifact producer
 - `packages/host/`：Host contracts、HTTP/WebSocket ingress、Web/Runtime control、artifact admission 与
   source-shape policy
@@ -45,7 +45,7 @@ Pi Workbench 是本地优先、以工作区为中心的 AI 编程工作台，同
 - 构建职责归 app：`@workbench/runtime-node` 生产 Runtime artifact、`@workbench/web` 生产 Next/Web artifact、
   `@workbench/desktop-electron` 组合并打包它们；根 `pnpm build` 与 `electron:*` 只负责顺序编排。
 - 修改 Pi transport、session、workspace、model 或 host 状态前，完整阅读
-  `packages/agent-runtime/adapters/pi/README.md`，复用现有 typed contracts、transport API 和 manager
+  `packages/agent-runtime/runtimes/pi/README.md`，复用现有 typed contracts、transport API 和 manager
   hooks；不要调用未授权的原始端点、复制 RPC 类型或另开事件流。
 - assistant-ui API 以当前安装版本及项目 Skills 为准。不要使用已移除的旧 Hook，也不要把 message、composer 或运行状态复制进 Zustand。
 - 可独立启用或移除的前端功能优先实现为扩展。遵守 Slot、Panel、Command、Opener、Renderer、Settings 和 Workspace Surface 的职责边界；不要在业务扩展中虚构 Slot，也不要深度导入兄弟扩展。

@@ -19,8 +19,9 @@ const IGNORED_DIRECTORIES = new Set([
   "node_modules",
   "out",
 ]);
-const PI_IMPLEMENTATION_PREFIX = "packages/agent-runtime/adapters/pi/";
-const PI_CONTRIBUTIONS_PREFIX = "packages/agent-runtime/adapters/pi/contributions/";
+const PI_IMPLEMENTATION_PREFIX = "packages/agent-runtime/runtimes/pi/";
+const PI_CONTRIBUTIONS_PREFIX = "packages/agent-runtime/runtimes/pi/contributions/";
+const LEGACY_PI_IMPLEMENTATION_PATH = ["packages", "agent-runtime", "adapters", "pi"] as const;
 const LEGACY_PI_FACADE_PATH = [
   "apps",
   "web",
@@ -176,7 +177,7 @@ function permitsExactImport(
 
 function isPermittedPiPackageImport(file: string, specifier: string): boolean {
   // The browser-only Pi contribution bundle may use Pi's browser/client contracts, but it must
-  // never pull the Pi server adapter into the Web graph.
+  // never pull the Pi server implementation into the Web graph.
   if (file.startsWith(PI_CONTRIBUTIONS_PREFIX)) {
     return (
       PI_CLIENT_OR_SHARED_PREFIXES.some((prefix) => specifier.startsWith(prefix)) ||
@@ -281,7 +282,7 @@ test("preserves the product-owned cross-package extension activation order", () 
 test("keeps the Pi Web contribution leaf independent of root aliases and host internals", () => {
   const contributionsRoot = path.join(
     repositoryRoot,
-    "packages/agent-runtime/adapters/pi/contributions",
+    "packages/agent-runtime/runtimes/pi/contributions",
   );
   const violations = sourceFiles(contributionsRoot)
     .map(
@@ -305,6 +306,39 @@ test("keeps the Pi Web contribution leaf independent of root aliases and host in
 
   assert.deepEqual(violations, []);
   assert.equal(existsSync(path.join(repositoryRoot, ...LEGACY_PI_FACADE_PATH)), false);
+});
+
+test("keeps Pi under the Runtime implementation path without structural Adapter names", () => {
+  const implementationRoot = path.join(repositoryRoot, PI_IMPLEMENTATION_PREFIX);
+  assert.equal(existsSync(implementationRoot), true);
+  assert.equal(existsSync(path.join(repositoryRoot, ...LEGACY_PI_IMPLEMENTATION_PATH)), false);
+
+  const allowedAdapterFiles = new Set([
+    "server/src/attachment-understanding/providers/ocr-adapter.ts",
+    "server/test/attachment-understanding/providers/ocr-adapter.test.ts",
+  ]);
+  const forbiddenIdentifiers = [
+    ["createPiAgentServer", "Adapter"].join(""),
+    ["PiAgentServer", "AdapterDependencies"].join(""),
+    ["createPiAgentExecution", "Adapter"].join(""),
+    ["createPiAgentThreadStore", "Adapter"].join(""),
+    ["ExternalSessionSource", "Adapter"].join(""),
+    ...["Codex", "ClaudeCode", "Cursor"].map((source) => `${source}SessionAdapter`),
+  ];
+  const violations = sourceFiles(implementationRoot).flatMap((file) => {
+    const relativeFile = path.relative(implementationRoot, file).split(path.sep).join("/");
+    const source = readFileSync(file, "utf8");
+    return [
+      ...(!allowedAdapterFiles.has(relativeFile) && /-adapter(?:\.test)?\.[cm]?[jt]sx?$/u.test(file)
+        ? [`${relativeFile}: structural Adapter filename`]
+        : []),
+      ...forbiddenIdentifiers
+        .filter((identifier) => source.includes(identifier))
+        .map((identifier) => `${relativeFile}: ${identifier}`),
+    ];
+  });
+
+  assert.deepEqual(violations.sort(), []);
 });
 
 test("confines Pi packages to the implementation and explicit application composition", () => {
@@ -341,7 +375,7 @@ test("rejects Pi packages outside the implementation and exact composition allow
       `const pi = require("${piServerInstallation}"); import { STREAM_PATHS } from "${piProtocolStream}"; void pi; void STREAM_PATHS;`,
     ],
     [
-      "packages/agent-runtime/adapters/pi/contributions/illegal-server-reexport.ts",
+      "packages/agent-runtime/runtimes/pi/contributions/illegal-server-reexport.ts",
       `export * from "${piServerInstallation}";`,
     ],
     [
@@ -371,8 +405,8 @@ test("rejects Pi packages outside the implementation and exact composition allow
     `apps/web/src/server/runtime-sidecar-child.ts: direct Pi package import is outside its owner boundary (${piProtocolStream})`,
     `apps/web/src/server/runtime-sidecar-child.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
     `components/illegal-pi-client.tsx: direct Pi package import is outside its owner boundary (${piClientInstallation})`,
-    `packages/agent-runtime/adapters/pi/contributions/illegal-server-reexport.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
     `packages/agent-runtime/core/contracts/src/illegal-pi-protocol.ts: direct Pi package import is outside its owner boundary (${piProtocolStream})`,
+    `packages/agent-runtime/runtimes/pi/contributions/illegal-server-reexport.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
     `packages/extension-platform/host/src/illegal-pi-client.ts: direct Pi package import is outside its owner boundary (${piClientInstallation})`,
     `packages/extension-platform/sdk/src/illegal-pi-contribution.ts: direct Pi package import is outside its owner boundary (${piContributionsInstallation})`,
     `packages/host/artifact-policy/src/illegal-pi-policy.cjs: direct Pi package import is outside its owner boundary (${piProtocolStream})`,

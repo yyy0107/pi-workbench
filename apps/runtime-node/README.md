@@ -28,12 +28,12 @@ flowchart LR
   mux/host WebSocket boundaries with the independent Terminal WebSocket gateway. Authentication is
   completed by the Host boundary before a business gateway may allocate a session or PTY.
 - [`src/composition/`](./src/composition/) is the sole installed-implementation selection layer. It
-  may connect concrete Pi adapters to Workbench ports and leaf services; reusable domain behavior
+  may connect the concrete Pi implementation to Workbench ports and leaf services; reusable domain behavior
   belongs in the package that owns it, not in this app.
 - [`@workbench/agent-runtime-server`](../../packages/agent-runtime/core/server/README.md) owns the
   Runtime-neutral command, execution, and thread ports plus the singular installation contract.
   Pi session, history, model, resource, and transport semantics remain in the
-  [Pi adapter packages](../../packages/agent-runtime/adapters/pi/README.md).
+  [Pi Runtime packages](../../packages/agent-runtime/runtimes/pi/README.md).
 - [`@workbench/automation-server`](../../packages/server/automation/) owns Automation definitions,
   persistence, and scheduling. Its installed Pi binding launches an ordinary visible session
   through the generic Agent execution port.

@@ -1,6 +1,6 @@
 ---
 name: pi-ai-sdk
-description: Use @earendil-works/pi-ai in this Workbench repository for model/provider collections, authentication, chat or image requests, streaming events, tool schemas, partial tool-call JSON, and Pi Messages wire events. Use when code imports pi-ai, changes the Pi adapter model catalog or streamed-message handling, builds a custom provider, or needs version-correct Pi AI types. Do not use for coding-agent sessions or extensions unless the task also touches Pi AI; use the pi-coding-agent-sdk skill for that layer.
+description: Use @earendil-works/pi-ai in this Workbench repository for model/provider collections, authentication, chat or image requests, streaming events, tool schemas, partial tool-call JSON, and Pi Messages wire events. Use when code imports pi-ai, changes the Pi Runtime model catalog or streamed-message handling, builds a custom provider, or needs version-correct Pi AI types. Do not use for coding-agent sessions or extensions unless the task also touches Pi AI; use the pi-coding-agent-sdk skill for that layer.
 ---
 
 # Pi AI SDK
@@ -10,7 +10,7 @@ Use Pi AI as the provider-neutral model, message, streaming, tool-schema, authen
 ## Load the right context
 
 1. Read the repository `AGENTS.md` and the nearest instructions for every file being changed.
-2. Read `packages/agent-runtime/adapters/pi/README.md` completely before changing model, provider, auth, session stream, attachment, or browser transport behavior.
+2. Read `packages/agent-runtime/runtimes/pi/README.md` completely before changing model, provider, auth, session stream, attachment, or browser transport behavior.
 3. Read [references/source-routing.md](references/source-routing.md) before choosing an import. Resolve the installed package version and export map first.
 4. Read [references/models-providers-auth.md](references/models-providers-auth.md) for model lookup, provider composition, custom providers, dynamic catalogs, authentication, or reasoning options.
 5. Read [references/messages-streams-tools-images.md](references/messages-streams-tools-images.md) for contexts, message/event protocols, reducers, tool calls, image input, or image generation.
@@ -46,7 +46,7 @@ Use Pi AI as the provider-neutral model, message, streaming, tool-schema, authen
 ### 4. Preserve the Workbench boundary
 
 - Keep provider credentials, OAuth, Bedrock, dynamic catalog refreshes, and real model requests on the server.
-- It is acceptable for shared/client code to import canonical types or browser-safe pure utilities such as `parseStreamingJson` when the current bundle supports them, as `packages/agent-runtime/adapters/pi/shared/src/messages.ts` does.
+- It is acceptable for shared/client code to import canonical types or browser-safe pure utilities such as `parseStreamingJson` when the current bundle supports them, as `packages/agent-runtime/runtimes/pi/shared/src/messages.ts` does.
 - Expose only validated, JSON-compatible subsets through Workbench RPC/stream contracts. Do not send `Models`, `Provider`, credential stores, event-stream instances, callbacks, or secrets to the browser.
 - Reuse the existing durable compact `PiMessagesEvent` chunk protocol and final `message_end` correction instead of creating a second token stream; `session/message-update` is read only for rolling compatibility.
 - Keep `@earendil-works/pi-ai` in `next.config.ts` server externals unless a deliberate bundling change is required and verified.
@@ -66,4 +66,4 @@ Use Pi AI as the provider-neutral model, message, streaming, tool-schema, authen
 - Never persist API keys in browser-visible Workbench state, logs, RPC errors, or snapshots.
 - Never use direct `api/*` calls when provider-owned auth and routing are required; direct API calls bypass collection auth.
 - Never assume `contextWindow` controls output length; `maxTokens` is separate output metadata/request behavior.
-- Preserve unrelated worktree changes in `packages/agent-runtime/adapters/pi/server/src/models/`, protocol stream contracts, and shared message reducers.
+- Preserve unrelated worktree changes in `packages/agent-runtime/runtimes/pi/server/src/models/`, protocol stream contracts, and shared message reducers.

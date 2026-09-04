@@ -1,6 +1,6 @@
 ---
 name: pi-coding-agent-sdk
-description: Use the embedded @earendil-works/pi-coding-agent SDK and Pi extension system in this Workbench repository. Use when Codex needs to create or change an ExtensionFactory or InlineExtension, subscribe to Pi lifecycle/model/message/tool/input events, register Pi tools/commands/providers/renderers, load or filter extensions through DefaultResourceLoader, work with LoadExtensionsResult or ExtensionRuntime, create/bind/reload AgentSession services, or decide how Pi server state should cross the Workbench RPC boundary. Also use when the Pi adapter packages depend on the Pi coding-agent public API.
+description: Use the embedded @earendil-works/pi-coding-agent SDK and Pi extension system in this Workbench repository. Use when Codex needs to create or change an ExtensionFactory or InlineExtension, subscribe to Pi lifecycle/model/message/tool/input events, register Pi tools/commands/providers/renderers, load or filter extensions through DefaultResourceLoader, work with LoadExtensionsResult or ExtensionRuntime, create/bind/reload AgentSession services, or decide how Pi server state should cross the Workbench RPC boundary. Also use when the Pi Runtime packages depend on the Pi coding-agent public API.
 ---
 
 # Pi Coding Agent SDK
@@ -10,7 +10,7 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 ## Load the right context
 
 1. Read the repository `AGENTS.md` and the nearest nested instructions for every file being changed.
-2. Read `packages/agent-runtime/adapters/pi/README.md` completely before changing Pi session, transport, workspace, model, settings, package, skill, or extension behavior.
+2. Read `packages/agent-runtime/runtimes/pi/README.md` completely before changing Pi session, transport, workspace, model, settings, package, skill, or extension behavior.
 3. Read [references/source-routing.md](references/source-routing.md) before choosing or importing a Pi API. Resolve the installed package version first.
 4. Read [references/extensions.md](references/extensions.md) when authoring, registering, loading, filtering, or debugging Pi extensions.
 5. Read [references/session-sdk.md](references/session-sdk.md) when creating sessions/services, binding extension contexts, reloading resources, or exposing Pi behavior to Workbench.
@@ -37,7 +37,7 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 
 ### 3. Reuse the current Workbench composition
 
-- Put statically compiled, host-owned Pi extensions under `packages/agent-runtime/adapters/pi/server/src/internal-extensions/`.
+- Put statically compiled, host-owned Pi extensions under `packages/agent-runtime/runtimes/pi/server/src/internal-extensions/`.
 - Keep user/package extension discovery and mutation in the existing extension/package services; do not disguise internal extensions as user files.
 - Add internal extensions to the stable module-level `workbenchInternalPiExtensions` array with a `workbench.` name and `hidden: true` unless they should appear in Pi's startup extension list.
 - Preserve `extensionsOverride` composition and return the complete `LoadExtensionsResult`. Report scoped failures without discarding unrelated extensions, errors, or the shared runtime.
@@ -56,7 +56,7 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 
 - Keep `@earendil-works/pi-coding-agent` imports in server/runtime modules. Never serialize `AgentSession`, `ExtensionAPI`, `ExtensionRuntime`, registries, callbacks, Maps, or tool definitions to the browser.
 - Promote only stable JSON-compatible request/response/event fields into `@workbench/agent-runtime-pi-protocol` or the Workbench-owned adapter contracts when a frontend needs them.
-- Do not copy raw Pi RPC types into Workbench or call legacy `/api/pi/**` routes from a new feature. Follow the transport named by `packages/agent-runtime/adapters/pi/README.md`.
+- Do not copy raw Pi RPC types into Workbench or call legacy `/api/pi/**` routes from a new feature. Follow the transport named by `packages/agent-runtime/runtimes/pi/README.md`.
 - Keep project-trust checks and filesystem/provider credentials on the server side.
 
 ## Validate proportionally
@@ -73,4 +73,4 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 - Never mutate `LoadExtensionsResult.runtime` casually; it is shared across the loaded extension set and is bound to the active runner.
 - Never start a second Pi service or event stream for a feature already covered by the embedded runtime.
 - Never infer the API from the local Pi checkout alone when its version differs from the installed dependency.
-- Preserve unrelated worktree changes, especially in `packages/agent-runtime/adapters/pi/server/src/sessions/` and `packages/agent-runtime/adapters/pi/server/src/extensions/`.
+- Preserve unrelated worktree changes, especially in `packages/agent-runtime/runtimes/pi/server/src/sessions/` and `packages/agent-runtime/runtimes/pi/server/src/extensions/`.

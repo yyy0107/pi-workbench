@@ -563,7 +563,7 @@ const contribution = context.workspace.register({
 `open()`、`reveal()` 和 `update()` 中的 `title`、`statusMessage` 接受 `LocalizableText`。内置产品文案必须传入 `defineMessage(...)` 描述符，由 Host 在渲染时按当前 locale 解析；文件名、URL、用户或资源提供的标题保持 literal string。`defineMessage()` 是应用 catalog 唯一的公开描述符构造器，会同时校验包含 namespace 的组合键与参数；raw object literal 不能满足 SDK 的 opaque descriptor 类型。运行时仍使用 plain JSON `{ key }` / `{ key, values }` 形状，因此两种形态都可序列化，旧快照中的字符串会继续兼容恢复。异步失败应通过 `useExtensionErrorReporter()` 保存原始诊断，并只把稳定、面向用户的消息描述符写入 `statusMessage`，不得直接显示 `Error.message`。
 
 当前通用参考实现位于 `packages/workbench/shell/src/extensions/builtin/`；Pi/Runtime 专属参考实现位于
-`packages/agent-runtime/adapters/pi/contributions/src/extensions/`。
+`packages/agent-runtime/runtimes/pi/contributions/src/extensions/`。
 
 ### 跨 Contribution 打开资源：Opener
 
@@ -1113,14 +1113,14 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 
 ## 16. 可参考的现有扩展
 
-- 最小 Slot：[`connection-status`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/connection-status/extension.ts)
-- Model 选择与当前 Session bridge：[`model-selector`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/model-selector/extension.ts)
-- Settings + Pi RPC：[`skills`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/skills/extension.ts)
-- Workspace Surface + Open Handler：[`workspace-file`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/workspace-file/extension.ts)
-- Workspace Surface + Command + Tool Renderer：[`terminal`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/terminal/extension.ts)
+- 最小 Slot：[`connection-status`](../packages/agent-runtime/runtimes/pi/contributions/src/extensions/connection-status/extension.ts)
+- Model 选择与当前 Session bridge：[`model-selector`](../packages/agent-runtime/runtimes/pi/contributions/src/extensions/model-selector/extension.ts)
+- Settings + Pi RPC：[`skills`](../packages/agent-runtime/runtimes/pi/contributions/src/extensions/skills/extension.ts)
+- Workspace Surface + Open Handler：[`workspace-file`](../packages/agent-runtime/runtimes/pi/contributions/src/extensions/workspace-file/extension.ts)
+- Workspace Surface + Command + Tool Renderer：[`terminal`](../packages/agent-runtime/runtimes/pi/contributions/src/extensions/terminal/extension.ts)
 - Sidebar/Header Slot + floating Settings：[`settings`](../packages/workbench/shell/src/extensions/builtin/settings/extension.ts)
 - Message 分组、reasoning 与 Tool/Data fallback：[`message-presentation`](../packages/workbench/shell/src/extensions/builtin/message-presentation/extension.ts)
-- Runtime 状态派生：[`token-usage`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/token-usage/extension.ts)
+- Runtime 状态派生：[`token-usage`](../packages/agent-runtime/runtimes/pi/contributions/src/extensions/token-usage/extension.ts)
 
 如果新需求无法自然归入 Slot、Panel、Command、Renderer 或 Settings，先判断它是不是：
 

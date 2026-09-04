@@ -13,7 +13,7 @@ test("guards the remaining literal Runtime boundaries", () => {
       [
         "apps/web/src/unsafe.ts",
         [
-          "createPiAgentServerAdapter();",
+          "createPiAgentServerImplementation();",
           "new WebSocket('/runtime');",
           "window.location.origin;",
           "require(runtimeModule);",

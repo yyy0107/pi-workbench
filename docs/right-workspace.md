@@ -117,7 +117,7 @@ Explorer
 File contribution 在同步 `setup()` 中通过 `context.openers.register(...)` 注册 handler。执行时
 Service 注入通用 Surface operations，因此 setup 不需要 React Hook；Explorer 不知道 File 的
 React component、store 或 surface kind。Pi 文件能力位于
-`packages/agent-runtime/adapters/pi/contributions/src/services/workspace-file-service.ts`，
+`packages/agent-runtime/runtimes/pi/contributions/src/services/workspace-file-service.ts`，
 并以 Workspace scope + path 隔离缓冲与订阅；后续替换为 App Server-backed adapter 时不需要改
 Explorer/File 的组件边界。
 

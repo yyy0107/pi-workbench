@@ -12,7 +12,7 @@ Implement frontend features through the repository's typed, statically bundled e
 1. Read the repository `AGENTS.md` and preserve unrelated worktree changes.
 2. Read [references/contracts.md](references/contracts.md) before editing extension code.
 3. Read [references/recipes.md](references/recipes.md) when implementing a Slot, Panel, Command, Composer Command, Opener, Renderer, Settings, Main View, RightWorkspace integration, Toolbox entry, or new host Slot.
-4. If frontend UI reads or mutates Pi host/session/workspace/model state, read [`packages/agent-runtime/adapters/pi/README.md`](../../../packages/agent-runtime/adapters/pi/README.md) completely before choosing an API. Then inspect the named contract and client files; do not infer the protocol from legacy routes or a generic Harness reference.
+4. If frontend UI reads or mutates Pi host/session/workspace/model state, read [`packages/agent-runtime/runtimes/pi/README.md`](../../../packages/agent-runtime/runtimes/pi/README.md) completely before choosing an API. Then inspect the named contract and client files; do not infer the protocol from legacy routes or a generic Harness reference.
 5. Use `$pi-coding-agent-sdk` when work reaches the server-side AgentSession, coding-agent extension, resource-loader, or `@earendil-works/pi-coding-agent` layer. Keep that SDK behind the Workbench Pi server boundary rather than importing it into browser components.
 6. Use `$pi-ai-sdk` when work directly uses `@earendil-works/pi-ai` models, providers, authentication, messages, tool schemas, image requests, or streaming events. Use both Pi SDK skills only when the task genuinely crosses both layers.
 7. Read `docs/extensions.md` only when the task asks for public documentation or a detailed tutorial.
@@ -169,7 +169,7 @@ pnpm exec tsc --noEmit
 ```
 
 Run `pnpm build` when changing provider composition, public contracts, Workbench hosts, routing, or client/server boundaries.
-When changing Pi transport or session behavior, also run the Pi tests documented in `packages/agent-runtime/adapters/pi/README.md`.
+When changing Pi transport or session behavior, also run the Pi tests documented in `packages/agent-runtime/runtimes/pi/README.md`.
 
 ## Enforce the guardrails
 
@@ -199,7 +199,7 @@ When changing Pi transport or session behavior, also run the Pi tests documented
 - Do not add feature-specific kind branches, icons, services, or Agent tool mappings back to
   `apps/web/src/components/right-workspace/`.
 - Do not assume registering a Renderer exposes or executes a model tool.
-- Do not call raw Pi endpoints, open another event stream, or copy RPC payload types into an extension. Follow `packages/agent-runtime/adapters/pi/README.md`, reuse the narrow `@workbench/agent-runtime-pi-client/*` feature facade that owns the capability, and treat `/api/pi/**` as compatibility-only unless the README names an exception. Route server-side coding-agent work through `$pi-coding-agent-sdk` and direct Pi model/provider/stream work through `$pi-ai-sdk`.
+- Do not call raw Pi endpoints, open another event stream, or copy RPC payload types into an extension. Follow `packages/agent-runtime/runtimes/pi/README.md`, reuse the narrow `@workbench/agent-runtime-pi-client/*` feature facade that owns the capability, and treat `/api/pi/**` as compatibility-only unless the README names an exception. Route server-side coding-agent work through `$pi-coding-agent-sdk` and direct Pi model/provider/stream work through `$pi-ai-sdk`.
 - Handle rejected Promises in event handlers; React Error Boundaries do not catch event or arbitrary async errors.
 - Keep API keys, secrets, and privileged execution out of frontend extensions.
 

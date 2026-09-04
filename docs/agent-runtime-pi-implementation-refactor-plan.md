@@ -1,6 +1,6 @@
 # Workbench Agent Runtime 边界与 Pi Implementation 重构计划
 
-状态：阶段 1 已完成（2026-09-04）；阶段 2–8 未开始。
+状态：阶段 1–2 已完成（2026-09-04）；阶段 3–8 未开始。
 
 本计划是已完成的
 [`assistant-ui-removal-and-custom-runtime-plan.md`](./assistant-ui-removal-and-custom-runtime-plan.md)
@@ -27,8 +27,7 @@ Pi Runtime Implementation
 完成后应满足：
 
 - `Adapter` 是 Workbench 定义的架构概念；Pi 是 Agent Runtime 的一个具体实现。
-- Pi 实现从 `packages/agent-runtime/adapters/pi` 移到
-  `packages/agent-runtime/runtimes/pi`，不保留旧路径兼容层。
+- Pi 实现位于 `packages/agent-runtime/runtimes/pi`，不保留原 Pi Adapter 子树的兼容层。
 - 通用前端只依赖 Workbench 类型、Conversation 投影和能力接口，不依赖 Pi Protocol、Pi Client
   facade 或 `PiApiError`。
 - Pi 原始事件只存在于 Pi 实现内部；Shell 使用 `ConversationNode`、`MessageBlock`、运行状态和能力
@@ -59,9 +58,8 @@ Pi Runtime Implementation
 移除：通用 artifact policy 现在接收应用组合层传入的 Agent Runtime Upgrade 路径，Pi 路径分别由
 Web、Desktop Electron 和 Runtime Node 组合入口提供。
 
-当前 Pi 物理路径仍是 `packages/agent-runtime/adapters/pi`。这是阶段 2 前的唯一过渡例外；阶段 2
-完成原子目录移动时，边界测试中的实现根路径必须同步改为 `packages/agent-runtime/runtimes/pi`，不得
-同时允许新旧两个根。
+阶段 1 基线时，Pi 物理路径仍位于原 Pi Adapter 子树，这是阶段 2 前的唯一过渡例外。阶段 2 已将其
+原子移动到 `packages/agent-runtime/runtimes/pi`，并同步切换边界测试中的唯一实现根。
 
 ## 3. 所有权与能力划分
 
@@ -147,7 +145,7 @@ Shell 不理解 Pi event name。
 阶段 2 原子移动：
 
 ```text
-packages/agent-runtime/adapters/pi
+原 Pi Adapter 子树
 → packages/agent-runtime/runtimes/pi
 ```
 
@@ -172,7 +170,7 @@ Pi 实现内部的结构性命名调整：
 ## 6. 实施状态
 
 - [x] 阶段 1：建立边界保护（2026-09-04）
-- [ ] 阶段 2：移动目录并纠正结构命名
+- [x] 阶段 2：移动目录并纠正结构命名（2026-09-04）
 - [ ] 阶段 3：增加最小 Workbench Capability 层
 - [ ] 阶段 4：迁移已经与 Pi 无关的通用扩展
 - [ ] 阶段 5：迁移 Workspace / Host 垂直切片
@@ -251,11 +249,26 @@ Desktop 使用同一序列，并在末尾追加 `workbench.desktop-runtime-lifec
 
 ### 6.2 阶段 2：移动目录并纠正结构命名
 
-- [ ] 原子移动整个 Pi Runtime 到 `packages/agent-runtime/runtimes/pi`。
-- [ ] 更新 workspace、锁文件、构建、CSS、测试、文档和 skill 路径。
-- [ ] 完成 Pi 实现内部结构性 `Adapter` 重命名。
-- [ ] 保持 package 名称与不表达错误架构含义的公开 export 稳定。
-- [ ] 单独提交机械移动，不混入 capability 迁移。
+- [x] 原子移动整个 Pi Runtime 到 `packages/agent-runtime/runtimes/pi`。
+- [x] 更新 workspace、锁文件、构建、CSS、测试、文档和 skill 路径。
+- [x] 完成 Pi 实现内部结构性 `Adapter` 重命名。
+- [x] 保持 package 名称与不表达错误架构含义的公开 export 稳定。
+- [x] 阶段 2 保持为独立机械变更，未混入 capability 迁移。
+
+验证记录：
+
+- `pnpm install --frozen-lockfile` 通过 lockfile 与供应链策略校验，并刷新 33 个 workspace projects。
+- Pi 的 5 个 packages，以及 Runtime Node、Web、Desktop Renderer、Desktop Electron 的定向 typecheck
+  通过。
+- 85 项目录、依赖边界、Runtime 组合、RPC projection、Agent 端口和外部会话导入定向测试通过。
+- `pnpm check:workspace-dependencies` 与 `pnpm lint` 通过；3 个被更新的本地 skill 均通过
+  `quick_validate.py`。
+- `@workbench/runtime-node` artifact 构建通过；输出仍正确 externalize Pi coding-agent、PTY、parser 与
+  WebSocket 依赖。
+- `rg --hidden` 确认原目录字面引用为零；结构命名测试确认 Pi Runtime 仅保留明确允许的 OCR Adapter
+  文件与 Workbench-owned `WorkbenchAgentServerAdapter` contract。
+- 按验证策略未运行 Browser/E2E、全量 `pnpm check` 或完整 Web/Desktop 构建：本阶段没有 UI 行为或
+  Runtime wire/state 变化，相关最终验证留在阶段 8。
 
 ### 6.3 阶段 3：最小 Workbench Capability 层
 
@@ -307,7 +320,7 @@ Trace、External Session Import、Pi Version/Connection Status、Running Indicat
 
 ### 6.8 阶段 8：清理与收尾
 
-- [ ] README 从 “Pi Adapter” 更新为 “Pi Runtime Implementation”。
+- [ ] 复核 README 中的最终 Pi Runtime Implementation 架构描述。
 - [ ] 更新架构、扩展、runtime-node、terminal 和历史计划中的旧路径。
 - [ ] 用 `rg --hidden` 清理有效旧路径和错误的结构性 `*Adapter` 名称。
 - [ ] 记录每阶段提交、验证结果和最终状态。
@@ -318,12 +331,12 @@ Trace、External Session Import、Pi Version/Connection Status、Running Indicat
 
 - [x] Shell、Agent Runtime Core、Extension SDK/Host 不直接导入 Pi package。
 - [x] Shell 通用扩展不导入 Pi Protocol、Pi Client facade 或 `PiApiError`。
-- [ ] `packages/agent-runtime/adapters/pi` 不存在，隐藏文件和有效文档无旧路径引用。
-- [ ] Pi 实现中不存在允许名单外的结构性 `*Adapter` 名称。
+- [x] `packages/agent-runtime/runtimes/pi` 存在，原 Pi 实现目录不存在，隐藏文件和有效文档无旧路径引用。
+- [x] Pi 实现中不存在允许名单外的结构性 `*Adapter` 名称。
 - [x] `@workbench/agent-runtime-pi-client`、`protocol`、`server`、`contributions` 等 package 名称不变。
 - [x] Web 与 Desktop extension ID 序列和阶段 1 基线完全一致。
 
-已勾选项目是阶段 1 的当前基线，后续每阶段仍需重跑；旧路径与结构命名项目要到阶段 2 后才能勾选。
+已勾选项目是阶段 1–2 的当前基线，后续每阶段仍需重跑。
 
 ### 7.2 Capability 测试
 
