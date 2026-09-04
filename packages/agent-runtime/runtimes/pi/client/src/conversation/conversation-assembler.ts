@@ -140,10 +140,17 @@ export class PiConversationAssembler {
     publication: ConversationPublication = "immediate",
   ): void {
     const nodes = conversationNodesFromPiConversation(source.messages, source.branches);
+    const activeNode = source.isRunning
+      ? nodes.findLast((node) => node.kind === "user" || node.kind === "assistant")
+      : undefined;
     // ponytail: this identity scan is O(n); pass changed node keys when long-session profiling
     // shows the scan matters.
     const nextNodes = new Map<string, CachedNode>();
-    for (const node of nodes) {
+    for (let node of nodes) {
+      // Internal model/tool cycles can finish while the assistant turn is still running.
+      if (node === activeNode && node.kind === "assistant" && node.status === "complete") {
+        node = { ...node, status: "running" };
+      }
       const previous = this.#nodes.get(node.key);
       let value: ConversationNode;
       let signature: string;

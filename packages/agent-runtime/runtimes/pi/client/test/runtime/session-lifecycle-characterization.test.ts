@@ -1,7 +1,76 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { PiAssistantMessage, PiEvent } from "@workbench/agent-runtime-pi-protocol/messages";
+
 import { PiSessionManager } from "../../src/runtime/manager";
+
+test("keeps the assistant turn running between model output and tool execution", async (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session");
+  const internals = session as unknown as { handleEvent(event: PiEvent): void };
+  const toolMessage: PiAssistantMessage = {
+    role: "assistant",
+    content: [
+      { type: "thinking", thinking: "Read the file first" },
+      { type: "toolCall", id: "read-1", name: "read", arguments: { path: "README.md" } },
+    ],
+    stopReason: "toolUse",
+    timestamp: 1_000,
+  };
+  const emit = async (event: PiEvent) => {
+    internals.handleEvent(event);
+    await Promise.resolve();
+  };
+
+  await emit({ type: "agent_start" });
+  await emit({ type: "message_start", message: toolMessage });
+  const assistantKey = session.snapshot.getSnapshot().nodeKeys.at(-1);
+  assert.ok(assistantKey);
+  const currentAssistant = () => {
+    const node = session.node(assistantKey).getSnapshot();
+    assert.equal(node?.kind, "assistant");
+    if (node?.kind !== "assistant") throw new Error("Missing assistant turn");
+    return node;
+  };
+  assert.equal(currentAssistant().status, "running");
+
+  await emit({ type: "message_end", message: toolMessage });
+  assert.equal(session.snapshot.getSnapshot().isRunning, true);
+  assert.equal(currentAssistant().status, "running");
+
+  await emit({ type: "tool_execution_start", toolCallId: "read-1" });
+  assert.equal(currentAssistant().status, "running");
+  await emit({
+    type: "tool_execution_end",
+    toolCallId: "read-1",
+    result: { content: [{ type: "text", text: "File contents" }] },
+    isError: false,
+  });
+  const waiting = currentAssistant();
+  assert.equal(waiting.status, "running");
+  const reasoning = waiting.blocks[0];
+  const tool = waiting.blocks[1];
+  assert.equal(reasoning?.kind === "reasoning" && reasoning.status, "complete");
+  assert.equal(tool?.kind === "tool-call" && tool.status, "complete");
+
+  await emit({ type: "message_start", message: { role: "assistant", content: [] } });
+  assert.equal(currentAssistant().status, "running");
+  assert.deepEqual(currentAssistant().blocks, waiting.blocks);
+  const answer: PiAssistantMessage = {
+    role: "assistant",
+    content: [{ type: "text", text: "Here is the answer" }],
+    stopReason: "stop",
+    timestamp: 2_000,
+  };
+  await emit({ type: "message_update", message: answer });
+  assert.equal(currentAssistant().status, "running");
+  await emit({ type: "message_end", message: answer });
+  assert.equal(session.snapshot.getSnapshot().isRunning, false);
+  assert.equal(currentAssistant().status, "complete");
+  assert.deepEqual(currentAssistant().blocks.slice(0, 2), waiting.blocks);
+});
 
 test("permanently disposes and evicts a deleted client session", async (t) => {
   const originalFetch = globalThis.fetch;

@@ -1236,8 +1236,8 @@ export const extensionsZhCN = {
         { number }: MessageFormatters,
       ) =>
         files > 0
-          ? `${number(steps)} 个步骤 · ${number(files)} 个文件已更改`
-          : `${number(steps)} 个步骤`,
+          ? `已完成 · ${number(steps)} 个步骤 · ${number(files)} 个文件已更改`
+          : `已完成 · ${number(steps)} 个步骤`,
       steps: {
         thinking: "思考",
         read: "读取",

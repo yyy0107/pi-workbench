@@ -747,10 +747,10 @@ export class PiClientSession implements ConversationSession {
 
   private async submitComposer(
     mode: "send" | "queue" | "steer",
-    input: ComposerSubmission,
+    submission: ComposerSubmission,
   ): Promise<void> {
     if (this.disposed || this.composerValue.phase === "submitting") return;
-    const submission = input.mode === mode ? input : { ...input, mode };
+    // Delivery mode belongs to dispatch; submission.mode is model-facing request configuration.
     const submitted = Object.freeze({ ...this.composerValue, mode });
     if (
       !submission.sourceText.trim() &&

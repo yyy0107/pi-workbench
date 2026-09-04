@@ -1267,8 +1267,8 @@ export const extensionsEnUS = {
         const stepLabel = steps === 1 ? "step" : "steps";
         const fileLabel = files === 1 ? "file" : "files";
         return files > 0
-          ? `${number(steps)} ${stepLabel} · ${number(files)} ${fileLabel} changed`
-          : `${number(steps)} ${stepLabel}`;
+          ? `Completed · ${number(steps)} ${stepLabel} · ${number(files)} ${fileLabel} changed`
+          : `Completed · ${number(steps)} ${stepLabel}`;
       },
       steps: {
         thinking: "Thinking",

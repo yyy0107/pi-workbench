@@ -104,6 +104,47 @@ test("does not duplicate the unary metadata baseline for the first socket genera
   assert.equal(refreshCount, 0);
 });
 
+test("keeps Composer delivery modes out of model request configuration", async (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session");
+  const deliveries: Array<{ mode: string; runConfig: unknown }> = [];
+  const internals = session as unknown as {
+    send(message: AppendMessage): Promise<void>;
+    messageQueue: { enqueue(mode: string, message: AppendMessage): Promise<void> };
+  };
+  internals.send = async (message) => {
+    deliveries.push({ mode: "send", runConfig: message.runConfig });
+  };
+  internals.messageQueue.enqueue = async (mode, message) => {
+    deliveries.push({ mode, runConfig: message.runConfig });
+  };
+
+  for (const deliveryMode of ["send", "queue", "steer"] as const) {
+    for (const requestMode of [undefined, "plan"] as const) {
+      const submission = {
+        version: 2 as const,
+        document: [{ type: "text" as const, text: "Explain this" }],
+        sourceText: "Explain this",
+        text: "Explain this",
+        ...(requestMode === undefined ? {} : { mode: requestMode }),
+        context: [],
+        metadata: {},
+        commands: [],
+      };
+      const action = session.actions[deliveryMode];
+      assert.ok(action);
+      await action(submission);
+
+      assert.deepEqual(deliveries.pop(), {
+        mode: deliveryMode === "queue" ? "followUp" : deliveryMode,
+        runConfig: { custom: { workbenchComposer: submission } },
+      });
+      assert.equal(session.snapshot.getSnapshot().composer.mode, deliveryMode);
+    }
+  }
+});
+
 test("restores the submitted draft alongside typing added while a send is pending", async (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
