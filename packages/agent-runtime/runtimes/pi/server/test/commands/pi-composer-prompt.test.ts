@@ -4,7 +4,7 @@ import test from "node:test";
 import { compilePiComposerPrompt } from "../../src/commands/pi-composer-prompt";
 
 test("adapts a resolved request at Pi's trust boundary without injecting command trace", () => {
-  const prompt = compilePiComposerPrompt({
+  const { prompt, userText, context } = compilePiComposerPrompt({
     version: 1,
     userText: "inspect concurrency",
     config: { mode: "plan", metadata: { review: true } },
@@ -33,10 +33,13 @@ test("adapts a resolved request at Pi's trust boundary without injecting command
   assert.match(prompt, /"source":"file"/);
   assert.doesNotMatch(prompt, /"commandId":"plan"/);
   assert.match(prompt, /<user-request>\ninspect concurrency\n<\/user-request>$/);
+  assert.equal(userText, "inspect concurrency");
+  assert.equal(context.length, 3);
+  assert.doesNotMatch(context.join("\n"), /<user-request>|inspect concurrency/);
 });
 
 test("binds a deictic request to the Skill explicitly selected in Composer", () => {
-  const prompt = compilePiComposerPrompt({
+  const { prompt, userText, context } = compilePiComposerPrompt({
     version: 1,
     userText: "怎么使用这个",
     config: { metadata: {} },
@@ -66,4 +69,6 @@ test("binds a deictic request to the Skill explicitly selected in Composer", () 
   assert.match(prompt, /"这个"/);
   assert.doesNotMatch(prompt, /<workbench-trusted-instructions>/);
   assert.match(prompt, /<user-request>\n怎么使用这个\n<\/user-request>$/);
+  assert.equal(userText, "怎么使用这个");
+  assert.equal(context.length, 1);
 });

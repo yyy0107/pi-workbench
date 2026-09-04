@@ -63,7 +63,10 @@ import {
   type WorkbenchComposerUserProjection,
   type WorkbenchResolvedAgentRequest,
 } from "@workbench/contracts/composer/request";
-import { compilePiComposerPrompt } from "../commands/pi-composer-prompt";
+import {
+  compilePiComposerPrompt,
+  PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE,
+} from "../commands/pi-composer-prompt";
 import {
   PI_MODEL_CHANGED_EVENT,
   PI_SESSION_FORKED_EVENT,
@@ -2705,12 +2708,19 @@ class HostedPiSession {
       );
       return undefined;
     }
-    const resolvedPrompt =
+    const modelInput =
       hasWorkbenchComposerSemantics(submission) ||
       usedAttachmentPreprocessing ||
       usedAttachmentReferences
         ? compilePiComposerPrompt(resolution.request)
-        : resolution.request.userText;
+        : undefined;
+    if (modelInput) {
+      this.session.sessionManager.appendCustomEntry(
+        PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE,
+        modelInput,
+      );
+    }
+    const resolvedPrompt = modelInput?.prompt ?? resolution.request.userText;
     this.queueComposerUserProjection(projection, resolvedPrompt);
     return {
       message: resolvedPrompt,

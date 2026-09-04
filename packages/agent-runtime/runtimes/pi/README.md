@@ -589,10 +589,13 @@ extension command 仍通过 `AgentSession.prompt()` 的公开命令入口执行�
 
 服务端先形成 canonical `ResolvedAgentRequest`，分别保存 user text、request config、显式选择的
 Skill 引用、trusted instructions、trusted/untrusted context 和仅供历史/诊断使用的 command trace。
-trace 不会整体注入模型；`server/src/commands/pi-composer-prompt.ts` 只在 Pi 实现的最后边界把
-config、Skill 选择及其强制按需读取提示、
-instructions、按 trust 标记的 context 和 user request 编译给 `AgentSession.prompt()`。这仍是 Pi 只接受
-字符串 prompt 时的兼容编译，不改变内部 canonical request。
+trace 不会整体注入模型。普通正文直接传递；带结构化语义的请求由
+`server/src/commands/pi-composer-prompt.ts` 编译为 Pi prompt/queue API 接受的单个字符串，保证正文与
+上下文一起排队，同时以不参与模型上下文的 `workbench.composer-model-input.v1` custom entry 保存拆分。
+`workbench.composer-context` 在 Pi 原生 `context` hook 中仅匹配当前分支已记录且实际送达的请求，
+把 config、Skill 选择及其按需读取提示、instructions 和带信任边界的 context 转成独立消息，正文保留原文
+及图片，不再套 `<user-request>`。内部传输仍保留兼容包装，防止模板展开后的 `/...` 被 Pi 再执行为命令；
+历史压缩也仍能读取完整上下文。纯 session-action 完成后不启动聊天；附带正文时仅在执行成功后继续一次主请求。
 
 UI 原文和 canonical Composer document 以隐藏的 `workbench.composer-user.v3` custom message
 持久化；`sourceText` 只作为编辑器 serialization/fallback，并统一使用

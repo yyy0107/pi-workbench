@@ -1,6 +1,7 @@
 import type { InlineExtension, LoadExtensionsResult } from "@earendil-works/pi-coding-agent";
 
 import { createAskUserExtension, type AskUserCapabilitySettings } from "./ask-user";
+import { composerContextExtension } from "./composer-context";
 import { contextTraceExtension } from "./context-trace";
 import { messageTerminationExtension } from "./message-termination";
 import { instrumentSystemPromptHookTracing } from "./system-prompt-hook-trace";
@@ -17,6 +18,11 @@ export function createWorkbenchInternalPiExtensions(askUserSettings?: AskUserCap
     {
       name: "workbench.ask-user",
       factory: createAskUserExtension(askUserSettings),
+      hidden: true,
+    },
+    {
+      name: "workbench.composer-context",
+      factory: composerContextExtension,
       hidden: true,
     },
     {

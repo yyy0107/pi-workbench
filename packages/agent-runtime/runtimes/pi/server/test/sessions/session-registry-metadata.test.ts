@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { getAgentDir, SessionManager } from "@earendil-works/pi-coding-agent";
+import { convertToLlm, getAgentDir, SessionManager } from "@earendil-works/pi-coding-agent";
 
 import type {
   HostStreamPayload,
@@ -60,6 +60,7 @@ import {
   getPiAgentHostBindings,
 } from "../../src/agent-runtime/pi-agent-host-bindings";
 import { resolvePiWorkspaceRoot } from "../../src/workspaces/workspace-service-bindings";
+import { projectPiComposerContext } from "../../src/internal-extensions/composer-context";
 
 function getImageUnderstandingSettingsStore() {
   return new ImageUnderstandingSettingsStore({
@@ -976,6 +977,93 @@ test("keeps the model turn alive when attachment preprocessing fails", async (t)
       ),
     false,
     "a failed preprocessing turn must not leave a durable image in model context",
+  );
+});
+
+test("executes session commands once and sends only remaining text to the model", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-composer-command-context-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
+    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
+  });
+  const host = await createSession(root, "composer-command-context");
+  const originalPrompt = host.session.prompt;
+  const originalReload = host.session.reload;
+  const originalAvailableSnapshot = host.session.modelRuntime.getAvailableSnapshot;
+  const model = host.session.model;
+  assert.ok(model);
+  host.session.modelRuntime.getAvailableSnapshot = () => [model];
+  const actions: string[] = [];
+  let failCommand = false;
+  let forwardedPrompt = "";
+  host.session.reload = async () => {
+    actions.push("reload");
+    if (failCommand) throw new Error("Reload failed");
+  };
+  host.session.prompt = async (text, options) => {
+    actions.push("prompt");
+    forwardedPrompt = text;
+    options?.preflightResult?.(true);
+  };
+  t.after(async () => {
+    host.session.prompt = originalPrompt;
+    host.session.reload = originalReload;
+    host.session.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
+    await host.shutdown();
+  });
+
+  for (const text of ["", "/reload is literal follow-up text", "must not run after failure"]) {
+    failCommand = text === "must not run after failure";
+    await submitPrompt(
+      host.id,
+      "followUp",
+      { message: text },
+      {
+        composer: {
+          version: 2,
+          sourceText: `:agent-command[reload|Reload] ${text}`,
+          text,
+          context: [],
+          metadata: {},
+          commands: [
+            {
+              id: "reload",
+              commandId: "reload",
+              label: "Reload",
+              scope: "message",
+              source: "agent",
+            },
+          ],
+        },
+      },
+    );
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  assert.deepEqual(actions, ["reload", "reload", "prompt", "reload"]);
+  const messages = convertToLlm(
+    projectPiComposerContext(
+      [{ role: "user", content: forwardedPrompt, timestamp: 1 }],
+      host.session.sessionManager.getBranch(),
+    ),
+  );
+  assert.deepEqual(messages, [
+    {
+      role: "user",
+      content: [{ type: "text", text: "/reload is literal follow-up text" }],
+      timestamp: 1,
+    },
+  ]);
+  assert.equal(
+    forwardedPrompt.startsWith("/"),
+    false,
+    "Pi must not dispatch the remaining text as another command",
   );
 });
 
