@@ -14,6 +14,8 @@ const SOURCE_ROOTS = [
   "apps/web/src",
   "packages/agent-runtime/runtimes/pi/contributions/src",
   "packages/workbench/shell/src",
+  "packages/workbench/pi-product/src",
+  "packages/workbench/services-client/src",
   "runtime",
 ];
 const COMPOSITION_ROOTS = [

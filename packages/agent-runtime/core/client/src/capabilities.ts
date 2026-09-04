@@ -177,3 +177,15 @@ export interface WorkbenchAgentRuntimeCapabilities {
   readonly automation?: AutomationProtocol;
   readonly attachmentUnderstanding?: WorkbenchAttachmentUnderstandingCapability;
 }
+
+/** Public services supplied by a product installation; runtime adapters add their own capabilities. */
+export interface WorkbenchServicesCapabilities {
+  readonly host: Omit<
+    WorkbenchRuntimeHostCapability,
+    "describeProjectTrust" | "updateProjectTrust"
+  >;
+  readonly workspace: Omit<WorkbenchWorkspaceCapability, "createWorkspace">;
+  readonly automation: AutomationProtocol;
+  readonly attachmentUnderstanding: WorkbenchAttachmentUnderstandingCapability;
+  readonly settings: import("@workbench/agent-runtime-contracts/settings").WorkbenchSettingsPort;
+}

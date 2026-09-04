@@ -1,6 +1,11 @@
+import {
+  callRpc,
+  resolveRuntimeFetch as resolvePiHttpTransport,
+  RpcClientError,
+} from "@workbench/host-client/rpc";
+export { createRpcId as createPiRpcId } from "@workbench/host-client/rpc";
 import type { PiApiErrorBody, PiQueuedPrompt } from "@workbench/agent-runtime-pi-protocol/messages";
 import {
-  RUNTIME_CONNECTION_PROTOCOL_VERSION,
   createRuntimeFetch,
   type RuntimeFetch,
   type RuntimeFetchImplementation,
@@ -9,8 +14,6 @@ import type {
   ClientResponse,
   CommandListPayload,
   CommandListValue,
-  AttachmentUnderstandingDescribeValue,
-  AttachmentUnderstandingUpdatePayload,
   ConfigureModelProviderPayload,
   DiscoverModelsPayload,
   DiscoverModelsValue,
@@ -28,14 +31,10 @@ import type {
   ExtensionSetEnabledPayload,
   ExtensionSetEnabledValue,
   HostDescription,
-  HostDirectoryListing,
   InstalledPackageDescribePayload,
   InstalledPackageDetailsView,
   InstalledPackageListPayload,
   InstalledPackageListValue,
-  LocalAppOpenPayload,
-  LocalAppOpenValue,
-  LocalAppsListValue,
   ModelCatalogValue,
   ModelContextWindowPayload,
   ModelContextWindowValue,
@@ -135,28 +134,11 @@ import type {
   TestModelImageInputValue,
   UpdateModelContextWindowPayload,
   WorkspaceArchivedSessionsValue,
-  WorkspaceFileDescribePayload,
-  WorkspaceFileDescriptorValue,
-  WorkspaceFileReadPayload,
-  WorkspaceFileSnapshotValue,
-  WorkspaceFilesListPayload,
-  WorkspaceFilesListValue,
-  WorkspaceFilesSearchPayload,
-  WorkspaceFilesSearchValue,
-  WorkspaceFileWritePayload,
-  WorkspaceGitCreateBranchPayload,
-  WorkspaceGitDescribePayload,
-  WorkspaceGitLogValue,
-  WorkspaceGitStatus,
-  WorkspaceGitSwitchBranchPayload,
   WorkspaceListValue,
   WorkspacePinValue,
   WorkspaceSessionArchiveValue,
   WorkspaceSessionPinValue,
   WorkspaceView,
-  WorkbenchSettingsDescribeValue,
-  WorkbenchSettingsUpdatePayload,
-  WorkbenchSettingsUpdateValue,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 const API_ROOT = "/api/pi";
 
@@ -175,42 +157,15 @@ export function createPiHttpTransport(
   return createRuntimeFetch(connection, fetchImplementation);
 }
 
-function browserSameOriginTransport(): PiHttpTransport | undefined {
-  const origin = globalThis.location?.origin;
-  if (typeof origin !== "string" || origin === "null") return undefined;
-
-  return createPiHttpTransport({
-    kind: "same-origin",
-    protocolVersion: RUNTIME_CONNECTION_PROTOCOL_VERSION,
-    httpOrigin: origin,
-  });
-}
-
-function defaultPiHttpTransport(path: string, init?: RequestInit): Promise<Response> {
-  const transport = browserSameOriginTransport();
-  return transport ? transport(path, init) : globalThis.fetch(path, init);
-}
-
-function resolvePiHttpTransport(transport?: PiHttpTransport): PiHttpTransport {
-  return transport ?? defaultPiHttpTransport;
-}
-
-export class PiApiError extends Error {
-  readonly code: string;
-  readonly status: number;
-  readonly details: Record<string, unknown>;
-
+export class PiApiError extends RpcClientError {
   constructor(
     code: string,
     status: number,
     details: Record<string, unknown> = {},
     message: string = code,
   ) {
-    super(message);
+    super(code, status, details, message);
     this.name = "PiApiError";
-    this.code = code;
-    this.status = status;
-    this.details = details;
   }
 }
 
@@ -225,13 +180,6 @@ async function responseJson<T>(response: Response): Promise<T> {
     // Preserve the stable fallback code.
   }
   throw new PiApiError(code, response.status);
-}
-
-export function createPiRpcId(method: string): string {
-  return (
-    globalThis.crypto?.randomUUID?.() ??
-    `${method}-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -259,53 +207,18 @@ export async function callPiRpc<Payload, Value>(
   payload: Payload,
   options: PiRpcCallOptions = {},
 ): Promise<Value> {
-  const rpcId = options.rpcId ?? createPiRpcId(method);
-  const response = await resolvePiHttpTransport(options.transport)(`/api/${method}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ type: "client-request", rpcId, method, payload }),
-    signal: options.signal,
-  });
-
-  if (!response.ok) {
-    throw new PiApiError("pi_rpc_transport_failed", response.status, { method });
-  }
-
-  let body: unknown;
   try {
-    body = await response.json();
-  } catch {
-    throw new PiApiError("pi_rpc_invalid_response", response.status, { method });
-  }
-  if (
-    !isRecord(body) ||
-    body.type !== "server-response" ||
-    body.rpcId !== rpcId ||
-    !isRecord(body.result)
-  ) {
-    throw new PiApiError("pi_rpc_invalid_response", response.status, { method });
-  }
-  const result = body.result;
-  if (result.ok === false) {
-    if (
-      !isRecord(result.error) ||
-      typeof result.error.code !== "string" ||
-      typeof result.error.message !== "string" ||
-      !isRecord(result.error.details)
-    ) {
-      throw new PiApiError("pi_rpc_invalid_response", response.status, { method });
+    return await callRpc<Payload, Value>(method, payload, options);
+  } catch (error) {
+    if (error instanceof RpcClientError) {
+      const code =
+        error.code === "rpc_transport_failed" || error.code === "rpc_invalid_response"
+          ? `pi_${error.code}`
+          : error.code;
+      throw new PiApiError(code, error.status, error.details, error.message);
     }
-    throw new PiApiError(
-      result.error.code,
-      response.status,
-      result.error.details,
-      result.error.message,
-    );
+    throw error;
   }
-  if (result.ok !== true) {
-    throw new PiApiError("pi_rpc_invalid_response", response.status, { method });
-  }
-  return result.value as Value;
 }
 
 /** Answer an interactive mux request using the request's existing rpcId. */
@@ -342,39 +255,8 @@ export async function respondPiRpc(
   throw new PiApiError("pi_rpc_invalid_response", carrier.status, { method: "respond" });
 }
 
-export async function pickPiHostDirectory(options?: PiRpcCallOptions): Promise<string | undefined> {
-  const { path } = await callPiRpc<Record<string, never>, { path: string | null }>(
-    "host.pickDirectory",
-    {},
-    options,
-  );
-  return path ?? undefined;
-}
-
 export function describePiHost(options?: PiRpcCallOptions): Promise<HostDescription> {
   return callPiRpc("host.describe", {}, options);
-}
-
-export function listPiHostDirectory(
-  path?: string,
-  options?: PiRpcCallOptions,
-): Promise<HostDirectoryListing> {
-  return callPiRpc("host.listDirectory", path === undefined ? {} : { path }, options);
-}
-
-export function createPiHostDirectory(
-  path: string,
-  name: string,
-  options?: PiRpcCallOptions,
-): Promise<{ path: string }> {
-  return callPiRpc("host.createDirectory", { path, name }, options);
-}
-
-export function openPiHostPath(
-  path: string,
-  options?: PiRpcCallOptions,
-): Promise<{ opened: true }> {
-  return callPiRpc("host.openPath", { path }, options);
 }
 
 export function describePiProjectTrust(
@@ -389,183 +271,6 @@ export function updatePiProjectTrust(
   options?: PiRpcCallOptions,
 ): Promise<ProjectTrustDescribeValue> {
   return callPiRpc("projectTrust.update", payload, options);
-}
-
-export function listPiLocalApps(options?: PiRpcCallOptions): Promise<LocalAppsListValue> {
-  return callPiRpc("host.localApps.list", {}, options);
-}
-
-export function refreshPiLocalApps(options?: PiRpcCallOptions): Promise<LocalAppsListValue> {
-  return callPiRpc("host.localApps.refresh", {}, options);
-}
-
-export function openPiLocalApp(
-  payload: LocalAppOpenPayload,
-  options?: PiRpcCallOptions,
-): Promise<LocalAppOpenValue> {
-  return callPiRpc("host.localApps.open", payload, options);
-}
-
-export function listPiWorkspaceFiles(
-  payload: WorkspaceFilesListPayload,
-  options?: PiRpcCallOptions,
-): Promise<WorkspaceFilesListValue> {
-  return callPiRpc("workspace.files.list", payload, options);
-}
-
-export function searchPiWorkspaceFiles(
-  payload: WorkspaceFilesSearchPayload,
-  options?: PiRpcCallOptions,
-): Promise<WorkspaceFilesSearchValue> {
-  return callPiRpc("workspace.files.search", payload, options);
-}
-
-export function describePiWorkspaceFile(
-  payload: WorkspaceFileDescribePayload,
-  options?: PiRpcCallOptions,
-): Promise<WorkspaceFileDescriptorValue> {
-  return callPiRpc("workspace.files.describe", payload, options);
-}
-
-export function piWorkspaceFileContentUrl(payload: WorkspaceFileDescribePayload): string {
-  const query = new URLSearchParams({
-    workspaceId: payload.workspaceId,
-    relativePath: payload.relativePath,
-  });
-  return `/api/workspace.files.content?${query.toString()}`;
-}
-
-/**
- * Read a binary preview through the installation-bound HTTP carrier. Desktop sidecars cannot use
- * a bare `<img src="/api/...">` because that request cannot carry the in-memory Bearer token.
- */
-export async function fetchPiWorkspaceFileContent(
-  payload: WorkspaceFileDescribePayload,
-  options?: PiRpcCallOptions,
-): Promise<Blob> {
-  const response = await resolvePiHttpTransport(options?.transport)(
-    piWorkspaceFileContentUrl(payload),
-    {
-      headers: { Accept: "*/*" },
-      signal: options?.signal,
-    },
-  );
-  if (!response.ok) throw new PiApiError("workspace_file_content_failed", response.status);
-  return response.blob();
-}
-
-export interface PiWorkspaceFileTextChunk {
-  text: string;
-  loadedBytes: number;
-  totalBytes?: number;
-}
-
-export interface StreamPiWorkspaceFileTextOptions {
-  signal?: AbortSignal;
-  onChunk(chunk: PiWorkspaceFileTextChunk): void;
-  /** Directs this file-content request to one explicit Runtime Host. */
-  transport?: PiHttpTransport;
-}
-
-function contentLength(response: Response): number | undefined {
-  const header = response.headers.get("content-length");
-  if (header === null) return undefined;
-  const value = Number(header);
-  return Number.isSafeInteger(value) && value >= 0 ? value : undefined;
-}
-
-function decodeWorkspaceFileText(decoder: TextDecoder, value?: Uint8Array, stream = false): string {
-  try {
-    return value ? decoder.decode(value, { stream }) : decoder.decode();
-  } catch {
-    throw new PiApiError("workspace-file-unsupported-encoding", 422);
-  }
-}
-
-export async function streamPiWorkspaceFileText(
-  payload: WorkspaceFileDescribePayload,
-  { signal, onChunk, transport }: StreamPiWorkspaceFileTextOptions,
-): Promise<{ loadedBytes: number; totalBytes?: number }> {
-  const response = await resolvePiHttpTransport(transport)(piWorkspaceFileContentUrl(payload), {
-    headers: { Accept: "text/plain, text/*;q=0.9, application/json;q=0.8, */*;q=0.1" },
-    signal,
-  });
-  if (!response.ok) {
-    throw new PiApiError("workspace_file_content_failed", response.status);
-  }
-
-  const totalBytes = contentLength(response);
-  const decoder = new TextDecoder("utf-8", { fatal: true });
-  const reader = response.body?.getReader();
-  if (!reader) throw new PiApiError("workspace_file_content_unavailable", response.status);
-
-  let loadedBytes = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      signal?.throwIfAborted();
-      if (done) break;
-      if (value.includes(0)) {
-        throw new PiApiError("workspace-file-unsupported-encoding", 422);
-      }
-      loadedBytes += value.byteLength;
-      const text = decodeWorkspaceFileText(decoder, value, true);
-      onChunk({ text, loadedBytes, ...(totalBytes === undefined ? {} : { totalBytes }) });
-    }
-    const text = decodeWorkspaceFileText(decoder);
-    if (text) {
-      onChunk({ text, loadedBytes, ...(totalBytes === undefined ? {} : { totalBytes }) });
-    }
-  } catch (error) {
-    if (error instanceof PiApiError || signal?.aborted) throw error;
-    throw new PiApiError("workspace_file_content_failed", response.status);
-  } finally {
-    reader.releaseLock();
-  }
-
-  return { loadedBytes, ...(totalBytes === undefined ? {} : { totalBytes }) };
-}
-
-export function readPiWorkspaceFile(
-  payload: WorkspaceFileReadPayload,
-  options?: PiRpcCallOptions,
-): Promise<WorkspaceFileSnapshotValue> {
-  return callPiRpc("workspace.files.read", payload, options);
-}
-
-export function writePiWorkspaceFile(
-  payload: WorkspaceFileWritePayload,
-  options?: PiRpcCallOptions,
-): Promise<WorkspaceFileSnapshotValue> {
-  return callPiRpc("workspace.files.write", payload, options);
-}
-
-export function describePiWorkspaceGit(
-  payload: WorkspaceGitDescribePayload,
-  options?: PiRpcCallOptions,
-): Promise<WorkspaceGitStatus> {
-  return callPiRpc("workspace.git.describe", payload, options);
-}
-
-export function readPiWorkspaceGitLog(
-  payload: WorkspaceGitDescribePayload,
-  options?: PiRpcCallOptions,
-): Promise<WorkspaceGitLogValue> {
-  return callPiRpc("workspace.git.log", payload, options);
-}
-
-export function switchPiWorkspaceGitBranch(
-  payload: WorkspaceGitSwitchBranchPayload,
-  options?: PiRpcCallOptions,
-): Promise<WorkspaceGitStatus> {
-  return callPiRpc("workspace.git.switchBranch", payload, options);
-}
-
-export function createPiWorkspaceGitBranch(
-  payload: WorkspaceGitCreateBranchPayload,
-  options?: PiRpcCallOptions,
-): Promise<WorkspaceGitStatus> {
-  return callPiRpc("workspace.git.createBranch", payload, options);
 }
 
 export function listPiWorkspaces(options?: PiRpcCallOptions): Promise<WorkspaceListValue> {
@@ -963,43 +668,6 @@ export function updatePiAgentSettings(
 ): Promise<PiAgentSettingsNamespaceView> {
   return callPiRpc("settings.update", payload, options);
 }
-
-export function describeWorkbenchSettings(
-  options?: PiRpcCallOptions,
-): Promise<WorkbenchSettingsDescribeValue> {
-  return callPiRpc("workbenchSettings.describe", {}, options);
-}
-
-export function openWorkbenchSettingsDocument(
-  options?: PiRpcCallOptions,
-): Promise<SettingsOpenDocumentValue> {
-  return callPiRpc("workbenchSettings.openDocument", {}, options);
-}
-
-export function updateWorkbenchSettings(
-  payload: WorkbenchSettingsUpdatePayload,
-  options?: PiRpcCallOptions,
-): Promise<WorkbenchSettingsUpdateValue> {
-  return callPiRpc("workbenchSettings.update", payload, options);
-}
-
-export function describeAttachmentUnderstandingSettings(
-  options?: PiRpcCallOptions,
-): Promise<AttachmentUnderstandingDescribeValue> {
-  return callPiRpc("imageUnderstanding.describe", {}, options);
-}
-
-export function updateAttachmentUnderstandingSettings(
-  payload: AttachmentUnderstandingUpdatePayload,
-  options?: PiRpcCallOptions,
-): Promise<AttachmentUnderstandingDescribeValue> {
-  return callPiRpc("imageUnderstanding.update", payload, options);
-}
-
-/** @deprecated Use the attachment-neutral settings API name. */
-export const describeImageUnderstandingSettings = describeAttachmentUnderstandingSettings;
-/** @deprecated Use the attachment-neutral settings API name. */
-export const updateImageUnderstandingSettings = updateAttachmentUnderstandingSettings;
 
 export function listPiRpcSessions(
   payload: SessionListPayload = {},

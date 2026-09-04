@@ -1,3 +1,4 @@
+const { isInside } = require("./filesystem.cjs");
 const { lstatSync, readFileSync, readdirSync, realpathSync } = require("node:fs");
 const path = require("node:path");
 
@@ -7,11 +8,6 @@ const PI_CODING_AGENT_PACKAGE = "@earendil-works/pi-coding-agent";
 const PI_MODEL_READABLE_ROOTS = Object.freeze(["README.md", "docs", "examples"]);
 const RUNTIME_TEST_PATH_PATTERN = ARTIFACT_TEST_SHAPE_PATTERN;
 const RUNTIME_TYPESCRIPT_SOURCE_PATTERN = /\.(?:[cm]?ts|tsx)$/iu;
-
-function isInside(parent, candidate) {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
-}
 
 function artifactRelativePath(relativePath) {
   const normalized = relativePath.split(path.sep).join("/");

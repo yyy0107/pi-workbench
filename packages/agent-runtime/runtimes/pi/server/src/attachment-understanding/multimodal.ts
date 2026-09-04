@@ -5,7 +5,7 @@ import {
   ImageUnderstandingProviderError,
   type AttachmentUnderstandingObservation,
   type RecognizableAttachment,
-} from "./contracts";
+} from "@workbench/attachment-understanding-server/contracts";
 
 const MAX_OBSERVATION_CHARACTERS = 250_000;
 

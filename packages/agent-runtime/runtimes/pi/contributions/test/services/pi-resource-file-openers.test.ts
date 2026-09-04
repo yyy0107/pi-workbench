@@ -1,3 +1,8 @@
+import { createHostClient } from "@workbench/services-client/host";
+import { createWorkspaceClient } from "@workbench/services-client/workspace";
+import { createWorkbenchSettingsClient } from "@workbench/services-client/settings";
+import { createAutomationClient } from "@workbench/services-client/automation";
+import { createAttachmentUnderstandingClient } from "@workbench/services-client/attachment-understanding";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { FileCode2Icon } from "lucide-react";
@@ -175,7 +180,16 @@ function fileOpenHandlers() {
     handlers = createPiResourceFileOpenHandlers(runtime.files, resources);
     return null;
   }
+  const transport = { http: (path: string, init?: RequestInit) => globalThis.fetch(path, init) };
+  const rpc = { transport: transport.http };
   const installation = createPiAgentRuntimeInstallation({
+    services: {
+      host: createHostClient(rpc),
+      workspace: createWorkspaceClient(rpc),
+      settings: createWorkbenchSettingsClient(rpc),
+      automation: createAutomationClient(rpc),
+      attachmentUnderstanding: createAttachmentUnderstandingClient(rpc),
+    },
     copy: {
       titles: { attachment: "Attachment", image: "Image" },
       errors: {
@@ -189,7 +203,7 @@ function fileOpenHandlers() {
       },
     },
     workspaceDirectoryStore: createWorkspaceDirectoryStoreInstallation().port,
-    transport: { http: (path, init) => globalThis.fetch(path, init) },
+    transport,
   });
   renderToStaticMarkup(
     createElement(RuntimeConnectionProvider, {

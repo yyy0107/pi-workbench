@@ -1,3 +1,4 @@
+import { createTestServices } from "./services-fixture";
 import type {
   ModelProvidersValue,
   ModelCatalogValue,
@@ -9,7 +10,7 @@ import { WorkbenchAgentCapabilityError } from "@workbench/agent-runtime-client/c
 import type { WorkbenchContextPolicyValue } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
 import {
-  createPiAgentRuntimeCapabilities,
+  createPiAgentRuntimeCapabilities as createCapabilities,
   projectPiCapabilityError,
 } from "../../src/integration/capabilities";
 import type { PiSessionManager } from "../../src/runtime/manager";
@@ -658,3 +659,7 @@ test("configured model catalogs filter Pi provider configuration before crossing
   assert.deepEqual(configured.groups[0]?.models, catalog.groups[0].models);
   assert.equal("providers" in configured, false);
 });
+
+function createPiAgentRuntimeCapabilities(manager: PiSessionManager) {
+  return createCapabilities(manager, createTestServices(manager.rpcTransportOptions));
+}

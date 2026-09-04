@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { RpcIssue, ServerResponse } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type { PiSessionProtocolFacade } from "../../../src/sessions/pi-session-protocol-facade";
-import { rpcBusinessError } from "../../../src/transport/rpc-transport";
+import { rpcBusinessError } from "@workbench/host-server/rpc";
 import { createSessionRpcRoutes } from "../../../src/transport/routes/session-rpc-routes";
 
 function rpcRequest(method: string, payload: unknown, rpcId = "rpc-1"): Request {

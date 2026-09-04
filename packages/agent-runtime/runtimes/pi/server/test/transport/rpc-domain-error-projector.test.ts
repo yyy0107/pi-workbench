@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
-import { RpcBusinessError } from "../../src/transport/rpc-transport";
-import { projectRpcDomainError } from "../../src/transport/rpc-domain-error-projector";
+import { RpcBusinessError } from "@workbench/host-server/rpc";
+import { projectRpcDomainError } from "@workbench/host-server/rpc";
 
 class ExampleDomainError extends RpcDomainError<"example-failed", { resourceId: string }> {
   readonly code = "example-failed" as const;

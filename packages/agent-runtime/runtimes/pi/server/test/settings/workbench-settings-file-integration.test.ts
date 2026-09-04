@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { WorkbenchSettingsService } from "@workbench/settings-server/service";
-import { ImageUnderstandingSettingsStore } from "../../src/attachment-understanding/settings-store";
+import { ImageUnderstandingSettingsStore } from "@workbench/attachment-understanding-server/settings";
 import { WorkspaceStore } from "../../src/workspaces/workspace-store";
 
 test("unifies preferences, workspaces, and image understanding with atomic legacy migration", async (t) => {

@@ -19,6 +19,11 @@
       "types": "./src/service.ts",
       "import": "./src/service.ts",
       "default": "./src/service.ts"
+    },
+    "./rpc": {
+      "types": "./src/rpc.ts",
+      "import": "./src/rpc.ts",
+      "default": "./src/rpc.ts"
     }
   },
   "scripts": {
@@ -27,11 +32,13 @@
   },
   "dependencies": {
     "@workbench/automation-contracts": "workspace:*",
+    "@workbench/host-server": "workspace:*",
     "@workbench/server-core": "workspace:*",
     "cron-parser": "^5.10.0"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
+    "@workbench/host-contracts": "workspace:*",
     "typescript": "^7.0.2"
   }
 }

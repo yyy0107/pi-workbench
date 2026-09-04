@@ -1,3 +1,4 @@
+import { RPC_REQUEST_BODY_LIMITS } from "../rpc-request-budgets";
 import type { SettingsOpenDocumentValue } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type {
   AgentSettingsProtocol,
@@ -6,15 +7,14 @@ import type {
 import { compactionSettingsPatch } from "../compaction-rpc-validator";
 import {
   handleRpcPost,
-  RPC_REQUEST_BODY_LIMITS,
   rpcBusinessError,
   rpcInteger,
   rpcObject,
   rpcOptional,
   rpcString,
   type RpcValidator,
-} from "../rpc-transport";
-import type { RpcRouteGroup } from "./rpc-route-group";
+} from "@workbench/host-server/rpc";
+import type { RpcRouteGroup } from "@workbench/host-server/rpc";
 
 export interface AgentSettingsRpcRoutesDependencies {
   readonly service: AgentSettingsProtocol;

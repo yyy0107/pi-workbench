@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import test from "node:test";
 
-import { installedWorkbenchExtensions } from "@/workbench/runtime-contributions/installed-workbench-extensions";
+import { piWorkbenchExtensions as installedWorkbenchExtensions } from "@workbench/pi-product/application";
 
 const repositoryRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
 const IGNORED_DIRECTORIES = new Set([
@@ -42,6 +42,10 @@ const PI_CLIENT_OR_SHARED_PREFIXES = [
  */
 const RUNTIME_NODE_PI_IMPORTS = new Map<string, readonly string[]>([
   [
+    "apps/runtime-node/test/runtime-http-router.test.ts",
+    ["@workbench/agent-runtime-pi-server/http", "@workbench/agent-runtime-pi-server/legacy"],
+  ],
+  [
     "apps/runtime-node/scripts/build-runtime-artifact.ts",
     ["@workbench/agent-runtime-pi-protocol/stream"],
   ],
@@ -67,7 +71,7 @@ const RUNTIME_NODE_PI_IMPORTS = new Map<string, readonly string[]>([
   ],
   [
     "apps/runtime-node/test/installed-pi-server-rpc.test.ts",
-    ["@workbench/agent-runtime-pi-protocol/rpc", "@workbench/agent-runtime-pi-server/legacy"],
+    ["@workbench/agent-runtime-pi-protocol/rpc"],
   ],
   [
     "apps/runtime-node/test/session-extension-lifecycle.test.ts",
@@ -85,50 +89,30 @@ const APPLICATION_COMPOSITION_PI_IMPORTS = new Map<string, readonly string[]>([
     ["@workbench/agent-runtime-pi-protocol/stream"],
   ],
   [
-    "apps/desktop-renderer/src/desktop/desktop-workbench.tsx",
-    [
-      "@workbench/agent-runtime-pi-client/installation",
-      "@workbench/agent-runtime-pi-client/workbench-settings",
-      "@workbench/agent-runtime-pi-contributions/installation",
-    ],
-  ],
-  [
-    "apps/desktop-renderer/test/static-export-boundary.test.ts",
-    ["@workbench/agent-runtime-pi-contributions/installation"],
-  ],
-  [
     "apps/web/src/server/runtime-connected-web-host.ts",
     ["@workbench/agent-runtime-pi-protocol/stream"],
   ],
   [
-    "apps/web/src/workbench/providers/agent-runtime-provider.tsx",
+    "packages/workbench/pi-product/src/runtime-provider.tsx",
     ["@workbench/agent-runtime-pi-contributions/installation"],
   ],
   [
-    "apps/web/src/workbench/providers/application-providers.tsx",
-    ["@workbench/agent-runtime-pi-contributions/installation"],
-  ],
-  [
-    "apps/web/src/workbench/providers/installed-agent-runtime.tsx",
+    "packages/workbench/pi-product/src/installation.tsx",
     ["@workbench/agent-runtime-pi-client/installation"],
   ],
   [
-    "apps/web/test/workbench/providers/installed-agent-runtime.test.tsx",
+    "packages/workbench/pi-product/test/installed-agent-runtime.test.tsx",
     [
       "@workbench/agent-runtime-pi-client/installation",
       "@workbench/agent-runtime-pi-shared/descriptor",
     ],
   ],
   [
-    "apps/web/src/workbench/providers/installed-workbench-settings.ts",
-    ["@workbench/agent-runtime-pi-client/workbench-settings"],
-  ],
-  [
-    "apps/web/src/workbench/providers/workbench-providers.tsx",
+    "packages/workbench/pi-product/src/application.tsx",
     ["@workbench/agent-runtime-pi-contributions/installation"],
   ],
   [
-    "apps/web/src/workbench/runtime-contributions/installed-workbench-extensions.ts",
+    "packages/workbench/pi-product/src/extensions.ts",
     ["@workbench/agent-runtime-pi-contributions/installation"],
   ],
 ]);
@@ -228,6 +212,7 @@ function piPackageManifestViolations(): readonly string[] {
           (dependency) =>
             !file.startsWith("apps/") &&
             !file.startsWith(PI_IMPLEMENTATION_PREFIX) &&
+            file !== "packages/workbench/pi-product/package.json" &&
             !(
               file === "package.json" && dependency === "@workbench/agent-runtime-pi-contributions"
             ),

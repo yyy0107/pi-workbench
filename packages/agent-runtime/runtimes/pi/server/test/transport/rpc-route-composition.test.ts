@@ -11,9 +11,6 @@ const ROUTE_METHODS = [
   "session.contextTrace.list",
   "sessionImport.scan",
   "workspace.list",
-  "workspace.git.describe",
-  "workspace.files.list",
-  "automation.list",
   "skill.list",
   "extension.list",
   "package.list",
@@ -21,10 +18,7 @@ const ROUTE_METHODS = [
   "llm.providers",
   "llm.modelContextWindow",
   "settings.describe",
-  "workbenchSettings.describe",
-  "imageUnderstanding.describe",
   "host.describe",
-  "host.localApps.list",
   "projectTrust.describe",
   "command.list",
 ] as const;
@@ -36,9 +30,6 @@ function unusedDependencies(): PiRpcRouteGroupsDependencies {
     sessionContextTrace: empty,
     externalSessionImport: empty,
     workspace: empty,
-    workspaceGit: empty,
-    workspaceFile: empty,
-    automation: empty,
     skill: empty,
     extension: empty,
     installedPackage: empty,
@@ -46,16 +37,13 @@ function unusedDependencies(): PiRpcRouteGroupsDependencies {
     modelProvider: empty,
     modelContextWindow: empty,
     agentSettings: empty,
-    workbenchSettings: empty,
-    imageUnderstandingSettings: empty,
     host: empty,
-    localApp: empty,
     projectTrust: empty,
     resourceCatalog: empty,
   };
 }
 
-test("creates all twenty route groups in stable first-claim order", async () => {
+test("creates the Pi route groups in stable first-claim order", async () => {
   const groups = createPiRpcRouteGroups(unusedDependencies());
 
   assert.equal(groups.length, ROUTE_METHODS.length);

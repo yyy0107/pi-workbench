@@ -16,3 +16,8 @@ export {
   type PiAutomationRuntimeBindings,
   type PiAutomationWorkspace,
 } from "../automations/pi-automation-service";
+
+export {
+  resolvePiWorkspaceRoot,
+  mutatePiWorkspace,
+} from "../workspaces/workspace-service-bindings";

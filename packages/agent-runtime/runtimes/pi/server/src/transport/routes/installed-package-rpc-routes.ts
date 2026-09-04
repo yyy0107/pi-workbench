@@ -5,8 +5,8 @@ import {
   packageSourceMutationPayload,
 } from "../package-rpc-validators";
 import { resourceListPayload } from "../resource-rpc-validators";
-import { handleRpcPost } from "../rpc-transport";
-import type { RpcRouteGroup } from "./rpc-route-group";
+import { handleRpcPost } from "@workbench/host-server/rpc";
+import type { RpcRouteGroup } from "@workbench/host-server/rpc";
 
 export interface InstalledPackageRpcRoutesDependencies {
   readonly service: InstalledPackageProtocol;

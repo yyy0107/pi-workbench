@@ -1,4 +1,4 @@
-import { rpcBoolean, rpcInteger, rpcObject, rpcOptional } from "./rpc-transport";
+import { rpcBoolean, rpcInteger, rpcObject, rpcOptional } from "@workbench/host-server/rpc";
 
 /** Shared transport shape used by global Pi settings and session-level context overrides. */
 export const compactionSettingsPatch = rpcObject({

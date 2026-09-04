@@ -1,3 +1,4 @@
+import { RPC_REQUEST_BODY_LIMITS } from "../rpc-request-budgets";
 import {
   INLINE_DOCUMENT_MEDIA_TYPES,
   INLINE_IMAGE_MEDIA_TYPES,
@@ -11,7 +12,6 @@ import {
 import type { PiSessionProtocolFacade } from "../../sessions/pi-session-protocol-facade";
 import {
   handleRpcPost,
-  RPC_REQUEST_BODY_LIMITS,
   rpcArray,
   rpcEnum,
   rpcInteger,
@@ -24,9 +24,9 @@ import {
   rpcUnion,
   rpcUnknown,
   type RpcValidator,
-} from "../rpc-transport";
+} from "@workbench/host-server/rpc";
 import { compactionSettingsPatch } from "../compaction-rpc-validator";
-import type { RpcRouteGroup } from "./rpc-route-group";
+import type { RpcRouteGroup } from "@workbench/host-server/rpc";
 
 export interface SessionRpcRoutesDependencies {
   readonly protocol: PiSessionProtocolFacade;

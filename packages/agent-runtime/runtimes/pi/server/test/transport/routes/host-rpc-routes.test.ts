@@ -3,7 +3,6 @@ import test from "node:test";
 
 import type { ServerResponse } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type { HostProtocol } from "../../../src/host/host-service";
-import { rpcBusinessError } from "../../../src/transport/rpc-transport";
 import { createHostRpcRoutes } from "../../../src/transport/routes/host-rpc-routes";
 
 function rpcRequest(
@@ -43,13 +42,6 @@ async function successValue<Value>(response: Response): Promise<Value> {
   return body.result.value;
 }
 
-async function errorValue(response: Response) {
-  const body = (await response.json()) as ServerResponse<never>;
-  assert.equal(body.result.ok, false);
-  if (body.result.ok) assert.fail("Expected an RPC error");
-  return body.result.error;
-}
-
 const unexpectedDomainError = (error: unknown): never => {
   throw error;
 };
@@ -79,173 +71,5 @@ test("claims only the Host capability RPC subdomain", async () => {
     "host.unknown",
   ]) {
     assert.equal(routes.handle(rpcRequest(method, {}), method), undefined);
-  }
-});
-
-test("maps Host payloads to the protocol and preserves request signals", async () => {
-  const calls: Array<{ operation: string; input?: unknown; signal?: AbortSignal }> = [];
-  const service = protocol({
-    async describe() {
-      calls.push({ operation: "describe" });
-      return {
-        version: "1",
-        piVersion: "2",
-        cwd: "/work",
-        attachedSessions: 0,
-        canOpenPath: false,
-      };
-    },
-    async pickDirectory(signal) {
-      calls.push({ operation: "pickDirectory", signal });
-      return { path: "/picked" };
-    },
-    async listDirectory(path, signal) {
-      calls.push({ operation: "listDirectory", input: path, signal });
-      return { path: path ?? "/home", home: "/home", crumbs: [], entries: [], truncated: false };
-    },
-    async createDirectory(input) {
-      calls.push({ operation: "createDirectory", input });
-      return { path: `${input.path}/${input.name}` };
-    },
-    async openPath(path, signal) {
-      calls.push({ operation: "openPath", input: path, signal });
-      return { opened: true };
-    },
-  });
-  const routes = createHostRpcRoutes({ service, projectDomainError: unexpectedDomainError });
-  const cases = [
-    ["host.describe", { ignored: true }],
-    ["host.pickDirectory", { ignored: true }],
-    ["host.listDirectory", { path: "/work", ignored: true }],
-    ["host.createDirectory", { path: "/work", name: "src", ignored: true }],
-    ["host.openPath", { path: "/work/src", ignored: true }],
-  ] as const;
-  const requests = cases.map(([method, payload]) => rpcRequest(method, payload));
-
-  for (const [index, [method]] of cases.entries()) {
-    const response = routes.handle(requests[index]!, method);
-    assert.ok(response);
-    await successValue(await response);
-  }
-
-  assert.deepEqual(
-    calls.map(({ operation, input }) => ({ operation, input })),
-    [
-      { operation: "describe", input: undefined },
-      { operation: "pickDirectory", input: undefined },
-      { operation: "listDirectory", input: "/work" },
-      { operation: "createDirectory", input: { path: "/work", name: "src" } },
-      { operation: "openPath", input: "/work/src" },
-    ],
-  );
-  assert.equal(calls[1]?.signal, requests[1]?.signal);
-  assert.equal(calls[2]?.signal, requests[2]?.signal);
-  assert.equal(calls[4]?.signal, requests[4]?.signal);
-});
-
-test("normalizes Host cancellation and open failures", async () => {
-  const abortError = Object.assign(new Error("cancelled"), { name: "AbortError" });
-  const cancelledRoutes = createHostRpcRoutes({
-    service: protocol({
-      pickDirectory: async () => {
-        throw abortError;
-      },
-      listDirectory: async () => {
-        throw abortError;
-      },
-      openPath: async () => {
-        throw abortError;
-      },
-    }),
-    projectDomainError: unexpectedDomainError,
-  });
-  for (const [method, payload, message] of [
-    ["host.pickDirectory", {}, "Directory selection was cancelled."],
-    ["host.listDirectory", {}, "Directory listing was cancelled."],
-    ["host.openPath", { path: "/work" }, "Opening the host path was cancelled."],
-  ] as const) {
-    const response = cancelledRoutes.handle(rpcRequest(method, payload), method);
-    assert.ok(response);
-    const error = await errorValue(await response);
-    assert.equal(error.code, "cancelled");
-    assert.equal(error.message, message);
-  }
-
-  const failedRoutes = createHostRpcRoutes({
-    service: protocol({
-      openPath: async () => {
-        throw new Error("launcher failed");
-      },
-    }),
-    projectDomainError: unexpectedDomainError,
-  });
-  const response = failedRoutes.handle(
-    rpcRequest("host.openPath", { path: "/work" }),
-    "host.openPath",
-  );
-  assert.ok(response);
-  const error = await errorValue(await response);
-  assert.equal(error.code, "internal");
-  assert.equal(error.message, "The host could not open the requested path.");
-});
-
-test("delegates Host directory failures to the shared error projector", async () => {
-  const failure = new Error("directory failed");
-  const routes = createHostRpcRoutes({
-    service: protocol({
-      createDirectory: async () => {
-        throw failure;
-      },
-    }),
-    projectDomainError(error): never {
-      assert.equal(error, failure);
-      throw rpcBusinessError("directory-create-failed", "Directory creation failed.", {
-        path: "/work/new",
-      });
-    },
-  });
-  const response = routes.handle(
-    rpcRequest("host.createDirectory", { path: "/work", name: "new" }),
-    "host.createDirectory",
-  );
-
-  assert.ok(response);
-  const error = await errorValue(await response);
-  assert.equal(error.code, "directory-create-failed");
-  assert.deepEqual(error.details, { path: "/work/new" });
-});
-
-test("keeps directory reads remote-capable while native Host actions stay loopback-only", async (t) => {
-  const previousTrustedHosts = process.env.PI_WORKBENCH_TRUSTED_HOSTS;
-  process.env.PI_WORKBENCH_TRUSTED_HOSTS = "workbench.example:3080";
-  t.after(() => {
-    if (previousTrustedHosts === undefined) delete process.env.PI_WORKBENCH_TRUSTED_HOSTS;
-    else process.env.PI_WORKBENCH_TRUSTED_HOSTS = previousTrustedHosts;
-  });
-  const routes = createHostRpcRoutes({
-    service: protocol({
-      listDirectory: async (path) => ({
-        path: path ?? "/home",
-        home: "/home",
-        crumbs: [],
-        entries: [],
-        truncated: false,
-      }),
-    }),
-    projectDomainError: unexpectedDomainError,
-  });
-  const options = { host: "workbench.example:3080", origin: "http://workbench.example:3080" };
-
-  const read = routes.handle(
-    rpcRequest("host.listDirectory", { path: "/work" }, options),
-    "host.listDirectory",
-  );
-  assert.ok(read);
-  assert.equal((await read).status, 200);
-  for (const method of ["host.pickDirectory", "host.openPath"] as const) {
-    const payload = method === "host.openPath" ? { path: "/work" } : {};
-    const response = routes.handle(rpcRequest(method, payload, options), method);
-    assert.ok(response);
-    assert.equal((await response).status, 403);
   }
 });

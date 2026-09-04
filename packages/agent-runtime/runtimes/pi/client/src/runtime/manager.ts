@@ -68,7 +68,8 @@ import { snapshotPiClientTransport, type PiClientTransport } from "../transport/
 import { PiModelCatalogInvalidation } from "../models/model-catalog-invalidation";
 import { createPiPackageUpdatesQuery, type PiPackageUpdatesQuery } from "./package-updates-query";
 import { PiResourceCatalogRevision } from "./resource-catalog-revision";
-import { PiWorkbenchSettingsClient } from "../settings/workbench-settings-client";
+import { createWorkbenchSettingsClient } from "@workbench/services-client/settings";
+import type { WorkbenchSettingsPort } from "@workbench/agent-runtime-contracts/settings";
 import { PiSessionContextPolicyClient } from "../context-policy/session-context-policy-client";
 import {
   resolveSessionCreateIntent,
@@ -223,6 +224,7 @@ export interface PiSessionTitleFallbacks {
 }
 
 export interface PiSessionManagerOptions {
+  readonly settings?: WorkbenchSettingsPort;
   readonly promptFeedback?: PromptFeedbackPort;
   readonly titleFallbacks?: PiSessionTitleFallbacks;
   readonly transport?: PiClientTransport;
@@ -246,7 +248,7 @@ export class PiSessionManager implements AgentRuntime {
   readonly modelCatalogInvalidation = new PiModelCatalogInvalidation();
   readonly resourceCatalogRevision = new PiResourceCatalogRevision();
   readonly packageUpdatesQuery: PiPackageUpdatesQuery;
-  readonly workbenchSettings: PiWorkbenchSettingsClient;
+  readonly workbenchSettings: WorkbenchSettingsPort;
   readonly contextPolicies: PiSessionContextPolicyClient;
   readonly rpcTransportOptions: Readonly<Pick<PiRpcCallOptions, "invalidation" | "transport">>;
   private readonly listeners = new Set<Listener>();
@@ -323,7 +325,8 @@ export class PiSessionManager implements AgentRuntime {
     this.packageUpdatesQuery = createPiPackageUpdatesQuery({
       load: (target) => listAvailablePiPackageUpdates({ target }, this.rpcTransportOptions),
     });
-    this.workbenchSettings = new PiWorkbenchSettingsClient(this.rpcTransportOptions);
+    this.workbenchSettings =
+      options.settings ?? createWorkbenchSettingsClient(this.rpcTransportOptions);
     this.contextPolicies = new PiSessionContextPolicyClient(this.rpcTransportOptions);
     this.connections = new PiConnectionController({
       webSocketFactory: transport.webSocketFactory,

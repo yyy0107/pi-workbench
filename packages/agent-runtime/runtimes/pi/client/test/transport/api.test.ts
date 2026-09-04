@@ -1,3 +1,18 @@
+import { pickHostDirectory } from "@workbench/services-client/host";
+import {
+  listWorkspaceFiles,
+  searchWorkspaceFiles,
+  describeWorkspaceFile,
+  workspaceFileContentUrl,
+  streamWorkspaceFileText,
+  readWorkspaceFile,
+  writeWorkspaceFile,
+} from "@workbench/services-client/workspace";
+import {
+  describeWorkbenchSettings,
+  openWorkbenchSettingsDocument,
+  updateWorkbenchSettings,
+} from "@workbench/services-client/settings";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -11,9 +26,7 @@ const {
   describePiPackageCatalog,
   describePiProjectTrust,
   describePiSkill,
-  describePiWorkspaceFile,
   describePiSettings,
-  describeWorkbenchSettings,
   fetchPiRpcSessionAttachment,
   getPiModelContextWindow,
   getPiModelProviderLogin,
@@ -28,15 +41,10 @@ const {
   listPiPrompts,
   listPiSkills,
   listPiSkillFiles,
-  listPiWorkspaceFiles,
   listPiWorkspaces,
   openPiSettingsDocument,
-  openWorkbenchSettingsDocument,
-  piWorkspaceFileContentUrl,
   PiApiError,
-  pickPiHostDirectory,
   readPiExtensionFile,
-  readPiWorkspaceFile,
   readPiSkillFile,
   resetPiModelContextWindow,
   removePiExtension,
@@ -48,10 +56,8 @@ const {
   replacePiSessionQueue,
   searchPiRpcSessions,
   searchPiPackageCatalog,
-  searchPiWorkspaceFiles,
   selectPiRpcSessionModel,
   startPiModelProviderLogin,
-  streamPiWorkspaceFileText,
   testPiModelImageInput,
   setPiExtensionEnabled,
   setPiSessionQueuePaused,
@@ -59,10 +65,8 @@ const {
   updatePiAgentSettings,
   updatePiPackage,
   updatePiProjectTrust,
-  updateWorkbenchSettings,
   updatePiModelContextWindow,
   unarchivePiWorkspaceSession,
-  writePiWorkspaceFile,
 } = (await import(
   new URL("../../src/transport/api.ts", import.meta.url).href
 )) as typeof import("../../src/transport/api");
@@ -291,7 +295,7 @@ test("respond, workspace content, and legacy commands use the explicit HTTP tran
     { transport },
   );
   const chunks: string[] = [];
-  await streamPiWorkspaceFileText(
+  await streamWorkspaceFileText(
     { workspaceId: "workspace-1", relativePath: "notes.txt" },
     { transport, onChunk: (chunk) => chunks.push(chunk.text) },
   );
@@ -376,17 +380,17 @@ test("workspace file helpers use the typed workspace.files RPC methods", async (
   };
 
   assert.equal(
-    (await listPiWorkspaceFiles({ workspaceId: "workspace-1" })).absolutePath,
+    (await listWorkspaceFiles({ workspaceId: "workspace-1" })).absolutePath,
     "/work/project",
   );
   assert.equal(
-    (await searchPiWorkspaceFiles({ workspaceId: "workspace-1", query: "app", limit: 20 }))
-      .entries[0]?.relativePath,
+    (await searchWorkspaceFiles({ workspaceId: "workspace-1", query: "app", limit: 20 })).entries[0]
+      ?.relativePath,
     "src/app.ts",
   );
   assert.equal(
     (
-      await describePiWorkspaceFile({
+      await describeWorkspaceFile({
         workspaceId: "workspace-1",
         relativePath: "src/app.ts",
       })
@@ -394,12 +398,12 @@ test("workspace file helpers use the typed workspace.files RPC methods", async (
     "text/plain",
   );
   assert.equal(
-    piWorkspaceFileContentUrl({ workspaceId: "workspace-1", relativePath: "src/app.ts" }),
+    workspaceFileContentUrl({ workspaceId: "workspace-1", relativePath: "src/app.ts" }),
     "/api/workspace.files.content?workspaceId=workspace-1&relativePath=src%2Fapp.ts",
   );
   assert.equal(
     (
-      await readPiWorkspaceFile({
+      await readWorkspaceFile({
         workspaceId: "workspace-1",
         relativePath: "src/app.ts",
       })
@@ -408,7 +412,7 @@ test("workspace file helpers use the typed workspace.files RPC methods", async (
   );
   assert.equal(
     (
-      await writePiWorkspaceFile({
+      await writeWorkspaceFile({
         workspaceId: "workspace-1",
         relativePath: "src/app.ts",
         content: "updated",
@@ -464,7 +468,7 @@ test("streams UTF-8 workspace text incrementally across byte boundaries", async 
 
   const received: string[] = [];
   const progress: number[] = [];
-  const result = await streamPiWorkspaceFileText(
+  const result = await streamWorkspaceFileText(
     { workspaceId: "workspace-1", relativePath: "notes.txt" },
     {
       onChunk(chunk) {
@@ -999,7 +1003,7 @@ test("workspace admission helpers keep picking and project trust as explicit RPC
     });
   };
 
-  assert.equal(await pickPiHostDirectory(), "/work/project");
+  assert.equal(await pickHostDirectory(), "/work/project");
   assert.equal((await describePiProjectTrust({ path: "/work/project" })).promptRequired, true);
   assert.equal(
     (await updatePiProjectTrust({ path: "/work/project", trusted: true })).trusted,

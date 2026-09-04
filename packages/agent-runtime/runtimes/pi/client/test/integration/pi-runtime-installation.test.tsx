@@ -1,3 +1,4 @@
+import { createTestServices } from "./services-fixture";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -59,6 +60,7 @@ test("binds the shared Pi descriptor and application inputs to the complete Pi p
     webSocketFactory?: PiClientTransport["webSocketFactory"];
   } = { http, webSocketFactory };
   const installation = createPiAgentRuntimeInstallation({
+    services: createTestServices(),
     copy,
     promptFeedback,
     transport: callerOwnedTransport,
@@ -102,11 +104,13 @@ test("keeps transport snapshots isolated between installation instances", () => 
   const firstHttp: NonNullable<PiClientTransport["http"]> = async () => Response.json({});
   const secondHttp: NonNullable<PiClientTransport["http"]> = async () => Response.json({});
   const first = createPiAgentRuntimeInstallation({
+    services: createTestServices(),
     copy,
     workspaceDirectoryStore,
     transport: { http: firstHttp },
   }).render(null);
   const second = createPiAgentRuntimeInstallation({
+    services: createTestServices(),
     copy,
     workspaceDirectoryStore,
     transport: { http: secondHttp },

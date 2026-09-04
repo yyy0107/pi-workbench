@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { RpcIssue, ServerResponse } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type { InstalledPackageProtocol } from "../../../src/packages/installed-package-service";
-import { rpcBusinessError } from "../../../src/transport/rpc-transport";
+import { rpcBusinessError } from "@workbench/host-server/rpc";
 import { createInstalledPackageRpcRoutes } from "../../../src/transport/routes/installed-package-rpc-routes";
 
 function rpcRequest(

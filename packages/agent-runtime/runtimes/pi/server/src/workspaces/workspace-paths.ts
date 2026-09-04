@@ -8,7 +8,7 @@ import { PiServerError } from "../core/errors";
 import {
   NativeWorkspacePickerUnavailableError,
   pickNativeWorkspaceDirectory,
-} from "../host/native-workspace-picker";
+} from "@workbench/local-host-server/picker";
 
 let nativeWorkspacePickerOpen = false;
 

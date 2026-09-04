@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { SessionManager } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, SessionManager } from "@earendil-works/pi-coding-agent";
 
 import type {
   HostStreamPayload,
@@ -53,9 +53,27 @@ const { appendSessionEventJournal, initializeSessionEventJournal, SESSION_EVENT_
 const { createStreamHub, STREAM_HUB_SYMBOL } = (await import(
   new URL("../../src/streams/stream-hub.ts", import.meta.url).href
 )) as typeof import("../../src/streams/stream-hub");
-const { getImageUnderstandingSettingsStore } = (await import(
-  new URL("../../src/attachment-understanding/registry.ts", import.meta.url).href
-)) as typeof import("../../src/attachment-understanding/registry");
+import { ImageUnderstandingSettingsStore } from "@workbench/attachment-understanding-server/settings";
+import { createWorkspaceFileService } from "@workbench/workspace-server/files";
+import {
+  bindPiAgentHostBindings,
+  getPiAgentHostBindings,
+} from "../../src/agent-runtime/pi-agent-host-bindings";
+import { resolvePiWorkspaceRoot } from "../../src/workspaces/workspace-service-bindings";
+
+function getImageUnderstandingSettingsStore() {
+  return new ImageUnderstandingSettingsStore({
+    stateFile: path.join(
+      process.env.PI_WORKBENCH_STATE_DIR ?? path.join(getAgentDir(), "workbench"),
+      "image-understanding.json",
+    ),
+  });
+}
+
+bindPiAgentHostBindings({
+  attachmentUnderstandingSettings: getImageUnderstandingSettingsStore,
+  workspaceFiles: createWorkspaceFileService({ resolveWorkspaceRoot: resolvePiWorkspaceRoot }),
+});
 
 test("detects image content across durable session message roles", () => {
   assert.equal(messagesHaveImages([{ role: "user", content: "text only" }]), false);
@@ -3806,4 +3824,72 @@ test("rejects in-log anchors without a reliably persisted message boundary", asy
   assert.throws(() => createDetachedSessionFork(legacyPath, 0), {
     code: "pi_fork_unavailable",
   });
+});
+
+test("Composer reads file references through the installed shared Workspace service", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-composer-files-"));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousBindings = getPiAgentHostBindings();
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  await writeFile(path.join(cwd, "example.txt"), "Shared workspace file content");
+  const files = createWorkspaceFileService({
+    resolveWorkspaceRoot: async (id) => (id === "workspace-1" ? cwd : undefined),
+  });
+  const reads = t.mock.method(files, "readFile");
+  bindPiAgentHostBindings({ ...previousBindings, workspaceFiles: files });
+  const host = await createSession(cwd, "composer-shared-file-service");
+  t.mock.method(host.session.modelRuntime, "getAvailableSnapshot", () =>
+    host.session.model ? [host.session.model] : [],
+  );
+  t.after(async () => {
+    await host.shutdown();
+    bindPiAgentHostBindings(previousBindings);
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    await rm(root, { recursive: true, force: true });
+  });
+  let forwardedPrompt = "";
+  t.mock.method(
+    host.session,
+    "prompt",
+    async (message: string, options?: { preflightResult?: (accepted: boolean) => void }) => {
+      forwardedPrompt = message;
+      options?.preflightResult?.(true);
+    },
+  );
+  await submitPrompt(
+    host.id,
+    "followUp",
+    { message: "Read this file" },
+    {
+      composer: {
+        version: 2,
+        text: "Read this file",
+        sourceText: "Read this file",
+        commands: [],
+        metadata: {},
+        context: [
+          {
+            type: "workbench.workspace-file",
+            value: {
+              version: 1,
+              workspaceId: "workspace-1",
+              relativePath: "example.txt",
+              name: "example.txt",
+            },
+          },
+        ],
+      },
+    },
+  );
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(getPiAgentHostBindings().workspaceFiles, files);
+  assert.equal(reads.mock.callCount(), 1);
+  assert.deepEqual(reads.mock.calls[0]?.arguments, [
+    { workspaceId: "workspace-1", relativePath: "example.txt" },
+  ]);
+  assert.match(forwardedPrompt, /Shared workspace file content/);
+  assert.match(forwardedPrompt, /untrusted-context/);
 });

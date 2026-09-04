@@ -1,3 +1,4 @@
+import { RPC_REQUEST_BODY_LIMITS } from "./rpc-request-budgets";
 import {
   PI_THINKING_LEVELS,
   type PiImageContent,
@@ -9,9 +10,8 @@ import { isTrustedLocalApiRequest } from "@workbench/server-core/request-trust";
 
 import { PiServerError } from "../core/errors";
 import { admitInlineImages, InlineImageAdmissionError } from "../sessions/inline-image-admission";
-import type { PiRpcPostHandler } from "./rpc-router";
 import { piErrorResponse } from "./responses";
-import { readTrustedJsonPost, RPC_REQUEST_BODY_LIMITS } from "./rpc-transport";
+import { readTrustedJsonPost } from "@workbench/host-server/rpc";
 
 type Awaitable<Value> = Value | Promise<Value>;
 
@@ -26,7 +26,6 @@ interface SummarizableSession {
  * application installation supplies the one live graph shared by RPC, legacy HTTP and streams.
  */
 export interface PiRuntimeHttpRouterDependencies {
-  readonly handleRpcPost: PiRpcPostHandler;
   readonly listModels: (cwd: string) => Awaitable<unknown>;
   readonly createRunningEventResponse: (request: Request) => Awaitable<Response>;
   readonly createSessionEventResponse: (request: Request, sessionId: string) => Awaitable<Response>;
@@ -66,13 +65,11 @@ export interface PiRuntimeHttpRouterDependencies {
   readonly listSessions: () => Awaitable<unknown>;
   readonly pickWorkspaceDirectory: (signal: AbortSignal) => Awaitable<unknown | undefined>;
   readonly handleSessionExportRequest: (request: Request) => Awaitable<Response>;
-  readonly handleWorkspaceFileContentRequest: (request: Request) => Awaitable<Response>;
 }
 
 export type PiRuntimeHttpHandler = (request: Request) => Promise<Response>;
 
 const SESSION_ROUTE = /^\/api\/pi\/sessions\/([^/]+)(?:\/(commands|events))?$/u;
-const RPC_ROUTE = /^\/api\/([^/]+)$/u;
 
 function notFound(): Response {
   return new Response("Not Found", { status: 404 });
@@ -445,11 +442,6 @@ export function createPiRuntimeHttpRouter(
       const unsupported = unsupportedMethod(request, ["GET", "HEAD"]);
       return unsupported ?? dependencies.handleSessionExportRequest(request);
     }
-    if (pathname === "/api/workspace.files.content") {
-      const unsupported = unsupportedMethod(request, ["GET", "HEAD"]);
-      return unsupported ?? dependencies.handleWorkspaceFileContentRequest(request);
-    }
-
     const sessionMatch = SESSION_ROUTE.exec(pathname);
     if (sessionMatch) {
       const sessionId = decodePathSegment(sessionMatch[1]!);
@@ -474,17 +466,6 @@ export function createPiRuntimeHttpRouter(
         );
       }
       return unsupported ?? handleSessionResource(request, sessionId, dependencies);
-    }
-
-    const rpcMatch = RPC_ROUTE.exec(pathname);
-    if (rpcMatch) {
-      if (request.method === "OPTIONS") return notFound();
-      const unsupported = unsupportedMethod(request, ["POST"]);
-      if (unsupported) return unsupported;
-      const method = decodePathSegment(rpcMatch[1]!);
-      return method === undefined
-        ? new Response("Bad Request", { status: 400 })
-        : dependencies.handleRpcPost(request, method);
     }
 
     return notFound();

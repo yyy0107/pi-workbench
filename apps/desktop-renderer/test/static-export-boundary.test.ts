@@ -4,8 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { piAgentRuntimeExtensionGroups } from "@workbench/agent-runtime-pi-contributions/installation";
-import { shellExtensionGroups } from "@workbench/shell/extensions";
+import { piWorkbenchExtensions } from "@workbench/pi-product/application";
 
 const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -51,10 +50,9 @@ test("keeps the Desktop renderer on one static route and public package boundari
     path.join(APP_ROOT, "src", "desktop", "desktop-workbench.tsx"),
     "utf8",
   );
-  assert.match(productComposition, /\bWorkbenchApplicationShell\b/u);
+  assert.match(productComposition, /\bPiWorkbenchShell\b/u);
   assert.match(productComposition, /\bWorkbenchThread\b/u);
-  assert.match(productComposition, /\bcreatePiAgentRuntimeInstallation\b/u);
-  assert.match(productComposition, /\bPiAgentRuntimeContributionsProvider\b/u);
+  assert.match(productComposition, /\bPiWorkbenchApplicationProviders\b/u);
   assert.match(productComposition, /\bDesktopNavigationProvider\b/u);
 
   const bootstrapApplication = await readFile(
@@ -75,41 +73,13 @@ test("preserves the Desktop extension ID and activation-order baseline", async (
   )?.[1];
   assert.ok(body, "Desktop extension composition must remain statically inspectable");
   assert.deepEqual(
-    [...body.matchAll(/(?:\.\.\.)?([A-Za-z][A-Za-z0-9_.]+),/gu)].map((match) => match[1]),
-    [
-      "shellExtensionGroups.core",
-      "shellExtensionGroups.workspace",
-      "shellExtensionGroups.settings",
-      "piAgentRuntimeExtensionGroups.agentConfiguration",
-      "shellExtensionGroups.interactions",
-      "piAgentRuntimeExtensionGroups.configuration",
-      "shellExtensionGroups.attachments",
-      "piAgentRuntimeExtensionGroups.toolbox",
-      "shellExtensionGroups.automations",
-      "shellExtensionGroups.models",
-      "piAgentRuntimeExtensionGroups.diagnostics",
-      "shellExtensionGroups.context",
-      "shellExtensionGroups.files",
-      "DESKTOP_RUNTIME_LIFECYCLE_EXTENSION",
-    ],
+    [...body.matchAll(/(?:\.\.\.)?([A-Za-z][A-Za-z0-9_.]+),?/gu)].map((match) => match[1]),
+    ["DESKTOP_RUNTIME_LIFECYCLE_EXTENSION"],
   );
 
-  const ids = [
-    ...shellExtensionGroups.core,
-    ...shellExtensionGroups.workspace,
-    ...shellExtensionGroups.settings,
-    ...piAgentRuntimeExtensionGroups.agentConfiguration,
-    ...shellExtensionGroups.interactions,
-    ...piAgentRuntimeExtensionGroups.configuration,
-    ...shellExtensionGroups.attachments,
-    ...piAgentRuntimeExtensionGroups.toolbox,
-    ...shellExtensionGroups.automations,
-    ...shellExtensionGroups.models,
-    ...piAgentRuntimeExtensionGroups.diagnostics,
-    ...shellExtensionGroups.context,
-    ...shellExtensionGroups.files,
-    { id: "workbench.desktop-runtime-lifecycle" },
-  ].map(({ id }) => id);
+  const ids = [...piWorkbenchExtensions, { id: "workbench.desktop-runtime-lifecycle" }].map(
+    ({ id }) => id,
+  );
   assert.equal(new Set(ids).size, ids.length);
   assert.deepEqual(ids, [
     "workbench.brand",

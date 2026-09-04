@@ -2,18 +2,15 @@
 
 import type { ReactNode } from "react";
 
-import { piTranslationBundle } from "@workbench/agent-runtime-pi-contributions/installation";
 import {
-  WorkbenchApplicationProviders as ShellWorkbenchApplicationProviders,
+  PiWorkbenchApplicationProviders,
   useWorkbenchApplicationInstallationId,
-} from "@workbench/shell/application";
+} from "@workbench/pi-product/application";
 import type { Locale } from "@workbench/shell/i18n";
 import type { RuntimeConnection } from "@workbench/host-contracts";
 import { webAppTranslationBundle } from "@/app/i18n/bundle";
 
-import { createInstalledWorkbenchSettingsService } from "./installed-workbench-settings";
-
-const INSTALLED_TRANSLATION_BUNDLES = Object.freeze([webAppTranslationBundle, piTranslationBundle]);
+const INSTALLED_TRANSLATION_BUNDLES = Object.freeze([webAppTranslationBundle]);
 
 export { useWorkbenchApplicationInstallationId };
 
@@ -30,14 +27,13 @@ export function WorkbenchApplicationProviders({
   runtimeConnection: RuntimeConnection;
 }>) {
   return (
-    <ShellWorkbenchApplicationProviders
+    <PiWorkbenchApplicationProviders
       bundles={INSTALLED_TRANSLATION_BUNDLES}
-      createSettingsService={createInstalledWorkbenchSettingsService}
       initialLocale={initialLocale}
       installationId={installationId}
       runtimeConnection={runtimeConnection}
     >
       {children}
-    </ShellWorkbenchApplicationProviders>
+    </PiWorkbenchApplicationProviders>
   );
 }

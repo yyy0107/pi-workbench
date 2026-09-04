@@ -1,6 +1,8 @@
+import { projectServiceCapabilityError } from "@workbench/services-client/errors";
+import { RpcClientError } from "@workbench/host-client/rpc";
 import type {
   WorkbenchAgentRuntimeCapabilities,
-  WorkbenchAgentCapabilityErrorCode,
+  WorkbenchServicesCapabilities,
   WorkbenchContextCapabilitySnapshot,
 } from "@workbench/agent-runtime-client/capabilities";
 import { WorkbenchAgentCapabilityError } from "@workbench/agent-runtime-client/capabilities";
@@ -9,76 +11,28 @@ import type {
   WorkbenchPendingInteraction,
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
-import { createAutomationClient } from "../automations/automation-client";
 import type { PiPendingInteraction, PiSessionManager } from "../runtime/manager";
 import {
-  createPiHostDirectory,
   createPiWorkspace,
-  createPiWorkspaceGitBranch,
-  describeAttachmentUnderstandingSettings,
   describePiProjectTrust,
-  describePiWorkspaceFile,
-  describePiWorkspaceGit,
-  fetchPiWorkspaceFileContent,
-  listPiHostDirectory,
-  listPiLocalApps,
   listPiModelCatalog,
   listPiModelProviders,
   listPiRpcSessionModels,
-  listPiWorkspaceFiles,
-  openPiHostPath,
-  openPiLocalApp,
   PiApiError,
-  pickPiHostDirectory,
-  piWorkspaceFileContentUrl,
-  readPiWorkspaceFile,
-  readPiWorkspaceGitLog,
-  searchPiWorkspaceFiles,
-  streamPiWorkspaceFileText,
-  switchPiWorkspaceGitBranch,
-  updateAttachmentUnderstandingSettings,
   updatePiProjectTrust,
-  writePiWorkspaceFile,
 } from "../transport/api";
 
-function errorCode(error: PiApiError): WorkbenchAgentCapabilityErrorCode {
-  const code = error.code;
-  if (code === "pi_interaction_not_found") return "request-ended";
-  if (code === "pi_rpc_invalid_response") return "failed";
-  if (/busy|in-progress|running/u.test(code)) return "busy";
-  if (/conflict|exists|stale/u.test(code)) return "conflict";
-  if (/not[-_]found/u.test(code)) return "not-found";
-  if (/unavailable|unsupported|readonly/u.test(code)) return "unavailable";
-  if (/invalid|bad-request|mismatch/u.test(code)) return "invalid-request";
-  if (/forbidden|permission/u.test(code) || error.status === 401 || error.status === 403) {
-    return "permission-denied";
-  }
-  if (/cancelled|canceled/u.test(code)) return "cancelled";
-  if (/transport/u.test(code)) return "unavailable";
-  if (error.status === 404) return "not-found";
-  if (error.status === 409) return "conflict";
-  if (error.status === 429) return "busy";
-  if ([501, 502, 503, 504].includes(error.status)) return "unavailable";
-  if (error.status === 400 || error.status === 422) return "invalid-request";
-  return "failed";
-}
-
-/** Translate concrete Pi failures once, before a capability reaches Workbench UI. */
 export function projectPiCapabilityError(error: unknown): WorkbenchAgentCapabilityError {
-  if (error instanceof WorkbenchAgentCapabilityError) return error;
-  if (error instanceof PiApiError) {
-    const details =
-      !error.code.startsWith("pi_rpc_") && Object.keys(error.details).length
-        ? Object.freeze({ ...error.details })
-        : undefined;
-    return new WorkbenchAgentCapabilityError(errorCode(error), details);
+  if (error instanceof PiApiError && error.code === "pi_interaction_not_found")
+    return new WorkbenchAgentCapabilityError(
+      "request-ended",
+      Object.keys(error.details).length ? Object.freeze({ ...error.details }) : undefined,
+    );
+  if (error instanceof PiApiError && error.code.startsWith("pi_rpc_")) {
+    return projectServiceCapabilityError(new RpcClientError(error.code.slice(3), error.status));
   }
-  if (error instanceof Error && error.name === "AbortError") {
-    return new WorkbenchAgentCapabilityError("cancelled");
-  }
-  return new WorkbenchAgentCapabilityError("failed");
+  return projectServiceCapabilityError(error);
 }
-
 async function capabilityCall<Value>(operation: () => Promise<Value>): Promise<Value> {
   try {
     return await operation();
@@ -109,24 +63,14 @@ function projectPendingInteraction(interaction: PiPendingInteraction): Workbench
 /** Assemble the direct Workbench capability fields for one Pi manager. */
 export function createPiAgentRuntimeCapabilities(
   manager: PiSessionManager,
+  services: WorkbenchServicesCapabilities,
 ): WorkbenchAgentRuntimeCapabilities {
   const options = manager.rpcTransportOptions;
-  const automation = createAutomationClient(options);
   const contextSnapshotCache = new WeakMap<object, WorkbenchContextCapabilitySnapshot>();
 
   const capabilities: WorkbenchAgentRuntimeCapabilities = {
     host: {
-      pickDirectory: () => capabilityCall(() => pickPiHostDirectory(options)),
-      listDirectory: (path?: string) => capabilityCall(() => listPiHostDirectory(path, options)),
-      createDirectory: async (path: string, name: string) =>
-        (await capabilityCall(() => createPiHostDirectory(path, name, options))).path,
-      openPath: async (path: string) => {
-        await capabilityCall(() => openPiHostPath(path, options));
-      },
-      listLocalApps: async () => (await capabilityCall(() => listPiLocalApps(options))).apps,
-      openLocalApp: async (request) => {
-        await capabilityCall(() => openPiLocalApp(request, options));
-      },
+      ...services.host,
       describeProjectTrust: (path: string) =>
         capabilityCall(() => describePiProjectTrust({ path }, options)),
       updateProjectTrust: (path: string, trusted: boolean) =>
@@ -144,36 +88,7 @@ export function createPiAgentRuntimeCapabilities(
           },
         };
       },
-      listFiles: (request) => capabilityCall(() => listPiWorkspaceFiles(request, options)),
-      searchFiles: (request, requestOptions) =>
-        capabilityCall(() => searchPiWorkspaceFiles(request, { ...options, ...requestOptions })),
-      describeFile: (request) => capabilityCall(() => describePiWorkspaceFile(request, options)),
-      fileContentUrl: piWorkspaceFileContentUrl,
-      fetchFileContent: (request, requestOptions) =>
-        capabilityCall(() =>
-          fetchPiWorkspaceFileContent(request, { ...options, ...requestOptions }),
-        ),
-      readFile: (request) => capabilityCall(() => readPiWorkspaceFile(request, options)),
-      writeFile: (request) => capabilityCall(() => writePiWorkspaceFile(request, options)),
-      streamFileText: (request, streamOptions) =>
-        capabilityCall(() =>
-          streamPiWorkspaceFileText(request, {
-            ...streamOptions,
-            transport: options.transport,
-          }),
-        ),
-      describeGit: (workspaceId, requestOptions) =>
-        capabilityCall(() =>
-          describePiWorkspaceGit({ workspaceId }, { ...options, ...requestOptions }),
-        ),
-      readGitLog: (workspaceId, requestOptions) =>
-        capabilityCall(() =>
-          readPiWorkspaceGitLog({ workspaceId }, { ...options, ...requestOptions }),
-        ),
-      switchGitBranch: (workspaceId, branch) =>
-        capabilityCall(() => switchPiWorkspaceGitBranch({ workspaceId, branch }, options)),
-      createGitBranch: (workspaceId, branch) =>
-        capabilityCall(() => createPiWorkspaceGitBranch({ workspaceId, branch }, options)),
+      ...services.workspace,
     },
     models: {
       getCatalogRevision: manager.modelCatalogInvalidation.getRevision,
@@ -286,21 +201,8 @@ export function createPiAgentRuntimeCapabilities(
         capabilityCall(() => manager.contextPolicies.update(sessionId, policy)),
       compact: (sessionId) => capabilityCall(() => manager.contextPolicies.compact(sessionId)),
     },
-    automation: {
-      list: (request) => capabilityCall(() => automation.list(request)),
-      read: (request) => capabilityCall(() => automation.read(request)),
-      save: (request) => capabilityCall(() => automation.save(request)),
-      archive: (request) => capabilityCall(() => automation.archive(request)),
-      setEnabled: (request) => capabilityCall(() => automation.setEnabled(request)),
-      runNow: (request) => capabilityCall(() => automation.runNow(request)),
-      sessions: (request) => capabilityCall(() => automation.sessions(request)),
-      removeSession: (request) => capabilityCall(() => automation.removeSession(request)),
-    },
-    attachmentUnderstanding: {
-      describe: () => capabilityCall(() => describeAttachmentUnderstandingSettings(options)),
-      update: (request) =>
-        capabilityCall(() => updateAttachmentUnderstandingSettings(request, options)),
-    },
+    automation: services.automation,
+    attachmentUnderstanding: services.attachmentUnderstanding,
   };
   return Object.freeze(capabilities);
 }

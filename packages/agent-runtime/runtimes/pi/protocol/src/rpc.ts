@@ -15,10 +15,6 @@ import type {
   AttachmentUnderstandingUpdatePayload,
 } from "@workbench/attachment-understanding-contracts/settings";
 import type { ModelSelection } from "@workbench/contracts/model-selection";
-import type {
-  WorkbenchSettingsPreferences,
-  WorkbenchSettingsPreferencesPatch,
-} from "@workbench/agent-runtime-contracts/settings";
 
 export type { ModelSelection } from "@workbench/contracts/model-selection";
 export type {
@@ -34,53 +30,16 @@ export type {
 import type { InlineDocumentMediaType, InlineImageMediaType } from "./attachments";
 import type { PiRunTiming } from "./messages";
 
-export type RpcIssuePathSegment = string | number;
-
-/**
- * A validation issue returned in `bad-request` error details.
- *
- * Validators may attach additional structured metadata (for example
- * `expected` or `minimum`) without changing the common wire contract.
- */
-export interface RpcIssue {
-  code: string;
-  path: RpcIssuePathSegment[];
-  message: string;
-  [key: string]: unknown;
-}
-
-export interface RpcError<Details extends Record<string, unknown> = Record<string, unknown>> {
-  code: string;
-  message: string;
-  details: Details;
-}
-
-export interface ClientRequest<Method extends string = string, Payload = unknown> {
-  type: "client-request";
-  rpcId: string;
-  method: Method;
-  payload: Payload;
-}
-
-export interface RpcSuccess<Value> {
-  ok: true;
-  /** JSON serialization omits this property when the handler returns `undefined`. */
-  value: Value;
-}
-
-export interface RpcFailure<Details extends Record<string, unknown> = Record<string, unknown>> {
-  ok: false;
-  error: RpcError<Details>;
-}
-
-export interface ServerResponse<
-  Value = unknown,
-  Details extends Record<string, unknown> = Record<string, unknown>,
-> {
-  type: "server-response";
-  rpcId: string;
-  result: RpcSuccess<Value> | RpcFailure<Details>;
-}
+import type { RpcSuccess } from "@workbench/host-contracts/rpc";
+export type {
+  RpcIssuePathSegment,
+  RpcIssue,
+  RpcError,
+  ClientRequest,
+  RpcSuccess,
+  RpcFailure,
+  ServerResponse,
+} from "@workbench/host-contracts/rpc";
 
 export interface QuestionAnswerItem {
   id: string;
@@ -154,87 +113,47 @@ export interface WorkspaceSessionPinValue {
   pinned: boolean;
 }
 
-export const WORKSPACE_GIT_BRANCH_NAME_LENGTH_LIMIT = 255;
-export const WORKSPACE_GIT_LOG_COMMIT_LIMIT = 500;
+export { WORKSPACE_GIT_BRANCH_NAME_LENGTH_LIMIT } from "@workbench/agent-runtime-contracts/runtime-capabilities";
+export { WORKSPACE_GIT_LOG_COMMIT_LIMIT } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
-export interface WorkspaceGitDescribePayload {
-  workspaceId: string;
-}
+export type WorkspaceGitDescribePayload =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceGitRequest;
 
 export type WorkspaceGitChangeKind =
-  | "added"
-  | "modified"
-  | "deleted"
-  | "renamed"
-  | "copied"
-  | "untracked"
-  | "conflicted";
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceGitChangeKind;
 
-export interface WorkspaceGitChangedFile {
-  path: string;
-  previousPath?: string;
-  kind: WorkspaceGitChangeKind;
-  additions?: number;
-  deletions?: number;
-}
+export type WorkspaceGitChangedFile =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceGitChangedFile;
 
-export interface WorkspaceGitRepositoryStatus {
-  repository: true;
-  /** Present while HEAD points to a named local branch, including an unborn branch. */
-  branch?: string;
-  /** Short commit id used only when HEAD is detached. */
-  detachedHead?: string;
-  branches: string[];
-  changedFileCount: number;
-  changedFiles: WorkspaceGitChangedFile[];
-  changedFilesTruncated: boolean;
-}
+export type WorkspaceGitRepositoryStatus =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceGitRepositoryStatus;
 
-export type WorkspaceGitStatus = { repository: false } | WorkspaceGitRepositoryStatus;
+export type WorkspaceGitStatus =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceGitStatus;
 
-export interface WorkspaceGitSwitchBranchPayload extends WorkspaceGitDescribePayload {
-  branch: string;
-}
+export type WorkspaceGitSwitchBranchPayload =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceGitBranchRequest;
 
-export interface WorkspaceGitCreateBranchPayload extends WorkspaceGitDescribePayload {
-  branch: string;
-}
+export type WorkspaceGitCreateBranchPayload =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceGitBranchRequest;
 
-export type WorkspaceGitRefKind = "head" | "local" | "remote" | "tag" | "other";
+export type WorkspaceGitRefKind =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceGitRefKind;
 
-export interface WorkspaceGitCommitRef {
-  name: string;
-  kind: WorkspaceGitRefKind;
-}
+export type WorkspaceGitCommitRef =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceGitCommitRef;
 
-export interface WorkspaceGitCommit {
-  hash: string;
-  shortHash: string;
-  parentHashes: string[];
-  authorName: string;
-  authoredAt: string;
-  subject: string;
-  refs: WorkspaceGitCommitRef[];
-}
+export type WorkspaceGitCommit =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceGitCommit;
 
-export interface WorkspaceGitLogValue {
-  commits: WorkspaceGitCommit[];
-  truncated: boolean;
-}
+export type WorkspaceGitLogValue =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceGitLog;
 
-export interface DirectoryEntry {
-  name: string;
-  path: string;
-  hidden: boolean;
-}
+export type DirectoryEntry =
+  import("@workbench/host-contracts/runtime-capabilities").WorkbenchHostDirectoryEntry;
 
-export interface HostDirectoryListing {
-  path: string;
-  home: string;
-  crumbs: DirectoryEntry[];
-  entries: DirectoryEntry[];
-  truncated: boolean;
-}
+export type HostDirectoryListing =
+  import("@workbench/host-contracts/runtime-capabilities").WorkbenchHostDirectoryListing;
 
 export interface ProjectTrustDescribePayload {
   path: string;
@@ -258,123 +177,68 @@ export interface ProjectTrustUpdatePayload {
   trusted: boolean;
 }
 
-export type LocalAppKind = "editor" | "media-player" | "terminal" | "file-manager";
+export type LocalAppKind =
+  import("@workbench/host-contracts/runtime-capabilities").WorkbenchLocalAppKind;
 
 export type LocalAppFileKind =
-  | "text"
-  | "image"
-  | "audio"
-  | "video"
-  | "pdf"
-  | "document"
-  | "archive"
-  | "other";
+  import("@workbench/host-contracts/runtime-capabilities").WorkbenchLocalAppFileKind;
 
-export type LocalAppPlatform = "windows" | "macos" | "linux";
+export type LocalAppPlatform =
+  import("@workbench/host-contracts/runtime-capabilities").WorkbenchLocalAppPlatform;
 
 /** Renderer-safe local application metadata. Launcher details remain in the host process. */
-export interface LocalAppView {
-  id: string;
-  name: string;
-  kind: LocalAppKind;
-  icon?: string;
-  supportedFileKinds: readonly LocalAppFileKind[];
-}
+export type LocalAppView =
+  import("@workbench/host-contracts/runtime-capabilities").WorkbenchLocalApp;
 
-export interface LocalAppsListValue {
-  apps: LocalAppView[];
-}
+export type LocalAppsListValue =
+  import("@workbench/host-contracts/runtime-capabilities").WorkbenchLocalAppsListResult;
 
-export interface LocalAppOpenPayload {
-  appId: string;
-  target: string;
-}
+export type LocalAppOpenPayload =
+  import("@workbench/host-contracts/runtime-capabilities").WorkbenchLocalAppOpenRequest;
 
-export interface LocalAppOpenValue {
-  opened: true;
-}
+export type LocalAppOpenValue =
+  import("@workbench/host-contracts/runtime-capabilities").WorkbenchLocalAppOpenResult;
 
 /** Maximum length of a normalized workspace-relative path accepted by the file protocol. */
-export const WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT = 16_384;
+export { WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
 /** Maximum UTF-8 text content accepted by editable Workspace file snapshots. */
-export const WORKSPACE_FILE_EDITABLE_SIZE_LIMIT = 5 * 1024 * 1024;
+export { WORKSPACE_FILE_EDITABLE_SIZE_LIMIT } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
-export interface WorkspaceFileEntry {
-  name: string;
-  relativePath: string;
-  absolutePath: string;
-  kind: "file" | "directory";
-  hidden: boolean;
-  symbolicLink?: boolean;
-}
+export type WorkspaceFileEntry =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceFileEntry;
 
-export interface WorkspaceFilesListPayload {
-  workspaceId: string;
-  relativePath?: string;
-}
+export type WorkspaceFilesListPayload =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceFilesListRequest;
 
-export interface WorkspaceFilesListValue {
-  workspaceId: string;
-  relativePath: string;
-  absolutePath: string;
-  entries: WorkspaceFileEntry[];
-  truncated: boolean;
-}
+export type WorkspaceFilesListValue =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceFilesListResult;
 
-export const WORKSPACE_FILE_SEARCH_QUERY_LENGTH_LIMIT = 512;
-export const WORKSPACE_FILE_SEARCH_RESULT_LIMIT = 100;
+export { WORKSPACE_FILE_SEARCH_QUERY_LENGTH_LIMIT } from "@workbench/agent-runtime-contracts/runtime-capabilities";
+export { WORKSPACE_FILE_SEARCH_RESULT_LIMIT } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
-export interface WorkspaceFilesSearchPayload {
-  workspaceId: string;
-  query: string;
-  limit?: number;
-}
+export type WorkspaceFilesSearchPayload =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceFilesSearchRequest;
 
-export interface WorkspaceFilesSearchValue {
-  workspaceId: string;
-  query: string;
-  entries: WorkspaceFileEntry[];
-  truncated: boolean;
-}
+export type WorkspaceFilesSearchValue =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceFilesSearchResult;
 
-export interface WorkspaceFileReadPayload {
-  workspaceId: string;
-  relativePath: string;
-}
+export type WorkspaceFileReadPayload =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceFileRequest;
 
-export type WorkspaceFileDescribePayload = WorkspaceFileReadPayload;
+export type WorkspaceFileDescribePayload =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceFileRequest;
 
 export { WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
-export interface WorkspaceFileDescriptorValue {
-  workspaceId: string;
-  relativePath: string;
-  absolutePath: string;
-  name: string;
-  mediaType: string;
-  encoding: "utf-8" | null;
-  version: string;
-  size: number;
-  modifiedAt: number;
-}
+export type WorkspaceFileDescriptorValue =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceFileDescriptor;
 
-export interface WorkspaceFileSnapshotValue {
-  workspaceId: string;
-  relativePath: string;
-  absolutePath: string;
-  name: string;
-  content: string;
-  encoding: "utf-8";
-  version: string;
-  size: number;
-  modifiedAt: number;
-}
+export type WorkspaceFileSnapshotValue =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceFileSnapshot;
 
-export interface WorkspaceFileWritePayload extends WorkspaceFileReadPayload {
-  content: string;
-  expectedVersion: string;
-}
+export type WorkspaceFileWritePayload =
+  import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceFileWriteRequest;
 
 export interface HostDescription {
   /** Stable product identity for native shells and protocol clients. */
@@ -716,18 +580,14 @@ export interface SettingsOpenDocumentValue {
   opened: true;
 }
 
-export interface WorkbenchSettingsDescribeValue {
-  revision: number;
-  preferences: WorkbenchSettingsPreferences;
-}
+export type WorkbenchSettingsDescribeValue =
+  import("@workbench/agent-runtime-contracts/settings").WorkbenchSettingsSnapshot;
 
-export interface WorkbenchSettingsUpdatePayload {
-  patch: WorkbenchSettingsPreferencesPatch;
-}
+export type WorkbenchSettingsUpdatePayload =
+  import("@workbench/agent-runtime-contracts/settings").WorkbenchSettingsUpdate;
 
-export interface WorkbenchSettingsUpdateValue {
-  revision: number;
-}
+export type WorkbenchSettingsUpdateValue =
+  import("@workbench/agent-runtime-contracts/settings").WorkbenchSettingsUpdateResult;
 
 export type {
   AttachmentUnderstandingDescribeValue,

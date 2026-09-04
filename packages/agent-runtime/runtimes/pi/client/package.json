@@ -29,11 +29,6 @@
       "import": "./src/public/configuration.ts",
       "default": "./src/public/configuration.ts"
     },
-    "./workbench-settings": {
-      "types": "./src/public/workbench-settings.ts",
-      "import": "./src/public/workbench-settings.ts",
-      "default": "./src/public/workbench-settings.ts"
-    },
     "./workspace": {
       "types": "./src/public/workspace.ts",
       "import": "./src/public/workspace.ts",
@@ -63,7 +58,8 @@
     "@workbench/attachment-understanding-contracts": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
     "@workbench/contracts": "workspace:*",
-    "@workbench/host-client": "workspace:*"
+    "@workbench/host-client": "workspace:*",
+    "@workbench/services-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

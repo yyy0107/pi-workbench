@@ -1,0 +1,44 @@
+{
+  "name": "@workbench/workspace-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./files": {
+      "types": "./src/files.ts",
+      "import": "./src/files.ts",
+      "default": "./src/files.ts"
+    },
+    "./git": {
+      "types": "./src/git.ts",
+      "import": "./src/git.ts",
+      "default": "./src/git.ts"
+    },
+    "./http": {
+      "types": "./src/http.ts",
+      "import": "./src/http.ts",
+      "default": "./src/http.ts"
+    },
+    "./rpc": {
+      "types": "./src/rpc.ts",
+      "import": "./src/rpc.ts",
+      "default": "./src/rpc.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/host-server": "workspace:*",
+    "@workbench/server-core": "workspace:*",
+    "mime": "4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@workbench/host-contracts": "workspace:*",
+    "typescript": "^7.0.2"
+  }
+}

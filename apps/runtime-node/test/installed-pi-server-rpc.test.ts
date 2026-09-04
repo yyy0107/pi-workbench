@@ -13,12 +13,11 @@ import type {
   WorkbenchSettingsDescribeValue,
   WorkspaceView,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
-import { RPC_REQUEST_BODY_LIMITS } from "@workbench/agent-runtime-pi-server/legacy";
+import { DEFAULT_MAX_RPC_REQUEST_BODY_BYTES } from "@workbench/host-server/rpc";
 
 const { getInstalledPiServer, handlePiRpcPost } = (await import(
   new URL("../src/composition/installed-pi-server.ts", import.meta.url).href
 )) as typeof import("../src/composition/installed-pi-server");
-const DEFAULT_MAX_RPC_REQUEST_BODY_BYTES = RPC_REQUEST_BODY_LIMITS.ordinary;
 
 function rpcRequest(
   method: string,
@@ -50,7 +49,7 @@ test("retains one installed RPC and Runtime HTTP router facade", () => {
   const second = getInstalledPiServer();
 
   assert.equal(second, first);
-  assert.equal(second.lifecycleVersion, 3);
+  assert.equal(second.lifecycleVersion, 4);
   assert.equal(second.agent, first.agent);
   assert.equal(second.handleRpcPost, first.handleRpcPost);
   assert.equal(second.handleHttpRequest, first.handleHttpRequest);

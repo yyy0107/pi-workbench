@@ -1,6 +1,12 @@
 import type { WorkspaceProtocolService } from "../../workspaces/workspace-protocol-service";
-import { handleRpcPost, rpcBoolean, rpcObject, rpcOptional, rpcString } from "../rpc-transport";
-import type { RpcRouteGroup } from "./rpc-route-group";
+import {
+  handleRpcPost,
+  rpcBoolean,
+  rpcObject,
+  rpcOptional,
+  rpcString,
+} from "@workbench/host-server/rpc";
+import type { RpcRouteGroup } from "@workbench/host-server/rpc";
 
 export interface WorkspaceRpcRoutesDependencies {
   readonly service: WorkspaceProtocolService;
