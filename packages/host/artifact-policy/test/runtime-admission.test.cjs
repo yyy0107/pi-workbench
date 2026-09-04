@@ -5,47 +5,44 @@ const { readFileSync } = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
-const { STREAM_PATHS } = require("@workbench/agent-runtime-pi-protocol/stream");
 const { TERMINAL_WEBSOCKET_PATH } = require("@workbench/terminal-contracts");
 
 const nativeRuntime = require("../src/runtime-native.cjs");
 const modelResources = require("../src/runtime-model-resources.cjs");
-const {
-  RUNTIME_ARTIFACT_ADMISSION_POLICY,
-  RUNTIME_ARTIFACT_UPGRADE_PATHS,
-} = require("../src/runtime-admission.cjs");
+const { createRuntimeArtifactAdmissionPolicy } = require("../src/runtime-admission.cjs");
 
-test("publishes one immutable Runtime admission policy without importing host-server", () => {
-  assert.deepEqual(Object.keys(RUNTIME_ARTIFACT_ADMISSION_POLICY).sort(), [
+test("creates an immutable Runtime admission policy without owning an Agent Runtime", () => {
+  const agentRuntimeUpgradePaths = Object.freeze(["/api/agent.mux", "/api/agent.host"]);
+  const policy = createRuntimeArtifactAdmissionPolicy(agentRuntimeUpgradePaths);
+
+  assert.deepEqual(Object.keys(policy).sort(), [
     "assertModelReadableResourceClassification",
     "collectModelReadableResources",
     "expectedNativeRuntimeFiles",
     "expectedUpgradePaths",
   ]);
-  assert.equal(Object.isFrozen(RUNTIME_ARTIFACT_ADMISSION_POLICY), true);
-  assert.equal(Object.isFrozen(RUNTIME_ARTIFACT_UPGRADE_PATHS), true);
-  assert.strictEqual(
-    RUNTIME_ARTIFACT_ADMISSION_POLICY.expectedUpgradePaths,
-    RUNTIME_ARTIFACT_UPGRADE_PATHS,
-  );
-  assert.deepEqual(RUNTIME_ARTIFACT_UPGRADE_PATHS, [
-    STREAM_PATHS.mux,
-    STREAM_PATHS.host,
+  assert.equal(Object.isFrozen(policy), true);
+  assert.equal(Object.isFrozen(policy.expectedUpgradePaths), true);
+  assert.deepEqual(policy.expectedUpgradePaths, [
+    ...agentRuntimeUpgradePaths,
     TERMINAL_WEBSOCKET_PATH,
   ]);
-  assert.strictEqual(
-    RUNTIME_ARTIFACT_ADMISSION_POLICY.expectedNativeRuntimeFiles,
-    nativeRuntime.expectedNativeRuntimeFiles,
+  assert.notStrictEqual(policy.expectedUpgradePaths, agentRuntimeUpgradePaths);
+  assert.throws(
+    () => createRuntimeArtifactAdmissionPolicy(["/api/agent.mux", 1]),
+    /array of strings/u,
   );
+  assert.strictEqual(policy.expectedNativeRuntimeFiles, nativeRuntime.expectedNativeRuntimeFiles);
   assert.strictEqual(
-    RUNTIME_ARTIFACT_ADMISSION_POLICY.collectModelReadableResources,
+    policy.collectModelReadableResources,
     modelResources.collectRuntimeArtifactModelReadableResources,
   );
   assert.strictEqual(
-    RUNTIME_ARTIFACT_ADMISSION_POLICY.assertModelReadableResourceClassification,
+    policy.assertModelReadableResourceClassification,
     modelResources.assertRuntimeArtifactModelReadableResourceClassification,
   );
 
   const source = readFileSync(path.join(__dirname, "..", "src", "runtime-admission.cjs"), "utf8");
   assert.doesNotMatch(source, /require\(\s*["'][^"']*host-server/u);
+  assert.doesNotMatch(source, /@workbench\/agent-runtime-pi-/u);
 });

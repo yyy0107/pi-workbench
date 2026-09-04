@@ -4,7 +4,6 @@ import { createServer, type Server } from "node:http";
 import { connect } from "node:net";
 import test from "node:test";
 
-import runtimeArtifactAdmission from "@workbench/host-artifact-policy/runtime-admission";
 import { RUNTIME_CONNECTION_PROTOCOL_VERSION } from "@workbench/host-contracts/runtime-connection";
 import { WebHostShutdownReason } from "@workbench/host-contracts/web-host-control";
 import {
@@ -14,12 +13,12 @@ import {
 
 import {
   RUNTIME_CONNECTED_WEB_HOST,
+  RUNTIME_ARTIFACT_UPGRADE_PATHS,
   startRuntimeConnectedWebHost,
   type RuntimeConnectedWebHostDependencies,
 } from "@/server/runtime-connected-web-host";
 
 const WEB_ROOT = "/repository/apps/web";
-const { RUNTIME_ARTIFACT_UPGRADE_PATHS } = runtimeArtifactAdmission;
 const RUNTIME_UPGRADE_PATH = RUNTIME_ARTIFACT_UPGRADE_PATHS[0]!;
 const ACCESS_TOKEN = "root-owned-runtime-secret";
 const RUNTIME_CONNECTION = Object.freeze({
@@ -58,6 +57,11 @@ function rawUpgrade(port: number, path: string): Promise<string> {
 }
 
 test("routes Next, Runtime HTTP, exact Runtime upgrades, and HMR to their sole owners", async (t) => {
+  assert.deepEqual(RUNTIME_ARTIFACT_UPGRADE_PATHS, [
+    "/api/events.mux",
+    "/api/events.host",
+    "/api/terminal",
+  ]);
   const port = await unusedLoopbackPort();
   const publicOrigin = `http://${RUNTIME_CONNECTED_WEB_HOST}:${port}`;
   const calls: string[] = [];

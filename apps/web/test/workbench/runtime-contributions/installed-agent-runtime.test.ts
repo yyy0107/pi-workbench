@@ -12,10 +12,14 @@ const IGNORED_DIRECTORIES = new Set([
   ".electron-build",
   ".git",
   ".next",
+  "build",
+  "coverage",
+  "dist",
   "dist-electron",
   "node_modules",
+  "out",
 ]);
-const PI_ADAPTER_PREFIX = "packages/agent-runtime/adapters/pi/";
+const PI_IMPLEMENTATION_PREFIX = "packages/agent-runtime/adapters/pi/";
 const PI_CONTRIBUTIONS_PREFIX = "packages/agent-runtime/adapters/pi/contributions/";
 const LEGACY_PI_FACADE_PATH = [
   "apps",
@@ -73,14 +77,35 @@ const RUNTIME_NODE_PI_IMPORTS = new Map<string, readonly string[]>([
   ],
 ]);
 
-/** The Web composition can select Pi's browser adapter, but never Pi's server adapter. */
+/** Application composition can select Pi packages only at these exact seams. */
 const APPLICATION_COMPOSITION_PI_IMPORTS = new Map<string, readonly string[]>([
+  [
+    "apps/desktop-electron/scripts/runtime-artifact-admission.cjs",
+    ["@workbench/agent-runtime-pi-protocol/stream"],
+  ],
   [
     "apps/desktop-renderer/src/desktop/desktop-workbench.tsx",
     [
       "@workbench/agent-runtime-pi-client/installation",
       "@workbench/agent-runtime-pi-client/workbench-settings",
+      "@workbench/agent-runtime-pi-contributions/installation",
     ],
+  ],
+  [
+    "apps/desktop-renderer/test/static-export-boundary.test.ts",
+    ["@workbench/agent-runtime-pi-contributions/installation"],
+  ],
+  [
+    "apps/web/src/server/runtime-connected-web-host.ts",
+    ["@workbench/agent-runtime-pi-protocol/stream"],
+  ],
+  [
+    "apps/web/src/workbench/providers/agent-runtime-provider.tsx",
+    ["@workbench/agent-runtime-pi-contributions/installation"],
+  ],
+  [
+    "apps/web/src/workbench/providers/application-providers.tsx",
+    ["@workbench/agent-runtime-pi-contributions/installation"],
   ],
   [
     "apps/web/src/workbench/providers/installed-agent-runtime.tsx",
@@ -97,17 +122,42 @@ const APPLICATION_COMPOSITION_PI_IMPORTS = new Map<string, readonly string[]>([
     "apps/web/src/workbench/providers/installed-workbench-settings.ts",
     ["@workbench/agent-runtime-pi-client/workbench-settings"],
   ],
+  [
+    "apps/web/src/workbench/providers/workbench-providers.tsx",
+    ["@workbench/agent-runtime-pi-contributions/installation"],
+  ],
+  [
+    "apps/web/src/workbench/runtime-contributions/installed-workbench-extensions.ts",
+    ["@workbench/agent-runtime-pi-contributions/installation"],
+  ],
+]);
+const BOUNDARY_TEST_PI_IMPORTS = new Map<string, readonly string[]>([
+  [
+    "scripts/public-composition-imports.test.mjs",
+    ["@workbench/agent-runtime-pi-contributions/installation"],
+  ],
 ]);
 
 const DIRECT_PI_PACKAGE_IMPORT =
-  /(?:\b(?:import|export)\s+(?:type\s+)?(?:[\s\S]*?\s+from\s+)?|\b(?:import|require)\s*\()\s*["'](@workbench\/agent-runtime-pi-(?:client|protocol|server|shared)(?:\/[^"']*)?)["']/gu;
+  /(?:\b(?:import|export)\s+(?:type\s+)?(?:[\s\S]*?\s+from\s+)?|\b(?:import|require)\s*\()\s*["'](@workbench\/agent-runtime-pi-[a-z0-9-]+(?:\/[^"']*)?)["']/gu;
 function sourceFiles(directory: string): string[] {
   const files: string[] = [];
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     if (entry.isDirectory() && IGNORED_DIRECTORIES.has(entry.name)) continue;
     const absolutePath = path.join(directory, entry.name);
     if (entry.isDirectory()) files.push(...sourceFiles(absolutePath));
-    else if (entry.isFile() && /\.[cm]?tsx?$/u.test(entry.name)) files.push(absolutePath);
+    else if (entry.isFile() && /\.[cm]?[jt]sx?$/u.test(entry.name)) files.push(absolutePath);
+  }
+  return files;
+}
+
+function packageManifestFiles(directory: string): string[] {
+  const files: string[] = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    if (entry.isDirectory() && IGNORED_DIRECTORIES.has(entry.name)) continue;
+    const absolutePath = path.join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...packageManifestFiles(absolutePath));
+    else if (entry.isFile() && entry.name === "package.json") files.push(absolutePath);
   }
   return files;
 }
@@ -134,11 +184,12 @@ function isPermittedPiPackageImport(file: string, specifier: string): boolean {
     );
   }
 
-  // Pi adapter implementation and its tests own the full Pi package family.
-  if (file.startsWith(PI_ADAPTER_PREFIX)) return true;
+  // The concrete Pi implementation and its tests own the full Pi package family.
+  if (file.startsWith(PI_IMPLEMENTATION_PREFIX)) return true;
 
   if (permitsExactImport(RUNTIME_NODE_PI_IMPORTS, file, specifier)) return true;
-  return permitsExactImport(APPLICATION_COMPOSITION_PI_IMPORTS, file, specifier);
+  if (permitsExactImport(APPLICATION_COMPOSITION_PI_IMPORTS, file, specifier)) return true;
+  return permitsExactImport(BOUNDARY_TEST_PI_IMPORTS, file, specifier);
 }
 
 function directPiPackageImportViolations(sources: ReadonlyMap<string, string>): readonly string[] {
@@ -151,6 +202,40 @@ function directPiPackageImportViolations(sources: ReadonlyMap<string, string>): 
             `${file}: direct Pi package import is outside its owner boundary (${specifier})`,
         ),
     )
+    .sort();
+}
+
+function piPackageManifestViolations(): readonly string[] {
+  return packageManifestFiles(repositoryRoot)
+    .flatMap((manifestPath) => {
+      const file = path.relative(repositoryRoot, manifestPath).split(path.sep).join("/");
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+        optionalDependencies?: Record<string, string>;
+        peerDependencies?: Record<string, string>;
+      };
+      const dependencies = {
+        ...manifest.dependencies,
+        ...manifest.devDependencies,
+        ...manifest.optionalDependencies,
+        ...manifest.peerDependencies,
+      };
+      return Object.keys(dependencies)
+        .filter((dependency) => dependency.startsWith("@workbench/agent-runtime-pi-"))
+        .filter(
+          (dependency) =>
+            !file.startsWith("apps/") &&
+            !file.startsWith(PI_IMPLEMENTATION_PREFIX) &&
+            !(
+              file === "package.json" && dependency === "@workbench/agent-runtime-pi-contributions"
+            ),
+        )
+        .map(
+          (dependency) =>
+            `${file}: Pi package dependency is outside its owner boundary (${dependency})`,
+        );
+    })
     .sort();
 }
 
@@ -222,7 +307,7 @@ test("keeps the Pi Web contribution leaf independent of root aliases and host in
   assert.equal(existsSync(path.join(repositoryRoot, ...LEGACY_PI_FACADE_PATH)), false);
 });
 
-test("confines direct Pi package imports to adapter and explicit application composition", () => {
+test("confines Pi packages to the implementation and explicit application composition", () => {
   const sources = new Map(
     sourceFiles(repositoryRoot).map((file) => [
       path.relative(repositoryRoot, file).split(path.sep).join("/"),
@@ -231,11 +316,16 @@ test("confines direct Pi package imports to adapter and explicit application com
   );
 
   assert.deepEqual(directPiPackageImportViolations(sources), []);
+  assert.deepEqual(piPackageManifestViolations(), []);
 });
 
-test("rejects Pi server packages from Web, root UI, and non-owner Runtime application modules", () => {
+test("rejects Pi packages outside the implementation and exact composition allowlist", () => {
   const piServerInstallation = ["@workbench", "agent-runtime-pi-server/installation"].join("/");
   const piClientInstallation = ["@workbench", "agent-runtime-pi-client/installation"].join("/");
+  const piContributionsInstallation = [
+    "@workbench",
+    "agent-runtime-pi-contributions/installation",
+  ].join("/");
   const piProtocolStream = ["@workbench", "agent-runtime-pi-protocol/stream"].join("/");
   const sources = new Map<string, string>([
     ["apps/web/src/app/illegal-pi-server.ts", `import "${piServerInstallation}";`],
@@ -254,6 +344,23 @@ test("rejects Pi server packages from Web, root UI, and non-owner Runtime applic
       "packages/agent-runtime/adapters/pi/contributions/illegal-server-reexport.ts",
       `export * from "${piServerInstallation}";`,
     ],
+    [
+      "packages/agent-runtime/core/contracts/src/illegal-pi-protocol.ts",
+      `export * from "${piProtocolStream}";`,
+    ],
+    [
+      "packages/extension-platform/host/src/illegal-pi-client.ts",
+      `import "${piClientInstallation}";`,
+    ],
+    [
+      "packages/extension-platform/sdk/src/illegal-pi-contribution.ts",
+      `export * from "${piContributionsInstallation}";`,
+    ],
+    ["packages/host/artifact-policy/src/illegal-pi-policy.cjs", `require("${piProtocolStream}");`],
+    [
+      "packages/workbench/shell/src/extensions/illegal-pi-client.tsx",
+      `import "${piClientInstallation}";`,
+    ],
   ]);
 
   assert.deepEqual(directPiPackageImportViolations(sources), [
@@ -265,5 +372,10 @@ test("rejects Pi server packages from Web, root UI, and non-owner Runtime applic
     `apps/web/src/server/runtime-sidecar-child.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
     `components/illegal-pi-client.tsx: direct Pi package import is outside its owner boundary (${piClientInstallation})`,
     `packages/agent-runtime/adapters/pi/contributions/illegal-server-reexport.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
+    `packages/agent-runtime/core/contracts/src/illegal-pi-protocol.ts: direct Pi package import is outside its owner boundary (${piProtocolStream})`,
+    `packages/extension-platform/host/src/illegal-pi-client.ts: direct Pi package import is outside its owner boundary (${piClientInstallation})`,
+    `packages/extension-platform/sdk/src/illegal-pi-contribution.ts: direct Pi package import is outside its owner boundary (${piContributionsInstallation})`,
+    `packages/host/artifact-policy/src/illegal-pi-policy.cjs: direct Pi package import is outside its owner boundary (${piProtocolStream})`,
+    `packages/workbench/shell/src/extensions/illegal-pi-client.tsx: direct Pi package import is outside its owner boundary (${piClientInstallation})`,
   ]);
 });

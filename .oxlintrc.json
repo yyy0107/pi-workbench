@@ -128,6 +128,31 @@
       }
     },
     {
+      "files": ["apps/web/src/server/runtime-connected-web-host.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@workbench/agent-runtime-pi-client",
+                  "@workbench/agent-runtime-pi-client/**",
+                  "@workbench/agent-runtime-pi-contributions",
+                  "@workbench/agent-runtime-pi-contributions/**",
+                  "@workbench/agent-runtime-pi-server",
+                  "@workbench/agent-runtime-pi-server/**",
+                  "@workbench/agent-runtime-pi-shared",
+                  "@workbench/agent-runtime-pi-shared/**"
+                ],
+                "message": "The Runtime proxy composition may read only Pi's stable stream paths."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["apps/web/src/workbench/providers/installed-workbench-settings.ts"],
       "rules": {
         "no-restricted-imports": [

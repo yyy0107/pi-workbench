@@ -53,10 +53,12 @@ function assertNoImports(
   }
 }
 
-test("generic Shell source never imports the concrete Pi runtime", () => {
-  assertNoImports(productionFilesUnder(SOURCE_ROOT), (source) =>
-    source.startsWith("@workbench/agent-runtime-pi"),
-  );
+test("generic Shell source never imports Pi packages or names Pi transport errors", () => {
+  const productionFiles = productionFilesUnder(SOURCE_ROOT);
+  assertNoImports(productionFiles, (source) => source.startsWith("@workbench/agent-runtime-pi"));
+  for (const file of productionFiles) {
+    assert.doesNotMatch(readFileSync(file, "utf8"), /\bPiApiError\b/u, packageRelative(file));
+  }
 
   const manifest = JSON.parse(readFileSync(path.join(PACKAGE_ROOT, "package.json"), "utf8")) as {
     dependencies?: Record<string, string>;

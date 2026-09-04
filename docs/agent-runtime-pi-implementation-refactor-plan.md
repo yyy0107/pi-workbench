@@ -1,0 +1,362 @@
+# Workbench Agent Runtime 边界与 Pi Implementation 重构计划
+
+状态：阶段 1 已完成（2026-09-04）；阶段 2–8 未开始。
+
+本计划是已完成的
+[`assistant-ui-removal-and-custom-runtime-plan.md`](./assistant-ui-removal-and-custom-runtime-plan.md)
+的后续架构计划。前一份计划的“已完成”结论保持不变。
+
+## 1. 决策摘要
+
+本次重构重新建立所有权边界，不创建第二套 Runtime 或 RPC 框架：
+
+```text
+Workbench Contracts / Ports
+            ↓
+Pi Runtime Implementation
+            ↓
+Pi SDK / Pi RPC / Pi Session Events
+
+Workbench Shell UI
+            ↓
+Workbench Runtime Capabilities
+            ↑
+Pi Runtime Implementation
+```
+
+完成后应满足：
+
+- `Adapter` 是 Workbench 定义的架构概念；Pi 是 Agent Runtime 的一个具体实现。
+- Pi 实现从 `packages/agent-runtime/adapters/pi` 移到
+  `packages/agent-runtime/runtimes/pi`，不保留旧路径兼容层。
+- 通用前端只依赖 Workbench 类型、Conversation 投影和能力接口，不依赖 Pi Protocol、Pi Client
+  facade 或 `PiApiError`。
+- Pi 原始事件只存在于 Pi 实现内部；Shell 使用 `ConversationNode`、`MessageBlock`、运行状态和能力
+  presence 渲染。
+- 不新增通用原始 `AgentEvent`、动态 Runtime registry、新 workspace package 或第二套 RPC。
+- `@workbench/agent-runtime-pi-*` package 名称、RPC wire shape、持久化格式、扩展 ID、设置键和激活顺序
+  保持兼容。
+- Web、Desktop 和 Runtime Node 继续作为具体 Runtime 的组合入口。
+
+## 2. 当前基线
+
+统计日期：2026-09-04。统计只计算生产 `.ts`/`.tsx` 文件，不包含测试。
+
+| 范围                                                                | 当前值 |
+| ------------------------------------------------------------------- | -----: |
+| Agent Runtime Core Contracts / Runtime / Client 直接导入 Pi package |      0 |
+| Workbench Shell 直接导入 Pi package                                 |      0 |
+| Extension SDK / Host 直接导入 Pi package                            |      0 |
+| Pi Contributions 生产文件                                           |    191 |
+| Pi Contributions 直接导入 Pi Client 的生产文件                      |     44 |
+| Pi Contributions 直接导入 Pi Protocol 的生产文件                    |     48 |
+| Pi Contributions 直接导入 Pi Client 或 Protocol 的生产文件（去重）  |     71 |
+| 同时导入 Pi Client 与 Protocol 的生产文件                           |     21 |
+| Web 扩展激活序列                                                    |  31 项 |
+| Desktop 扩展激活序列                                                |  32 项 |
+
+阶段 1 审计还发现 `@workbench/host-artifact-policy` 曾直接导入 Pi `STREAM_PATHS`。该依赖已在阶段 1
+移除：通用 artifact policy 现在接收应用组合层传入的 Agent Runtime Upgrade 路径，Pi 路径分别由
+Web、Desktop Electron 和 Runtime Node 组合入口提供。
+
+当前 Pi 物理路径仍是 `packages/agent-runtime/adapters/pi`。这是阶段 2 前的唯一过渡例外；阶段 2
+完成原子目录移动时，边界测试中的实现根路径必须同步改为 `packages/agent-runtime/runtimes/pi`，不得
+同时允许新旧两个根。
+
+## 3. 所有权与能力划分
+
+| 功能                                                                 | 最终所有者                 | 迁移方式                                                    |
+| -------------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------- |
+| Conversation timeline、message blocks、running/loading/composer 状态 | Workbench Agent Runtime    | 继续使用 Core Contracts 与 Runtime                          |
+| Workspace explorer、workspace review                                 | Workbench Shell            | 直接迁移，删除 Pi 命名安装服务                              |
+| Workspace directory、project trust、local app、file、Git             | Workbench                  | 定义当前 UI 所需的最小能力，Pi 保持现有实现                 |
+| Terminal                                                             | Workbench Terminal + Shell | 复用 terminal contracts/client 和 Shell `RuntimeConnection` |
+| Automation                                                           | Workbench Automation       | 复用 `AutomationProtocol`，Pi 提供实现                      |
+| Model Selector                                                       | Workbench                  | 使用通用 `ModelSelection` 与 model capability               |
+| Interactive Requests                                                 | Workbench                  | 使用通用 interaction capability                             |
+| Side Chat                                                            | Workbench                  | 使用通用 scratch-session capability                         |
+| Attachment / Image Understanding                                     | Workbench                  | 复用 attachment-understanding contracts                     |
+| Token Usage / Context Policy                                         | Workbench                  | 使用通用 context capability                                 |
+| Agent Configuration                                                  | Pi                         | 保留在 Pi Contributions                                     |
+| Provider / Model Configuration                                       | Pi                         | 保留在 Pi Contributions                                     |
+| Pi Settings                                                          | Pi                         | 保留在 Pi Contributions                                     |
+| Toolbox、Pi packages/skills/extensions/prompts                       | Pi                         | 保留在 Pi Contributions                                     |
+| Context Trace                                                        | Pi                         | 保留在 Pi Contributions                                     |
+| External Session Import                                              | Pi                         | 保留在 Pi Contributions                                     |
+| Pi Version、Connection Status、Running Indicator、branding           | Pi                         | 保留在 Pi Contributions                                     |
+
+Model Selector 只负责当前会话的通用模型选择；provider 认证、模型来源配置和 Pi 专属配置仍属于 Pi。
+Context Policy 与 Token Usage 上提为 Workbench 能力；展示 Pi 内部事件的 Context Trace 不上提。
+
+## 4. Workbench 公共接口目标
+
+### 4.1 Runtime Environment 能力集合
+
+在现有 `@workbench/agent-runtime-client` 中扩展 `WorkbenchAgentRuntimeEnvironment`，不创建新 package：
+
+```ts
+interface WorkbenchAgentRuntimeCapabilities {
+  readonly host?: WorkbenchRuntimeHostCapability;
+  readonly workspace?: WorkbenchWorkspaceCapability;
+  readonly models?: WorkbenchModelSelectionCapability;
+  readonly interactions?: WorkbenchInteractionCapability;
+  readonly scratchSessions?: WorkbenchScratchSessionCapability;
+  readonly context?: WorkbenchContextCapability;
+  readonly automation?: AutomationProtocol;
+  readonly attachmentUnderstanding?: WorkbenchAttachmentUnderstandingCapability;
+}
+```
+
+约束：
+
+- 每个 capability 只包含当前通用 UI 已实际使用的方法。
+- host、directory、local-app、trust DTO 归入 host contracts。
+- workspace、file、Git、model、interaction、scratch-session、context DTO 归入 agent-runtime contracts。
+- automation、attachment、terminal 继续复用现有领域 contracts。
+- 提供按能力拆分的 hooks；组件不得用 `runtime.id === "pi"` 判断功能。
+- capability 缺失时不安装或不显示入口；恢复的历史 UI 状态可显示明确的 unsupported 状态，但不得注入
+  no-op 或假实现。
+
+### 4.2 通用错误边界
+
+Workbench Client 增加 `WorkbenchAgentCapabilityError`，包含稳定 `code` 和可选 `details`。Pi 在实现
+边界把 `PiApiError` 映射为该错误。迁移后的 Shell 不执行 `instanceof PiApiError`，也不暴露 Pi
+HTTP/RPC transport 细节。
+
+### 4.3 Server Adapter
+
+保留 Workbench 定义的 `WorkbenchAgentServerAdapter`。它继续负责 agent commands、execution 和
+threads，不扩展为 service locator。Workspace、host、terminal、automation 和 attachment 使用各自的
+Workbench domain ports，由 Pi Server 在组合层实现或绑定。
+
+### 4.4 事件边界
+
+不新增 `WorkbenchAgentEvent`，也不复制 Pi 事件枚举：
+
+```text
+Pi session/raw events
+  -> Pi Client projection
+  -> ConversationNode / MessageBlock / snapshot / capabilities
+  -> Workbench Shell
+```
+
+Shell 不理解 Pi event name。
+
+## 5. 目录与命名规则
+
+阶段 2 原子移动：
+
+```text
+packages/agent-runtime/adapters/pi
+→ packages/agent-runtime/runtimes/pi
+```
+
+必须同步更新 `pnpm-workspace.yaml`、`pnpm-lock.yaml` importer、Web/Desktop CSS source glob、构建与打包
+脚本、路径测试、README/docs、隐藏 `.agents/skills` 引用和应用组合入口。
+
+Pi 实现内部的结构性命名调整：
+
+| 当前名称                           | 目标名称                                  |
+| ---------------------------------- | ----------------------------------------- |
+| `createPiAgentServerAdapter`       | `createPiAgentServerImplementation`       |
+| `PiAgentServerAdapterDependencies` | `PiAgentServerImplementationDependencies` |
+| `createPiAgentExecutionAdapter`    | `createPiAgentExecution`                  |
+| `createPiAgentThreadStoreAdapter`  | `createPiAgentThreadStore`                |
+| `session-rpc-adapter.ts`           | `session-rpc-projection.ts`               |
+| `ExternalSessionSourceAdapter`     | `ExternalSessionImporter`                 |
+| Codex/Claude/Cursor source adapter | 对应 `*SessionImporter`                   |
+
+以下名称不改：Workbench 的 `WorkbenchAgentServerAdapter`、attachment-understanding 的 OCR Adapter
+概念，以及 wire/persistence 中的既有字面量（例如 `modelsSource: "adapter"`）。
+
+## 6. 实施状态
+
+- [x] 阶段 1：建立边界保护（2026-09-04）
+- [ ] 阶段 2：移动目录并纠正结构命名
+- [ ] 阶段 3：增加最小 Workbench Capability 层
+- [ ] 阶段 4：迁移已经与 Pi 无关的通用扩展
+- [ ] 阶段 5：迁移 Workspace / Host 垂直切片
+- [ ] 阶段 6：迁移会话级通用能力
+- [ ] 阶段 7：收缩 Pi Contributions
+- [ ] 阶段 8：清理与文档收尾
+
+### 6.1 阶段 1：建立边界保护
+
+- [x] 全仓边界扫描覆盖 `.ts`、`.tsx`、`.js`、`.jsx`、`.mts`、`.cts`、`.mjs` 和 `.cjs` 的静态
+      import、export、dynamic import 与 `require()`。
+- [x] 扫描 workspace manifest，Pi package 依赖只允许位于 Pi 实现、应用或根级公开组合测试。
+- [x] Core、Shell、Extension SDK/Host 禁止导入任何 `@workbench/agent-runtime-pi-*` package。
+- [x] Pi Contributions 可导入 Client、Shared、Protocol，但禁止导入 Pi Server。
+- [x] Pi package 的非实现消费者使用逐文件、逐 specifier 的应用组合白名单，不允许目录前缀放行。
+- [x] Shell 额外禁止出现 `PiApiError` 标识符。
+- [x] 移除 `@workbench/host-artifact-policy` 对 Pi Protocol 的直接依赖。
+- [x] 固化 Web 与 Desktop 的扩展 ID、唯一性和激活顺序。
+- [x] 记录当前依赖统计、阶段状态和验证结果。
+
+边界保护的主要测试：
+
+- `apps/web/test/workbench/runtime-contributions/installed-agent-runtime.test.ts`
+- `packages/workbench/shell/test/dependency-boundaries.test.ts`
+- `apps/desktop-renderer/test/static-export-boundary.test.ts`
+- `packages/host/artifact-policy/test/runtime-admission.test.cjs`
+- `apps/desktop-electron/test/runtime-artifact-admission.test.cjs`
+
+Web 基线序列：
+
+```text
+workbench.brand
+workbench.workspace-sidebar
+workbench.appearance
+workbench.locale-selector
+workbench.message-presentation
+workbench.message-actions
+workbench.user-message-index
+workbench.message-queue
+workbench.archived-chats
+workbench.workspace-explorer
+workbench.workspace-review
+workbench.workspace-browser
+workbench.workspace-artifact
+workbench.terminal
+workbench.workspace-directory-picker
+workbench.git-branch
+workbench.settings
+workbench.agent-configuration
+workbench.interactive-requests
+workbench.side-chat
+workbench.setting-model-config
+workbench.pi.settings-action
+workbench.image-understanding
+workbench.toolbox
+workbench.automations
+workbench.model-selector
+workbench.connection-status
+workbench.context-trace
+workbench.external-session-import
+workbench.token-usage
+workbench.workspace-file
+```
+
+Desktop 使用同一序列，并在末尾追加 `workbench.desktop-runtime-lifecycle`。
+
+验证记录：
+
+- 95 项定向测试通过：Runtime artifact builder 49 项、Host artifact policy 31 项，以及其他边界、
+  扩展快照和 Runtime Host 测试 15 项。
+- `pnpm check:workspace-dependencies` 通过。
+- `@workbench/runtime-node`、`@workbench/web`、`@workbench/desktop-renderer`、
+  `@workbench/desktop-electron` 与 `@workbench/shell` 定向 typecheck 通过。
+- 本阶段未创建提交；提交哈希在实际提交后补记。
+- 按验证策略未运行 Browser/E2E 或全量构建：阶段 1 没有 UI 交互、渲染或 Runtime 行为变化。
+
+### 6.2 阶段 2：移动目录并纠正结构命名
+
+- [ ] 原子移动整个 Pi Runtime 到 `packages/agent-runtime/runtimes/pi`。
+- [ ] 更新 workspace、锁文件、构建、CSS、测试、文档和 skill 路径。
+- [ ] 完成 Pi 实现内部结构性 `Adapter` 重命名。
+- [ ] 保持 package 名称与不表达错误架构含义的公开 export 稳定。
+- [ ] 单独提交机械移动，不混入 capability 迁移。
+
+### 6.3 阶段 3：最小 Workbench Capability 层
+
+- [ ] 扩展 Runtime Environment 与 provider props。
+- [ ] 定义通用 DTO、窄能力接口、hooks 和 capability error。
+- [ ] `PiAgentRuntimeProvider` 使用现有 facade/RPC 组装 capabilities。
+- [ ] Pi facade 暂时作为实现内部桥接；消费者迁完后才删除无用 export。
+- [ ] 每个 capability 增加一个最小 contract/projection 测试，不建立 registry。
+
+### 6.4 阶段 4：迁移无 Pi 语义的通用扩展
+
+- [ ] 迁移 Workspace Explorer。
+- [ ] 迁移 Workspace Review。
+- [ ] 迁移 Terminal，并改用 Shell `useRuntimeConnection`。
+- [ ] 删除 Pi 命名的 workspace target、Git review 与重复 Runtime Connection 安装服务。
+- [ ] 通用 assets/provider 与 `en-US`、`zh-CN` 文案随组件迁入 Shell。
+
+### 6.5 阶段 5：Workspace / Host 垂直切片
+
+按 `contract → Pi implementation → Shell UI` 依次迁移：
+
+- [ ] Workspace Directory Picker。
+- [ ] Project Trust / Local Apps。
+- [ ] Workspace File。
+- [ ] Git Branch。
+
+每个切片完成后立即删除相应通用 UI 对 Pi facade 的依赖；Pi 路由、权限、trust、文件流和 Git 行为
+保持不变。
+
+### 6.6 阶段 6：会话级通用能力
+
+- [ ] Interactive Requests。
+- [ ] Side Chat 的 create/restore/release/promote 生命周期。
+- [ ] Automation，直接复用 `AutomationProtocol`。
+- [ ] Model Selector；Provider Configuration 留在 Pi。
+- [ ] Image Understanding，复用 attachment-understanding contracts。
+- [ ] Token Usage / Context Policy；Context Trace 留在 Pi。
+- [ ] 所有 Pi error 在实现边界映射。
+
+### 6.7 阶段 7：收缩 Pi Contributions
+
+迁移完成后只保留 Agent Configuration、Provider/Model Configuration、Pi Settings、Toolbox、Context
+Trace、External Session Import、Pi Version/Connection Status、Running Indicator 和 branding。
+
+- [ ] 缩减 `PiAgentRuntimeContributionsProvider` 的 assets、services 和 contexts。
+- [ ] 删除无 Pi 专属消费者的公开 facade。
+- [ ] Shell 与 Pi 导出语义化 extension groups，由应用按基线顺序交错组合。
+- [ ] 不引入动态 registry；保持 extension/command/settings/storage ID 与顺序不变。
+
+### 6.8 阶段 8：清理与收尾
+
+- [ ] README 从 “Pi Adapter” 更新为 “Pi Runtime Implementation”。
+- [ ] 更新架构、扩展、runtime-node、terminal 和历史计划中的旧路径。
+- [ ] 用 `rg --hidden` 清理有效旧路径和错误的结构性 `*Adapter` 名称。
+- [ ] 记录每阶段提交、验证结果和最终状态。
+
+## 7. 测试与验收
+
+### 7.1 边界测试
+
+- [x] Shell、Agent Runtime Core、Extension SDK/Host 不直接导入 Pi package。
+- [x] Shell 通用扩展不导入 Pi Protocol、Pi Client facade 或 `PiApiError`。
+- [ ] `packages/agent-runtime/adapters/pi` 不存在，隐藏文件和有效文档无旧路径引用。
+- [ ] Pi 实现中不存在允许名单外的结构性 `*Adapter` 名称。
+- [x] `@workbench/agent-runtime-pi-client`、`protocol`、`server`、`contributions` 等 package 名称不变。
+- [x] Web 与 Desktop extension ID 序列和阶段 1 基线完全一致。
+
+已勾选项目是阶段 1 的当前基线，后续每阶段仍需重跑；旧路径与结构命名项目要到阶段 2 后才能勾选。
+
+### 7.2 Capability 测试
+
+至少覆盖：capability 缺失、Pi error 映射、Workspace file/Git/directory/trust 成功与失败路径、Interaction
+问题与审批、Side Chat 生命周期、model revision/selection、context policy/compact/busy/failed、现有
+Automation 与 attachment contracts，以及 Pi raw event 到 Conversation snapshot 的投影隔离。
+
+### 7.3 最终验证顺序
+
+1. 受影响 package 的定向 typecheck 和测试。
+2. dependency/boundary tests。
+3. `pnpm check`。
+4. `pnpm build`。
+5. Desktop 打包路径检查。
+6. 仅在静态检查无法确认交互、状态同步或渲染时运行 Browser/E2E。
+
+## 8. 完成标准
+
+- [ ] Pi 位于 `packages/agent-runtime/runtimes/pi`，且不再被描述为外部 Adapter 层。
+- [ ] Workbench 通用 UI 不依赖 Pi 自定义接口。
+- [ ] 前端只通过 Workbench Conversation projection 和 capabilities 判断状态。
+- [ ] 通用功能位于 Shell，Pi Contributions 只保留 Pi 专属功能。
+- [ ] Workbench-owned Adapter/Port 与 Pi implementation 职责清晰。
+- [ ] RPC、持久化、扩展 ID、设置键和激活顺序无回归。
+- [ ] 全部边界/定向测试、`pnpm check`、构建和 Desktop 打包检查通过。
+
+## 9. 明确不做
+
+- 不引入第二个 Runtime 或 Runtime 选择 UI。
+- 不为未来 Runtime 建立插件注册中心。
+- 不创建 generic events 框架。
+- 不把 Pi 专属能力强行抽象成 Workbench 接口。
+- 不重命名 `@workbench/agent-runtime-pi-*` packages。
+- 不修改 Pi RPC wire shape、session 持久化格式或历史数据。
+- 不增加第三方依赖。
+- 不保留旧路径 barrel、符号链接或兼容层。

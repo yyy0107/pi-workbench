@@ -45,6 +45,9 @@ importers:
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
+      '@workbench/agent-runtime-pi-protocol':
+        specifier: workspace:*
+        version: link:../../packages/agent-runtime/adapters/pi/protocol
       '@workbench/host-client':
         specifier: workspace:*
         version: link:../../packages/workbench/host-client
@@ -778,9 +781,6 @@ importers:
 
   packages/host/artifact-policy:
     dependencies:
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../../agent-runtime/adapters/pi/protocol
       '@workbench/terminal-contracts':
         specifier: workspace:*
         version: link:../../terminal/contracts

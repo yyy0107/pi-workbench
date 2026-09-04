@@ -30,7 +30,6 @@
     "test": "node --test test/*.test.cjs"
   },
   "dependencies": {
-    "@workbench/agent-runtime-pi-protocol": "workspace:*",
     "@workbench/terminal-contracts": "workspace:*",
     "next": "^16.3.0"
   },

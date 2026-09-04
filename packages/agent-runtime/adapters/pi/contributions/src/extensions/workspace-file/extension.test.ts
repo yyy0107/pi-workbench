@@ -23,6 +23,11 @@ test("Workspace File owns its surface and opener bridge for one extension lifecy
   const activation = manager.activate(workspaceFileExtension);
 
   assert.equal(manager.workspace.get("file") !== undefined, true);
+  assert.equal(
+    manager.workspace.get("file")?.runtime,
+    undefined,
+    "Agent file tools must not navigate the user-owned workspace",
+  );
   assert.deepEqual(
     manager.slots.get("shell.overlay").map(({ id }) => id),
     ["workbench.workspace-file.openers"],

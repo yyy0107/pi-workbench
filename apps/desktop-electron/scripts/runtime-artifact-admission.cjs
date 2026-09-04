@@ -7,12 +7,16 @@ const {
 } = require("@workbench/host-contracts/runtime-artifact-manifest");
 const { resolveRuntimeArtifact } = require("@workbench/host-server/runtime-artifact");
 const {
-  RUNTIME_ARTIFACT_ADMISSION_POLICY,
-  RUNTIME_ARTIFACT_UPGRADE_PATHS,
+  createRuntimeArtifactAdmissionPolicy,
 } = require("@workbench/host-artifact-policy/runtime-admission");
+const { STREAM_PATHS } = require("@workbench/agent-runtime-pi-protocol/stream");
 
-const DESKTOP_RUNTIME_UPGRADE_PATHS = RUNTIME_ARTIFACT_UPGRADE_PATHS;
-const DESKTOP_RUNTIME_ARTIFACT_ADMISSION_POLICY = RUNTIME_ARTIFACT_ADMISSION_POLICY;
+const DESKTOP_RUNTIME_ARTIFACT_ADMISSION_POLICY = createRuntimeArtifactAdmissionPolicy([
+  STREAM_PATHS.mux,
+  STREAM_PATHS.host,
+]);
+const DESKTOP_RUNTIME_UPGRADE_PATHS =
+  DESKTOP_RUNTIME_ARTIFACT_ADMISSION_POLICY.expectedUpgradePaths;
 
 function canonicalRegularManifest(candidate, label) {
   if (

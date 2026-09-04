@@ -24,6 +24,7 @@ import { fileURLToPath } from "node:url";
 
 import { build, type BuildOptions, type BuildResult, type Metafile } from "esbuild";
 
+import { STREAM_PATHS } from "@workbench/agent-runtime-pi-protocol/stream";
 import {
   RUNTIME_ARTIFACT_MANIFEST_FILENAME as CONTRACT_RUNTIME_ARTIFACT_MANIFEST_FILENAME,
   RUNTIME_ARTIFACT_MANIFEST_SCHEMA_VERSION,
@@ -116,8 +117,7 @@ const nativeTools = runtimeAppRequire("@workbench/host-artifact-policy/runtime-n
 const admissionPolicyTools = runtimeAppRequire(
   "@workbench/host-artifact-policy/runtime-admission",
 ) as {
-  readonly RUNTIME_ARTIFACT_UPGRADE_PATHS: readonly string[];
-  readonly RUNTIME_ARTIFACT_ADMISSION_POLICY: {
+  readonly createRuntimeArtifactAdmissionPolicy: (agentRuntimeUpgradePaths: readonly string[]) => {
     readonly expectedUpgradePaths: readonly string[];
     readonly expectedNativeRuntimeFiles: (target: RuntimeArtifactTarget) => readonly {
       readonly packageName: string;
@@ -137,10 +137,10 @@ const admissionPolicyTools = runtimeAppRequire(
   };
 };
 const runtimeArtifactAdmissionPolicy = createRuntimeArtifactAdmissionPolicy(
-  admissionPolicyTools.RUNTIME_ARTIFACT_ADMISSION_POLICY,
+  admissionPolicyTools.createRuntimeArtifactAdmissionPolicy([STREAM_PATHS.mux, STREAM_PATHS.host]),
 );
 /** The exact app/terminal upgrade contract comes from the shared injected admission policy. */
-export const RUNTIME_ARTIFACT_UPGRADE_PATHS = admissionPolicyTools.RUNTIME_ARTIFACT_UPGRADE_PATHS;
+export const RUNTIME_ARTIFACT_UPGRADE_PATHS = runtimeArtifactAdmissionPolicy.expectedUpgradePaths;
 const modelResourceTools = runtimeAppRequire(
   "@workbench/host-artifact-policy/runtime-model-resources",
 ) as {
