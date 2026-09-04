@@ -254,9 +254,14 @@ bootstrap 缺失、CSP 拒绝或 sidecar target mismatch 表示 artifacts 混用
 
 ## 架构
 
-浏览器与桌面应用通过两个 application root 复用同一 Workbench Shell 和 Pi client contributions。浏览器命令
+浏览器与桌面应用通过两个 application root 复用同一 Workbench Shell 和 Pi Runtime 实现。浏览器命令
 让带服务端的 Web Host 与 API-only Runtime 并列运行。Electron 加载已 admission 的静态 Desktop renderer
 artifact，自行拥有一个目标匹配的 Runtime process，并只向可信主窗口暴露窄 bootstrap 与生命周期重启能力。
+
+Shell 的通用工作区与会话功能消费 Workbench conversation projection 和可选能力；Core、Shell、
+Extension SDK/Host 不导入 Pi packages。[Pi 实现](./packages/agent-runtime/runtimes/pi/README.md)
+拥有 Pi 协议、事件投影和错误映射，其 contributions 只保留 Pi 配置、Toolbox、诊断、导入和 branding。
+应用组合根选择 Pi，并按既有顺序交错安装 Shell/Pi 扩展组。
 
 ```mermaid
 flowchart LR

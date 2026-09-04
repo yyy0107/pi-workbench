@@ -14,7 +14,7 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 3. Read [references/source-routing.md](references/source-routing.md) before choosing or importing a Pi API. Resolve the installed package version first.
 4. Read [references/extensions.md](references/extensions.md) when authoring, registering, loading, filtering, or debugging Pi extensions.
 5. Read [references/session-sdk.md](references/session-sdk.md) when creating sessions/services, binding extension contexts, reloading resources, or exposing Pi behavior to Workbench.
-6. If the change also creates a Workbench frontend contribution, use the `extend-workbench-ui` skill for the UI ownership boundary. If it touches remaining assistant-ui compatibility state, follow [`docs/assistant-ui-removal-and-custom-runtime-plan.md`](../../../docs/assistant-ui-removal-and-custom-runtime-plan.md) and do not expand that surface.
+6. If the change also creates a Workbench frontend contribution, use the `extend-workbench-ui` skill for the UI ownership boundary. The [assistant-ui migration](../../../docs/assistant-ui-removal-and-custom-runtime-plan.md) is complete; follow the [Workbench/Pi boundary](../../../docs/agent-runtime-pi-implementation-refactor-plan.md) and do not restore compatibility adapters or Pi dependencies in generic UI.
 
 ## Follow the implementation workflow
 

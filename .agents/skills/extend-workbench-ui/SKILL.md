@@ -12,12 +12,12 @@ Implement frontend features through the repository's typed, statically bundled e
 1. Read the repository `AGENTS.md` and preserve unrelated worktree changes.
 2. Read [references/contracts.md](references/contracts.md) before editing extension code.
 3. Read [references/recipes.md](references/recipes.md) when implementing a Slot, Panel, Command, Composer Command, Opener, Renderer, Settings, Main View, RightWorkspace integration, Toolbox entry, or new host Slot.
-4. If frontend UI reads or mutates Pi host/session/workspace/model state, read [`packages/agent-runtime/runtimes/pi/README.md`](../../../packages/agent-runtime/runtimes/pi/README.md) completely before choosing an API. Then inspect the named contract and client files; do not infer the protocol from legacy routes or a generic Harness reference.
+4. Generic host/session/workspace/model UI uses Workbench contracts, projections, and capability hooks from `@workbench/agent-runtime-client/context`; inspect their owners before choosing an API. For Pi-specific configuration, resources, or diagnostics, read [`packages/agent-runtime/runtimes/pi/README.md`](../../../packages/agent-runtime/runtimes/pi/README.md) and inspect the named Pi contract/client entry. Do not infer APIs from legacy routes or a generic Harness reference.
 5. Use `$pi-coding-agent-sdk` when work reaches the server-side AgentSession, coding-agent extension, resource-loader, or `@earendil-works/pi-coding-agent` layer. Keep that SDK behind the Workbench Pi server boundary rather than importing it into browser components.
 6. Use `$pi-ai-sdk` when work directly uses `@earendil-works/pi-ai` models, providers, authentication, messages, tool schemas, image requests, or streaming events. Use both Pi SDK skills only when the task genuinely crosses both layers.
 7. Read `docs/extensions.md` only when the task asks for public documentation or a detailed tutorial.
 8. For browser conversation, thread, composer, message, or tool state, inspect the current owner under `packages/agent-runtime/**` and `packages/workbench/shell/**` before editing.
-9. Treat remaining assistant-ui code as migration-only compatibility code and follow [`docs/assistant-ui-removal-and-custom-runtime-plan.md`](../../../docs/assistant-ui-removal-and-custom-runtime-plan.md); do not add a new assistant-ui dependency or public type.
+9. The [assistant-ui migration](../../../docs/assistant-ui-removal-and-custom-runtime-plan.md) is complete. Follow the [Workbench/Pi ownership boundary](../../../docs/agent-runtime-pi-implementation-refactor-plan.md); do not reintroduce assistant-ui dependencies or public types.
 10. Route tool definition and execution through the owning Pi/backend capability. A Renderer registration alone does not define or execute a tool.
 11. If the task touches Next.js app code, read the relevant local guide in `node_modules/next/dist/docs/` before editing.
 
@@ -80,7 +80,7 @@ When no existing Slot fits, add a typed host Slot first, then register the featu
   - `connection-status`: minimal Slot;
   - `token-usage`: derive the active browser conversation Runtime state;
   - `workspace-review`, `workspace-explorer`, `workspace-file`, `workspace-browser`, and `workspace-artifact`: Workspace Surface contributions;
-  - `skills`: Pi-backed Settings section using a typed unary RPC helper;
+  - `setting-model-config`: Pi-specific Settings section using its configuration facade;
   - `terminal`: Workspace Surface, Command, `bash` Renderer, Runtime bridge, and mobile trigger;
   - `workspace-file`: Workspace Surface plus a `file` Open Handler;
   - `settings`: sidebar/header triggers, `shell.overlay`, Command, and extensible settings sections/items;
@@ -199,7 +199,8 @@ When changing Pi transport or session behavior, also run the Pi tests documented
 - Do not add feature-specific kind branches, icons, services, or Agent tool mappings back to
   `apps/web/src/components/right-workspace/`.
 - Do not assume registering a Renderer exposes or executes a model tool.
-- Do not call raw Pi endpoints, open another event stream, or copy RPC payload types into an extension. Follow `packages/agent-runtime/runtimes/pi/README.md`, reuse the narrow `@workbench/agent-runtime-pi-client/*` feature facade that owns the capability, and treat `/api/pi/**` as compatibility-only unless the README names an exception. Route server-side coding-agent work through `$pi-coding-agent-sdk` and direct Pi model/provider/stream work through `$pi-ai-sdk`.
+- Shell, Core, and Extension SDK/Host must not import Pi packages, parse Pi raw events, or handle `PiApiError`. Generic UI consumes Workbench projections, optional capability hooks, and `WorkbenchAgentCapabilityError`; hide unsupported entries or show an unavailable state for restored UI, without Runtime ID branches or fake capabilities.
+- Only Pi-specific contributions use the narrow `@workbench/agent-runtime-pi-client/*` facades described in `packages/agent-runtime/runtimes/pi/README.md`. Do not call raw endpoints, open another event stream, or copy RPC payload types. Treat `/api/pi/**` as compatibility-only unless the README names an exception. Route server-side coding-agent work through `$pi-coding-agent-sdk` and direct Pi model/provider/stream work through `$pi-ai-sdk`.
 - Handle rejected Promises in event handlers; React Error Boundaries do not catch event or arbitrary async errors.
 - Keep API keys, secrets, and privileged execution out of frontend extensions.
 

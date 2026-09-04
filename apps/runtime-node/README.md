@@ -34,6 +34,9 @@ flowchart LR
   Runtime-neutral command, execution, and thread ports plus the singular installation contract.
   Pi session, history, model, resource, and transport semantics remain in the
   [Pi Runtime packages](../../packages/agent-runtime/runtimes/pi/README.md).
+  [`createPiAgentServerImplementation`](../../packages/agent-runtime/runtimes/pi/server/src/agent-runtime/pi-agent-server-implementation.ts)
+  implements `WorkbenchAgentServerAdapter`; Host, workspace, Terminal, and Automation retain their
+  separate domain ports and composition bindings.
 - [`@workbench/automation-server`](../../packages/server/automation/) owns Automation definitions,
   persistence, and scheduling. Its installed Pi binding launches an ordinary visible session
   through the generic Agent execution port.

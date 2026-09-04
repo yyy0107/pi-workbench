@@ -1,6 +1,6 @@
 # Workbench Agent Runtime 边界与 Pi Implementation 重构计划
 
-状态：阶段 1–7 已完成（2026-09-04）；阶段 8 待继续。
+状态：阶段 1–8 已完成，最终验收通过（2026-09-04）。
 
 本计划是已完成的
 [`assistant-ui-removal-and-custom-runtime-plan.md`](./assistant-ui-removal-and-custom-runtime-plan.md)
@@ -37,11 +37,11 @@ Pi Runtime Implementation
   保持兼容。
 - Web、Desktop 和 Runtime Node 继续作为具体 Runtime 的组合入口。
 
-## 2. 当前基线
+## 2. 阶段 1 基线与最终统计
 
-统计日期：2026-09-04。统计只计算生产 `.ts`/`.tsx` 文件，不包含测试。
+统计日期：2026-09-04。下表保留阶段 1 基线；统计只计算生产 `.ts`/`.tsx` 文件，不包含测试。
 
-| 范围                                                                | 当前值 |
+| 范围                                                                | 基线值 |
 | ------------------------------------------------------------------- | -----: |
 | Agent Runtime Core Contracts / Runtime / Client 直接导入 Pi package |      0 |
 | Workbench Shell 直接导入 Pi package                                 |      0 |
@@ -60,6 +60,11 @@ Web、Desktop Electron 和 Runtime Node 组合入口提供。
 
 阶段 1 基线时，Pi 物理路径仍位于原 Pi Adapter 子树，这是阶段 2 前的唯一过渡例外。阶段 2 已将其
 原子移动到 `packages/agent-runtime/runtimes/pi`，并同步切换边界测试中的唯一实现根。
+
+阶段 8 复核：Pi Contributions 剩余 65 个生产文件，直接导入 Pi Client 的文件为 25 个、Pi
+Protocol 为 30 个，二者去重后为 41 个（同时导入 14 个）。保留的消费者均属于 Pi 专属功能；
+Core、Shell 和 Extension SDK/Host 的 Pi package 直接依赖仍为 0。Web 31 项、Desktop 32 项
+扩展激活序列保持阶段 1 基线。
 
 ## 3. 所有权与能力划分
 
@@ -152,7 +157,7 @@ Shell 不理解 Pi event name。
 必须同步更新 `pnpm-workspace.yaml`、`pnpm-lock.yaml` importer、Web/Desktop CSS source glob、构建与打包
 脚本、路径测试、README/docs、隐藏 `.agents/skills` 引用和应用组合入口。
 
-Pi 实现内部的结构性命名调整：
+Pi 实现内部已完成的结构性命名调整（旧名称仅用于迁移对照，不是有效入口）：
 
 | 当前名称                           | 目标名称                                  |
 | ---------------------------------- | ----------------------------------------- |
@@ -176,7 +181,20 @@ Pi 实现内部的结构性命名调整：
 - [x] 阶段 5：迁移 Workspace / Host 垂直切片
 - [x] 阶段 6：迁移会话级通用能力（2026-09-04）
 - [x] 阶段 7：收缩 Pi Contributions（2026-09-04）
-- [ ] 阶段 8：清理与文档收尾
+- [x] 阶段 8：清理与文档收尾（2026-09-04）
+
+阶段 1–7 的提交均已从 Git 历史核对；阶段 8 收尾与验证记录随本提交一并提交：
+
+| 阶段 | 提交       | 内容                                |
+| ---- | ---------- | ----------------------------------- |
+| 1    | `1dde0b35` | 建立 Pi Runtime 边界与扩展顺序基线  |
+| 2    | `c6fc3026` | 原子移动 Pi 实现并纠正结构命名      |
+| 3    | `296499c2` | 增加 Workbench capability 层        |
+| 4    | `c09c0b3d` | 迁移通用 Workspace/Terminal 扩展    |
+| 5    | `73582585` | 迁移 Workspace/Host UI              |
+| 6    | `d88c5605` | 迁移会话能力与语义化扩展组          |
+| 7    | `13098d7c` | 收缩 Pi Contributions 与公开 facade |
+| 8    | 本提交     | 文档、隐藏技能引用与最终验收        |
 
 ### 6.1 阶段 1：建立边界保护
 
@@ -244,7 +262,7 @@ Desktop 使用同一序列，并在末尾追加 `workbench.desktop-runtime-lifec
 - `pnpm check:workspace-dependencies` 通过。
 - `@workbench/runtime-node`、`@workbench/web`、`@workbench/desktop-renderer`、
   `@workbench/desktop-electron` 与 `@workbench/shell` 定向 typecheck 通过。
-- 本阶段未创建提交；提交哈希在实际提交后补记。
+- 提交：`1dde0b35`。
 - 按验证策略未运行 Browser/E2E 或全量构建：阶段 1 没有 UI 交互、渲染或 Runtime 行为变化。
 
 ### 6.2 阶段 2：移动目录并纠正结构命名
@@ -315,7 +333,7 @@ Desktop 使用同一序列，并在末尾追加 `workbench.desktop-runtime-lifec
   24 项测试通过，共 740 项；其中 Web 与 Desktop 扩展顺序基线测试保持原序列。
 - `pnpm check:workspace-dependencies` 与 `pnpm lint` 通过。
 - `pnpm build` 通过 Runtime Node、Web、Desktop Renderer 与 Desktop Electron artifact 组合。
-- 本阶段未创建提交；按验证策略未运行 Browser/E2E，因为迁移后的交互与状态连接均可由类型、单元、
+- 提交：`c09c0b3d`；按验证策略未运行 Browser/E2E，因为迁移后的交互与状态连接均可由类型、单元、
   边界和构建检查确认，没有具体渲染不确定性。
 
 ### 6.5 阶段 5：Workspace / Host 垂直切片
@@ -437,10 +455,39 @@ Trace、External Session Import、Pi Version/Connection Status、Running Indicat
 
 ### 6.8 阶段 8：清理与收尾
 
-- [ ] 复核 README 中的最终 Pi Runtime Implementation 架构描述。
-- [ ] 更新架构、扩展、runtime-node、terminal 和历史计划中的旧路径。
-- [ ] 用 `rg --hidden` 清理有效旧路径和错误的结构性 `*Adapter` 名称。
-- [ ] 记录每阶段提交、验证结果和最终状态。
+- [x] 复核 README 中的最终 Pi Runtime Implementation 架构描述。
+- [x] 更新架构、扩展、runtime-node、terminal 和历史计划中的旧路径。
+- [x] 用 `rg --hidden` 清理有效旧路径和错误的结构性 `*Adapter` 名称。
+- [x] 记录每阶段提交、验证结果和最终状态。
+
+实施记录（2026-09-04）：
+
+- Pi Runtime README、根目录中英文架构、Core Client 和 Shell README 对齐最终 capability、错误投影、
+  原始事件和静态安装边界；移除目录树中已迁出 Pi 的 Host transport 文件。
+- 扩展指南改用 Shell Model Selector、Token Usage 和现存 Pi 配置示例，修复 Terminal 旧路径，补充
+  Runtime Node 的 Workbench Server Adapter 实现与独立领域端口边界。
+- 已完成的 assistant-ui 迁移计划更新 Runtime 路径与称谓，早期基线文件映射到当前路径；保留两份
+  历史计划原有完成结论和验证结果。
+- 隐藏的 `extend-workbench-ui` 与 `pi-coding-agent-sdk` 引用改为当前 Workbench/Pi 入口，删除
+  assistant-ui adapter 路径；Pi browser copy 注释改称 implementation。
+- `rg --hidden` 扫描包含相对链接和隐藏技能，旧 Pi 目录与已删除 client adapter 路径无命中。
+  重命名表仅保留明确标为历史对照的旧标识符；Workbench-owned Adapter、OCR、model wire 字段和
+  第三方 `pi-mcp-adapter` 测试数据保持原值。
+
+验证记录（2026-09-04）：
+
+- Web/Desktop 装配、Pi 目录/命名、全仓 Pi import 和 Shell dependency boundary 定向测试 12 项通过，
+  保持 Web 31 项、Desktop 32 项扩展 ID 与顺序。
+- `pnpm check` 通过 lint/format、workspace dependencies、全部 app/package typecheck 和全仓测试：
+  共 2492 项，2491 项通过、0 项失败，1 项 Windows 专属进程枚举测试在 Linux 上按原规则跳过。
+- `pnpm build` 通过 Runtime Node、Web、Desktop Renderer 和 Electron artifact 组合；Runtime 仍只
+  externalize Pi coding-agent、PTY、Tree-sitter 与 WebSocket 依赖。
+- `pnpm --filter @workbench/desktop-electron run pack:artifact` 通过 Linux x64 Electron 打包路径与预算
+  检查：Renderer 85.9 MiB、Runtime 28.9 MiB，共 4814 个文件、104 个依赖 package，无断链。
+  Runtime 源码/测试形状的例外仍仅来自 manifest 声明的 Pi model-readable resources。
+- 两个更新的本地 skill 均通过 `quick_validate.py`；修改文档的相对链接逐一解析通过。
+- `git diff --check` 与最终格式检查通过。本阶段未新增依赖、RPC、UI 行为或持久化变更；未运行
+  Browser/E2E 或 packaged-app 窗口交互 smoke，Desktop 使用明确的 artifact-only 命令完成目录迁移验收。
 
 ## 7. 测试与验收
 
@@ -453,7 +500,7 @@ Trace、External Session Import、Pi Version/Connection Status、Running Indicat
 - [x] `@workbench/agent-runtime-pi-client`、`protocol`、`server`、`contributions` 等 package 名称不变。
 - [x] Web 与 Desktop extension ID 序列和阶段 1 基线完全一致。
 
-已勾选项目是阶段 1–2 的当前基线，后续每阶段仍需重跑。
+这些断言由现有边界测试保护；阶段 8 最终验收再次执行，并单独扫描文档与隐藏技能中的旧路径。
 
 ### 7.2 Capability 测试
 
@@ -472,13 +519,13 @@ Automation 与 attachment contracts，以及 Pi raw event 到 Conversation snaps
 
 ## 8. 完成标准
 
-- [ ] Pi 位于 `packages/agent-runtime/runtimes/pi`，且不再被描述为外部 Adapter 层。
-- [ ] Workbench 通用 UI 不依赖 Pi 自定义接口。
-- [ ] 前端只通过 Workbench Conversation projection 和 capabilities 判断状态。
-- [ ] 通用功能位于 Shell，Pi Contributions 只保留 Pi 专属功能。
-- [ ] Workbench-owned Adapter/Port 与 Pi implementation 职责清晰。
-- [ ] RPC、持久化、扩展 ID、设置键和激活顺序无回归。
-- [ ] 全部边界/定向测试、`pnpm check`、构建和 Desktop 打包检查通过。
+- [x] Pi 位于 `packages/agent-runtime/runtimes/pi`，且不再被描述为外部 Adapter 层。
+- [x] Workbench 通用 UI 不依赖 Pi 自定义接口。
+- [x] 通用前端通过 Workbench Conversation projection 和 capabilities 判断状态，Pi 专属 Trace 保留在 Pi 内部。
+- [x] 通用功能位于 Shell，Pi Contributions 只保留 Pi 专属功能。
+- [x] Workbench-owned Adapter/Port 与 Pi implementation 职责清晰。
+- [x] RPC、持久化、扩展 ID、设置键和激活顺序无回归。
+- [x] 边界/定向测试、`pnpm check`、构建和 Desktop artifact 打包检查通过（平台跳过与验证范围见阶段 8 记录）。
 
 ## 9. 明确不做
 

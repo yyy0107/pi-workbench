@@ -736,16 +736,22 @@ importing or naming the contribution currently rendered in that pane.
 
 ## Pi runtime boundary
 
-Read `packages/agent-runtime/runtimes/pi/README.md` completely before adding Pi-backed UI. It is the maintained architecture
-and capability reference. Verify exact shapes against:
+Generic UI belongs to Shell and consumes Workbench conversation projections and optional capability
+hooks from `@workbench/agent-runtime-client/context`. Its DTOs and errors come from Workbench
+contracts and `@workbench/agent-runtime-client/capabilities`. Missing capabilities hide entries or
+produce an unavailable state for restored UI; never branch on Runtime ID or install a fake capability.
+Shell, Core, and Extension SDK/Host must not import Pi packages or interpret Pi raw events/errors.
+
+For Pi-specific configuration, resources, and diagnostics inside Pi Contributions, read
+`packages/agent-runtime/runtimes/pi/README.md` and verify exact shapes against:
 
 - `@workbench/agent-runtime-pi-protocol/rpc` for unary RPC envelopes and payload/value types;
 - `@workbench/agent-runtime-pi-protocol/stream` for mux/host WebSocket frames;
 - the owning `@workbench/agent-runtime-pi-client/*` feature facade for browser-side RPC helpers and
   subscribed state.
 
-New UI reads authoritative snapshots through the manager or typed unary helpers and receives deltas
-through the shared paired mux/host WebSocket connection. Do not issue raw `fetch()` calls, create a
+Pi Client owns authoritative snapshots and deltas through the shared paired mux/host WebSocket
+connection; Pi Contributions use the public subscribed hooks and unary helpers. Do not issue raw `fetch()` calls, create a
 second WebSocket/SSE connection, duplicate payload interfaces, or treat HTTP `200` as business
 success without checking the RPC result envelope.
 
@@ -759,8 +765,8 @@ When the change reaches server-side SDK code, switch references instead of treat
 runtime as the package API: use `$pi-coding-agent-sdk` for AgentSession, coding-agent extensions,
 resource loading, and `@earendil-works/pi-coding-agent`; use `$pi-ai-sdk` for model/provider/auth,
 message/tool schemas, image requests, streaming events, and direct `@earendil-works/pi-ai` work.
-Browser extensions should consume those capabilities through the maintained Workbench Pi contracts
-and shared connection.
+Browser extensions consume the resulting Workbench capabilities, or Pi-specific facades inside Pi
+Contributions, through the same installed connection.
 
 ## Services available to components
 

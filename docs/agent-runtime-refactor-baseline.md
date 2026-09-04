@@ -11,11 +11,11 @@ Node: `v24.16.0`
 pnpm: `11.22.0`
 
 This baseline was recorded before workspace/package infrastructure changes. The working tree already
-contained user changes in:
+contained user changes in these Pi files (paths below reflect the current Runtime layout):
 
-- `runtime/pi/README.md`
-- `runtime/pi/server/streams/websocket-gateway.ts`
-- `runtime/pi/server/streams/websocket-gateway.test.ts`
+- `packages/agent-runtime/runtimes/pi/README.md`
+- `packages/agent-runtime/runtimes/pi/server/src/streams/websocket-gateway.ts`
+- `packages/agent-runtime/runtimes/pi/server/test/streams/websocket-gateway.test.ts`
 
 Those changes are part of the observed baseline and must not be overwritten by the package migration.
 

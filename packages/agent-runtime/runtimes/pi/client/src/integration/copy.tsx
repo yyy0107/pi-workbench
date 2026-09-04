@@ -2,7 +2,7 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 
-/** Application-localized copy consumed by the Pi browser adapter. */
+/** Application-localized copy consumed by the Pi browser implementation. */
 export interface PiAgentRuntimeCopy {
   readonly titles: {
     readonly attachment: string;

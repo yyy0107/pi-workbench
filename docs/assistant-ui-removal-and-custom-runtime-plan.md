@@ -2,6 +2,9 @@
 
 状态：Phase 1–9 已完成；浏览器 Runtime 迁移与 durable chunk 协议均已收口（2026-09-03）
 
+后续的 [Workbench/Pi 边界重构](./agent-runtime-pi-implementation-refactor-plan.md) 已将 Pi 实现迁入
+`packages/agent-runtime/runtimes/pi`；本文目录和 Runtime 实现称谓随之更新，原迁移完成结论与验证记录保留。
+
 ## 0. 决策摘要
 
 Workbench 将逐步删除所有 assistant-ui 依赖，参考 DeepSeek Harness 的 Session、事件窗口、
@@ -16,7 +19,7 @@ Conversation Node、稳定快照和 selector 订阅设计，实现 Workbench 自
 - 删除 `AssistantRuntimeProvider`、`useAui`、`useAuiState`、`RemoteThreadListAdapter`、
   `ThreadMessage`、`MessagePart` 以及所有 assistant-ui primitives；
 - 由 Workbench 定义稳定的 Session、Conversation Node、Composer、Thread Catalog 和 Renderer 契约；
-- Pi Client 继续作为第一个具体 Adapter，负责把 Pi 协议事件投影成 Workbench Conversation Snapshot；
+- Pi Client 继续作为第一个具体 Runtime 实现，负责把 Pi 协议事件投影成 Workbench Conversation Snapshot；
 - 保留现有 Pi Server、HTTP/WebSocket 边界和 Extension Platform，不引入第二条连接或第二套插件系统；
 - 保留当前用户可见能力，架构迁移本身不顺带改变编辑、重试、附件、线程组织等产品语义。
 
@@ -78,7 +81,7 @@ Pi Server
 ### 3.1 目标
 
 1. Workbench 拥有完整、稳定、可测试的浏览器会话对象模型。
-2. 原始 Pi 事件是 Adapter 的事实源，Conversation Node 是 Shell 和扩展看到的稳定投影视图。
+2. 原始 Pi 事件是 Pi 实现的事实源，Conversation Node 是 Shell 和扩展看到的稳定投影视图。
 3. 历史与实时事件通过同一个 Assembler 处理，支持重放、重连去重、live buffering 和 gap repair。
 4. Thread List、Conversation、Node、Composer 分别订阅自己需要的状态，避免 token 更新刷新整棵聊天树。
 5. Snapshot 是不可变且缓存的；未变化的 Thread、Node、Block 保持引用稳定。
@@ -103,7 +106,7 @@ Pi Server
 
 ### 4.1 单一事实源
 
-每个会话只能有一个可变状态所有者：具体 Adapter 的 Session 对象。
+每个会话只能有一个可变状态所有者：具体 Runtime 实现的 Session 对象。
 
 迁移期间可以从同一个 `PiClientSession` 同时派生：
 
@@ -132,7 +135,7 @@ React 组件的可组合性不等于每个组件都必须成为 package。单一
 
 Snapshot 只包含可观察数据；Actions 保持稳定引用。token delta 不应因为新建回调对象而触发无关组件更新。
 
-### 4.4 Adapter 保留原始协议语义
+### 4.4 Runtime 实现保留原始协议语义
 
 Pi wire event、Pi message、revision、watermark、tool delta 只存在于 Pi Protocol/Client。Core 和 Shell
 只看到 Workbench-owned Snapshot、Node 和 Action 契约。
@@ -162,7 +165,7 @@ packages/
 |  |  |- client/             # 已有：React Provider 与 selector hooks
 |  |  |- server/             # 已有：服务端通用 ports
 |  |  `- testkit/            # 已有：Fake Runtime 与契约测试
-|  `- adapters/
+|  `- runtimes/
 |     `- pi/
 |        |- protocol/        # 已有：HTTP/WebSocket wire types
 |        |- shared/          # 已有：Pi client/server 共享逻辑
@@ -354,11 +357,11 @@ export interface ConversationActions {
 
 Core Contracts 不定义一个覆盖所有 Agent 后端的原始 Event 联合。原因：
 
-- Pi、未来其他 Adapter 的运行事件语义不同；
+- Pi 与其他 Runtime 实现的运行事件语义不同；
 - 原始事件通常包含实现特有的 turn、step、tool 和恢复信息；
 - 强行统一会把 Pi 私有字段重新泄漏到 Core，或形成无法表达真实行为的最低公分母。
 
-每个 Adapter 自己持有原始事件，并输出标准化的 Workbench Conversation Node。
+每个 Runtime 实现自己持有原始事件，并输出标准化的 Workbench Conversation Node。
 
 ### 7.2 两层投影模型
 
@@ -403,7 +406,7 @@ block: turn:12:step:2:text:0
 tool:  tool:call_abc123
 ```
 
-具体 key 由 Adapter 根据其可靠身份生成；Core 不假设所有后端都有 Pi 的 seq、turn 或 step。
+具体 key 由 Runtime 实现根据其可靠身份生成；Core 不假设所有后端都有 Pi 的 seq、turn 或 step。
 
 必须保证：
 
@@ -534,7 +537,7 @@ Notifier 必须先重建缓存 snapshot，再通知订阅者，保证 `useSyncEx
 6. 用户滚动到顶部时显式 `loadOlder`；
 7. prepend 历史时保持视口锚点。
 
-初始窗口和每页大小作为 Pi Adapter 内部常量，只有出现真实配置需求时再公开设置。
+初始窗口和每页大小作为 Pi 实现内部常量，只有出现真实配置需求时再公开设置。
 
 ### 9.4 服务端 durable chunk（已完成，2026-09-03）
 
@@ -752,7 +755,7 @@ export interface ToolRendererProps {
 | ------------------------------- | ----------------------------------------------------------- |
 | `AssistantRuntimeProvider`      | `RuntimeProvider`                                           |
 | `useRemoteThreadListRuntime`    | Headless `AgentRuntime` / `SessionManager`                  |
-| `useExternalStoreRuntime`       | Adapter 直接实现 `ConversationSession`                      |
+| `useExternalStoreRuntime`       | Pi Client 直接实现 `ConversationSession`                    |
 | `useAui`                        | `useAgentRuntime` + 稳定 actions                            |
 | `useAuiState`                   | `useThreadList` / `useSessionState` / `useConversationNode` |
 | `ThreadMessage`                 | `ConversationNode`                                          |

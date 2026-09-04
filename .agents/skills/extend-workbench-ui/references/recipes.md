@@ -393,8 +393,9 @@ Promise returned by `open()`. Do not import the owner's component, store, or int
 
 ## Pi-backed extension
 
-Before adding Pi-backed UI, read `packages/agent-runtime/runtimes/pi/README.md` completely and inspect the exact source file
-it names. Prefer:
+Generic UI stays in Shell even when Pi implements its capability. Only Pi-specific configuration,
+resources, and diagnostics belong in Pi Contributions and may import Pi facades/protocol types.
+Read `packages/agent-runtime/runtimes/pi/README.md` for that implementation boundary. Use:
 
 - Workbench session/thread hooks from `@workbench/agent-runtime-client` and its `/context` entry,
   plus `useWorkspaceSelection()` from `/workspaces`, for generic subscribed state;

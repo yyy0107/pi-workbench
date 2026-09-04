@@ -278,10 +278,16 @@ the bridge, CSP, or Origin list.
 
 ## Architecture
 
-The browser and desktop apps reuse the same Workbench Shell and Pi client contributions through two
+The browser and desktop apps reuse the same Workbench Shell and Pi Runtime implementation through two
 application roots. Browser commands run the serverful Web host beside API-only Runtime. Electron
 loads the admitted static Desktop renderer artifact, owns one target-matched Runtime process, and
 exposes only narrow bootstrap and lifecycle-restart capabilities to its trusted main window.
+
+Shell's generic workspace and session features consume Workbench conversation projections and
+optional capabilities. Core, Shell, and Extension SDK/Host do not import Pi packages. The
+[Pi implementation](./packages/agent-runtime/runtimes/pi/README.md) owns Pi protocols, event projection,
+and error mapping; its contributions retain Pi configuration, Toolbox, diagnostics, imports, and
+branding. Application roots select Pi and interleave Shell/Pi extension groups in the existing order.
 
 ```mermaid
 flowchart LR

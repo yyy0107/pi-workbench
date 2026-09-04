@@ -1,5 +1,9 @@
 # Workbench Agent Runtime 边界与 Pi 实现重构计划
 
+实施状态与逐阶段提交、验证记录维护在
+[`agent-runtime-pi-implementation-refactor-plan.md`](./agent-runtime-pi-implementation-refactor-plan.md)。
+阶段 1–8 已完成，最终验收通过（2026-09-04）。
+
 ## 文档交付
 
 新增 `docs/agent-runtime-pi-implementation-refactor-plan.md`，内容按本计划编写，并在实施过程中使用复选框记录各阶段状态。
@@ -148,7 +152,7 @@ Workspace、host、terminal、automation、attachment 等能力继续使用各�
 
 ### Pi 实现命名
 
-Pi Runtime 内不再使用架构意义上的 `Adapter` 命名：
+Pi Runtime 内不再使用架构意义上的 `Adapter` 命名（下表旧名称仅用于迁移对照）：
 
 | 当前名称                           | 新名称                                    |
 | ---------------------------------- | ----------------------------------------- |

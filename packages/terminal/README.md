@@ -1,6 +1,8 @@
 # Workbench Terminal Runtime
 
-The Terminal extension exposes a real pseudoterminal inside RightWorkspace:
+The [Shell Terminal extension](../workbench/shell/src/extensions/builtin/terminal/) exposes a real
+pseudoterminal inside RightWorkspace. It uses Shell's `useRuntimeConnection` and Workbench session
+state; it does not import Pi Client, Pi Protocol, or a Pi-specific connection context.
 
 ```text
 React Workspace Surface
@@ -18,8 +20,8 @@ React Workspace Surface
 - [`@workbench/terminal-contracts`](./contracts/) owns the serializable Terminal wire contract and
   the Pi-independent Bash input declaration.
 - [`@workbench/terminal-client`](./client/) owns root-relative Terminal socket paths plus browser
-  socket readiness, reconnect, frame batching, disclosure, and title helpers. The extension maps
-  its Pi-specific session identity into the package's generic `sessionId` input.
+  socket readiness, reconnect, frame batching, disclosure, and title helpers. The Shell extension
+  supplies Workbench conversation identity through the package's generic `sessionId` input.
 - [`@workbench/terminal-server`](./server/) owns PTY/session singletons, process-ready writable
   gating, reconnect replay/close policy, the terminal gateway, transcript projection, and the
   Tree-sitter command policy. The gateway is attached only after the outer Runtime Host has
@@ -68,7 +70,7 @@ reveals that live terminal. A user-owned declaration never contains the input va
 arguments.
 
 `ToolTerminalSessionManager.spawn()` registers and returns a stable process handle immediately;
-the Pi adapter separately awaits its `completion`. Output events, stdin, resize, interrupt,
+the Pi tool implementation separately awaits its `completion`. Output events, stdin, resize, interrupt,
 termination, timeout, reconnect replay, and final exit all continue to address the same process.
 The session can therefore outlive any individual WebSocket attachment while the original Pi tool
 call remains the owner of its completion.
@@ -121,4 +123,4 @@ tool timeouts use Pi's finite, positive, Node-timer-bounded validation before a 
 This is a privileged local terminal, not a sandbox. The server is loopback-only by default. If the
 Workbench is exposed through `PI_WORKBENCH_TRUSTED_HOSTS`, the outer deployment must provide
 authentication and TLS as described in the
-[Pi Runtime architecture](../agent-runtime/adapters/pi/README.md).
+[Pi Runtime architecture](../agent-runtime/runtimes/pi/README.md).

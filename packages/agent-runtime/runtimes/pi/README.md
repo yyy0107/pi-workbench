@@ -24,10 +24,38 @@ Automation 的定义、存储和调度位于
 
 ## 架构
 
+Pi 是 Workbench Agent Runtime 的具体实现，所有权边界由 Workbench 定义：
+
+- [`core/runtime`](../../core/runtime) 定义 `AgentRuntime`、`ConversationSession` 与 observable；
+  [`core/contracts`](../../core/contracts) 定义通用 Conversation、Node/Block 和能力 DTO。
+- [`core/client`](../../core/client) 提供 React 接入、`WorkbenchAgentRuntimeCapabilities`、窄 hooks
+  与 `WorkbenchAgentCapabilityError`。Shell、Core、Extension SDK/Host 不导入 Pi packages。
+- [`client/src/integration/capabilities.ts`](./client/src/integration/capabilities.ts) 将同一个 Pi
+  manager 的 host、workspace、models、interactions、scratchSessions、context、automation 和
+  attachmentUnderstanding 接到 Workbench 能力集合；`PiAgentRuntimeProvider` 安装该集合。
+  Automation、附件识别和 Terminal 继续复用各自的 Workbench contracts。
+- Pi 原始消息和事件在 Client 内投影成 `ConversationNode`、`MessageBlock` 和 snapshot；通用 UI
+  根据投影与 capability presence 渲染，不解析 Pi event name 或判断 `runtime.id === "pi"`。
+  缺失能力时隐藏入口；恢复的历史页面显示明确不可用状态，不注入假实现。
+- `projectPiCapabilityError()` 在能力边界将 `PiApiError` 映射为稳定的 Workbench `code` 和可选
+  `details`；Shell 不读取 Pi HTTP/RPC 错误。Pi 专属配置、资源与 Trace 仍使用
+  [Pi Client 的有限公开入口](./client/README.md#public-boundary)。
+- [`core/server`](../../core/server) 拥有 `WorkbenchAgentServerAdapter`，只组合 commands、execution
+  和 threads；Pi Server 实现这些端口。Host、workspace、terminal、automation 等领域能力由应用组合根
+  单独接线，不塞入 Agent Server Adapter，也不新增 Runtime registry 或通用原始事件层。
+
+Web 与 Desktop 在应用层选择 Pi，并交错安装 `shellExtensionGroups` 与
+`piAgentRuntimeExtensionGroups`，保持既有扩展 ID 与激活顺序。通用扩展、双语文案、文件缓冲、导航、
+presentation assets 和 Runtime Connection 由 Shell 拥有；`PiAgentRuntimeContributionsProvider`
+只给 Shell 文件运行时注入 Skill/Extension 资源 backend。完整迁移和验收记录见
+[`重构计划`](../../../../docs/agent-runtime-pi-implementation-refactor-plan.md)。
+
 ```mermaid
 flowchart TD
   UI["Browser / Workbench UI"] --> HEADLESS["Workbench AgentRuntime / Session"]
+  UI --> CAPABILITIES["Workbench Runtime Capabilities"]
   HEADLESS --> CM["PiSessionManager / PiClientSession"]
+  CAPABILITIES -->|"Pi capability projection"| CM
   CM --> ASSEMBLER["Pi Conversation Assembler"]
   ASSEMBLER --> SNAPSHOT["Workbench ConversationSnapshot"]
   SNAPSHOT --> UI
@@ -550,7 +578,7 @@ Workbench 已适配的带参命令还可由 catalog 返回声明式 `argsSchema`
 RPC 边界同时读取旧 `version: 1` / `source: "pi"` 请求并在进入执行层前归一化。提交随后对 catalog
 中的全部 Token 做 preflight resolve；未知、冲突或已失效的命令会
 在任何副作用发生前拒绝。执行阶段不再把所有命令统一实现成“先调用一次模型，再收集回答”：skill
-通过 Pi 已加载资源公开的 `filePath`/`baseDir` 记录为可信的显式用户选择，string adapter 只提示模型
+通过 Pi 已加载资源公开的 `filePath`/`baseDir` 记录为可信的显式用户选择，prompt 编译只提示模型
 必须先使用现有 `read` 工具完整按需读取对应 `SKILL.md`，不会把 Skill 正文预先拼入请求；prompt template
 按 Pi 公开的参数替换语义确定性转换 user text，两者都只进入一次最终主模型调用。显式 Skill 提交时若
 `read` 不在当前 active tools 中，preflight 会在执行任何命令前拒绝请求，避免模型只根据名称或描述猜测。
@@ -561,10 +589,10 @@ extension command 仍通过 `AgentSession.prompt()` 的公开命令入口执行�
 
 服务端先形成 canonical `ResolvedAgentRequest`，分别保存 user text、request config、显式选择的
 Skill 引用、trusted instructions、trusted/untrusted context 和仅供历史/诊断使用的 command trace。
-trace 不会整体注入模型；`server/src/commands/pi-composer-prompt.ts` 的 Pi string adapter 只在最后边界把
+trace 不会整体注入模型；`server/src/commands/pi-composer-prompt.ts` 只在 Pi 实现的最后边界把
 config、Skill 选择及其强制按需读取提示、
 instructions、按 trust 标记的 context 和 user request 编译给 `AgentSession.prompt()`。这仍是 Pi 只接受
-字符串 prompt 时的 adapter fallback，而不是内部 canonical request。
+字符串 prompt 时的兼容编译，不改变内部 canonical request。
 
 UI 原文和 canonical Composer document 以隐藏的 `workbench.composer-user.v3` custom message
 持久化；`sourceText` 只作为编辑器 serialization/fallback，并统一使用
@@ -1039,8 +1067,8 @@ immutable artifact，不从根依赖 hoist 猜测服务端闭包。
 实现按 client、protocol、shared、server 和 Workbench contribution ownership 分组，测试位于各
 package 的 `test/` 或被测 contribution 旁：
 
-Pi 浏览器适配器位于 [`client`](./client)，并只通过
-`@workbench/agent-runtime-pi-client/*` 的有限功能入口供应用使用。下面只展示仍由本目录拥有的 Pi
+Pi 浏览器实现位于 [`client`](./client)，应用组合层与 Pi Contributions 只通过
+`@workbench/agent-runtime-pi-client/*` 的有限功能入口访问它；Shell 使用 Workbench 能力。下面只展示仍由本目录拥有的 Pi
 服务端实现；协议和跨端纯逻辑分别由 `@workbench/agent-runtime-pi-protocol` 与
 `@workbench/agent-runtime-pi-shared` 拥有。
 
@@ -1078,10 +1106,7 @@ packages/agent-runtime/runtimes/pi/
     │   ├── external-session-types.ts
     │   └── source-utils.ts
     ├── transport/
-    │   ├── api-request-guard.ts
     │   ├── compaction-rpc-validator.ts
-    │   ├── custom-server.ts
-    │   ├── local-api-request-trust.ts
     │   ├── package-rpc-validators.ts
     │   ├── resource-rpc-validators.ts
     │   ├── responses.ts
@@ -1109,7 +1134,8 @@ packages/agent-runtime/runtimes/pi/
     │   ├── rpc-domain-error-projector.ts
     │   ├── rpc-route-composition.ts
     │   ├── rpc-router.ts
-    │   └── rpc-transport.ts
+    │   ├── rpc-transport.ts
+    │   └── runtime-http-router.ts
     ├── host/
     │   ├── host-directories.ts
     │   ├── host-service.ts
