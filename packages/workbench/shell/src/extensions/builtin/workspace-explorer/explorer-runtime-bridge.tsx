@@ -2,15 +2,14 @@
 
 import { useEffect, useMemo } from "react";
 
+import { defineMessage } from "../../../i18n";
 import {
   useActiveWorkspaceSurface,
   useRightWorkspace,
   useRightWorkspaceState,
   useWorkspaceContext,
   useWorkspaceSurfaces,
-} from "@workbench/shell/right-workspace/react";
-
-import { definePiMessage } from "../../i18n";
+} from "../../../right-workspace-react";
 
 import {
   activeFileWorkspaceSession,
@@ -18,7 +17,7 @@ import {
   explorerMatchesFileWorkspace,
 } from "./explorer-runtime-policy";
 
-const DEFAULT_EXPLORER_TITLE = definePiMessage("extensions.workspaceExplorer.title");
+const DEFAULT_EXPLORER_TITLE = defineMessage("extensions.workspaceExplorer.title");
 
 export function ExplorerRuntimeBridge() {
   const controller = useRightWorkspace();

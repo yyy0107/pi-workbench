@@ -12,7 +12,7 @@ import { Button } from "@workbench/shell/ui";
 import { definePiMessage, usePiI18n } from "../../i18n";
 import { useExtensionErrorReporter } from "@workbench/extension-host";
 import type { WorkspaceSurfaceMenuItemProps } from "@workbench/extension-sdk";
-import { usePiFileWorkspaceTargetService } from "../../public/installation-services";
+import { useFileWorkspaceTargetService } from "@workbench/shell/workspace-files";
 
 export function FileMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
   const { t } = usePiI18n();
@@ -20,7 +20,7 @@ export function FileMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
   const opener = useOpenerService();
   const context = useWorkspaceContext();
   const reportError = useExtensionErrorReporter();
-  const targetService = usePiFileWorkspaceTargetService();
+  const targetService = useFileWorkspaceTargetService();
   const directoryResource = useSyncExternalStore(
     targetService.subscribe,
     targetService.getSnapshot,

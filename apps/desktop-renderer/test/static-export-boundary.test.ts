@@ -78,9 +78,7 @@ test("preserves the Desktop extension ID and activation-order baseline", async (
     [...body.matchAll(/(?:\.\.\.)?([A-Za-z][A-Za-z0-9_.]+),/gu)].map((match) => match[1]),
     [
       "shellExtensionGroups.core",
-      "piAgentRuntimeExtensionGroups.workspace",
       "shellExtensionGroups.workspace",
-      "piAgentRuntimeExtensionGroups.terminal",
       "piAgentRuntimeExtensionGroups.setup",
       "shellExtensionGroups.settings",
       "piAgentRuntimeExtensionGroups.runtime",
@@ -90,9 +88,7 @@ test("preserves the Desktop extension ID and activation-order baseline", async (
 
   const ids = [
     ...shellExtensionGroups.core,
-    ...piAgentRuntimeExtensionGroups.workspace,
     ...shellExtensionGroups.workspace,
-    ...piAgentRuntimeExtensionGroups.terminal,
     ...piAgentRuntimeExtensionGroups.setup,
     ...shellExtensionGroups.settings,
     ...piAgentRuntimeExtensionGroups.runtime,

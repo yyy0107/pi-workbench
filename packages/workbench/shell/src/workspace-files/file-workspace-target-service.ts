@@ -1,4 +1,8 @@
+"use client";
+
 import type { OpenableResource } from "@workbench/extension-sdk";
+
+import { useRightWorkspaceInstallationResource } from "../right-workspace/right-workspace-context";
 
 interface ActiveFileWorkspaceTarget {
   readonly resource: OpenableResource;
@@ -58,4 +62,13 @@ export class FileWorkspaceTargetService {
     if (this.#closed) return;
     for (const listener of this.#listeners) listener();
   }
+}
+
+const FILE_WORKSPACE_TARGET_SERVICE_RESOURCE = Symbol("workbench.file-workspace-target-service");
+
+export function useFileWorkspaceTargetService(): FileWorkspaceTargetService {
+  return useRightWorkspaceInstallationResource(
+    FILE_WORKSPACE_TARGET_SERVICE_RESOURCE,
+    () => new FileWorkspaceTargetService(),
+  );
 }

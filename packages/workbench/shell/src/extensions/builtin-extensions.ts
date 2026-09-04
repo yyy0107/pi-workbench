@@ -7,10 +7,13 @@ import { messageActionsExtension } from "./builtin/message-actions";
 import { messagePresentationExtension } from "./builtin/message-presentation";
 import { messageQueueExtension } from "./builtin/message-queue";
 import { settingsExtension } from "./builtin/settings";
+import { terminalExtension } from "./builtin/terminal";
 import { userMessageIndexExtension } from "./builtin/user-message-index";
 import { workbenchBrandExtension } from "./builtin/workbench-brand";
 import { workspaceArtifactExtension } from "./builtin/workspace-artifact";
 import { workspaceBrowserExtension } from "./builtin/workspace-browser";
+import { workspaceExplorerExtension } from "./builtin/workspace-explorer";
+import { workspaceReviewExtension } from "./builtin/workspace-review";
 import { workspaceSidebarExtension } from "./builtin/workspace-sidebar";
 
 /** Stable frame and conversation contributions mounted before runtime-specific setup. */
@@ -31,10 +34,13 @@ export const shellSettingsExtensions: readonly WorkbenchExtension[] = Object.fre
   settingsExtension,
 ]);
 
-/** Generic auxiliary workspace contributions mounted after runtime-owned workspace surfaces. */
+/** Runtime-neutral workspace surfaces in stable activation order. */
 export const shellWorkspaceExtensions: readonly WorkbenchExtension[] = Object.freeze([
+  workspaceExplorerExtension,
+  workspaceReviewExtension,
   workspaceBrowserExtension,
   workspaceArtifactExtension,
+  terminalExtension,
 ]);
 
 export const shellExtensionGroups = Object.freeze({

@@ -50,9 +50,9 @@ test("Workspace File opener binding defers runtime behavior without deferring re
   const registration = registerWorkspaceFileOpeners(manager.openers, binding);
   const runtime = {
     files: {} as never,
-    resources: {} as never,
     diffs: {} as never,
   };
+  const resources = {} as never;
   const request = {
     resource: { scheme: "workspace-file", path: "src/index.ts" },
     context: { applicationId: "test" },
@@ -64,7 +64,7 @@ test("Workspace File opener binding defers runtime behavior without deferring re
   );
   assert.equal(manager.openers.getAll()[0]?.canOpen(request), 0);
 
-  const connection = binding.connect(runtime);
+  const connection = binding.connect(runtime, resources);
   assert.equal(manager.openers.getAll()[0]?.canOpen(request), 100);
 
   connection.dispose();

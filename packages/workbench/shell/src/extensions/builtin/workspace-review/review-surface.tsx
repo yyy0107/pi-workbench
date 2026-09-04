@@ -3,15 +3,14 @@
 import { FileDiffIcon, RefreshCwIcon } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-import { definePiMessage, usePiI18n } from "../../i18n";
 import { useExtensionErrorReporter } from "@workbench/extension-host";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 
-import { InlineFeedbackForm } from "@workbench/shell/right-workspace/presentation";
-import { Button } from "@workbench/shell/ui";
-import { useRightWorkspace } from "@workbench/shell/right-workspace/react";
-import { usePiGitReviewService } from "../../public/installation-services";
-import type { GitDiff } from "./git-review-service";
+import { defineMessage, useI18n } from "../../../i18n";
+import { InlineFeedbackForm } from "../../../right-workspace/presentation";
+import { useRightWorkspace } from "../../../right-workspace-react";
+import { Button } from "../../../ui";
+import { useGitReviewService, type GitDiff } from "./git-review-service";
 
 export interface ReviewSurfaceParams extends Record<string, unknown> {
   repositoryId: string;
@@ -19,16 +18,16 @@ export interface ReviewSurfaceParams extends Record<string, unknown> {
   revision?: string;
 }
 
-const REVIEW_LOAD_FAILED = definePiMessage("extensions.workspaceReview.loadFailed");
+const REVIEW_LOAD_FAILED = defineMessage("extensions.workspaceReview.loadFailed");
 
 export function ReviewSurface({
   surface,
   retryToken = 0,
 }: WorkspaceSurfaceProps<ReviewSurfaceParams>) {
-  const { t } = usePiI18n();
+  const { t } = useI18n();
   const controller = useRightWorkspace();
   const reportError = useExtensionErrorReporter();
-  const git = usePiGitReviewService();
+  const git = useGitReviewService();
   const revision = useSyncExternalStore(
     git.subscribe.bind(git),
     git.getRevision.bind(git),

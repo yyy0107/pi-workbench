@@ -1,7 +1,7 @@
-import type { RightWorkspaceController } from "@workbench/shell/right-workspace";
-import { type LocalizableText } from "@workbench/shell/i18n";
-import { definePiMessage } from "../../i18n";
 import type { WorkspaceContext } from "@workbench/extension-sdk";
+
+import { defineMessage, type LocalizableText } from "../../../i18n";
+import type { RightWorkspaceController } from "../../../right-workspace";
 
 import {
   createTerminalTarget,
@@ -27,7 +27,7 @@ export interface TerminalTranscriptWorkspaceHost {
   title: LocalizableText;
 }
 
-export const TERMINAL_SURFACE_TITLE = definePiMessage("extensions.terminal.title");
+export const TERMINAL_SURFACE_TITLE = defineMessage("extensions.terminal.title");
 
 function terminalLaunchForContext(
   launch: TerminalLaunchContext,

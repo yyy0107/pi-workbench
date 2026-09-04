@@ -6,10 +6,14 @@ import FileViewer, { type FileViewerHandle, type ViewerState } from "@file-viewe
 import { useEffect, useMemo, useRef } from "react";
 
 import type { Locale } from "@workbench/shell/i18n";
+import { useWorkbenchAssets } from "@workbench/shell/presentation";
 
-import { piContributionAssetUrl, usePiContributionAssets } from "../../public/assets-context";
 import styles from "./file-document-viewer-runtime.module.css";
 import { isFileViewerVideoType, resolveFileViewerType } from "./file-viewer-source";
+
+function fileViewerAssetUrl(baseUrl: string, relativePath: string): string {
+  return `${baseUrl}/${relativePath.replace(/^\/+/, "")}`;
+}
 
 export interface FileDocumentViewerRuntimeProps {
   url?: string;
@@ -34,7 +38,7 @@ export function FileDocumentViewerRuntime({
   onLoadingChange,
   onLoadError,
 }: FileDocumentViewerRuntimeProps) {
-  const { fileViewerAssetBaseUrl } = usePiContributionAssets();
+  const { fileViewerAssetBaseUrl } = useWorkbenchAssets();
   const viewerRef = useRef<FileViewerHandle>(null);
   const type = resolveFileViewerType(name);
   const isVideo = isFileViewerVideoType(type);
@@ -59,18 +63,18 @@ export function FileDocumentViewerRuntime({
         theme: false,
       },
       pdf: {
-        assetBaseUrl: fileViewerAssetBaseUrl,
+        assetBaseUrl: `${fileViewerAssetBaseUrl}/`,
         streaming: "same-origin" as const,
       },
       // The File Viewer packages also publish bundler-friendly fallback imports. This desktop
       // build serves one canonical runtime copy from public/file-viewer instead, so make every
       // presentation asset explicit and let packaging discard byte-identical emitted fallbacks.
       presentation: {
-        workerUrl: piContributionAssetUrl(fileViewerAssetBaseUrl, "vendor/pptx/pptx.worker.js"),
-        pptModuleUrl: piContributionAssetUrl(fileViewerAssetBaseUrl, "vendor/ppt/index.mjs"),
-        pptWorkerUrl: piContributionAssetUrl(fileViewerAssetBaseUrl, "vendor/ppt/worker.mjs"),
-        pptWasmUrl: piContributionAssetUrl(fileViewerAssetBaseUrl, "vendor/ppt/ppt-native.wasm"),
-        pptFontUrl: piContributionAssetUrl(fileViewerAssetBaseUrl, "vendor/ppt/ppt-font-cjk.otf"),
+        workerUrl: fileViewerAssetUrl(fileViewerAssetBaseUrl, "vendor/pptx/pptx.worker.js"),
+        pptModuleUrl: fileViewerAssetUrl(fileViewerAssetBaseUrl, "vendor/ppt/index.mjs"),
+        pptWorkerUrl: fileViewerAssetUrl(fileViewerAssetBaseUrl, "vendor/ppt/worker.mjs"),
+        pptWasmUrl: fileViewerAssetUrl(fileViewerAssetBaseUrl, "vendor/ppt/ppt-native.wasm"),
+        pptFontUrl: fileViewerAssetUrl(fileViewerAssetBaseUrl, "vendor/ppt/ppt-font-cjk.otf"),
       },
     }),
     [fileViewerAssetBaseUrl, isVideo, locale],

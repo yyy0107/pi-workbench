@@ -2,15 +2,15 @@
 
 import { TerminalIcon } from "lucide-react";
 
-import { Button } from "@workbench/shell/ui";
-import { useRightWorkspace, useWorkspaceContext } from "@workbench/shell/right-workspace/react";
-import { usePiI18n } from "../../i18n";
+import { useI18n } from "../../../i18n";
+import { useRightWorkspace, useWorkspaceContext } from "../../../right-workspace-react";
+import { Button } from "../../../ui";
 
 import { useTerminalLaunchContext } from "./terminal-target";
 import { openTerminal, TERMINAL_SURFACE_TITLE } from "./terminal-workspace-service";
 
 export function TerminalTrigger() {
-  const { t } = usePiI18n();
+  const { t } = useI18n();
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const launch = useTerminalLaunchContext();

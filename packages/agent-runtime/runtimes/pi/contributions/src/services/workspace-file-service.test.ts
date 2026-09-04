@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { MemoryFileDiffService } from "./file-diff-service";
+import { MemoryFileDiffService } from "@workbench/shell/workspace-files";
 import {
   BufferedFileWorkspaceService,
   fileWorkspaceContext,

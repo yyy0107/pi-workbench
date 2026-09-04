@@ -11,9 +11,7 @@ import { shellExtensionGroups } from "@workbench/shell/extensions";
  */
 export const installedWorkbenchExtensions = Object.freeze([
   ...shellExtensionGroups.core,
-  ...piAgentRuntimeExtensionGroups.workspace,
   ...shellExtensionGroups.workspace,
-  ...piAgentRuntimeExtensionGroups.terminal,
   ...piAgentRuntimeExtensionGroups.setup,
   ...shellExtensionGroups.settings,
   ...piAgentRuntimeExtensionGroups.runtime,

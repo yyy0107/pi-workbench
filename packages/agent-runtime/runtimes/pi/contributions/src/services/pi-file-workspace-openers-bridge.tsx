@@ -2,10 +2,19 @@
 
 import { useLayoutEffect, type ComponentType } from "react";
 
+import {
+  usePiResourceClient,
+  type PiResourceClient,
+} from "@workbench/agent-runtime-pi-client/resources";
 import type { Disposable, OpenHandlerDefinition, OpenerRegistry } from "@workbench/extension-sdk";
+import { useWorkbenchAssets } from "@workbench/shell/presentation";
+import {
+  useWorkspaceFileRuntime,
+  type WorkspaceFileRuntime,
+} from "@workbench/shell/workspace-files";
 
 import { createFileOpenHandlers } from "../extensions/workspace-file/file-opener";
-import { useWorkspaceFileRuntime, type WorkspaceFileRuntime } from "./workspace-file-runtime";
+import { acquireFileViewerAssetBaseLease } from "./file-viewer-asset-base-lease";
 
 type WorkspaceFileOpenHandlers = ReturnType<typeof createFileOpenHandlers>;
 type WorkspaceFileOpenHandlerKey = keyof WorkspaceFileOpenHandlers;
@@ -30,7 +39,7 @@ const WORKSPACE_FILE_OPEN_HANDLER_KEYS = Object.freeze(
  * extension deactivation removes every handler before a replacement activation can begin.
  */
 export interface WorkspaceFileOpenersBinding {
-  connect(runtime: WorkspaceFileRuntime): Disposable;
+  connect(runtime: WorkspaceFileRuntime, resources: PiResourceClient): Disposable;
   getHandler(key: WorkspaceFileOpenHandlerKey): OpenHandlerDefinition | undefined;
 }
 
@@ -38,9 +47,9 @@ export function createWorkspaceFileOpenersBinding(): WorkspaceFileOpenersBinding
   const connections: { readonly handlers: WorkspaceFileOpenHandlers }[] = [];
 
   return Object.freeze({
-    connect(runtime: WorkspaceFileRuntime): Disposable {
+    connect(runtime: WorkspaceFileRuntime, resources: PiResourceClient): Disposable {
       const connection = {
-        handlers: createFileOpenHandlers(runtime.files, runtime.resources, runtime.diffs),
+        handlers: createFileOpenHandlers(runtime.files, resources, runtime.diffs),
       };
       connections.push(connection);
       let disposed = false;
@@ -104,12 +113,19 @@ export function createWorkspaceFileOpenersContribution(
   binding: WorkspaceFileOpenersBinding,
 ): ComponentType<Record<never, never>> {
   return function WorkspaceFileOpenersContribution() {
+    const { fileViewerAssetBaseUrl } = useWorkbenchAssets();
+    const resources = usePiResourceClient();
     const runtime = useWorkspaceFileRuntime();
 
+    useLayoutEffect(
+      () => acquireFileViewerAssetBaseLease(fileViewerAssetBaseUrl),
+      [fileViewerAssetBaseUrl],
+    );
+
     useLayoutEffect(() => {
-      const connection = binding.connect(runtime);
+      const connection = binding.connect(runtime, resources);
       return () => connection.dispose();
-    }, [binding, runtime]);
+    }, [binding, resources, runtime]);
 
     return null;
   };

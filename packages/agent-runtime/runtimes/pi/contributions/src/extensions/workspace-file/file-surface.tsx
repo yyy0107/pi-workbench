@@ -17,9 +17,8 @@ import {
   type FileDescriptor,
   type FileWorkspaceSession,
 } from "../../services/workspace-file-service";
-import { useWorkspaceFileRuntime } from "../../services/workspace-file-runtime";
-
-import { usePiRuntimeConnection } from "../../public/runtime-connection-context";
+import { useRuntimeConnection } from "@workbench/shell/runtime-connection";
+import { useWorkspaceFileRuntime } from "@workbench/shell/workspace-files";
 
 import { FileCodeEditor, FileCodeView } from "./file-code-editor";
 import { saveFileBuffer } from "./file-buffer-actions";
@@ -105,7 +104,7 @@ export function FileSurface({
   const { t } = usePiI18n();
   const controller = useRightWorkspace();
   const reportError = useExtensionErrorReporter();
-  const runtimeConnection = usePiRuntimeConnection();
+  const runtimeConnection = useRuntimeConnection();
   const draftStore = useWorkspaceDraftStore();
   const { files, diffs } = useWorkspaceFileRuntime();
   const path = surface.params.absolutePath;

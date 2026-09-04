@@ -2,13 +2,13 @@
 
 import { usePiI18n } from "../../i18n";
 import { usePiHostDescription } from "@workbench/agent-runtime-pi-client/host";
+import { useWorkbenchBranding } from "@workbench/shell/presentation";
 
-import { usePiContributionBranding } from "../../public/assets-context";
 import { ConnectionStatus } from "./connection-status";
 
 export function PiVersion() {
   const { t } = usePiI18n();
-  const { piLogoUrl, runtimeName } = usePiContributionBranding();
+  const { productLogoUrl, runtimeName } = useWorkbenchBranding();
   const version = usePiHostDescription()?.piVersion;
   const description = version
     ? t("extensions.connectionStatus.piVersionDescription", { version })
@@ -22,13 +22,15 @@ export function PiVersion() {
         className="inline-flex items-center gap-1.5"
         title={description}
       >
-        <img
-          src={piLogoUrl}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          className="size-4 shrink-0 dark:invert"
-        />
+        {productLogoUrl ? (
+          <img
+            src={productLogoUrl}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            className="size-4 shrink-0 dark:invert"
+          />
+        ) : null}
         <span className="@max-[340px]/statusbar:hidden">
           {runtimeName} v{version ?? "—"}
         </span>

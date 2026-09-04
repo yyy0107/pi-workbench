@@ -44,7 +44,7 @@ import {
   fileWorkspaceContext,
   resolveFileWorkspaceSession,
 } from "../../services/workspace-file-service";
-import { useWorkspaceFileRuntime } from "../../services/workspace-file-runtime";
+import { useWorkspaceFileRuntime } from "@workbench/shell/workspace-files";
 import { FileBreadcrumbTree } from "./file-breadcrumb-tree";
 import { saveFileBuffer } from "./file-buffer-actions";
 import { FILE_SURFACE_OPEN_FAILED, FILE_SURFACE_SAVE_FAILED } from "./file-surface-messages";

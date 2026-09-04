@@ -1,6 +1,6 @@
 # Workbench Agent Runtime 边界与 Pi Implementation 重构计划
 
-状态：阶段 1–3 已完成（2026-09-04）；阶段 4–8 未开始。
+状态：阶段 1–4 已完成（2026-09-04）；阶段 5–8 未开始。
 
 本计划是已完成的
 [`assistant-ui-removal-and-custom-runtime-plan.md`](./assistant-ui-removal-and-custom-runtime-plan.md)
@@ -172,7 +172,7 @@ Pi 实现内部的结构性命名调整：
 - [x] 阶段 1：建立边界保护（2026-09-04）
 - [x] 阶段 2：移动目录并纠正结构命名（2026-09-04）
 - [x] 阶段 3：增加最小 Workbench Capability 层（2026-09-04）
-- [ ] 阶段 4：迁移已经与 Pi 无关的通用扩展
+- [x] 阶段 4：迁移已经与 Pi 无关的通用扩展（2026-09-04）
 - [ ] 阶段 5：迁移 Workspace / Host 垂直切片
 - [ ] 阶段 6：迁移会话级通用能力
 - [ ] 阶段 7：收缩 Pi Contributions
@@ -290,11 +290,33 @@ Desktop 使用同一序列，并在末尾追加 `workbench.desktop-runtime-lifec
 
 ### 6.4 阶段 4：迁移无 Pi 语义的通用扩展
 
-- [ ] 迁移 Workspace Explorer。
-- [ ] 迁移 Workspace Review。
-- [ ] 迁移 Terminal，并改用 Shell `useRuntimeConnection`。
-- [ ] 删除 Pi 命名的 workspace target、Git review 与重复 Runtime Connection 安装服务。
-- [ ] 通用 assets/provider 与 `en-US`、`zh-CN` 文案随组件迁入 Shell。
+- [x] 迁移 Workspace Explorer。
+- [x] 迁移 Workspace Review。
+- [x] 迁移 Terminal，并改用 Shell `useRuntimeConnection`。
+- [x] 删除 Pi 命名的 workspace target、Git review 与重复 Runtime Connection 安装服务。
+- [x] 通用 assets/provider 与 `en-US`、`zh-CN` 文案随组件迁入 Shell。
+
+实现记录：
+
+- Explorer、Review、Terminal 迁入 `packages/workbench/shell/src/extensions/builtin`，由 Shell workspace
+  group 按原顺序安装；Web 与 Desktop 的完整 extension ID 序列保持不变。
+- 文件运行时 contract、diff service 与当前 workspace target service 迁入 Shell 的
+  `workspace-files` 公开子路径；Pi Contributions 暂时只保留阶段 5 尚未迁移的文件 backend。
+- Git review 与 workspace target 复用 RightWorkspace 的安装级资源所有权；删除 Pi 的重复安装服务。
+- Terminal、Workspace Directory Picker 与 Workspace File 改用 Shell `useRuntimeConnection`，删除 Pi
+  Runtime Connection context。
+- File Viewer asset base 与 branding 统一读取 Workbench presentation provider；删除 Pi 的重复
+  assets/branding context。Explorer、Review、Terminal 的两套基础语言文案随组件迁入 Shell。
+
+验证记录：
+
+- Shell、Pi Contributions、Web、Desktop Renderer 定向 typecheck 全部通过。
+- Shell 384 项、Pi Contributions 193 项、Web 131 项、Desktop Renderer 8 项、Agent Runtime Client
+  24 项测试通过，共 740 项；其中 Web 与 Desktop 扩展顺序基线测试保持原序列。
+- `pnpm check:workspace-dependencies` 与 `pnpm lint` 通过。
+- `pnpm build` 通过 Runtime Node、Web、Desktop Renderer 与 Desktop Electron artifact 组合。
+- 本阶段未创建提交；按验证策略未运行 Browser/E2E，因为迁移后的交互与状态连接均可由类型、单元、
+  边界和构建检查确认，没有具体渲染不确定性。
 
 ### 6.5 阶段 5：Workspace / Host 垂直切片
 

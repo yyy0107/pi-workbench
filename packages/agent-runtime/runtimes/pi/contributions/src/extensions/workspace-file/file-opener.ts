@@ -11,7 +11,7 @@ import {
   fileWorkspaceContext,
   type FileWorkspaceService,
 } from "../../services/workspace-file-service";
-import type { FileDiffService } from "../../services/file-diff-service";
+import type { FileDiffService } from "@workbench/shell/workspace-files";
 
 import { parseFileDiffMetadata } from "./file-diff-service";
 import { defaultFileViewMode } from "./file-view-mode";

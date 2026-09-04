@@ -6,7 +6,7 @@ import {
   type WorkspaceSurfaceDefinition,
 } from "@workbench/extension-sdk";
 
-import { definePiMessage } from "../../i18n";
+import { defineMessage } from "../../../i18n";
 
 import { createToggleTerminalCommand } from "./open-terminal-command";
 import { BashToolDisclosureController } from "./bash-tool-disclosure-controller";
@@ -59,8 +59,8 @@ export const terminalExtension = defineExtension({
     const command = context.commands.register(createToggleTerminalCommand(workspaceService));
     const bashRenderer = context.renderers.tools.register("bash", BashToolRenderer);
     const bashPresentation = context.renderers.toolPresentations.register("bash", {
-      label: definePiMessage("extensions.terminal.tool.activityComplete"),
-      activeLabel: definePiMessage("extensions.terminal.tool.activityRunning"),
+      label: defineMessage("extensions.terminal.tool.activityComplete"),
+      activeLabel: defineMessage("extensions.terminal.tool.activityRunning"),
       icon: SquareTerminalIcon,
       disclosureController: BashToolDisclosureController,
     });

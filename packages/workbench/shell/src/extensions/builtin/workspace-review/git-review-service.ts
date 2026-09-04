@@ -1,4 +1,7 @@
-import type { WorkspaceFeedback } from "@workbench/shell/right-workspace";
+"use client";
+
+import type { WorkspaceFeedback } from "../../../right-workspace";
+import { useRightWorkspaceInstallationResource } from "../../../right-workspace/right-workspace-context";
 
 export interface GitDiffLine {
   oldLine?: number;
@@ -110,4 +113,13 @@ export class MemoryGitReviewService implements GitReviewService {
     this.#revision += 1;
     for (const listener of this.#listeners) listener();
   }
+}
+
+const GIT_REVIEW_SERVICE_RESOURCE = Symbol("workbench.git-review-service");
+
+export function useGitReviewService(): GitReviewService {
+  return useRightWorkspaceInstallationResource(
+    GIT_REVIEW_SERVICE_RESOURCE,
+    () => new MemoryGitReviewService(),
+  );
 }

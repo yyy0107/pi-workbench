@@ -9,6 +9,8 @@ export interface WorkbenchBranding {
 }
 
 export interface WorkbenchAssets {
+  /** Base URL containing File Viewer workers, WebAssembly, and presentation assets. */
+  readonly fileViewerAssetBaseUrl: string;
   /** Base URL containing `material-icons.json` and the `icons/` directory. */
   readonly materialIconThemeBaseUrl: string;
 }
@@ -22,7 +24,7 @@ const WorkbenchPresentationContext = createContext<WorkbenchPresentation | null>
 
 function normalizedAssetBaseUrl(value: string): string {
   const normalized = value.trim().replace(/\/+$/, "");
-  if (!normalized) throw new Error("Workbench material icon theme base URL must not be empty");
+  if (!normalized) throw new Error("Workbench asset base URL must not be empty");
   return normalized;
 }
 
@@ -34,17 +36,24 @@ export function WorkbenchPresentationProvider({
   if (!branding.productName.trim()) throw new Error("Workbench product name must not be empty");
   if (!branding.runtimeName.trim()) throw new Error("Workbench runtime name must not be empty");
 
+  const fileViewerAssetBaseUrl = normalizedAssetBaseUrl(assets.fileViewerAssetBaseUrl);
   const materialIconThemeBaseUrl = normalizedAssetBaseUrl(assets.materialIconThemeBaseUrl);
   const value = useMemo<WorkbenchPresentation>(
     () => ({
-      assets: { materialIconThemeBaseUrl },
+      assets: { fileViewerAssetBaseUrl, materialIconThemeBaseUrl },
       branding: {
         productLogoUrl: branding.productLogoUrl,
         productName: branding.productName,
         runtimeName: branding.runtimeName,
       },
     }),
-    [branding.productLogoUrl, branding.productName, branding.runtimeName, materialIconThemeBaseUrl],
+    [
+      branding.productLogoUrl,
+      branding.productName,
+      branding.runtimeName,
+      fileViewerAssetBaseUrl,
+      materialIconThemeBaseUrl,
+    ],
   );
 
   return (

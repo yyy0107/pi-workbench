@@ -6,7 +6,7 @@ import { createRuntimeWebSocketFactory, type RuntimeWebSocket } from "@workbench
 import { terminalReconnectDelay, toolTerminalSocketPath } from "@workbench/terminal-client";
 import { parseTerminalServerFrame } from "@workbench/terminal-contracts";
 
-import { usePiRuntimeConnection } from "../../public/runtime-connection-context";
+import { useRuntimeConnection } from "../../../runtime-connection";
 
 export function useToolTerminalReady(
   piSessionId: string | undefined,
@@ -14,7 +14,7 @@ export function useToolTerminalReady(
   enabled: boolean,
 ): boolean {
   const [ready, setReady] = useState(false);
-  const runtimeConnection = usePiRuntimeConnection();
+  const runtimeConnection = useRuntimeConnection();
 
   useEffect(() => {
     if (!enabled || !piSessionId) {

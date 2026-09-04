@@ -1,4 +1,4 @@
-import type { DiffLine } from "@workbench/shell/elements";
+import type { DiffLine } from "../elements";
 
 export interface FileDiffDescriptor {
   id: string;

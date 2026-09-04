@@ -3,25 +3,20 @@
 import { AlertCircleIcon, FolderTreeIcon, LoaderCircleIcon, SearchIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Button } from "@workbench/shell/ui";
-import { Input } from "@workbench/shell/ui";
-import { ExplorerTree, explorerNodeListsEqual } from "@workbench/shell/workspace-file-tree";
-import { useI18n } from "@workbench/shell/i18n";
-import { usePiI18n } from "../../i18n";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
+
+import { useI18n } from "../../../i18n";
+import { useActiveWorkspaceSurface, useOpenerService } from "../../../right-workspace-react";
+import { Button, Input } from "../../../ui";
 import {
   fileWorkspaceContext,
   fileWorkspaceOpenableResource,
   resolveFileWorkspaceSession,
   type FileNode,
   type FileWorkspaceSession,
-} from "../../services/workspace-file-service";
-import { useWorkspaceFileRuntime } from "../../services/workspace-file-runtime";
-
-import {
-  useActiveWorkspaceSurface,
-  useOpenerService,
-} from "@workbench/shell/right-workspace/react";
+  useWorkspaceFileRuntime,
+} from "../../../workspace-files";
+import { ExplorerTree, explorerNodeListsEqual } from "../../../workspace-file-tree";
 
 const DIRECTORY_REFRESH_INTERVAL_MS = 2_000;
 
@@ -49,8 +44,7 @@ export function ExplorerSurface({
   context,
   isVisible,
 }: WorkspaceSurfaceProps<ExplorerSurfaceParams>) {
-  const { t: tPi } = usePiI18n();
-  const { t: tShell } = useI18n();
+  const { t } = useI18n();
   const openers = useOpenerService();
   const { files } = useWorkspaceFileRuntime();
   const activeSurface = useActiveWorkspaceSurface();
@@ -179,7 +173,7 @@ export function ExplorerSurface({
   return (
     <section
       className="flex h-full min-h-0 flex-col"
-      aria-label={tPi("extensions.workspaceExplorer.files")}
+      aria-label={t("extensions.workspaceExplorer.files")}
     >
       <div className="relative shrink-0 px-2.5 pt-2 pb-1">
         <div className="relative min-w-0 flex-1">
@@ -192,8 +186,8 @@ export function ExplorerSurface({
             type="search"
             autoComplete="off"
             spellCheck={false}
-            aria-label={tPi("extensions.workspaceExplorer.filterLabel")}
-            placeholder={tPi("extensions.workspaceExplorer.filterPlaceholder")}
+            aria-label={t("extensions.workspaceExplorer.filterLabel")}
+            placeholder={t("extensions.workspaceExplorer.filterPlaceholder")}
             className="pr-8 pl-10 text-[15px] shadow-none placeholder:text-muted-foreground/75 md:text-[15px] [&::-webkit-search-cancel-button]:hidden"
             onChange={(event) => setFilter(event.currentTarget.value)}
             onKeyDown={(event) => {
@@ -207,8 +201,8 @@ export function ExplorerSurface({
               type="button"
               variant="ghost"
               size="icon-sm"
-              aria-label={tPi("extensions.workspaceExplorer.clearFilter")}
-              title={tPi("extensions.workspaceExplorer.clearFilter")}
+              aria-label={t("extensions.workspaceExplorer.clearFilter")}
+              title={t("extensions.workspaceExplorer.clearFilter")}
               className="text-muted-foreground absolute top-1/2 end-1 -translate-y-1/2 hover:text-foreground"
               onClick={() => setFilter("")}
             >
@@ -231,7 +225,7 @@ export function ExplorerSurface({
             className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 p-8 text-center text-xs"
           >
             <LoaderCircleIcon aria-hidden="true" className="size-5 animate-spin" />
-            {tShell("extensions.shared.fileTree.loading")}
+            {t("extensions.shared.fileTree.loading")}
           </div>
         ) : rootState.status === "error" && rootState.nodes.length === 0 ? (
           <div
@@ -239,9 +233,9 @@ export function ExplorerSurface({
             className="text-muted-foreground flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-xs"
           >
             <AlertCircleIcon aria-hidden="true" className="text-destructive size-6" />
-            <p>{tShell("extensions.shared.fileTree.loadError")}</p>
+            <p>{t("extensions.shared.fileTree.loadError")}</p>
             <Button type="button" variant="outline" size="sm" onClick={() => void loadRoot()}>
-              {tShell("extensions.shared.fileTree.retry")}
+              {t("extensions.shared.fileTree.retry")}
             </Button>
           </div>
         ) : (
@@ -254,23 +248,23 @@ export function ExplorerSurface({
             filter={filter}
             selectedPath={activeFilePath ?? selectedResourcePath}
             labels={{
-              tree: tShell("extensions.shared.fileTree.tree"),
-              empty: tShell("extensions.shared.fileTree.empty"),
-              noMatches: tShell("extensions.shared.fileTree.noMatches"),
+              tree: t("extensions.shared.fileTree.tree"),
+              empty: t("extensions.shared.fileTree.empty"),
+              noMatches: t("extensions.shared.fileTree.noMatches"),
               loadingDirectory: ({ name }) =>
-                tShell("extensions.shared.fileTree.loadingDirectory", { name }),
+                t("extensions.shared.fileTree.loadingDirectory", { name }),
               loadDirectoryError: ({ name }) =>
-                tShell("extensions.shared.fileTree.loadDirectoryError", { name }),
+                t("extensions.shared.fileTree.loadDirectoryError", { name }),
               retryDirectory: ({ name }) =>
-                tShell("extensions.shared.fileTree.retryDirectory", { name }),
+                t("extensions.shared.fileTree.retryDirectory", { name }),
               emptyDirectory: ({ name }) =>
-                tShell("extensions.shared.fileTree.emptyDirectory", { name }),
+                t("extensions.shared.fileTree.emptyDirectory", { name }),
             }}
             loadDirectory={loadDirectory}
             openFile={openFile}
             onSelectedPathChange={setSelectedResourcePath}
             onOpenFileError={(_error, node) =>
-              setOpenError(tShell("extensions.shared.fileTree.openError", { name: node.name }))
+              setOpenError(t("extensions.shared.fileTree.openError", { name: node.name }))
             }
           />
         )}
@@ -282,7 +276,7 @@ export function ExplorerSurface({
           className="text-muted-foreground flex shrink-0 items-center gap-2 border-t px-3 py-2 text-xs"
         >
           <FolderTreeIcon aria-hidden="true" className="size-3.5" />
-          {tShell("extensions.shared.fileTree.truncated")}
+          {t("extensions.shared.fileTree.truncated")}
         </div>
       ) : null}
     </section>

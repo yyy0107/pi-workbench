@@ -6,13 +6,13 @@ import {
   useRightWorkspace,
   useWorkspaceContext,
   useWorkspaceSurfaces,
-} from "@workbench/shell/right-workspace/react";
+} from "../../../right-workspace-react";
 import { toolStringArg, useCompletedToolCalls } from "@workbench/agent-runtime-client";
 
-import { usePiGitReviewService } from "../../public/installation-services";
+import { useGitReviewService } from "./git-review-service";
 
 export function ReviewRuntimeBridge() {
-  const gitReview = usePiGitReviewService();
+  const gitReview = useGitReviewService();
   const controller = useRightWorkspace();
   const surfaces = useWorkspaceSurfaces("review");
   const context = useWorkspaceContext();

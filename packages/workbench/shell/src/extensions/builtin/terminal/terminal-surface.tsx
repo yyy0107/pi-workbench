@@ -32,13 +32,13 @@ import {
   workbenchBashInputFromArgs,
 } from "@workbench/terminal-contracts";
 
-import { useRightWorkspace } from "@workbench/shell/right-workspace/react";
-import { Button } from "@workbench/shell/ui";
-import { resolveWorkbenchShellOwner } from "@workbench/shell/dom";
-import { usePiI18n } from "../../i18n";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 
-import { usePiRuntimeConnection } from "../../public/runtime-connection-context";
+import { resolveWorkbenchShellOwner } from "../../../dom";
+import { useI18n } from "../../../i18n";
+import { useRightWorkspace } from "../../../right-workspace-react";
+import { useRuntimeConnection } from "../../../runtime-connection";
+import { Button } from "../../../ui";
 
 import {
   isTerminalTranscriptTarget,
@@ -269,7 +269,7 @@ function terminalText(value: string): string {
 }
 
 export function TerminalSurface({ surface, isVisible }: WorkspaceSurfaceProps<TerminalTarget>) {
-  const { text } = usePiI18n();
+  const { text } = useI18n();
 
   if (isTerminalTranscriptTarget(surface.params)) {
     return (
@@ -298,9 +298,9 @@ function TerminalTranscriptSurface({
   target: TerminalTranscriptTarget;
   isVisible: boolean;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n();
   const controller = useRightWorkspace();
-  const runtimeConnection = usePiRuntimeConnection();
+  const runtimeConnection = useRuntimeConnection();
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const interruptRef = useRef<() => void>(() => {});
@@ -620,9 +620,9 @@ function PtyTerminalSurface({
   target: TerminalPtyTarget;
   isVisible: boolean;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n();
   const controller = useRightWorkspace();
-  const runtimeConnection = usePiRuntimeConnection();
+  const runtimeConnection = useRuntimeConnection();
   const containerRef = useRef<HTMLDivElement>(null);
   const synchronizeVisibilityRef = useRef<() => void>(() => {});
   const visibleRef = useRef(isVisible);

@@ -22,8 +22,11 @@ const SHELL_CORE_EXTENSION_IDS = Object.freeze([
 ]);
 const SHELL_SETTINGS_EXTENSION_IDS = Object.freeze(["workbench.settings"]);
 const SHELL_WORKSPACE_EXTENSION_IDS = Object.freeze([
+  "workbench.workspace-explorer",
+  "workbench.workspace-review",
   "workbench.workspace-browser",
   "workbench.workspace-artifact",
+  "workbench.terminal",
 ]);
 
 test("Shell extension groups preserve immutable semantic activation order", () => {

@@ -15,7 +15,7 @@ import { PiApiError } from "@workbench/agent-runtime-pi-client/errors";
 import { usePiHostClient } from "@workbench/agent-runtime-pi-client/host";
 import { useNavigationService } from "@workbench/extension-host";
 
-import { usePiRuntimeConnection } from "../../public/runtime-connection-context";
+import { useRuntimeConnection } from "@workbench/shell/runtime-connection";
 import { shouldUseNativeDirectoryPicker } from "./directory-picker-capability";
 import { RemoteDirectoryPickerDialog } from "./remote-directory-picker-dialog";
 import { ProjectTrustDialog } from "@workbench/shell/ui";
@@ -27,7 +27,7 @@ export function DirectoryPickerButton() {
   const { t } = usePiI18n();
   const trustDialogCopy = workspaceProjectTrustDialogCopy(t);
   const hostClient = usePiHostClient();
-  const runtimeConnection = usePiRuntimeConnection();
+  const runtimeConnection = useRuntimeConnection();
   const runtime = useAgentRuntime();
   const navigation = useNavigationService();
   const [picking, setPicking] = useState(false);

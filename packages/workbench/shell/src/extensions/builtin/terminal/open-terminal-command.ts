@@ -1,11 +1,10 @@
 import { TerminalIcon } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
-import { defineMessage } from "@workbench/shell/i18n";
 import { useCommandService } from "@workbench/extension-host";
 import type { CommandDefinition } from "@workbench/extension-sdk";
 
-import { definePiMessage } from "../../i18n";
+import { defineMessage } from "../../../i18n";
 
 import { TerminalWorkspaceService } from "./terminal-workspace-service";
 
@@ -24,8 +23,8 @@ export function createToggleTerminalCommand(
 
   return {
     id: TOGGLE_TERMINAL_COMMAND_ID,
-    title: definePiMessage("extensions.terminal.toggleTitle"),
-    description: definePiMessage("extensions.terminal.toggleDescription"),
+    title: defineMessage("extensions.terminal.toggleTitle"),
+    description: defineMessage("extensions.terminal.toggleDescription"),
     category: defineMessage("extensions.shared.panelsCategory"),
     icon: TerminalIcon,
     run,

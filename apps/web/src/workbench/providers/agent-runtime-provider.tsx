@@ -14,19 +14,8 @@ import { createInstalledAgentRuntime } from "./installed-agent-runtime";
 
 const WEB_APPLICATION_ID = "pi-workbench";
 
-function InstalledRuntimeContributions({
-  children,
-  runtimeConnection,
-}: WorkbenchRuntimeContributionsProviderProps) {
-  return (
-    <PiAgentRuntimeContributionsProvider
-      assets={{ fileViewerAssetBaseUrl: "/file-viewer/" }}
-      branding={{ piLogoUrl: "/pi-logo-on-light.svg", runtimeName: "Pi" }}
-      runtimeConnection={runtimeConnection}
-    >
-      {children}
-    </PiAgentRuntimeContributionsProvider>
-  );
+function InstalledRuntimeContributions({ children }: WorkbenchRuntimeContributionsProviderProps) {
+  return <PiAgentRuntimeContributionsProvider>{children}</PiAgentRuntimeContributionsProvider>;
 }
 
 /** Web selection point for the concrete Agent Runtime and its contribution bundle. */

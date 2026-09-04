@@ -1,11 +1,11 @@
 import type { DiffLine } from "@workbench/shell/elements";
-import type { FileDiffDescriptor } from "../../services/file-diff-service";
+import type { FileDiffDescriptor } from "@workbench/shell/workspace-files";
 export {
   MemoryFileDiffService,
   type FileDiffDescriptor,
   type FileDiffService,
   type FileDiffSnapshot,
-} from "../../services/file-diff-service";
+} from "@workbench/shell/workspace-files";
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" && !Array.isArray(value)

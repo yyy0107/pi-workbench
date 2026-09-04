@@ -163,6 +163,11 @@
       "import": "./src/workspace-file-tree/index.ts",
       "default": "./src/workspace-file-tree/index.ts"
     },
+    "./workspace-files": {
+      "types": "./src/workspace-files/index.ts",
+      "import": "./src/workspace-files/index.ts",
+      "default": "./src/workspace-files/index.ts"
+    },
     "./workspace-directory-store": {
       "types": "./src/workspace-directory-store.ts",
       "import": "./src/workspace-directory-store.ts",
@@ -191,7 +196,12 @@
     "@workbench/contracts": "workspace:*",
     "@workbench/extension-host": "workspace:*",
     "@workbench/extension-sdk": "workspace:*",
+    "@workbench/host-client": "workspace:*",
     "@workbench/host-contracts": "workspace:*",
+    "@workbench/terminal-client": "workspace:*",
+    "@workbench/terminal-contracts": "workspace:*",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

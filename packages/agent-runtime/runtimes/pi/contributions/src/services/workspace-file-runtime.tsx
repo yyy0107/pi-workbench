@@ -1,33 +1,22 @@
 "use client";
 
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 
-import { MemoryFileDiffService, type FileDiffService } from "./file-diff-service";
-import {
-  BufferedFileWorkspaceService,
-  type FileWorkspaceBackend,
-  type FileWorkspaceService,
-} from "./workspace-file-service";
-import {
-  usePiResourceClient,
-  type PiResourceClient,
-} from "@workbench/agent-runtime-pi-client/resources";
+import { usePiResourceClient } from "@workbench/agent-runtime-pi-client/resources";
 import { usePiWorkspaceClient } from "@workbench/agent-runtime-pi-client/workspace";
+import { useRuntimeConnection } from "@workbench/shell/runtime-connection";
+import {
+  MemoryFileDiffService,
+  WorkspaceFileRuntimeProvider,
+  type WorkspaceFileRuntime,
+} from "@workbench/shell/workspace-files";
 
-import { usePiRuntimeConnection } from "../public/runtime-connection-context";
+import { BufferedFileWorkspaceService, type FileWorkspaceBackend } from "./workspace-file-service";
 
-export interface WorkspaceFileRuntime {
-  readonly files: FileWorkspaceService;
-  readonly resources: PiResourceClient;
-  readonly diffs: FileDiffService;
-}
-
-const WorkspaceFileRuntimeContext = createContext<WorkspaceFileRuntime | null>(null);
-
-export function WorkspaceFileRuntimeProvider({ children }: Readonly<{ children: ReactNode }>) {
+export function PiWorkspaceFileRuntimeProvider({ children }: Readonly<{ children: ReactNode }>) {
   const workspace = usePiWorkspaceClient();
   const resources = usePiResourceClient();
-  const runtimeConnection = usePiRuntimeConnection();
+  const runtimeConnection = useRuntimeConnection();
   const backend = useMemo<FileWorkspaceBackend>(
     () => ({
       contentUrl: (payload) =>
@@ -47,20 +36,9 @@ export function WorkspaceFileRuntimeProvider({ children }: Readonly<{ children: 
     () =>
       Object.freeze({
         files: new BufferedFileWorkspaceService(backend),
-        resources,
         diffs: new MemoryFileDiffService(),
       }),
-    [backend, resources],
+    [backend],
   );
-  return (
-    <WorkspaceFileRuntimeContext.Provider value={runtime}>
-      {children}
-    </WorkspaceFileRuntimeContext.Provider>
-  );
-}
-
-export function useWorkspaceFileRuntime(): WorkspaceFileRuntime {
-  const runtime = useContext(WorkspaceFileRuntimeContext);
-  if (!runtime) throw new Error("WorkspaceFileRuntimeProvider is missing");
-  return runtime;
+  return <WorkspaceFileRuntimeProvider runtime={runtime}>{children}</WorkspaceFileRuntimeProvider>;
 }

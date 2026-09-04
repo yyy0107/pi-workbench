@@ -18,7 +18,7 @@ import {
   workspaceRelativePath,
   type FileNode,
 } from "../../services/workspace-file-service";
-import { useWorkspaceFileRuntime } from "../../services/workspace-file-runtime";
+import { useWorkspaceFileRuntime } from "@workbench/shell/workspace-files";
 
 import { fileBreadcrumbSegments, fileBreadcrumbTreeRootPath } from "./file-breadcrumb-model";
 import type { FileSurfaceParams } from "./file-surface";

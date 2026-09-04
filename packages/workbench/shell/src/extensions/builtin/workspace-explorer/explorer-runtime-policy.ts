@@ -1,10 +1,11 @@
 import type { WorkspaceContext, WorkspaceSurfaceInstance } from "@workbench/extension-sdk";
-import { scopeMatchesContext } from "@workbench/shell/right-workspace";
+
+import { scopeMatchesContext } from "../../../right-workspace";
 import {
   fileWorkspaceSessionKey,
   resolveFileWorkspaceSession,
   type FileWorkspaceSession,
-} from "../../services/workspace-file-service";
+} from "../../../workspace-files";
 
 export function activeFileWorkspaceSession(
   surface: WorkspaceSurfaceInstance | undefined,

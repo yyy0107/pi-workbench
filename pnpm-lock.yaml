@@ -549,36 +549,18 @@ importers:
       '@workbench/extension-sdk':
         specifier: workspace:*
         version: link:../../../../extension-platform/sdk
-      '@workbench/host-client':
-        specifier: workspace:*
-        version: link:../../../../workbench/host-client
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../../../workbench/host-contracts
       '@workbench/shell':
         specifier: workspace:*
         version: link:../../../../workbench/shell
-      '@workbench/terminal-client':
-        specifier: workspace:*
-        version: link:../../../../terminal/client
-      '@workbench/terminal-contracts':
-        specifier: workspace:*
-        version: link:../../../../terminal/contracts
-      '@xterm/addon-fit':
-        specifier: ^0.11.0
-        version: 0.11.0
-      '@xterm/xterm':
-        specifier: ^6.0.0
-        version: 6.0.0
       cronstrue:
         specifier: ^3.24.0
         version: 3.24.0
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
-      material-icon-theme:
-        specifier: ^5.37.0
-        version: 5.37.0
       shiki:
         specifier: 3.23.0
         version: 3.23.0
@@ -1036,9 +1018,24 @@ importers:
       '@workbench/extension-sdk':
         specifier: workspace:*
         version: link:../../extension-platform/sdk
+      '@workbench/host-client':
+        specifier: workspace:*
+        version: link:../host-client
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../host-contracts
+      '@workbench/terminal-client':
+        specifier: workspace:*
+        version: link:../../terminal/client
+      '@workbench/terminal-contracts':
+        specifier: workspace:*
+        version: link:../../terminal/contracts
+      '@xterm/addon-fit':
+        specifier: ^0.11.0
+        version: 0.11.0
+      '@xterm/xterm':
+        specifier: ^6.0.0
+        version: 6.0.0
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

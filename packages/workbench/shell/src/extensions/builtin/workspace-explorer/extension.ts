@@ -5,10 +5,7 @@ import {
   defineExtension,
   type WorkspaceSurfaceDefinition,
 } from "@workbench/extension-sdk";
-import {
-  fileWorkspaceSessionKey,
-  resolveFileWorkspaceSession,
-} from "../../services/workspace-file-service";
+import { fileWorkspaceSessionKey, resolveFileWorkspaceSession } from "../../../workspace-files";
 
 import { ExplorerRuntimeBridge } from "./explorer-runtime-bridge";
 import type { ExplorerSurfaceParams } from "./explorer-surface";

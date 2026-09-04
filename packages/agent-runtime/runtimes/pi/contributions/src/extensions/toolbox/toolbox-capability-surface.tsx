@@ -49,7 +49,7 @@ import { PiApiError } from "@workbench/agent-runtime-pi-client/errors";
 import { usePiHostDescription } from "@workbench/agent-runtime-pi-client/host";
 import { usePiResourceClient } from "@workbench/agent-runtime-pi-client/resources";
 import { usePiWorkspaces } from "@workbench/agent-runtime-pi-client/workspace";
-import { usePiFileWorkspaceTargetService } from "../../public/installation-services";
+import { useFileWorkspaceTargetService } from "@workbench/shell/workspace-files";
 
 import {
   toolboxDirectoryResource,
@@ -119,7 +119,7 @@ function officialPackageUrl(name: string, kind: "catalog" | "npm"): string {
 
 export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapabilitySurfaceParams }) {
   const { number, t } = usePiI18n();
-  const fileWorkspaceTargets = usePiFileWorkspaceTargetService();
+  const fileWorkspaceTargets = useFileWorkspaceTargetService();
   const resourceClient = usePiResourceClient();
   const opener = useOpenerService();
   const workspaceContext = useWorkspaceContext();

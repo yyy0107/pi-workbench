@@ -6,9 +6,9 @@ import type {
   RunningIndicatorDefinition,
   RunningIndicatorRenderProps,
 } from "@workbench/shell/running-indicator";
+import { useWorkbenchBranding } from "@workbench/shell/presentation";
 
 import { definePiMessage } from "../i18n";
-import { usePiContributionBranding } from "../public/assets-context";
 
 /** Persisted Pi activity styles from the former monolithic Workbench implementation. */
 export const PI_RUNNING_INDICATOR_STYLE_IDS = [
@@ -225,7 +225,7 @@ function PiLogoShine({
 }: Readonly<{ inverted: boolean } & RunningIndicatorRenderProps>) {
   const clipPathId = useId();
   const gradientId = useId();
-  const { piLogoUrl } = usePiContributionBranding();
+  const { productLogoUrl } = useWorkbenchBranding();
   const shineColor = inverted ? "#09090b" : "#ffffff";
 
   return (
@@ -251,7 +251,7 @@ function PiLogoShine({
         </linearGradient>
       </defs>
       <image
-        href={piLogoUrl}
+        href={productLogoUrl}
         x="0"
         y="0"
         width="800"

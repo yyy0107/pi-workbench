@@ -14,7 +14,7 @@ import {
   readPiWorkspaceFile,
   writePiWorkspaceFile,
 } from "@workbench/agent-runtime-pi-client/workspace";
-import { MemoryFileDiffService } from "../../services/file-diff-service";
+import { MemoryFileDiffService } from "@workbench/shell/workspace-files";
 import { BufferedFileWorkspaceService } from "../../services/workspace-file-service";
 
 import { createFileOpenHandlers } from "./file-opener";
