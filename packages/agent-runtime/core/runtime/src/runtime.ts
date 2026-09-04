@@ -10,6 +10,7 @@ import type { HostObservable } from "./observable";
 import type {
   CreateThreadOptions,
   CurrentSessionSnapshot,
+  ThreadListActions,
   ThreadListSnapshot,
 } from "./thread-manager";
 
@@ -50,8 +51,11 @@ export interface ConversationSession {
 export interface AgentRuntime {
   readonly threads: HostObservable<ThreadListSnapshot>;
   readonly current: HostObservable<CurrentSessionSnapshot>;
+  readonly threadActions: Readonly<Partial<ThreadListActions>>;
   session(id: string): ConversationSession | undefined;
   createThread(options?: CreateThreadOptions): Promise<string>;
+  /** Create and select a fresh local draft without allocating a remote conversation. */
+  createDraft(options?: CreateThreadOptions): string;
   switchToThread(id: string): void;
   switchToNewThread(): void;
 }

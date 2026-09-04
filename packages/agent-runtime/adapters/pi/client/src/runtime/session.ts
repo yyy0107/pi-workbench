@@ -113,7 +113,8 @@ import {
 import { PiMessageQueue, queueItemAppendMessage } from "../messages/queue";
 import { draftSessionModelSelection } from "../models/model-selection";
 import {
-  fetchProgressiveSessionHistory,
+  BACKFILL_SESSION_HISTORY_MESSAGES,
+  INITIAL_SESSION_HISTORY_MESSAGES,
   SessionHistoryPaginationError,
 } from "@workbench/agent-runtime-pi-shared/sessions";
 import { piHistoryFromSessionEvents, piPromptContent } from "../sessions/session-rpc-adapter";
@@ -458,6 +459,9 @@ export class PiClientSession implements ConversationSession {
   private conversationMessages: readonly ThreadMessage[] = [];
   private openTask?: Promise<void>;
   private reloadTask?: Promise<void>;
+  private loadOlderTask?: Promise<void>;
+  private loadedHistory?: SessionHistoryValue;
+  private historyHasMore = false;
   private historyRebaselineGeneration = 0;
   private lastSequence = -1;
   private promptRequestPending = false;
@@ -642,7 +646,7 @@ export class PiClientSession implements ConversationSession {
       editQueueItem: (key) => this.editQueueItem(key),
       mutateQueueItem: (key, mutation) => this.messageQueue.mutateItem(key, mutation),
       setQueuePaused: (paused) => this.messageQueue.setPaused(paused),
-      loadOlder: () => this.reload(),
+      loadOlder: () => this.loadOlder(),
     });
     this.messageQueue = new PiMessageQueue({
       isRunning: () => this.snapshotValue.isRunning,
@@ -695,6 +699,7 @@ export class PiClientSession implements ConversationSession {
         messages: this.conversationMessages,
         isLoading: this.snapshotValue.isLoading,
         isRunning: this.snapshotValue.isRunning,
+        hasMore: this.historyHasMore,
         composer: this.composerValue,
         branches: this.conversationBranches,
       },
@@ -859,6 +864,9 @@ export class PiClientSession implements ConversationSession {
     this.authoritativeMessageIdAliases.clear();
     this.openTask = undefined;
     this.reloadTask = undefined;
+    this.loadOlderTask = undefined;
+    this.loadedHistory = undefined;
+    this.historyHasMore = false;
     this.branchSwitchTask = undefined;
     this.pendingPromptRpcIds.clear();
     this.attachmentRecognitionSnapshots.clear();
@@ -908,11 +916,8 @@ export class PiClientSession implements ConversationSession {
     return this.openTask;
   }
 
-  async reload(hydrateContextTracePromptParts = false): Promise<void> {
-    if (this.disposed) return;
-    if (!this.remoteIdValue) return;
-    if (this.reloadTask) return this.reloadTask;
-    const remoteId = this.remoteIdValue;
+  private applyHistory(value: SessionHistoryValue, remoteId: string): void {
+    if (this.disposed || this.remoteIdValue !== remoteId) return;
     const liveMessageIdsAtStart = new Set(this.liveMessages.map((message) => message.id));
     const baseMessageIdsAtStart = new Set(this.baseMessages.map((message) => message.id));
     // A stream rebaseline can win the race with prompt persistence. Keep the
@@ -920,68 +925,130 @@ export class PiClientSession implements ConversationSession {
     const preserveUnpersistedOptimisticTurn =
       this.snapshotValue.isRunning || this.localRunLeaseActive;
     const streamingMessageAtStart = this.streamingMessage;
-    const hasPublishedBaseHistory = this.baseMessages.length > 0;
-    const applyHistory = (value: SessionHistoryValue) => {
-      if (this.disposed || this.remoteIdValue !== remoteId) return;
-      const history = piHistoryFromSessionEvents(remoteId, value);
-      const previousMessages = [
-        ...this.baseMessages,
-        ...this.liveMessages,
-        ...(this.streamingMessage ? [this.streamingMessage] : []),
-      ];
-      const projectedBaseMessages = mergePiContextTracePartsFromMessages(
-        this.stabilizeAuthoritativeMessageIds(
-          this.mergeAttachmentRecognitionHistory(
-            piHistoryToThreadMessages(history, this.messageTimingByTimestamp, this.toolTimingById, [
-              ...this.contextTracePromptParts.values(),
-            ]),
-          ),
-          baseMessageIdsAtStart,
+    const history = piHistoryFromSessionEvents(remoteId, value);
+    const previousMessages = [
+      ...this.baseMessages,
+      ...this.liveMessages,
+      ...(this.streamingMessage ? [this.streamingMessage] : []),
+    ];
+    const projectedBaseMessages = mergePiContextTracePartsFromMessages(
+      this.stabilizeAuthoritativeMessageIds(
+        this.mergeAttachmentRecognitionHistory(
+          piHistoryToThreadMessages(history, this.messageTimingByTimestamp, this.toolTimingById, [
+            ...this.contextTracePromptParts.values(),
+          ]),
         ),
-        previousMessages,
-      );
-      const authoritativeStreamingMessage =
-        streamingMessageAtStart?.role === "assistant"
-          ? projectedBaseMessages.find((message) =>
-              sameAssistantResponse(streamingMessageAtStart, message),
-            )
-          : undefined;
-      const branchState = this.messageRepositoryFromHistory(remoteId, value, projectedBaseMessages);
-      const baseMessages = branchState.activeMessages;
-      this.baseMessages = baseMessages;
-      this.baseMessageRepository = branchState.repository;
-      this.branchLeafByHeadMessageId = branchState.leafByHeadMessageId;
-      this.liveMessages = reconcileLiveMessagesAfterHistory(this.liveMessages, baseMessages, {
-        liveMessageIdsAtStart,
         baseMessageIdsAtStart,
-        preserveUnpersistedOptimisticUsers: preserveUnpersistedOptimisticTurn,
-      });
-      // Retain the in-memory placeholder while history has no completed copy. If journal history
-      // wins the race against the event stream, let its authoritative response take over with the
-      // aliased live id; keeping both copies would reshape Parts and remount the streaming text.
-      if (
-        this.streamingMessage === streamingMessageAtStart &&
-        (!preserveUnpersistedOptimisticTurn || authoritativeStreamingMessage)
-      ) {
-        this.streamingMessage = undefined;
-        if (authoritativeStreamingMessage) {
-          this.activeAssistantMessageId = undefined;
-          this.terminalResponseReceived = true;
-        }
+      ),
+      previousMessages,
+    );
+    const authoritativeStreamingMessage =
+      streamingMessageAtStart?.role === "assistant"
+        ? projectedBaseMessages.find((message) =>
+            sameAssistantResponse(streamingMessageAtStart, message),
+          )
+        : undefined;
+    const branchState = this.messageRepositoryFromHistory(remoteId, value, projectedBaseMessages);
+    const baseMessages = branchState.activeMessages;
+    this.baseMessages = baseMessages;
+    this.baseMessageRepository = branchState.repository;
+    this.branchLeafByHeadMessageId = branchState.leafByHeadMessageId;
+    this.loadedHistory = value;
+    this.historyHasMore = value.hasMore;
+    this.liveMessages = reconcileLiveMessagesAfterHistory(this.liveMessages, baseMessages, {
+      liveMessageIdsAtStart,
+      baseMessageIdsAtStart,
+      preserveUnpersistedOptimisticUsers: preserveUnpersistedOptimisticTurn,
+    });
+    // Retain the in-memory placeholder while history has no completed copy. If journal history
+    // wins the race against the event stream, let its authoritative response take over with the
+    // aliased live id; keeping both copies would reshape Parts and remount the streaming text.
+    if (
+      this.streamingMessage === streamingMessageAtStart &&
+      (!preserveUnpersistedOptimisticTurn || authoritativeStreamingMessage)
+    ) {
+      this.streamingMessage = undefined;
+      if (authoritativeStreamingMessage) {
+        this.activeAssistantMessageId = undefined;
+        this.terminalResponseReceived = true;
       }
-      const historySequence = value.events.at(-1)?.event.seq ?? -1;
-      if (!preserveUnpersistedOptimisticTurn || historySequence >= this.lastSequence) {
-        this.lastSequence = historySequence;
-      }
-      const autoRetry =
-        this.snapshotValue.isRunning && historySequence >= this.lastSequence
-          ? piAutoRetryFromHistory(value)
-          : this.snapshotValue.autoRetry;
-      this.publishMessages({ autoRetry, resumeCheckpoint: value.resume?.checkpoint }, "microtask");
-      if (authoritativeStreamingMessage?.status?.type === "complete") {
-        this.setRunning(false, false);
-      }
+    }
+    const historySequence = value.events.at(-1)?.event.seq ?? -1;
+    if (!preserveUnpersistedOptimisticTurn || historySequence >= this.lastSequence) {
+      this.lastSequence = historySequence;
+    }
+    const autoRetry =
+      this.snapshotValue.isRunning && historySequence >= this.lastSequence
+        ? piAutoRetryFromHistory(value)
+        : this.snapshotValue.autoRetry;
+    this.publishMessages({ autoRetry, resumeCheckpoint: value.resume?.checkpoint }, "microtask");
+    if (authoritativeStreamingMessage?.status?.type === "complete") {
+      this.setRunning(false, false);
+    }
+  }
+
+  private mergeOlderHistory(page: SessionHistoryValue): SessionHistoryValue {
+    const current = this.loadedHistory;
+    if (!current) return page;
+    const knownEntryIds = new Set(
+      current.events.flatMap(({ event }) => (event.entryId ? [event.entryId] : [])),
+    );
+    const knownSequences = new Set(current.events.map(({ event }) => event.seq));
+    const olderEvents = page.events.filter(({ event }) =>
+      event.entryId ? !knownEntryIds.has(event.entryId) : !knownSequences.has(event.seq),
+    );
+    return {
+      ...page,
+      ...current,
+      events: [...olderEvents, ...current.events],
+      hasMore: page.hasMore,
     };
+  }
+
+  private async loadOlder(): Promise<void> {
+    if (this.disposed || !this.remoteIdValue) return;
+    if (this.reloadTask) await this.reloadTask;
+    if (this.disposed || !this.remoteIdValue) return;
+    if (!this.historyHasMore || !this.loadedHistory) return;
+    if (this.loadOlderTask) return this.loadOlderTask;
+    const remoteId = this.remoteIdValue;
+    const beforeSeq = this.loadedHistory.events[0]?.event.seq;
+    if (beforeSeq === undefined) throw new SessionHistoryPaginationError();
+    const task = fetchPiRpcSessionHistory(
+      { sessionId: remoteId, beforeSeq, maxMessages: BACKFILL_SESSION_HISTORY_MESSAGES },
+      this.manager.rpcTransportOptions,
+    )
+      .then((page) => {
+        if (this.disposed || this.remoteIdValue !== remoteId) return;
+        const nextBeforeSeq = page.events[0]?.event.seq;
+        if (page.hasMore && (nextBeforeSeq === undefined || nextBeforeSeq >= beforeSeq)) {
+          throw new SessionHistoryPaginationError();
+        }
+        this.applyHistory(this.mergeOlderHistory(page), remoteId);
+      })
+      .catch((error) => {
+        if (error instanceof SessionHistoryPaginationError) {
+          throw new PiApiError("pi_rpc_invalid_response", 200, {
+            method: "session.history",
+          });
+        }
+        throw error;
+      })
+      .finally(() => {
+        if (this.loadOlderTask === task) this.loadOlderTask = undefined;
+      });
+    this.loadOlderTask = task;
+    return task;
+  }
+
+  async reload(hydrateContextTracePromptParts = false): Promise<void> {
+    if (this.disposed) return;
+    if (!this.remoteIdValue) return;
+    if (this.reloadTask) return this.reloadTask;
+    if (this.loadOlderTask) await this.loadOlderTask;
+    if (this.disposed || !this.remoteIdValue) return;
+    if (this.reloadTask) return this.reloadTask;
+    const remoteId = this.remoteIdValue;
     const promptPartsTask = hydrateContextTracePromptParts
       ? fetchPiRpcSessionContextTracePromptParts(
           { sessionId: remoteId },
@@ -1009,27 +1076,25 @@ export class PiClientSession implements ConversationSession {
             console.error("[workbench-pi] context trace prompt hydration failed", error);
           })
       : Promise.resolve();
-    const historyTask = fetchProgressiveSessionHistory(
-      remoteId,
-      (payload) => fetchPiRpcSessionHistory(payload, this.manager.rpcTransportOptions),
+    const historyTask = fetchPiRpcSessionHistory(
       {
-        onInitialPage: (history) => {
-          if (this.disposed) return;
-          // A paginated first page is only a tail of the conversation. It is useful for the
-          // initial paint, but replacing an already-published history with that tail briefly
-          // removes every older row and collapses the scroll range until backfill completes.
-          // Keep the complete, visible history during refreshes and swap in the new complete
-          // snapshot atomically once pagination finishes.
-          if (!hasPublishedBaseHistory || !history.hasMore) applyHistory(history);
-          if (this.snapshotValue.isLoading) this.replaceSnapshot({ isLoading: false });
-        },
+        sessionId: remoteId,
+        maxMessages: Math.max(
+          INITIAL_SESSION_HISTORY_MESSAGES,
+          this.loadedHistory?.events.length ?? this.baseMessages.length,
+        ),
       },
-    );
+      this.manager.rpcTransportOptions,
+    ).then((history) => {
+      this.applyHistory(history, remoteId);
+      if (this.snapshotValue.isLoading) this.replaceSnapshot({ isLoading: false });
+      return history;
+    });
     this.reloadTask = Promise.all([historyTask, promptPartsTask])
       .then(([history]) => {
-        // The initial page paints without waiting for journal replay. Reapply the final history
-        // once prompt summaries are ready so only durable prompt-composition Parts are hydrated.
-        applyHistory(history);
+        // Reapply after prompt summaries are ready so only durable prompt-composition Parts are
+        // hydrated into the canonical message projection.
+        this.applyHistory(history, remoteId);
       })
       .catch((error) => {
         if (error instanceof SessionHistoryPaginationError) {

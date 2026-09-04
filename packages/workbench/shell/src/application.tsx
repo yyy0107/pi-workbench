@@ -1,6 +1,5 @@
 "use client";
 
-import { useAuiState } from "@assistant-ui/react";
 import {
   createContext,
   useCallback,
@@ -15,8 +14,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { readAgentThreadWorkspace } from "@workbench/agent-runtime-client/extras";
-import { useWorkbenchAgentThreadSnapshot } from "@workbench/agent-runtime-client/context";
+import { useCurrentSession, useThreadList } from "@workbench/agent-runtime-client";
 import {
   WorkbenchAgentRuntimeInstallationHost,
   type WorkbenchAgentRuntimeInstallation,
@@ -24,6 +22,7 @@ import {
 import type { PromptFeedbackPort } from "@workbench/agent-runtime-client/prompt-feedback";
 import {
   useWorkspaceCapabilities,
+  useWorkspaceSelection,
   type WorkbenchWorkspaceDirectoryStorePort,
 } from "@workbench/agent-runtime-client/workspaces";
 import { useExtensionErrorReporter, useMainViewService } from "@workbench/extension-host";
@@ -311,8 +310,9 @@ export function ActiveWorkspaceRuntimeBindings({
 function NewThreadWorkspaceLayoutTracker() {
   const controller = useRightWorkspace();
   const hydrated = useRightWorkspaceState((state) => state.hydrated);
-  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
-  const newThreadId = useAuiState((state) => state.threads.newThreadId);
+  const current = useCurrentSession();
+  const mainThreadId = current.sessionId;
+  const newThreadId = current.isNewThread ? current.sessionId : undefined;
   const handledNewThreadIds = useRef(new Set<string>());
 
   useLayoutEffect(() => {
@@ -337,15 +337,14 @@ function NewThreadWorkspaceLayoutTracker() {
 }
 
 function useActiveConversationWorkspace(applicationId: string) {
-  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
-  const mainThread = useAuiState((state) =>
-    state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId),
+  const current = useCurrentSession();
+  const mainThreadId = current.sessionId;
+  const threadScopeId = current.threadId ?? current.sessionId;
+  const thread = useThreadList((snapshot) =>
+    snapshot.threads.find((item) => item.threadId === current.threadId),
   );
-  const runtimeThreadId = useAuiState((state) => state.threadListItem.id);
-  const runtimeWorkspace = useAuiState((state) => readAgentThreadWorkspace(state.thread.extras));
-  const workspace = runtimeThreadId === mainThreadId ? runtimeWorkspace : undefined;
-  const threadScopeId = mainThread?.remoteId ?? mainThread?.externalId ?? mainThreadId;
-  const threadSnapshot = useWorkbenchAgentThreadSnapshot(threadScopeId);
+  const { draftWorkspace } = useWorkspaceSelection();
+  const workspace = current.isNewThread ? draftWorkspace : thread?.workspace;
   const workspaceId = workspace?.id;
   const rootPath = workspace?.rootPath;
   const context = useMemo(
@@ -360,7 +359,7 @@ function useActiveConversationWorkspace(applicationId: string) {
 
   return {
     context,
-    isPinned: threadSnapshot.isPinned,
+    isPinned: thread?.isPinned ?? false,
     mainThreadId,
     threadScopeId,
     workspaceId,

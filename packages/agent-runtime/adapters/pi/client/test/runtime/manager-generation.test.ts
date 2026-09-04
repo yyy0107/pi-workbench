@@ -1391,9 +1391,7 @@ test("persists conversation and workspace pins through workspace RPC", async (t)
     sessionIds: ["remote-session"],
   });
 
-  const updateCustom = manager.createThreadListAdapter().updateCustom;
-  assert.ok(updateCustom);
-  await updateCustom("remote-session", { piPinned: true });
+  await manager.threadActions.setPinned("remote-session", true);
   await manager.setWorkspacePinned("workspace-1", true);
 
   assert.deepEqual(requests, [
@@ -1928,7 +1926,7 @@ test("publishes a complete optimistic turn and running state in one session snap
   });
 });
 
-test("keeps complete visible history while a paginated refresh backfills older messages", async (t) => {
+test("loads one older history page only after the Headless Session action is requested", async (t) => {
   const originalFetch = globalThis.fetch;
   let releaseBackfill: (() => void) | undefined;
   const backfillGate = new Promise<void>((resolve) => {
@@ -1978,37 +1976,27 @@ test("keeps complete visible history while a paginated refresh backfills older m
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
-  const internals = session as unknown as {
-    baseMessages: import("@assistant-ui/react").ThreadMessage[];
-    publishMessages(): void;
-  };
-  internals.baseMessages = Array.from({ length: 12 }, (_, seq) => ({
-    id: `pi-event-${seq}`,
-    role: "user" as const,
-    content: [{ type: "text" as const, text: String(seq) }],
-    attachments: [],
-    createdAt: new Date(seq),
-    metadata: { custom: { piEntryId: `pi-event-${seq}` } },
-  }));
-  internals.publishMessages();
-
   const publishedCounts: number[] = [];
   const unsubscribe = session.subscribe(() => {
     publishedCounts.push(session.getSnapshot().messages.length);
   });
   t.after(unsubscribe);
 
-  const reload = session.reload();
+  await session.reload();
+  assert.equal(session.getSnapshot().messages.length, 2);
+  assert.equal(session.snapshot.getSnapshot().hasMore, true);
+  assert.ok(publishedCounts.length > 0);
+  assert.ok(publishedCounts.every((count) => count === 2));
+
+  const loadOlder = session.actions.loadOlder?.();
+  assert.ok(loadOlder);
   await backfillStarted;
-
-  assert.equal(session.getSnapshot().messages.length, 12);
-  assert.ok(publishedCounts.every((count) => count === 12));
-
+  assert.equal(session.getSnapshot().messages.length, 2);
   releaseBackfill?.();
-  await reload;
+  await loadOlder;
 
   assert.equal(session.getSnapshot().messages.length, 12);
-  assert.ok(publishedCounts.every((count) => count === 12));
+  assert.equal(session.snapshot.getSnapshot().hasMore, false);
 });
 
 test("keeps the optimistic assistant placeholder through a running history rebaseline", async (t) => {

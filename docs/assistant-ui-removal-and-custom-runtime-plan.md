@@ -1,6 +1,6 @@
 # Workbench 移除 assistant-ui 与自有会话 Runtime 迁移计划
 
-状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1–5 已完成，下一步进入 Phase 6（2026-09-03）
+状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1–6 已完成，下一步进入 Phase 7（2026-09-03）
 
 ## 0. 决策摘要
 
@@ -922,8 +922,9 @@ Shell 消息区域开始按 vertical slice 消费这些 hooks。
 主会话与 Side Chat 共用 bottom-follow、用户滚动锁、prepend scroll-height anchor，并复用现有
 `ThreadScrollState` 持久化位置。外层 Message root primitive 同步删除。
 
-当前 assistant-ui 兼容入口只继续承担 Phase 6 的 Thread List/Current Session 路由，以及 Phase 7 前的
-扩展 renderer/message presentation scope；后续切片在原位删除这些兼容调用，不建立第二套 store。
+当前 assistant-ui 兼容入口只继续承担 Phase 7 前的扩展 renderer/message presentation scope；Thread
+List、Current Session 和路由已在 Phase 6 改读 Headless Runtime。后续切片在原位删除剩余兼容调用，
+不建立第二套 store。
 
 ### Phase 5：Composer、附件和消息 Actions（已完成，2026-09-03）
 
@@ -959,7 +960,7 @@ Shell 消息区域开始按 vertical slice 消费这些 hooks。
 本阶段没有迁移 Thread List、Current Session 路由或剩余 extension renderer compatibility；这些分别
 留给 Phase 6 和 Phase 7。
 
-### Phase 6：Thread List、Current Session 和路由
+### Phase 6：Thread List、Current Session 和路由（已完成，2026-09-03）
 
 工作：
 
@@ -975,6 +976,26 @@ Shell 消息区域开始按 vertical slice 消费这些 hooks。
 - 后台线程继续接收运行、审批和完成事件；
 - 切换线程不重复创建 Session/连接；
 - URL、桌面恢复和首次发送流程与基线一致。
+
+执行切片：
+
+| 切片 | 状态                 | 变更范围                                                                                                             | 最小验证                                                          |
+| ---- | -------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 6A   | 已完成（2026-09-03） | 扩展 Headless thread catalog/current 契约，增加 durable `threadId`、draft identity 和 catalog actions                | Core Runtime/Client/Testkit typecheck、Testkit 17 项测试          |
+| 6B   | 已完成（2026-09-03） | `PiSessionManager` 接管 draft promotion、current selection、CRUD、pin、workspace 排序和后台目录状态                  | Pi Client typecheck、draft/background/Session reuse 专项测试      |
+| 6C   | 已完成（2026-09-03） | Sidebar、Header、Archived Chats、route sync 和 workspace picker 改读 Headless Runtime，生产入口移除远程线程列表 Host | Shell 365 项、Pi Contributions 226 项测试                         |
+| 6D   | 已完成（2026-09-03） | 首屏历史改为尾页加载，并由原生 viewport 到顶显式调用 `ConversationSession.actions.loadOlder()`                       | 分页、并发复用、prepend anchor 专项测试；受影响 package typecheck |
+
+本阶段把本地稳定 `sessionId` 与持久化 `threadId` 明确分离：草稿首次发送晋升时继续复用同一个
+`PiClientSession`，只为当前选择补充 durable route identity，避免消息子树重挂载或建立第二条连接。生产
+Provider 现在由 `RuntimeProvider` 安装唯一 manager；assistant-ui Provider 只包裹当前 Session 的临时消息/
+renderer 投影，不再拥有 thread catalog、current selection 或 draft promotion。
+
+Sidebar、Header、归档设置和 Pi 的 Workspace、Git、Terminal、Model、Token Usage、Side Chat 线程身份均
+改读 `useThreadList`/`useCurrentSession`；create/switch/rename/archive/unarchive/delete、pin 和 workspace
+排序只调用 Headless Runtime 稳定方法。后台 host/mux 事件继续直接更新 manager catalog，完成标记在切入
+线程时清除，重复切换返回同一个 Session。路由只接受 catalog 中的 durable id，首页草稿在乐观用户 Node
+和 durable id 同时出现后一次性 replace URL，保留桌面恢复和首次发送时序。
 
 ### Phase 7：Extension SDK、Host 和 Pi Contributions
 

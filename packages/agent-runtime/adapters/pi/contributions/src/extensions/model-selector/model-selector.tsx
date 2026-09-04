@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useAui, useAuiState } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
+import { useCurrentSession } from "@workbench/agent-runtime-client";
 import { ModelSelector as ModelSelectorControl } from "@workbench/shell/ui";
 import { useI18n } from "@workbench/shell/i18n";
 import { usePiI18n } from "../../i18n";
@@ -84,8 +85,9 @@ export function ModelSelector() {
   const { t: tShell } = useI18n();
   const configurationClient = usePiConfigurationClient();
   const sessionClient = usePiModelSessionClient();
-  const localThreadId = useAuiState((state) => state.threadListItem.id);
-  const remoteId = useAuiState((state) => state.threadListItem.remoteId);
+  const current = useCurrentSession();
+  const localThreadId = current.sessionId ?? "unbound";
+  const remoteId = current.threadId;
   const contextPolicy = useSessionContextPolicy(remoteId);
   const draftModelId = useModelSelectorStore(
     (state) => state.draftSelections[localThreadId]?.modelId,

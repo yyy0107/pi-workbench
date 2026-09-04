@@ -28,6 +28,13 @@ export {
 } from "./hooks";
 export { RuntimeProvider } from "./runtime-provider";
 export { SessionProvider, type SessionProviderProps } from "./session-provider";
+export type {
+  CurrentSessionSnapshot,
+  ThreadListActions,
+  ThreadListItem,
+  ThreadListMove,
+  ThreadListSnapshot,
+} from "@workbench/agent-runtime-core";
 export {
   createWorkbenchParallelToolPresentationMetadata,
   createWorkbenchReasoningPresentationMetadata,

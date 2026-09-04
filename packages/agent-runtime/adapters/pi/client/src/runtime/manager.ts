@@ -7,6 +7,7 @@ import type {
   CreateThreadOptions,
   CurrentSessionSnapshot,
   HostObservable,
+  ThreadListActions,
   ThreadListItem,
   ThreadListSnapshot,
 } from "@workbench/agent-runtime-core";
@@ -244,6 +245,7 @@ export class PiSessionManager implements AgentRuntime {
   readonly connections: PiConnectionController;
   readonly threads: HostObservable<ThreadListSnapshot>;
   readonly current: HostObservable<CurrentSessionSnapshot>;
+  readonly threadActions: Readonly<ThreadListActions>;
   readonly modelCatalogInvalidation = new PiModelCatalogInvalidation();
   readonly resourceCatalogRevision = new PiResourceCatalogRevision();
   readonly packageUpdatesQuery: PiPackageUpdatesQuery;
@@ -345,6 +347,16 @@ export class PiSessionManager implements AgentRuntime {
       getSnapshot: () => this.getRuntimeCurrentSnapshot(),
       subscribe: (listener: Listener) => this.subscribeActiveSession(listener),
     });
+    this.threadActions = Object.freeze({
+      rename: (threadId, title) => this.renameThread(threadId, title),
+      archive: (threadId) => this.setThreadArchived(threadId, true),
+      unarchive: (threadId) => this.setThreadArchived(threadId, false),
+      delete: (threadId) => this.deleteThread(threadId),
+      setPinned: (threadId, pinned) => this.setThreadPinned(threadId, pinned),
+      moveWithinWorkspace: ({ workspaceId, threadId, beforeThreadId }) =>
+        this.moveWorkspaceSessionBefore(workspaceId, threadId, beforeThreadId),
+    } satisfies ThreadListActions);
+    this.createDraft();
   }
 
   getSnapshot = (): number => this.revision;
@@ -379,14 +391,20 @@ export class PiSessionManager implements AgentRuntime {
 
   private getRuntimeCurrentSnapshot(): CurrentSessionSnapshot {
     const sessionId = this.activeLocalId;
+    const threadId = this.activeRemoteId;
     const isNewThread = this.activeRemoteId === undefined;
     if (
       this.runtimeCurrentSnapshot.sessionId === sessionId &&
+      this.runtimeCurrentSnapshot.threadId === threadId &&
       this.runtimeCurrentSnapshot.isNewThread === isNewThread
     ) {
       return this.runtimeCurrentSnapshot;
     }
-    this.runtimeCurrentSnapshot = Object.freeze({ sessionId, isNewThread });
+    this.runtimeCurrentSnapshot = Object.freeze({
+      sessionId,
+      ...(threadId === undefined ? {} : { threadId }),
+      isNewThread,
+    });
     return this.runtimeCurrentSnapshot;
   }
 
@@ -552,6 +570,9 @@ export class PiSessionManager implements AgentRuntime {
         isRunning: metadata.running,
         isWaitingForInput: metadata.waitingForUserInput,
         hasUnreadCompletion: metadata.completed,
+        ...(metadata.automationOrigin === undefined
+          ? {}
+          : { origin: { kind: metadata.automationOrigin.origin } }),
         ...(workspace
           ? {
               workspace: {
@@ -1218,6 +1239,7 @@ export class PiSessionManager implements AgentRuntime {
   }
 
   async createThread(options: CreateThreadOptions = {}): Promise<string> {
+    const previousDraftId = this.activeDraftId();
     await this.start();
     const created = await createPiRpcSession(
       {
@@ -1229,17 +1251,48 @@ export class PiSessionManager implements AgentRuntime {
     await this.refreshMetadata();
     this.getSession(created.sessionId, created.sessionId);
     this.setActive(created.sessionId, created.sessionId);
+    if (previousDraftId) this.disposeDraft(previousDraftId);
     return created.sessionId;
+  }
+
+  createDraft(options: CreateThreadOptions = {}): string {
+    if (this.disposed) throw new Error("PiSessionManager has been disposed");
+    const previousDraftId = this.activeDraftId();
+    const localId = createClientMessageId("pi-thread");
+    const workspace = options.workspaceId ? this.workspaces.get(options.workspaceId) : undefined;
+    if (workspace) {
+      this.draftWorkspaces.set(localId, {
+        id: workspace.workspaceId,
+        name: workspace.title,
+        cwd: workspace.path,
+        pinned: this.pinnedWorkspaces.has(workspace.workspaceId),
+      });
+    }
+    this.getSession(localId);
+    this.setActive(localId, undefined);
+    if (previousDraftId) this.disposeDraft(previousDraftId);
+    return localId;
   }
 
   switchToThread(id: string): void {
     const session = this.session(id);
     if (!session) throw new Error(`Unknown Pi Session: ${id}`);
+    const previousDraftId = session.id === this.activeLocalId ? undefined : this.activeDraftId();
     this.setActive(session.id, session.remoteId);
+    if (previousDraftId) this.disposeDraft(previousDraftId);
   }
 
   switchToNewThread(): void {
-    this.setActive(undefined, undefined);
+    if (this.activeLocalId && this.activeRemoteId === undefined) return;
+    this.createDraft();
+  }
+
+  private activeDraftId(): string | undefined {
+    return this.activeLocalId && this.activeRemoteId === undefined ? this.activeLocalId : undefined;
+  }
+
+  private disposeDraft(localId: string): void {
+    if (this.sessions.get(localId)?.remoteId === undefined) this.disposeCachedSession(localId);
   }
 
   async ensureRemote(session: PiClientSession): Promise<PiSessionSummary> {
@@ -1373,6 +1426,7 @@ export class PiSessionManager implements AgentRuntime {
           this.archived.delete(existingId);
           this.pinned.delete(existingId);
         }
+        if (!this.activeLocalId && !this.disposed) this.createDraft();
         this.summaries.clear();
         for (const summary of next.values()) {
           this.summaries.set(summary.id, summary);
@@ -1719,6 +1773,26 @@ export class PiSessionManager implements AgentRuntime {
     }
   }
 
+  async renameThread(threadId: string, title: string): Promise<void> {
+    const sessionId = this.aliases.get(threadId) ?? threadId;
+    await renamePiRpcSession({ sessionId, title }, this.rpcTransportOptions);
+    const summary = this.summaries.get(sessionId);
+    if (summary && this.setSummary({ ...summary, name: title })) this.notify();
+  }
+
+  async setThreadArchived(threadId: string, archived: boolean): Promise<void> {
+    const sessionId = this.aliases.get(threadId) ?? threadId;
+    await this.setSessionArchivedMetadata(sessionId, archived);
+  }
+
+  async deleteThread(threadId: string): Promise<void> {
+    const sessionId = this.aliases.get(threadId) ?? threadId;
+    await deletePiRpcSession({ sessionId }, this.rpcTransportOptions);
+    this.removeSessionMetadata(sessionId);
+    this.notify();
+    this.notifyThreadListIfStructureChanged();
+  }
+
   private async archiveSessionMetadata(sessionId: string): Promise<void> {
     return this.setSessionArchivedMetadata(sessionId, true);
   }
@@ -1902,9 +1976,9 @@ export class PiSessionManager implements AgentRuntime {
     const queue = this.pendingQueues.get(summary.id);
     if (queue) session.applyQueueSnapshot(queue);
     this.notify();
-    // RemoteThreadListAdapter.initialize() owns the local-to-remote promotion. Record the
-    // resulting structure without pulling it back into the list as a duplicate remote item.
-    this.acknowledgeThreadListStructure();
+    // The Headless Runtime owns draft promotion. Compatibility consumers observe the resulting
+    // catalog invalidation instead of maintaining a second promotion state machine.
+    this.notifyThreadListIfStructureChanged();
   }
 
   private readonly applyRunningSnapshot = (
@@ -2133,6 +2207,10 @@ export class PiSessionManager implements AgentRuntime {
   }
 
   private removeSessionMetadata(sessionId: string): void {
+    const activeSessionRemoved =
+      this.activeRemoteId === sessionId ||
+      this.activeLocalId === sessionId ||
+      this.aliases.get(this.activeLocalId ?? "") === sessionId;
     this.disposeCachedSession(sessionId);
     this.deleteSummary(sessionId);
     this.running.delete(sessionId);
@@ -2152,6 +2230,7 @@ export class PiSessionManager implements AgentRuntime {
         sessionIds: workspace.sessionIds.filter((id) => id !== sessionId),
       });
     }
+    if (activeSessionRemoved && !this.disposed) this.createDraft();
   }
 
   /** Forget a Runtime-only identity without treating it as a catalog deletion. */

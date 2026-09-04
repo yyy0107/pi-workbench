@@ -3,10 +3,19 @@ import test from "node:test";
 
 import {
   conversationViewportAtBottom,
+  conversationViewportAtTop,
   nextConversationViewportScrollTop,
 } from "./workbench-conversation-viewport";
 
 test("native conversation scrolling follows the bottom, respects user lock, and anchors prepends", () => {
+  assert.equal(
+    conversationViewportAtTop({ clientHeight: 300, scrollHeight: 900, scrollTop: 32 }),
+    true,
+  );
+  assert.equal(
+    conversationViewportAtTop({ clientHeight: 300, scrollHeight: 900, scrollTop: 33 }),
+    false,
+  );
   assert.equal(
     conversationViewportAtBottom({ clientHeight: 300, scrollHeight: 900, scrollTop: 598 }),
     true,

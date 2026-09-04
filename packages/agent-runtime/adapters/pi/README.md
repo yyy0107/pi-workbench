@@ -26,8 +26,10 @@ Automation 的定义、存储和调度位于
 
 ```mermaid
 flowchart TD
-  UI["Browser / Workbench UI"] --> PORT["WorkbenchAgentRuntimeAdapter"]
-  PORT --> CM["PiSessionManager / PiClientSession"]
+  UI["Browser / Workbench UI"] --> HEADLESS["Workbench AgentRuntime / Session"]
+  HEADLESS --> CM["PiSessionManager / PiClientSession"]
+  UI -.->|"temporary renderer compatibility"| PORT["WorkbenchAgentRuntimeAdapter"]
+  PORT --> CM
   CM --> ASSEMBLER["Pi Conversation Assembler"]
   ASSEMBLER --> SNAPSHOT["Workbench ConversationSnapshot"]
   CM --> COMPAT["assistant-ui compatibility projection"]
@@ -1167,9 +1169,11 @@ packages/agent-runtime/adapters/pi/
   每个 `PiClientSession` 是其会话 history、live、optimistic、重连和交互状态的唯一可变所有者；这些输入
   共用 `PiConversationMessage` canonical state，并由 `PiConversationAssembler` 生成稳定的 Workbench
   Conversation Snapshot 和 per-node observable。`PiSessionManager` 同时通过稳定 observable 暴露通用
-  `AgentRuntime` 的 thread catalog、current selection 和同一 Session cache；`assistant-ui/` 只保留从
-  同一 Session 派生的只读兼容投影及当前安装边界。Provider 将同一个 manager 同时安装到
-  `RuntimeProvider` 与旧 Host，不建立第二个 reducer、连接、SessionManager 或消息 store。该 package
+  `AgentRuntime` 的 thread catalog、current selection、catalog actions 和同一 Session cache；本地
+  `sessionId` 在 draft promotion 前后保持稳定，晋升后的 durable `threadId` 独立用于路由。`assistant-ui/`
+  只保留从当前 Session 派生的只读消息/renderer 兼容投影。Provider 以 `RuntimeProvider` 安装唯一
+  manager，再把同一当前 Session 投影给临时兼容 Provider，不建立第二个 reducer、连接、SessionManager
+  或消息 store。该 package
   还拥有后台 thread presentation、通用 extras 和 callback 映射，以及 Pi manager、命令目录、workspace
   selection 与 active/draft tracker 的浏览器侧安装生命周期；通用
   `@workbench/agent-runtime-client` 不得反向导入 Pi。内部 `thread-store.ts` 直接包装 manager 已有逐线程订阅并将
@@ -1181,9 +1185,9 @@ packages/agent-runtime/adapters/pi/
   `PiAgentRuntimeProvider`；manager 和 adapter 仍在 Provider 内创建。
   `apps/web/src/workbench/providers/installed-agent-runtime.tsx` 是当前唯一 Web 具体实现选择点，使用 singular factory 选择
   Pi；`assistant-runtime-provider.tsx` 只挂载结果并安装后端无关 Surface 桥接；
-- Pi client package 内部的 `PiSessionManager` 维护独立的 thread-list 结构 revision。只有会话成员、归档状态
-  或排序变化才通知通用 Runtime；初始 list 和同一浏览器的 draft promotion 只更新结构基线，避免宽泛
-  manager 状态触发重复 reload 或重复 remote item；
+- Pi client package 内部的 `PiSessionManager` 维护独立的 thread-list 结构 revision。会话成员、归档状态
+  或排序变化会通知 Headless catalog；metadata、running、waiting 和 completed 通过同一 manager revision
+  更新。draft promotion 复用原 Session 并发布一次 durable identity，不产生重复 remote item；
 - `server` 可以依赖 Pi protocol/shared packages，不得导入 Pi client package。Node/Pi Runtime、凭据、信任和
   文件系统逻辑只留在这里；
 - `server/src/agent-runtime` 实现 `@workbench/agent-runtime-server` 的后端无关执行与线程存储端口，把 `threadId`、

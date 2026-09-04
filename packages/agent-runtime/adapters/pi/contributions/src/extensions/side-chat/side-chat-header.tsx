@@ -1,6 +1,5 @@
 "use client";
 
-import { useAui } from "@assistant-ui/react";
 import { ArrowUpRightIcon, LoaderCircleIcon, MessagesSquareIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -18,7 +17,6 @@ import type { SideChatSurfaceParams } from "./side-chat-workspace";
 
 export function SideChatHeader({ surface }: WorkspaceSurfaceProps<SideChatSurfaceParams>) {
   const { t } = usePiI18n();
-  const aui = useAui();
   const controller = useRightWorkspace();
   const navigation = useWorkbenchNavigation();
   const manager = usePiSideChatClient();
@@ -45,10 +43,9 @@ export function SideChatHeader({ surface }: WorkspaceSurfaceProps<SideChatSurfac
           setPending(true);
           void manager
             .promoteScratchSession({ sessionId: surface.params.scratchSessionId })
-            .then(async (promoted) => {
+            .then((promoted) => {
               markScratchSessionPromoted(manager, surface.params.scratchSessionId);
               controller.close(surface.id);
-              await aui.threads.reload();
               openPromotedSideChatConversation(navigation, promoted.sessionId);
             })
             .catch((error: unknown) => {

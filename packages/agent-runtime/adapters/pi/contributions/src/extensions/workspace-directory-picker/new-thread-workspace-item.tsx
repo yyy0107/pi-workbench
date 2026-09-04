@@ -1,9 +1,10 @@
 "use client";
 
-import { ThreadListPrimitive } from "@assistant-ui/react";
 import { PlusIcon } from "lucide-react";
 
 import { Button } from "@workbench/shell/ui";
+import { useAgentRuntime } from "@workbench/agent-runtime-client";
+import { useNavigationService } from "@workbench/extension-host";
 import { usePiI18n } from "../../i18n";
 import {
   useWorkspaceCapabilities,
@@ -13,6 +14,8 @@ import { preferredNewThreadWorkspaceId } from "@workbench/shell/new-thread-polic
 
 export function NewThreadWorkspaceItem() {
   const { t } = usePiI18n();
+  const runtime = useAgentRuntime();
+  const navigation = useNavigationService();
   const { activeWorkspaceId, workspaces } = useWorkspaceSelection();
   const targetWorkspaceId = preferredNewThreadWorkspaceId(
     activeWorkspaceId,
@@ -21,21 +24,19 @@ export function NewThreadWorkspaceItem() {
   const { beginNewThread, destroyNewThread } = useWorkspaceCapabilities();
 
   return (
-    <ThreadListPrimitive.New
-      asChild
+    <Button
+      type="button"
+      variant="ghost"
+      className="hover:bg-sidebar-accent data-active:bg-sidebar-accent h-9 w-full justify-start gap-2 rounded-lg px-3 text-sm font-medium"
       onClick={() => {
         if (targetWorkspaceId) beginNewThread(targetWorkspaceId);
         else destroyNewThread();
+        runtime.createDraft(targetWorkspaceId ? { workspaceId: targetWorkspaceId } : undefined);
+        navigation.newThread();
       }}
     >
-      <Button
-        type="button"
-        variant="ghost"
-        className="hover:bg-sidebar-accent data-active:bg-sidebar-accent h-9 w-full justify-start gap-2 rounded-lg px-3 text-sm font-medium"
-      >
-        <PlusIcon className="size-4" />
-        {t("extensions.workspaceDirectory.newThread")}
-      </Button>
-    </ThreadListPrimitive.New>
+      <PlusIcon className="size-4" />
+      {t("extensions.workspaceDirectory.newThread")}
+    </Button>
   );
 }

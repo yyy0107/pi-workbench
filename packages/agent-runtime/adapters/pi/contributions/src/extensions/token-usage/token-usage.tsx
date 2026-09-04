@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
+import { useCurrentSession } from "@workbench/agent-runtime-client";
 import {
   ChevronDownIcon,
   ChevronRightIcon,
@@ -216,7 +217,7 @@ function useAnimatedTokenStatistics(
 function ThreadTokenUsage() {
   const { locale, number, t } = usePiI18n();
   const contextBudgetValidationId = useId();
-  const remoteId = useAuiState((state) => state.threadListItem.remoteId);
+  const remoteId = useCurrentSession().threadId;
   const reduceMotion = useReducedMotion();
   const messages = useAuiState((state) => state.thread.messages);
   const isRunning = useAuiState((state) => state.thread.isRunning);
@@ -794,7 +795,7 @@ export function TokenUsage() {
     mainViews.getSnapshot,
     mainViews.getInitialSnapshot,
   );
-  const threadId = useAuiState((state) => state.threads.mainThreadId);
+  const threadId = useCurrentSession().sessionId;
 
   if (activeMainView) return null;
 

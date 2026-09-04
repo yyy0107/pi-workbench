@@ -11,6 +11,7 @@ import type {
   CurrentSessionSnapshot,
   HostObservable,
   ThreadListItem,
+  ThreadListActions,
   ThreadListSnapshot,
 } from "@workbench/agent-runtime-core";
 
@@ -145,6 +146,7 @@ const NEW_THREAD: CurrentSessionSnapshot = Object.freeze({
 export class FakeAgentRuntime implements AgentRuntime {
   readonly threads: HostObservable<ThreadListSnapshot>;
   readonly current: HostObservable<CurrentSessionSnapshot>;
+  readonly threadActions: Readonly<ThreadListActions>;
   readonly #threadSource = new MutableObservable(EMPTY_THREADS);
   readonly #currentSource = new MutableObservable(NEW_THREAD);
   readonly #sessions = new Map<string, ConversationSession>();
@@ -153,6 +155,33 @@ export class FakeAgentRuntime implements AgentRuntime {
   constructor(sessions: readonly ConversationSession[] = []) {
     this.threads = this.#threadSource;
     this.current = this.#currentSource;
+    this.threadActions = Object.freeze({
+      rename: async (threadId, title) => this.#patchThread(threadId, { title }),
+      archive: async (threadId) => this.#patchThread(threadId, { isArchived: true }),
+      unarchive: async (threadId) => this.#patchThread(threadId, { isArchived: false }),
+      delete: async (threadId) => this.#deleteThread(threadId),
+      setPinned: async (threadId, isPinned) => this.#patchThread(threadId, { isPinned }),
+      moveWithinWorkspace: async ({ workspaceId, threadId, beforeThreadId }) => {
+        const snapshot = this.#threadSource.getSnapshot();
+        const moving = snapshot.threads.find((thread) => thread.threadId === threadId);
+        if (!moving || moving.workspace?.id !== workspaceId) return;
+        const remaining = snapshot.threads.filter((thread) => thread.threadId !== threadId);
+        const beforeIndex = beforeThreadId
+          ? remaining.findIndex((thread) => thread.threadId === beforeThreadId)
+          : -1;
+        const index = beforeIndex < 0 ? remaining.length : beforeIndex;
+        this.#threadSource.set(
+          Object.freeze({
+            ...snapshot,
+            threads: Object.freeze([
+              ...remaining.slice(0, index),
+              moving,
+              ...remaining.slice(index),
+            ]),
+          }),
+        );
+      },
+    } satisfies ThreadListActions);
     for (const session of sessions) this.addSession(session);
   }
 
@@ -193,19 +222,50 @@ export class FakeAgentRuntime implements AgentRuntime {
     return id;
   }
 
+  createDraft(options: CreateThreadOptions = {}): string {
+    let id: string;
+    do id = `fake-draft-${this.#nextThread++}`;
+    while (this.#sessions.has(id));
+    const session = new FakeConversationSession(id);
+    this.#sessions.set(id, session);
+    this.#currentSource.set(Object.freeze({ sessionId: id, isNewThread: true }));
+    void options;
+    return id;
+  }
+
   switchToThread(id: string): void {
     if (!this.#sessions.has(id)) throw new Error(`Unknown fake Session: ${id}`);
     if (this.#currentSource.getSnapshot().sessionId === id) return;
-    this.#currentSource.set(Object.freeze({ sessionId: id, isNewThread: false }));
+    this.#currentSource.set(Object.freeze({ sessionId: id, threadId: id, isNewThread: false }));
   }
 
   switchToNewThread(): void {
     if (this.#currentSource.getSnapshot().isNewThread) return;
-    this.#currentSource.set(NEW_THREAD);
+    this.createDraft();
   }
 
   patchThreads(patch: Partial<ThreadListSnapshot>): void {
     this.#threadSource.set(Object.freeze({ ...this.#threadSource.getSnapshot(), ...patch }));
+  }
+
+  #patchThread(threadId: string, patch: Partial<ThreadListItem>): void {
+    const snapshot = this.#threadSource.getSnapshot();
+    const threads = snapshot.threads.map((thread) =>
+      thread.threadId === threadId ? Object.freeze({ ...thread, ...patch }) : thread,
+    );
+    this.#threadSource.set(Object.freeze({ ...snapshot, threads: Object.freeze(threads) }));
+  }
+
+  #deleteThread(threadId: string): void {
+    const snapshot = this.#threadSource.getSnapshot();
+    this.#sessions.delete(threadId);
+    this.#threadSource.set(
+      Object.freeze({
+        ...snapshot,
+        threads: Object.freeze(snapshot.threads.filter((thread) => thread.threadId !== threadId)),
+      }),
+    );
+    if (this.#currentSource.getSnapshot().sessionId === threadId) this.createDraft();
   }
 }
 

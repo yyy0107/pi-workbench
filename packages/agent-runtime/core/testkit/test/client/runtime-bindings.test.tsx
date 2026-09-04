@@ -160,12 +160,13 @@ test("remounts the SessionProvider subtree by stable Session id", async () => {
       runtime.switchToNewThread();
       await flushReactMicrotasks();
     });
-    assert.deepEqual(lifecycle, [
+    assert.deepEqual(lifecycle.slice(0, 4), [
       "mount:session-1",
       "unmount:session-1",
       "mount:session-2",
       "unmount:session-2",
     ]);
+    assert.match(lifecycle[4] ?? "", /^mount:fake-draft-/u);
 
     await act(async () => {
       root.unmount();

@@ -2,7 +2,7 @@
 
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { ArrowDownIcon } from "lucide-react";
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 import {
   SessionProvider,
@@ -193,7 +193,7 @@ function useStopSpeechOnEscape() {
  * Routing and Composer Dock measurement are supplied by the host. Conversation structure and
  * scrolling read the Headless Session; assistant-ui remains only for unmigrated actions/renderers.
  */
-function WorkbenchConversationContent({
+export function WorkbenchConversationContent({
   threadId,
   hostContent,
   emptyComposer,
@@ -210,14 +210,27 @@ function WorkbenchConversationContent({
   const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
   const isThreadLoading = useSessionState((snapshot) => snapshot.isLoading);
   const isRunning = useSessionState((snapshot) => snapshot.isRunning);
+  const hasMore = useSessionState((snapshot) => snapshot.hasMore);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const isEmpty = nodeKeys.length === 0;
   const isHistoryLoading = showHistoryLoading && isThreadLoading;
   const hasDockedComposer = Boolean(composerDock) && (!isEmpty || isHistoryLoading);
   const slotContext = { threadId };
+  const loadOlder = useCallback(() => {
+    if (!hasMore || isLoadingOlder || !session.actions.loadOlder) return;
+    setIsLoadingOlder(true);
+    void session.actions
+      .loadOlder()
+      .catch((error) =>
+        console.error("[workbench] failed to load older conversation history", error),
+      )
+      .finally(() => setIsLoadingOlder(false));
+  }, [hasMore, isLoadingOlder, session.actions]);
   const viewport = useWorkbenchConversationViewport({
     autoScroll: autoScroll ?? isRunning,
     isRunning,
     nodeKeys,
+    onReachTop: loadOlder,
     scrollToBottomOnInitialize,
     sessionId: session.id,
   });

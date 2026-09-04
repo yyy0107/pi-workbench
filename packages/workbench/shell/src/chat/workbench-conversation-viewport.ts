@@ -5,6 +5,7 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { useThreadScrollState } from "../thread-scroll-state";
 
 const BOTTOM_DISTANCE_THRESHOLD = 2;
+const TOP_DISTANCE_THRESHOLD = 32;
 
 export interface ConversationViewportMetrics {
   readonly clientHeight: number;
@@ -17,6 +18,10 @@ export function conversationViewportAtBottom(metrics: ConversationViewportMetric
   return (
     Math.abs(distance) <= BOTTOM_DISTANCE_THRESHOLD || metrics.scrollHeight <= metrics.clientHeight
   );
+}
+
+export function conversationViewportAtTop(metrics: ConversationViewportMetrics): boolean {
+  return metrics.scrollTop <= TOP_DISTANCE_THRESHOLD;
 }
 
 export function nextConversationViewportScrollTop({
@@ -72,12 +77,14 @@ export function useWorkbenchConversationViewport({
   autoScroll,
   isRunning,
   nodeKeys,
+  onReachTop,
   scrollToBottomOnInitialize,
   sessionId,
 }: Readonly<{
   autoScroll: boolean;
   isRunning: boolean;
   nodeKeys: readonly string[];
+  onReachTop?: () => void;
   scrollToBottomOnInitialize: boolean;
   sessionId: string;
 }>) {
@@ -262,14 +269,19 @@ export function useWorkbenchConversationViewport({
       handleScroll();
     };
 
-    viewport.addEventListener("scroll", handleScroll, { passive: true });
+    const handleViewportScroll = () => {
+      handleScroll();
+      if (conversationViewportAtTop(readViewportMetrics(viewport))) onReachTop?.();
+    };
+
+    viewport.addEventListener("scroll", handleViewportScroll, { passive: true });
     viewport.addEventListener("pointerdown", cancelPendingScroll, { passive: true });
     viewport.addEventListener("wheel", cancelPendingScroll, { passive: true });
     const disconnectContentObserver = observeViewportContent(viewport, handleContentChange);
     handleScroll();
 
     return () => {
-      viewport.removeEventListener("scroll", handleScroll);
+      viewport.removeEventListener("scroll", handleViewportScroll);
       viewport.removeEventListener("pointerdown", cancelPendingScroll);
       viewport.removeEventListener("wheel", cancelPendingScroll);
       disconnectContentObserver();
@@ -286,7 +298,7 @@ export function useWorkbenchConversationViewport({
           (followBottom.current && pendingScrollBehavior.current !== null),
       });
     };
-  }, [autoScroll, rememberPosition, scrollState, sessionId, stopRestoration]);
+  }, [autoScroll, onReachTop, rememberPosition, scrollState, sessionId, stopRestoration]);
 
   useLayoutEffect(() => {
     const runStarted = !previousIsRunning.current && isRunning;

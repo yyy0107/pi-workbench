@@ -1,10 +1,9 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
-import { useAuiState } from "@assistant-ui/react";
 import { ChevronRightIcon } from "lucide-react";
 
-import { useWorkbenchAgentThreadSnapshots } from "@workbench/agent-runtime-client/context";
+import { useThreadList } from "@workbench/agent-runtime-client";
 import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 import type { SidebarSectionComponentProps } from "@workbench/extension-sdk";
@@ -23,12 +22,8 @@ export function WorkspaceSidebarSection({
 }: SidebarSectionComponentProps) {
   const { t } = useI18n();
   useHydrateThreadOrderStore();
-  const threadIds = useAuiState((state) => state.threads.threadIds);
-  const threadItems = useAuiState((state) => state.threads.threadItems);
-  const threadStates = useWorkbenchAgentThreadSnapshots(threadIds);
-  const hasPinnedThreads = threadIds.some(
-    (threadId) => threadStates.get(threadId)?.isPinned === true,
-  );
+  const threadItems = useThreadList((snapshot) => snapshot.threads);
+  const hasPinnedThreads = threadItems.some((thread) => !thread.isArchived && thread.isPinned);
   const hasPinnedDirectories = useWorkspaceSelection().workspaces.some(
     (workspace) => workspace.pinned === true,
   );
@@ -38,10 +33,9 @@ export function WorkspaceSidebarSection({
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
   const hasSearchResults =
     !normalizedSearchQuery ||
-    threadItems.some((thread) =>
-      (threadStates.get(thread.id)?.title ?? thread.title)
-        ?.toLocaleLowerCase()
-        .includes(normalizedSearchQuery),
+    threadItems.some(
+      (thread) =>
+        !thread.isArchived && thread.title?.toLocaleLowerCase().includes(normalizedSearchQuery),
     );
 
   return (

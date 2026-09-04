@@ -3,6 +3,8 @@
 import { useAuiState, type MessagePartState } from "@assistant-ui/react";
 import { useEffect, useRef } from "react";
 
+import { useCurrentSession } from "./hooks";
+
 /** Read the first non-empty string argument matching one of the supplied protocol field names. */
 export function toolStringArg(args: unknown, ...keys: string[]): string | undefined {
   if (!args || typeof args !== "object") return undefined;
@@ -33,7 +35,7 @@ export function useCompletedToolCalls(
   handle: (part: Extract<MessagePartState, { type: "tool-call" }>) => boolean,
 ): void {
   const messages = useAuiState((state) => state.thread.messages);
-  const threadId = useAuiState((state) => state.threads.mainThreadId);
+  const threadId = useCurrentSession().sessionId;
   const seen = useRef(new Set<string>());
 
   useEffect(() => {

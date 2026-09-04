@@ -1,7 +1,13 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
-import { useAui, useAuiState } from "@assistant-ui/react";
+import {
+  SessionProvider,
+  useAgentRuntime,
+  useCurrentSession,
+  useSessionState,
+  useThreadList,
+} from "@workbench/agent-runtime-client";
 
 import { cn } from "../utils";
 import { resolvePromotedThreadRouteId, shouldProjectNewThreadRoute } from "../new-thread-policy";
@@ -9,7 +15,7 @@ import { THREAD_CONTENT_WIDTH_CLASS_NAME } from "../layout";
 import { useWorkbenchNavigation } from "../navigation";
 
 import { WorkbenchComposer } from "./workbench-composer";
-import { WorkbenchConversation } from "./workbench-conversation";
+import { WorkbenchConversationContent } from "./workbench-conversation";
 
 const DEFAULT_COMPOSER_DOCK_INSET_PX = 138;
 
@@ -18,20 +24,15 @@ const DEFAULT_COMPOSER_DOCK_INSET_PX = 138;
  * Unknown or stale ids intentionally leave the current thread mounted.
  */
 export function ThreadRouteSync({ threadId }: { threadId?: string }) {
-  const aui = useAui();
+  const runtime = useAgentRuntime();
   const navigation = useWorkbenchNavigation();
   const observedRouteId = useRef<string | null>(null);
   const syncedRouteId = useRef<string | null>(null);
   const newThreadNavigationPending = useRef(false);
-  const isLoading = useAuiState((state) => state.threads.isLoading);
-  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
-  const newThreadId = useAuiState((state) => state.threads.newThreadId);
-  const activeMessageCount = useAuiState((state) => state.thread.messages.length);
-  const threadIds = useAuiState((state) => state.threads.threadIds);
-  const archivedThreadIds = useAuiState((state) => state.threads.archivedThreadIds);
-  const isInitialLoading = isLoading && threadIds.length + archivedThreadIds.length === 0;
-  const threadItems = useAuiState((state) => state.threads.threadItems);
-  const mainThread = threadItems.find((item) => item.id === mainThreadId);
+  const current = useCurrentSession();
+  const activeMessageCount = useSessionState((snapshot) => snapshot.nodeKeys.length);
+  const catalog = useThreadList();
+  const isInitialLoading = catalog.isLoading && catalog.threads.length === 0;
 
   useLayoutEffect(() => {
     const routeId = threadId ?? "";
@@ -43,24 +44,16 @@ export function ThreadRouteSync({ threadId }: { threadId?: string }) {
       newThreadNavigationPending.current = false;
       if (routeChanged) {
         syncedRouteId.current = routeId;
-
-        try {
-          aui.threads.switchToNewThread();
-        } catch {
-          // The thread list can change between the state read and route update.
-        }
+        if (!current.isNewThread) runtime.switchToNewThread();
         return;
       }
 
-      // assistant-ui promotes the draft before its append pipeline reaches `onNew`. Navigating
-      // during that gap invalidates the thread generation and silently drops the first send.
-      // The optimistic user message is the earliest safe signal that `onNew` has started.
+      // Draft promotion keeps the in-memory Session id and publishes its durable route identity.
+      // Wait for the optimistic user Node before replacing the home URL so the first send remains
+      // mounted throughout admission.
       const nextRouteId = resolvePromotedThreadRouteId({
-        mainThreadId,
-        newThreadId,
-        status: mainThread?.status,
-        remoteId: mainThread?.remoteId,
-        externalId: mainThread?.externalId,
+        isNewThread: current.isNewThread,
+        threadId: current.threadId,
         hasMessages: activeMessageCount > 0,
       });
       if (nextRouteId) {
@@ -76,7 +69,7 @@ export function ThreadRouteSync({ threadId }: { threadId?: string }) {
       shouldProjectNewThreadRoute({
         routeThreadId: threadId,
         syncedRouteThreadId: syncedRouteId.current,
-        isNewThread: mainThreadId === newThreadId,
+        isNewThread: current.isNewThread,
       })
     ) {
       if (!newThreadNavigationPending.current) {
@@ -86,55 +79,41 @@ export function ThreadRouteSync({ threadId }: { threadId?: string }) {
       return;
     }
 
-    const item = threadItems.find(
-      (candidate) =>
-        candidate.id === threadId ||
-        candidate.remoteId === threadId ||
-        candidate.externalId === threadId,
-    );
-    const resolvedId = item?.id ?? (threadIds.includes(threadId) ? threadId : undefined);
-
-    if (!resolvedId) return;
-
-    const canonicalRouteId = item?.remoteId ?? item?.externalId;
-    if (canonicalRouteId && canonicalRouteId !== threadId) {
-      syncedRouteId.current = canonicalRouteId;
-      navigation.openConversation(canonicalRouteId, { replace: true });
-      return;
-    }
+    const item = catalog.threads.find((candidate) => candidate.threadId === threadId);
+    if (!item) return;
 
     syncedRouteId.current = routeId;
-    if (resolvedId === mainThreadId) return;
+    if (current.threadId === item.threadId) return;
 
     try {
-      aui.threads.switchToThread(resolvedId);
+      runtime.switchToThread(item.threadId);
     } catch {
       // A runtime can invalidate a thread between the state read and switch.
       // Keeping the current thread is the safe route-level fallback.
     }
-  }, [
-    activeMessageCount,
-    archivedThreadIds,
-    aui,
-    isLoading,
-    isInitialLoading,
-    mainThread,
-    mainThreadId,
-    navigation,
-    newThreadId,
-    threadId,
-    threadIds,
-    threadItems,
-  ]);
+  }, [activeMessageCount, catalog, current, isInitialLoading, navigation, runtime, threadId]);
 
   return null;
 }
 
 export function MainConversationHost() {
   const { currentConversationId: threadId } = useWorkbenchNavigation();
-  const activeThreadId = useAuiState((state) => state.threads.mainThreadId);
-  const isEmpty = useAuiState((state) => state.thread.isEmpty);
-  const isThreadLoading = useAuiState((state) => state.thread.isLoading);
+  const current = useCurrentSession();
+
+  if (!current.sessionId) return null;
+  return (
+    <SessionProvider sessionId={current.sessionId}>
+      <MainConversationSessionHost threadId={threadId} />
+    </SessionProvider>
+  );
+}
+
+function MainConversationSessionHost({ threadId }: { threadId?: string }) {
+  const current = useCurrentSession();
+  const activeThreadId = current.sessionId;
+  const nodeCount = useSessionState((snapshot) => snapshot.nodeKeys.length);
+  const isEmpty = nodeCount === 0;
+  const isThreadLoading = useSessionState((snapshot) => snapshot.isLoading);
   const isHistoryLoading = Boolean(threadId) && isThreadLoading;
   const hasDockedComposer = !isEmpty || isHistoryLoading;
   const composerDockRef = useRef<HTMLDivElement>(null);
@@ -160,9 +139,8 @@ export function MainConversationHost() {
   }, [activeThreadId, hasDockedComposer]);
 
   return (
-    <WorkbenchConversation
-      threadId={threadId ?? activeThreadId}
-      sessionId={activeThreadId}
+    <WorkbenchConversationContent
+      threadId={current.threadId ?? activeThreadId}
       hostContent={<ThreadRouteSync threadId={threadId} />}
       emptyComposer={<WorkbenchComposer />}
       composerDock={

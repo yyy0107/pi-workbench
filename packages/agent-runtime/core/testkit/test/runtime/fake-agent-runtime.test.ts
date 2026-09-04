@@ -41,10 +41,15 @@ test("FakeAgentRuntime creates, selects, and clears Sessions without React or Pi
   const id = await runtime.createThread({ workspaceId: "workspace-1" });
 
   assert.ok(runtime.session(id));
-  assert.deepEqual(runtime.current.getSnapshot(), { sessionId: id, isNewThread: false });
+  assert.deepEqual(runtime.current.getSnapshot(), {
+    sessionId: id,
+    threadId: id,
+    isNewThread: false,
+  });
   assert.equal(runtime.threads.getSnapshot().threads[0]?.workspace?.id, "workspace-1");
 
   runtime.switchToNewThread();
-  assert.deepEqual(runtime.current.getSnapshot(), { sessionId: undefined, isNewThread: true });
+  assert.match(runtime.current.getSnapshot().sessionId ?? "", /^fake-draft-/u);
+  assert.equal(runtime.current.getSnapshot().isNewThread, true);
   assert.equal(currentNotifications, 2);
 });

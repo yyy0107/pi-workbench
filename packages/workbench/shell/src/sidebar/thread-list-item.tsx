@@ -1,21 +1,22 @@
 "use client";
 
 import type { PointerEvent } from "react";
-import {
-  ThreadListItemMorePrimitive,
-  ThreadListItemPrimitive,
-  useAui,
-  useAuiState,
-} from "@assistant-ui/react";
 import { ArchiveIcon, Clock3Icon, MoreHorizontalIcon, PinIcon, PinOffIcon } from "lucide-react";
+import {
+  useAgentRuntime,
+  useCurrentSession,
+  type ThreadListItem,
+} from "@workbench/agent-runtime-client";
 
 import { Button } from "../ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { useI18n } from "../i18n";
 import { cn } from "../utils";
-import {
-  useWorkbenchAgentThreadActions,
-  useWorkbenchAgentThreadSnapshot,
-} from "@workbench/agent-runtime-client/context";
 import { useAppearancePreferences } from "../appearance";
 import { useWorkspaceCapabilities } from "@workbench/agent-runtime-client/workspaces";
 import { useWorkbenchNavigation } from "../navigation";
@@ -24,6 +25,7 @@ import { RunningThreadIndicator } from "./running-thread-indicator";
 import type { ThreadDropPosition } from "./thread-sort";
 
 export function WorkbenchThreadListItem({
+  thread,
   workspaceId,
   sortOrder,
   dragEnabled = false,
@@ -34,6 +36,7 @@ export function WorkbenchThreadListItem({
   shouldSuppressNavigation,
   onNavigate,
 }: {
+  thread: ThreadListItem;
   workspaceId?: string;
   sortOrder?: number;
   dragEnabled?: boolean;
@@ -46,38 +49,21 @@ export function WorkbenchThreadListItem({
 }) {
   const { date: formatDate, relativeTime, t } = useI18n();
   const { runningIndicatorId } = useAppearancePreferences();
-  const aui = useAui();
-  const threadActions = useWorkbenchAgentThreadActions();
+  const runtime = useAgentRuntime();
+  const threadActions = runtime.threadActions;
+  const current = useCurrentSession();
   const navigation = useWorkbenchNavigation();
-  const runtimeIsRunning = useAuiState((state) => state.threadListItem.isRunning);
-  const runtimeTitle = useAuiState((state) => state.threadListItem.title);
-  const runtimeLastMessageAt = useAuiState((state) => state.threadListItem.lastMessageAt);
-  const isActive = useAuiState((state) => state.threads.mainThreadId === state.threadListItem.id);
-  const routeThreadId = useAuiState(
-    (state) =>
-      state.threadListItem.remoteId ?? state.threadListItem.externalId ?? state.threadListItem.id,
-  );
-  const threadState = useWorkbenchAgentThreadSnapshot(routeThreadId);
-  const hasEmptyNewThread = useAuiState(
-    (state) =>
-      state.threads.mainThreadId === state.threads.newThreadId &&
-      state.thread.messages.length === 0,
-  );
+  const routeThreadId = thread.threadId;
+  const isActive = current.threadId === routeThreadId;
   const { activateWorkspace, deactivateWorkspace, destroyNewThread } = useWorkspaceCapabilities();
-  const isPinned = threadState.isPinned;
-  const isRunning = runtimeIsRunning || threadState.isRunning;
-  const isAutomationTask = threadState.automationOrigin !== undefined;
-  const waitingForUserInput = !isActive && threadState.isWaitingForInput;
-  const title = threadState.title ?? runtimeTitle;
-  const lastMessageAt = threadState.lastMessageAt ?? runtimeLastMessageAt;
+  const isPinned = thread.isPinned;
+  const isRunning = thread.isRunning;
+  const isAutomationTask = thread.origin?.kind === "automation";
+  const waitingForUserInput = !isActive && thread.isWaitingForInput;
+  const title = thread.title;
+  const lastMessageAt = thread.updatedAt ? new Date(thread.updatedAt) : undefined;
   const openThreadRoute = () => {
     destroyNewThread();
-    if (hasEmptyNewThread) {
-      void aui.thread
-        .composer()
-        .reset()
-        .catch((error) => console.error("[workbench] failed to discard empty conversation", error));
-    }
     if (!isPinned) {
       if (workspaceId) activateWorkspace(workspaceId);
       else deactivateWorkspace();
@@ -118,10 +104,11 @@ export function WorkbenchThreadListItem({
   })();
 
   return (
-    <ThreadListItemPrimitive.Root
+    <div
       data-workbench-selection-surface=""
       data-workbench-selection-mode="foreground"
       data-dragging={dragging ? "" : undefined}
+      data-active={isActive ? "" : undefined}
       ref={registerDragElement}
       style={sortOrder === undefined ? undefined : { order: sortOrder }}
       className={cn(
@@ -148,7 +135,9 @@ export function WorkbenchThreadListItem({
           className="pointer-events-none absolute start-2 top-1/2 -translate-y-1/2"
         />
       ) : null}
-      <ThreadListItemPrimitive.Trigger
+      <button
+        type="button"
+        aria-current={isActive ? "page" : undefined}
         className="focus-visible:ring-sidebar-ring flex h-[var(--control-hit-touch)] min-w-0 flex-1 items-center rounded-lg pe-2.5 ps-[34px] text-start text-sm outline-none focus-visible:ring-2 md:h-9"
         onClick={(event) => {
           if (shouldSuppressNavigation?.()) {
@@ -205,7 +194,7 @@ export function WorkbenchThreadListItem({
           >
             {t("workbench.sidebar.waitingForUserInput")}
           </span>
-        ) : !isRunning && threadState.hasUnreadCompletion ? (
+        ) : !isRunning && thread.hasUnreadCompletion ? (
           <>
             <span
               aria-hidden="true"
@@ -223,7 +212,7 @@ export function WorkbenchThreadListItem({
         ) : isRunning ? (
           <span className="sr-only">{t("workbench.sidebar.generating")}</span>
         ) : null}
-      </ThreadListItemPrimitive.Trigger>
+      </button>
 
       <div
         data-sidebar-actions=""
@@ -231,8 +220,8 @@ export function WorkbenchThreadListItem({
         data-thread-item-actions=""
         className="absolute end-0 flex md:hidden"
       >
-        <ThreadListItemMorePrimitive.Root sharedFocusGroup>
-          <ThreadListItemMorePrimitive.Trigger
+        <DropdownMenu>
+          <DropdownMenuTrigger
             render={
               <Button
                 type="button"
@@ -244,17 +233,17 @@ export function WorkbenchThreadListItem({
             }
           >
             <MoreHorizontalIcon />
-          </ThreadListItemMorePrimitive.Trigger>
-          <ThreadListItemMorePrimitive.Content
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
             side="bottom"
             align="end"
             sideOffset={4}
             className="bg-popover/95 text-popover-foreground data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out data-[side=bottom]:slide-in-from-top-2 z-50 min-w-44 overflow-hidden rounded-xl border p-1.5 shadow-lg backdrop-blur-sm motion-reduce:animate-none"
           >
             {threadActions.setPinned ? (
-              <ThreadListItemMorePrimitive.Item
+              <DropdownMenuItem
                 className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex min-h-[var(--control-hit-touch)] cursor-pointer items-center gap-2 rounded-lg px-2.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-sm leading-[var(--control-text-line-height)]! outline-none select-none"
-                onSelect={() => void togglePinned()}
+                onClick={() => void togglePinned()}
               >
                 {isPinned ? (
                   <PinOffIcon className="size-[var(--icon-size-md)]" />
@@ -262,19 +251,26 @@ export function WorkbenchThreadListItem({
                   <PinIcon className="size-[var(--icon-size-md)]" />
                 )}
                 {t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
-              </ThreadListItemMorePrimitive.Item>
+              </DropdownMenuItem>
             ) : null}
-            <ThreadListItemPrimitive.Archive
-              onClick={leaveRemovedThreadRoute}
-              render={
-                <ThreadListItemMorePrimitive.Item className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex min-h-[var(--control-hit-touch)] cursor-pointer items-center gap-2 rounded-lg px-2.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-sm leading-[var(--control-text-line-height)]! outline-none select-none" />
-              }
-            >
-              <ArchiveIcon className="size-[var(--icon-size-md)]" />
-              {t("workbench.sidebar.archive")}
-            </ThreadListItemPrimitive.Archive>
-          </ThreadListItemMorePrimitive.Content>
-        </ThreadListItemMorePrimitive.Root>
+            {threadActions.archive ? (
+              <DropdownMenuItem
+                className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex min-h-[var(--control-hit-touch)] cursor-pointer items-center gap-2 rounded-lg px-2.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-sm leading-[var(--control-text-line-height)]! outline-none select-none"
+                onClick={() => {
+                  leaveRemovedThreadRoute();
+                  void threadActions
+                    .archive?.(routeThreadId)
+                    .catch((error) =>
+                      console.error("[workbench] failed to archive conversation", error),
+                    );
+                }}
+              >
+                <ArchiveIcon className="size-[var(--icon-size-md)]" />
+                {t("workbench.sidebar.archive")}
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div
@@ -299,22 +295,27 @@ export function WorkbenchThreadListItem({
             {isPinned ? <PinOffIcon /> : <PinIcon />}
           </Button>
         ) : null}
-        <ThreadListItemPrimitive.Archive
-          onClick={leaveRemovedThreadRoute}
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("workbench.sidebar.archive")}
-              title={t("workbench.sidebar.archive")}
-              className="text-muted-foreground hover:text-foreground active:scale-90"
-            />
-          }
-        >
-          <ArchiveIcon />
-        </ThreadListItemPrimitive.Archive>
+        {threadActions.archive ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t("workbench.sidebar.archive")}
+            title={t("workbench.sidebar.archive")}
+            className="text-muted-foreground hover:text-foreground active:scale-90"
+            onClick={() => {
+              leaveRemovedThreadRoute();
+              void threadActions
+                .archive?.(routeThreadId)
+                .catch((error) =>
+                  console.error("[workbench] failed to archive conversation", error),
+                );
+            }}
+          >
+            <ArchiveIcon />
+          </Button>
+        ) : null}
       </div>
-    </ThreadListItemPrimitive.Root>
+    </div>
   );
 }

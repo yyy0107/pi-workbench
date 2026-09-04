@@ -1,6 +1,6 @@
 "use client";
 
-import { ThreadPrimitive, useAuiState } from "@assistant-ui/react";
+import { ThreadPrimitive } from "@assistant-ui/react";
 import type { ReactNode } from "react";
 
 import { buttonVariants } from "../ui/button";
@@ -8,13 +8,12 @@ import { useI18n } from "../i18n";
 import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 import { NEW_THREAD_COMPOSER_WIDTH_CLASS_NAME } from "../layout";
 import { useWorkbenchBranding } from "../presentation";
+import { useCurrentSession } from "@workbench/agent-runtime-client";
 
 export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) {
   const { t } = useI18n();
   const { productLogoUrl, productName } = useWorkbenchBranding();
-  const isNewThread = useAuiState(
-    (state) => state.threads.mainThreadId === state.threads.newThreadId,
-  );
+  const isNewThread = useCurrentSession().isNewThread;
   const hasDraftWorkspace = useWorkspaceSelection().draftWorkspace !== undefined;
   const canAutoSendSuggestion = !isNewThread || hasDraftWorkspace;
   const starterPrompts = [

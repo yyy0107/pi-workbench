@@ -1,6 +1,5 @@
 "use client";
 
-import { useAui } from "@assistant-ui/react";
 import {
   ArchiveIcon,
   LoaderCircleIcon,
@@ -30,27 +29,22 @@ import { Input } from "../ui/input";
 import { useI18n } from "../i18n";
 import { useWorkbenchNavigation } from "../navigation";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
-import {
-  useWorkbenchAgentThreadActions,
-  useWorkbenchAgentThreadSnapshot,
-} from "@workbench/agent-runtime-client/context";
+import { useAgentRuntime } from "@workbench/agent-runtime-client";
 
 type PendingAction = "archive" | "pin" | "rename";
 
 export function ConversationActionsMenu({
   threadId,
-  sessionId,
+  isPinned,
   title,
 }: {
   threadId: string;
-  sessionId: string;
+  isPinned: boolean;
   title?: string;
 }) {
   const { t } = useI18n();
-  const aui = useAui();
-  const threadActions = useWorkbenchAgentThreadActions();
+  const threadActions = useAgentRuntime().threadActions;
   const navigation = useWorkbenchNavigation();
-  const threadSnapshot = useWorkbenchAgentThreadSnapshot(sessionId);
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameTitle, setRenameTitle] = useState("");
@@ -62,7 +56,7 @@ export function ConversationActionsMenu({
     if (!threadActions.setPinned || pendingAction) return;
     setPendingAction("pin");
     try {
-      await threadActions.setPinned(sessionId, !threadSnapshot.isPinned);
+      await threadActions.setPinned(threadId, !isPinned);
     } catch (error) {
       console.error("[workbench] failed to update pinned conversation", error);
     } finally {
@@ -74,8 +68,9 @@ export function ConversationActionsMenu({
     if (pendingAction) return;
     setPendingAction("archive");
     try {
-      await aui.threads.item({ id: threadId }).archive();
-      if (navigation.currentConversationId === sessionId) {
+      if (!threadActions.archive) throw new Error("Archive is not supported");
+      await threadActions.archive(threadId);
+      if (navigation.currentConversationId === threadId) {
         navigation.openHome({ replace: true });
       }
     } catch (error) {
@@ -91,7 +86,8 @@ export function ConversationActionsMenu({
     setPendingAction("rename");
     setRenameFailed(false);
     try {
-      await aui.threads.item({ id: threadId }).rename(nextTitle);
+      if (!threadActions.rename) throw new Error("Rename is not supported");
+      await threadActions.rename(threadId, nextTitle);
       setRenameOpen(false);
     } catch (error) {
       console.error("[workbench] failed to rename conversation", error);
@@ -127,41 +123,45 @@ export function ConversationActionsMenu({
             >
               {pendingAction === "pin" ? (
                 <LoaderCircleIcon aria-hidden="true" className="animate-spin" />
-              ) : threadSnapshot.isPinned ? (
+              ) : isPinned ? (
                 <PinOffIcon aria-hidden="true" />
               ) : (
                 <PinIcon aria-hidden="true" />
               )}
-              {t(threadSnapshot.isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
+              {t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
             </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem
-            disabled={pendingAction !== undefined}
-            className="gap-2.5 px-2.5"
-            onClick={() => {
-              setRenameTitle(title ?? "");
-              setRenameFailed(false);
-              setRenameOpen(true);
-            }}
-          >
-            <PencilIcon aria-hidden="true" />
-            {t("workbench.sidebar.rename")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={pendingAction !== undefined}
-            className="gap-2.5 px-2.5"
-            onClick={() => void archiveConversation()}
-          >
-            {pendingAction === "archive" ? (
-              <LoaderCircleIcon aria-hidden="true" className="animate-spin" />
-            ) : (
-              <ArchiveIcon aria-hidden="true" />
-            )}
-            {t("workbench.sidebar.archive")}
-          </DropdownMenuItem>
+          {threadActions.rename ? (
+            <DropdownMenuItem
+              disabled={pendingAction !== undefined}
+              className="gap-2.5 px-2.5"
+              onClick={() => {
+                setRenameTitle(title ?? "");
+                setRenameFailed(false);
+                setRenameOpen(true);
+              }}
+            >
+              <PencilIcon aria-hidden="true" />
+              {t("workbench.sidebar.rename")}
+            </DropdownMenuItem>
+          ) : null}
+          {threadActions.archive ? (
+            <DropdownMenuItem
+              disabled={pendingAction !== undefined}
+              className="gap-2.5 px-2.5"
+              onClick={() => void archiveConversation()}
+            >
+              {pendingAction === "archive" ? (
+                <LoaderCircleIcon aria-hidden="true" className="animate-spin" />
+              ) : (
+                <ArchiveIcon aria-hidden="true" />
+              )}
+              {t("workbench.sidebar.archive")}
+            </DropdownMenuItem>
+          ) : null}
           <SlotHost
             name="thread.menu"
-            context={{ threadId: sessionId, closeMenu: () => setMenuOpen(false) }}
+            context={{ threadId, closeMenu: () => setMenuOpen(false) }}
           />
         </DropdownMenuContent>
       </DropdownMenu>

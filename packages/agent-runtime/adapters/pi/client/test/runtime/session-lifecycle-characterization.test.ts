@@ -42,7 +42,9 @@ test("permanently disposes and evicts a deleted client session", async (t) => {
 
   await manager.createThreadListAdapter().delete("remote-session");
 
-  assert.equal(internals.sessions.size, 0);
+  // The manager retains its independently-owned current draft while evicting both aliases for
+  // the deleted durable Session.
+  assert.equal(internals.sessions.size, 1);
   assert.equal(internals.aliases.size, 0);
   assert.equal(connectionInternals.sessions.has("remote-session"), false);
   assert.equal(connectionInternals.sessionWatermarks.has("remote-session"), false);

@@ -1,6 +1,5 @@
 "use client";
 
-import { useAuiState } from "@assistant-ui/react";
 import {
   AlertCircleIcon,
   ArrowRightIcon,
@@ -39,7 +38,7 @@ import { FileTypeIcon } from "@workbench/shell/workspace-file-tree";
 import { usePiI18n } from "../../i18n";
 import { cn } from "@workbench/shell/utils";
 import { useMainViewService } from "@workbench/extension-host";
-import { useWorkbenchAgentThreadSnapshot } from "@workbench/agent-runtime-client/context";
+import { useCurrentSession, useThreadList } from "@workbench/agent-runtime-client";
 import { PiApiError } from "@workbench/agent-runtime-pi-client/errors";
 import { usePiWorkspaceClient } from "@workbench/agent-runtime-pi-client/workspace";
 import type { WorkspaceGitStatus } from "@workbench/agent-runtime-pi-protocol/rpc";
@@ -637,13 +636,11 @@ export function HeaderGitBranchSelector() {
     mainViews.getSnapshot,
     mainViews.getInitialSnapshot,
   );
-  const currentThread = useAuiState((state) =>
-    state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId),
-  );
-  const managedThread = useWorkbenchAgentThreadSnapshot(
-    currentThread?.remoteId ?? currentThread?.externalId ?? currentThread?.id,
+  const current = useCurrentSession();
+  const currentThread = useThreadList((snapshot) =>
+    snapshot.threads.find((thread) => thread.threadId === current.threadId),
   );
 
   if (activeMainView) return null;
-  return <GitBranchSelector placement="header" workspaceId={managedThread.workspace?.id} />;
+  return <GitBranchSelector placement="header" workspaceId={currentThread?.workspace?.id} />;
 }

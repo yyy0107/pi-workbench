@@ -1,8 +1,10 @@
 "use client";
 
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 
-import { RuntimeProvider, WorkbenchAgentRuntimeHost } from "@workbench/agent-runtime-client";
+import { RuntimeProvider, useCurrentSession } from "@workbench/agent-runtime-client";
+import { WorkbenchAgentRuntimeEnvironmentProvider } from "@workbench/agent-runtime-client/context";
 import type { PromptFeedbackPort } from "@workbench/agent-runtime-client/prompt-feedback";
 import type { WorkbenchWorkspaceDirectoryStorePort } from "@workbench/agent-runtime-client/workspaces";
 
@@ -15,13 +17,42 @@ import {
 import { createPiAgentRuntimeAdapter } from "./adapter";
 import { PiAgentRuntimeCopyProvider, type PiAgentRuntimeCopy } from "./copy";
 import { beginPiSessionManagerLifecycle } from "./session-manager-lifecycle";
-import { ActivePiThreadTracker, PiDraftWorkspaceTracker } from "./trackers";
+import { PiDraftWorkspaceTracker } from "./trackers";
 import { PiWorkspaceSelectionProvider } from "./workspace-selection-provider";
+import { usePiThreadRuntime } from "./thread-runtime";
 import type { PiClientTransport } from "../transport/client-transport";
 
 export type PiSessionManagerFactory = (
   options: Readonly<PiSessionManagerOptions>,
 ) => PiSessionManager;
+
+/** Temporary message/renderer bridge; catalog and selection are owned by the Headless Runtime. */
+function PiAssistantCompatibilityHost({
+  adapter,
+  children,
+  manager,
+}: Readonly<{
+  adapter: ReturnType<typeof createPiAgentRuntimeAdapter>;
+  children: ReactNode;
+  manager: PiSessionManager;
+}>) {
+  const runtime = usePiThreadRuntime(manager);
+  const commands = adapter.useCommandCatalog();
+  const current = useCurrentSession();
+  const threadId = current.threadId ?? current.sessionId;
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <WorkbenchAgentRuntimeEnvironmentProvider
+        adapter={adapter}
+        threadId={threadId}
+        commands={commands}
+      >
+        {children}
+      </WorkbenchAgentRuntimeEnvironmentProvider>
+    </AssistantRuntimeProvider>
+  );
+}
 
 /** Resolve the Provider's singular manager while retaining the Fast Refresh replacement guard. */
 export function resolvePiSessionManager(
@@ -76,11 +107,10 @@ export function PiAgentRuntimeProvider({
       <PiSessionManagerProvider manager={manager}>
         <PiWorkspaceSelectionProvider directoryStore={workspaceDirectoryStore}>
           <RuntimeProvider runtime={manager}>
-            <WorkbenchAgentRuntimeHost adapter={adapter}>
-              <ActivePiThreadTracker manager={manager} />
-              <PiDraftWorkspaceTracker manager={manager} />
+            <PiDraftWorkspaceTracker manager={manager} />
+            <PiAssistantCompatibilityHost adapter={adapter} manager={manager}>
               {children}
-            </WorkbenchAgentRuntimeHost>
+            </PiAssistantCompatibilityHost>
           </RuntimeProvider>
         </PiWorkspaceSelectionProvider>
       </PiSessionManagerProvider>

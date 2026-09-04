@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageNotSentError, useAuiState, useExternalStoreRuntime } from "@assistant-ui/react";
+import { MessageNotSentError, useExternalStoreRuntime } from "@assistant-ui/react";
 import {
   useCallback,
   useEffect,
@@ -222,10 +222,14 @@ export function useBoundPiThreadRuntime(
 
 /** Bind the remote-thread-list current item through the explicit-session Runtime seam. */
 export function usePiThreadRuntime(manager: PiSessionManager) {
-  const localId = useAuiState((state) => state.threadListItem.id);
-  const remoteId = useAuiState((state) => state.threadListItem.remoteId);
-  return useBoundPiThreadRuntime(manager, remoteId ?? localId, {
-    localId,
-    remoteId: remoteId ?? null,
+  const current = useSyncExternalStore(
+    manager.current.subscribe,
+    manager.current.getSnapshot,
+    manager.current.getSnapshot,
+  );
+  if (!current.sessionId) throw new Error("Pi Headless Runtime has no current Session");
+  return useBoundPiThreadRuntime(manager, current.threadId ?? current.sessionId, {
+    localId: current.sessionId,
+    remoteId: current.threadId ?? null,
   });
 }
