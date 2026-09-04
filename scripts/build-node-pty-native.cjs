@@ -95,16 +95,20 @@ function runSourceBuild() {
   if (!pnpmEntrypoint || !path.isAbsolute(pnpmEntrypoint)) {
     throw new Error("native:pty:build must be launched through the repository pnpm command.");
   }
-  const result = spawnSync(process.execPath, [pnpmEntrypoint, "rebuild", "node-pty"], {
-    cwd: REPOSITORY_ROOT,
-    env: {
-      ...process.env,
-      npm_config_build_from_source: "true",
-      npm_config_runtime: "node",
+  const result = spawnSync(
+    process.execPath,
+    [pnpmEntrypoint, "-F", "@workbench/terminal-server", "rebuild", "node-pty"],
+    {
+      cwd: REPOSITORY_ROOT,
+      env: {
+        ...process.env,
+        npm_config_build_from_source: "true",
+        npm_config_runtime: "node",
+      },
+      stdio: "inherit",
+      windowsHide: true,
     },
-    stdio: "inherit",
-    windowsHide: true,
-  });
+  );
   if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(`node-pty source build failed with exit code ${result.status ?? "unknown"}.`);

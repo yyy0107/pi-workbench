@@ -260,7 +260,7 @@ test("resolves packaging arguments against installed Electron rather than host N
   );
   assert.throws(
     () =>
-      resolveNativeTarget(["--linux", "--dir"], {
+      resolveNativeTarget(["--linux", "--x64", "--dir"], {
         electronRuntime: ELECTRON_IDENTITY,
         projectBuildConfig: {
           afterPack: "scripts/after-pack.cjs",
