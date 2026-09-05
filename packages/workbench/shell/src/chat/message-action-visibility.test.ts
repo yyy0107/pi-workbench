@@ -33,6 +33,25 @@ test("shows actions for user messages and the final assistant response", () => {
   assert.equal(shouldShowMessageActions(messages, 1), true);
 });
 
+test("steering keeps intermediate responses out of the action bar, including before continuation", () => {
+  const messages = [
+    user("initial"),
+    assistant("before", "text"),
+    { ...user("steer"), steering: true },
+  ];
+  assert.equal(shouldShowMessageActions(messages, 1), false);
+  messages.push(assistant("final", "text"));
+  assert.equal(shouldShowMessageActions(messages, 1), false);
+  assert.equal(shouldShowMessageActions(messages, 3), true);
+  assert.equal(
+    shouldShowMessageActions(
+      [user("initial"), { ...assistant("interrupted", "text"), steerInterrupted: true }],
+      1,
+    ),
+    false,
+  );
+});
+
 test("hides the action bar while the current assistant response is running", () => {
   const runningAssistant = {
     ...assistant("assistant-running", "text"),

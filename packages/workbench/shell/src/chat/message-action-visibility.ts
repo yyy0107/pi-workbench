@@ -5,6 +5,8 @@ export interface MessageActionVisibilityMessage {
   readonly branchCount?: number;
   readonly isLast?: boolean;
   readonly status?: { readonly type: string };
+  readonly steering?: boolean;
+  readonly steerInterrupted?: boolean;
 }
 
 export function shouldHideMessageActionBar(
@@ -27,14 +29,19 @@ function hasActionableAssistantContent(message: MessageActionVisibilityMessage):
 }
 
 export function isLastAssistantInTurn(
-  messages: readonly Pick<MessageActionVisibilityMessage, "role">[],
+  messages: readonly Pick<
+    MessageActionVisibilityMessage,
+    "role" | "steering" | "steerInterrupted"
+  >[],
   messageIndex: number,
 ): boolean {
   if (messages[messageIndex]?.role !== "assistant") return false;
+  if (messages[messageIndex]?.steerInterrupted) return false;
 
   for (let index = messageIndex + 1; index < messages.length; index += 1) {
     const nextMessage = messages[index];
-    if (!nextMessage || nextMessage.role === "user") break;
+    if (!nextMessage || (nextMessage.role === "user" && !nextMessage.steering)) break;
+    if (nextMessage.steering) return false;
     if (nextMessage.role === "assistant") return false;
   }
 

@@ -1,6 +1,21 @@
 interface MessageRoleRow {
   id: string;
   role: "user" | "assistant" | "system";
+  steering?: boolean;
+}
+
+/** A steer continues the preceding response; an ordinary user prompt starts another turn. */
+export function steeredTurnEnd(messages: readonly MessageRoleRow[], start: number): number {
+  if (messages[start]?.role !== "assistant") return start;
+  let end = start;
+  let hasSteering = false;
+  for (let index = start + 1; index < messages.length; index += 1) {
+    const row = messages[index]!;
+    if (row.role === "user" && !row.steering) break;
+    hasSteering ||= row.steering === true;
+    end = index;
+  }
+  return hasSteering ? end : start;
 }
 
 interface WorkingStatusState {

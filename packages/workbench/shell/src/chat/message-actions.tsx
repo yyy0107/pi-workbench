@@ -23,6 +23,7 @@ import {
   type MessageActionVisibilityMessage,
 } from "./message-action-visibility";
 import { useConversationMessageContext } from "./conversation-message-context";
+import { useSteeredTurn } from "./steered-turn";
 
 function CopyAction({ role, text }: Readonly<{ role: "user" | "assistant"; text: string }>) {
   const { t } = useI18n();
@@ -69,11 +70,14 @@ function visibilityMessage(
         : [],
     branchCount: node.presentation?.branch?.count,
     isLast,
+    steering: node.presentation?.custom?.workbenchSteering === true,
+    steerInterrupted: node.presentation?.custom?.workbenchSteerInterrupted === true,
     ...(node.kind === "assistant" ? { status: { type: node.status } } : {}),
   };
 }
 
 export function WorkbenchMessageActions({ className }: Readonly<{ className?: string }>) {
+  const steeredTurn = useSteeredTurn();
   const { date } = useI18n();
   const { messageId, role, isLast, index } = useConversationMessageContext();
   const session = useConversationSession();
@@ -84,8 +88,11 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
     visibilityMessage(item, nodeIndex === nodes.length - 1),
   );
   if (!node) return null;
+  if (role === "assistant" && steeredTurn && steeredTurn.finalMessageId !== messageId) return null;
   const message = visibilityMessage(node, isLast);
-  const hideActionBar = shouldHideMessageActionBar(message, isRunning);
+  const hideActionBar =
+    shouldHideMessageActionBar(message, isRunning) ||
+    (role === "assistant" && steeredTurn?.running === true);
   const actionsVisible = shouldShowMessageActions(messages, index);
   const navigationVisible = shouldShowMessageNavigation(
     messages,

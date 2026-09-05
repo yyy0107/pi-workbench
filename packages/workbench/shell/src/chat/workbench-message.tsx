@@ -26,6 +26,7 @@ import { parseWorkbenchPromptFailureDetails } from "@workbench/contracts/compose
 
 import { WorkbenchComposerCommandResponse } from "./composer-command-response";
 import { WorkbenchMessageActions } from "./message-actions";
+import { useSteeredTurn } from "./steered-turn";
 import { WorkbenchMessageParts } from "./message-parts";
 import { useConversationMessageContext } from "./conversation-message-context";
 import { isLastAssistantInTurn } from "./message-action-visibility";
@@ -62,6 +63,8 @@ function WorkbenchMessageError() {
     const node = session.node(key).getSnapshot();
     return {
       role: node?.kind === "user" || node?.kind === "assistant" ? node.kind : ("system" as const),
+      steering: node?.presentation?.custom?.workbenchSteering === true,
+      steerInterrupted: node?.presentation?.custom?.workbenchSteerInterrupted === true,
     };
   });
   const isInLatestTurn = isMessageInLatestTurn(messages, index);
@@ -211,6 +214,7 @@ function WorkbenchMessageError() {
 }
 
 export function WorkbenchUserMessage() {
+  const steeredTurn = useSteeredTurn();
   const { messageId } = useConversationMessageContext();
   const isOptimistic = useConversationNode(
     messageId,
@@ -219,7 +223,10 @@ export function WorkbenchUserMessage() {
   const [animateOnMount] = useState(isOptimistic);
 
   return (
-    <div data-role="user" className="group/message flex w-full min-w-0 flex-col items-end gap-1.5">
+    <div
+      data-role="user"
+      className="group/message relative flex w-full min-w-0 flex-col items-end gap-1.5"
+    >
       <MessageSlot name="message.before" />
       <div
         className={cn(
@@ -230,7 +237,9 @@ export function WorkbenchUserMessage() {
       >
         <WorkbenchMessageParts />
       </div>
-      <WorkbenchMessageActions className="justify-end" />
+      <WorkbenchMessageActions
+        className={steeredTurn ? "absolute right-0 top-full z-10 justify-end" : "justify-end"}
+      />
       <MessageSlot name="message.after" />
     </div>
   );

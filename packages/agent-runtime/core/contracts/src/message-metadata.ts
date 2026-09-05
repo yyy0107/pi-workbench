@@ -2,6 +2,7 @@ export const WORKBENCH_MESSAGE_METADATA_KEYS = Object.freeze({
   conversationEvent: "workbenchConversationEvent",
   stateToken: "workbenchStateToken",
   steerInterrupted: "workbenchSteerInterrupted",
+  steering: "workbenchSteering",
   termination: "workbenchTermination",
   turnStatistics: "workbenchTurnStatistics",
   turnTiming: "workbenchTurnTiming",

@@ -2651,6 +2651,7 @@ export class PiClientSession implements ConversationSession {
           custom: {
             ...steeringMessage.metadata.custom,
             piSteering: true,
+            workbenchSteering: true,
           },
         },
       });

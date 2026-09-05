@@ -152,6 +152,9 @@ export function piHistoryFromSessionEvents(
   let firstAssistantTokenAt: number | undefined;
   let assistantAccumulator: SessionMessageAccumulator | undefined;
   let activeAssistant: PiSessionHistory["context"]["activeAssistant"];
+  let steeringQueue: string[] = [];
+  let removedSteering: string[] = [];
+  let userIsSteering = false;
 
   const discardRetryingAssistant = () => {
     const userIndex = messages.findLastIndex((message) => message.role === "user");
@@ -234,6 +237,34 @@ export function piHistoryFromSessionEvents(
   for (const { event } of history.events) {
     const eventId = event.entryId ?? `pi-event-${event.seq}`;
     const data = record(event.data);
+    if (event.type === "queue_update") {
+      const nextQueue = Array.isArray(data?.steering)
+        ? data.steering.filter((value): value is string => typeof value === "string")
+        : [];
+      const remaining = [...nextQueue];
+      // ponytail: queues are small; use counted maps if large queues make this scan costly.
+      removedSteering = steeringQueue.filter((prompt) => {
+        const index = remaining.indexOf(prompt);
+        if (index < 0) return true;
+        remaining.splice(index, 1);
+        return false;
+      });
+      steeringQueue = nextQueue;
+      continue;
+    }
+    if (event.type === "message_start") {
+      const message = piMessage(data?.message);
+      const text =
+        message?.role === "user"
+          ? typeof message.content === "string"
+            ? message.content
+            : message.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("")
+          : undefined;
+      // Pi emits the queue removal immediately before delivering the matching user message.
+      // Explicit removals followed by another event must not mark a later ordinary prompt.
+      userIsSteering = text !== undefined && removedSteering.includes(text);
+    }
+    removedSteering = [];
     if (event.type === "auto_retry_start") {
       discardRetryingAssistant();
       continue;
@@ -351,10 +382,14 @@ export function piHistoryFromSessionEvents(
       message.role === "user"
         ? parseWorkbenchComposerUserProjection(data?.workbenchComposer)
         : undefined;
-    const projectedMessage =
+    let projectedMessage =
       message.role === "user" && composerProjection
         ? { ...message, workbenchComposer: composerProjection }
         : message;
+    if (projectedMessage.role === "user" && userIsSteering) {
+      projectedMessage = { ...projectedMessage, workbenchSteering: true };
+      userIsSteering = false;
+    }
 
     if (projectedMessage.role === "assistant" && projectedMessage.model) {
       const derivedModelChange = currentModel

@@ -4,7 +4,7 @@ import { memo, useMemo, type ReactNode } from "react";
 
 import {
   useConversationNode,
-  useConversationSession,
+  useConversationNodes,
   useSessionState,
 } from "@workbench/agent-runtime-client";
 import type { ConversationNode } from "@workbench/agent-runtime-contracts/conversation";
@@ -19,7 +19,9 @@ import {
   conversationPairKey,
   isLastConversationPair,
   shouldShowWorkingStatus,
+  steeredTurnEnd,
 } from "./workbench-message-rows";
+import { SteeredTurn } from "./steered-turn";
 import {
   WorkbenchAssistantMessage,
   WorkbenchSystemMessage,
@@ -33,6 +35,7 @@ interface ConversationRow {
   readonly id: string;
   readonly index: number;
   readonly role: "user" | "assistant" | "system";
+  readonly steering: boolean;
 }
 
 const messageComponents = {
@@ -96,24 +99,17 @@ function ConversationMessages({
   renderWorkingStatus,
 }: Readonly<{ isRunning: boolean; renderWorkingStatus: () => ReactNode }>) {
   const { date } = useI18n();
-  const session = useConversationSession();
-  const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
+  const nodes = useConversationNodes();
   const rows = useMemo<readonly ConversationRow[]>(
     () =>
-      nodeKeys.flatMap((nodeKey, index) => {
-        const node = session.node(nodeKey).getSnapshot();
-        return node
-          ? [
-              {
-                id: nodeKey,
-                index,
-                role: nodeRole(node),
-                createdAt: node.createdAt ?? index,
-              },
-            ]
-          : [];
-      }),
-    [nodeKeys, session],
+      nodes.map((node, index) => ({
+        id: node.key,
+        index,
+        role: nodeRole(node),
+        createdAt: node.createdAt ?? index,
+        steering: node.presentation?.custom?.workbenchSteering === true,
+      })),
+    [nodes],
   );
   const items: ReactNode[] = [];
   let previousDay: string | undefined;
@@ -161,7 +157,10 @@ function ConversationMessages({
         ? index + 1
         : undefined;
     const hasAssistantMessage = row.role === "assistant" || assistantIndex !== undefined;
-    const pairMessageIndex = assistantIndex ?? index;
+    const turnStart = assistantIndex ?? index;
+    const turnEnd = steeredTurnEnd(rows, turnStart);
+    const grouped = turnEnd > turnStart;
+    const pairMessageIndex = turnEnd;
     const showWorkingStatus = shouldShowWorkingStatus({
       isLastPair: isLastConversationPair(rows, pairMessageIndex),
       threadIsRunning: isRunning,
@@ -187,7 +186,28 @@ function ConversationMessages({
                 showWorkingStatus && "min-h-[var(--assistant-turn-min-height)]",
               )}
             >
-              {hasAssistantMessage ? (
+              {grouped ? (
+                <SteeredTurn
+                  nodes={nodes.slice(turnStart, turnEnd + 1)}
+                  running={showWorkingStatus}
+                >
+                  {({ open, finalMessageId }) =>
+                    rows.slice(turnStart, turnEnd + 1).map((entry) => (
+                      <div
+                        key={entry.id}
+                        hidden={
+                          !open &&
+                          entry.role !== "user" &&
+                          entry.id !== finalMessageId &&
+                          nodes[entry.index]?.kind !== "error"
+                        }
+                      >
+                        <ConversationNodeSeat index={entry.index} nodeKey={entry.id} />
+                      </div>
+                    ))
+                  }
+                </SteeredTurn>
+              ) : hasAssistantMessage ? (
                 <ConversationNodeSeat
                   index={rows[assistantIndex ?? index]?.index ?? row.index}
                   nodeKey={rows[assistantIndex ?? index]?.id ?? row.id}
@@ -200,7 +220,7 @@ function ConversationMessages({
       />,
     );
 
-    if (assistantIndex !== undefined) index = assistantIndex;
+    if (grouped || assistantIndex !== undefined) index = turnEnd;
   }
 
   if (items.length === 0) return null;

@@ -11,6 +11,51 @@ import {
   WORKBENCH_SESSION_SUMMARY_PROJECTION,
 } from "../../src/sessions/session-rpc-projection";
 
+test("restores delivered steer identity from durable queue events without marking follow-ups or removed prompts", () => {
+  const message = (role: "assistant" | "user", text: string) => ({
+    role,
+    content: [{ type: "text", text }],
+    timestamp: 100,
+    ...(role === "assistant" ? { stopReason: "stop" } : {}),
+  });
+  const events = [
+    { type: "message_end", data: { message: message("assistant", "before") } },
+    { type: "queue_update", data: { steering: ["ok", "ok"], followUp: ["later"] } },
+    { type: "queue_update", data: { steering: ["ok"], followUp: ["later"] } },
+    { type: "message_start", data: { message: message("user", "ok") } },
+    { type: "message_end", data: { message: message("user", "ok") } },
+    { type: "queue_update", data: { steering: [], followUp: ["later"] } },
+    { type: "message_start", data: { message: message("user", "ok") } },
+    { type: "message_end", data: { message: message("user", "ok") } },
+    { type: "message_end", data: { message: message("assistant", "final") } },
+    { type: "queue_update", data: { steering: [], followUp: [] } },
+    { type: "message_start", data: { message: message("user", "later") } },
+    { type: "message_end", data: { message: message("user", "later") } },
+    { type: "queue_update", data: { steering: ["removed"] } },
+    { type: "queue_update", data: { steering: [] } },
+    { type: "agent_start", data: {} },
+    { type: "message_start", data: { message: message("user", "removed") } },
+    { type: "message_end", data: { message: message("user", "removed") } },
+  ].map((event, seq) => ({ event: { ...event, seq, time: 100 + seq } }));
+  const history = piHistoryFromSessionEvents("steering", { events, hasMore: false });
+  const messages = piHistoryToThreadMessages(history);
+  assert.deepEqual(
+    messages
+      .filter((entry) => entry.role === "user")
+      .map((entry) => entry.metadata.custom.workbenchSteering === true),
+    [true, true, false, false],
+  );
+  assert.equal(messages[0]?.metadata.custom.workbenchSteerInterrupted, true);
+  assert.equal(
+    messages.find(
+      (entry) =>
+        entry.role === "assistant" &&
+        entry.content.some((part) => part.type === "text" && part.text === "final"),
+    )?.metadata.custom.workbenchSteerInterrupted,
+    undefined,
+  );
+});
+
 test("adapts session list metadata carried in protocol projections", () => {
   const summary = piSummaryFromSessionListItem({
     sessionId: "s-1",

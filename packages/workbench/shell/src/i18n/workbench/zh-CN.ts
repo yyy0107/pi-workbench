@@ -2,6 +2,8 @@ import type { MessageFormatters } from "../types";
 
 export const workbenchZhCN = {
   chat: {
+    turnDuration: ({ duration }: { duration: string }) => `用时 ${duration}`,
+    turnDetails: "工作过程",
     empty: {
       question: ({ productName }: { productName: string }) => `要在 ${productName} 完成什么？`,
       description: "提出问题、附加上下文，或在对话需要更多空间时打开工作台面板。",

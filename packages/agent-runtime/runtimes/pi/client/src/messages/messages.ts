@@ -1270,6 +1270,25 @@ export function coalesceConsecutiveAssistantMessages(
       continue;
     }
     flushAssistantGroup();
+    if (message.role === "user" && message.metadata.custom.workbenchSteering === true) {
+      for (let index = coalesced.length - 1; index >= 0; index -= 1) {
+        const previous = coalesced[index]!;
+        if (previous.role === "user") break;
+        if (previous.role !== "assistant") continue;
+        coalesced[index] = {
+          ...previous,
+          metadata: {
+            ...previous.metadata,
+            custom: {
+              ...previous.metadata.custom,
+              piSteerInterrupted: true,
+              workbenchSteerInterrupted: true,
+            },
+          },
+        };
+        break;
+      }
+    }
     if (message.role === "user") turnStartedAt = messageSourceTimestamp(message);
     appendMessage(message);
   }
@@ -1347,6 +1366,9 @@ export function piHistoryToThreadMessages(
                   piResolvedEntryId: history.context.entryIds[index],
                   piResolvedMessageTimestamp: message.timestamp ?? null,
                   workbenchComposerProjectionResolved: true,
+                  ...(message.workbenchSteering
+                    ? { piSteering: true, workbenchSteering: true }
+                    : {}),
                   ...(attachmentRecognitionBySubmissionId.get(projection.submissionId) === undefined
                     ? {}
                     : {
@@ -1384,6 +1406,7 @@ export function piHistoryToThreadMessages(
           metadata: metadata({
             piEntryId: history.context.entryIds[index],
             piMessageTimestamp: message.timestamp ?? null,
+            ...(message.workbenchSteering ? { piSteering: true, workbenchSteering: true } : {}),
             ...(history.context.entrySeqs?.[index] == null
               ? {}
               : { piEventSeq: history.context.entrySeqs[index] }),

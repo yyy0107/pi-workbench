@@ -26,6 +26,7 @@ import { ReasoningPanel } from "../../../elements/reasoning-panel";
 import type { Source } from "../../../elements/inline-citation";
 import { useI18n } from "../../../i18n";
 import { useConversationPreferences } from "../../../chat/conversation-preferences";
+import { useSteeredTurn } from "../../../chat/steered-turn";
 
 import {
   completedWorkBoundary,
@@ -249,6 +250,7 @@ function MessageBlockRange({
 }
 
 export function WorkbenchMessagePresentation({ node: sourceNode }: MessageRendererProps) {
+  const steeredTurn = useSteeredTurn();
   const { t, date, locale, relativeTime } = useI18n();
   const { showReasoning, showTodos, groupParallelTools } = useConversationPreferences(
     (state) => state.preferences,
@@ -286,6 +288,29 @@ export function WorkbenchMessagePresentation({ node: sourceNode }: MessageRender
       : "completed";
   const completedWork =
     node.kind === "assistant" && !interruptedBySteering && completedBoundary > 0;
+
+  if (steeredTurn && node.kind === "assistant") {
+    return (
+      <MessageDisclosureProvider phase={disclosurePhase}>
+        <div hidden={!steeredTurn.open}>
+          <MessageBlockRange
+            node={node}
+            start={0}
+            end={completedBoundary}
+            presentations={dataPresentations}
+            groupParallelTools={groupParallelTools}
+          />
+        </div>
+        <MessageBlockRange
+          node={node}
+          start={completedBoundary}
+          end={node.blocks.length}
+          presentations={dataPresentations}
+          groupParallelTools={groupParallelTools}
+        />
+      </MessageDisclosureProvider>
+    );
+  }
 
   return (
     <MessageDisclosureProvider phase={disclosurePhase}>

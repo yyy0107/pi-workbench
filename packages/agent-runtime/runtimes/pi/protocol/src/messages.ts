@@ -106,6 +106,8 @@ export interface PiUserMessage {
   content: string | Array<PiTextContent | PiImageContent>;
   timestamp?: number;
   workbenchComposer?: WorkbenchComposerUserProjection;
+  /** Delivery identity reconstructed from the canonical queue/message events. */
+  workbenchSteering?: boolean;
 }
 
 export interface PiAssistantMessage {

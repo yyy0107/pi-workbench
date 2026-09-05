@@ -5,7 +5,32 @@ import {
   conversationPairKey,
   isLastConversationPair,
   shouldShowWorkingStatus,
+  steeredTurnEnd,
 } from "./workbench-message-rows";
+
+test("groups repeated steering and system events without swallowing the next ordinary turn", () => {
+  const rows = [
+    { id: "initial", role: "user" as const },
+    { id: "before", role: "assistant" as const },
+    { id: "steer1", role: "user" as const, steering: true },
+    { id: "steer2", role: "user" as const, steering: true },
+    { id: "system", role: "system" as const },
+    { id: "final", role: "assistant" as const },
+    { id: "next", role: "user" as const },
+    { id: "next-answer", role: "assistant" as const },
+  ];
+  assert.equal(steeredTurnEnd(rows, 0), 0);
+  assert.equal(steeredTurnEnd(rows, 1), 5);
+  assert.equal(steeredTurnEnd(rows.slice(0, 4), 1), 3);
+  assert.equal(steeredTurnEnd(rows, 7), 7);
+  assert.equal(
+    steeredTurnEnd(
+      rows.filter((row) => !row.steering),
+      1,
+    ),
+    1,
+  );
+});
 
 test("keeps a conversation pair mounted while assistant output is attached", () => {
   const userOnly = [{ id: "user-1", role: "user" as const }];
