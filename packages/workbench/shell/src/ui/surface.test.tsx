@@ -27,7 +27,7 @@ test("labels retain layout width through hidden and scaled panels", async () => 
     offsetWidth: 81,
     getClientRects: () => (visible ? [{}] : []),
     getBoundingClientRect: () => ({ width: 81 * 0.95 }),
-  } as HTMLSpanElement;
+  } as unknown as HTMLSpanElement;
 
   function Probe() {
     label = SwapLabel({ active: 1, children: ["正在准备上下文", "上下文已就绪"] });
