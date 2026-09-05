@@ -224,7 +224,7 @@ pnpm electron:dist # 生成原生安装包或分发文件；Linux 会执行强�
 ```
 
 两个 Electron 命令都会自动执行生产构建。桌面产物写入 `dist-electron/`。当前配置的目标是 macOS
-DMG/ZIP、Windows NSIS 和 Linux AppImage；应在对应目标操作系统上构建相应产物。当前 packaged
+DMG/ZIP、Windows NSIS 和 Linux DEB；应在对应目标操作系统上构建相应产物。当前 packaged
 Window/RPC/WebSocket/PTY/Runtime 重启/renderer reload/titlebar/退出清理的执行契约仅在原生 Linux target
 实现。macOS、Windows 或 cross-target 构建上，规范命令会失败，不能把未执行的应用误报为成功。只有明确需要
 manifest/layout/budget artifact 验证时才使用 `pnpm electron:pack:artifact` 或

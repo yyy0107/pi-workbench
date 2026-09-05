@@ -12,7 +12,7 @@ test("update manifests reference the exact published binary and checksum for eac
   for (const platform of ["win32", "darwin", "linux"])
     for (const arch of ["x64", "arm64"]) {
       const targetKey = `${platform}-${arch}${platform === "linux" ? "-glibc" : ""}`;
-      const filename = `${targetKey}-Pi-Workbench${platform === "win32" ? ".exe" : platform === "darwin" ? ".zip" : ".AppImage"}`;
+      const filename = `${targetKey}-Pi-Workbench${platform === "win32" ? ".exe" : platform === "darwin" ? ".zip" : ".deb"}`;
       writeFileSync(path.join(directory, filename), targetKey);
       const result = releaseUpdateInfo({
         targetKey,

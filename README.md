@@ -239,7 +239,7 @@ pnpm electron:dist # native installer/distributable; includes the required Linux
 ```
 
 Both Electron commands run the production build automatically. Desktop output is written to
-`dist-electron/`. Configured targets are macOS DMG/ZIP, Windows NSIS, and Linux AppImage; build on
+`dist-electron/`. Configured targets are macOS DMG/ZIP, Windows NSIS, and Linux DEB; build on
 the target operating system for the corresponding artifact. The packaged Window/RPC/WebSocket/PTY/
 Runtime-restart/renderer-reload/titlebar/cleanup execution contract is currently implemented only
 for a native Linux target. On macOS, Windows, or a cross-target build, the canonical commands fail

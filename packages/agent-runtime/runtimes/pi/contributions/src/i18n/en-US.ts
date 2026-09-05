@@ -206,8 +206,15 @@ export const piExtensionsEnUS = {
       ready: "Ready",
       accessibleLabel: ({ status }: { status: string }) => `Assistant runtime: ${status}`,
       description: "Derived from the local assistant runtime",
-      piVersionDescription: ({ version }: { version: string }) => `Pi version ${version}`,
-      piVersionLoading: "Loading the Pi version",
+      workbenchVersionDescription: ({
+        productName,
+        version,
+      }: {
+        productName: string;
+        version: string;
+      }) => `${productName} version ${version}`,
+      workbenchVersionLoading: ({ productName }: { productName: string }) =>
+        `Loading the ${productName} version`,
     },
     modelConfig: {
       title: "Model",

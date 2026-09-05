@@ -1522,6 +1522,19 @@ async function regularFiles(
   return result;
 }
 
+export async function normalizeRuntimeArtifactPermissions(directory: string): Promise<void> {
+  // Installed artifacts are owned by root but must remain readable by the launching user.
+  await chmod(directory, 0o755);
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) await normalizeRuntimeArtifactPermissions(absolute);
+    else if (entry.isFile()) {
+      const { mode } = await lstat(absolute);
+      await chmod(absolute, mode & 0o111 ? 0o755 : 0o644);
+    }
+  }
+}
+
 export async function collectRuntimeModelReadableResources(
   outputDirectory: string,
 ): Promise<RuntimeModelReadableResources> {
@@ -3350,6 +3363,9 @@ export async function buildRuntimeArtifact({
         `${JSON.stringify(manifest, null, 2)}\n`,
         "utf8",
       );
+      if (target.platform !== "win32") {
+        await normalizeRuntimeArtifactPermissions(temporaryDirectory);
+      }
     },
   });
 }

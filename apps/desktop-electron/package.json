@@ -2,6 +2,7 @@
   "name": "@workbench/desktop-electron",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://github.com/yyy0107/pi-workbench",
   "license": "MIT",
   "main": "src/main.cjs",
   "scripts": {
@@ -79,9 +80,11 @@
     },
     "linux": {
       "category": "Development",
+      "description": "Pi Workbench",
+      "maintainer": "wy <3169760286@qq.com>",
       "syncDesktopName": true,
       "target": [
-        "AppImage"
+        "deb"
       ]
     },
     "publish": [

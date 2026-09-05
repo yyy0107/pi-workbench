@@ -8,7 +8,7 @@ export function releaseUpdateInfo({ targetKey, version, directory, packages }) {
     ? ".exe"
     : targetKey.startsWith("darwin-")
       ? ".zip"
-      : ".AppImage";
+      : ".deb";
   const candidates = packages.filter((asset) => asset.filename.endsWith(extension));
   if (candidates.length !== 1)
     throw new Error(`Expected one ${extension} update for ${targetKey}.`);

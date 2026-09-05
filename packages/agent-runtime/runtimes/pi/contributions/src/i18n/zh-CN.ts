@@ -200,8 +200,15 @@ export const piExtensionsZhCN = {
       ready: "就绪",
       accessibleLabel: ({ status }: { status: string }) => `助手运行时：${status}`,
       description: "状态来自本地助手运行时",
-      piVersionDescription: ({ version }: { version: string }) => `Pi 版本 ${version}`,
-      piVersionLoading: "正在加载 Pi 版本",
+      workbenchVersionDescription: ({
+        productName,
+        version,
+      }: {
+        productName: string;
+        version: string;
+      }) => `${productName} 版本 ${version}`,
+      workbenchVersionLoading: ({ productName }: { productName: string }) =>
+        `正在加载 ${productName} 版本`,
     },
     modelConfig: {
       title: "模型",

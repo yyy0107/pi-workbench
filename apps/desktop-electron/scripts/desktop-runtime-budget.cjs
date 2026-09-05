@@ -594,7 +594,7 @@ async function assertPackagedOutputBudget(
     resolveRenderer,
     runtimeDirectory,
   });
-  const artifactPattern = /\.(?:appimage|dmg|exe|zip)$/iu;
+  const artifactPattern = /\.(?:deb|dmg|exe|zip)$/iu;
   const artifacts = readdirSync(outputDirectory, { withFileTypes: true })
     .filter((entry) => entry.isFile() && artifactPattern.test(entry.name))
     .map((entry) => {

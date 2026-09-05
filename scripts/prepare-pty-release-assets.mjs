@@ -23,7 +23,7 @@ const supportedTargets = new Set([
   "linux-x64-glibc",
   "linux-arm64-glibc",
 ]);
-const distributionExtensions = [".AppImage", ".deb", ".dmg", ".exe", ".msi", ".rpm", ".zip"];
+const distributionExtensions = [".deb", ".dmg", ".exe", ".msi", ".rpm", ".zip"];
 
 function argument(name) {
   const index = process.argv.indexOf(name);

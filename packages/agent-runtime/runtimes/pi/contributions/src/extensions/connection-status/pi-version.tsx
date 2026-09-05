@@ -8,11 +8,11 @@ import { ConnectionStatus } from "./connection-status";
 
 export function PiVersion() {
   const { t } = usePiI18n();
-  const { productLogoUrl, runtimeName } = useWorkbenchBranding();
-  const version = usePiHostDescription()?.piVersion;
+  const { productLogoUrl, productName } = useWorkbenchBranding();
+  const version = usePiHostDescription()?.version;
   const description = version
-    ? t("extensions.connectionStatus.piVersionDescription", { version })
-    : t("extensions.connectionStatus.piVersionLoading");
+    ? t("extensions.connectionStatus.workbenchVersionDescription", { productName, version })
+    : t("extensions.connectionStatus.workbenchVersionLoading", { productName });
 
   return (
     <div className="@min-[480px]/statusbar:min-w-[16ch] inline-flex h-6 min-w-0 items-center justify-start gap-1.5 rounded-md pr-1.5 pl-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
@@ -32,7 +32,7 @@ export function PiVersion() {
           />
         ) : null}
         <span className="@max-[340px]/statusbar:hidden">
-          {runtimeName} v{version ?? "—"}
+          {productName} v{version ?? "—"}
         </span>
       </div>
       <ConnectionStatus />
