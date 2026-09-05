@@ -20,11 +20,11 @@ const iconButtonInteractionStyles = [
 ].join(" ");
 
 const iconButtonStyles = cn(
-  "aui-button-icon size-[var(--icon-frame-size-default)]! min-h-[var(--icon-frame-size-default)] min-w-[var(--icon-frame-size-default)] p-0! [&_svg]:size-[var(--icon-size-md)]! [&_svg.lucide]:[stroke-width:1.5]!",
+  "aui-button-icon size-[var(--button-icon-frame-size,var(--icon-frame-size-default))]! min-h-[var(--button-icon-frame-size,var(--icon-frame-size-default))] min-w-[var(--button-icon-frame-size,var(--icon-frame-size-default))] p-0! [&_svg]:size-[var(--button-icon-size,var(--icon-size-md))]!",
   iconButtonInteractionStyles,
 );
 const compactIconButtonStyles = cn(
-  "aui-button-icon size-[var(--icon-frame-size-compact)]! min-h-[var(--icon-frame-size-compact)] min-w-[var(--icon-frame-size-compact)] p-0! [&_svg]:size-[var(--icon-size-md)]! [&_svg.lucide]:[stroke-width:1.5]!",
+  "aui-button-icon size-[var(--button-icon-frame-size,var(--icon-frame-size-compact))]! min-h-[var(--button-icon-frame-size,var(--icon-frame-size-compact))] min-w-[var(--button-icon-frame-size,var(--icon-frame-size-compact))] p-0! [&_svg]:size-[var(--button-icon-size,var(--icon-size-md))]!",
   iconButtonInteractionStyles,
 );
 
@@ -52,7 +52,7 @@ const neutralButtonInteractionStyles = [
 
 const buttonVariants = cva(
   cn(
-    "group/button inline-flex min-h-[var(--button-height-compact)] min-w-[var(--button-height-compact)] shrink-0 items-center justify-center rounded-[var(--button-radius)] border border-transparent bg-clip-padding pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-sm leading-[var(--control-text-line-height)]! font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg.lucide]:[stroke-width:1.5]! [&_svg:not([class*='size-'])]:size-[var(--icon-size-md)]",
+    "group/button inline-flex min-h-[var(--button-height-compact)] min-w-[var(--button-height-compact)] shrink-0 items-center justify-center rounded-[var(--button-radius)] border border-transparent bg-clip-padding pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-sm leading-[var(--control-text-line-height)]! font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--button-icon-size,var(--icon-size-md))]",
     selectableButtonStateStyles,
   ),
   {

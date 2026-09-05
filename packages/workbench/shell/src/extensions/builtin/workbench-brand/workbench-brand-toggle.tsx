@@ -13,7 +13,7 @@ import { useMainViewService } from "@workbench/extension-host";
 export function WorkbenchBrandToggle() {
   const { t } = useI18n();
   const { productLogoUrl } = useWorkbenchBranding();
-  const { isMobile, state, toggleSidebar } = useSidebar();
+  const { isMobile, openMobile, state, toggleSidebar } = useSidebar();
   const mainViews = useMainViewService();
   const activeMainView = useSyncExternalStore(
     mainViews.subscribe,
@@ -21,13 +21,19 @@ export function WorkbenchBrandToggle() {
     mainViews.getInitialSnapshot,
   );
 
-  if (isMobile) return null;
-
+  const expanded = isMobile ? openMobile : state === "expanded";
   const productIconHidden = activeMainView?.chrome?.productIcon === "hidden";
-  if (productIconHidden && state === "expanded") return null;
+  if (productIconHidden && !isMobile && expanded) return null;
 
-  const expanded = state === "expanded";
-  const label = t(expanded ? "workbench.sidebar.collapse" : "workbench.sidebar.expand");
+  const label = t(
+    isMobile
+      ? expanded
+        ? "workbench.sidebar.closeMobile"
+        : "workbench.sidebar.openMobile"
+      : expanded
+        ? "workbench.sidebar.collapse"
+        : "workbench.sidebar.expand",
+  );
   const ToggleIcon = expanded ? PanelLeftCloseIcon : PanelLeftOpenIcon;
   const showsProductLogo = !productIconHidden && Boolean(productLogoUrl);
 
@@ -42,7 +48,7 @@ export function WorkbenchBrandToggle() {
       aria-label={label}
       title={label}
       onClick={toggleSidebar}
-      className="absolute start-[6px] top-[calc((2.5rem-var(--icon-frame-size-default))/2)] z-30 p-0! [app-region:no-drag]"
+      className="absolute start-[6px] top-[calc((var(--workbench-header-height)-var(--icon-frame-size-default))/2)] z-30 p-0! [app-region:no-drag]"
     >
       <span
         aria-hidden="true"

@@ -43,7 +43,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en-US" suppressHydrationWarning>
       <body
         data-workbench-desktop-renderer="1"
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased [&_button_svg.lucide]:size-4 [&_svg.lucide]:[stroke-width:1.5]`}
+        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
         {children}
       </body>

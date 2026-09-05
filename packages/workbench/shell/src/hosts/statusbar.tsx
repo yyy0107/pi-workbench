@@ -7,7 +7,7 @@ export function WorkbenchStatusbar() {
   return (
     <footer
       data-workbench-surface="statusbar"
-      className="@container/statusbar bg-background text-muted-foreground flex h-7 shrink-0 items-center justify-between gap-2 overflow-hidden border-t px-2 text-xs sm:px-3"
+      className="@container/statusbar bg-background text-muted-foreground flex h-(--workbench-statusbar-height) shrink-0 items-center justify-between gap-2 overflow-hidden border-t px-2 text-xs sm:px-3"
     >
       <SessionProvider>
         <SlotHost name="statusbar.left" className="flex min-w-0 shrink-0 items-center gap-2" />

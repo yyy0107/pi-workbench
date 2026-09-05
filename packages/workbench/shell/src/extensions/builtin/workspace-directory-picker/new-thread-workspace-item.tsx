@@ -27,7 +27,7 @@ export function NewThreadWorkspaceItem() {
     <Button
       type="button"
       variant="ghost"
-      className="hover:bg-sidebar-accent data-active:bg-sidebar-accent h-9 w-full justify-start gap-2 rounded-lg px-3 text-sm font-medium"
+      className="hover:bg-sidebar-accent data-active:bg-sidebar-accent h-[var(--sidebar-row-height)] min-h-[var(--sidebar-row-height)] w-full justify-start gap-2 rounded-lg px-3 text-sm font-medium"
       onClick={() => {
         if (targetWorkspaceId) beginNewThread(targetWorkspaceId);
         else destroyNewThread();

@@ -21,7 +21,8 @@ import {
   NEW_THREAD_COMPOSER_WIDTH,
   THREAD_CONTENT_COMPACT_GUTTER_PX,
   THREAD_CONTENT_MAX_WIDTH_PX,
-  THREAD_CONTENT_MIN_WIDTH_PX,
+  THREAD_CONTENT_WIDTH,
+  THREAD_CONTENT_WIDTH_CLASS_NAME,
   THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
 } from "../layout";
 
@@ -34,6 +35,8 @@ const THREAD_VIEWPORT_MASK_IMAGE =
   "linear-gradient(to bottom, transparent 0, #000 var(--thread-header-fade-size), #000 calc(100% - var(--composer-dock-corner-radius)), transparent 100%), linear-gradient(#000 0 0)";
 const THREAD_VIEWPORT_MASK_SIZE =
   "calc(100% - var(--thread-viewport-inline-padding)) 100%, var(--thread-viewport-inline-padding) 100%";
+const THREAD_INLINE_GUTTER_CLASS_NAME =
+  "[padding-inline:var(--thread-viewport-inline-padding)] [scrollbar-gutter:stable_both-edges]";
 
 function AssistantWorkingStatus() {
   const { locale, t } = useI18n();
@@ -154,7 +157,6 @@ export interface WorkbenchConversationProps {
   composerDock?: ReactNode;
   /** Whether loading the current runtime should replace messages with the history indicator. */
   showHistoryLoading?: boolean;
-  composerDockInset?: number;
   autoScroll?: boolean;
   scrollToBottomOnInitialize?: boolean;
   rootClassName?: string;
@@ -164,8 +166,8 @@ export interface WorkbenchConversationProps {
 /**
  * Runtime-scoped Workbench conversation UI shared by the central MainView and nested surfaces.
  *
- * Routing and Composer Dock measurement are supplied by the host. Conversation structure and
- * scrolling read the Headless Session.
+ * Hosts supply routing and Composer content. The shared frame owns responsive layout and
+ * scrolling reads the Headless Session.
  */
 export function WorkbenchConversationContent({
   threadId,
@@ -173,7 +175,6 @@ export function WorkbenchConversationContent({
   emptyComposer,
   composerDock,
   showHistoryLoading = false,
-  composerDockInset = 138,
   autoScroll,
   scrollToBottomOnInitialize = false,
   rootClassName,
@@ -211,13 +212,14 @@ export function WorkbenchConversationContent({
   return (
     <div
       data-workbench-surface={rootDataSurface}
-      className={cn("bg-background relative flex h-full min-h-0 min-w-0 text-base", rootClassName)}
+      data-slot="workbench-conversation"
+      className={cn(
+        "bg-background relative flex h-full w-full min-h-0 min-w-0 text-base",
+        rootClassName,
+      )}
       style={
         {
-          "--thread-content-width":
-            "calc(100cqw - var(--thread-content-inline-gutter, 4rem) - var(--thread-content-inline-gutter, 4rem))",
-          "--thread-content-min-width": `min(${THREAD_CONTENT_MIN_WIDTH_PX}px, calc(100cqw - ${THREAD_CONTENT_COMPACT_GUTTER_PX * 2}px))`,
-          "--thread-content-max-width": `min(${THREAD_CONTENT_MAX_WIDTH_PX}px, calc(100cqw - ${THREAD_CONTENT_COMPACT_GUTTER_PX * 2}px))`,
+          "--thread-content-max-width": `min(${THREAD_CONTENT_MAX_WIDTH_PX}px, 100%)`,
           "--new-thread-composer-width": NEW_THREAD_COMPOSER_WIDTH,
           // Reserve the active optimistic turn's scaffold to prevent a vertical snap. Completed
           // turns return to their natural height so compact status rows do not create large gaps.
@@ -233,33 +235,36 @@ export function WorkbenchConversationContent({
       />
 
       <div
-        className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip [container-type:inline-size]"
+        data-slot="conversation-layout"
+        className="relative grid min-h-0 min-w-0 flex-1 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden transition-[--thread-content-inline-gutter] duration-(--thread-index-motion-duration) ease-(--layout-motion-ease) motion-reduce:transition-none"
         style={
           {
-            "--composer-dock-inset": `${composerDockInset}px`,
             "--composer-dock-bottom-gap": "1rem",
             "--composer-dock-top-gap": "0.5rem",
-            "--composer-dock-content-top-inset":
-              "calc(var(--composer-dock-inset) - var(--composer-dock-top-gap))",
             "--composer-dock-corner-radius": "var(--composer-inner-radius, 1.375rem)",
             "--thread-header-fade-size": "1.375rem",
             "--thread-viewport-inline-padding": `${THREAD_CONTENT_COMPACT_GUTTER_PX}px`,
+            gridTemplateColumns: `minmax(0, 1fr) minmax(0, ${THREAD_CONTENT_WIDTH}) minmax(0, 1fr)`,
           } as CSSProperties
         }
       >
         <SlotHost
           name="thread.header"
           context={slotContext}
-          className="flex shrink-0 items-center gap-2 border-b px-4 empty:hidden"
+          className="col-span-full row-start-1 flex min-w-0 items-center gap-2 border-b px-4 empty:hidden"
         />
 
         <div
           ref={viewport.viewportRef}
           data-slot="conversation-viewport"
           className={cn(
-            "relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none] [padding-inline:var(--thread-viewport-inline-padding)] [scrollbar-gutter:stable_both-edges]",
+            "relative col-span-full row-start-2 min-h-0 w-full min-w-0 scroll-smooth overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none]",
+            isEmpty || isHistoryLoading
+              ? "flex flex-col"
+              : "grid auto-rows-max grid-cols-subgrid content-start",
+            THREAD_INLINE_GUTTER_CLASS_NAME,
             hasDockedComposer
-              ? "[margin-bottom:var(--composer-dock-content-top-inset)] [padding-top:var(--thread-header-fade-size)] [padding-bottom:var(--composer-dock-corner-radius)]"
+              ? "[padding-top:var(--thread-header-fade-size)] [padding-bottom:var(--composer-dock-corner-radius)]"
               : "pt-4",
           )}
           style={
@@ -282,7 +287,7 @@ export function WorkbenchConversationContent({
             context={slotContext}
             className={cn(
               THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
-              "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
+              "flex flex-col gap-2 [overflow-anchor:none]",
             )}
           />
 
@@ -300,35 +305,54 @@ export function WorkbenchConversationContent({
             context={slotContext}
             className={cn(
               THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
-              "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
+              "flex flex-col gap-2 [overflow-anchor:none]",
             )}
           />
         </div>
 
-        {!isEmpty ? (
-          <TooltipIconButton
-            type="button"
-            tooltip={t("workbench.chat.scrollLatest")}
-            variant="outline"
-            size="icon"
-            disabled={viewport.isAtBottom}
-            onClick={() => viewport.scrollToBottom(isRunning ? "instant" : "auto")}
-            className="bg-background absolute bottom-[calc(var(--composer-dock-inset)+0.5rem)] left-1/2 z-30 size-8 -translate-x-1/2 rounded-full shadow-sm disabled:invisible"
-          >
-            {isRunning ? (
-              <TypingIndicator
-                label={t("workbench.chat.scrollLatest")}
-                variant="bare"
-                aria-hidden="true"
-                className="scale-75"
-              />
-            ) : (
-              <ArrowDownIcon className="size-4" />
+        {!isEmpty || hasDockedComposer ? (
+          <div
+            className={cn(
+              "relative col-start-2 row-start-3 w-full min-w-0",
+              hasDockedComposer &&
+                "pt-[var(--composer-dock-top-gap)] pb-[var(--composer-dock-bottom-gap)]",
             )}
-          </TooltipIconButton>
+          >
+            {!isEmpty ? (
+              <TooltipIconButton
+                type="button"
+                tooltip={t("workbench.chat.scrollLatest")}
+                variant="outline"
+                size="icon"
+                disabled={viewport.isAtBottom}
+                onClick={() => viewport.scrollToBottom(isRunning ? "instant" : "auto")}
+                className="bg-background absolute -top-2 left-1/2 z-30 size-8 -translate-x-1/2 -translate-y-full rounded-full shadow-sm disabled:invisible"
+              >
+                {isRunning ? (
+                  <TypingIndicator
+                    label={t("workbench.chat.scrollLatest")}
+                    variant="bare"
+                    aria-hidden="true"
+                    className="scale-75"
+                  />
+                ) : (
+                  <ArrowDownIcon className="size-4" />
+                )}
+              </TooltipIconButton>
+            ) : null}
+            {hasDockedComposer ? (
+              <div
+                data-workbench-composer-dock=""
+                className={cn(
+                  THREAD_CONTENT_WIDTH_CLASS_NAME,
+                  "relative z-20 flex flex-col bg-transparent [overflow-anchor:none]",
+                )}
+              >
+                {composerDock}
+              </div>
+            ) : null}
+          </div>
         ) : null}
-
-        {hasDockedComposer ? composerDock : null}
       </div>
 
       <SlotHost

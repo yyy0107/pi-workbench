@@ -330,7 +330,10 @@ function DetailNavigationValue({
       onClick={onClick}
     >
       {children}
-      <ChevronRightIcon aria-hidden="true" className="text-muted-foreground size-3.5" />
+      <ChevronRightIcon
+        aria-hidden="true"
+        className="text-muted-foreground size-[var(--icon-size-md)]"
+      />
     </button>
   );
 }
@@ -354,7 +357,10 @@ function SemanticSection({
             onClick={onOpen}
           >
             {title}
-            <ChevronRightIcon aria-hidden="true" className="text-muted-foreground size-3.5" />
+            <ChevronRightIcon
+              aria-hidden="true"
+              className="text-muted-foreground size-[var(--icon-size-md)]"
+            />
           </button>
         ) : (
           <span className="inline-flex items-center gap-0.5">

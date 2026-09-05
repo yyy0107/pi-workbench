@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRightIcon, FolderIcon, PanelLeftOpenIcon } from "lucide-react";
+import { ChevronRightIcon, FolderIcon } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
 import { Button } from "../ui/button";
@@ -13,26 +13,6 @@ import { useCurrentSession, useThreadList } from "@workbench/agent-runtime-clien
 import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 import { truncateConversationTitle } from "../conversation-title";
 import { ConversationActionsMenu } from "./conversation-actions-menu";
-
-function SidebarOpenButton() {
-  const { t } = useI18n();
-  const { isMobile, toggleSidebar } = useSidebar();
-
-  if (!isMobile) return null;
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      aria-label={t("workbench.sidebar.openMobile")}
-      title={t("workbench.sidebar.openMobile")}
-      onClick={toggleSidebar}
-    >
-      <PanelLeftOpenIcon className="size-4" />
-    </Button>
-  );
-}
 
 interface ResolvedMainViewBreadcrumb {
   label: string;
@@ -118,20 +98,19 @@ export function WorkbenchHeader() {
     navigable: item.params !== undefined || item.closeView === true,
   }));
   const visibleTitle = activeMainView ? title : truncateConversationTitle(title);
-  const desktopSidebarCollapsed = !isMobile && sidebarState === "collapsed";
+  const sidebarCollapsed = isMobile || sidebarState === "collapsed";
 
   return (
     <header
       data-workbench-surface="header"
-      className="bg-background grid h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1 border-b ps-2 [padding-inline-end:calc(var(--right-workspace-toggle-inset-end)_+_var(--right-workspace-toggle-reserved-width))] [app-region:drag] select-none sm:grid-cols-[1fr_auto_1fr] sm:gap-0 sm:ps-3 [&_a]:[app-region:no-drag] [&_button]:[app-region:no-drag]"
+      className="bg-background grid h-(--workbench-header-height) shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1 border-b ps-2 [padding-inline-end:calc(var(--right-workspace-toggle-inset-end)_+_var(--right-workspace-toggle-reserved-width))] [app-region:drag] select-none sm:grid-cols-[1fr_auto_1fr] sm:gap-0 sm:ps-3 [&_a]:[app-region:no-drag] [&_button]:[app-region:no-drag]"
     >
       <div
         className={cn(
-          "relative flex h-full min-w-0 items-center gap-1.5 transition-[padding-inline-start] duration-(--layout-motion-duration) ease-(--layout-motion-ease) in-data-[resizing=true]:transition-none in-data-[sidebar-collapse-preview=true]:ps-[max(0px,calc(28px-var(--sidebar-width)))] motion-reduce:transition-none sm:gap-2 in-data-[sidebar-collapse-preview=true]:sm:ps-[max(0px,calc(24px-var(--sidebar-width)))]",
-          desktopSidebarCollapsed && "ps-7 sm:ps-6",
+          "relative flex h-full min-w-0 items-center gap-1.5 transition-[padding-inline-start] duration-(--sidebar-motion-duration) ease-(--layout-motion-ease) in-data-[resizing=true]:transition-none in-data-[sidebar-collapse-preview=true]:ps-[max(0px,calc(28px-var(--sidebar-width)))] motion-reduce:transition-none sm:gap-2 in-data-[sidebar-collapse-preview=true]:sm:ps-[max(0px,calc(24px-var(--sidebar-width)))]",
+          sidebarCollapsed && "ps-7 sm:ps-6",
         )}
       >
-        <SidebarOpenButton />
         {breadcrumbs ? (
           <MainViewBreadcrumbs
             items={breadcrumbs}

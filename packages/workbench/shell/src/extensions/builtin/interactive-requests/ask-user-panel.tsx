@@ -123,9 +123,9 @@ function QuestionNavigator({
                     {answered ? (
                       <CheckIcon className="size-4 text-emerald-600 dark:text-emerald-400" />
                     ) : current ? (
-                      <CircleIcon className="size-3 fill-current text-primary" />
+                      <CircleIcon className="size-[var(--icon-size-md)] fill-current text-primary" />
                     ) : (
-                      <CircleIcon className="text-muted-foreground size-3" />
+                      <CircleIcon className="text-muted-foreground size-[var(--icon-size-md)]" />
                     )}
                   </span>
                   <span className="text-muted-foreground w-4 shrink-0 text-xs tabular-nums">

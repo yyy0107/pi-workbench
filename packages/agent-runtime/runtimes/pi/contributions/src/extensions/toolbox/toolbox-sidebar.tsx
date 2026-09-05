@@ -199,7 +199,10 @@ function PackageRow({
           })}
         </span>
       </span>
-      <ChevronRightIcon aria-hidden="true" className="text-muted-foreground size-3.5 shrink-0" />
+      <ChevronRightIcon
+        aria-hidden="true"
+        className="text-muted-foreground size-[var(--icon-size-md)] shrink-0"
+      />
     </button>
   );
 }

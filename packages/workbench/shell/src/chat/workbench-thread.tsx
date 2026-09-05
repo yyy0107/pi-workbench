@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import {
   SessionProvider,
   useAgentRuntime,
@@ -9,15 +9,11 @@ import {
   useThreadList,
 } from "@workbench/agent-runtime-client";
 
-import { cn } from "../utils";
 import { resolvePromotedThreadRouteId, shouldProjectNewThreadRoute } from "../new-thread-policy";
-import { THREAD_CONTENT_WIDTH_CLASS_NAME } from "../layout";
 import { useWorkbenchNavigation } from "../navigation";
 
 import { WorkbenchComposer } from "./workbench-composer";
 import { WorkbenchConversationContent } from "./workbench-conversation";
-
-const DEFAULT_COMPOSER_DOCK_INSET_PX = 138;
 
 /**
  * Synchronizes a route id only after the thread list proves that it exists.
@@ -111,52 +107,14 @@ export function MainConversationHost() {
 function MainConversationSessionHost({ threadId }: { threadId?: string }) {
   const current = useCurrentSession();
   const activeThreadId = current.sessionId;
-  const nodeCount = useSessionState((snapshot) => snapshot.nodeKeys.length);
-  const isEmpty = nodeCount === 0;
-  const isThreadLoading = useSessionState((snapshot) => snapshot.isLoading);
-  const isHistoryLoading = Boolean(threadId) && isThreadLoading;
-  const hasDockedComposer = !isEmpty || isHistoryLoading;
-  const composerDockRef = useRef<HTMLDivElement>(null);
-  const [composerDockInset, setComposerDockInset] = useState(DEFAULT_COMPOSER_DOCK_INSET_PX);
-
-  useLayoutEffect(() => {
-    if (!hasDockedComposer) return;
-
-    const composerDock = composerDockRef.current;
-    if (!composerDock) return;
-
-    const syncComposerDockInset = () => {
-      const measuredHeight = composerDock.getBoundingClientRect().height;
-      if (!Number.isFinite(measuredHeight) || measuredHeight <= 0) return;
-      const nextInset = Math.ceil(measuredHeight);
-      setComposerDockInset((current) => (current === nextInset ? current : nextInset));
-    };
-
-    syncComposerDockInset();
-    const resizeObserver = new ResizeObserver(syncComposerDockInset);
-    resizeObserver.observe(composerDock);
-    return () => resizeObserver.disconnect();
-  }, [activeThreadId, hasDockedComposer]);
 
   return (
     <WorkbenchConversationContent
       threadId={current.threadId ?? activeThreadId}
       hostContent={<ThreadRouteSync threadId={threadId} />}
       emptyComposer={<WorkbenchComposer />}
-      composerDock={
-        <div
-          ref={composerDockRef}
-          data-workbench-composer-dock=""
-          className={cn(
-            THREAD_CONTENT_WIDTH_CLASS_NAME,
-            "absolute bottom-0 z-20 mx-auto flex flex-col bg-transparent pt-[var(--composer-dock-top-gap)] pb-[var(--composer-dock-bottom-gap)] [inset-inline:var(--thread-viewport-inline-padding)] [overflow-anchor:none]",
-          )}
-        >
-          <WorkbenchComposer />
-        </div>
-      }
+      composerDock={<WorkbenchComposer />}
       showHistoryLoading={Boolean(threadId)}
-      composerDockInset={composerDockInset}
       autoScroll
     />
   );

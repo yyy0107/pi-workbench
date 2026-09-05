@@ -48,7 +48,7 @@ export function WorkbenchThreadList({
   const loading = sidebar.isLoading && sidebar.threadsById.size === 0;
   const threadLimit = workspaceId ? visibleCount - (showNewThread ? 1 : 0) : threads.length;
   return (
-    <div className="flex min-h-0 flex-col gap-0.5" data-sidebar-scope={scope}>
+    <div className="flex min-h-0 flex-col gap-(--sidebar-list-gap)" data-sidebar-scope={scope}>
       {showNewThread && workspaceId ? (
         <DraftThreadListItem workspaceId={workspaceId} onNavigate={onNavigate} />
       ) : null}

@@ -11,6 +11,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { LucideProvider } from "lucide-react";
+
 import { SidebarProvider } from "../ui/sidebar";
 import { WorkbenchPortalContainerProvider } from "../ui/workbench-portal-container";
 import { RightWorkspace, RightWorkspaceToggleButton } from "../right-workspace/presentation";
@@ -29,9 +31,6 @@ import {
   type ThreadScrollPersistencePort,
 } from "../thread-scroll-state";
 import {
-  THREAD_CONTENT_COMPACT_GUTTER_PX,
-  THREAD_CONTENT_GUTTER_TRANSITION_CLASS_NAME,
-  THREAD_CONTENT_INDEX_GUTTER_PX,
   WorkbenchMain,
   resolveExpandedThreadWidth,
   resolveThreadResponsiveLayout,
@@ -54,6 +53,7 @@ import { useSidebarSettingsHydration } from "./use-sidebar-settings-hydration";
 import { SidebarDragSessionProvider } from "../hooks/use-sidebar-pointer-reorder";
 import { WorkbenchDomIdsProvider } from "../dom";
 import { observeWindowResize } from "./window-resize";
+import { MOBILE_BREAKPOINT } from "../hooks/use-mobile";
 
 export type { WorkbenchInstallationEffectsProps } from "./workbench-global-layer";
 
@@ -188,7 +188,7 @@ export function WorkbenchShell({
 
       const currentThreadWidth = observedThreadRoot.getBoundingClientRect().width;
       const shellWidth = shell.getBoundingClientRect().width;
-      const desktopSidebarParticipates = shellWidth >= 768;
+      const desktopSidebarParticipates = shellWidth >= MOBILE_BREAKPOINT;
       const sidebarOccupiedWidth = desktopSidebarParticipates
         ? (shell
             .querySelector<HTMLElement>('[data-slot="workbench-sidebar-layout"]')
@@ -226,15 +226,11 @@ export function WorkbenchShell({
       if (!layout) return;
 
       const nextConversationIndexHidden = layout.conversationIndexHidden;
-      const nextConversationGutter = nextConversationIndexHidden
-        ? THREAD_CONTENT_COMPACT_GUTTER_PX
-        : THREAD_CONTENT_INDEX_GUTTER_PX;
-
-      // ResizeObserver runs after layout but before paint. Synchronize the responsive target on
-      // the shell immediately so content widths do not wait for a React commit while the window
-      // is resizing; state keeps the declarative model aligned with the DOM afterward.
-      shell.dataset.conversationIndex = nextConversationIndexHidden ? "hidden" : "visible";
-      shell.style.setProperty("--thread-content-inline-gutter", `${nextConversationGutter}px`);
+      // Synchronize index visibility before paint; content widths follow the container in CSS.
+      const nextIndexState = nextConversationIndexHidden ? "hidden" : "visible";
+      if (shell.dataset.conversationIndex !== nextIndexState) {
+        shell.dataset.conversationIndex = nextIndexState;
+      }
       setConversationIndexHidden((current) =>
         current === nextConversationIndexHidden ? current : nextConversationIndexHidden,
       );
@@ -276,100 +272,94 @@ export function WorkbenchShell({
   }, []);
 
   return (
-    <WorkbenchDomIdsProvider>
-      <WorkbenchPresentationProvider assets={assets} branding={branding}>
-        <WorkbenchPortalContainerProvider containerRef={portalContainerRef}>
-          <ThreadScrollStateProvider persistence={threadScrollPersistence}>
-            <RunningIndicatorProvider catalog={runningIndicatorCatalog}>
-              <SidebarProvider
-                keyboardShortcutOwnerRef={shellRef}
-                open={sidebarEffectivelyOpen}
-                onOpenChange={handleSidebarOpenChange}
-                ref={shellRef}
-                className={cn(
-                  "bg-background text-foreground relative isolate h-dvh min-h-0 overflow-hidden",
-                  THREAD_CONTENT_GUTTER_TRANSITION_CLASS_NAME,
-                )}
-                data-workbench-shell=""
-                data-workbench-surface="shell"
-                data-conversation-index={conversationIndexHidden ? "hidden" : "visible"}
-                data-sidebar-auto-collapsed={
-                  sidebarAutoCollapsed && !sidebarAutoCollapseSuppressed ? "true" : "false"
-                }
-                style={
-                  {
-                    "--sidebar-width": `${sidebarWidth}px`,
-                    "--sidebar-content-width": `${sidebarWidth}px`,
-                    "--sidebar-resize-translate-x": "0px",
-                    "--thread-content-inline-gutter": `${
-                      conversationIndexHidden
-                        ? THREAD_CONTENT_COMPACT_GUTTER_PX
-                        : THREAD_CONTENT_INDEX_GUTTER_PX
-                    }px`,
-                    "--right-workspace-toggle-reserved-width": rightWorkspaceVisible
-                      ? "calc(var(--control-hit-default) + 0.125rem)"
-                      : "0px",
-                  } as CSSProperties
-                }
-              >
-                <SlotHost
-                  name="shell.background"
-                  className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
-                />
-
-                <SidebarDragSessionProvider>
-                  <WorkbenchSidebar
-                    width={sidebarWidth}
-                    minWidth={MIN_SIDEBAR_WIDTH}
-                    maxWidth={MAX_SIDEBAR_WIDTH}
-                    shellRef={shellRef}
-                    onResize={resizeSidebar}
-                  />
-                </SidebarDragSessionProvider>
-
-                <div
-                  ref={workspaceHostRef}
-                  className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
+    <LucideProvider strokeWidth={1.5}>
+      <WorkbenchDomIdsProvider>
+        <WorkbenchPresentationProvider assets={assets} branding={branding}>
+          <WorkbenchPortalContainerProvider containerRef={portalContainerRef}>
+            <ThreadScrollStateProvider persistence={threadScrollPersistence}>
+              <RunningIndicatorProvider catalog={runningIndicatorCatalog}>
+                <SidebarProvider
+                  keyboardShortcutOwnerRef={shellRef}
+                  open={sidebarEffectivelyOpen}
+                  onOpenChange={handleSidebarOpenChange}
+                  ref={shellRef}
+                  className="bg-background text-foreground relative isolate h-dvh min-h-0 overflow-hidden"
+                  data-workbench-shell=""
+                  data-workbench-surface="shell"
+                  data-conversation-index={conversationIndexHidden ? "hidden" : "visible"}
+                  data-sidebar-auto-collapsed={
+                    sidebarAutoCollapsed && !sidebarAutoCollapseSuppressed ? "true" : "false"
+                  }
+                  style={
+                    {
+                      "--sidebar-width": `${sidebarWidth}px`,
+                      "--sidebar-content-width": `${sidebarWidth}px`,
+                      "--sidebar-resize-translate-x": "0px",
+                      "--right-workspace-toggle-reserved-width": rightWorkspaceVisible
+                        ? "calc(var(--control-hit-default) + 0.125rem)"
+                        : "0px",
+                    } as CSSProperties
+                  }
                 >
-                  <WorkbenchHeader />
-                  <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-                    <div
-                      ref={conversationHostRef}
-                      aria-hidden={conversationHidden ? true : undefined}
-                      inert={conversationHidden ? true : undefined}
-                      className={cn(
-                        "flex min-w-0 flex-1 flex-col overflow-hidden",
-                        conversationHidden && "invisible",
-                      )}
-                    >
-                      <PanelLayout>
-                        <WorkbenchMain>
-                          <MainViewHost>{children}</MainViewHost>
-                        </WorkbenchMain>
-                      </PanelLayout>
-                      <WorkbenchStatusbar />
-                    </div>
-                    {rightWorkspaceVisible ? <RightWorkspace /> : null}
-                  </div>
-                  {rightWorkspaceVisible ? (
-                    <RightWorkspaceToggleButton className="absolute top-[calc((2.5rem-var(--control-hit-default))/2)] z-30 [inset-inline-end:var(--right-workspace-toggle-inset-end)]" />
-                  ) : null}
-                </div>
+                  <SlotHost
+                    name="shell.background"
+                    className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+                  />
 
-                <div
-                  ref={portalContainerRef}
-                  className="contents"
-                  data-workbench-portal-container=""
-                />
-                <WorkbenchGlobalLayer
-                  installationEffects={installationEffects}
-                  ownerRootRef={shellRef}
-                />
-              </SidebarProvider>
-            </RunningIndicatorProvider>
-          </ThreadScrollStateProvider>
-        </WorkbenchPortalContainerProvider>
-      </WorkbenchPresentationProvider>
-    </WorkbenchDomIdsProvider>
+                  <SidebarDragSessionProvider>
+                    <WorkbenchSidebar
+                      width={sidebarWidth}
+                      minWidth={MIN_SIDEBAR_WIDTH}
+                      maxWidth={MAX_SIDEBAR_WIDTH}
+                      shellRef={shellRef}
+                      onResize={resizeSidebar}
+                    />
+                  </SidebarDragSessionProvider>
+
+                  <div
+                    ref={workspaceHostRef}
+                    className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
+                  >
+                    <WorkbenchHeader />
+                    <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+                      <div
+                        ref={conversationHostRef}
+                        aria-hidden={conversationHidden ? true : undefined}
+                        inert={conversationHidden ? true : undefined}
+                        className={cn(
+                          "flex min-w-0 flex-1 flex-col overflow-hidden",
+                          conversationHidden && "invisible",
+                        )}
+                      >
+                        <PanelLayout>
+                          <WorkbenchMain>
+                            <MainViewHost>{children}</MainViewHost>
+                          </WorkbenchMain>
+                        </PanelLayout>
+                        <WorkbenchStatusbar />
+                      </div>
+                      {rightWorkspaceVisible ? <RightWorkspace /> : null}
+                    </div>
+                    {rightWorkspaceVisible ? (
+                      <RightWorkspaceToggleButton className="absolute top-[calc((var(--workbench-header-height)-var(--control-hit-default))/2)] z-30 [inset-inline-end:var(--right-workspace-toggle-inset-end)]" />
+                    ) : null}
+                  </div>
+
+                  <div
+                    ref={portalContainerRef}
+                    className="contents"
+                    data-workbench-portal-container=""
+                  />
+                  <WorkbenchGlobalLayer
+                    installationEffects={installationEffects}
+                    ownerRootRef={shellRef}
+                  />
+                </SidebarProvider>
+              </RunningIndicatorProvider>
+            </ThreadScrollStateProvider>
+          </WorkbenchPortalContainerProvider>
+        </WorkbenchPresentationProvider>
+      </WorkbenchDomIdsProvider>
+    </LucideProvider>
   );
 }

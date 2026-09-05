@@ -281,7 +281,10 @@ function TraceTree({
           >
             {canExpand ? (
               <ChevronRightIcon
-                className={cn("size-3 transition-transform", open && "rotate-90")}
+                className={cn(
+                  "size-[var(--icon-size-md)] transition-transform",
+                  open && "rotate-90",
+                )}
               />
             ) : null}
           </span>

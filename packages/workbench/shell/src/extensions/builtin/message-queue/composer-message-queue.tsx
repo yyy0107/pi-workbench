@@ -100,7 +100,7 @@ function ComposerQueueItem({
         onDragEnd={onDragEnd}
         className="me-1 flex size-[var(--icon-frame-size-default)] shrink-0 cursor-grab items-center justify-center rounded-[var(--button-radius)] text-muted-foreground/50 hover:[background:var(--icon-frame-background-hover)] hover:text-foreground active:cursor-grabbing"
       >
-        <ListRestartIcon className="size-[var(--icon-size-sm)]" />
+        <ListRestartIcon className="size-[var(--icon-size-md)]" />
       </button>
 
       <span className="min-w-0 flex-1 truncate text-[13px] text-foreground/90">
@@ -116,7 +116,7 @@ function ComposerQueueItem({
           }}
           className="flex h-[var(--button-height-default)] items-center gap-1 rounded-[var(--button-radius)] px-2 text-xs text-muted-foreground/65 transition-colors hover:[background:var(--button-background-hover)] hover:text-foreground"
         >
-          <CornerDownLeftIcon className="size-3" />
+          <CornerDownLeftIcon className="size-[var(--icon-size-md)]" />
           <span>{t("extensions.messageQueue.steer")}</span>
         </button>
         <button
@@ -125,7 +125,7 @@ function ComposerQueueItem({
           onClick={() => onRemove(queueItem.key)}
           className="flex size-[var(--icon-frame-size-default)] items-center justify-center rounded-[var(--button-radius)] text-muted-foreground/50 transition-colors hover:[background:var(--icon-frame-background-hover)] hover:text-foreground"
         >
-          <Trash2Icon className="size-3" />
+          <Trash2Icon className="size-[var(--icon-size-md)]" />
         </button>
         <DropdownMenu>
           <DropdownMenuTrigger

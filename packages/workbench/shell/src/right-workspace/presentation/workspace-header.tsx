@@ -30,7 +30,7 @@ export function WorkspaceHeader() {
     <header className="shrink-0">
       <div
         data-workbench-surface="right-workspace-header"
-        className="flex h-10 items-center gap-1.5 ps-2 pe-2"
+        className="flex h-(--workbench-header-height) items-center gap-1.5 ps-2 pe-2"
       >
         <div className="flex min-w-0 flex-1 items-center gap-1">
           {hasSurfaces ? (

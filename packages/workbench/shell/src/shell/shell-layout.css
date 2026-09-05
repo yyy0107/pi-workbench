@@ -1,0 +1,49 @@
+@property --thread-content-inline-gutter {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 64px;
+}
+
+/* Animate only open/closed state; window-constrained widths still follow immediately. */
+@property --workbench-sidebar-expansion {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+[data-workbench-shell] {
+  --workbench-header-height: 2.5rem;
+  --workbench-statusbar-height: 1.75rem;
+  --layout-state-motion-duration: 330ms;
+  --layout-motion-duration: var(--layout-state-motion-duration);
+  --layout-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Discrete state transitions retain their duration during native edge resizing. */
+:where([data-slot="workbench-sidebar-layout"], [data-workbench-surface="header"]) {
+  --sidebar-motion-duration: var(--layout-state-motion-duration);
+}
+
+/* Release space on the shared content grid, without invalidating the whole Shell. */
+[data-workbench-shell][data-conversation-index="hidden"]
+  [data-workbench-surface="thread"]
+  > [data-slot="conversation-layout"] {
+  --thread-content-inline-gutter: calc(
+    var(--thread-viewport-inline-padding) + var(--scrollbar-hit-size)
+  );
+}
+
+/* Window-control geometry changes on every native resize. Keep its inherited
+   environment-variable dependency out of the conversation and sidebar trees. */
+[data-workbench-surface="header"],
+[data-workbench-surface="right-workspace-toggle"] {
+  --desktop-window-controls-inset-end: calc(
+    100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)
+  );
+  --right-workspace-toggle-inset-end: calc(0.75rem + var(--desktop-window-controls-inset-end));
+}
+
+/* Native window resizing must not animate toward an obsolete layout width. */
+[data-workbench-shell][data-window-resizing="true"] {
+  --layout-motion-duration: 0ms;
+}

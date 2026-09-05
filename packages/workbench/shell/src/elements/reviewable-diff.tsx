@@ -135,7 +135,7 @@ export function ReviewableDiff({
           </span>
           {pending > 0 ? (
             <button type="button" onClick={keepAll} className={KEEP_BUTTON_CLASS}>
-              <CheckIcon className="size-3" />
+              <CheckIcon className="size-[var(--icon-size-md)]" />
               {labels.keepAll}
             </button>
           ) : null}
@@ -167,7 +167,7 @@ export function ReviewableDiff({
                         onClick={() => onDiscard?.(hunk.id)}
                         className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 flex h-6 items-center gap-1 rounded-full px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-[11px] leading-[var(--control-text-line-height)]! font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
                       >
-                        <XIcon className="size-3" />
+                        <XIcon className="size-[var(--icon-size-md)]" />
                         {labels.discard}
                       </button>
                       <button
@@ -176,7 +176,7 @@ export function ReviewableDiff({
                         onClick={() => onKeep?.(hunk.id)}
                         className={KEEP_BUTTON_CLASS}
                       >
-                        <CheckIcon className="size-3" />
+                        <CheckIcon className="size-[var(--icon-size-md)]" />
                         {labels.keep}
                       </button>
                     </>

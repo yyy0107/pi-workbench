@@ -4,7 +4,6 @@ import { defineMessage } from "../../../i18n";
 import { defineExtension } from "@workbench/extension-sdk";
 
 import { openSettingsCommand } from "./settings-command";
-import { SettingsHeaderAction } from "./settings-header-action";
 import { SETTINGS_MAIN_VIEW_KIND } from "./settings-main-view";
 import { SettingsMainViewContent } from "./settings-main-view-content";
 import { SettingsSidebar } from "./settings-sidebar";
@@ -43,12 +42,6 @@ export const settingsExtension = defineExtension({
       order: 80,
       component: SidebarSettingsTrigger,
     });
-    const mobile = context.slots.register("header.right", {
-      id: "workbench.settings.mobile",
-      order: 80,
-      component: SettingsHeaderAction,
-    });
-
-    return [section, mainView, command, sidebar, mobile];
+    return [section, mainView, command, sidebar];
   },
 });

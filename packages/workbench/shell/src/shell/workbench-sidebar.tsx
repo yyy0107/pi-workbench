@@ -89,7 +89,7 @@ export function WorkbenchSidebarContent({
       {!mobile ? (
         <SlotHost
           name="sidebar.brand"
-          className="flex h-10 shrink-0 items-center ps-5 pe-2 empty:hidden"
+          className="flex h-(--workbench-header-height) shrink-0 items-center ps-5 pe-2 empty:hidden"
         />
       ) : (
         <MobileSidebarHeader />
@@ -152,7 +152,7 @@ export function WorkbenchSidebarContent({
               else setSearchOpen(false);
             }}
           >
-            <XIcon aria-hidden="true" className="size-[var(--icon-size-sm)]" />
+            <XIcon aria-hidden="true" className="size-[var(--icon-size-md)]" />
           </button>
         </div>
       ) : null}
@@ -221,6 +221,7 @@ export function WorkbenchSidebar({
 }: WorkbenchSidebarProps) {
   const { t } = useI18n();
   const { isMobile, setOpenMobile, state } = useSidebar();
+  const desktopState = isMobile ? "collapsed" : state;
   const sidebarLayoutRef = useRef<HTMLDivElement>(null);
   const [maximumWidth, setMaximumWidth] = useState(maxWidth);
   const renderedWidth = Math.min(maximumWidth, width);
@@ -243,55 +244,51 @@ export function WorkbenchSidebar({
     applySidebarResizePreview(sidebarLayoutRef.current, shellRef.current, renderedWidth, minWidth);
   }, [minWidth, renderedWidth, shellRef, state]);
 
+  // Keep the desktop tree mounted across breakpoints so both directions can transition.
   // Window constraints only resize the frame; keep the conversation list out of that render path.
   const content = useMemo(
     () => (
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-        <MainViewSidebarHost
-          mobile={isMobile}
-          onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
-        >
-          <WorkbenchSidebarContent
-            mobile={isMobile}
-            onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
-          />
+        <MainViewSidebarHost mobile={false}>
+          <WorkbenchSidebarContent />
         </MainViewSidebarHost>
       </div>
     ),
-    [isMobile, setOpenMobile],
+    [],
   );
 
-  if (!isMobile) {
-    return (
+  return (
+    <>
       <div
         ref={sidebarLayoutRef}
         data-slot="workbench-sidebar-layout"
-        data-state={state}
-        className="relative hidden h-full min-h-0 min-w-0 shrink-0 transition-[width] duration-(--layout-motion-duration) ease-(--layout-motion-ease) motion-reduce:transition-none data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width] data-[state=collapsed]:pointer-events-none md:block"
+        data-state={desktopState}
+        className="relative h-full min-h-0 min-w-0 shrink-0 transition-[width,--workbench-sidebar-expansion] ease-(--layout-motion-ease) motion-reduce:transition-none data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width] data-[state=collapsed]:pointer-events-none"
         style={
           {
-            width:
-              state === "collapsed"
-                ? 0
-                : `min(var(--workbench-sidebar-layout-width, ${renderedWidth}px), 100%)`,
+            "--workbench-sidebar-expansion": desktopState === "expanded" ? 1 : 0,
+            width: `min(calc(var(--workbench-sidebar-layout-width, ${renderedWidth}px) * var(--workbench-sidebar-expansion)), 100%)`,
             maxWidth: "100%",
+            transitionDuration: "var(--layout-motion-duration), var(--sidebar-motion-duration)",
           } as CSSProperties
         }
       >
         <aside
           data-workbench-surface="sidebar"
           data-slot="sidebar"
-          data-state={state}
+          data-state={desktopState}
           aria-label={t("workbench.sidebar.region")}
-          aria-hidden={state === "collapsed" ? true : undefined}
-          inert={state === "collapsed" ? true : undefined}
-          className="bg-sidebar text-sidebar-foreground absolute inset-y-0 left-0 flex min-h-0 min-w-0 flex-col overflow-hidden border-r transition-[width,transform,border-color] duration-(--layout-motion-duration) ease-(--layout-motion-ease) motion-reduce:transition-none in-data-[resizing=true]:transition-none in-data-[resizing=true]:will-change-[width,transform] data-[state=collapsed]:border-transparent"
+          aria-hidden={desktopState === "collapsed" ? true : undefined}
+          inert={desktopState === "collapsed" ? true : undefined}
+          className="bg-sidebar text-sidebar-foreground absolute inset-y-0 left-0 flex min-h-0 min-w-0 flex-col overflow-hidden border-r transition-[width,transform,border-color] ease-(--layout-motion-ease) motion-reduce:transition-none in-data-[resizing=true]:transition-none in-data-[resizing=true]:will-change-[width,transform] data-[state=collapsed]:border-transparent"
           style={
             {
               width: `min(var(--workbench-sidebar-content-width, ${renderedWidth}px), 100vw)`,
               maxWidth: "100vw",
+              transitionDuration:
+                "var(--layout-motion-duration), var(--sidebar-motion-duration), var(--sidebar-motion-duration)",
               transform:
-                state === "expanded"
+                desktopState === "expanded"
                   ? "translateX(var(--workbench-sidebar-resize-translate-x, 0px))"
                   : "translateX(-100%)",
             } as CSSProperties
@@ -300,7 +297,7 @@ export function WorkbenchSidebar({
           <div data-sidebar="sidebar" data-slot="sidebar-inner" className="flex size-full flex-col">
             {content}
           </div>
-          {state === "expanded" ? (
+          {desktopState === "expanded" ? (
             <SidebarResizeHandle
               width={renderedWidth}
               minWidth={minWidth}
@@ -312,19 +309,22 @@ export function WorkbenchSidebar({
           ) : null}
         </aside>
       </div>
-    );
-  }
-
-  return (
-    <Sidebar
-      data-workbench-surface="sidebar"
-      aria-label={t("workbench.sidebar.region")}
-      closeLabel={t("workbench.sidebar.closeMobile")}
-      mobileDescription={t("workbench.sidebar.mobileDescription")}
-      mobileTitle={t("workbench.sidebar.mobileTitle")}
-      collapsible="offcanvas"
-    >
-      {content}
-    </Sidebar>
+      {isMobile ? (
+        <Sidebar
+          data-workbench-surface="sidebar"
+          aria-label={t("workbench.sidebar.region")}
+          closeLabel={t("workbench.sidebar.closeMobile")}
+          mobileDescription={t("workbench.sidebar.mobileDescription")}
+          mobileTitle={t("workbench.sidebar.mobileTitle")}
+          collapsible="offcanvas"
+        >
+          <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+            <MainViewSidebarHost mobile onNavigate={() => setOpenMobile(false)}>
+              <WorkbenchSidebarContent mobile onNavigate={() => setOpenMobile(false)} />
+            </MainViewSidebarHost>
+          </div>
+        </Sidebar>
+      ) : null}
+    </>
   );
 }

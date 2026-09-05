@@ -55,9 +55,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale}>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased [&_button_svg.lucide]:size-4 [&_svg.lucide]:[stroke-width:1.5]`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <WorkbenchApplicationProviders
           initialLocale={locale}
           installationId="web-primary"

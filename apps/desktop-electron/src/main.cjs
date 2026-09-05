@@ -188,7 +188,7 @@ function createMainWindow(workbenchUrl) {
   const window = new BrowserWindow({
     width: 1440,
     height: 960,
-    minWidth: 960,
+    minWidth: 480,
     minHeight: 640,
     icon: app.isPackaged ? path.join(app.getAppPath(), "public", "app-icon.svg") : undefined,
     show: false,

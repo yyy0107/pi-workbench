@@ -14,7 +14,6 @@ import { ChevronRightIcon } from "lucide-react";
 
 import type { SidebarDragBinding } from "../hooks/use-sidebar-pointer-reorder";
 import { cn } from "../utils";
-import { Button } from "./button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./collapsible";
 import { collapsePanel } from "./surface";
 
@@ -141,7 +140,7 @@ export interface SidebarRowProps extends Omit<ComponentProps<"div">, "children">
   drag?: SidebarDragBinding;
 }
 
-/** The primary button and action buttons are siblings, including for collapsible rows. */
+/** Row styles size the primary button; action buttons remain siblings, including in collapsible rows. */
 export function SidebarRow({
   icon,
   hoverIcon,
@@ -152,7 +151,7 @@ export function SidebarRow({
   variant = "item",
   active = false,
   menuOpen = false,
-  trigger = <Button variant="ghost" />,
+  trigger = <button />,
   onActivate,
   drag,
   className,

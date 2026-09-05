@@ -24,13 +24,6 @@ import {
 } from "./message-action-visibility";
 import { useConversationMessageContext } from "./conversation-message-context";
 
-const messageActionStyles = [
-  "[&_button.aui-button-icon]:size-[var(--icon-frame-size-default)]!",
-  "[&_button.aui-button-icon]:p-0!",
-  "[&_button.aui-button-icon]:active:scale-100",
-  "[&_button_svg.lucide]:size-[var(--icon-size-md)]!",
-].join(" ");
-
 function CopyAction({ role, text }: Readonly<{ role: "user" | "assistant"; text: string }>) {
   const { t } = useI18n();
   const { copy, isCopied, status } = useClipboardCopy();
@@ -120,7 +113,7 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
       data-slot="message-actions"
       aria-hidden={hideActionBar || undefined}
       className={cn(
-        messageActionStyles,
+        "[&_button.aui-button-icon]:active:scale-100",
         "text-muted-foreground flex min-h-8 flex-wrap items-center gap-0.5 transition-opacity duration-150 ease-out motion-reduce:transition-none",
         hideActionBar && "invisible pointer-events-none opacity-0",
         role === "user" &&

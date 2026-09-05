@@ -83,7 +83,6 @@ const RADIUS_PROPERTIES: Record<Exclude<CornerRadiusStyle, "default">, Record<st
     "--radius-3xl": "0px",
     "--radius-4xl": "0px",
     "--aui-border-radius": "0px",
-    "--composer-radius": "0px",
     "--switch-track-radius": "0px",
     "--switch-thumb-radius": "0px",
   },
@@ -93,7 +92,6 @@ const RADIUS_PROPERTIES: Record<Exclude<CornerRadiusStyle, "default">, Record<st
     "--radius-3xl": "0.625rem",
     "--radius-4xl": "0.875rem",
     "--aui-border-radius": "0.5rem",
-    "--composer-radius": "0.75rem",
     "--switch-track-radius": "0.25rem",
     "--switch-thumb-radius": "0.1875rem",
   },
@@ -103,7 +101,6 @@ const RADIUS_PROPERTIES: Record<Exclude<CornerRadiusStyle, "default">, Record<st
     "--radius-3xl": "0.75rem",
     "--radius-4xl": "1rem",
     "--aui-border-radius": "0.625rem",
-    "--composer-radius": "1rem",
     "--switch-track-radius": "0.375rem",
     "--switch-thumb-radius": "0.25rem",
   },
@@ -113,7 +110,6 @@ const RADIUS_PROPERTIES: Record<Exclude<CornerRadiusStyle, "default">, Record<st
     "--radius-3xl": "1.625rem",
     "--radius-4xl": "2.125rem",
     "--aui-border-radius": "1.625rem",
-    "--composer-radius": "1.75rem",
     "--switch-track-radius": "9999px",
     "--switch-thumb-radius": "9999px",
   },
@@ -123,7 +119,6 @@ const RADIUS_PROPERTIES: Record<Exclude<CornerRadiusStyle, "default">, Record<st
     "--radius-3xl": "1.75rem",
     "--radius-4xl": "2.25rem",
     "--aui-border-radius": "1.75rem",
-    "--composer-radius": "2rem",
     "--switch-track-radius": "9999px",
     "--switch-thumb-radius": "9999px",
   },
@@ -133,7 +128,6 @@ const RADIUS_PROPERTIES: Record<Exclude<CornerRadiusStyle, "default">, Record<st
     "--radius-3xl": "2rem",
     "--radius-4xl": "2.5rem",
     "--aui-border-radius": "2rem",
-    "--composer-radius": "2.5rem",
     "--switch-track-radius": "9999px",
     "--switch-thumb-radius": "9999px",
   },
@@ -202,6 +196,7 @@ export function AppearanceBackground() {
     if (!root) return;
     const originals = new Map<string, string>();
     const originalAppearance = root.getAttribute("data-workbench-appearance");
+    const originalCornerRadius = root.getAttribute("data-workbench-corner-radius");
     const originalBorderStyle = root.getAttribute("data-workbench-border-style");
     const originalBackdrop = root.getAttribute("data-workbench-backdrop");
     const originalHideDiffMarkers = root.getAttribute("data-workbench-hide-diff-markers");
@@ -228,6 +223,7 @@ export function AppearanceBackground() {
     }
 
     root.setAttribute("data-workbench-appearance", "");
+    root.setAttribute("data-workbench-corner-radius", preferences.cornerRadius);
     if (preferences.customBackground) {
       setProperty(root, "--workbench-canvas-background", preferences.backgroundColor, originals);
     }
@@ -306,6 +302,8 @@ export function AppearanceBackground() {
     return () => {
       if (originalAppearance === null) root.removeAttribute("data-workbench-appearance");
       else root.setAttribute("data-workbench-appearance", originalAppearance);
+      if (originalCornerRadius === null) root.removeAttribute("data-workbench-corner-radius");
+      else root.setAttribute("data-workbench-corner-radius", originalCornerRadius);
       if (originalBorderStyle === null) root.removeAttribute("data-workbench-border-style");
       else root.setAttribute("data-workbench-border-style", originalBorderStyle);
       if (originalBackdrop === null) root.removeAttribute("data-workbench-backdrop");

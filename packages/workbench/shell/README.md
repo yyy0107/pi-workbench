@@ -31,8 +31,9 @@ web, desktop, and future hosts. Its finite public entries are grouped by respons
   `./right-workspace/persistence` own the controller lifecycle, injected registry/opener ports,
   settings persistence, runtime-neutral feedback claim/CAS store, state, selectors, layout,
   accessibility, and presentation.
-- `./styles.css` explicitly owns the generic semantic theme, control, code, and streamdown styles;
-  each consuming application imports it and declares its package-source Tailwind scan roots.
+- `./styles.css` is the public stylesheet entry for Web and Desktop. It owns global theme/control
+  defaults and scrollbars, and imports colocated Shell, sidebar, conversation, and renderer styles.
+  Applications declare their package-source Tailwind scan roots and host fonts only.
 
 The app-owned main-view host deliberately stays outside this package because it binds product
 routing. `WorkbenchShell` receives that component together with branding, assets, and a running
@@ -127,10 +128,40 @@ complete conversation list.
 
 These primitives accept React content and callbacks. Runtime subscriptions, workspace operations,
 navigation, persistence, and localized copy belong to `src/sidebar/`; the shared UI does not import
-Runtime or `elements`. Layout and interaction styles live in `src/styles.css`, using
+Runtime or `elements`. Layout and interaction styles live in `src/ui/sidebar-items.css`, scoped to the actual
+`[data-workbench-surface="sidebar"]` DOM (including the mobile Sheet), using
 `--sidebar-row-*`, `--sidebar-action-*`, `--sidebar-drop-line-size`, and existing control, icon,
 selection, and theme tokens. Extend these shared rules instead of duplicating row styles in a
 consumer.
+
+### Style ownership
+
+Global theme, shared control defaults, and scrollbar tokens remain in `src/styles.css`.
+`src/shell/shell-layout.css` owns Shell header/statusbar heights and layout motion. The sidebar and
+index use `--layout-state-motion-duration`, which remains independent of the continuous width
+motion disabled during native window resizing. Titlebar `env()` values stay on their actual users.
+
+`src/ui/sidebar-items.css` owns sidebar row and action tokens. Their defaults are 31.5 CSS px per
+row and 2 CSS px between list items. `.sidebar-menu` opts detached menu popups into sidebar menu
+presentation; Portal placement remains inside the installation's existing container.
+
+`src/chat/conversation.css` scopes conversation defaults to `[data-slot="workbench-conversation"]`
+for both central and side-chat views. Composer controls use `[data-slot="workbench-composer-shell"]`
+and `[data-slot="workbench-composer-actions"]`; detached Composer menus opt in with
+`data-workbench-composer-popup`. Corner-radius preferences are selected locally through the Shell's
+`data-workbench-corner-radius` state, without exposing Composer geometry at the document root.
+Markdown/Streamdown styles live with the renderer and work outside the conversation as well.
+
+Lucide's existing Provider supplies the Shell's default stroke; explicit icon choices remain valid.
+Shared button primitives own their default glyph size. Override `--button-icon-size` and
+`--button-icon-frame-size` on the control to adapt it, or the area's `--sidebar-icon-size`,
+`--thread-icon-size`, and `--message-action-icon-size` for an area-wide choice. Do not restore
+body-level SVG overrides. Regional rules stay in the existing Tailwind cascade layers; avoid
+copying shared interaction styles into features.
+
+After changing cascade/scope behavior, run `node scripts/check-workbench-style-scope.mjs
+<renderer-websocket-url>` against a running Workbench page. It checks isolation using temporary,
+non-interactive DOM fixtures with the page's real CSS and always removes them afterwards.
 
 ### Icons, status, and actions
 

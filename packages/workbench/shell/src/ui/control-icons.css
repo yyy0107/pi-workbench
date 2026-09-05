@@ -1,0 +1,13 @@
+@layer utilities {
+  /* Match only button-backed controls. Explicit per-control variables and icon variants win. */
+  :where(button):is(
+      [data-slot="button"],
+      [data-slot="collapsible-trigger"],
+      [data-slot="dropdown-menu-trigger"],
+      [data-slot="popover-trigger"]
+    )
+    svg.lucide {
+    width: var(--button-icon-size, var(--icon-size-md));
+    height: var(--button-icon-size, var(--icon-size-md));
+  }
+}

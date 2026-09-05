@@ -1,10 +1,10 @@
-export const THREAD_CONTENT_MIN_WIDTH_PX = 448;
+export const THREAD_CONTENT_MIN_WIDTH_PX = 320;
 export const THREAD_CONTENT_INDEX_RELEASE_WIDTH_PX = 832;
 export const THREAD_CONTENT_MAX_WIDTH_PX = 1080;
 export const THREAD_CONTENT_INDEX_GUTTER_PX = 64;
 export const THREAD_CONTENT_COMPACT_GUTTER_PX = 10;
 
-export const NEW_THREAD_COMPOSER_WIDTH = "min(clamp(46rem, 74cqw, 876px), calc(100cqw - 2rem))";
+export const NEW_THREAD_COMPOSER_WIDTH = "min(clamp(46rem, 74%, 876px), 100%)";
 export const NEW_THREAD_COMPOSER_WIDTH_CLASS_NAME = "mx-auto w-[var(--new-thread-composer-width)]";
 
 export const THREAD_INDEX_HIDE_WIDTH_PX =
@@ -12,13 +12,13 @@ export const THREAD_INDEX_HIDE_WIDTH_PX =
 export const THREAD_SIDEBAR_AUTO_COLLAPSE_WIDTH_PX =
   THREAD_CONTENT_MIN_WIDTH_PX + THREAD_CONTENT_COMPACT_GUTTER_PX * 2;
 
-export const THREAD_CONTENT_GUTTER_TRANSITION_CLASS_NAME =
-  "transition-[--thread-content-inline-gutter] duration-(--layout-motion-duration) ease-(--layout-motion-ease) data-[resizing=true]:transition-none motion-reduce:transition-none";
+// Resolve the content column once on the responsive grid shared by the viewport and footer.
+// Only the index gutter animates on a responsive state change; viewport width stays immediate.
+export const THREAD_CONTENT_WIDTH = `clamp(min(${THREAD_CONTENT_INDEX_RELEASE_WIDTH_PX}px, calc(100% - (var(--thread-viewport-inline-padding) + var(--scrollbar-hit-size)) * 2)), calc(100% - var(--thread-content-inline-gutter) * 2), ${THREAD_CONTENT_MAX_WIDTH_PX}px)`;
 
-export const THREAD_CONTENT_WIDTH_CLASS_NAME =
-  "w-[var(--thread-content-width)] min-w-[var(--thread-content-min-width)] max-w-[var(--thread-content-max-width)]";
+export const THREAD_CONTENT_WIDTH_CLASS_NAME = "w-full min-w-0 max-w-full";
 
-export const THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME = `${THREAD_CONTENT_WIDTH_CLASS_NAME} relative [inset-inline-start:min(0px,calc((100%-clamp(var(--thread-content-min-width),var(--thread-content-width),var(--thread-content-max-width)))/2))]`;
+export const THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME = `${THREAD_CONTENT_WIDTH_CLASS_NAME} relative col-start-2`;
 
 export interface ThreadResponsiveLayout {
   conversationIndexHidden: boolean;

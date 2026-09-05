@@ -1,0 +1,71 @@
+/* Shared by the central conversation and side-chat, regardless of their surface name. */
+:where([data-slot="workbench-conversation"]) {
+  --thread-index-motion-duration: var(--layout-state-motion-duration);
+  --message-action-size: var(--icon-frame-size-default);
+  --thread-icon-size: var(--icon-size-md);
+  --message-action-icon-size: var(--thread-icon-size);
+}
+
+/* Define derived radii at their consumption boundary, including detached Composer popups. */
+:where(
+  [data-slot="workbench-conversation"],
+  [data-slot="workbench-composer-shell"],
+  [data-workbench-composer-popup]
+) {
+  --composer-radius: 1.5rem;
+  --composer-inner-radius: max(0px, calc(var(--composer-radius) - 2px));
+
+  :where([data-workbench-corner-radius="square"]) & {
+    --composer-radius: 0px;
+  }
+  :where([data-workbench-corner-radius="subtle"]) & {
+    --composer-radius: 0.75rem;
+  }
+  :where([data-workbench-corner-radius="compact"]) & {
+    --composer-radius: 1rem;
+  }
+  :where([data-workbench-corner-radius="soft"]) & {
+    --composer-radius: 1.75rem;
+  }
+  :where([data-workbench-corner-radius="rounded"]) & {
+    --composer-radius: 2rem;
+  }
+  :where([data-workbench-corner-radius="extra-rounded"]) & {
+    --composer-radius: 2.5rem;
+  }
+}
+
+:where([data-slot="workbench-composer-shell"], [data-workbench-composer-popup]) {
+  --composer-action-row-size: var(--control-hit-default);
+  --composer-attachment-action-size: var(--control-hit-default);
+  --composer-attachment-icon-size: var(--icon-size-md);
+  --composer-primary-action-size: var(--control-hit-default);
+  --composer-primary-icon-size: var(--icon-size-md);
+  --composer-stop-icon-size: 12px;
+}
+
+@layer components {
+  :where([data-slot="workbench-conversation"]) :where(button[data-slot]) {
+    --button-icon-size: var(--thread-icon-size);
+  }
+
+  [data-slot="message-actions"] .aui-button-icon {
+    --button-icon-frame-size: var(--message-action-size, var(--icon-frame-size-default));
+    --button-icon-size: var(--message-action-icon-size, var(--icon-size-md));
+  }
+
+  [data-slot="workbench-composer-actions"] .aui-composer-add-menu {
+    --button-icon-frame-size: var(--composer-attachment-action-size);
+    --button-icon-size: var(--composer-attachment-icon-size);
+  }
+
+  [data-slot="workbench-composer-actions"] .aui-composer-primary-action {
+    --button-icon-frame-size: var(--composer-primary-action-size);
+    --button-icon-size: var(--composer-primary-icon-size);
+  }
+
+  [data-slot="workbench-composer-actions"]
+    .aui-composer-primary-action:has(.aui-composer-stop-icon) {
+    --button-icon-size: var(--composer-stop-icon-size);
+  }
+}

@@ -348,7 +348,7 @@ function Timeline({
             </span>
             {event.truncated ? (
               <TriangleAlertIcon
-                className="me-1 size-3 shrink-0 text-amber-500"
+                className="me-1 size-[var(--icon-size-md)] shrink-0 text-amber-500"
                 aria-label={t("extensions.contextTrace.flagTruncated")}
               />
             ) : null}
@@ -863,7 +863,7 @@ export function ContextTraceSurface({
           className="bg-background hover:bg-muted absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] shadow-sm"
           onClick={resumeLive}
         >
-          <ArrowDownIcon className="size-3" />
+          <ArrowDownIcon className="size-[var(--icon-size-md)]" />
           {t("extensions.contextTrace.resumeWithCount", { count: unseenCount })}
         </button>
       ) : null}

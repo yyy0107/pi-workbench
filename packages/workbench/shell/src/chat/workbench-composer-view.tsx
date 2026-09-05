@@ -13,15 +13,7 @@ import {
   SquareSlashIcon,
   XIcon,
 } from "lucide-react";
-import {
-  Fragment,
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type DragEvent,
-  type ReactNode,
-} from "react";
+import { Fragment, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 
 import { TooltipIconButton } from "../ui/tooltip-icon-button";
 import { type ComposerCommand, ComposerCommandItem, ComposerMenu } from "../elements/composer";
@@ -41,11 +33,6 @@ import type { ComposerTriggerItem } from "./composer-directive";
 
 const COMPOSER_PRIMARY_ACTION_CLASS_NAME =
   "aui-composer-primary-action rounded-[var(--button-radius)] [&:hover:not(:active)]:bg-primary! dark:[&:hover:not(:active)]:bg-primary!";
-const COMPOSER_PRIMARY_ACTION_STYLE = {
-  "--icon-frame-size-default": "var(--composer-primary-action-size)",
-  "--icon-size-md": "var(--composer-primary-icon-size)",
-} as CSSProperties;
-
 export type WorkbenchComposerSuggestionGroup =
   | "builtin"
   | "extension"
@@ -327,7 +314,13 @@ export function ComposerAddMenuView({
           </TooltipIconButton>
         }
       />
-      <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-64 p-1.5">
+      <DropdownMenuContent
+        data-workbench-composer-popup=""
+        align="start"
+        side="top"
+        sideOffset={8}
+        className="w-64 p-1.5"
+      >
         <DropdownMenuItem
           className="min-h-9 gap-2.5 px-2.5"
           disabled={!attachmentsEnabled}
@@ -371,7 +364,7 @@ export function ComposerPrimaryActionView({
       size="icon"
       variant="default"
       className={COMPOSER_PRIMARY_ACTION_CLASS_NAME}
-      style={COMPOSER_PRIMARY_ACTION_STYLE}
+
       onClick={onCancel}
     >
       <SquareIcon className="aui-composer-stop-icon fill-current" />
@@ -387,7 +380,7 @@ export function ComposerPrimaryActionView({
         COMPOSER_PRIMARY_ACTION_CLASS_NAME,
         "disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100",
       )}
-      style={COMPOSER_PRIMARY_ACTION_STYLE}
+
       onClick={onSend}
     >
       <ArrowUpIcon className="aui-composer-primary-icon" />
@@ -482,12 +475,9 @@ export function WorkbenchComposerSurfaceView({
           </div>
 
           <div
+            data-slot="workbench-composer-actions"
             className={cn(
               "flex h-[var(--composer-action-row-size)] shrink-0 items-center justify-between gap-2 [padding-inline:var(--composer-action-inset)] max-[360px]:gap-1",
-              "[--composer-action-row-size:32px] [--composer-attachment-action-size:32px] [--composer-attachment-icon-size:16px]",
-              "[--composer-primary-action-size:32px] [--composer-primary-icon-size:16px] [--composer-stop-icon-size:12px]",
-              "[&_.aui-composer-add-menu]:size-[var(--composer-attachment-action-size)]! [&_.aui-composer-add-menu-icon]:size-[var(--composer-attachment-icon-size)]!",
-              "[&_.aui-composer-stop-icon]:size-[var(--composer-stop-icon-size)]!",
             )}
           >
             <div className="flex h-full min-w-0 flex-1 items-center gap-2">{actionsLeft}</div>

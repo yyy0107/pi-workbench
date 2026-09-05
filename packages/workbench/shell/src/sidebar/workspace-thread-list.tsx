@@ -41,7 +41,7 @@ const WORKSPACE_PAGE_SIZE = 24;
 export function WorkbenchPinnedThreadList({ onNavigate }: { onNavigate?: () => void }) {
   const sidebar = useWorkspaceSidebar();
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-(--sidebar-list-gap)">
       <WorkbenchThreadList pinnedOnly showEmpty={false} onNavigate={onNavigate} />
       {sidebar.pinnedDirectories.map((directory) => (
         <WorkspaceDirectorySection
@@ -117,7 +117,7 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
       </p>
     );
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-(--sidebar-list-gap)">
       {directories.slice(0, visibleCount).map((directory) => (
         <WorkspaceDirectorySection
           key={directory.id}

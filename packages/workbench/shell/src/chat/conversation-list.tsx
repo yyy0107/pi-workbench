@@ -210,7 +210,7 @@ function ConversationMessages({
       data-slot="conversation-flow"
       className={cn(
         THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
-        "mx-auto flex shrink-0 flex-col gap-4 pb-4 [overflow-anchor:none]",
+        "flex shrink-0 flex-col gap-4 pb-4 [overflow-anchor:none]",
       )}
     >
       {items}

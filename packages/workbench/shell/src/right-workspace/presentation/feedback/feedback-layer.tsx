@@ -34,7 +34,7 @@ export function WorkspaceFeedbackLayer() {
         className="hover:bg-muted/45 flex h-9 w-full items-center gap-2 px-3 text-left text-xs"
         onClick={() => setExpanded((value) => !value)}
       >
-        <MessageSquareTextIcon className="size-3.5" />
+        <MessageSquareTextIcon className="size-[var(--icon-size-md)]" />
         <span className="font-medium">
           {t("rightWorkspace.feedback.pending", { count: feedback.length })}
         </span>

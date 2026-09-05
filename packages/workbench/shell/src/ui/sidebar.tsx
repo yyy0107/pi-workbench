@@ -185,6 +185,7 @@ function Sidebar({
           closeLabel={closeLabel}
           dir={dir}
           data-sidebar="sidebar"
+          data-workbench-surface="sidebar"
           data-slot="sidebar"
           data-mobile="true"
           className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
@@ -207,7 +208,7 @@ function Sidebar({
 
   return (
     <div
-      className="group peer hidden text-sidebar-foreground md:block"
+      className="group peer hidden text-sidebar-foreground sm:block"
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}
       data-variant={variant}
@@ -230,7 +231,7 @@ function Sidebar({
         data-slot="sidebar-container"
         data-side={side}
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-content-width) translate-x-0 transition-[width,translate] duration-(--layout-motion-duration) ease-(--layout-motion-ease) in-data-[resizing=true]:translate-x-(--sidebar-resize-translate-x) in-data-[resizing=true]:transition-none motion-reduce:transition-none data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:-translate-x-full data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:translate-x-full md:flex",
+          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-content-width) translate-x-0 transition-[width,translate] duration-(--layout-motion-duration) ease-(--layout-motion-ease) in-data-[resizing=true]:translate-x-(--sidebar-resize-translate-x) in-data-[resizing=true]:transition-none motion-reduce:transition-none data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:-translate-x-full data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:translate-x-full sm:flex",
           // Adjust the padding for floating and inset variants.
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
@@ -241,6 +242,7 @@ function Sidebar({
       >
         <div
           data-sidebar="sidebar"
+          data-workbench-surface="sidebar"
           data-slot="sidebar-inner"
           className="flex size-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border"
         >
