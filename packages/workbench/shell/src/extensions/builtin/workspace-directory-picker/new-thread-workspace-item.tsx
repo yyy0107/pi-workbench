@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon } from "lucide-react";
+import { MessageCirclePlusIcon } from "lucide-react";
 
 import { Button } from "@workbench/shell/ui";
 import { useAgentRuntime } from "@workbench/agent-runtime-client";
@@ -27,7 +27,7 @@ export function NewThreadWorkspaceItem() {
     <Button
       type="button"
       variant="ghost"
-      className="hover:bg-sidebar-accent data-active:bg-sidebar-accent h-[var(--sidebar-row-height)] min-h-[var(--sidebar-row-height)] w-full justify-start gap-2 rounded-lg px-3 text-sm font-medium"
+      className="hover:bg-sidebar-accent data-active:bg-sidebar-accent h-[var(--sidebar-row-height)] min-h-[var(--sidebar-row-height)] w-full justify-start gap-2 rounded-[var(--sidebar-row-radius)] border-0 px-[var(--sidebar-row-padding)] text-sm font-medium"
       onClick={() => {
         if (targetWorkspaceId) beginNewThread(targetWorkspaceId);
         else destroyNewThread();
@@ -35,7 +35,7 @@ export function NewThreadWorkspaceItem() {
         navigation.openHome();
       }}
     >
-      <PlusIcon className="size-4" />
+      <MessageCirclePlusIcon aria-hidden="true" className="size-4" />
       {t("extensions.workspaceDirectory.newThread")}
     </Button>
   );

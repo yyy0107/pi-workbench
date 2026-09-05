@@ -48,7 +48,7 @@ function WorkspaceSidebarContent({
       className="min-h-0 flex-1 overflow-y-auto py-1 ps-3 pe-[2px] [scrollbar-gutter:stable]"
     >
       <div
-        className="mb-2 min-w-0"
+        className="bg-sidebar sticky top-0 z-10 min-w-0 pb-2"
         onClick={(event) => {
           if (mobile && event.target instanceof Element && event.target.closest("button, a"))
             onNavigate?.();

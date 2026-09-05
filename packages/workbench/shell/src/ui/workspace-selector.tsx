@@ -38,6 +38,7 @@ export function WorkspaceSelector({
   error = false,
   footer,
   labels,
+  open,
   picking = false,
   selectedWorkspace,
   triggerId,
@@ -45,6 +46,7 @@ export function WorkspaceSelector({
   variant = "ghost",
   workspaces,
   onClear,
+  onOpenChange,
   onValueChange,
 }: {
   canClear?: boolean;
@@ -52,6 +54,7 @@ export function WorkspaceSelector({
   error?: boolean;
   footer?: ReactNode;
   labels: WorkspaceSelectorLabels;
+  open?: boolean;
   picking?: boolean;
   selectedWorkspace?: WorkspaceSelectorOption;
   triggerId?: string;
@@ -59,6 +62,7 @@ export function WorkspaceSelector({
   variant?: "ghost" | "outline";
   workspaces: readonly WorkspaceSelectorOption[];
   onClear?(): void;
+  onOpenChange?(open: boolean): void;
   onValueChange(workspaceId: string): void;
 }) {
   const clearable = canClear && selectedWorkspace !== undefined && !picking;
@@ -66,6 +70,8 @@ export function WorkspaceSelector({
   return (
     <SearchableSelector<WorkspaceSelectorOption>
       items={workspaces}
+      open={open}
+      onOpenChange={onOpenChange}
       value={selectedWorkspace ?? null}
       itemToStringLabel={(workspace) => `${workspace.name} ${workspace.rootPath}`}
       isItemEqualToValue={(workspace, value) => workspace.id === value.id}

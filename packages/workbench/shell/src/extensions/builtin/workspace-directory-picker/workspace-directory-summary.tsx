@@ -3,7 +3,7 @@
 import { FolderPlusIcon, LoaderCircleIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 
-import { DropdownMenuItem, DropdownMenuSeparator } from "@workbench/shell/ui";
+import { Button } from "@workbench/shell/ui";
 import { WorkspaceSelector } from "@workbench/shell/ui";
 import { useI18n } from "@workbench/shell/i18n";
 import type { ComposerSlotContext } from "@workbench/extension-sdk";
@@ -53,6 +53,7 @@ function WorkspaceDirectorySummaryContent({
   const { t } = useI18n();
   const trustDialogCopy = workspaceProjectTrustDialogCopy(t);
   const runtimeConnection = useRuntimeConnection();
+  const [selectorOpen, setSelectorOpen] = useState(false);
   const [picking, setPicking] = useState(false);
   const [remotePickerOpen, setRemotePickerOpen] = useState(false);
   const [error, setError] = useState(false);
@@ -74,6 +75,7 @@ function WorkspaceDirectorySummaryContent({
 
   const pickDirectory = async () => {
     if (picking) return;
+    setSelectorOpen(false);
     if (!shouldUseNativeDirectoryPicker(runtimeConnection)) {
       setError(false);
       setRemotePickerOpen(true);
@@ -99,6 +101,8 @@ function WorkspaceDirectorySummaryContent({
     <>
       <WorkspaceSelector
         canClear={canClearWorkspace}
+        open={selectorOpen}
+        onOpenChange={setSelectorOpen}
         disabled={!isNewThread}
         error={error || workspaceRequired}
         labels={{
@@ -129,22 +133,21 @@ function WorkspaceDirectorySummaryContent({
           }
         }}
         footer={
-          <div>
-            <DropdownMenuSeparator className="m-0" />
-            <div className="p-1">
-              <DropdownMenuItem
-                disabled={picking}
-                className="min-h-9 gap-2.5 rounded-lg px-2.5 text-sm"
-                onClick={() => void pickDirectory()}
-              >
-                {picking ? (
-                  <LoaderCircleIcon aria-hidden="true" className="size-4 animate-spin" />
-                ) : (
-                  <FolderPlusIcon aria-hidden="true" className="size-4 text-muted-foreground" />
-                )}
-                {t("extensions.workspaceDirectory.openFolder")}
-              </DropdownMenuItem>
-            </div>
+          <div className="border-t p-1">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={picking}
+              className="w-full justify-start gap-2.5 px-2.5 text-sm"
+              onClick={() => void pickDirectory()}
+            >
+              {picking ? (
+                <LoaderCircleIcon aria-hidden="true" className="size-4 animate-spin" />
+              ) : (
+                <FolderPlusIcon aria-hidden="true" className="size-4 text-muted-foreground" />
+              )}
+              {t("extensions.workspaceDirectory.openFolder")}
+            </Button>
           </div>
         }
       />
