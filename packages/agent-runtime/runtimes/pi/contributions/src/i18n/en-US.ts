@@ -511,6 +511,7 @@ export const piExtensionsEnUS = {
         package: "Pi package",
       },
       status: {
+        builtin: "Built-in",
         available: "Available",
         loaded: "Loaded",
         modelInvocable: "Model access",
@@ -607,7 +608,6 @@ export const piExtensionsEnUS = {
         builtinDescription:
           "Use a template as a /prompts-name command, or create a copy to edit and save in the selected scope.",
         savedTitle: "Saved templates",
-        createFromBuiltin: ({ name }: { name: string }) => `Create from ${name}`,
         savedCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
           count === 1 ? "1 saved template" : `${number(count)} saved templates`,
         builtins: {

@@ -29,6 +29,7 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   whenToUse?: string;
   modelInvocable?: boolean;
   enabled?: boolean;
+  builtin?: boolean;
   invocationName?: string;
   argumentHint?: string;
   promptId?: string;

@@ -11,16 +11,11 @@ import {
   getBuiltinPromptTemplates,
 } from "./builtin-prompt-templates";
 
-function render(locale: Locale, query = "", createDisabled = false) {
+function render(locale: Locale, query = "") {
   return renderToStaticMarkup(
     <WorkbenchSettingsProvider service={{ load: async () => ({}), update: async () => undefined }}>
       <I18nProvider initialLocale={locale} bundles={[piTranslationBundle]}>
-        <BuiltinPromptTemplates
-          query={query}
-          createDisabled={createDisabled}
-          onCreate={() => undefined}
-          onUse={() => undefined}
-        />
+        <BuiltinPromptTemplates query={query} onOpen={() => undefined} onUse={() => undefined} />
       </I18nProvider>
     </WorkbenchSettingsProvider>,
   );
@@ -52,7 +47,7 @@ test("built-in prompts are localized and searchable without a Runtime or local p
     }
     assert.equal((render(locale).match(/<li\b/g) ?? []).length, 9);
     assert.equal((render(locale, "  PI  ").match(/<li\b/g) ?? []).length, 4);
-    assert.equal((render(locale, "", true).match(/<button\b[^>]*\sdisabled=/g) ?? []).length, 9);
+    assert.doesNotMatch(render(locale), /<button\b[^>]*\sdisabled=/);
     assert.equal((render(locale).match(/<button\b/g) ?? []).length, 18);
     assert.doesNotMatch(render(locale), /<button\b[^>]*>(?:(?!<\/button>)[\s\S])*<button\b/);
     assert.equal(render(locale, "no-such-template"), "");
@@ -62,6 +57,7 @@ test("built-in prompts are localized and searchable without a Runtime or local p
   assert.match(render("en-US", "code-review"), /Review code/);
   assert.match(render("zh-CN", "pi-hook"), /立即使用/);
   assert.match(render("en-US", "pi-hook"), /Use now/);
+  assert.match(render("en-US", "pi-hook"), /aria-label="Open details for Create a Pi hook"/);
   assert.match(render("zh-CN", "/prompts-pi-hook"), /\/prompts-pi-hook/);
 });
 

@@ -470,6 +470,7 @@ export const piExtensionsZhCN = {
         package: "Pi Package",
       },
       status: {
+        builtin: "内置",
         available: "可用",
         loaded: "已加载",
         modelInvocable: "模型可调用",
@@ -556,7 +557,6 @@ export const piExtensionsZhCN = {
         builtinTitle: "内置模板",
         builtinDescription: "通过 /prompts-name 命令使用模板，也可创建副本，修改后保存到当前范围。",
         savedTitle: "已保存模板",
-        createFromBuiltin: ({ name }: { name: string }) => `从${name}创建模板`,
         savedCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
           `已保存 ${number(count)} 个模板`,
         builtins: {

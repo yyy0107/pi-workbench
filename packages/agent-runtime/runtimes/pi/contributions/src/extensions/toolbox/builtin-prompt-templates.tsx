@@ -1,6 +1,7 @@
 "use client";
 
-import { FileTextIcon, PlayIcon, PlusIcon } from "lucide-react";
+import { FileTextIcon, PlayIcon } from "lucide-react";
+import type { MouseEvent } from "react";
 
 import { expandPromptTemplateContent } from "@workbench/agent-runtime-pi-shared/commands";
 import { Button } from "@workbench/shell/ui";
@@ -43,13 +44,14 @@ export function getBuiltinPromptTemplates(t: PiTranslate) {
 
 export function BuiltinPromptTemplates({
   query,
-  createDisabled,
-  onCreate,
+  onOpen,
   onUse,
 }: {
   query: string;
-  createDisabled: boolean;
-  onCreate(template: PromptTemplateDraft): void;
+  onOpen(
+    template: ReturnType<typeof getBuiltinPromptTemplates>[number],
+    event: MouseEvent<HTMLButtonElement>,
+  ): void;
   onUse(commandName: string): void;
 }) {
   const { t, locale } = usePiI18n();
@@ -72,12 +74,11 @@ export function BuiltinPromptTemplates({
           <li key={template.name} className="flex min-w-0 items-center gap-2">
             <Button
               variant="ghost"
-              disabled={createDisabled}
-              className="h-auto min-w-0 flex-1 justify-start gap-3 px-3 py-[calc(var(--control-content-padding-block-default)*1.5)] text-left font-normal whitespace-normal"
-              aria-label={t("extensions.toolbox.prompts.createFromBuiltin", {
+              className="h-auto min-w-0 flex-1 items-start justify-start gap-3 px-3 py-[calc(var(--control-content-padding-block-default)*1.5)] text-left font-normal whitespace-normal"
+              aria-label={t("extensions.toolbox.openDetails", {
                 name: template.title,
               })}
-              onClick={() => onCreate({ name: template.name, content: template.content })}
+              onClick={(event) => onOpen(template, event)}
             >
               <span className="bg-muted/30 text-info-foreground flex size-(--button-height-large) shrink-0 items-center justify-center rounded-(--button-radius)">
                 <FileTextIcon
@@ -90,11 +91,10 @@ export function BuiltinPromptTemplates({
                 <span className="text-muted-foreground mt-1 block text-sm leading-5">
                   {template.description}
                 </span>
-                <code className="text-muted-foreground mt-2 block text-xs">
+                <code className="text-muted-foreground mt-1 block text-xs">
                   /{builtinPromptCommandName(template.name)}
                 </code>
               </span>
-              <PlusIcon aria-hidden="true" className="text-muted-foreground shrink-0" />
             </Button>
             <Button
               variant="outline"

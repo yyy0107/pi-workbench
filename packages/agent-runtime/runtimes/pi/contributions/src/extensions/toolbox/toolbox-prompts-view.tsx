@@ -175,8 +175,15 @@ export function ToolboxPromptsView({ initialQuery = "" }: { initialQuery?: strin
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3 [scrollbar-gutter:stable]">
             <BuiltinPromptTemplates
               query={query}
-              createDisabled={!catalog.hasTargets}
-              onCreate={setCreating}
+              onOpen={(template, event) => {
+                previous.current = event.currentTarget;
+                setSelected({
+                  capabilityId: `builtin-prompt:${template.name}`,
+                  capabilityKind: "prompt",
+                  name: template.name,
+                  builtin: true,
+                });
+              }}
               onUse={useBuiltin}
             />
             <h2 className="mb-3 border-b px-3 pb-3 text-base font-medium">
@@ -217,7 +224,7 @@ export function ToolboxPromptsView({ initialQuery = "" }: { initialQuery?: strin
                   <li key={item.id} className="flex min-w-0 items-center gap-2 py-2">
                     <Button
                       variant="ghost"
-                      className="h-auto min-w-0 flex-1 justify-start gap-3 px-3 py-[calc(var(--control-content-padding-block-default)*1.5)] text-left font-normal"
+                      className="h-auto min-w-0 flex-1 items-start justify-start gap-3 px-3 py-[calc(var(--control-content-padding-block-default)*1.5)] text-left font-normal"
                       title={t("extensions.toolbox.openDetails", { name: item.name })}
                       onClick={(event) => {
                         previous.current = event.currentTarget;
@@ -237,7 +244,7 @@ export function ToolboxPromptsView({ initialQuery = "" }: { initialQuery?: strin
                             {item.description}
                           </span>
                         ) : null}
-                        <span className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                        <span className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                           <code>/{item.params.invocationName}</code>
                           <span className="truncate">
                             {item.params.origin === "package"

@@ -31,7 +31,7 @@ import {
 } from "@workbench/shell/ui";
 import { usePiI18n } from "../../i18n";
 import { insertPromptDraft } from "./prompt-composer-draft";
-import type { PromptTemplateDraft } from "./builtin-prompt-templates";
+import { expandBuiltinPromptTemplate, type PromptTemplateDraft } from "./builtin-prompt-templates";
 
 export function promptErrorKey(error: unknown) {
   if (error instanceof Error && error.message === "prompt-existing-draft")
@@ -241,7 +241,7 @@ export function PromptUseDialog({
   onClose,
 }: {
   target: PiResourceCatalogTarget;
-  template: PromptDescribeValue;
+  template: PromptDescribeValue | (PromptTemplateDraft & { builtin: true; argumentHint?: string });
   onClose(): void;
 }) {
   const { t } = usePiI18n();
@@ -293,11 +293,10 @@ export function PromptUseDialog({
     setBusy(true);
     setError(undefined);
     try {
-      const { content } = await client.expandPrompt({
-        target,
-        id: template.id,
-        arguments: arguments_,
-      });
+      const content =
+        "builtin" in template
+          ? expandBuiltinPromptTemplate(template, arguments_)
+          : (await client.expandPrompt({ target, id: template.id, arguments: arguments_ })).content;
       if (!content.trim()) throw new Error("empty-template");
       insertPromptDraft(runtime, destination, content, workspaceId);
       mainViews.close();
