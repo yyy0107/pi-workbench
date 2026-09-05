@@ -1,11 +1,8 @@
-import { useWorkbenchInteractionCapability } from "@workbench/agent-runtime-client/context";
-import { registerRuntimeEntries } from "../../runtime-entries";
 import { MessageCircleQuestionIcon } from "lucide-react";
 
 import { defineExtension } from "@workbench/extension-sdk";
 import { defineMessage } from "@workbench/shell/i18n";
 
-import { AskUserSettingsItem } from "./ask-user-settings-item";
 import { areAskUserQuestionsReady, askUserQuestionCount } from "./ask-user-tool-model";
 import { AskUserToolRenderer } from "./ask-user-tool-renderer";
 import {
@@ -21,32 +18,6 @@ export const interactiveRequestsExtension = defineExtension({
   version: "1.0.0",
 
   setup(context) {
-    const entries = registerRuntimeEntries(
-      context,
-      "workbench.interactive-requests.entries",
-      () => Boolean(useWorkbenchInteractionCapability()),
-      () => {
-        const section = context.settings.registerSection({
-          id: "ask-user",
-          title: defineMessage("extensions.interactiveRequests.settings.title"),
-          description: defineMessage("extensions.interactiveRequests.settings.description"),
-          icon: MessageCircleQuestionIcon,
-          group: {
-            id: "capabilities",
-            title: defineMessage("extensions.settings.groups.capabilities"),
-          },
-          order: 65,
-        });
-        const settings = context.settings.registerItem({
-          sectionId: "ask-user",
-          id: "capability",
-          title: defineMessage("extensions.interactiveRequests.settings.enable"),
-          description: defineMessage("extensions.interactiveRequests.settings.enableDescription"),
-          component: AskUserSettingsItem,
-        });
-        return [section, settings];
-      },
-    );
     const question = context.slots.register("composer.overlay", {
       id: "workbench.interactive-requests.question",
       component: InteractiveQuestionComposerOverlay,
@@ -74,6 +45,6 @@ export const interactiveRequestsExtension = defineExtension({
       },
     });
 
-    return [entries, question, approval, toolRenderer, toolPresentation];
+    return [question, approval, toolRenderer, toolPresentation];
   },
 });

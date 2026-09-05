@@ -127,7 +127,7 @@ test("runtime entries follow capability presence and dispose with their owning e
     } as WorkbenchAgentRuntimeCapabilities);
     assert.deepEqual(
       manager.settings.getSections().map(({ id }) => id),
-      ["image-understanding", "ask-user"],
+      ["image-understanding"],
     );
     assert.equal(manager.sidebarSections.get("automations")?.id, "automations");
     assert.ok(manager.commands.get("automations.create"));

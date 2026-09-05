@@ -43,6 +43,10 @@ import {
   DropdownMenuTrigger,
 } from "@workbench/shell/ui";
 import { Progress } from "@workbench/shell/ui";
+import {
+  useToolCapabilityPreferences,
+  useToolCapabilityPreferencesController,
+} from "@workbench/shell/tool-capability-preferences";
 import { useClipboardCopy } from "@workbench/shell/hooks";
 import { usePiI18n } from "../../i18n";
 import { PiApiError } from "@workbench/agent-runtime-pi-client/errors";
@@ -53,6 +57,7 @@ import { useFileWorkspaceTargetService } from "@workbench/shell/workspace-files"
 
 import {
   toolboxDirectoryResource,
+  builtinToolPreferenceKey,
   type ToolboxCapabilitySurfaceParams,
 } from "./toolbox-capability";
 import { toolboxScopeTarget } from "./toolbox-scope";
@@ -131,6 +136,11 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
 
 function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfaceParams }) {
   const { number, t } = usePiI18n();
+  const builtinPreferenceKey = builtinToolPreferenceKey(params);
+  const builtinPreference = useToolCapabilityPreferences(builtinPreferenceKey ?? "askUserEnabled");
+  const builtinController = useToolCapabilityPreferencesController(
+    builtinPreferenceKey ?? "askUserEnabled",
+  );
   const fileWorkspaceTargets = useFileWorkspaceTargetService();
   const resourceClient = usePiResourceClient();
   const opener = useOpenerService();
@@ -241,9 +251,19 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
   const [skillDocumentMode, setSkillDocumentMode] = useState<SkillDocumentMode>("preview");
   const [skillDeleteDialogOpen, setSkillDeleteDialogOpen] = useState(false);
   const [skillRemoved, setSkillRemoved] = useState(false);
-  const [extensionEnabled, setExtensionEnabled] = useState(params.enabled !== false);
-  const [extensionMutationState, setExtensionMutationState] =
+  const [externalExtensionEnabled, setExtensionEnabled] = useState(params.enabled !== false);
+  const [externalExtensionMutationState, setExtensionMutationState] =
     useState<ExtensionMutationState>("idle");
+  const extensionEnabled = builtinPreferenceKey
+    ? builtinPreference.enabled
+    : externalExtensionEnabled;
+  const extensionMutationState: ExtensionMutationState = builtinPreferenceKey
+    ? builtinPreference.status === "saving"
+      ? "updating"
+      : builtinPreference.saveFailed
+        ? "failed"
+        : "idle"
+    : externalExtensionMutationState;
   const [extensionDeleteDialogOpen, setExtensionDeleteDialogOpen] = useState(false);
   const [extensionRemoved, setExtensionRemoved] = useState(false);
   const [extensionOpenFailed, setExtensionOpenFailed] = useState(false);
@@ -298,6 +318,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
     extensionMutationState === "updating" || extensionMutationState === "removing";
   const extensionIdentity =
     isExtension &&
+    !params.builtin &&
     catalogTarget &&
     params.extensionName &&
     params.filePath &&
@@ -313,11 +334,12 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
           origin: params.origin,
         }
       : undefined;
-  const canToggleExtension =
-    Boolean(extensionIdentity) &&
-    !extensionRemoved &&
-    !extensionMutationPending &&
-    params.scope !== "temporary";
+  const canToggleExtension = builtinPreferenceKey
+    ? builtinPreference.status === "ready"
+    : Boolean(extensionIdentity) &&
+      !extensionRemoved &&
+      !extensionMutationPending &&
+      params.scope !== "temporary";
   const canDeleteExtension =
     Boolean(extensionIdentity) &&
     !extensionRemoved &&
@@ -677,6 +699,10 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
     );
   };
   const updateExtensionEnabled = (enabled: boolean) => {
+    if (builtinPreferenceKey) {
+      if (canToggleExtension) void builtinController.setEnabled(enabled).catch(() => {});
+      return;
+    }
     if (!extensionIdentity || !canToggleExtension || enabled === extensionEnabled) return;
     setExtensionMutationState("updating");
     void resourceClient.setExtensionEnabled({ ...extensionIdentity, enabled }).then(
@@ -840,19 +866,21 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
               <StatusBadge tone={capabilityInactive ? "neutral" : "success"} className="leading-5">
                 {t(
-                  isExtension
-                    ? extensionEnabled && !extensionRemoved
-                      ? "extensions.toolbox.extensions.loaded"
-                      : "extensions.toolbox.extensions.disabled"
-                    : isCatalogPackage
-                      ? "extensions.toolbox.status.officialCatalog"
-                      : isInstalledPackage
-                        ? installedPackageRemoved
-                          ? "extensions.toolbox.status.uninstalled"
-                          : packageUpdateAvailable
-                            ? "extensions.toolbox.status.updateAvailable"
-                            : "extensions.toolbox.status.installed"
-                        : "extensions.toolbox.status.loaded",
+                  params.builtin && !builtinPreferenceKey
+                    ? "extensions.toolbox.status.builtin"
+                    : isExtension
+                      ? extensionEnabled && !extensionRemoved
+                        ? "extensions.toolbox.extensions.loaded"
+                        : "extensions.toolbox.extensions.disabled"
+                      : isCatalogPackage
+                        ? "extensions.toolbox.status.officialCatalog"
+                        : isInstalledPackage
+                          ? installedPackageRemoved
+                            ? "extensions.toolbox.status.uninstalled"
+                            : packageUpdateAvailable
+                              ? "extensions.toolbox.status.updateAvailable"
+                              : "extensions.toolbox.status.installed"
+                          : "extensions.toolbox.status.loaded",
                 )}
               </StatusBadge>
               {isInstalledPackage && packageUpdateAvailable ? (
@@ -998,8 +1026,13 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
           </div>
         ) : null}
 
-        {isExtension ? (
+        {isExtension && params.builtin && !builtinPreferenceKey ? (
+          <p className="text-muted-foreground mt-5 text-sm">
+            {t("extensions.toolbox.builtins.readOnly")}
+          </p>
+        ) : isExtension ? (
           <ExtensionControls
+            builtin={params.builtin}
             canDelete={canDeleteExtension}
             canOpenDirectory={directoryResource?.scheme === "extension-directory"}
             canToggle={canToggleExtension}
@@ -1013,6 +1046,12 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
             onOpenDirectory={openExtensionDirectory}
             onToggle={updateExtensionEnabled}
           />
+        ) : null}
+
+        {isExtension && builtinPreferenceKey ? (
+          <p className="text-muted-foreground mt-2 text-sm">
+            {t("extensions.toolbox.builtins.toggleDescription")}
+          </p>
         ) : null}
 
         {isSkill && skillMutationState === "failed" ? (

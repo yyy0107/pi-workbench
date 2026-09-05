@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createToolCapabilityPreferences } from "../../../tool-capability-preferences";
+
 import {
   ASK_USER_PREFERENCES_STORAGE_KEY,
   createAskUserPreferences,
@@ -69,6 +71,53 @@ test("does not migrate, clean up, or notify after a disposed installation resolv
       assert.deepEqual(removed, []);
       assert.equal(notifications, 0);
       assert.equal(preferences.getSnapshot().status, "loading");
+    },
+  );
+});
+
+test("tool preferences stay independent, preserve Ask User migration and roll back failed saves", async () => {
+  const writes: unknown[] = [];
+  const removed: string[] = [];
+  let fail = false;
+  await withLocalStorage(
+    {
+      getItem: () => '{"enabled":false}',
+      removeItem: (key) => {
+        removed.push(key);
+      },
+    },
+    async () => {
+      const settings = {
+        load: async () => ({}),
+        update: async (patch: unknown) => {
+          if (fail) throw new Error("save failed");
+          writes.push(patch);
+        },
+      };
+      const todo = createToolCapabilityPreferences(settings, "todoEnabled");
+      const ask = createAskUserPreferences(settings);
+      await todo.hydrate();
+      assert.equal(todo.getSnapshot().enabled, true);
+      assert.deepEqual(writes, []);
+      assert.deepEqual(removed, []);
+      await ask.hydrate();
+      assert.equal(ask.getSnapshot().enabled, false);
+      assert.deepEqual(writes, [{ askUserEnabled: false }]);
+      let notifications = 0;
+      todo.subscribe(() => {
+        notifications += 1;
+      });
+      await todo.setEnabled(false);
+      assert.equal(todo.getSnapshot().enabled, false);
+      assert.deepEqual(writes, [{ askUserEnabled: false }, { todoEnabled: false }]);
+      assert.equal(removed.length, 1);
+      assert.equal(notifications, 2);
+      fail = true;
+      await assert.rejects(todo.setEnabled(true), /save failed/);
+      assert.deepEqual(todo.getSnapshot(), { enabled: false, status: "ready", saveFailed: true });
+      assert.equal(ask.getSnapshot().enabled, false);
+      todo.dispose();
+      ask.dispose();
     },
   );
 });

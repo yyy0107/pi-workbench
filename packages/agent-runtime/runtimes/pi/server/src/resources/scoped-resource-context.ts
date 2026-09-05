@@ -9,6 +9,10 @@ import type { PiResourceCatalogTarget } from "@workbench/agent-runtime-pi-protoc
 import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
 import { getProjectTrustService } from "../trust/project-trust-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
+import {
+  prepareWorkbenchPiExtensions,
+  workbenchInternalPiExtensions,
+} from "../internal-extensions/index";
 
 export interface ScopedResourceContextErrorDetails {
   "workspace-not-found": { workspaceId: string };
@@ -134,6 +138,8 @@ export class ScopedResourceContextService {
         settingsManager,
         noContextFiles: true,
         noThemes: true,
+        extensionFactories: workbenchInternalPiExtensions,
+        extensionsOverride: prepareWorkbenchPiExtensions,
       });
       const reload = () =>
         resourceLoader.reload({

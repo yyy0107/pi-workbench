@@ -12,6 +12,7 @@ import {
 import mime from "mime";
 
 import type {
+  BuiltinExtensionView,
   ExtensionFileReadPayload,
   ExtensionFileSnapshotValue,
   ExtensionFilesListPayload,
@@ -109,6 +110,26 @@ interface ExtensionRecord {
 interface LoadedExtensionsResult {
   extensions: readonly LoadedExtension[];
   errors: readonly unknown[];
+}
+
+function extensionContributions(
+  extension: Pick<LoadedExtension, "handlers" | "tools" | "commands">,
+) {
+  return {
+    eventNames: sortedNames(extension.handlers),
+    toolNames: sortedNames(extension.tools),
+    commandNames: sortedNames(extension.commands),
+    eventDetails: sortedEntries(extension.handlers).map(([name, handlers]) => ({
+      name,
+      handlerCount: handlers.length,
+    })),
+    toolDetails: sortedEntries(extension.tools).map(([name, tool]) =>
+      extensionToolView(name, tool),
+    ),
+    commandDetails: sortedEntries(extension.commands).map(([name, command]) =>
+      extensionCommandView(name, command),
+    ),
+  };
 }
 
 export interface ExtensionSessionHost {
@@ -404,13 +425,18 @@ export class ExtensionService implements ExtensionProtocol {
 
   private async records(
     host: ExtensionSessionHost,
-  ): Promise<{ records: ExtensionRecord[]; loadErrorCount: number }> {
+  ): Promise<{
+    records: ExtensionRecord[];
+    builtins: BuiltinExtensionView[];
+    loadErrorCount: number;
+  }> {
     const result = host.session.resourceLoader.getExtensions();
     const resolved = (await this.resolvedPaths(host, result.extensions)).extensions;
     const resolvedByPath = new Map(resolved.map((resource) => [resource.path, resource]));
     const seenPaths = new Set<string>();
     const hiddenPaths = new Set<string>();
     const records: ExtensionRecord[] = [];
+    const builtins: BuiltinExtensionView[] = [];
 
     for (const extension of result.extensions) {
       const resource =
@@ -419,6 +445,13 @@ export class ExtensionService implements ExtensionProtocol {
       seenPaths.add(extension.path);
       if (extension.resolvedPath) seenPaths.add(extension.resolvedPath);
       if (resource) seenPaths.add(resource.path);
+      if (isWorkbenchInternalPiExtensionPath(extension.path)) {
+        builtins.push({
+          name: extension.path.slice("<inline:".length, -1),
+          ...extensionContributions(extension),
+        });
+        continue;
+      }
       if (extension.hidden) {
         hiddenPaths.add(extension.path);
         if (extension.resolvedPath) hiddenPaths.add(extension.resolvedPath);
@@ -455,7 +488,7 @@ export class ExtensionService implements ExtensionProtocol {
       return !isWorkbenchInternalPiExtensionPath(error.path);
     }).length;
 
-    return { records, loadErrorCount };
+    return { records, builtins, loadErrorCount };
   }
 
   private async findExtension(
@@ -647,20 +680,9 @@ export class ExtensionService implements ExtensionProtocol {
             scope: extension.sourceInfo.scope,
             origin: extension.sourceInfo.origin,
             enabled: extension.enabled,
-            eventNames: sortedNames(extension.handlers),
-            toolNames: sortedNames(extension.tools),
-            commandNames: sortedNames(extension.commands),
-            eventDetails: sortedEntries(extension.handlers).map(([name, handlers]) => ({
-              name,
-              handlerCount: handlers.length,
-            })),
-            toolDetails: sortedEntries(extension.tools).map(([name, tool]) =>
-              extensionToolView(name, tool),
-            ),
-            commandDetails: sortedEntries(extension.commands).map(([name, command]) =>
-              extensionCommandView(name, command),
-            ),
+            ...extensionContributions(extension),
           })),
+        ...(snapshot.builtins.length ? { builtins: snapshot.builtins } : {}),
         loadErrorCount: snapshot.loadErrorCount,
       };
     } catch (error) {

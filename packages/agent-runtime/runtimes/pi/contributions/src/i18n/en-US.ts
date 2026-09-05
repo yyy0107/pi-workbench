@@ -479,7 +479,8 @@ export const piExtensionsEnUS = {
         descriptions: {
           packages: "Discover skills, extensions, prompts, and themes for your agent.",
           skills: "Extend your agent with task-specific skills.",
-          extensions: "Manage the tools, commands, and events added by Pi extensions.",
+          extensions:
+            "Manage the tools, commands, and events provided by built-in and installed Pi extensions.",
           prompts: "Keep reusable prompts ready for your next task.",
           installed: "Manage the Pi packages installed in this scope.",
         },
@@ -563,7 +564,18 @@ export const piExtensionsEnUS = {
         packageRemoved:
           "The Pi package was uninstalled and its capabilities were removed from the sessions.",
       },
+      builtins: {
+        scope: "All workspaces",
+        readOnly: "This built-in extension provides core lifecycle behavior and is always enabled.",
+        toggleDescription:
+          "Available in all workspaces. Changes apply to open and future sessions; saved tool history is preserved.",
+      },
       extensions: {
+        groups: {
+          package: "Pi Packages",
+          custom: "Custom extensions",
+          builtin: "Built-in extensions",
+        },
         title: "Pi Extensions",
         browse: "Browse Pi extensions",
         loaded: "Loaded",

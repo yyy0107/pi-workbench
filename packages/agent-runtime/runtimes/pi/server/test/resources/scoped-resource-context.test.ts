@@ -32,6 +32,14 @@ test("creates cached user and project resource catalogs without an AgentSession"
   assert.equal(project.settingsManager.isProjectTrusted(), true);
   assert.equal(await service.get({ scope: "project", workspaceId: "project-1" }), project);
   assert.deepEqual(workspaceLookups, ["project-1"]);
+  for (const context of [user, project]) {
+    const builtin = context.resourceLoader
+      .getExtensions()
+      .extensions.find((extension) => extension.path === "<inline:workbench.rpiv-todo>");
+    assert.ok(builtin?.hidden);
+    assert.equal(builtin.tools.get("todo")?.definition.name, "todo");
+    assert.ok(builtin.handlers.has("session_start"));
+  }
 });
 
 test("rejects an unknown project scope before loading resources", async () => {

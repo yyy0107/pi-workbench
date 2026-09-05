@@ -143,6 +143,11 @@
       "default": "./src/settings.tsx"
     },
     "./styles.css": "./src/styles.css",
+    "./tool-capability-preferences": {
+      "types": "./src/tool-capability-preferences.ts",
+      "import": "./src/tool-capability-preferences.ts",
+      "default": "./src/tool-capability-preferences.ts"
+    },
     "./ui": {
       "types": "./src/ui/index.ts",
       "import": "./src/ui/index.ts",

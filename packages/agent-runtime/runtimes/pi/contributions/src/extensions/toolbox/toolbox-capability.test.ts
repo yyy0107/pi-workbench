@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   bindCapabilityToCatalogTarget,
+  builtinExtensionSurfaceParams,
   extensionSurfaceParams,
   npmPackageNameFromSource,
   sectionForCapability,
@@ -23,6 +24,23 @@ function capability(
 
 test("maps Pi extensions to their toolbox section", () => {
   assert.equal(sectionForCapability(capability("extension")), "extensions");
+});
+
+test("built-in extensions open alongside Pi extensions without an editable directory resource", () => {
+  const params = builtinExtensionSurfaceParams({
+    name: "workbench.rpiv-todo",
+    toolNames: ["todo"],
+    commandNames: [],
+    eventNames: ["session_start"],
+    toolDetails: [{ name: "todo", label: "Todo" }],
+    commandDetails: [],
+    eventDetails: [{ name: "session_start", handlerCount: 1 }],
+  });
+  assert.equal(sectionForCapability(params), "extensions");
+  assert.equal(params.builtin, true);
+  assert.deepEqual(params.toolNames, ["todo"]);
+  assert.equal(params.filePath, undefined);
+  assert.equal(toolboxDirectoryResource(params, { scope: "user" }), undefined);
 });
 
 test("derives official catalog package names only from canonical npm sources", () => {

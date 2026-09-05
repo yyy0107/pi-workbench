@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import { useToolCapabilityPreferences } from "@workbench/shell/tool-capability-preferences";
+
 import { usePiI18n } from "../../i18n";
 import { usePiResourceClient } from "@workbench/agent-runtime-pi-client/resources";
 import { usePiWorkspaces } from "@workbench/agent-runtime-pi-client/workspace";
 import type {
+  BuiltinExtensionView,
   ExtensionView,
   PiResourceCatalogTarget,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
@@ -13,6 +16,8 @@ import type { WorkbenchToolboxScopePreference } from "@workbench/agent-runtime-c
 
 import {
   bindCapabilityToCatalogTarget,
+  builtinExtensionSurfaceParams,
+  builtinToolPreferenceKey,
   extensionSurfaceParams,
   installedPackageSurfaceParams,
   promptSurfaceParams,
@@ -23,6 +28,7 @@ import { toolboxScopeMatchesResource, toolboxScopeTarget } from "./toolbox-scope
 
 export interface PiExtensionsCatalog {
   readonly extensions: readonly ExtensionView[];
+  readonly builtins?: readonly BuiltinExtensionView[];
   readonly loadErrorCount: number;
 }
 
@@ -136,6 +142,8 @@ export function useToolboxCatalogs(
   kind?: ToolboxCapabilityItem["kind"],
 ) {
   const { t } = usePiI18n();
+  const askUserPreference = useToolCapabilityPreferences("askUserEnabled");
+  const todoPreference = useToolCapabilityPreferences("todoEnabled");
   const resourceClient = usePiResourceClient();
   const workspaces = usePiWorkspaces();
   const target = useMemo<ToolboxCatalogTarget | undefined>(() => {
@@ -308,6 +316,40 @@ export function useToolboxCatalogs(
     [promptsCatalog.entries, scope],
   );
 
+  const builtinExtensionItems = useMemo<readonly ToolboxCapabilityItem[]>(
+    () =>
+      uniqueCapabilities(
+        extensionsCatalog.entries.flatMap(({ value }) =>
+          (value.builtins ?? []).map((extension) => {
+            const params = builtinExtensionSurfaceParams(extension);
+            const key = builtinToolPreferenceKey(params);
+            const preference = key === "todoEnabled" ? todoPreference : askUserPreference;
+            if (key && preference.status !== "loading") params.enabled = preference.enabled;
+            const description = t("extensions.toolbox.extensions.capabilitySummary", {
+              events: extension.eventNames.length,
+              tools: extension.toolNames.length,
+              commands: extension.commandNames.length,
+            });
+            return {
+              id: params.capabilityId,
+              kind: "extension" as const,
+              name: extension.name,
+              description,
+              searchText: [
+                extension.name,
+                description,
+                ...extension.eventNames,
+                ...extension.toolNames,
+                ...extension.commandNames,
+              ].join(" "),
+              params,
+            };
+          }),
+        ),
+      ),
+    [extensionsCatalog.entries, t, askUserPreference, todoPreference],
+  );
+
   const packageItems = useMemo<readonly ToolboxCapabilityItem[]>(
     () =>
       uniqueCapabilities(
@@ -340,7 +382,7 @@ export function useToolboxCatalogs(
   );
 
   return {
-    extensionItems,
+    extensionItems: [...builtinExtensionItems, ...extensionItems],
     extensionsCatalog,
     packageItems,
     packagesCatalog,

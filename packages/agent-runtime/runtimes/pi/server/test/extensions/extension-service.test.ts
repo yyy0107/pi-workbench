@@ -50,6 +50,61 @@ function extension(
   };
 }
 
+test("lists built-in declarations separately without exposing file or mutation identities", async () => {
+  const service = new ExtensionService({
+    getScopedResourceHost: async () => ({
+      session: {
+        resourceLoader: {
+          getExtensions: () => ({
+            extensions: [
+              extension("<inline:workbench.rpiv-todo>", {
+                hidden: true,
+                events: ["session_start"],
+                tools: ["todo"],
+                scope: "temporary",
+              }),
+              extension("<inline:private>", { hidden: true, tools: ["private_tool"] }),
+            ],
+            errors: [],
+          }),
+        },
+      },
+    }),
+  });
+  const result = await service.list({ target: { scope: "user" } });
+  assert.deepEqual(result.extensions, []);
+  assert.equal(result.builtins?.length, 1);
+  const builtin = result.builtins![0];
+  assert.equal(builtin.name, "workbench.rpiv-todo");
+  assert.deepEqual(builtin.toolNames, ["todo"]);
+  assert.deepEqual(builtin.eventDetails, [{ name: "session_start", handlerCount: 1 }]);
+  assert.equal(JSON.parse(builtin.toolDetails[0].parameterSchemaJson!).type, "object");
+  for (const field of ["filePath", "scope", "source", "enabled", "handlers", "tools"]) {
+    assert.equal(field in builtin, false);
+  }
+  assert.doesNotMatch(JSON.stringify(result), /private_tool|<inline:/);
+  const identity = {
+    target: { scope: "user" as const },
+    name: builtin.name,
+    filePath: "<inline:workbench.rpiv-todo>",
+    source: "auto",
+    scope: "temporary" as const,
+    origin: "top-level" as const,
+  };
+  for (const request of [
+    () => service.setEnabled({ ...identity, enabled: false }),
+    () => service.remove(identity),
+    () => service.listFiles(identity),
+    () => service.readFile(identity),
+  ]) {
+    await assert.rejects(
+      request,
+      (error: unknown) =>
+        error instanceof ExtensionServiceError && error.code === "extension-not-found",
+    );
+  }
+});
+
 test("lists visible extensions loaded by the target Pi session", async () => {
   const requestedSessionIds: string[] = [];
   const service = new ExtensionService({

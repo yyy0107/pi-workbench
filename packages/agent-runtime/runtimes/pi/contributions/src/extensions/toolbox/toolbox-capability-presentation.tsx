@@ -236,6 +236,19 @@ export function CapabilityMetadataFields({ params }: { params: ToolboxCapability
       ? t("extensions.toolbox.details.projectScope", { project: params.projectName })
       : t(`extensions.toolbox.scopes.${scope}`);
 
+  if (params.builtin) {
+    return (
+      <>
+        <DetailField label={t("extensions.toolbox.details.origin")}>
+          {t("extensions.toolbox.origins.builtin")}
+        </DetailField>
+        <DetailField label={t("extensions.toolbox.details.scope")}>
+          {t("extensions.toolbox.builtins.scope")}
+        </DetailField>
+      </>
+    );
+  }
+
   if (isInstalledPackage) {
     return (
       <>
@@ -693,6 +706,7 @@ export function ExtensionCapabilityDetailsPanel({
 }
 
 export interface ExtensionControlsProps {
+  builtin?: boolean;
   canDelete: boolean;
   canOpenDirectory: boolean;
   canToggle: boolean;
@@ -708,6 +722,7 @@ export interface ExtensionControlsProps {
 }
 
 export function ExtensionControls({
+  builtin = false,
   canDelete,
   canOpenDirectory,
   canToggle,
@@ -754,34 +769,38 @@ export function ExtensionControls({
             )}
           </span>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          disabled={!canOpenDirectory}
-          aria-label={t("extensions.toolbox.extensions.openFolder", { name })}
-          title={t("extensions.toolbox.extensions.openFolder", { name })}
-          onClick={onOpenDirectory}
-        >
-          <FolderOpenIcon aria-hidden="true" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          disabled={!canDelete}
-          className="text-destructive hover:text-destructive"
-          aria-label={t("extensions.toolbox.extensions.deleteExtension", { name })}
-          title={t(
-            canDelete
-              ? "extensions.toolbox.extensions.deleteExtension"
-              : "extensions.toolbox.extensions.deleteUnavailable",
-            { name },
-          )}
-          onClick={onDelete}
-        >
-          <Trash2Icon aria-hidden="true" />
-        </Button>
+        {!builtin ? (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={!canOpenDirectory}
+              aria-label={t("extensions.toolbox.extensions.openFolder", { name })}
+              title={t("extensions.toolbox.extensions.openFolder", { name })}
+              onClick={onOpenDirectory}
+            >
+              <FolderOpenIcon aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={!canDelete}
+              className="text-destructive hover:text-destructive"
+              aria-label={t("extensions.toolbox.extensions.deleteExtension", { name })}
+              title={t(
+                canDelete
+                  ? "extensions.toolbox.extensions.deleteExtension"
+                  : "extensions.toolbox.extensions.deleteUnavailable",
+                { name },
+              )}
+              onClick={onDelete}
+            >
+              <Trash2Icon aria-hidden="true" />
+            </Button>
+          </>
+        ) : null}
       </div>
       {openFailed || mutationState === "failed" ? (
         <p className="text-destructive mt-2 text-xs leading-5" role="alert">

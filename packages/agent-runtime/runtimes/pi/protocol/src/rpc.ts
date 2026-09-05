@@ -760,8 +760,21 @@ export interface ExtensionView {
 
 export interface ExtensionListValue {
   extensions: ExtensionView[];
+  /** Workbench-owned extensions expose declarations only, without a mutable resource identity. */
+  builtins?: BuiltinExtensionView[];
   loadErrorCount: number;
 }
+
+export type BuiltinExtensionView = Pick<
+  ExtensionView,
+  | "name"
+  | "eventNames"
+  | "toolNames"
+  | "commandNames"
+  | "eventDetails"
+  | "toolDetails"
+  | "commandDetails"
+>;
 
 export type ExtensionIdentityPayload = PiResourceRequest & {
   name: string;

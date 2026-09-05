@@ -439,7 +439,7 @@ export const piExtensionsZhCN = {
         descriptions: {
           packages: "为智能体发现技能、扩展、提示模板和主题。",
           skills: "通过任务专用技能扩展智能体的能力。",
-          extensions: "管理 Pi 扩展提供的工具、命令和事件。",
+          extensions: "管理内置和已安装的 Pi 扩展提供的工具、命令和事件。",
           prompts: "保存可复用的提示模板，随时用于下一项任务。",
           installed: "管理当前范围内已安装的 Pi 包。",
         },
@@ -517,7 +517,18 @@ export const piExtensionsZhCN = {
         removed: "Skill 已删除。",
         packageRemoved: "Pi Package 已卸载，相关能力已从会话中移除。",
       },
+      builtins: {
+        scope: "所有工作区",
+        readOnly: "此内置扩展提供核心生命周期行为，始终启用。",
+        toggleDescription:
+          "适用于所有工作区，修改会同步到当前及之后的会话，已保存的工具历史会保留。",
+      },
       extensions: {
+        groups: {
+          package: "Pi Package",
+          custom: "自建扩展",
+          builtin: "内置扩展",
+        },
         title: "Pi 扩展",
         browse: "浏览 Pi 扩展",
         loaded: "已加载",

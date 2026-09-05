@@ -694,9 +694,13 @@ host、文件系统边界和 mutation coordinator 仍由 `ExtensionService` 独�
 为空。
 
 Workbench 自身依赖的 Pi 生命周期适配器通过 `DefaultResourceLoader` 的隐藏内联
-`extensionFactories` 注入，只作用于 Workbench 创建的 session。它们不写入用户或项目扩展目录，
-不进入 `extension.list`、文件读取和启停/删除 RPC，也不会被同一 Pi agent 目录下的 TUI 或其他客户端
-自动加载。内部扩展初始化失败写入 Host 日志，不计入面向用户的扩展加载错误数量。当前消息终止原因
+`extensionFactories` 注入。工具箱的独立资源上下文也注册同一组工厂以读取声明，不创建 AgentSession。
+它们不写入用户或项目扩展目录；`extension.list` 的可选 `builtins` 数组单独返回名称及工具、命令和事件
+声明，与用户安装的扩展一并显示在工具箱“Pi 扩展”列表与详情页。Todo 与 Ask User 可通过共享 Workbench 设置启停
+（`todoEnabled` / `askUserEnabled`，默认启用），即时同步活动会话的可用工具，保留工具历史；纯生命周期
+扩展始终启用。内置项不包含文件或 mutation 身份，不进入文件读取和
+启停/删除 RPC，也不会被同一 Pi agent 目录下的 TUI 或其他客户端自动加载。
+内部扩展初始化失败写入 Host 日志，不计入面向用户的扩展加载错误数量。当前消息终止原因
 归一化使用这一机制在 Pi 持久化 `message_end` 前写入版本化 diagnostic；Workbench 的 `ask_user`
 工具也由隐藏内联扩展注册，通过统一 Workbench settings 中的 `askUserEnabled` 开关同步到每个已加载
 session 的 active tools。开关关闭时工具不会进入后续模型请求，已经发出的待回答问题则由 Composer
@@ -705,6 +709,13 @@ Overlay 取消，避免 session 在不可见状态下等待。`ask_user` 的结�
 选项后显示本地化推荐标记。普通选择题至少提供两个选项；候选项可能不完整时可设置
 `allowCustom: true`，Workbench 会在选项后显示“其他答案”输入框，并允许必填问题由选择或自定义回答
 任一方式满足。单个选项只有在同时允许自定义回答时才有效，避免出现没有实际选择空间的问题。
+
+任务管理由隐藏内联扩展 `workbench.rpiv-todo` 内置，复用 MIT 许可的 rpiv todo 2.9.0 核心，
+提供 `todo` 的 create、update、list、get、delete 和 clear 操作；旧 `workbench_todo` 不再注册。
+任务及依赖、负责人、metadata 随每次工具结果的完整 `details.tasks` / `details.nextId` 快照持久化，
+在恢复、reload、压缩和分支切换后的运行开始时从当前分支重建，不需要另装 rpiv Package。
+若用户扩展也注册 `todo`，会话使用内置实现，保留该扩展的其他工具和生命周期。
+Shell 的通用任务面板消费这些工具结果，并保留旧 `workbench_todo` 历史的只读展示。
 
 `extension.setEnabled` 是 loopback-only mutation，并要求请求携带当前列表返回的完整扩展身份。
 它沿用 Pi Config Selector 的精确 `+path` / `-path` 规则：顶层扩展更新对应作用域的 `extensions`，

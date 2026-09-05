@@ -1,4 +1,5 @@
 import type {
+  BuiltinExtensionView,
   ExtensionRegisteredCommandView,
   ExtensionRegisteredEventView,
   ExtensionRegisteredToolView,
@@ -103,7 +104,7 @@ export function toolboxDirectoryResource(
   params: ToolboxCapabilitySurfaceParams,
   target: PiResourceCatalogTarget | undefined,
 ): OpenableResource | undefined {
-  if (!target) return undefined;
+  if (!target || params.builtin) return undefined;
 
   if (params.capabilityKind === "skill") {
     return {
@@ -234,6 +235,17 @@ export function extensionSurfaceParams(extension: ExtensionView): ToolboxCapabil
   };
 }
 
+export function builtinExtensionSurfaceParams(
+  extension: BuiltinExtensionView,
+): ToolboxCapabilitySurfaceParams {
+  return {
+    ...extension,
+    capabilityId: `builtin-extension:${encodeURIComponent(extension.name)}`,
+    capabilityKind: "extension",
+    builtin: true,
+  };
+}
+
 export function promptSurfaceParams(
   prompt: PromptCommandView | PromptTemplateView,
 ): ToolboxCapabilitySurfaceParams {
@@ -291,4 +303,14 @@ export function packageSurfaceParams(
     installCommand: item.installCommand,
     packageName: item.name,
   };
+}
+
+/** These tool providers use the same global switches as Workbench settings. */
+export function builtinToolPreferenceKey(params: ToolboxCapabilitySurfaceParams) {
+  if (!params.builtin || params.capabilityKind !== "extension") return undefined;
+  if (params.name === "workbench.ask-user" && params.toolNames?.includes("ask_user"))
+    return "askUserEnabled" as const;
+  if (params.name === "workbench.rpiv-todo" && params.toolNames?.includes("todo"))
+    return "todoEnabled" as const;
+  return undefined;
 }

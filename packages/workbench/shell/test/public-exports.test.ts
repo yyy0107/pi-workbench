@@ -180,6 +180,7 @@ test("Shell manifest exposes only finite public subpaths", async () => {
     "./runtime-connection",
     "./settings",
     "./styles.css",
+    "./tool-capability-preferences",
     "./ui",
     "./utils",
     "./workbench",

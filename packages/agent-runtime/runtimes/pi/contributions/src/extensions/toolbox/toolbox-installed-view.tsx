@@ -11,7 +11,7 @@ import {
   RefreshCwIcon,
   SearchIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState, type MouseEvent, type Ref } from "react";
+import { Fragment, useEffect, useRef, useState, type MouseEvent, type Ref } from "react";
 
 import { useMainViewService } from "@workbench/extension-host";
 import {
@@ -20,6 +20,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
   Skeleton,
+  StatusBadge,
 } from "@workbench/shell/ui";
 import { cn } from "@workbench/shell/utils";
 
@@ -41,10 +42,12 @@ const CAPABILITY_ICONS = {
 export function ToolboxResourceList({
   items,
   query,
+  groupBySource = false,
   onOpen,
 }: {
   items: readonly ToolboxCapabilityItem[];
   query: string;
+  groupBySource?: boolean;
   onOpen(item: ToolboxCapabilityItem, event: MouseEvent<HTMLButtonElement>): void;
 }) {
   const { locale, t } = usePiI18n();
@@ -61,74 +64,115 @@ export function ToolboxResourceList({
     );
   }
 
-  return (
-    <ul className="grid grid-cols-1 gap-x-6 gap-y-3 @2xl:grid-cols-2">
-      {visibleItems.map((item) => {
-        const Icon = CAPABILITY_ICONS[item.kind];
-        const disabled = item.params.enabled === false;
-        const status =
-          item.params.enabled !== undefined
-            ? t(
-                disabled
-                  ? "extensions.toolbox.skills.disabledStatus"
-                  : "extensions.toolbox.skills.enabledStatus",
-              )
-            : t(
-                item.params.installed
-                  ? "extensions.toolbox.status.installed"
-                  : "extensions.toolbox.status.available",
-              );
-        const description = item.description || item.params.source || item.params.invocationName;
-        return (
-          <li key={item.id} className="min-w-0">
-            <Button
-              variant="ghost"
-              size="lg"
-              title={t("extensions.toolbox.openDetails", { name: item.name })}
-              className={cn(
-                "h-auto w-full min-w-0 justify-start gap-3 px-3 py-[calc(var(--control-content-padding-block-default)*1.5)] text-left font-normal whitespace-normal",
-                disabled && "text-muted-foreground",
-              )}
-              onClick={(event) => onOpen(item, event)}
-            >
-              <span
-                className={cn(
-                  "bg-muted/30 group-hover/button:bg-background flex w-[var(--button-height-large)] shrink-0 items-center justify-center self-stretch rounded-[var(--button-radius)] transition-colors",
-                  (item.kind === "skill" || item.kind === "extension") &&
-                    !disabled &&
-                    "text-info-foreground",
-                )}
-              >
-                <Icon
-                  aria-hidden="true"
-                  className="[--button-icon-size:calc(var(--icon-size-md)*1.75)]"
-                />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-base leading-5">{item.name}</span>
-                {description ? (
+  const groups = groupBySource
+    ? [
+        {
+          id: "package",
+          title: t("extensions.toolbox.extensions.groups.package"),
+          items: visibleItems.filter(
+            (item) => !item.params.builtin && item.params.origin === "package",
+          ),
+        },
+        {
+          id: "custom",
+          title: t("extensions.toolbox.extensions.groups.custom"),
+          items: visibleItems.filter(
+            (item) => !item.params.builtin && item.params.origin !== "package",
+          ),
+        },
+        {
+          id: "builtin",
+          title: t("extensions.toolbox.extensions.groups.builtin"),
+          items: visibleItems.filter((item) => item.params.builtin),
+        },
+      ]
+    : [{ id: "all", title: undefined, items: visibleItems }];
+
+  return groups
+    .filter((group) => group.items.length > 0)
+    .map((group) => (
+      <Fragment key={group.id}>
+        {group.title ? (
+          <h2 className="mt-8 mb-3 border-b px-3 pb-4 text-base font-medium">{group.title}</h2>
+        ) : null}
+        <ul className="grid grid-cols-1 gap-x-6 gap-y-3 @2xl:grid-cols-2">
+          {group.items.map((item) => {
+            const Icon = CAPABILITY_ICONS[item.kind];
+            const disabled = item.params.enabled === false;
+            const status =
+              item.params.builtin && item.params.enabled === undefined
+                ? t("extensions.toolbox.status.loaded")
+                : item.params.enabled !== undefined
+                  ? t(
+                      disabled
+                        ? "extensions.toolbox.skills.disabledStatus"
+                        : "extensions.toolbox.skills.enabledStatus",
+                    )
+                  : t(
+                      item.params.installed
+                        ? "extensions.toolbox.status.installed"
+                        : "extensions.toolbox.status.available",
+                    );
+            const description =
+              item.description || item.params.source || item.params.invocationName;
+            return (
+              <li key={item.id} className="min-w-0">
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  title={t("extensions.toolbox.openDetails", { name: item.name })}
+                  className={cn(
+                    "h-auto w-full min-w-0 justify-start gap-3 px-3 py-[calc(var(--control-content-padding-block-default)*1.5)] text-left font-normal whitespace-normal",
+                    disabled && "text-muted-foreground",
+                  )}
+                  onClick={(event) => onOpen(item, event)}
+                >
                   <span
-                    title={description}
-                    className="text-muted-foreground mt-0.5 block truncate text-sm leading-5"
+                    className={cn(
+                      "bg-muted/30 group-hover/button:bg-background flex w-[var(--button-height-large)] shrink-0 items-center justify-center self-stretch rounded-[var(--button-radius)] transition-colors",
+                      (item.kind === "skill" || item.kind === "extension") &&
+                        !disabled &&
+                        "text-info-foreground",
+                    )}
                   >
-                    {description}
+                    <Icon
+                      aria-hidden="true"
+                      className="[--button-icon-size:calc(var(--icon-size-md)*1.75)]"
+                    />
                   </span>
-                ) : null}
-              </span>
-              {disabled ? (
-                <span className="text-muted-foreground shrink-0 text-xs">{status}</span>
-              ) : (
-                <span className="text-muted-foreground shrink-0" title={status}>
-                  <CheckIcon aria-hidden="true" className="size-[var(--icon-size-md)]" />
-                  <span className="sr-only">{status}</span>
-                </span>
-              )}
-            </Button>
-          </li>
-        );
-      })}
-    </ul>
-  );
+                  <span className="min-w-0 flex-1">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate text-base leading-5">{item.name}</span>
+                      {item.params.builtin ? (
+                        <StatusBadge className="shrink-0">
+                          {t("extensions.toolbox.status.builtin")}
+                        </StatusBadge>
+                      ) : null}
+                    </span>
+                    {description ? (
+                      <span
+                        title={description}
+                        className="text-muted-foreground mt-0.5 block truncate text-sm leading-5"
+                      >
+                        {description}
+                      </span>
+                    ) : null}
+                  </span>
+                  {disabled || item.params.builtin ? (
+                    <span className="text-muted-foreground shrink-0 text-xs">{status}</span>
+                  ) : (
+                    <span className="text-muted-foreground shrink-0" title={status}>
+                      <CheckIcon aria-hidden="true" className="size-[var(--icon-size-md)]" />
+                      <span className="sr-only">{status}</span>
+                    </span>
+                  )}
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      </Fragment>
+    ));
 }
 
 export function ToolboxInstalledView({
@@ -233,9 +277,11 @@ export function ToolboxInstalledView({
               onChange={(event) => setQuery(event.currentTarget.value)}
             />
           </InputGroup>
-          <h2 className="mt-8 mb-3 border-b px-3 pb-4 text-base font-medium">
-            {t("extensions.toolbox.status.installed")}
-          </h2>
+          {section !== "extensions" ? (
+            <h2 className="mt-8 mb-3 border-b px-3 pb-4 text-base font-medium">
+              {t("extensions.toolbox.status.installed")}
+            </h2>
+          ) : null}
           {!catalog.hasTargets ? (
             <p role="status" className="text-muted-foreground py-12 text-center text-sm">
               {t("extensions.toolbox.scopeUnavailable")}
@@ -275,6 +321,7 @@ export function ToolboxInstalledView({
             <ToolboxResourceList
               items={items}
               query={query}
+              groupBySource={section === "extensions"}
               onOpen={(item, event) => {
                 previousItem.current = event.currentTarget;
                 setSelected(item.params);

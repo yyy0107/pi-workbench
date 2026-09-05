@@ -78,14 +78,6 @@ export const extensionsEnUS = {
       interrupted: "The request ended before answers were submitted.",
       disabled: "Ask User was disabled, so no answers were requested.",
     },
-    settings: {
-      title: "Ask User",
-      description: "Control whether the agent may pause to request structured input.",
-      enable: "Allow Ask User",
-      enableDescription:
-        "Let the agent ask follow-up questions when it needs a decision or missing detail.",
-      saveError: "Could not save this setting. Check the connection and try again.",
-    },
     errors: {
       badResponse: "The host rejected this response. Review the fields and try again.",
       notPending: "This request is no longer pending.",
