@@ -35,6 +35,7 @@ export function DesktopTaskNotifications() {
             title: (thread.title ?? "").slice(0, 1000),
             running: thread.isRunning,
             waiting: thread.isWaitingForInput,
+            completed: thread.hasUnreadCompletion,
             failed: thread.lastRunFailed === true,
           })),
         })

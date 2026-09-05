@@ -359,7 +359,9 @@ function createDesktopServices(
           task.id.length > 512 ||
           typeof task.title !== "string" ||
           task.title.length > 1000 ||
-          [task.running, task.waiting, task.failed].some((value) => typeof value !== "boolean"),
+          [task.running, task.waiting, task.completed, task.failed].some(
+            (value) => typeof value !== "boolean",
+          ),
       )
     )
       throw new Error("invalid-task-state");
@@ -373,7 +375,7 @@ function createDesktopServices(
             ? "failed"
             : task.waiting && !previous?.waiting
               ? "waiting"
-              : previous?.running && !task.running && !task.failed
+              : task.completed && !previous?.completed && !task.failed
                 ? "completed"
                 : undefined;
         if (!kind) continue;

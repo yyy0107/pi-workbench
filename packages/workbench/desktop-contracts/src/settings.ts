@@ -54,7 +54,14 @@ export interface DesktopSettingsPort {
   subscribe(listener: (snapshot: DesktopSettingsSnapshot) => void): () => void;
   syncTasks(state: {
     locale: string;
-    tasks: { id: string; title: string; running: boolean; waiting: boolean; failed: boolean }[];
+    tasks: {
+      id: string;
+      title: string;
+      running: boolean;
+      waiting: boolean;
+      completed: boolean;
+      failed: boolean;
+    }[];
   }): Promise<void>;
   onOpenTask(listener: (id: string) => void): () => void;
   onNotificationSound?(listener: (sound: DesktopNotificationSound) => void): () => void;

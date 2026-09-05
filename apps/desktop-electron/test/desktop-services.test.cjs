@@ -147,7 +147,14 @@ test("desktop settings apply power, secure credentials, activity notifications a
     updater.feed.updateProvider.prototype.getChannelFilePrefix(),
     `-${process.platform}-${process.arch}${process.platform === "linux" ? "-glibc" : ""}`,
   );
-  const task = { id: "task", title: "Test", running: true, waiting: false, failed: false };
+  const task = {
+    id: "task",
+    title: "Test",
+    running: true,
+    waiting: false,
+    completed: false,
+    failed: false,
+  };
   call("task-state", { locale: "zh-CN", tasks: [task] });
   call("settings", { automaticUpdates: true });
   updater.emit("update-downloaded", { version: "0.2.0" });
@@ -155,8 +162,14 @@ test("desktop settings apply power, secure credentials, activity notifications a
   assert.equal(installed, 0);
   await call("update", "install"); // Busy and declined.
   assert.equal(stopped, 0);
-  call("task-state", { locale: "zh-CN", tasks: [{ ...task, running: false }] });
-  call("task-state", { locale: "zh-CN", tasks: [{ ...task, running: false }] });
+  call("task-state", {
+    locale: "zh-CN",
+    tasks: [{ ...task, running: false, completed: true }],
+  });
+  call("task-state", {
+    locale: "zh-CN",
+    tasks: [{ ...task, running: false, completed: true }],
+  });
   assert.deepEqual(notifications, [{ title: "任务已完成", body: "Test", silent: true }]);
   const soundEvents = () =>
     events.filter(([channel]) => channel === "workbench:desktop-notification-sound");
@@ -165,7 +178,10 @@ test("desktop settings apply power, secure credentials, activity notifications a
     call("settings", { notificationSounds: true, notificationSound: sound });
     assert.equal(readDesktopSettings(app).preferences.notificationSound, sound);
     call("task-state", { locale: "zh-CN", tasks: [task] });
-    call("task-state", { locale: "zh-CN", tasks: [{ ...task, running: false }] });
+    call("task-state", {
+      locale: "zh-CN",
+      tasks: [{ ...task, running: false, completed: true }],
+    });
   }
   assert.deepEqual(
     soundEvents().map(([, sound]) => sound),
@@ -174,12 +190,22 @@ test("desktop settings apply power, secure credentials, activity notifications a
   assert.ok(notifications.every((notification) => notification.silent));
   call("settings", { notificationSounds: false });
   call("task-state", { locale: "zh-CN", tasks: [task] });
-  call("task-state", { locale: "zh-CN", tasks: [{ ...task, running: false }] });
+  call("task-state", {
+    locale: "zh-CN",
+    tasks: [{ ...task, running: false, completed: true }],
+  });
   assert.equal(soundEvents().length, 4);
+  const countBeforeOutgoingMessage = notifications.length;
+  call("task-state", { locale: "zh-CN", tasks: [task] });
+  call("task-state", { locale: "zh-CN", tasks: [{ ...task, running: false }] });
+  assert.equal(notifications.length, countBeforeOutgoingMessage);
   call("settings", { notificationSounds: true, taskNotifications: false });
   const count = notifications.length;
   call("task-state", { locale: "zh-CN", tasks: [task] });
-  call("task-state", { locale: "zh-CN", tasks: [{ ...task, running: false }] });
+  call("task-state", {
+    locale: "zh-CN",
+    tasks: [{ ...task, running: false, completed: true }],
+  });
   assert.equal(notifications.length, count);
   assert.equal(soundEvents().length, 4);
   await call("update", "install");
