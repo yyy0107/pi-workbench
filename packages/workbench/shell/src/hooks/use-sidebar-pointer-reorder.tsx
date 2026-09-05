@@ -5,8 +5,8 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
-  useState,
   useSyncExternalStore,
   type PointerEvent,
   type ReactNode,
@@ -338,7 +338,8 @@ export function createSidebarDragSession() {
 const SidebarDragContext = createContext<ReturnType<typeof createSidebarDragSession> | null>(null);
 
 export function SidebarDragSessionProvider({ children }: { children: ReactNode }) {
-  const [session] = useState(createSidebarDragSession);
+  // Recreate the coordinator on Fast Refresh instead of retaining obsolete event-handler closures.
+  const session = useMemo(createSidebarDragSession, []);
   const portal = useWorkbenchPortalContainer();
   useEffect(() => session.attach(portal?.current), [portal, session]);
   return <SidebarDragContext.Provider value={session}>{children}</SidebarDragContext.Provider>;
