@@ -353,16 +353,23 @@ async function acquireCrossProcessFileLock(
     try {
       const lockStat = await stat(lockDirectory);
       const identity = lockDirectoryIdentity(lockStat);
-      const owners = await observeLockOwners(lockDirectory);
-      const ownerStates = owners.map(({ owner: currentOwner }) => lockOwnerIsAlive(currentOwner));
-      const ownerAlive = ownerStates.includes(true)
-        ? true
-        : ownerStates.length > 0 && ownerStates.every((state) => state === false)
-          ? false
-          : undefined;
-      const lastHeartbeatMs = Math.max(lockStat.mtimeMs, ...owners.map(({ mtimeMs }) => mtimeMs));
-      if (ownerAlive === false || Date.now() - lastHeartbeatMs > staleAfterMs) {
-        if (await removeObservedStaleLock(lockDirectory, identity, owners)) continue;
+      const owners = await observeLockOwners(lockDirectory).catch((error: unknown) => {
+        // Windows may temporarily deny reads while another process releases an owner file.
+        // An incomplete observation must never authorize stale-lock removal; retry below.
+        if (["EPERM", "EACCES", "EBUSY"].includes(nodeErrorCode(error) ?? "")) return undefined;
+        throw error;
+      });
+      if (owners !== undefined) {
+        const ownerStates = owners.map(({ owner: currentOwner }) => lockOwnerIsAlive(currentOwner));
+        const ownerAlive = ownerStates.includes(true)
+          ? true
+          : ownerStates.length > 0 && ownerStates.every((state) => state === false)
+            ? false
+            : undefined;
+        const lastHeartbeatMs = Math.max(lockStat.mtimeMs, ...owners.map(({ mtimeMs }) => mtimeMs));
+        if (ownerAlive === false || Date.now() - lastHeartbeatMs > staleAfterMs) {
+          if (await removeObservedStaleLock(lockDirectory, identity, owners)) continue;
+        }
       }
     } catch (error) {
       if (nodeErrorCode(error) === "ENOENT") continue;

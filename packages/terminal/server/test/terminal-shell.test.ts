@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 import { TERMINAL_SHELLS } from "@workbench/terminal-contracts";
 import {
@@ -6,6 +7,98 @@ import {
   createTerminalShellPreference,
   terminalShellExecutable,
 } from "../src/terminal-shell";
+
+test("PowerShell recognizes Store execution aliases whose targets cannot be stat-ed", (t) => {
+  const store = String.raw`C:\Users\test\AppData\Local\Microsoft\WindowsApps\pwsh.exe`;
+  const environment = { LOCALAPPDATA: String.raw`C:\Users\test\AppData\Local` };
+  t.mock.method(fs, "existsSync", () => false);
+  const lstat = t.mock.method(
+    fs,
+    "lstatSync",
+    (path: string): { isSymbolicLink(): boolean } | undefined => {
+      assert.equal(path, store);
+      return { isSymbolicLink: () => true };
+    },
+  );
+  assert.equal(terminalShellExecutable("powershell", environment), store);
+  lstat.mock.mockImplementation(() => undefined);
+  assert.equal(terminalShellExecutable("powershell", environment), "powershell.exe");
+  lstat.mock.mockImplementation(() => {
+    throw new Error("Access denied");
+  });
+  assert.equal(terminalShellExecutable("powershell", environment), "powershell.exe");
+});
+
+test("PowerShell discovers global tools, Scoop, and Preview without refreshed PATH", () => {
+  const profile = String.raw`C:\Users\test`;
+  const dotnet = String.raw`C:\Users\test\.dotnet\tools\pwsh.exe`;
+  const scoop = String.raw`C:\Users\test\scoop\apps\pwsh\current\pwsh.exe`;
+  const preview = String.raw`C:\Program Files\PowerShell\7-preview\pwsh.exe`;
+  const stable = String.raw`C:\Program Files\PowerShell\7\pwsh.exe`;
+  const cases: Array<{
+    environment: Record<string, string>;
+    available: string[];
+    expected: string;
+  }> = [
+    { environment: { USERPROFILE: profile }, available: [dotnet], expected: dotnet },
+    {
+      environment: { DOTNET_CLI_HOME: String.raw`D:\dotnet` },
+      available: [String.raw`D:\dotnet\.dotnet\tools\pwsh.exe`],
+      expected: String.raw`D:\dotnet\.dotnet\tools\pwsh.exe`,
+    },
+    { environment: { USERPROFILE: profile }, available: [scoop], expected: scoop },
+    {
+      environment: { SCOOP: String.raw`D:\scoop` },
+      available: [String.raw`D:\scoop\apps\pwsh\current\pwsh.exe`],
+      expected: String.raw`D:\scoop\apps\pwsh\current\pwsh.exe`,
+    },
+    {
+      environment: { SCOOP_GLOBAL: String.raw`E:\scoop` },
+      available: [String.raw`E:\scoop\apps\pwsh\current\pwsh.exe`],
+      expected: String.raw`E:\scoop\apps\pwsh\current\pwsh.exe`,
+    },
+    {
+      environment: { ProgramData: String.raw`C:\ProgramData` },
+      available: [String.raw`C:\ProgramData\scoop\apps\pwsh\current\pwsh.exe`],
+      expected: String.raw`C:\ProgramData\scoop\apps\pwsh\current\pwsh.exe`,
+    },
+    {
+      environment: { programfiles: String.raw`C:\Program Files` },
+      available: [preview],
+      expected: preview,
+    },
+    {
+      environment: { ProgramFiles: String.raw`C:\Program Files` },
+      available: [preview, stable],
+      expected: stable,
+    },
+    {
+      environment: {
+        PATH: String.raw`C:\Program Files\PowerShell\7-preview`,
+        ProgramFiles: String.raw`C:\Program Files`,
+      },
+      available: [preview, stable],
+      expected: preview,
+    },
+    {
+      environment: { localappdata: String.raw`C:\Users\test\AppData\Local` },
+      available: [String.raw`C:\Users\test\AppData\Local\Microsoft\WindowsApps\pwsh-preview.exe`],
+      expected: String.raw`C:\Users\test\AppData\Local\Microsoft\WindowsApps\pwsh-preview.exe`,
+    },
+    {
+      environment: { SCOOP: "relative", USERPROFILE: "relative", ProgramFiles: "relative" },
+      available: [],
+      expected: "powershell.exe",
+    },
+  ];
+  for (const { environment, available, expected } of cases) {
+    assert.equal(
+      terminalShellExecutable("powershell", environment, (path) => available.includes(path)),
+      expected,
+      JSON.stringify(environment),
+    );
+  }
+});
 
 test("PowerShell prefers pwsh from PATH, standard installs, or WindowsApps", () => {
   const native = String.raw`C:\Program Files\PowerShell\7\pwsh.exe`;

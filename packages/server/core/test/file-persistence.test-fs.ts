@@ -12,7 +12,13 @@ export const link = fs.link;
 export const mkdir = fs.mkdir;
 export const open = fs.open;
 export const readdir = fs.readdir;
-export const readFile = fs.readFile;
+export const readFile = (async (...args: Parameters<typeof fs.readFile>) => {
+  const hook = Reflect.get(globalThis, Symbol.for("workbench.file-persistence.test.read-hook")) as
+    | ((target: Parameters<typeof fs.readFile>[0]) => Promise<void>)
+    | undefined;
+  await hook?.(args[0]);
+  return fs.readFile(...args);
+}) as typeof fs.readFile;
 export const rename = fs.rename;
 export const rmdir = fs.rmdir;
 export const stat = fs.stat;
