@@ -2,6 +2,50 @@ import type { CatalogShape, MessageFormatters } from "@workbench/shell/i18n";
 
 import { piExtensionsEnUS } from "./en-US";
 
+const piExtensionGuide = `
+## Pi 扩展说明
+
+Pi 扩展是由 coding-agent 运行时加载的 TypeScript 模块。扩展工厂接收 ExtensionAPI（通常命名为 pi），并注册所需行为。钩子用于订阅事件，工具向模型暴露结构化操作，命令向用户提供 /extension-status 这样的入口。Skill 是按需读取的 SKILL.md 指令包；提示词模板是带参数的可复用 Markdown。根据需求选择对应机制，只有确实需要时才组合使用。
+
+### 先读取当前安装版本的 SDK
+
+从项目解析实际使用的 coding-agent 包及版本。本 Workbench 使用 @earendil-works/pi-coding-agent，不要直接套用其他发行版的 API。读取该包中的 docs/extensions.md、examples/extensions/；涉及 Skill、提示词或打包时，再读取 docs/skills.md、docs/prompt-templates.md、docs/packages.md。通过 dist/index.d.ts 及事件、工具声明确认签名。dist/core/ 下的声明可以查阅，但不应作为深层导入路径。若随包文档缺失，定位与安装版本匹配的文档，并说明未确认的部分。
+
+### 最小扩展入口
+
+下面展示工厂与事件注册方式；实现时将示例行为替换为实际需求：
+
+\`\`\`ts
+import type { ExtensionFactory } from "@earendil-works/pi-coding-agent";
+
+const extension: ExtensionFactory = (pi) => {
+  pi.on("session_start", (_event, ctx) => {
+    if (ctx.hasUI) ctx.ui.notify("扩展已就绪", "info");
+  });
+};
+
+export default extension;
+\`\`\`
+
+### 常用 API 与生命周期
+
+- pi.on(event, handler)：观察或修改生命周期。session_start/session_shutdown 管理资源，before_agent_start 调整本轮指令，input 处理用户输入，tool_call 检查工具执行，tool_result 处理工具结果。agent_end 表示一次运行结束；agent_settled 表示自动重试、压缩和后续任务均已完成。只返回该事件允许的结果，例如 tool_call 可以返回 { block: true, reason: "..." }；纯观察处理器通常不返回内容。
+- pi.registerTool(definition)：注册模型可调用工具，包含 name、label、description、parameters、execute。当前安装的 SDK 使用 typebox 的 Type 定义参数 schema，执行签名为 execute(toolCallId, params, signal, onUpdate, ctx)。响应取消信号，返回包含文本或图片块的 content 与必要的结构化 details；onUpdate 用于按需报告进度。实现前仍应核对安装版本的字段与签名。
+- pi.registerCommand(name, { description, handler })：注册用户调用的 /name，handler 接收 args 和扩展命令上下文。它与模型调用的工具、Markdown 提示词模板分别属于不同机制。
+- pi.appendEntry(customType, data)：需要持久化时将扩展状态写入会话历史，并通过 ctx.sessionManager 随会话、分支生命周期恢复。不要用全局可变变量共享不同会话的业务状态。
+- UI 交互前检查 ctx.mode 与 ctx.hasUI。工厂只做有限初始化；长期资源按需启动，在 session_shutdown 中幂等释放。
+
+### 文件位置、加载与 Workbench 接入
+
+默认用户扩展位于 ~/.pi/agent/extensions/*.ts 或 */index.ts；项目扩展位于 .pi/extensions/*.ts 或 */index.ts。遵循已配置的资源路径及项目信任设置。Pi CLI 可用 pi -e ./my-extension.ts 临时加载检查，用 /reload 重载自动发现的扩展；Workbench 内沿用现有资源加载和重载入口。
+
+Skill 通常位于 ~/.pi/agent/skills/<name>/SKILL.md 或 .pi/skills/<name>/SKILL.md，也支持配置的 .agents/skills 目录。frontmatter 包含 name、description，正文描述工作流；启用 Skill 命令后可用 /skill:name 调用。独立提示词模板放在配置的 prompts 目录，并按模板名称调用。本 Workbench 页面提供的 /prompts-name 是内置 Composer 命令，不是新的 Pi SDK API 或目录约定。
+
+在本仓库中，先读 packages/agent-runtime/runtimes/pi/README.md。宿主内置运行时扩展放在 server/src/internal-extensions/ 并接入现有 InlineExtension 注册；加载由 DefaultResourceLoader、resourceLoaderOptions.extensionFactories 管理。浏览器组件归属 contributions/，使用 @workbench/extension-sdk 和既有 RPC 能力。Pi TUI 渲染器不会自动生成 Workbench React 组件。复用现有会话和事件传输。
+
+交付时说明扩展用途、入口文件、所选事件/工具/命令及其输入输出、安装和启用或重载步骤，并提供一个具体使用示例；同时给出限制与验证结果。
+`;
+
 export const piExtensionsZhCN = {
   extensions: {
     externalSessionImport: {
@@ -508,12 +552,80 @@ export const piExtensionsZhCN = {
           `${number(count)} 个扩展加载失败`,
       },
       prompts: {
+        builtinTitle: "内置模板",
+        builtinDescription: "通过 /prompts-name 命令使用模板，也可创建副本，修改后保存到当前范围。",
+        savedTitle: "已保存模板",
+        createFromBuiltin: ({ name }: { name: string }) => `从${name}创建模板`,
+        savedCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `已保存 ${number(count)} 个模板`,
+        builtins: {
+          "pi-extension": {
+            title: "创建 Pi 扩展",
+            description: "按需求组合钩子、工具、命令和配套资源。",
+            content:
+              '---\ndescription: 创建 Pi 扩展：根据需求组合钩子、工具和命令，并接入现有加载机制\nargument-hint: "[扩展需求、触发方式和安装范围]"\n---\n请创建一个 Pi 扩展，需求是：${ARGUMENTS:-当前对话中描述的 Pi 扩展需求}。\n\n先读取适用的 AGENTS.md，确认当前安装的 Pi coding-agent 包名、版本、公开类型和随包文档，查找现有扩展与注册入口。存在同类能力时优先扩展或复用，不凭记忆编造 API；需求仍不明确时只询问目标行为及触发方式。\n\n根据目标选择必要的 Pi 钩子、模型可调用工具或用户命令。用现有 SDK 的扩展工厂和公开入口实现，沿用项目已有的类型、配置与错误处理方式。用户扩展放入当前配置的用户或项目扩展目录；Workbench 内置扩展沿用服务端内置目录与稳定注册列表。未指定范围时沿用仓库惯例，并在结果中注明位置。\n\n工厂阶段只完成有限初始化与注册。长期资源延迟到会话或实际操作时启动，并在会话关闭时幂等清理。处理异步失败、取消和并发；密钥来自现有配置或环境，不写入源码。\n\n若还需要配套 Skill 或提示词模板，只创建需求实际需要的文件，复用 Pi 的资源发现方式。Workbench 前端展示使用其扩展平台与既有 RPC 边界，不将 Pi TUI 渲染器视为网页组件，不另建会话或事件流。\n\n完成最小有效检查，覆盖实际触发、关键失败和清理路径。最后给出文件位置、安装或启用方式、使用示例与验证结果，明确未验证的部分；未经要求不要提交、推送或发布。\n' +
+              piExtensionGuide,
+          },
+          "pi-hook": {
+            title: "创建 Pi 钩子",
+            description: "选择生命周期事件，处理返回值、会话状态和清理。",
+            content:
+              '---\ndescription: 创建 Pi 钩子：选择正确生命周期事件，处理返回值、状态和资源清理\nargument-hint: "[触发时机、目标行为和需要观察或修改的数据]"\n---\n请为 Pi 创建钩子，需求是：${ARGUMENTS:-当前对话中描述的钩子行为}。\n\n先读取 AGENTS.md、相关扩展以及实际安装版本的事件类型和文档。明确需要观察、修改还是阻止行为，沿完整事件顺序选择最窄的事件，不把每条消息结束当作整次运行结束。\n\n可核对的方向包括：session_start/session_shutdown 管理会话资源，before_agent_start 调整运行前提示词，input 处理输入，tool_call 检查工具执行，tool_result 处理工具结果，agent_settled 观察运行完全结束。仅使用当前安装版本确实支持的事件，严格遵循该事件允许的返回结构与执行语义。\n\n优先把钩子加入对应的现有扩展，通过 pi.on 注册。保留前序处理器的有效结果和无关上下文，避免重复注入与递归触发；会话状态不得串到其他会话。处理异步失败、重复触发和重载；资源关闭需要幂等。UI 交互先检查当前模式及 UI 可用性，不绕过宿主的已有信任与确认流程。\n\n使用项目已有测试方式模拟所选事件，验证命中、不命中及必要的异常或清理路径，不启动真实模型请求。最后说明事件选择、触发条件、返回行为、文件位置和验证结果；未经要求不要提交或推送。\n' +
+              piExtensionGuide,
+          },
+          "pi-tool": {
+            title: "创建 Pi 工具",
+            description: "设计工具参数，实现执行、取消、错误和结果输出。",
+            content:
+              '---\ndescription: 创建 Pi 工具：设计参数 schema，实现执行、取消、错误和结果输出\nargument-hint: "[工具用途、输入、输出和允许的副作用]"\n---\n请创建一个供 Pi 模型调用的工具，需求是：${ARGUMENTS:-当前对话中描述的工具需求}。\n\n先读取 AGENTS.md，检查现有工具及调用方，并核对当前安装的 Pi SDK 公开工具类型、参数 schema 库与示例。确认该需求需要模型工具；可复用现有工具或服务时不要重复实现。\n\n工具属于扩展时沿用 pi.registerTool；宿主已有独立工具注入机制时沿用该机制。使用稳定且不冲突的名称和准确的描述，清楚说明何时调用、输入要求、输出及副作用。参数 schema 应覆盖必填项、合法范围与长度限制；执行边界仍需验证文件路径、外部响应等不可信输入。\n\n按安装版本的真实 execute 签名实现，尊重取消信号、超时和调用上下文。避免 shell 字符串拼接，优先已有 SDK、标准库和参数数组。沿用现有凭证、权限与确认机制，不硬编码密钥。区分用户输入错误、执行失败和空结果，不把失败包装成成功；长输出按 SDK 机制处理截断，需要进度时才发送更新。\n\n返回符合 SDK 契约的内容及必要结构化数据。只有产品确有展示需求时才接入已有 Workbench 工具渲染扩展，不把后端执行放到前端。\n\n用现有测试方式覆盖成功、无效输入和关键失败或取消路径，不访问真实付费服务或用户敏感数据。最后给出调用示例、输入输出说明、文件位置和验证结果；未经要求不要提交、推送或发布。\n' +
+              piExtensionGuide,
+          },
+          "pi-skill": {
+            title: "创建 Pi Skill",
+            description: "编写触发描述、工作流和配套参考资料。",
+            content:
+              '---\ndescription: 创建 Pi Skill：编写准确触发描述、可执行工作流和按需加载的参考资料\nargument-hint: "[技能目标、使用场景、输入输出和安装范围]"\n---\n请创建一个可被 Pi 发现和使用的 Skill，需求是：${ARGUMENTS:-当前对话中描述的技能需求}。\n\n先读取适用的 AGENTS.md、现有同类 Skill 和当前安装 Pi 版本的技能文档。优先扩展已有 Skill；普通任务指导用 Skill 表达，只有需要确定性工具执行或生命周期事件时才配套创建 Pi 工具或扩展。\n\n在当前配置支持的技能目录创建清晰命名的目录与 SKILL.md，未指定范围时沿用仓库惯例，并注明安装位置。frontmatter 至少包含合法的 name 和具体的 description；description 要同时说明做什么、何时使用和关键边界，避免泛化到所有任务。遵循当前版本的命名与长度限制，避免与已有 Skill 重名。\n\n正文写清目标、输入输出、必要前提、实际操作步骤、验证方法和失败处理，给出一到两个能直接照做的示例。缺少依赖、凭证或权限时说明具体缺项，不假装执行成功，不绕过既有授权。使用相对技能目录的路径，避免绑定作者机器的绝对路径。\n\n主文件保持精简，较长资料放到 references 并明确何时读取；只有实际需要时才增加 scripts 或 assets。复用现有工具和标准库，不创建空目录、占位脚本或重复文档。\n\n检查 frontmatter、引用路径和 Pi 发现结果；有脚本时运行一个最小示例验证实际功能。最后说明 Skill 位置、适用场景、必要配置和调用方式，例如 /skill:技能名，并报告验证结果；未经要求不要提交、推送或发布。\n' +
+              piExtensionGuide,
+          },
+          "code-review": {
+            title: "代码审查",
+            description: "找出有证据的缺陷、回归和安全问题。",
+            content:
+              '---\ndescription: 代码审查：找出有证据的缺陷、回归和安全问题\nargument-hint: "[文件、目录或审查重点；默认审查未提交改动]"\n---\n请审查以下范围：${ARGUMENTS:-当前仓库的未提交改动，包括暂存、未暂存和相关新增文件}。\n\n先读取适用的 AGENTS.md，理解改动目的，并检查调用方和相关上下文。重点关注正确性、边界条件、错误处理、数据丢失风险和安全问题。只报告能说明触发条件及影响的实际问题，不提出纯风格建议，不直接修改代码。\n\n按严重程度列出发现，每条包含文件与行号、触发条件、影响和最小修复建议。明确区分已验证的缺陷与待确认的疑点；没有发现问题就直说，并说明未验证的部分。若没有未提交改动，说明情况，不擅自扩大范围。\n',
+          },
+          "debug-issue": {
+            title: "问题排查",
+            description: "复现问题，定位根因并做最小修复。",
+            content:
+              '---\ndescription: 问题排查：复现现象、定位根因并做最小修复\nargument-hint: "[错误现象、复现步骤或日志；默认使用当前对话的问题]"\n---\n请排查并修复：${ARGUMENTS:-当前对话中最近描述的问题}。\n\n先读取适用的 AGENTS.md，整理实际现象、预期行为和复现条件。沿调用链检查相关代码与已有测试，用证据定位根因，并检查共享逻辑的其他调用方。信息不足时先完成可以开展的调查，只询问阻碍定位的关键问题。\n\n在根因处做最小修复，复用已有能力，保留无关改动。按风险选择最小有效验证，不能验证时说明原因。最后说明根因、修改位置、验证结果和剩余限制；未经要求不要提交或推送。\n',
+          },
+          "implement-feature": {
+            title: "功能实现",
+            description: "复用现有能力，完成需求与必要验证。",
+            content:
+              '---\ndescription: 功能实现：复用现有能力，完成需求与必要验证\nargument-hint: "[功能需求与验收条件；默认使用当前对话的需求]"\n---\n请实现：${ARGUMENTS:-当前对话中最近提出且尚未完成的功能需求}。\n\n先读取适用的 AGENTS.md，确认目标行为和验收条件，并查找已有组件、服务、工具和实现模式。优先扩展现有能力，避免重复实现、无必要的新依赖和为未来需求设计的抽象。需求不完整时采用合理默认值，只有关键缺失信息阻碍实现时才提问。\n\n完成用户可见的完整流程，包括必要的错误处理、无障碍和项目要求的国际化。保留无关改动，按项目策略执行与风险匹配的验证。最后简要说明完成内容、验证结果和未解决事项；未经要求不要提交、推送或部署。\n',
+          },
+          "safe-refactor": {
+            title: "安全重构",
+            description: "简化指定代码，保持对外行为不变。",
+            content:
+              '---\ndescription: 安全重构：简化指定代码，保持对外行为不变\nargument-hint: "[文件、模块或重构目标；默认使用当前对话指定的范围]"\n---\n请重构：${ARGUMENTS:-当前对话中明确指定的代码范围}。\n\n先读取适用的 AGENTS.md，理解对外行为、所有调用方和已有测试。若没有明确范围，先询问目标，不擅自重构整个仓库。优先删除重复与无用代码、复用已有工具，并用标准库或已安装依赖替代自建实现。\n\n保持公开接口、错误语义和数据格式不变，不混入新功能或无关格式调整。采用最小可审查的改动，按风险运行现有相关检查，只为真实风险补充必要验证。最后说明简化了什么、如何确认行为保持一致，以及任何尚未验证的部分；未经要求不要提交或推送。\n',
+          },
+          "write-tests": {
+            title: "补充测试",
+            description: "覆盖真实风险、边界条件和回归场景。",
+            content:
+              '---\ndescription: 补充测试：覆盖真实风险、边界条件和回归场景\nargument-hint: "[文件、行为或回归场景；默认关注当前未提交改动]"\n---\n请为以下范围补充必要测试：${ARGUMENTS:-当前仓库未提交改动中的行为变化}。\n\n先读取适用的 AGENTS.md 和已有测试，复用项目现有测试框架与运行命令。围绕可观察行为选择最有价值的用例，优先覆盖真实缺陷、边界条件与失败路径；不测试实现细节，不机械复制实现，不为简单文案或样式改动增加测试。\n\n保持测试确定、独立，不访问真实付费服务或修改用户数据。修复回归时，尽可能确认用例在修复前失败、修复后通过。运行最小相关测试集，最后列出覆盖场景、执行结果和仍存在的缺口；若无需新增测试，解释原因。未经要求不要提交或推送。\n',
+          },
+        },
         viewMode: "模板查看模式",
         existingDraft: "当前有未发送的草稿，请使用当前草稿，或先处理草稿后再切换对话。",
         create: "新建模板",
         edit: "编辑模板",
         copy: "复制为我的模板",
         use: "使用",
+        useNow: "立即使用",
+        useNowNamed: ({ name }: { name: string }) => `立即使用${name}`,
         useNamed: ({ name }: { name: string }) => `使用 ${name}`,
         delete: "删除模板",
         deleteDescription: ({ name }: { name: string }) =>

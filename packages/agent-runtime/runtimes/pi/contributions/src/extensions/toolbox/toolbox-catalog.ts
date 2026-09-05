@@ -72,7 +72,6 @@ function useToolboxCatalog<T>(
   loader: (target: PiResourceCatalogTarget) => Promise<T>,
 ): ToolboxCatalog<T> {
   const resourceClient = usePiResourceClient();
-  const [reloadRevision, setReloadRevision] = useState(0);
   const resourceCatalogRevision = useSyncExternalStore(
     resourceClient.subscribeCatalog,
     resourceClient.getCatalogRevision,
@@ -83,7 +82,6 @@ function useToolboxCatalog<T>(
     loadState: "idle",
   });
   const requestGeneration = useRef(0);
-  const refresh = useCallback(() => setReloadRevision((revision) => revision + 1), []);
 
   useEffect(() => {
     const requestId = ++requestGeneration.current;
@@ -92,7 +90,10 @@ function useToolboxCatalog<T>(
       return;
     }
 
-    setState({ entries: [], loadState: "loading" });
+    setState((current) => ({
+      entries: current.entries.filter((entry) => entry.target === target),
+      loadState: "loading",
+    }));
     void loader(target.resource).then(
       (value) => {
         if (requestGeneration.current !== requestId) return;
@@ -107,12 +108,12 @@ function useToolboxCatalog<T>(
     return () => {
       requestGeneration.current += 1;
     };
-  }, [loader, reloadRevision, resourceCatalogRevision, target]);
+  }, [loader, resourceCatalogRevision, target]);
 
   return {
     ...state,
     hasTargets: target !== undefined,
-    refresh,
+    refresh: resourceClient.refreshCatalog,
   };
 }
 

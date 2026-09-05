@@ -1,5 +1,49 @@
 import type { MessageFormatters } from "@workbench/shell/i18n";
 
+const piExtensionGuide = `
+## Pi extension reference
+
+Pi extensions are TypeScript modules loaded by the coding-agent runtime. A factory receives ExtensionAPI (usually named pi) and registers behavior. Hooks subscribe to events, tools expose structured actions to the model, and commands expose user actions such as /extension-status. A Skill is a SKILL.md instruction package loaded on demand; a prompt template is reusable Markdown with arguments. Use the mechanism that owns the requested behavior, and combine them only when needed.
+
+### Read the installed SDK first
+
+Resolve the actual coding-agent package and version from this project. This Workbench uses @earendil-works/pi-coding-agent; do not substitute another distribution's API. Read docs/extensions.md and examples/extensions/ in the resolved package, plus docs/skills.md, docs/prompt-templates.md, or docs/packages.md for the resources involved. Check dist/index.d.ts and the event/tool declarations for signatures. Declaration files under dist/core/ are inspection material, not supported deep-import paths. If local documentation is missing, locate documentation matching the installed version and state any uncertainty.
+
+### Minimal extension entry
+
+The following illustrates the factory and event registration; replace the example behavior with the requested feature:
+
+\`\`\`ts
+import type { ExtensionFactory } from "@earendil-works/pi-coding-agent";
+
+const extension: ExtensionFactory = (pi) => {
+  pi.on("session_start", (_event, ctx) => {
+    if (ctx.hasUI) ctx.ui.notify("Extension ready", "info");
+  });
+};
+
+export default extension;
+\`\`\`
+
+### API and lifecycle map
+
+- pi.on(event, handler): observe or transform the lifecycle. Use session_start/session_shutdown for resources, before_agent_start for run instructions, input for user input, tool_call for execution checks, and tool_result for results. agent_end ends one run; agent_settled waits until automatic retries, compaction, and follow-ups have finished. Return only the result allowed by that event; for example, tool_call can return { block: true, reason: "..." }. An observer normally returns nothing.
+- pi.registerTool(definition): register a model-callable tool with name, label, description, parameters, and execute. The installed SDK uses Type from typebox for schemas and execute(toolCallId, params, signal, onUpdate, ctx). Honor cancellation and return content with text/image blocks and any necessary structured details; onUpdate reports optional progress. Verify these fields against the installed version before implementing.
+- pi.registerCommand(name, { description, handler }): register /name for the user; handler receives args and an extension command context. It is separate from a model-callable tool and a Markdown prompt template.
+- pi.appendEntry(customType, data): persist extension state in session history when required. Use ctx.sessionManager to restore state with the session/branch lifecycle. Do not share mutable session data globally.
+- Check ctx.mode and ctx.hasUI before UI interactions. Keep initialization finite; create long-lived resources only when needed and dispose them idempotently on session shutdown.
+
+### Files, loading, and Workbench integration
+
+Default user extensions live in ~/.pi/agent/extensions/*.ts or */index.ts; project extensions live in .pi/extensions/*.ts or */index.ts. Respect configured resource paths and project trust. In the Pi CLI, pi -e ./my-extension.ts loads an extension for a quick check; /reload reloads auto-discovered extensions. In Workbench, follow its existing resource loading/reload path.
+
+Skills usually live in ~/.pi/agent/skills/<name>/SKILL.md or .pi/skills/<name>/SKILL.md; configured .agents/skills directories are also supported. Include name and description frontmatter, then the workflow; use /skill:name when skill commands are enabled. Standalone prompt templates live in the configured prompts directory and are invoked by their template name. The /prompts-name commands on this Workbench page are built-in Composer commands, not a new Pi SDK API or directory convention.
+
+For this repository, read packages/agent-runtime/runtimes/pi/README.md. Host-owned runtime extensions use server/src/internal-extensions/ and its existing InlineExtension registration; DefaultResourceLoader and resourceLoaderOptions.extensionFactories own loading. Browser components belong under contributions/ and use @workbench/extension-sdk plus existing RPC capabilities. Pi TUI renderers do not create Workbench React components. Reuse the existing session and event transport.
+
+In the result, explain what the extension does, its entry point, the selected events/tools/commands and their inputs/outputs, installation and activation or reload steps, and one concrete usage example. Include limitations and verification results.
+`;
+
 export const piExtensionsEnUS = {
   extensions: {
     externalSessionImport: {
@@ -557,6 +601,78 @@ export const piExtensionsEnUS = {
           `${number(count)} ${count === 1 ? "extension failed" : "extensions failed"} to load`,
       },
       prompts: {
+        builtinTitle: "Built-in templates",
+        builtinDescription:
+          "Use a template as a /prompts-name command, or create a copy to edit and save in the selected scope.",
+        savedTitle: "Saved templates",
+        createFromBuiltin: ({ name }: { name: string }) => `Create from ${name}`,
+        savedCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          count === 1 ? "1 saved template" : `${number(count)} saved templates`,
+        builtins: {
+          "pi-extension": {
+            title: "Create a Pi extension",
+            description:
+              "Combine hooks, tools, commands, and supporting resources for a Pi extension.",
+            content:
+              '---\ndescription: "Combine hooks, tools, commands, and supporting resources for a Pi extension."\nargument-hint: "[extension requirements, triggers, and installation scope]"\n---\nCreate a Pi extension for: ${ARGUMENTS:-the Pi extension requirements described in this conversation}.\n\nRead applicable AGENTS.md files, identify the installed Pi coding-agent package and version, and inspect its public types, bundled documentation, existing extensions, and registration entry points. Reuse existing capabilities; do not invent APIs from memory. If the goal is still unclear, ask only about the intended behavior and trigger.\n\nChoose only the hooks, model-callable tools, or user commands the feature needs. Implement with the existing SDK extension factory and public exports, following project types, configuration, and error handling. User extensions belong in the configured user or project extension directory; Workbench built-ins belong in the existing server extension directory and stable registration list. Follow repository conventions when scope is unspecified and report the chosen location.\n\nKeep factory initialization finite. Start long-lived resources only when a session or operation needs them, and clean them up idempotently at session shutdown. Handle asynchronous failures, cancellation, and concurrency. Use existing credential configuration or environment variables, never hardcoded secrets.\n\nAdd a supporting Skill or prompt template only if needed, using Pi resource discovery. Workbench UI uses its extension platform and existing RPC boundary; Pi TUI renderers are not web components. Do not create another session or event stream.\n\nRun the smallest meaningful checks for actual triggers, important failures, and cleanup. Report files, installation or activation steps, a usage example, results, and unverified behavior. Do not commit, push, or publish unless requested.\n' +
+              piExtensionGuide,
+          },
+          "pi-hook": {
+            title: "Create a Pi hook",
+            description:
+              "Choose lifecycle events and handle return values, session state, and cleanup.",
+            content:
+              '---\ndescription: "Choose lifecycle events and handle return values, session state, and cleanup."\nargument-hint: "[trigger, intended behavior, and data to observe or modify]"\n---\nCreate a Pi hook for: ${ARGUMENTS:-the hook behavior described in this conversation}.\n\nRead applicable AGENTS.md files, related extensions, and the installed SDK event types and documentation. Determine whether the hook observes, transforms, or blocks behavior. Trace event ordering and choose the narrowest event; a message ending does not mean the entire run has finished.\n\nCandidates to verify include session_start/session_shutdown for session resources, before_agent_start for run prompts, input for user input, tool_call for execution checks, tool_result for results, and agent_settled for a fully finished run. Use only events supported by the installed version, with their exact allowed return values and execution semantics.\n\nPrefer adding the hook to its owning extension using pi.on. Preserve earlier handlers\' valid results and unrelated context. Avoid duplicate injection and recursive triggers; keep state isolated between sessions. Handle failures, repeated events, and reloads, and make cleanup idempotent. Check mode and UI availability before interactions and preserve the host\'s trust and confirmation mechanisms.\n\nUse existing test tools to simulate matching and nonmatching events plus relevant failure or cleanup cases, without real model requests. Report the event choice, trigger conditions, return behavior, files, and validation results. Do not commit or push unless requested.\n' +
+              piExtensionGuide,
+          },
+          "pi-tool": {
+            title: "Create a Pi tool",
+            description:
+              "Define tool inputs and implement execution, cancellation, errors, and output.",
+            content:
+              '---\ndescription: "Define tool inputs and implement execution, cancellation, errors, and output."\nargument-hint: "[tool purpose, inputs, outputs, and allowed side effects]"\n---\nCreate a model-callable Pi tool for: ${ARGUMENTS:-the tool requirements described in this conversation}.\n\nRead applicable AGENTS.md files, existing tools and callers, and the installed SDK\'s public tool types, schema library, and examples. Confirm a model tool is needed and reuse existing tools or services where possible.\n\nUse pi.registerTool for an extension-owned tool, or the host\'s existing standalone injection mechanism when appropriate. Choose a stable, unique name and an accurate description explaining when to call it, required inputs, output, and side effects. Cover required fields, valid ranges, and length limits in the schema. Validate untrusted paths and external responses at execution boundaries too.\n\nFollow the installed execute signature and honor cancellation, timeouts, and call context. Prefer existing SDKs, standard libraries, and argument arrays over shell string concatenation. Preserve existing credentials, permissions, and confirmation mechanisms; never hardcode secrets. Distinguish invalid input, execution failure, and empty results. Use SDK truncation support for large output and send progress only when useful.\n\nReturn SDK-compliant content and necessary structured data. Add Workbench tool rendering only when the product needs it, keeping execution on the server.\n\nTest success, invalid input, and important failure or cancellation paths with existing test tools. Do not access real paid services or sensitive user data. Report a call example, input/output contract, files, and validation results. Do not commit, push, or publish unless requested.\n' +
+              piExtensionGuide,
+          },
+          "pi-skill": {
+            title: "Create a Pi Skill",
+            description:
+              "Write a focused Skill with clear triggers, workflows, and supporting references.",
+            content:
+              '---\ndescription: "Write a focused Skill with clear triggers, workflows, and supporting references."\nargument-hint: "[skill goal, use cases, inputs, outputs, and installation scope]"\n---\nCreate a Skill that Pi can discover and use for: ${ARGUMENTS:-the skill requirements described in this conversation}.\n\nRead applicable AGENTS.md files, similar Skills, and the installed Pi skill documentation. Prefer extending an existing Skill. Express task guidance as a Skill; add a tool or extension only when deterministic execution or lifecycle events are required.\n\nCreate a clearly named directory and SKILL.md in a configured skill location. Follow repository conventions if scope is unspecified and report the location. Include a valid name and specific description in frontmatter. Explain what the Skill does, when it applies, and its boundaries without matching every task. Follow current naming and length rules and avoid name collisions.\n\nWrite the goal, inputs, outputs, prerequisites, actionable steps, validation, and failure handling, with one or two practical examples. Identify missing dependencies, credentials, or permissions explicitly. Do not pretend execution succeeded or bypass authorization. Resolve paths relative to the Skill rather than the author\'s machine.\n\nKeep SKILL.md concise. Put longer material in references with explicit reading conditions, and add scripts or assets only when needed. Reuse existing tools and standard libraries; do not create empty directories or placeholder scripts.\n\nCheck frontmatter, referenced files, and Pi discovery. Run a minimal example for any scripts. Report location, use cases, required configuration, invocation such as /skill:name, and validation results. Do not commit, push, or publish unless requested.\n' +
+              piExtensionGuide,
+          },
+          "code-review": {
+            title: "Review code",
+            description: "Find evidenced bugs, regressions, and security issues in code changes.",
+            content:
+              '---\ndescription: "Find evidenced bugs, regressions, and security issues in code changes."\nargument-hint: "[files, directory, or review focus; defaults to uncommitted changes]"\n---\nReview: ${ARGUMENTS:-uncommitted changes in the current repository, including staged, unstaged, and relevant new files}.\n\nRead applicable AGENTS.md files, understand the change, and inspect callers and surrounding code. Focus on correctness, edge cases, error handling, data loss, and security. Report only issues with concrete triggers and impact; skip style-only advice and do not modify code.\n\nOrder findings by severity. Include file and line, trigger, impact, and the smallest suggested fix. Separate verified defects from open questions. If none are found, say so and identify what remains unverified. If there are no uncommitted changes, report that without expanding the scope.\n',
+          },
+          "debug-issue": {
+            title: "Debug an issue",
+            description: "Reproduce a problem, locate its root cause, and make the smallest fix.",
+            content:
+              '---\ndescription: "Reproduce a problem, locate its root cause, and make the smallest fix."\nargument-hint: "[symptoms, reproduction steps, or logs; defaults to the current issue]"\n---\nInvestigate and fix: ${ARGUMENTS:-the most recently described issue in this conversation}.\n\nRead applicable AGENTS.md files and establish actual behavior, expected behavior, and reproduction conditions. Trace related code and tests to find the root cause with evidence, including other callers of shared logic. Do the investigation possible with available information and ask only for details blocking progress.\n\nFix the root cause with the smallest change, reuse existing capabilities, and preserve unrelated edits. Choose verification proportional to risk and explain any limitations. Report the cause, changed files, checks, and remaining issues. Do not commit or push unless requested.\n',
+          },
+          "implement-feature": {
+            title: "Implement a feature",
+            description: "Reuse existing capabilities to complete a feature and its validation.",
+            content:
+              '---\ndescription: "Reuse existing capabilities to complete a feature and its validation."\nargument-hint: "[requirements and acceptance criteria; defaults to the current request]"\n---\nImplement: ${ARGUMENTS:-the latest unfinished feature request in this conversation}.\n\nRead applicable AGENTS.md files, establish expected behavior and acceptance criteria, and inspect existing components, services, tools, and patterns. Extend existing capabilities before adding new implementations, dependencies, or speculative abstractions. Use reasonable defaults and ask only for critical missing information that blocks implementation.\n\nComplete the user-facing flow with necessary error handling, accessibility, and project localization requirements. Preserve unrelated changes and use verification proportional to risk. Report completed behavior, validation results, and unresolved items. Do not commit, push, or deploy unless requested.\n',
+          },
+          "safe-refactor": {
+            title: "Refactor safely",
+            description: "Simplify the selected code while preserving its public behavior.",
+            content:
+              '---\ndescription: "Simplify the selected code while preserving its public behavior."\nargument-hint: "[file, module, or refactoring goal; defaults to the specified scope]"\n---\nRefactor: ${ARGUMENTS:-the code scope explicitly identified in this conversation}.\n\nRead applicable AGENTS.md files and understand public behavior, all callers, and existing tests. If no scope is specified, ask for a target instead of refactoring the entire repository. Prefer deleting dead or duplicated code, reusing helpers, and replacing custom machinery with standard libraries or installed dependencies.\n\nPreserve public interfaces, error semantics, and data formats. Avoid mixing in new features or unrelated formatting. Keep changes small and reviewable, run relevant existing checks, and add verification only for real risks. Report what became simpler, how behavior was checked, and what remains unverified. Do not commit or push unless requested.\n',
+          },
+          "write-tests": {
+            title: "Add focused tests",
+            description:
+              "Cover real risks, edge cases, and regression scenarios with useful tests.",
+            content:
+              '---\ndescription: "Cover real risks, edge cases, and regression scenarios with useful tests."\nargument-hint: "[file, behavior, or regression; defaults to uncommitted behavior changes]"\n---\nAdd necessary tests for: ${ARGUMENTS:-behavior changes in the current repository\'s uncommitted edits}.\n\nRead applicable AGENTS.md files and existing tests, reusing the project\'s framework and commands. Select valuable cases around observable behavior, prioritizing real defects, edge cases, and failure paths. Do not mirror implementation details or add tests for simple copy or styling changes.\n\nKeep tests deterministic and independent of real paid services or user data. For regressions, demonstrate failure before the fix and success after it where practical. Run the smallest relevant set and report coverage, results, and remaining gaps. Explain when new tests are unnecessary. Do not commit or push unless requested.\n',
+          },
+        },
         viewMode: "Template view mode",
         existingDraft:
           "You have an unsent draft. Use the current draft, or finish it before switching conversations.",
@@ -564,6 +680,8 @@ export const piExtensionsEnUS = {
         edit: "Edit template",
         copy: "Copy to my templates",
         use: "Use",
+        useNow: "Use now",
+        useNowNamed: ({ name }: { name: string }) => `Use now: ${name}`,
         useNamed: ({ name }: { name: string }) => `Use ${name}`,
         delete: "Delete template",
         deleteDescription: ({ name }: { name: string }) =>

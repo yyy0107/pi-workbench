@@ -5,6 +5,7 @@ import { defineExtension } from "@workbench/extension-sdk";
 import { definePiMessage } from "../../i18n";
 import { ToolboxMainView } from "./toolbox-main-view";
 import { ToolboxSidebar } from "./toolbox-sidebar";
+import { createBuiltinPromptCommands } from "./builtin-prompt-commands";
 import {
   createPiResourceFileOpenersBinding,
   createPiResourceFileOpenersContribution,
@@ -16,6 +17,14 @@ export const toolboxExtension = defineExtension({
   name: "Toolbox",
   version: "1.0.0",
   setup(context) {
+    const prompts = createBuiltinPromptCommands();
+    const promptCommands = prompts.commands.map((command) =>
+      context.composerCommands.register(command),
+    );
+    const promptLocale = context.slots.register("shell.overlay", {
+      id: "workbench.toolbox.prompt-commands",
+      component: prompts.component,
+    });
     const binding = createPiResourceFileOpenersBinding();
     const openers = registerPiResourceFileOpeners(context.openers, binding, context.workspace);
     const resourceBridge = context.slots.register("shell.overlay", {
@@ -34,6 +43,6 @@ export const toolboxExtension = defineExtension({
       kind: "toolbox",
       component: ToolboxMainView,
     });
-    return [sidebar, mainView, openers, resourceBridge];
+    return [sidebar, mainView, openers, resourceBridge, promptLocale, ...promptCommands];
   },
 });

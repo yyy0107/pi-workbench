@@ -53,6 +53,7 @@ export function usePiResourceClient() {
     return {
       getCatalogRevision: manager.resourceCatalogRevision.getRevision,
       subscribeCatalog: manager.resourceCatalogRevision.subscribe,
+      refreshCatalog: invalidateCatalog,
       packageUpdatesQuery: manager.packageUpdatesQuery,
       listSkills: (payload: Parameters<typeof listPiSkills>[0]) => listPiSkills(payload, options),
       describeSkill: (payload: Parameters<typeof describePiSkill>[0]) =>

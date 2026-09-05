@@ -16,13 +16,22 @@ import { useMainViewService } from "@workbench/extension-host";
 import type { SidebarSectionComponentProps } from "@workbench/extension-sdk";
 import type { PiResourceCatalogTarget } from "@workbench/agent-runtime-pi-protocol/rpc";
 
-import { definePiMessage, usePiI18n } from "../../i18n";
+import { definePiMessage, usePiI18n, type PiI18nRuntime } from "../../i18n";
 import { type ToolboxMainSection } from "./toolbox-capability";
 import { useToolboxCatalogs } from "./toolbox-catalog";
 import { usePiPackageUpdates } from "./use-pi-package-updates";
 import { toolboxScopeTarget } from "./toolbox-scope";
 import { ToolboxScopeSelect } from "./toolbox-scope-select";
 import { useToolboxScope } from "./toolbox-scope-store";
+import { BUILTIN_PROMPT_NAMES } from "./builtin-prompt-templates";
+
+export function formatToolboxCount(
+  loadState: string,
+  value: number,
+  number: PiI18nRuntime["number"],
+) {
+  return loadState === "ready" || value > 0 ? number(value) : loadState === "loading" ? "…" : "—";
+}
 
 const TOOLBOX_SECTION_TITLES = {
   skills: definePiMessage("extensions.toolbox.skills.title"),
@@ -77,8 +86,6 @@ export function ToolboxSidebar({ onNavigate }: SidebarSectionComponentProps) {
     [catalogs.packagesCatalog.hasTargets, scope],
   );
   const updates = usePiPackageUpdates(updateTarget);
-  const count = (loadState: string, value: number) =>
-    loadState === "ready" ? number(value) : loadState === "loading" ? "…" : "—";
   const openSection = (section: ToolboxMainSection) => {
     mainViews.open({
       kind: "toolbox",
@@ -144,7 +151,15 @@ export function ToolboxSidebar({ onNavigate }: SidebarSectionComponentProps) {
               icon={<Icon />}
               label={text(TOOLBOX_SECTION_TITLES[section])}
               active={activeView?.kind === "toolbox" && activeView.params.section === section}
-              status={<SidebarStatus>{count(catalog.loadState, items.length)}</SidebarStatus>}
+              status={
+                <SidebarStatus aria-live="polite" aria-busy={catalog.loadState === "loading"}>
+                  {formatToolboxCount(
+                    catalog.loadState,
+                    items.length + (section === "prompts" ? BUILTIN_PROMPT_NAMES.length : 0),
+                    number,
+                  )}
+                </SidebarStatus>
+              }
               onActivate={() => openSection(section)}
             />
           ))}
@@ -164,8 +179,8 @@ export function ToolboxSidebar({ onNavigate }: SidebarSectionComponentProps) {
             label={t("extensions.toolbox.updates")}
             active={activeView?.kind === "toolbox" && activeView.params.section === "updates"}
             status={
-              <SidebarStatus>
-                {count(updates.loadState, updates.value.updates.length)}
+              <SidebarStatus aria-live="polite" aria-busy={updates.loadState === "loading"}>
+                {formatToolboxCount(updates.loadState, updates.value.updates.length, number)}
               </SidebarStatus>
             }
             onActivate={() => openSection("updates")}

@@ -2,9 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FileTextIcon, PlayIcon, PlusIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
+import { useAgentRuntime } from "@workbench/agent-runtime-client";
+import { useWorkspaceCapabilities } from "@workbench/agent-runtime-client/workspaces";
 import { useMainViewService } from "@workbench/extension-host";
 import { usePiResourceClient } from "@workbench/agent-runtime-pi-client/resources";
 import type { PromptDescribeValue } from "@workbench/agent-runtime-pi-protocol/rpc";
+import { useWorkbenchNavigation } from "@workbench/shell/navigation";
+import {
+  WORKBENCH_COMMAND_DIRECTIVE_TYPE,
+  workbenchComposerDirectiveFormatter,
+} from "@workbench/shell/chat";
 import {
   Button,
   InputGroup,
@@ -24,16 +31,21 @@ import { ToolboxDetailView } from "./toolbox-installed-view";
 import { PromptEditorDialog, PromptUseDialog, promptErrorKey } from "./toolbox-prompt-dialogs";
 import { toolboxScopeTarget } from "./toolbox-scope";
 import { useToolboxScope } from "./toolbox-scope-store";
+import { BuiltinPromptTemplates, type PromptTemplateDraft } from "./builtin-prompt-templates";
+import { insertPromptDraft } from "./prompt-composer-draft";
 
 export function ToolboxPromptsView({ initialQuery = "" }: { initialQuery?: string }) {
   const { t, locale } = usePiI18n();
   const scope = useToolboxScope();
   const client = usePiResourceClient();
+  const runtime = useAgentRuntime();
+  const { deactivateWorkspace } = useWorkspaceCapabilities();
+  const navigation = useWorkbenchNavigation();
   const mainViews = useMainViewService();
   const { promptsCatalog: catalog, promptItems: items } = useToolboxCatalogs(scope, "prompt");
   const [query, setQuery] = useState(initialQuery);
   const [selected, setSelected] = useState<ToolboxCapabilitySurfaceParams>();
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<PromptTemplateDraft>();
   const [using, setUsing] = useState<PromptDescribeValue>();
   const [preparing, setPreparing] = useState<string>();
   const [error, setError] = useState<string>();
@@ -54,6 +66,26 @@ export function ToolboxPromptsView({ initialQuery = "" }: { initialQuery?: strin
         preventScroll: true,
       });
   }, [selected]);
+  const useBuiltin = (commandName: string) => {
+    setError(undefined);
+    try {
+      const current = runtime.current.getSnapshot();
+      insertPromptDraft(
+        runtime,
+        current.isNewThread && current.sessionId ? `draft:${current.sessionId}` : "new",
+        workbenchComposerDirectiveFormatter.serialize({
+          id: commandName,
+          label: `/${commandName}`,
+          type: WORKBENCH_COMMAND_DIRECTIVE_TYPE,
+        }) + " ",
+      );
+      deactivateWorkspace();
+      mainViews.close();
+      navigation.openHome();
+    } catch (failure) {
+      setError(t(promptErrorKey(failure)));
+    }
+  };
   const prepare = async (item: ToolboxCapabilityItem) => {
     if (inFlight.current || !item.params.promptId) return;
     inFlight.current = true;
@@ -91,7 +123,10 @@ export function ToolboxPromptsView({ initialQuery = "" }: { initialQuery?: strin
               >
                 <RefreshCwIcon aria-hidden="true" />
               </TooltipIconButton>
-              <Button disabled={!catalog.hasTargets} onClick={() => setCreating(true)}>
+              <Button
+                disabled={!catalog.hasTargets}
+                onClick={() => setCreating({ name: "", content: "" })}
+              >
                 <PlusIcon aria-hidden="true" />
                 {t("extensions.toolbox.prompts.create")}
               </Button>
@@ -115,7 +150,7 @@ export function ToolboxPromptsView({ initialQuery = "" }: { initialQuery?: strin
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-3">
             <span className="text-muted-foreground text-xs">
               {catalog.loadState === "ready"
-                ? t("extensions.toolbox.main.resultsCount", { count: visible.length })
+                ? t("extensions.toolbox.prompts.savedCount", { count: visible.length })
                 : t("extensions.toolbox.main.loading")}
             </span>
             <Button
@@ -138,6 +173,15 @@ export function ToolboxPromptsView({ initialQuery = "" }: { initialQuery?: strin
             </p>
           ) : null}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3 [scrollbar-gutter:stable]">
+            <BuiltinPromptTemplates
+              query={query}
+              createDisabled={!catalog.hasTargets}
+              onCreate={setCreating}
+              onUse={useBuiltin}
+            />
+            <h2 className="mb-3 border-b px-3 pb-3 text-base font-medium">
+              {t("extensions.toolbox.prompts.savedTitle")}
+            </h2>
             {!catalog.hasTargets ? (
               <p role="status" className="text-muted-foreground py-12 text-center text-sm">
                 {t("extensions.toolbox.scopeUnavailable")}
@@ -239,9 +283,10 @@ export function ToolboxPromptsView({ initialQuery = "" }: { initialQuery?: strin
       {creating ? (
         <PromptEditorDialog
           target={target}
-          onClose={() => setCreating(false)}
+          initialValue={creating}
+          onClose={() => setCreating(undefined)}
           onSaved={(value) => {
-            setCreating(false);
+            setCreating(undefined);
             setSelected(
               bindCapabilityToCatalogTarget(promptSurfaceParams(value), value.scope, target),
             );

@@ -31,6 +31,7 @@ import {
 } from "@workbench/shell/ui";
 import { usePiI18n } from "../../i18n";
 import { insertPromptDraft } from "./prompt-composer-draft";
+import type { PromptTemplateDraft } from "./builtin-prompt-templates";
 
 export function promptErrorKey(error: unknown) {
   if (error instanceof Error && error.message === "prompt-existing-draft")
@@ -60,12 +61,14 @@ export function promptErrorKey(error: unknown) {
 export function PromptEditorDialog({
   target,
   template,
+  initialValue,
   copy = false,
   onClose,
   onSaved,
 }: {
   target: PiResourceCatalogTarget;
   template?: PromptDescribeValue;
+  initialValue?: PromptTemplateDraft;
   copy?: boolean;
   onClose(): void;
   onSaved(value: PromptDescribeValue): void;
@@ -73,8 +76,10 @@ export function PromptEditorDialog({
   const { t } = usePiI18n();
   const client = usePiResourceClient();
   const id = useId();
-  const initialName = template ? `${template.name}${copy ? "-copy" : ""}` : "";
-  const initialContent = template?.content ?? "";
+  const initialName = template
+    ? `${template.name}${copy ? "-copy" : ""}`
+    : (initialValue?.name ?? "");
+  const initialContent = template?.content ?? initialValue?.content ?? "";
   const [name, setName] = useState(initialName);
   const [content, setContent] = useState(initialContent);
   const [saving, setSaving] = useState(false);

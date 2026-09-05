@@ -4,6 +4,8 @@ import type {
   WorkbenchAgentCommandSource,
 } from "@workbench/agent-runtime-contracts/commands";
 
+export { expandPromptTemplateContent, parsePromptTemplateArguments } from "./prompt-template";
+
 function projectPiCommandSource(
   command: Exclude<CommandView, { kind: "builtin" }>,
 ): WorkbenchAgentCommandSource {
