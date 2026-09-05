@@ -1341,8 +1341,9 @@ export const piExtensionsEnUS = {
       },
     },
     settings: {
-      viewConfigurationFile: "View configuration file",
-      piConfigurationFile: "Pi settings",
+      configurationFiles: "Settings files",
+      piConfigurationFile: "Pi built-in settings",
+      workbenchConfigurationFile: "Workbench settings",
       openingConfigurationFile: "Opening…",
       openConfigurationFileFailed: "The configuration file could not be opened.",
     },

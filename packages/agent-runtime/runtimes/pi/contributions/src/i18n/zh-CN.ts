@@ -1256,8 +1256,9 @@ export const piExtensionsZhCN = {
       },
     },
     settings: {
-      viewConfigurationFile: "查看配置文件",
-      piConfigurationFile: "Pi 设置",
+      configurationFiles: "设置文件",
+      piConfigurationFile: "Pi 内置设置",
+      workbenchConfigurationFile: "Workbench 设置",
       openingConfigurationFile: "正在打开…",
       openConfigurationFileFailed: "无法打开配置文件。",
     },

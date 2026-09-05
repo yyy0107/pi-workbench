@@ -2,19 +2,23 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  openPiSettingsConfigurationDocument,
+  openSettingsConfigurationDocument,
   type PiSettingsDocumentClient,
 } from "./settings-header-action";
 
-test("opens only the Pi settings document through the installed configuration client", async () => {
+test("opens the selected settings document through the installed configuration client", async () => {
   const opened: string[] = [];
   const client: PiSettingsDocumentClient = {
     async openAgentSettingsDocument() {
       opened.push("pi");
     },
+    async openWorkbenchSettingsDocument() {
+      opened.push("workbench");
+    },
   };
 
-  await openPiSettingsConfigurationDocument(client);
+  await openSettingsConfigurationDocument(client, "pi");
+  await openSettingsConfigurationDocument(client, "workbench");
 
-  assert.deepEqual(opened, ["pi"]);
+  assert.deepEqual(opened, ["pi", "workbench"]);
 });

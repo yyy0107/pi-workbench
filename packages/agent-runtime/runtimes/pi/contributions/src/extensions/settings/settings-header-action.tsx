@@ -1,66 +1,94 @@
 "use client";
 
-import { FileJson2Icon } from "lucide-react";
+import { ChevronDownIcon, FileJson2Icon } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 
-import { Button } from "@workbench/shell/ui";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workbench/shell/ui";
 import { usePiConfigurationClient } from "@workbench/agent-runtime-pi-client/configuration";
 import { useMainViewService } from "@workbench/extension-host";
 
 import { usePiI18n } from "../../i18n";
 
+export type SettingsDocumentKind = "pi" | "workbench";
+
 export interface PiSettingsDocumentClient {
   openAgentSettingsDocument(): Promise<unknown>;
+  openWorkbenchSettingsDocument(): Promise<unknown>;
 }
 
-export function openPiSettingsConfigurationDocument(
+export function openSettingsConfigurationDocument(
   client: PiSettingsDocumentClient,
+  document: SettingsDocumentKind,
 ): Promise<unknown> {
-  return client.openAgentSettingsDocument();
+  return document === "pi"
+    ? client.openAgentSettingsDocument()
+    : client.openWorkbenchSettingsDocument();
 }
 
 /**
- * Pi-only configuration files action. The generic Settings extension chooses when to render this
- * component, so this leaf has no dependency on the Settings main-view or mobile trigger owners.
+ * Pi Runtime configuration files action. The generic Settings extension chooses when to render
+ * this component, so this leaf has no dependency on the Settings main-view or mobile trigger owners.
  */
 export function PiSettingsConfigurationMenu() {
   const { t } = usePiI18n();
   const configuration = usePiConfigurationClient();
-  const [openingDocument, setOpeningDocument] = useState(false);
+  const [openingDocument, setOpeningDocument] = useState<SettingsDocumentKind | null>(null);
   const [documentError, setDocumentError] = useState(false);
 
-  const openDocument = async () => {
-    if (openingDocument) return;
-    setOpeningDocument(true);
+  const openDocument = async (document: SettingsDocumentKind) => {
+    if (openingDocument !== null) return;
+    setOpeningDocument(document);
     setDocumentError(false);
     try {
-      await openPiSettingsConfigurationDocument(configuration);
+      await openSettingsConfigurationDocument(configuration, document);
     } catch {
       setDocumentError(true);
     } finally {
-      setOpeningDocument(false);
+      setOpeningDocument(null);
     }
   };
 
   return (
     <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className={documentError ? "text-destructive hover:text-destructive" : undefined}
-        disabled={openingDocument}
-        aria-label={t("extensions.settings.viewConfigurationFile")}
-        title={documentError ? t("extensions.settings.openConfigurationFileFailed") : undefined}
-        onClick={() => void openDocument()}
-      >
-        <FileJson2Icon aria-hidden="true" className="size-3.5" />
-        <span className="hidden truncate sm:inline">
-          {openingDocument
-            ? t("extensions.settings.openingConfigurationFile")
-            : t("extensions.settings.piConfigurationFile")}
-        </span>
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className={documentError ? "text-destructive hover:text-destructive" : undefined}
+              disabled={openingDocument !== null}
+              aria-label={t("extensions.settings.configurationFiles")}
+              title={
+                documentError ? t("extensions.settings.openConfigurationFileFailed") : undefined
+              }
+            />
+          }
+        >
+          <FileJson2Icon aria-hidden="true" className="size-3.5" />
+          <span className="hidden truncate sm:inline">
+            {openingDocument
+              ? t("extensions.settings.openingConfigurationFile")
+              : t("extensions.settings.configurationFiles")}
+          </span>
+          <ChevronDownIcon aria-hidden="true" className="size-3.5" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" side="bottom" className="min-w-44">
+          <DropdownMenuItem onClick={() => void openDocument("pi")}>
+            {t("extensions.settings.piConfigurationFile")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => void openDocument("workbench")}>
+            {t("extensions.settings.workbenchConfigurationFile")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       {documentError ? (
         <p className="sr-only" role="alert">
           {t("extensions.settings.openConfigurationFileFailed")}

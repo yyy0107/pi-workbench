@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 
+import { openWorkbenchSettingsDocument } from "@workbench/services-client/settings";
+
 import { usePiSessionManager } from "../runtime/context";
 import {
   cancelPiModelProviderLogin,
@@ -49,6 +51,7 @@ export function usePiConfigurationClient() {
       updateAgentSettings: (payload: Parameters<typeof updatePiAgentSettings>[0]) =>
         updatePiAgentSettings(payload, options),
       openAgentSettingsDocument: () => openPiSettingsDocument(options),
+      openWorkbenchSettingsDocument: () => openWorkbenchSettingsDocument(options),
     };
   }, [manager]);
 }
