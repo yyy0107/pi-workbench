@@ -538,9 +538,12 @@ export function AutomationTaskForm({
 
   return (
     <>
-      <section aria-labelledby={titleId} className="bg-background h-full min-h-0 overflow-y-auto">
+      <section
+        aria-labelledby={titleId}
+        className="@container/automation bg-background h-full min-h-0 overflow-y-auto"
+      >
         <form
-          className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8 sm:py-10"
+          className="mx-auto w-full max-w-5xl px-5 py-8 @2xl/automation:px-10 @2xl/automation:py-10"
           onSubmit={(event) => {
             event.preventDefault();
             void submit();
