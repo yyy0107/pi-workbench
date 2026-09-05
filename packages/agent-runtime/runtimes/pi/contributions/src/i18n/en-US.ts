@@ -530,7 +530,13 @@ export const piExtensionsEnUS = {
       origins: {
         builtin: "Built-in Workbench extension",
         package: "Package",
-        "top-level": "Local extension",
+        "top-level": "Local custom resource",
+      },
+      implementationOrigins: {
+        "pi-builtin": "Pi built-in tool",
+        workbench: "Workbench implementation",
+        custom: "Custom implementation",
+        package: "Package implementation",
       },
       skills: {
         title: "Skills",
@@ -565,6 +571,15 @@ export const piExtensionsEnUS = {
           "The Pi package was uninstalled and its capabilities were removed from the sessions.",
       },
       builtins: {
+        tools: {
+          read: "Read files and images.",
+          bash: "Run shell commands in the workspace.",
+          edit: "Apply precise edits to existing files.",
+          write: "Create or replace files.",
+          grep: "Search file contents. Enhanced search adds multiple directories and context lines.",
+          find: "Find files by name or pattern. Enhanced search adds multiple directories.",
+          ls: "List directory contents.",
+        },
         scope: "All workspaces",
         readOnly: "This built-in extension provides core lifecycle behavior and is always enabled.",
         toggleDescription:
@@ -931,6 +946,9 @@ export const piExtensionsEnUS = {
         scope: "Scope",
         projectScope: ({ project }: { project: string }) => `Project: ${project}`,
         origin: "Origin",
+        overrides: "Overrides",
+        overridesPiBuiltin: ({ name }: { name: string }) => `Pi built-in tool: ${name}`,
+        sourceScope: "Source scope",
         skillSourcePackage: ({ source }: { source: string }) => `Provided by Pi Package ${source}`,
         skillSourcePackageUnknown: "Provided by a Pi Package",
         skillSourceIndependent: "Installed independently",

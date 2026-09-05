@@ -8,6 +8,7 @@ import {
   type ResolvedPaths,
   type ResolvedResource,
   type SettingsManager,
+  type ToolInfo,
 } from "@earendil-works/pi-coding-agent";
 import mime from "mime";
 
@@ -53,6 +54,11 @@ import {
 } from "../resources/resource-text-file";
 import { isWorkbenchInternalPiExtensionPath } from "../internal-extensions/index";
 import { getOrStartSession } from "../sessions/session-registry";
+import {
+  createBuiltinToolDefinitions,
+  workbenchToolOverrides,
+} from "../internal-extensions/builtin-tools";
+import { getPiAgentHostBindings } from "../agent-runtime/pi-agent-host-bindings";
 import { extensionDisplayName } from "./extension-name";
 
 export const MAX_EXTENSION_FILE_BYTES = 5 * 1024 * 1024;
@@ -134,7 +140,9 @@ function extensionContributions(
 
 export interface ExtensionSessionHost {
   readonly isRunning?: boolean;
+  readonly workbenchToolSources?: ReadonlyMap<string, string>;
   session: {
+    getAllTools?(): ToolInfo[];
     resourceLoader: {
       getExtensions(): LoadedExtensionsResult;
     };
@@ -317,8 +325,15 @@ export class ExtensionService implements ExtensionProtocol {
       getSession: getOrStartSession,
       getScopedResourceHost: async (target) => {
         const context = await getScopedResourceContextService().get(target);
+        const bindings = getPiAgentHostBindings();
+        const preferences = await bindings.readSessionPreferences?.();
         return {
           isRunning: false,
+          workbenchToolSources: new Map(
+            workbenchToolOverrides(context.cwd, bindings, preferences?.enhancedSearch).map(
+              ({ name, source }) => [name, source],
+            ),
+          ),
           session: {
             resourceLoader: context.resourceLoader,
             settingsManager: context.settingsManager,
@@ -423,9 +438,7 @@ export class ExtensionService implements ExtensionProtocol {
     return packageManager.resolve(async () => "skip");
   }
 
-  private async records(
-    host: ExtensionSessionHost,
-  ): Promise<{
+  private async records(host: ExtensionSessionHost): Promise<{
     records: ExtensionRecord[];
     builtins: BuiltinExtensionView[];
     loadErrorCount: number;
@@ -437,6 +450,10 @@ export class ExtensionService implements ExtensionProtocol {
     const hiddenPaths = new Set<string>();
     const records: ExtensionRecord[] = [];
     const builtins: BuiltinExtensionView[] = [];
+    const nativeTools = createBuiltinToolDefinitions(
+      host.session.sessionManager?.getCwd() ?? process.cwd(),
+    );
+    const runtimeTools = host.session.getAllTools?.();
 
     for (const extension of result.extensions) {
       const resource =
@@ -446,9 +463,65 @@ export class ExtensionService implements ExtensionProtocol {
       if (extension.resolvedPath) seenPaths.add(extension.resolvedPath);
       if (resource) seenPaths.add(resource.path);
       if (isWorkbenchInternalPiExtensionPath(extension.path)) {
+        const name = extension.path.slice("<inline:".length, -1);
+        const nativeTool = nativeTools.find((tool) => name === `workbench.tool.${tool.name}`);
+        const runtimeTool =
+          nativeTool && runtimeTools?.find((tool) => tool.name === nativeTool.name);
+        const toolOwner =
+          nativeTool &&
+          result.extensions.find(
+            (candidate) =>
+              candidate.tools.has(nativeTool.name) &&
+              (!runtimeTools ||
+                candidate.path === runtimeTool?.sourceInfo.path ||
+                candidate.resolvedPath === runtimeTool?.sourceInfo.path),
+          );
+        const sourceInfo = runtimeTool?.sourceInfo ?? toolOwner?.sourceInfo;
+        const workbenchSource = nativeTool && host.workbenchToolSources?.get(nativeTool.name);
+        let provenance: BuiltinExtensionView["provenance"];
+        if (!nativeTool) {
+          provenance = { kind: "workbench", source: name };
+        } else if (workbenchSource && (!runtimeTools || sourceInfo?.source === "sdk")) {
+          provenance = { kind: "workbench", source: workbenchSource, overridesPiBuiltin: true };
+        } else if (sourceInfo?.source === "builtin" || (!runtimeTools && !toolOwner)) {
+          provenance = { kind: "pi-builtin", source: "@earendil-works/pi-coding-agent" };
+        } else if (sourceInfo) {
+          const internalOwner = toolOwner && isWorkbenchInternalPiExtensionPath(toolOwner.path);
+          provenance = {
+            kind:
+              sourceInfo.origin === "package" ? "package" : internalOwner ? "workbench" : "custom",
+            source:
+              sourceInfo.origin === "package"
+                ? sourceInfo.source
+                : internalOwner
+                  ? toolOwner.path.slice("<inline:".length, -1)
+                  : (toolOwner?.path ?? sourceInfo.source),
+            scope: sourceInfo.scope,
+            overridesPiBuiltin: true,
+          };
+        }
         builtins.push({
-          name: extension.path.slice("<inline:".length, -1),
-          ...extensionContributions(extension),
+          name,
+          ...(provenance ? { provenance } : {}),
+          ...extensionContributions(
+            nativeTool
+              ? {
+                  ...extension,
+                  tools: new Map([
+                    [
+                      nativeTool.name,
+                      {
+                        definition:
+                          runtimeTool ??
+                          (workbenchSource
+                            ? nativeTool
+                            : (toolOwner?.tools.get(nativeTool.name)?.definition ?? nativeTool)),
+                      },
+                    ],
+                  ]),
+                }
+              : extension,
+          ),
         });
         continue;
       }

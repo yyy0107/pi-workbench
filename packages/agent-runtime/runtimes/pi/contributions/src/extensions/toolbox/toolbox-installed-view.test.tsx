@@ -6,8 +6,8 @@ import { I18nProvider, type Locale } from "@workbench/shell/i18n";
 import { WorkbenchSettingsProvider } from "@workbench/shell/settings";
 import { piTranslationBundle } from "../../i18n";
 import type { ToolboxCapabilityItem } from "./toolbox-catalog";
-import { ExtensionControls } from "./toolbox-capability-presentation";
-import { builtinToolPreferenceKey } from "./toolbox-capability";
+import { CapabilityMetadataFields, ExtensionControls } from "./toolbox-capability-presentation";
+import { builtinExtensionSurfaceParams, builtinToolPreferenceKey } from "./toolbox-capability";
 import { ToolboxResourceList } from "./toolbox-installed-view";
 
 const items: ToolboxCapabilityItem[] = [
@@ -190,4 +190,59 @@ test("Pi extensions group by source after search while keeping disabled entries"
   const empty = render("missing", "zh-CN", resources, true);
   assert.match(empty, /没有匹配的能力/);
   assert.doesNotMatch(empty, /<h2|<li/);
+});
+
+test("all native tool entries expose their actual names and independent switches", () => {
+  for (const name of ["read", "bash", "edit", "write", "grep", "find", "ls"]) {
+    const params = builtinExtensionSurfaceParams({
+      name: `workbench.tool.${name}`,
+      toolNames: [name],
+      eventNames: [],
+      commandNames: [],
+      eventDetails: [],
+      toolDetails: [],
+      commandDetails: [],
+    });
+    assert.equal(params.name, name);
+    assert.equal(builtinToolPreferenceKey(params), `${name}ToolEnabled`);
+  }
+});
+
+test("tool metadata distinguishes providers and overrides in both locales", () => {
+  const cases = [
+    ["pi-builtin", "Pi 原生工具", "Pi built-in tool"],
+    ["workbench", "Workbench 提供", "Workbench implementation"],
+    ["custom", "自定义实现", "Custom implementation"],
+    ["package", "Package 提供", "Package implementation"],
+  ] as const;
+  for (const [kind, chinese, english] of cases) {
+    for (const locale of ["zh-CN", "en-US"] as const) {
+      const params = builtinExtensionSurfaceParams({
+        name: "workbench.tool.read",
+        toolNames: ["read"],
+        eventNames: [],
+        commandNames: [],
+        toolDetails: [],
+        eventDetails: [],
+        commandDetails: [],
+        provenance: { kind, source: "example-source", overridesPiBuiltin: kind !== "pi-builtin" },
+      });
+      const html = renderToStaticMarkup(
+        <WorkbenchSettingsProvider
+          service={{ load: async () => ({}), update: async () => undefined }}
+        >
+          <I18nProvider initialLocale={locale} bundles={[piTranslationBundle]}>
+            <CapabilityMetadataFields params={params} />
+          </I18nProvider>
+        </WorkbenchSettingsProvider>,
+      );
+      assert.ok(html.includes(locale === "zh-CN" ? chinese : english));
+      assert.match(html, /example-source/);
+      assert.equal(
+        html.includes(locale === "zh-CN" ? "覆盖关系" : "Overrides"),
+        kind !== "pi-builtin",
+      );
+      assert.doesNotMatch(html, /Workbench 内置扩展|Built-in Workbench extension/);
+    }
+  }
 });

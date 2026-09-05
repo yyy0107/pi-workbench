@@ -710,6 +710,11 @@ Overlay 取消，避免 session 在不可见状态下等待。`ask_user` 的结�
 `allowCustom: true`，Workbench 会在选项后显示“其他答案”输入框，并允许必填问题由选择或自定义回答
 任一方式满足。单个选项只有在同时允许自定义回答时才有效，避免出现没有实际选择空间的问题。
 
+内置工具开关与工具实现来源分开表示：`builtins[].provenance` 区分 Pi 原生、Workbench、自定义和
+Package 实现，并独立标记是否覆盖 Pi 原生工具。已有会话读取 Pi `getAllTools()` 的实际来源及创建时的
+Workbench 覆盖快照；无会话目录复用同一份覆盖配置，并沿用 Pi 的扩展优先级。详情展示具体提供方、
+来源作用域与覆盖关系；旧宿主未提供来源时显示未提供，不根据 Workbench 开关扩展的名称猜测实现来源。
+
 任务管理由隐藏内联扩展 `workbench.rpiv-todo` 内置，复用 MIT 许可的 rpiv todo 2.9.0 核心，
 提供 `todo` 的 create、update、list、get、delete 和 clear 操作；旧 `workbench_todo` 不再注册。
 任务及依赖、负责人、metadata 随每次工具结果的完整 `details.tasks` / `details.nextId` 快照持久化，

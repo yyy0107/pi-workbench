@@ -12,7 +12,11 @@ import type {
   ExtensionView,
   PiResourceCatalogTarget,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
-import type { WorkbenchToolboxScopePreference } from "@workbench/agent-runtime-contracts/settings";
+import {
+  BUILTIN_TOOL_PREFERENCE_KEYS,
+  type BuiltinToolName,
+  type WorkbenchToolboxScopePreference,
+} from "@workbench/agent-runtime-contracts/settings";
 
 import {
   bindCapabilityToCatalogTarget,
@@ -144,6 +148,14 @@ export function useToolboxCatalogs(
   const { t } = usePiI18n();
   const askUserPreference = useToolCapabilityPreferences("askUserEnabled");
   const todoPreference = useToolCapabilityPreferences("todoEnabled");
+  const readPreference = useToolCapabilityPreferences("readToolEnabled");
+  const bashPreference = useToolCapabilityPreferences("bashToolEnabled");
+  const editPreference = useToolCapabilityPreferences("editToolEnabled");
+  const writePreference = useToolCapabilityPreferences("writeToolEnabled");
+  const grepPreference = useToolCapabilityPreferences("grepToolEnabled");
+  const findPreference = useToolCapabilityPreferences("findToolEnabled");
+  const lsPreference = useToolCapabilityPreferences("lsToolEnabled");
+
   const resourceClient = usePiResourceClient();
   const workspaces = usePiWorkspaces();
   const target = useMemo<ToolboxCatalogTarget | undefined>(() => {
@@ -323,17 +335,35 @@ export function useToolboxCatalogs(
           (value.builtins ?? []).map((extension) => {
             const params = builtinExtensionSurfaceParams(extension);
             const key = builtinToolPreferenceKey(params);
-            const preference = key === "todoEnabled" ? todoPreference : askUserPreference;
-            if (key && preference.status !== "loading") params.enabled = preference.enabled;
-            const description = t("extensions.toolbox.extensions.capabilitySummary", {
-              events: extension.eventNames.length,
-              tools: extension.toolNames.length,
-              commands: extension.commandNames.length,
-            });
+            const preference = key
+              ? {
+                  askUserEnabled: askUserPreference,
+                  todoEnabled: todoPreference,
+                  readToolEnabled: readPreference,
+                  bashToolEnabled: bashPreference,
+                  editToolEnabled: editPreference,
+                  writeToolEnabled: writePreference,
+                  grepToolEnabled: grepPreference,
+                  findToolEnabled: findPreference,
+                  lsToolEnabled: lsPreference,
+                }[key]
+              : undefined;
+            if (preference && preference.status !== "loading") params.enabled = preference.enabled;
+            const nativeTool = (
+              Object.keys(BUILTIN_TOOL_PREFERENCE_KEYS) as BuiltinToolName[]
+            ).find((name) => extension.name === `workbench.tool.${name}`);
+            const description = nativeTool
+              ? t(`extensions.toolbox.builtins.tools.${nativeTool}`)
+              : t("extensions.toolbox.extensions.capabilitySummary", {
+                  events: extension.eventNames.length,
+                  tools: extension.toolNames.length,
+                  commands: extension.commandNames.length,
+                });
+            if (nativeTool) params.description = description;
             return {
               id: params.capabilityId,
               kind: "extension" as const,
-              name: extension.name,
+              name: params.name,
               description,
               searchText: [
                 extension.name,
@@ -347,7 +377,19 @@ export function useToolboxCatalogs(
           }),
         ),
       ),
-    [extensionsCatalog.entries, t, askUserPreference, todoPreference],
+    [
+      extensionsCatalog.entries,
+      t,
+      askUserPreference,
+      todoPreference,
+      readPreference,
+      bashPreference,
+      editPreference,
+      writePreference,
+      grepPreference,
+      findPreference,
+      lsPreference,
+    ],
   );
 
   const packageItems = useMemo<readonly ToolboxCapabilityItem[]>(

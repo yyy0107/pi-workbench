@@ -23,6 +23,10 @@ test("registers Workbench-owned adapters as hidden inline extensions", () => {
   assert.deepEqual(
     workbenchInternalPiExtensions.map(({ name, hidden }) => ({ name, hidden })),
     [
+      ...["read", "bash", "edit", "write", "grep", "find", "ls"].map((name) => ({
+        name: `workbench.tool.${name}`,
+        hidden: true,
+      })),
       { name: "workbench.rpiv-todo", hidden: true },
       { name: "workbench.message-termination", hidden: true },
       { name: "workbench.ask-user", hidden: true },

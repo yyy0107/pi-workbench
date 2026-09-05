@@ -774,7 +774,15 @@ export type BuiltinExtensionView = Pick<
   | "eventDetails"
   | "toolDetails"
   | "commandDetails"
->;
+> & {
+  /** Implementation provenance, independent of the Workbench availability-control extension. */
+  provenance?: {
+    kind: "pi-builtin" | "workbench" | "custom" | "package";
+    source: string;
+    scope?: ExtensionSourceScope;
+    overridesPiBuiltin?: boolean;
+  };
+};
 
 export type ExtensionIdentityPayload = PiResourceRequest & {
   name: string;

@@ -26,11 +26,42 @@ export type WorkbenchToolboxScopePreference =
   | Readonly<{ kind: "user" }>
   | Readonly<{ kind: "project"; workspaceId: string }>;
 
+export const BUILTIN_TOOL_PREFERENCE_KEYS = {
+  read: "readToolEnabled",
+  bash: "bashToolEnabled",
+  edit: "editToolEnabled",
+  write: "writeToolEnabled",
+  grep: "grepToolEnabled",
+  find: "findToolEnabled",
+  ls: "lsToolEnabled",
+} as const;
+
+export type BuiltinToolName = keyof typeof BUILTIN_TOOL_PREFERENCE_KEYS;
+export type BuiltinToolPreferenceKey = (typeof BUILTIN_TOOL_PREFERENCE_KEYS)[BuiltinToolName];
+
+export function builtinToolEnabled(
+  name: BuiltinToolName,
+  preferences: WorkbenchSettingsPreferences,
+): boolean {
+  return (
+    preferences[BUILTIN_TOOL_PREFERENCE_KEYS[name]] ??
+    (name === "grep" || name === "find" ? preferences.enhancedSearch === true : name !== "ls")
+  );
+}
+
 /** Workbench-owned preferences. Runtime adapters provide persistence, not the schema. */
 export interface WorkbenchSettingsPreferences {
   appearance?: Record<string, WorkbenchSettingsJsonValue>;
   askUserEnabled?: boolean;
   todoEnabled?: boolean;
+  readToolEnabled?: boolean;
+  bashToolEnabled?: boolean;
+  editToolEnabled?: boolean;
+  writeToolEnabled?: boolean;
+  grepToolEnabled?: boolean;
+  findToolEnabled?: boolean;
+  lsToolEnabled?: boolean;
+
   runningMessageMode?: "queue" | "steer";
   showReasoning?: boolean;
   groupParallelTools?: boolean;

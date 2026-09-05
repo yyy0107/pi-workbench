@@ -237,11 +237,31 @@ export function CapabilityMetadataFields({ params }: { params: ToolboxCapability
       : t(`extensions.toolbox.scopes.${scope}`);
 
   if (params.builtin) {
+    const provenance = params.provenance;
     return (
       <>
         <DetailField label={t("extensions.toolbox.details.origin")}>
-          {t("extensions.toolbox.origins.builtin")}
+          {provenance
+            ? t(`extensions.toolbox.implementationOrigins.${provenance.kind}`)
+            : t("extensions.toolbox.details.notExposed")}
         </DetailField>
+        {provenance ? (
+          <DetailField label={t("extensions.toolbox.details.source")}>
+            <code className="text-xs break-all">{provenance.source}</code>
+          </DetailField>
+        ) : null}
+        {provenance?.overridesPiBuiltin ? (
+          <DetailField label={t("extensions.toolbox.details.overrides")}>
+            {t("extensions.toolbox.details.overridesPiBuiltin", {
+              name: params.toolNames?.[0] ?? params.name,
+            })}
+          </DetailField>
+        ) : null}
+        {provenance?.scope ? (
+          <DetailField label={t("extensions.toolbox.details.sourceScope")}>
+            {scopeLabel(provenance.scope)}
+          </DetailField>
+        ) : null}
         <DetailField label={t("extensions.toolbox.details.scope")}>
           {t("extensions.toolbox.builtins.scope")}
         </DetailField>

@@ -7,6 +7,13 @@ import {
   type WorkbenchSettingsPort,
 } from "@workbench/shell/settings";
 
+import {
+  BUILTIN_TOOL_PREFERENCE_KEYS,
+  builtinToolEnabled,
+  type BuiltinToolPreferenceKey,
+  type BuiltinToolName,
+} from "@workbench/agent-runtime-contracts/settings";
+
 export const ASK_USER_PREFERENCES_STORAGE_KEY = "workbench.ask-user.v1";
 
 type Listener = () => void;
@@ -27,9 +34,20 @@ export interface ToolCapabilityPreferences {
   dispose(): void;
 }
 
-export type ToolCapabilityPreferenceKey = "askUserEnabled" | "todoEnabled";
+export type ToolCapabilityPreferenceKey =
+  | "askUserEnabled"
+  | "todoEnabled"
+  | BuiltinToolPreferenceKey;
 
-const PREFERENCE_RESOURCES = {
+const PREFERENCE_RESOURCES: Record<ToolCapabilityPreferenceKey, symbol> = {
+  readToolEnabled: Symbol("workbench.read-tool-preferences"),
+  bashToolEnabled: Symbol("workbench.bash-tool-preferences"),
+  editToolEnabled: Symbol("workbench.edit-tool-preferences"),
+  writeToolEnabled: Symbol("workbench.write-tool-preferences"),
+  grepToolEnabled: Symbol("workbench.grep-tool-preferences"),
+  findToolEnabled: Symbol("workbench.find-tool-preferences"),
+  lsToolEnabled: Symbol("workbench.ls-tool-preferences"),
+
   askUserEnabled: Symbol("workbench.ask-user-preferences"),
   todoEnabled: Symbol("workbench.todo-preferences"),
 };
@@ -69,7 +87,12 @@ export function createToolCapabilityPreferences(
   settings: WorkbenchSettingsPort,
   key: ToolCapabilityPreferenceKey = "askUserEnabled",
 ): ToolCapabilityPreferences {
-  const defaultEnabled = key === "askUserEnabled";
+  const builtinName = (Object.keys(BUILTIN_TOOL_PREFERENCE_KEYS) as BuiltinToolName[]).find(
+    (name) => BUILTIN_TOOL_PREFERENCE_KEYS[name] === key,
+  );
+  const defaultEnabled = builtinName
+    ? builtinToolEnabled(builtinName, {})
+    : key === "askUserEnabled";
   const serverSnapshot: ToolCapabilityPreferenceSnapshot = Object.freeze({
     enabled: defaultEnabled,
     status: "loading",
@@ -115,7 +138,9 @@ export function createToolCapabilityPreferences(
         }
         if (closed) return;
         emit({
-          enabled: legacyEnabled ?? defaultEnabled,
+          enabled:
+            legacyEnabled ??
+            (builtinName ? builtinToolEnabled(builtinName, preferences) : defaultEnabled),
           status: "ready",
           saveFailed: false,
         });

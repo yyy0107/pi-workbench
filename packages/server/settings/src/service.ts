@@ -134,6 +134,14 @@ function parsePreferences(value: unknown): WorkbenchSettingsPreferences {
   }
   for (const key of [
     "todoEnabled",
+    "readToolEnabled",
+    "bashToolEnabled",
+    "editToolEnabled",
+    "writeToolEnabled",
+    "grepToolEnabled",
+    "findToolEnabled",
+    "lsToolEnabled",
+
     "showReasoning",
     "groupParallelTools",
     "enhancedSearch",

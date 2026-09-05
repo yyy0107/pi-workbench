@@ -76,6 +76,7 @@ test("lists built-in declarations separately without exposing file or mutation i
   assert.equal(result.builtins?.length, 1);
   const builtin = result.builtins![0];
   assert.equal(builtin.name, "workbench.rpiv-todo");
+  assert.deepEqual(builtin.provenance, { kind: "workbench", source: "workbench.rpiv-todo" });
   assert.deepEqual(builtin.toolNames, ["todo"]);
   assert.deepEqual(builtin.eventDetails, [{ name: "session_start", handlerCount: 1 }]);
   assert.equal(JSON.parse(builtin.toolDetails[0].parameterSchemaJson!).type, "object");
@@ -103,6 +104,61 @@ test("lists built-in declarations separately without exposing file or mutation i
         error instanceof ExtensionServiceError && error.code === "extension-not-found",
     );
   }
+});
+
+test("native tool controls report implementation provenance and Pi overrides", async () => {
+  const readControl = extension("<inline:workbench.tool.read>", { hidden: true });
+  const local = extension("/workspace/.pi/extensions/custom-read.ts", {
+    tools: ["read"],
+    scope: "project",
+  });
+  const fromPackage = extension("/packages/reader/index.ts", {
+    tools: ["read"],
+    source: "npm:reader",
+    origin: "package",
+  });
+  const list = async (
+    providers: ReturnType<typeof extension>[],
+    workbenchToolSources?: ReadonlyMap<string, string>,
+  ) =>
+    (
+      await new ExtensionService({
+        getScopedResourceHost: async () => ({
+          workbenchToolSources,
+          session: {
+            resourceLoader: {
+              getExtensions: () => ({ extensions: [...providers, readControl], errors: [] }),
+            },
+          },
+        }),
+      }).list({ target: { scope: "user" } })
+    ).builtins![0];
+
+  assert.deepEqual((await list([])).provenance, {
+    kind: "pi-builtin",
+    source: "@earendil-works/pi-coding-agent",
+  });
+  assert.deepEqual((await list([local])).provenance, {
+    kind: "custom",
+    source: local.path,
+    scope: "project",
+    overridesPiBuiltin: true,
+  });
+  // Pi uses the first extension provider, then applies SDK custom tools last.
+  assert.deepEqual((await list([fromPackage, local])).provenance, {
+    kind: "package",
+    source: "npm:reader",
+    scope: "user",
+    overridesPiBuiltin: true,
+  });
+  assert.deepEqual(
+    (await list([fromPackage], new Map([["read", "workbench.reader"]]))).provenance,
+    {
+      kind: "workbench",
+      source: "workbench.reader",
+      overridesPiBuiltin: true,
+    },
+  );
 });
 
 test("lists visible extensions loaded by the target Pi session", async () => {

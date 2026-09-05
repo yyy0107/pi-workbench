@@ -22,7 +22,7 @@ import {
   sessionTerminalShell,
 } from "./system-prompt-placeholders";
 import { createWorkbenchAgentSessionServices } from "../agent-runtime/agent-session-services";
-import { createEnhancedSearchTools } from "../internal-extensions/enhanced-search";
+import { workbenchToolOverrides } from "../internal-extensions/builtin-tools";
 
 import type {
   PiAssistantMessage,
@@ -1019,6 +1019,7 @@ interface ComposerSubmissionReplay {
 
 class HostedPiSession {
   readonly session: AgentSession;
+  readonly workbenchToolSources: ReadonlyMap<string, string>;
   private readonly sessionRuntime: AgentSessionRuntime;
   private readonly listeners = new Set<SessionEventListener>();
   private readonly onRunningChanged: () => void;
@@ -1065,9 +1066,11 @@ class HostedPiSession {
     onRunningChanged: () => void,
     onDestroyed: () => void,
     contextPolicy: SessionContextPolicy,
+    workbenchToolSources: ReadonlyMap<string, string>,
   ) {
     this.sessionRuntime = sessionRuntime;
     this.session = sessionRuntime.session;
+    this.workbenchToolSources = workbenchToolSources;
     const session = this.session;
     this.contextTrace = contextTrace;
     this.onRunningChanged = onRunningChanged;
@@ -3423,6 +3426,7 @@ async function createHost(
       extensionFactories: createWorkbenchInternalPiExtensions(
         hostBindings.askUserSettings,
         hostBindings.todoSettings,
+        hostBindings.builtinToolSettings,
       ),
       extensionsOverride: prepareWorkbenchPiExtensions,
     },
@@ -3437,24 +3441,27 @@ async function createHost(
   const shell = sessionTerminalShell(
     services.settingsManager.getShellPath()?.trim() || hostBindings.getDefaultTerminalShell?.(),
   );
+  const toolOverrides = workbenchToolOverrides(
+    cwd,
+    hostBindings,
+    sessionPreferences?.enhancedSearch,
+  );
+  const workbenchToolSources = new Map(toolOverrides.map(({ name, source }) => [name, source]));
+  // Explicit SDK tools are applied last and may replace a Workbench override as well.
+  for (const tool of options.customTools ?? []) workbenchToolSources.delete(tool.name);
   const { session } = await createAgentSessionFromServices({
     services,
     sessionManager,
     ...modelSelection,
     customTools: [
-      ...(sessionPreferences?.enhancedSearch ? createEnhancedSearchTools(cwd) : []),
-      ...(hostBindings.createBashToolOverride
-        ? [
-            // Pi applies custom tools after built-ins, so this same-name definition preserves the
-            // standard Bash behavior while adding Workbench PTY execution and explicit input ownership.
-            hostBindings.createBashToolOverride({
-              cwd,
-              sessionId: sessionManager.getSessionId(),
-              commandPrefix: services.settingsManager.getShellCommandPrefix(),
-              shellPath: shell,
-            }),
-          ]
-        : []),
+      ...toolOverrides.map((override) =>
+        override.create({
+          cwd,
+          sessionId: sessionManager.getSessionId(),
+          commandPrefix: services.settingsManager.getShellCommandPrefix(),
+          shellPath: shell,
+        }),
+      ),
       ...(options.customTools ?? []),
     ],
   });
@@ -3504,6 +3511,7 @@ async function createHost(
         publishRunningSessions();
       },
       initialContextPolicy,
+      workbenchToolSources,
     );
   } catch (error) {
     await sessionRuntime.dispose();

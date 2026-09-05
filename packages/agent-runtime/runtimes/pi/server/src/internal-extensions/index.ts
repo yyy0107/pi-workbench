@@ -1,5 +1,6 @@
 import type { InlineExtension, LoadExtensionsResult } from "@earendil-works/pi-coding-agent";
 
+import { createBuiltinToolExtensions, type BuiltinToolSettings } from "./builtin-tools";
 import { createAskUserExtension, type AskUserCapabilitySettings } from "./ask-user";
 import type { ToolCapabilitySettings } from "./tool-availability";
 import { composerContextExtension } from "./composer-context";
@@ -13,8 +14,10 @@ export const WORKBENCH_INTERNAL_PI_EXTENSION_PATH_PREFIX = "<inline:workbench.";
 export function createWorkbenchInternalPiExtensions(
   askUserSettings?: AskUserCapabilitySettings,
   todoSettings?: ToolCapabilitySettings,
+  builtinToolSettings?: BuiltinToolSettings,
 ) {
   return [
+    ...createBuiltinToolExtensions(builtinToolSettings),
     { name: TODO_EXTENSION_NAME, factory: createTodoExtension(todoSettings), hidden: true },
     {
       name: "workbench.message-termination",

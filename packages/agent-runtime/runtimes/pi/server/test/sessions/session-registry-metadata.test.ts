@@ -99,10 +99,12 @@ test("AgentSession tools and prompt share one shell snapshot across reload and c
     await rm(root, { recursive: true, force: true });
   });
   let defaultShell = "/bin/bash";
+  let enhancedSearch = false;
   const chosen: string[] = [];
   bindPiAgentHostBindings({
     ...bindings,
     getDefaultTerminalShell: () => defaultShell,
+    readSessionPreferences: async () => ({ enhancedSearch, retainAllModelIO: false }),
     createBashToolOverride: ({ shellPath }) => {
       chosen.push(shellPath!);
       return {
@@ -124,9 +126,13 @@ test("AgentSession tools and prompt share one shell snapshot across reload and c
     return (await tool.execute("shell-probe", {}, undefined)).content;
   };
   defaultShell = "/bin/sh";
+  enhancedSearch = true;
   const second = await createSession(root, "shell-second");
   hosts.push(second);
   await first.session.reload();
+  assert.equal(first.workbenchToolSources.get("bash"), "workbench.terminal");
+  assert.equal(first.workbenchToolSources.has("grep"), false);
+  assert.equal(second.workbenchToolSources.get("grep"), "workbench.enhanced-search");
   first.session.setActiveToolsByName(["bash"]);
   assert.match(first.session.systemPrompt, /shell: \/bin\/bash/);
   assert.match(second.session.systemPrompt, /shell: \/bin\/sh/);
@@ -136,6 +142,7 @@ test("AgentSession tools and prompt share one shell snapshot across reload and c
   const reopened = await getOrStartSession(first.id);
   hosts.push(reopened);
   assert.notEqual(reopened, first);
+  assert.equal(reopened.workbenchToolSources.get("grep"), "workbench.enhanced-search");
   assert.match(reopened.session.systemPrompt, /shell: \/bin\/sh/);
   assert.deepEqual(await runBash(reopened), [{ type: "text", text: "/bin/sh" }]);
   await writeFile(

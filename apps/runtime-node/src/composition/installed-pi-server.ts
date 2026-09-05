@@ -1,3 +1,5 @@
+import { builtinToolEnabled } from "@workbench/agent-runtime-contracts/settings";
+
 import { getImageUnderstandingSettingsStore } from "./installed-attachment-understanding";
 import { createImageUnderstandingSettingsRpcRoutes } from "@workbench/attachment-understanding-server/rpc";
 import { createRuntimeHttpRouter } from "./runtime-http-router";
@@ -191,6 +193,18 @@ function createInstalledPiAgentHostBindings(
         },
         toolTerminalSessions,
       );
+    },
+    builtinToolSettings(name) {
+      return {
+        async readEnabled() {
+          return builtinToolEnabled(name, (await settings.describe()).preferences);
+        },
+        subscribe(listener) {
+          return subscribeWorkbenchSettingsPreferences(settings.stateFile, (preferences) => {
+            listener(builtinToolEnabled(name, preferences));
+          });
+        },
+      };
     },
     todoSettings: {
       async readEnabled() {

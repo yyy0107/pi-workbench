@@ -488,7 +488,13 @@ export const piExtensionsZhCN = {
       origins: {
         builtin: "Workbench 内置扩展",
         package: "包",
-        "top-level": "本地扩展",
+        "top-level": "本地自定义资源",
+      },
+      implementationOrigins: {
+        "pi-builtin": "Pi 原生工具",
+        workbench: "Workbench 提供",
+        custom: "自定义实现",
+        package: "Package 提供",
       },
       skills: {
         title: "技能",
@@ -518,6 +524,15 @@ export const piExtensionsZhCN = {
         packageRemoved: "Pi Package 已卸载，相关能力已从会话中移除。",
       },
       builtins: {
+        tools: {
+          read: "读取文件和图片。",
+          bash: "在工作区执行 Shell 命令。",
+          edit: "精确修改已有文件。",
+          write: "创建或覆盖文件。",
+          grep: "搜索文件内容；增强搜索支持多个目录和上下文行。",
+          find: "按名称或模式查找文件；增强搜索支持多个目录。",
+          ls: "列出目录内容。",
+        },
         scope: "所有工作区",
         readOnly: "此内置扩展提供核心生命周期行为，始终启用。",
         toggleDescription:
@@ -852,6 +867,9 @@ export const piExtensionsZhCN = {
         scope: "作用域",
         projectScope: ({ project }: { project: string }) => `项目：${project}`,
         origin: "来源类型",
+        overrides: "覆盖关系",
+        overridesPiBuiltin: ({ name }: { name: string }) => `覆盖 Pi 原生工具：${name}`,
+        sourceScope: "来源作用域",
         skillSourcePackage: ({ source }: { source: string }) => `由 Pi Package ${source} 提供`,
         skillSourcePackageUnknown: "由 Pi Package 提供",
         skillSourceIndependent: "独立安装",

@@ -1,3 +1,5 @@
+import { BUILTIN_TOOL_PREFERENCE_KEYS } from "@workbench/agent-runtime-contracts/settings";
+
 import type {
   BuiltinExtensionView,
   ExtensionRegisteredCommandView,
@@ -31,6 +33,7 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   modelInvocable?: boolean;
   enabled?: boolean;
   builtin?: boolean;
+  provenance?: BuiltinExtensionView["provenance"];
   invocationName?: string;
   argumentHint?: string;
   promptId?: string;
@@ -240,6 +243,9 @@ export function builtinExtensionSurfaceParams(
 ): ToolboxCapabilitySurfaceParams {
   return {
     ...extension,
+    ...(extension.name.startsWith("workbench.tool.") && extension.toolNames.length === 1
+      ? { name: extension.toolNames[0], extensionName: extension.name }
+      : {}),
     capabilityId: `builtin-extension:${encodeURIComponent(extension.name)}`,
     capabilityKind: "extension",
     builtin: true,
@@ -308,6 +314,13 @@ export function packageSurfaceParams(
 /** These tool providers use the same global switches as Workbench settings. */
 export function builtinToolPreferenceKey(params: ToolboxCapabilitySurfaceParams) {
   if (!params.builtin || params.capabilityKind !== "extension") return undefined;
+  for (const [name, key] of Object.entries(BUILTIN_TOOL_PREFERENCE_KEYS)) {
+    if (
+      (params.extensionName ?? params.name) === `workbench.tool.${name}` &&
+      params.toolNames?.includes(name)
+    )
+      return key;
+  }
   if (params.name === "workbench.ask-user" && params.toolNames?.includes("ask_user"))
     return "askUserEnabled" as const;
   if (params.name === "workbench.rpiv-todo" && params.toolNames?.includes("todo"))

@@ -141,3 +141,22 @@ test("tool preferences stay independent, preserve Ask User migration and roll ba
     },
   );
 });
+
+test("native tool preferences preserve explicit choices over enhanced-search defaults", async () => {
+  const patches: unknown[] = [];
+  const grep = createToolCapabilityPreferences(
+    {
+      load: async () => ({ enhancedSearch: true, grepToolEnabled: false }),
+      update: async (patch) => {
+        patches.push(patch);
+      },
+    },
+    "grepToolEnabled",
+  );
+  await grep.hydrate();
+  assert.equal(grep.getSnapshot().enabled, false);
+  await grep.setEnabled(true);
+  assert.deepEqual(patches, [{ grepToolEnabled: true }]);
+  assert.equal(grep.getSnapshot().enabled, true);
+  grep.dispose();
+});
