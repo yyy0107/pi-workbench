@@ -800,22 +800,11 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
             : "mx-auto w-full max-w-5xl px-5 py-8 @2xl/toolbox-detail:px-10 @2xl/toolbox-detail:py-10"
         }
       >
-        <header
-          className={
-            isSkill || isPackage
-              ? "flex flex-wrap items-center gap-3"
-              : "flex flex-wrap items-start gap-3"
-          }
-        >
+        <header className="flex flex-wrap items-center gap-3">
           <span className="bg-muted/40 flex size-(--button-height-large) shrink-0 items-center justify-center rounded-(--radius)">
             <Icon aria-hidden="true" className="size-[calc(var(--icon-size-md)*1.5)]" />
           </span>
           <div className="min-w-0 flex-1 basis-48">
-            {!isSkill && !isPackage ? (
-              <p className="text-muted-foreground mb-1 text-xs font-medium">
-                {t(`extensions.toolbox.capabilityKinds.${params.capabilityKind}`)}
-              </p>
-            ) : null}
             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
               <h1
                 className={
