@@ -155,6 +155,11 @@ test("chooses command arguments from the actual shell executable", async () => {
       platform: "win32",
       expected: ["/d", "/s", "/c", command],
     },
+    {
+      shell: String.raw`C:\Windows\System32\wsl.exe`,
+      platform: "win32",
+      expected: ["--exec", "bash", "-lc", command],
+    },
   ];
 
   for (const [index, item] of cases.entries()) {

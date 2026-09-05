@@ -12,6 +12,7 @@ const {
   DEFAULTS,
   readDesktopSettings,
   validatePreferences,
+  terminalShellExecutable,
   proxyEnvironment,
   createDesktopServices,
   runtimeHasActiveTasks,
@@ -254,9 +255,14 @@ test("the actual Electron Node child applies the shared proxy to fetch and HTTP 
 });
 
 test("proxy settings replace inherited values and keep credentials in the main process", () => {
+  const shells = ["powershell", "command-prompt", "git-bash", "wsl"];
   assert.throws(() => validatePreferences({ notificationSound: "unknown" }), /invalid-settings/);
   assert.throws(() => validatePreferences({ notificationSound: "" }), /invalid-settings/);
   assert.throws(() => validatePreferences({ terminalShell: "unknown" }), /invalid-settings/);
+  assert.deepEqual(
+    shells.map((terminalShell) => validatePreferences({ terminalShell }).terminalShell),
+    shells,
+  );
   assert.throws(() => validatePreferences({ httpProxy: "file:///tmp/proxy" }), /invalid-proxy/);
   assert.throws(() => validatePreferences({ keepAwake: "true" }), /invalid-settings/);
   assert.throws(() => validatePreferences({ noProxy: "host;other" }), /invalid-bypass/);
@@ -291,5 +297,18 @@ test("proxy settings replace inherited values and keep credentials in the main p
     proxyEnvironment({}, { ...DEFAULTS, terminalShell: "command-prompt" }, "win32")
       .PI_WORKBENCH_TERMINAL_SHELL,
     "cmd.exe",
+  );
+  assert.deepEqual(
+    shells.map((shell) => terminalShellExecutable(shell, {}, () => false)),
+    ["powershell.exe", "cmd.exe", "bash.exe", "wsl.exe"],
+  );
+  const gitBash = String.raw`C:\Program Files\Git\bin\bash.exe`;
+  assert.equal(
+    terminalShellExecutable(
+      "git-bash",
+      { ProgramFiles: String.raw`C:\Program Files` },
+      (candidate) => candidate === gitBash,
+    ),
+    gitBash,
   );
 });

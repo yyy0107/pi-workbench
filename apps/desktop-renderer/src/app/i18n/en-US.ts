@@ -36,7 +36,12 @@ export const desktopRendererEnUS = {
     terminalShell: "Integrated terminal Shell",
     terminalShellDescription:
       "Choose the default Shell used by integrated and agent tool terminals. Restart required.",
-    terminalShells: { powershell: "PowerShell", "command-prompt": "Command Prompt" },
+    terminalShells: {
+      powershell: "PowerShell",
+      "command-prompt": "Command Prompt",
+      "git-bash": "Git Bash",
+      wsl: "WSL",
+    },
     httpProxy: "HTTP proxy",
     httpProxyDescription:
       "One proxy for models, MCP, command tools, and the built-in browser. Leave empty for direct runtime traffic and the browser’s system proxy. Restart required.",

@@ -102,23 +102,30 @@ test("keeps a PTY alive across clients and replays bounded output", async () => 
 });
 
 test("uses the desktop-selected shell for integrated terminals", async () => {
-  let shell = "";
-  const manager = new TerminalSessionManager({
-    env: {
-      PI_WORKBENCH_TERMINAL_SHELL: "cmd.exe",
-      WORKBENCH_TERMINAL_SHELL: "powershell.exe",
-    },
-    platform: "win32",
-    canonicalizeDirectory: async () => "C:\\workspace",
-    spawnPty: (file) => {
-      shell = file;
-      return new FakePty();
-    },
-  });
+  for (const selectedShell of [
+    "powershell.exe",
+    "cmd.exe",
+    String.raw`C:\Program Files\Git\bin\bash.exe`,
+    "wsl.exe",
+  ]) {
+    let shell = "";
+    const manager = new TerminalSessionManager({
+      env: {
+        PI_WORKBENCH_TERMINAL_SHELL: selectedShell,
+        WORKBENCH_TERMINAL_SHELL: "ignored.exe",
+      },
+      platform: "win32",
+      canonicalizeDirectory: async () => "C:\\workspace",
+      spawnPty: (file) => {
+        shell = file;
+        return new FakePty();
+      },
+    });
 
-  await manager.attach({ sessionId: "desktop-shell", cwd: "C:\\workspace" });
-  assert.equal(shell, "cmd.exe");
-  manager.dispose();
+    await manager.attach({ sessionId: "desktop-shell", cwd: "C:\\workspace" });
+    assert.equal(shell, selectedShell);
+    manager.dispose();
+  }
 });
 
 test("rejects a session id reused for another working directory", async () => {

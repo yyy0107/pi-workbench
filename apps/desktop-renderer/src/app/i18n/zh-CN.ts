@@ -31,7 +31,12 @@ export const desktopRendererZhCN = {
     keepAwakeDescription: "应用打开时阻止系统因空闲进入休眠，仍可手动睡眠或合盖休眠。",
     terminalShell: "集成终端 Shell",
     terminalShellDescription: "选择集成终端和智能体工具终端默认使用的 Shell。修改后需重启应用。",
-    terminalShells: { powershell: "PowerShell", "command-prompt": "命令提示符" },
+    terminalShells: {
+      powershell: "PowerShell",
+      "command-prompt": "命令提示符",
+      "git-bash": "Git Bash",
+      wsl: "WSL",
+    },
     httpProxy: "HTTP 代理",
     httpProxyDescription:
       "统一用于模型、MCP、命令工具与内置浏览器。留空时运行时流量直连，内置浏览器跟随系统代理。修改后需重启应用。",

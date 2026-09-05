@@ -31,7 +31,7 @@ function validatePreferences(value) {
     throw new Error("invalid-settings");
   if (
     result.terminalShell !== undefined &&
-    !["powershell", "command-prompt"].includes(result.terminalShell)
+    !["powershell", "command-prompt", "git-bash", "wsl"].includes(result.terminalShell)
   )
     throw new Error("invalid-settings");
   if (result.httpProxy) {
@@ -76,6 +76,22 @@ function readDesktopSettings(app) {
 }
 
 /** Build the explicit environment shared by desktop-owned outbound processes. */
+function terminalShellExecutable(shell, environment, exists = fs.existsSync) {
+  if (shell === "command-prompt") return "cmd.exe";
+  if (shell === "wsl") return "wsl.exe";
+  if (shell !== "git-bash") return "powershell.exe";
+  return (
+    [
+      environment.ProgramFiles,
+      environment["ProgramFiles(x86)"],
+      environment.LOCALAPPDATA && path.win32.join(environment.LOCALAPPDATA, "Programs"),
+    ]
+      .filter(Boolean)
+      .map((root) => path.win32.join(root, "Git", "bin", "bash.exe"))
+      .find(exists) ?? "bash.exe"
+  );
+}
+
 function proxyEnvironment(environment, preferences, platform = process.platform) {
   const result = { ...environment };
   delete result.PI_WORKBENCH_UPDATE_TOKEN;
@@ -90,8 +106,10 @@ function proxyEnvironment(environment, preferences, platform = process.platform)
     .filter(Boolean)
     .join(",");
   if (platform === "win32")
-    result.PI_WORKBENCH_TERMINAL_SHELL =
-      preferences.terminalShell === "command-prompt" ? "cmd.exe" : "powershell.exe";
+    result.PI_WORKBENCH_TERMINAL_SHELL = terminalShellExecutable(
+      preferences.terminalShell,
+      environment,
+    );
   return result;
 }
 
@@ -477,6 +495,7 @@ module.exports = {
   DEFAULTS,
   readDesktopSettings,
   validatePreferences,
+  terminalShellExecutable,
   proxyEnvironment,
   createDesktopServices,
 };

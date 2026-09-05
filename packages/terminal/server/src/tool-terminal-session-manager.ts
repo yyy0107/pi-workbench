@@ -156,6 +156,7 @@ function shellArguments(shell: string, platform: NodeJS.Platform, command: strin
     return ["-NoLogo", "-NoProfile", "-Command", command];
   }
   if (executable === "cmd") return ["/d", "/s", "/c", command];
+  if (executable === "wsl") return ["--exec", "bash", "-lc", command];
   if (POSIX_SHELL_EXECUTABLES.has(executable)) return ["-lc", command];
 
   return platform === "win32" ? ["-NoLogo", "-NoProfile", "-Command", command] : ["-lc", command];

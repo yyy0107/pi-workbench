@@ -48,7 +48,7 @@ test("expands scoped prompt files through Pi tool changes, reload, and continuat
   const faux = fauxProvider({ tokensPerSecond: Infinity });
   modelRuntime.registerNativeProvider(faux.provider);
 
-  const createSession = async (directory: string) => {
+  const createSession = async (directory: string, terminalShell = "cmd.exe") => {
     const settingsManager = SettingsManager.inMemory(
       { compaction: { enabled: false }, retry: { enabled: false } },
       { projectTrusted: true },
@@ -89,7 +89,7 @@ test("expands scoped prompt files through Pi tool changes, reload, and continuat
     t.after(() => session.dispose());
     installSystemPromptPlaceholders(session, {
       environment: {
-        PI_WORKBENCH_TERMINAL_SHELL: "cmd.exe",
+        PI_WORKBENCH_TERMINAL_SHELL: terminalShell,
         WORKBENCH_TERMINAL_SHELL: "powershell.exe",
       },
       platform: "win32",
@@ -159,8 +159,9 @@ test("expands scoped prompt files through Pi tool changes, reload, and continuat
   assert.ok(session.systemPrompt.startsWith(`Workspace: ${cwd}`));
   const secondCwd = path.join(agentDir, "second-project");
   await mkdir(secondCwd);
-  const restored = await createSession(secondCwd);
+  const restored = await createSession(secondCwd, "wsl.exe");
   assert.ok(restored.systemPrompt.startsWith(`Workspace: ${secondCwd}`));
+  assert.ok(restored.systemPrompt.includes("Environment: WSL; shell: bash"));
   assert.ok(!restored.systemPrompt.includes(`Workspace: ${cwd}`));
   await rm(path.join(agentDir, "SYSTEM.md"));
   await restored.reload();

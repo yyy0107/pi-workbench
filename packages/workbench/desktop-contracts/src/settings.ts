@@ -1,7 +1,7 @@
 export const DESKTOP_NOTIFICATION_SOUNDS = ["chime", "soft", "bell", "droplet"] as const;
 export type DesktopNotificationSound = (typeof DESKTOP_NOTIFICATION_SOUNDS)[number];
 
-export const DESKTOP_TERMINAL_SHELLS = ["powershell", "command-prompt"] as const;
+export const DESKTOP_TERMINAL_SHELLS = ["powershell", "command-prompt", "git-bash", "wsl"] as const;
 export type DesktopTerminalShell = (typeof DESKTOP_TERMINAL_SHELLS)[number];
 
 export function isDesktopNotificationSound(value: unknown): value is DesktopNotificationSound {

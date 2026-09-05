@@ -37,8 +37,10 @@ export function installSystemPromptPlaceholders(
       environment.WORKBENCH_TERMINAL_SHELL?.trim() ||
       environment.SHELL?.trim() ||
       (platform === "win32" ? "powershell.exe" : "/bin/bash");
-    const platformName =
-      platform === "win32"
+    const usesWsl = platform === "win32" && /(?:^|[\\/])wsl(?:\.exe)?$/iu.test(shell);
+    const platformName = usesWsl
+      ? "WSL"
+      : platform === "win32"
         ? "Windows native"
         : platform === "darwin"
           ? "macOS"
@@ -47,7 +49,7 @@ export function installSystemPromptPlaceholders(
             : platform;
     const values = {
       cwd: session.sessionManager.getCwd().replaceAll("\\", "/"),
-      terminal_environment: `${platformName}; shell: ${shell}`,
+      terminal_environment: `${platformName}; shell: ${usesWsl ? "bash" : shell}`,
       tools:
         tools
           .map((tool) => `- ${tool.name}: ${tool.promptSnippet || tool.description}`)
