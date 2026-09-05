@@ -35,7 +35,6 @@ function lockDisclosureTransition(
   const initialRootHeight = initialRootRect.height;
   const initialScrollTop = scrollContainer.scrollTop;
   let targetScrollTop = initialScrollTop;
-  let frameId: number | null = null;
   let stopped = false;
 
   const computed = getComputedStyle(scrollContainer);
@@ -72,11 +71,8 @@ function lockDisclosureTransition(
       scrollContainer.scrollTop = targetScrollTop;
     }
   };
-  const followAnimation = () => {
-    if (stopped) return;
-    applyPosition();
-    frameId = window.requestAnimationFrame(followAnimation);
-  };
+  // Measure after layout and compensate before paint, including Base UI's deferred first frame.
+  const resizeObserver = new ResizeObserver(applyPosition);
   const handleScroll = () => applyPosition();
   const restoreStyles = () => {
     scrollContainer.style.scrollBehavior = previousScrollBehavior;
@@ -88,16 +84,32 @@ function lockDisclosureTransition(
   const stop = () => {
     if (stopped) return;
     stopped = true;
-    if (frameId !== null) window.cancelAnimationFrame(frameId);
+    resizeObserver.disconnect();
     window.clearTimeout(timeoutId);
     scrollContainer.removeEventListener("scroll", handleScroll);
     applyPosition();
     restoreStyles();
   };
+  const finishTransition = () => {
+    if (stopped) return;
+    const animations = root
+      .getAnimations({ subtree: true })
+      .filter(
+        (animation) =>
+          animation.playState === "running" &&
+          Number.isFinite(animation.effect?.getComputedTiming().endTime),
+      );
+    // The CSS transition starts after the click; streaming shimmer animations never finish.
+    if (animations.length === 0) stop();
+    else
+      void Promise.allSettled(animations.map((animation) => animation.finished)).then(
+        finishTransition,
+      );
+  };
 
   scrollContainer.addEventListener("scroll", handleScroll);
-  if (opening) frameId = window.requestAnimationFrame(followAnimation);
-  const timeoutId = window.setTimeout(stop, duration);
+  resizeObserver.observe(root);
+  const timeoutId = window.setTimeout(finishTransition, duration);
 
   return stop;
 }

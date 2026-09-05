@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import {
+  createLucideIcon,
   FileSearchIcon,
   ListChecksIcon,
   PencilIcon,
   SearchIcon,
-  SparklesIcon,
   SquareTerminalIcon,
   WrenchIcon,
   type LucideIcon,
@@ -51,8 +51,23 @@ import {
 
 type TimelineBlock = ReasoningBlock | ToolCallBlock | DataBlock;
 
+const ReasoningIcon = createLucideIcon("Reasoning", [
+  [
+    "path",
+    {
+      d: "M7 16.5h10a4 4 0 0 0 1.1-7.85A4.5 4.5 0 0 0 10 5.5a3.5 3.5 0 0 0-5.5 3.8A4 4 0 0 0 7 16.5Z",
+      key: "thought",
+    },
+  ],
+  [
+    "circle",
+    { cx: "7.5", cy: "19.5", r: "1.25", fill: "currentColor", stroke: "none", key: "near" },
+  ],
+  ["circle", { cx: "4", cy: "21.5", r: "0.85", fill: "currentColor", stroke: "none", key: "far" }],
+]);
+
 const STEP_ICONS: Readonly<Record<ToolTimelineStepKind, LucideIcon>> = {
-  thinking: SparklesIcon,
+  thinking: ReasoningIcon,
   read: FileSearchIcon,
   ran: SquareTerminalIcon,
   edited: PencilIcon,
@@ -164,7 +179,7 @@ function TimelineReasoning({
             : "extensions.messagePresentation.reasoning.active",
       )}
       restingLabel={t("extensions.messagePresentation.reasoning.step")}
-      icon={SparklesIcon}
+      icon={ReasoningIcon}
       activeIcon={
         <ThinkingOrb
           state="composing"
