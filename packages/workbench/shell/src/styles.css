@@ -298,7 +298,7 @@
   --scrollbar-hit-padding: 4px;
   --scrollbar-hit-size: calc(var(--scrollbar-size) + var(--scrollbar-hit-padding) * 2);
   --scrollbar-width: auto;
-  --scrollbar-radius: var(--radius);
+  --scrollbar-radius: min(var(--radius), calc(var(--scrollbar-size) / 4));
   --scrollbar-track: transparent;
   --scrollbar-thumb: color-mix(in oklab, var(--foreground) 14%, transparent);
   --scrollbar-thumb-hover: color-mix(in oklab, var(--foreground) 20%, transparent);
