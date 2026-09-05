@@ -61,7 +61,7 @@ test("native conversation scrolling follows the bottom, respects user lock, and 
   );
 });
 
-test("width reflow preserves the visible text line and bottom follow without observing streamed DOM", async () => {
+async function checkConversationViewport(autoScroll: boolean) {
   const environment = installMinimalReactDomEnvironment();
   const root = createRoot(environment.container);
   const originalResize = Object.getOwnPropertyDescriptor(globalThis, "ResizeObserver");
@@ -153,9 +153,10 @@ test("width reflow preserves the visible text line and bottom follow without obs
   });
   const nodeKeys = ["message"];
   let atBottom = true;
+  let scrollToBottom: (behavior: ScrollBehavior) => void;
   function Probe() {
     const state = useWorkbenchConversationViewport({
-      autoScroll: false,
+      autoScroll,
       isRunning: false,
       nodeKeys,
       scrollToBottomOnInitialize: false,
@@ -163,6 +164,7 @@ test("width reflow preserves the visible text line and bottom follow without obs
     });
     state.viewportRef(viewport as unknown as HTMLDivElement);
     atBottom = state.isAtBottom;
+    scrollToBottom = state.scrollToBottom;
     return null;
   }
 
@@ -267,6 +269,50 @@ test("width reflow preserves the visible text line and bottom follow without obs
     assert.equal(viewport.scrollTop, 1_580, "a taller composer keeps the latest message visible");
     assert.equal(atBottom, true);
 
+    if (autoScroll) {
+      await act(async () => {
+        viewport.scrollTop -= 100;
+        listeners.get("scroll")?.();
+        scrollToBottom("instant");
+      });
+      for (let chunk = 0; chunk < 3; chunk++) {
+        await act(async () => {
+          viewport.scrollHeight += 100;
+          // A queued programmatic scroll arrives after growth but before ResizeObserver.
+          listeners.get("scroll")?.();
+          resize();
+        });
+        assert.equal(viewport.scrollTop, viewport.scrollHeight - viewport.clientHeight);
+        assert.equal(atBottom, true, "clicking latest must keep following streamed content");
+      }
+      await act(async () => {
+        // Collapsing content clamps scrollTop before ResizeObserver reports the new height.
+        viewport.scrollHeight -= 100;
+        viewport.scrollTop = viewport.scrollHeight - viewport.clientHeight;
+        listeners.get("scroll")?.();
+        resize();
+        viewport.scrollHeight += 100;
+        listeners.get("scroll")?.();
+        resize();
+      });
+      assert.equal(viewport.scrollTop, viewport.scrollHeight - viewport.clientHeight);
+      await act(async () => {
+        listeners.get("wheel")?.();
+        viewport.scrollHeight += 100;
+        viewport.scrollTop -= 100;
+        listeners.get("scroll")?.();
+        resize();
+      });
+      const readingTop = viewport.scrollTop;
+      await act(async () => {
+        viewport.scrollHeight += 100;
+        listeners.get("scroll")?.();
+        resize();
+      });
+      assert.equal(viewport.scrollTop, readingTop, "manual scrolling must still stop following");
+      assert.equal(atBottom, false);
+    }
+
     const oldFlow = viewport.children[0];
     viewport.children = [];
     await act(async () => {
@@ -286,4 +332,9 @@ test("width reflow preserves the visible text line and bottom follow without obs
     }
     environment.restore();
   }
-});
+}
+
+for (const autoScroll of [false, true]) {
+  test(`conversation reflow and bottom follow (autoScroll=${autoScroll})`, () =>
+    checkConversationViewport(autoScroll));
+}

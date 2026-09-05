@@ -349,13 +349,23 @@ export function useWorkbenchConversationViewport({
     const handleViewportScroll = () => {
       const width = readContentWidth(viewport);
       if (width <= 0) return;
-      if (lastContentWidth.current !== undefined && lastContentWidth.current !== width) {
-        // Resize-induced scroll/clamping can arrive before ResizeObserver. Preserve follow mode
-        // and the pre-reflow text position until compensation has been applied.
+      const metrics = readViewportMetrics(viewport);
+      const previous = lastMetrics.current;
+      const resized =
+        previous &&
+        (previous.scrollHeight !== metrics.scrollHeight ||
+          previous.clientHeight !== metrics.clientHeight) &&
+        metrics.scrollTop >=
+          Math.min(previous.scrollTop, Math.max(0, metrics.scrollHeight - metrics.clientHeight));
+      if (
+        resized ||
+        (lastContentWidth.current !== undefined && lastContentWidth.current !== width)
+      ) {
+        // Layout changes can precede ResizeObserver or a queued programmatic scroll event.
+        // Apply compensation before deciding whether the user has stopped following.
         handleContentChange();
         return;
       }
-      const metrics = readViewportMetrics(viewport);
       const moved = metrics.scrollTop !== lastMetrics.current?.scrollTop;
       handleScroll(metrics);
       lastContentWidth.current = width;
