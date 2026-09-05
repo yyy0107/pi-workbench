@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@workbench/host-artifact-policy": "workspace:*",
-    "@workbench/host-server": "workspace:*"
+    "@workbench/host-server": "workspace:*",
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
@@ -50,6 +51,7 @@
     },
     "files": [
       "package.json",
+      "electron/desktop-services.cjs",
       "electron/desktop-renderer-protocol.cjs",
       "electron/main.cjs",
       "electron/packaged-runtime-lifecycle.cjs",
@@ -61,7 +63,7 @@
       "!node_modules/**/*"
     ],
     "afterPack": "scripts/after-pack.cjs",
-    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "artifactName": "Pi-Workbench-${version}-${os}-${arch}.${ext}",
     "icon": "../../.electron-build/app/public/app-icon.svg",
     "mac": {
       "category": "public.app-category.developer-tools",
@@ -81,7 +83,15 @@
       "target": [
         "AppImage"
       ]
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "yyy0107",
+        "repo": "pi-workbench",
+        "private": true
+      }
+    ]
   },
   "desktopName": "com.piworkbench.PiWorkbench.desktop",
   "desktopPackageName": "workbench-ui",

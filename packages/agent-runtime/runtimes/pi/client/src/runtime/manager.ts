@@ -274,6 +274,7 @@ export class PiSessionManager implements AgentRuntime {
   private readonly pinned = new Set<string>();
   private readonly pinnedWorkspaces = new Set<string>();
   private readonly completed = new Set<string>();
+  private readonly failedRuns = new Set<string>();
   private readonly pendingModelSelections = new Map<string, Promise<SessionSelectModelValue>>();
   private readonly runTimings = new Map<string, PiClientRunTiming>();
   private running = new Set<string>();
@@ -570,6 +571,7 @@ export class PiSessionManager implements AgentRuntime {
         isRunning: metadata.running,
         isWaitingForInput: metadata.waitingForUserInput,
         hasUnreadCompletion: metadata.completed,
+        lastRunFailed: this.failedRuns.has(remoteId),
         ...(metadata.automationOrigin === undefined
           ? {}
           : { origin: { kind: metadata.automationOrigin.origin } }),
@@ -743,6 +745,7 @@ export class PiSessionManager implements AgentRuntime {
       metadata.running,
       metadata.waitingForUserInput,
       metadata.completed,
+      thread ? this.failedRuns.has(thread.remoteId) : false,
       metadata.pinned,
       metadata.createdAt ?? null,
       metadata.workspace?.id ?? null,
@@ -860,6 +863,7 @@ export class PiSessionManager implements AgentRuntime {
     this.pinned.clear();
     this.pinnedWorkspaces.clear();
     this.completed.clear();
+    this.failedRuns.clear();
     this.pendingModelSelections.clear();
     this.runTimings.clear();
     this.running.clear();
@@ -1139,6 +1143,8 @@ export class PiSessionManager implements AgentRuntime {
       return;
     }
     if (payload.type === "host/agent-error") {
+      this.failedRuns.add(payload.sessionId);
+      this.notify();
       console.error(`[workbench-pi] session ${payload.sessionId} failed: ${payload.message}`);
     } else if (payload.type === "stream/error") {
       console.error(`[workbench-pi] host stream failed: ${payload.error.message}`);
@@ -1920,7 +1926,10 @@ export class PiSessionManager implements AgentRuntime {
       session.setRunningFromManager(running, runTiming, authoritativeBaseline);
     }
     if (wasRunning && !running && this.activeRemoteId !== remoteId) this.completed.add(remoteId);
-    if (running) this.completed.delete(remoteId);
+    if (running) {
+      this.completed.delete(remoteId);
+      if (!wasRunning) this.failedRuns.delete(remoteId);
+    }
     if (wasRunning !== running) this.notify();
   }
 
@@ -1972,7 +1981,10 @@ export class PiSessionManager implements AgentRuntime {
     if (wasRunning && !summary.running && this.activeRemoteId !== summary.id) {
       this.completed.add(summary.id);
     }
-    if (summary.running) this.completed.delete(summary.id);
+    if (summary.running) {
+      this.completed.delete(summary.id);
+      if (!wasRunning) this.failedRuns.delete(summary.id);
+    }
     return wasRunning !== summary.running;
   }
 
@@ -2071,6 +2083,7 @@ export class PiSessionManager implements AgentRuntime {
     this.running.delete(sessionId);
     this.waitingForUserInput.delete(sessionId);
     this.completed.delete(sessionId);
+    this.failedRuns.delete(sessionId);
     this.archived.delete(sessionId);
     this.pinned.delete(sessionId);
     this.pendingQueues.delete(sessionId);

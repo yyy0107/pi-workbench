@@ -5,9 +5,33 @@ import {
   defaultMessageDisclosureOpen,
   messageAttachmentReference,
   messageTextPresentation,
+  visibleMessageBlocks,
   type MessagePresentationDisclosure,
   type MessagePresentationPhase,
 } from "./message-presentation-policy";
+
+test("hides only reasoning in presentation without mutating message history", () => {
+  const blocks = [
+    { kind: "reasoning", key: "thought", text: "Thinking" },
+    { kind: "text", key: "answer", text: "Answer" },
+  ] as const;
+  assert.equal(visibleMessageBlocks(blocks, true), blocks);
+  assert.deepEqual(visibleMessageBlocks(blocks, false), [blocks[1]]);
+  assert.equal(blocks.length, 2);
+});
+
+test("the todo preference hides only its recorded tool cards", () => {
+  const todo = {
+    kind: "tool-call",
+    key: "todo",
+    callId: "todo",
+    toolName: "workbench_todo",
+    argumentsText: "{}",
+    status: "complete",
+  } as const;
+  const text = { kind: "text", key: "answer", text: "Answer" } as const;
+  assert.deepEqual(visibleMessageBlocks([todo, text], true, false), [text]);
+});
 
 const kinds: readonly MessagePresentationDisclosure[] = [
   "completed-turn",

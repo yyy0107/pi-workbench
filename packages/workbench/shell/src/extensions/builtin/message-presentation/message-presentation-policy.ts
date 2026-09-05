@@ -1,4 +1,19 @@
 import type { AttachmentReference } from "@workbench/attachment-understanding-contracts/state-machine";
+import type { MessageBlock } from "@workbench/agent-runtime-contracts/conversation";
+
+export function visibleMessageBlocks(
+  blocks: readonly MessageBlock[],
+  showReasoning: boolean,
+  showTodos = true,
+) {
+  return showReasoning && showTodos
+    ? blocks
+    : blocks.filter(
+        (block) =>
+          (showReasoning || block.kind !== "reasoning") &&
+          (showTodos || block.kind !== "tool-call" || block.toolName !== "workbench_todo"),
+      );
+}
 
 export type MessagePresentationDisclosure =
   | "completed-turn"

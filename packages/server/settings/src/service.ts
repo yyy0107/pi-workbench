@@ -126,6 +126,28 @@ function parsePreferences(value: unknown): WorkbenchSettingsPreferences {
   if (value.backgroundImage !== undefined) {
     preferences.backgroundImage = backgroundImage(value.backgroundImage);
   }
+  if (value.runningMessageMode !== undefined) {
+    if (value.runningMessageMode !== "queue" && value.runningMessageMode !== "steer") {
+      throw new TypeError("runningMessageMode is invalid");
+    }
+    preferences.runningMessageMode = value.runningMessageMode;
+  }
+  for (const key of [
+    "showReasoning",
+    "groupParallelTools",
+    "enhancedSearch",
+    "askUserAutoContinue",
+    "retainAllModelIO",
+    "showTodos",
+    "groupExplorationTools",
+    "groupTerminalTools",
+    "groupFileChanges",
+  ] as const) {
+    if (value[key] !== undefined) {
+      if (typeof value[key] !== "boolean") throw new TypeError(`${key} is invalid`);
+      preferences[key] = value[key];
+    }
+  }
   if (value.locale !== undefined) {
     if (!isLocale(value.locale)) throw new TypeError("locale is invalid");
     preferences.locale = value.locale;

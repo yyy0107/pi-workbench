@@ -5,6 +5,7 @@ import {
 import { defineRuntimeConnection, type RuntimeConnection } from "@workbench/host-contracts";
 
 export interface WorkbenchDesktopBridge {
+  readonly settings?: unknown;
   readonly lifecycle?: unknown;
   readonly runtime?: unknown;
   readonly titleBar?: unknown;

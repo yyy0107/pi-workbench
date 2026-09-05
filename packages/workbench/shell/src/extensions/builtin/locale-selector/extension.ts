@@ -24,7 +24,7 @@ export const localeSelectorExtension = defineExtension({
       id: "language",
       title: defineMessage("extensions.localeSelector.languageTitle"),
       description: defineMessage("extensions.localeSelector.languageDescription"),
-      order: 10,
+      order: -10,
       component: LocaleSettingsItem,
     });
 

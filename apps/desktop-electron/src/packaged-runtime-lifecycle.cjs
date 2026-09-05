@@ -247,6 +247,8 @@ function packagedChildEnvironment(environment, settingsFile) {
   delete childEnvironment.PORT;
   childEnvironment.ELECTRON_RUN_AS_NODE = "1";
   childEnvironment.NODE_ENV = "production";
+  // Electron's Node runtime uses the desktop-owned HTTP(S)_PROXY and NO_PROXY for fetch/http.
+  childEnvironment.NODE_USE_ENV_PROXY = "1";
   if (settingsFile) childEnvironment.PI_WORKBENCH_SETTINGS_FILE = settingsFile;
   childEnvironment.WORKBENCH_RUNTIME_MANAGED_CHILD = "1";
   return childEnvironment;

@@ -109,7 +109,7 @@ test("routes grouped questions through the Workbench UI and returns normalized a
       hasUI: true,
       ui: {
         async workbenchAskUser(questions: unknown[], options: unknown) {
-          assert.deepEqual(options, { signal: abort.signal, timeout: 30_000 });
+          assert.deepEqual(options, { signal: abort.signal });
           receivedQuestions.push(...questions);
           return [
             { id: "scope", selected: ["Composer"], custom: "Keep the change local" },

@@ -57,6 +57,7 @@ for (const { directory, value } of metadata) {
     value.runtimeInventories.electron,
     value.webRuntimeArchive,
     ...value.electronPackages,
+    ...(value.updateAssets ?? []),
   ];
   for (const asset of declared) {
     if (assetNames.has(asset.filename))

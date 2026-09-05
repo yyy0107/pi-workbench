@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { releaseUpdateInfo } from "./release-update-info.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const supportedTargets = new Set([
@@ -162,7 +163,10 @@ function copyReleaseFile(sourcePath, outputDirectory, filename) {
 }
 
 function packageFiles(sourceDirectory, product, targetKey, outputDirectory) {
-  return filesBelow(sourceDirectory)
+  // Only distributables belong in Releases; unpacked application executables are not installers.
+  return readdirSync(sourceDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => path.join(sourceDirectory, entry.name))
     .filter((filePath) => distributionExtensions.some((extension) => filePath.endsWith(extension)))
     .map((filePath) =>
       copyReleaseFile(
@@ -247,6 +251,21 @@ const electronPackages = packageFiles(
 if (electronPackages.length === 0) {
   throw new Error(`Electron must produce a package for ${targetKey}.`);
 }
+const updateInfo = releaseUpdateInfo({
+  targetKey,
+  version: rootManifest.version,
+  directory: outputDirectory,
+  packages: electronPackages,
+});
+const updateInfoPath = path.join(outputDirectory, updateInfo.filename);
+writeFileSync(updateInfoPath, updateInfo.content);
+const updateAssets = [
+  {
+    filename: updateInfo.filename,
+    sha256: sha256(updateInfoPath),
+    size: lstatSync(updateInfoPath).size,
+  },
+];
 
 const webRuntimeArchive = Object.freeze({
   filename: path.basename(webArchive),
@@ -263,6 +282,7 @@ const metadata = {
   runtimeInventories: { node: nodeInventory, electron: electronInventory },
   webRuntimeArchive,
   electronPackages,
+  updateAssets,
 };
 const metadataPath = path.join(outputDirectory, `release-metadata-${targetKey}.json`);
 writeFileSync(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`);

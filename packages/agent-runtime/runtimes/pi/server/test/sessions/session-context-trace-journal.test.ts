@@ -154,6 +154,29 @@ function modelOutputEvent(
   };
 }
 
+test("full I/O retention disables completed-activation pruning and can return to bounded retention", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-retention-"));
+  const previousRoot = process.env.PI_WORKBENCH_CONTEXT_TRACE_DIR;
+  process.env.PI_WORKBENCH_CONTEXT_TRACE_DIR = root;
+  t.after(async () => {
+    if (previousRoot === undefined) delete process.env.PI_WORKBENCH_CONTEXT_TRACE_DIR;
+    else process.env.PI_WORKBENCH_CONTEXT_TRACE_DIR = previousRoot;
+    await rm(root, { recursive: true, force: true });
+  });
+  for (let index = 0; index < 101; index++) {
+    const journal = await SessionContextTraceJournal.create(
+      "retained",
+      `activation-${index}`,
+      true,
+    );
+    await journal.close();
+  }
+  assert.equal((await SessionContextTraceJournal.listActivations("retained")).length, 101);
+  const bounded = await SessionContextTraceJournal.create("retained", "bounded");
+  await bounded.close();
+  assert.equal((await SessionContextTraceJournal.listActivations("retained")).length, 100);
+});
+
 test("persists private hash-chained activation journals and detects tampering", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-context-trace-journal-"));
   const previousRoot = process.env.PI_WORKBENCH_CONTEXT_TRACE_DIR;

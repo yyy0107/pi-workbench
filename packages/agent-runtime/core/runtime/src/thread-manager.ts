@@ -17,6 +17,7 @@ export interface ThreadListItem {
   readonly isRunning: boolean;
   readonly isWaitingForInput: boolean;
   readonly hasUnreadCompletion: boolean;
+  readonly lastRunFailed?: boolean;
   readonly workspace?: ThreadWorkspace;
   /** Runtime-neutral provenance used only for catalog presentation. */
   readonly origin?: { readonly kind: string };

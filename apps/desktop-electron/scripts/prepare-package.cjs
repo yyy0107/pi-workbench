@@ -110,6 +110,7 @@ function createDesktopArtifactSupportBuildOptions({ paths, outfile }) {
 }
 
 const PACKAGED_MAIN_LOCAL_EXTERNALS = Object.freeze([
+  "desktop-services.cjs",
   "desktop-renderer-protocol.cjs",
   "packaged-runtime-lifecycle.cjs",
   "runtime-artifact-environment.cjs",
@@ -305,6 +306,25 @@ async function buildServerProcessLifecycle({ paths, outfile, buildImpl = build }
   return Object.freeze({ outfile, result });
 }
 
+async function buildDesktopServices({ paths, outfile, buildImpl = build } = {}) {
+  const result = await buildImpl({
+    absWorkingDir: paths.repositoryRoot,
+    bundle: true,
+    entryPoints: [path.join(paths.desktopElectronSourceRoot, "desktop-services.cjs")],
+    external: ["electron"],
+    format: "cjs",
+    platform: "node",
+    target: "node24",
+    metafile: true,
+    outfile,
+  });
+  const imports = Object.values(result.metafile.outputs)
+    .flatMap((output) => output.imports)
+    .filter((item) => item.external && !isBuiltin(item.path));
+  if (imports.some((item) => item.path !== "electron"))
+    throw new Error("Desktop services retained an unbundled dependency.");
+}
+
 async function buildPackagedMain({ paths, outfile, buildImpl = build } = {}) {
   const options = createPackagedMainBuildOptions({ paths, outfile });
   const result = await buildImpl(options);
@@ -388,6 +408,7 @@ async function preparePackage({
   stageRenderer = stageDesktopRendererArtifact,
   buildSupport = buildDesktopArtifactSupport,
   buildMain = buildPackagedMain,
+  buildServices = buildDesktopServices,
   buildPreload = buildPackagedPreload,
   buildProcessLifecycle = buildServerProcessLifecycle,
   log = console.log,
@@ -433,13 +454,22 @@ async function preparePackage({
   writeStagedDesktopComposition(paths, stagedRendererArtifact, stagedRuntimeArtifact);
 
   for (const file of ELECTRON_RUNTIME_FILES) {
-    if (["main.cjs", "preload.cjs", "server-process-lifecycle.cjs"].includes(file)) continue;
+    if (
+      ["main.cjs", "preload.cjs", "server-process-lifecycle.cjs", "desktop-services.cjs"].includes(
+        file,
+      )
+    )
+      continue;
     copyRegularFile(
       path.join(paths.desktopElectronSourceRoot, file),
       path.join(paths.electronAppStagingRoot, "electron", file),
       `Electron runtime file ${file}`,
     );
   }
+  await buildServices({
+    paths,
+    outfile: path.join(paths.electronAppStagingRoot, "electron", "desktop-services.cjs"),
+  });
   await buildMain({
     paths,
     outfile: path.join(paths.electronAppStagingRoot, "electron", "main.cjs"),
@@ -500,6 +530,7 @@ module.exports = {
   assertDesktopArtifactSupportBuild,
   assertServerProcessLifecycleBuild,
   buildPackagedMain,
+  buildDesktopServices,
   buildPackagedPreload,
   buildDesktopArtifactSupport,
   buildServerProcessLifecycle,

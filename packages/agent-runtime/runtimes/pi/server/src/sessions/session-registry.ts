@@ -19,6 +19,7 @@ import {
 
 import { installSystemPromptPlaceholders } from "./system-prompt-placeholders";
 import { createWorkbenchAgentSessionServices } from "../agent-runtime/agent-session-services";
+import { createEnhancedSearchTools } from "../internal-extensions/enhanced-search";
 
 import type {
   PiAssistantMessage,
@@ -3411,6 +3412,7 @@ async function createHost(
   initializeInactiveSessionJournal(sessionManager);
   const cwd = sessionManager.getCwd();
   const hostBindings = getPiAgentHostBindings();
+  const sessionPreferences = await hostBindings.readSessionPreferences?.();
   const initialContextPolicy = policyFromSessionEntries(sessionManager.getBranch());
   const services = await createWorkbenchAgentSessionServices({
     cwd,
@@ -3431,6 +3433,7 @@ async function createHost(
     sessionManager,
     ...modelSelection,
     customTools: [
+      ...(sessionPreferences?.enhancedSearch ? createEnhancedSearchTools(cwd) : []),
       ...(hostBindings.createBashToolOverride
         ? [
             // Pi applies custom tools after built-ins, so this same-name definition preserves the
@@ -3453,13 +3456,17 @@ async function createHost(
     throw new Error("Workbench does not replace a hosted Pi session in place");
   });
   const interactiveResponses = getInteractiveResponseRegistry();
-  const contextTrace = await activateSessionContextTrace(session.sessionId, (event) => {
-    getStreamHub().publishMux({
-      type: "session/context-trace",
-      sessionId: session.sessionId,
-      event,
-    });
-  });
+  const contextTrace = await activateSessionContextTrace(
+    session.sessionId,
+    (event) => {
+      getStreamHub().publishMux({
+        type: "session/context-trace",
+        sessionId: session.sessionId,
+        event,
+      });
+    },
+    sessionPreferences?.retainAllModelIO,
+  );
   contextTrace.setSystemPromptSourcesResolver(() =>
     sessionContextTraceSystemPromptSources(session.resourceLoader, cwd, services.agentDir),
   );
@@ -3471,7 +3478,10 @@ async function createHost(
   try {
     await session.bindExtensions({
       mode: "rpc",
-      uiContext: interactiveResponses.createExtensionUIContext(session.sessionId),
+      uiContext: interactiveResponses.createExtensionUIContext(
+        session.sessionId,
+        hostBindings.askUserSettings,
+      ),
     });
     host = new HostedPiSession(
       sessionRuntime,

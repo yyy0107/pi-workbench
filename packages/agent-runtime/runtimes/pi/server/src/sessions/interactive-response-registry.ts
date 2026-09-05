@@ -67,6 +67,7 @@ interface PendingBase {
   signal?: AbortSignal;
   onAbort?: () => void;
   timeout?: ReturnType<typeof setTimeout>;
+  unsubscribeTimeout?: () => void;
 }
 
 interface PendingQuestion<Value> extends PendingBase {
@@ -333,6 +334,7 @@ export class InteractiveResponseRegistry {
 
   private cleanup(entry: PendingBase): void {
     if (entry.timeout) clearTimeout(entry.timeout);
+    entry.unsubscribeTimeout?.();
     if (entry.signal && entry.onAbort) entry.signal.removeEventListener("abort", entry.onAbort);
   }
 
@@ -404,12 +406,16 @@ export class InteractiveResponseRegistry {
     defaultValue: Value,
     parseAnswer: (answers: QuestionAnswerItem[], nextQuestionIndex?: number) => Parsed<Value>,
     options?: DialogOptions,
-    step?: { progress: NonNullable<QuestionRequestedPayload["progress"]>; onTimeout(): Value },
+    step?: {
+      progress: NonNullable<QuestionRequestedPayload["progress"]>;
+      onTimeout(): Value;
+      subscribeTimeout?: (listener: (enabled: boolean) => void) => () => void;
+    },
   ): Promise<Value> {
     if (options?.signal?.aborted) return Promise.resolve(defaultValue);
 
     const rpcId = this.nextRpcId();
-    const expiresAt = validTimeout(options?.timeout) ? Date.now() + options.timeout : undefined;
+    let expiresAt = validTimeout(options?.timeout) ? Date.now() + options.timeout : undefined;
     return new Promise<Value>((resolve) => {
       const wasWaitingForUserInput = this.isSessionWaitingForUserInput(sessionId);
       const entry: PendingQuestion<Value> = {
@@ -427,15 +433,7 @@ export class InteractiveResponseRegistry {
       this.pending.set(rpcId, entry as PendingInteraction);
       if (!wasWaitingForUserInput) this.publishWaitingForUserInput(sessionId, true);
       options?.signal?.addEventListener("abort", onAbort, { once: true });
-      if (expiresAt !== undefined) {
-        entry.timeout = setTimeout(
-          () => (step ? this.claimQuestion(entry, step.onTimeout(), "answered") : onAbort()),
-          Math.max(0, expiresAt - Date.now()),
-        );
-        entry.timeout.unref?.();
-      }
-
-      try {
+      const publish = () => {
         this.hub.publishMux(
           {
             type: "question/requested",
@@ -446,13 +444,43 @@ export class InteractiveResponseRegistry {
           },
           { rpcId },
         );
+      };
+      const schedule = () => {
+        if (entry.timeout) clearTimeout(entry.timeout);
+        entry.timeout = undefined;
+        if (expiresAt === undefined) return;
+        entry.timeout = setTimeout(
+          () => (step ? this.claimQuestion(entry, step.onTimeout(), "answered") : onAbort()),
+          Math.max(0, expiresAt - Date.now()),
+        );
+        entry.timeout.unref?.();
+      };
+      try {
+        schedule();
+        publish();
+        entry.unsubscribeTimeout = step?.subscribeTimeout?.((enabled) => {
+          if (this.pending.get(rpcId) !== entry || enabled === (expiresAt !== undefined)) return;
+          expiresAt = enabled ? Date.now() + 5 * 60_000 : undefined;
+          schedule();
+          try {
+            publish();
+          } catch {
+            onAbort();
+          }
+        });
       } catch {
         this.claimQuestion(entry, defaultValue, "cancelled");
       }
     });
   }
 
-  createExtensionUIContext(sessionId: string): ExtensionUIContext & WorkbenchExtensionUIContext {
+  createExtensionUIContext(
+    sessionId: string,
+    questionSettings?: {
+      readAutoContinue?(): Promise<boolean>;
+      subscribeAutoContinue?(listener: (enabled: boolean) => void): () => void;
+    },
+  ): ExtensionUIContext & WorkbenchExtensionUIContext {
     return {
       workbenchAskUser: async (questions, dialogOptions) => {
         if (!validAskUserQuestions(questions)) {
@@ -468,6 +496,9 @@ export class InteractiveResponseRegistry {
           let currentIndex = 0;
           let savedAnswers: QuestionAnswerItem[] = [];
           while (true) {
+            const autoContinue = questionSettings?.readAutoContinue
+              ? await questionSettings.readAutoContinue()
+              : true;
             const result = await this.ask<QuestionResponseValue["answer"] | undefined>(
               sessionId,
               questions,
@@ -497,8 +528,13 @@ export class InteractiveResponseRegistry {
                     }
                   : parsed;
               },
-              { ...dialogOptions, signal, timeout: dialogOptions?.timeout ?? 30_000 },
               {
+                ...dialogOptions,
+                signal,
+                timeout: autoContinue ? (dialogOptions?.timeout ?? 5 * 60_000) : undefined,
+              },
+              {
+                subscribeTimeout: questionSettings?.subscribeAutoContinue?.bind(questionSettings),
                 progress: { currentIndex, answers: savedAnswers },
                 onTimeout: () => {
                   const id = questions[currentIndex]!.id;

@@ -14,6 +14,7 @@ import type {
   ToolPresentationDefinition,
 } from "@workbench/extension-sdk";
 import {
+  type TimelineSourceBlock,
   activeToolPresentationLabel,
   dataTimelineState,
   liveReasoningPreview,
@@ -39,6 +40,60 @@ function tool(toolName: string, args: Record<string, unknown>): ToolCallBlock {
 function data(name: string, value: DataBlock["data"]): DataBlock {
   return { key: `${name}-block`, kind: "data", name, data: value };
 }
+
+test("groups consecutive categories, preserves boundaries and prioritizes explicit parallel batches", () => {
+  const blocks = [
+    tool("read", {}),
+    tool("grep", {}),
+    data("boundary", {}),
+    tool("bash", {}),
+    tool("bash", {}),
+    tool("write", {}),
+    tool("edit", {}),
+  ];
+  const entries = timelineEntries(blocks, true, {
+    groupExplorationTools: true,
+    groupTerminalTools: true,
+    groupFileChanges: true,
+  });
+  assert.deepEqual(
+    entries.map((entry) => (entry.kind === "parallel-tools" ? entry.category : entry.kind)),
+    ["exploration", "block", "terminal", "changes"],
+  );
+  assert.deepEqual(
+    entries.flatMap<TimelineSourceBlock>((entry) =>
+      entry.kind === "block" ? [entry.block] : entry.blocks,
+    ),
+    blocks,
+  );
+  assert.equal(
+    timelineEntries([tool("read", {})], true, { groupExplorationTools: true })[0]?.kind,
+    "block",
+  );
+  const parallel = blocks
+    .slice(0, 2)
+    .map((block) => ({ ...block, parallelGroup: { key: "parallel", size: 2 } }));
+  const grouped = timelineEntries(parallel, true, { groupExplorationTools: true });
+  assert.equal(grouped[0]?.kind === "parallel-tools" && grouped[0].category, undefined);
+});
+
+test("can display parallel tool calls separately without losing their order", () => {
+  const blocks = [tool("read", { path: "a.ts" }), tool("read", { path: "b.ts" })].map((block) => ({
+    ...block,
+    parallelGroup: { key: "batch", size: 2 },
+  }));
+  assert.equal(timelineEntries(blocks).length, 1);
+  assert.deepEqual(
+    timelineEntries(blocks, false).map((entry) => entry.kind),
+    ["block", "block"],
+  );
+  assert.deepEqual(
+    timelineEntries(blocks, false).flatMap((entry) =>
+      entry.kind === "block" ? [entry.block] : [],
+    ),
+    blocks,
+  );
+});
 
 test("maps reasoning and common Pi tools to compact timeline steps", () => {
   const reasoning = {

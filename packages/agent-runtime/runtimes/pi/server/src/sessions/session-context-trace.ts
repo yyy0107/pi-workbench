@@ -969,6 +969,7 @@ function registry(): SessionContextTraceRegistryState {
 export async function activateSessionContextTrace(
   sessionId: string,
   publisher?: TracePublisher,
+  retainAll = false,
 ): Promise<SessionContextTrace> {
   let journal: SessionContextTraceJournal | undefined;
   // The Node test runner frequently removes its temporary Pi home before global session
@@ -978,7 +979,7 @@ export async function activateSessionContextTrace(
     !process.env.PI_WORKBENCH_CONTEXT_TRACE_DIR?.trim();
   if (!testHarnessWithoutJournalRoot) {
     try {
-      journal = await SessionContextTraceJournal.create(sessionId);
+      journal = await SessionContextTraceJournal.create(sessionId, undefined, retainAll);
     } catch (error) {
       console.error("[workbench-pi] context trace journal unavailable", error);
     }

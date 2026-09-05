@@ -1,16 +1,13 @@
 const path = require("node:path");
 
+const electron = require("electron");
 const {
-  app,
-  BrowserWindow,
-  dialog,
-  ipcMain,
-  nativeTheme,
-  net,
-  protocol,
-  session,
-  shell,
-} = require("electron");
+  readDesktopSettings,
+  createDesktopServices,
+  runtimeHasActiveTasks,
+} = require("./desktop-services.cjs");
+const { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, session, shell } =
+  electron;
 const {
   createPackagedSmokeOwnerReporter,
   startPackagedWorkbenchRuntime,
@@ -52,6 +49,34 @@ let runtimeStopComplete = false;
 let rendererProtocolInstalled = false;
 let quitPreparation;
 let rendererTitleBarOverlayOptions;
+let desktopSettings;
+let desktopSettingsError;
+try {
+  desktopSettings = readDesktopSettings(app);
+  if (!desktopSettings.preferences.hardwareAcceleration) app.disableHardwareAcceleration();
+} catch (error) {
+  desktopSettingsError = error;
+}
+const desktopServices = desktopSettings
+  ? createDesktopServices(electron, {
+      settings: desktopSettings,
+      isTrusted: isTrustedMainFrameEvent,
+      getWindow: () => mainWindow,
+      hasActiveTasks: () =>
+        runtimeHasActiveTasks(rendererRuntimeConnection, (url, options) => net.fetch(url, options)),
+      onInstallFailed() {
+        app.relaunch();
+        app.quit();
+      },
+      async beforeInstall() {
+        isQuitting = true;
+        await Promise.allSettled([runtimeStartPromise, runtimeRestartPromise]);
+        await stopWorkbenchRuntime();
+        runtimeStopComplete = true;
+        desktopServices.dispose();
+      },
+    })
+  : undefined;
 
 function titleBarOverlayOptions() {
   if (rendererTitleBarOverlayOptions) return rendererTitleBarOverlayOptions;
@@ -218,6 +243,12 @@ function createMainWindow(workbenchUrl) {
     event.preventDefault();
     openExternalUrl(url, workbenchOrigin);
   });
+  window.on("close", (event) => {
+    if (process.platform === "darwin" && !isQuitting) {
+      event.preventDefault();
+      window.hide();
+    }
+  });
   window.once("ready-to-show", () => window.show());
   window.once("closed", () => {
     if (mainWindow === window) mainWindow = undefined;
@@ -338,6 +369,8 @@ ipcMain.handle(RUNTIME_RESTART_CHANNEL, (event) => {
 });
 
 async function bootstrap() {
+  if (desktopSettingsError) throw desktopSettingsError;
+  await desktopServices.start();
   session.defaultSession.setPermissionCheckHandler(
     (webContents, permission, requestingOrigin, details) =>
       isTrustedClipboardWrite(
@@ -372,6 +405,7 @@ async function bootstrap() {
     supportPath,
     rendererOrigin,
     reportOwner: createPackagedSmokeOwnerReporter(),
+    environment: desktopServices.environment,
   });
   packagedRuntimeSession = await startWorkbenchRuntime();
   if (isQuitting) {
@@ -408,6 +442,11 @@ if (!hasSingleInstanceLock) {
     mainWindow.focus();
   });
   app.on("activate", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+      return;
+    }
     if (BrowserWindow.getAllWindows().length === 0 && runtimeReady && currentWorkbenchUrl) {
       mainWindow = createMainWindow(currentWorkbenchUrl);
     }
@@ -427,6 +466,7 @@ if (!hasSingleInstanceLock) {
   });
   app.on("before-quit", (event) => {
     isQuitting = true;
+    desktopServices?.dispose();
     if (runtimeStopComplete) return;
 
     event.preventDefault();

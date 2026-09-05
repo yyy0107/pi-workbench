@@ -30,6 +30,17 @@ const emptyPayload = rpcObject({});
 const workbenchSettingsUpdatePayload = rpcObject({
   patch: rpcObject({
     appearance: rpcOptional(rpcNullable(rpcRecord(rpcUnknown))),
+    runningMessageMode: rpcOptional(rpcNullable(rpcEnum(["queue", "steer"]))),
+    showReasoning: rpcOptional(rpcNullable(rpcBoolean)),
+    groupParallelTools: rpcOptional(rpcNullable(rpcBoolean)),
+    askUserEnabled: rpcOptional(rpcNullable(rpcBoolean)),
+    enhancedSearch: rpcOptional(rpcNullable(rpcBoolean)),
+    askUserAutoContinue: rpcOptional(rpcNullable(rpcBoolean)),
+    retainAllModelIO: rpcOptional(rpcNullable(rpcBoolean)),
+    showTodos: rpcOptional(rpcNullable(rpcBoolean)),
+    groupExplorationTools: rpcOptional(rpcNullable(rpcBoolean)),
+    groupTerminalTools: rpcOptional(rpcNullable(rpcBoolean)),
+    groupFileChanges: rpcOptional(rpcNullable(rpcBoolean)),
     backgroundImage: rpcOptional(
       rpcNullable(
         rpcObject({

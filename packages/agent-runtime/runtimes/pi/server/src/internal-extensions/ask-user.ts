@@ -16,6 +16,8 @@ interface AskUserDetails {
 }
 
 export interface AskUserCapabilitySettings {
+  readAutoContinue?(): Promise<boolean>;
+  subscribeAutoContinue?(listener: (enabled: boolean) => void): () => void;
   readEnabled(): Promise<boolean>;
   subscribe(listener: (enabled: boolean) => void): () => void;
 }
@@ -232,7 +234,7 @@ export function createAskUserExtension(
         if (typeof ui.workbenchAskUser !== "function") {
           throw new Error("Ask User requires the Workbench question UI");
         }
-        const answers = await ui.workbenchAskUser(questions, { signal, timeout: 30_000 });
+        const answers = await ui.workbenchAskUser(questions, { signal });
         return toolResult(questions, answers);
       },
     });

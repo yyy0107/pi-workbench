@@ -314,7 +314,7 @@ test("question deadlines survive reconnect and record only the expired question 
   assert.equal(frames.filter((frame) => frame.payload.type === "question/resolved").length, 1);
 });
 
-test("each question gets 30 seconds; skip and timeout preserve earlier answers", async (t) => {
+test("each question gets 5 minutes; skip and timeout preserve earlier answers", async (t) => {
   t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 1_000_000 });
   const { registry, hub, frames, ready } = createHarness();
   await ready;
@@ -347,18 +347,18 @@ test("each question gets 30 seconds; skip and timeout preserve earlier answers",
     );
 
   const first = latest();
-  assert.equal(first.payload.expiresAt, 1_030_000);
-  t.mock.timers.tick(25_000);
+  assert.equal(first.payload.expiresAt, 1_300_000);
+  t.mock.timers.tick(250_000);
   const answered = { id: "first", selected: [], custom: "Keep my answer" };
   assert.deepEqual(respond(first.rpcId, [answered], 1), { accepted: true });
   await Promise.resolve();
   const second = latest();
   assert.notEqual(second.rpcId, first.rpcId);
-  assert.equal(second.payload.expiresAt, 1_055_000);
+  assert.equal(second.payload.expiresAt, 1_550_000);
   assert.deepEqual(second.payload.progress, { currentIndex: 1, answers: [answered] });
 
   // Passing the old question's deadline cannot expire the new one.
-  t.mock.timers.tick(5_000);
+  t.mock.timers.tick(50_000);
   assert.equal(registry.pendingCount, 1);
   assert.deepEqual(respond(first.rpcId, [], 2), { accepted: false, reason: "not-pending" });
   const skipped = { id: "second", selected: [], skipped: true as const };
@@ -373,10 +373,10 @@ test("each question gets 30 seconds; skip and timeout preserve earlier answers",
   assert.deepEqual(respond(second.rpcId, [answered, skipped], 2), { accepted: true });
   await Promise.resolve();
   const third = latest();
-  assert.equal(third.payload.expiresAt, 1_060_000);
+  assert.equal(third.payload.expiresAt, 1_600_000);
   assert.deepEqual(third.payload.progress, { currentIndex: 2, answers: [answered, skipped] });
 
-  t.mock.timers.tick(10_000);
+  t.mock.timers.tick(100_000);
   const replayed: ServerRequest<MuxStreamPayload>[] = [];
   await hub.subscribe("mux", {
     onFrame: (frame) => replayed.push(frame),
@@ -384,7 +384,7 @@ test("each question gets 30 seconds; skip and timeout preserve earlier answers",
   }).ready;
   assert.equal(requestedFrame(replayed, "question/requested").rpcId, third.rpcId);
   assert.deepEqual(requestedFrame(replayed, "question/requested").payload, third.payload);
-  t.mock.timers.tick(20_000);
+  t.mock.timers.tick(200_000);
   assert.deepEqual(await result, [answered, skipped, { id: "third", selected: [], skipped: true }]);
   assert.equal(registry.pendingCount, 0);
 });
@@ -396,14 +396,14 @@ test("timeouts advance through all questions and cancellation still ends the gro
   const ui = registry.createExtensionUIContext("all-timeouts");
   const questions = ["first", "second"].map((id) => ({ id, question: id, required: true }));
   const result = ui.workbenchAskUser(questions);
-  t.mock.timers.tick(30_000);
+  t.mock.timers.tick(300_000);
   await Promise.resolve();
   assert.equal(registry.pendingCount, 1);
   const second = frames.findLast((frame) => frame.payload.type === "question/requested")!;
   if (second.payload.type !== "question/requested") assert.fail("Expected question");
   assert.equal(second.payload.progress?.currentIndex, 1);
-  assert.equal(second.payload.expiresAt, 1_060_000);
-  t.mock.timers.tick(30_000);
+  assert.equal(second.payload.expiresAt, 1_600_000);
+  t.mock.timers.tick(300_000);
   assert.deepEqual(
     await result,
     questions.map(({ id }) => ({ id, selected: [], skipped: true })),
@@ -418,8 +418,39 @@ test("timeouts advance through all questions and cancellation still ends the gro
   // Clear in the microtask gap before the next question is created.
   registry.clearSession("all-timeouts");
   assert.equal(await cancelled, undefined);
-  t.mock.timers.tick(60_000);
+  t.mock.timers.tick(600_000);
   assert.equal(registry.pendingCount, 0);
+});
+
+test("changing auto-continue cancels and restores the deadline of an active question", async (t) => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 1_000_000 });
+  const { registry, frames, ready } = createHarness();
+  await ready;
+  let enabled = true;
+  let listener: ((enabled: boolean) => void) | undefined;
+  const ui = registry.createExtensionUIContext("live-preferences", {
+    readAutoContinue: async () => enabled,
+    subscribeAutoContinue: (next) => {
+      listener = next;
+      return () => {
+        listener = undefined;
+      };
+    },
+  });
+  const answer = ui.workbenchAskUser([{ id: "question", question: "Choose" }]);
+  await Promise.resolve();
+  enabled = false;
+  listener?.(false);
+  t.mock.timers.tick(600_000);
+  assert.equal(registry.pendingCount, 1);
+  const last = frames.findLast((frame) => frame.payload.type === "question/requested");
+  assert.ok(last && last.payload.type === "question/requested");
+  assert.equal(last.payload.expiresAt, undefined);
+  enabled = true;
+  listener?.(true);
+  t.mock.timers.tick(300_000);
+  assert.deepEqual(await answer, [{ id: "question", selected: [], skipped: true }]);
+  assert.equal(listener, undefined);
 });
 
 test("maps confirm and input answers and settles cancellation, abort, and timeout", async () => {

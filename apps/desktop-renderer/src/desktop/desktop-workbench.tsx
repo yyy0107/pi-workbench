@@ -16,6 +16,8 @@ import { desktopRendererTranslationBundle } from "@/app/i18n/bundle";
 import { DesktopNavigationProvider } from "@/navigation/desktop-navigation-provider";
 
 import { DesktopTitleBarOverlaySync } from "./desktop-title-bar-overlay-sync";
+import { DesktopTaskNotifications } from "./desktop-task-notifications";
+import { desktopSettingsExtension } from "./desktop-settings";
 import { restartDesktopRuntime } from "./runtime-bootstrap";
 
 const defineDesktopRendererMessage = createTranslationBundleMessageFactory(
@@ -36,7 +38,18 @@ const DESKTOP_RUNTIME_LIFECYCLE_EXTENSION = defineExtension({
     });
   },
 });
-const DESKTOP_EXTENSIONS = Object.freeze([DESKTOP_RUNTIME_LIFECYCLE_EXTENSION]);
+const DESKTOP_EXTENSIONS = Object.freeze([
+  DESKTOP_RUNTIME_LIFECYCLE_EXTENSION,
+  desktopSettingsExtension,
+]);
+function DesktopInstallationEffects(props: Parameters<typeof DesktopTitleBarOverlaySync>[0]) {
+  return (
+    <>
+      <DesktopTitleBarOverlaySync {...props} />
+      <DesktopTaskNotifications />
+    </>
+  );
+}
 const PRODUCT_ASSETS = Object.freeze({
   fileViewerAssetBaseUrl: "/file-viewer",
   materialIconThemeBaseUrl: "/vendor/material-icon-theme",
@@ -69,7 +82,7 @@ export function DesktopWorkbench({
         <PiWorkbenchShell
           assets={PRODUCT_ASSETS}
           platformExtensions={DESKTOP_EXTENSIONS}
-          installationEffects={DesktopTitleBarOverlaySync}
+          installationEffects={DesktopInstallationEffects}
           mainViewHost={DesktopMainViewHost}
         >
           <WorkbenchThread />

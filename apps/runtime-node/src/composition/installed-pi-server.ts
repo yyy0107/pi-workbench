@@ -167,6 +167,13 @@ function createInstalledPiAgentHostBindings(
   return {
     workspaceFiles,
     attachmentUnderstandingSettings: getImageUnderstandingSettingsStore,
+    async readSessionPreferences() {
+      const { preferences } = await settings.describe();
+      return {
+        enhancedSearch: preferences.enhancedSearch === true,
+        retainAllModelIO: preferences.retainAllModelIO === true,
+      };
+    },
     createBashToolOverride({ cwd, sessionId, commandPrefix, shellPath }) {
       return createWorkbenchBashToolOverride(cwd, sessionId, {
         ...(commandPrefix === undefined ? {} : { commandPrefix }),
@@ -174,6 +181,31 @@ function createInstalledPiAgentHostBindings(
       });
     },
     askUserSettings: {
+      async readAutoContinue() {
+        return (await settings.describe()).preferences.askUserAutoContinue !== false;
+      },
+      subscribeAutoContinue(listener) {
+        let active = true;
+        let changed = false;
+        const unsubscribe = subscribeWorkbenchSettingsPreferences(
+          settings.stateFile,
+          (preferences) => {
+            changed = true;
+            listener(preferences.askUserAutoContinue !== false);
+          },
+        );
+        // Close the race between the request's initial read and subscribing its live timer.
+        void settings
+          .describe()
+          .then(({ preferences }) => {
+            if (active && !changed) listener(preferences.askUserAutoContinue !== false);
+          })
+          .catch(() => {});
+        return () => {
+          active = false;
+          unsubscribe();
+        };
+      },
       async readEnabled() {
         return (await settings.describe()).preferences.askUserEnabled !== false;
       },

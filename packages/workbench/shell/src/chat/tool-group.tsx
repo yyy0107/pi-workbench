@@ -79,17 +79,19 @@ function ToolGroupRoot({
 
 function ToolGroupTrigger({
   count,
+  label: labelOverride,
   active = false,
   icon: Icon,
   className,
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   count: number;
+  label?: string;
   active?: boolean;
   icon?: LucideIcon;
 }) {
   const { t } = useI18n();
-  const label = t("assistant.tool.calls", { count });
+  const label = labelOverride ?? t("assistant.tool.calls", { count });
 
   return (
     <CollapsibleTrigger

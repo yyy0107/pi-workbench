@@ -15,6 +15,28 @@ function setTitleBarOverlay(options) {
 contextBridge.exposeInMainWorld(
   "workbenchDesktop",
   Object.freeze({
+    settings: Object.freeze({
+      load: () => ipcRenderer.invoke("workbench:desktop-settings"),
+      update: (patch) => ipcRenderer.invoke("workbench:desktop-settings", patch),
+      setUpdateToken: (token) => ipcRenderer.invoke("workbench:desktop-update-token", token),
+      runUpdate: (action) => ipcRenderer.invoke("workbench:desktop-update", action),
+      syncTasks: (state) => ipcRenderer.invoke("workbench:desktop-task-state", state),
+      subscribe: (listener) => {
+        const handler = (_event, value) => listener(value);
+        ipcRenderer.on("workbench:desktop-changed", handler);
+        return () => ipcRenderer.removeListener("workbench:desktop-changed", handler);
+      },
+      onOpenTask: (listener) => {
+        const handler = (_event, id) => listener(id);
+        ipcRenderer.on("workbench:desktop-open-task", handler);
+        return () => ipcRenderer.removeListener("workbench:desktop-open-task", handler);
+      },
+      onNotificationSound: (listener) => {
+        const handler = (_event, sound) => listener(sound);
+        ipcRenderer.on("workbench:desktop-notification-sound", handler);
+        return () => ipcRenderer.removeListener("workbench:desktop-notification-sound", handler);
+      },
+    }),
     lifecycle: Object.freeze({
       restartRuntime: () => ipcRenderer.invoke(RUNTIME_RESTART_CHANNEL),
     }),

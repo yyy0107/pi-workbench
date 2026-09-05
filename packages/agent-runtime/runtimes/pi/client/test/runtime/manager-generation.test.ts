@@ -4004,6 +4004,26 @@ test("publishes Headless thread-list host deltas", (t) => {
   assert.equal(manager.threads.getSnapshot().threads[0]?.title, "Metadata-only rename");
   assert.equal(manager.threads.getSnapshot().threads[0]?.isRunning, true);
 
+  internals.handleHostFrame(
+    { type: "host/agent-error", sessionId: created.id, message: "Test failure" },
+    1,
+  );
+  assert.equal(manager.threads.getSnapshot().threads[0]?.lastRunFailed, true);
+  internals.handleHostFrame(
+    { type: "host/session-status", sessionId: created.id, running: true },
+    1,
+  );
+  assert.equal(manager.threads.getSnapshot().threads[0]?.lastRunFailed, true);
+  internals.handleHostFrame(
+    { type: "host/session-status", sessionId: created.id, running: false },
+    1,
+  );
+  internals.handleHostFrame(
+    { type: "host/session-status", sessionId: created.id, running: true },
+    1,
+  );
+  assert.equal(manager.threads.getSnapshot().threads[0]?.lastRunFailed, false);
+
   internals.handleHostFrame({ type: "host/session-removed", sessionId: created.id }, 1);
   assert.ok(invalidations >= 3);
   assert.deepEqual(manager.threads.getSnapshot().threads, []);

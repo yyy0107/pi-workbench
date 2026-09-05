@@ -82,7 +82,8 @@ import {
 } from "./composer-directive";
 import { ComposerTokenIcon, type ComposerTokenKind } from "./composer-token-icon";
 import { MarkdownComposerInput } from "./markdown-composer-input";
-import { submitWorkbenchComposer } from "./composer-submit";
+import { runningComposerMode, submitWorkbenchComposer } from "./composer-submit";
+import { useConversationPreferences } from "./conversation-preferences";
 import { ComposerTriggerEngine, excludeSlashPathOrCode } from "./composer-trigger-engine";
 import { formatAgentCommandLabel } from "./agent-command";
 import {
@@ -265,7 +266,7 @@ function ComposerAccessibilityPlugin({
   return null;
 }
 
-function ComposerEnterPlugin({ onSubmit }: Readonly<{ onSubmit(steer: boolean): void }>) {
+function ComposerEnterPlugin({ onSubmit }: Readonly<{ onSubmit(invertMode?: boolean): void }>) {
   const [editor] = useLexicalComposerContext();
   useEffect(
     () =>
@@ -382,7 +383,11 @@ export function WorkbenchComposer({
   const composerValue = composer.text;
   const composerAttachments = composer.attachments;
   const isEmpty = !composerValue.trim() && composerAttachments.length === 0;
-  const canQueue = session.actions.queue !== undefined;
+  const preferredRunningMode = useConversationPreferences(
+    (state) => state.preferences.runningMessageMode,
+  );
+  const runningMode = runningComposerMode(session.actions, preferredRunningMode);
+  const canSendWhileRunning = session.actions[runningMode] !== undefined;
   const canSend = composer.phase !== "submitting" && !isEmpty;
   const attachmentsEnabled = session.actions.addComposerAttachment !== undefined;
   const mainThreadId = session.id;
@@ -882,7 +887,9 @@ export function WorkbenchComposer({
   );
 
   const dispatchComposer = useCallback(
-    (steer = false) => {
+    (invertMode = false) => {
+      const steer =
+        runningComposerMode(session.actions, preferredRunningMode, invertMode) === "steer";
       const snapshot = session.snapshot.getSnapshot();
       if (!canSubmit) {
         setSubmissionBlocked(true);
@@ -960,6 +967,7 @@ export function WorkbenchComposer({
       composerSuggestionsByCommandKey,
       agentCommands,
       reportComposerCommandError,
+      preferredRunningMode,
       session,
       updateCommandParameterValues,
     ],
@@ -1181,8 +1189,10 @@ export function WorkbenchComposer({
               directiveChip={renderDirectiveChip}
               onCursorPositionChange={setComposerCursorPosition}
               placeholder={t(
-                isRunning && canQueue
-                  ? "workbench.chat.composer.runningPlaceholder"
+                isRunning && canSendWhileRunning
+                  ? runningMode === "steer"
+                    ? "workbench.chat.composer.runningSteerPlaceholder"
+                    : "workbench.chat.composer.runningPlaceholder"
                   : "workbench.chat.composer.placeholder",
               )}
               className={cn(
@@ -1272,7 +1282,13 @@ export function WorkbenchComposer({
               <ComposerPrimaryActionView
                 isRunning={isRunning}
                 canSend={canSend}
-                sendLabel={t("workbench.chat.composer.sendMessage")}
+                sendLabel={t(
+                  isRunning
+                    ? runningMode === "steer"
+                      ? "workbench.chat.composer.steerMessage"
+                      : "workbench.chat.composer.queueFollowUp"
+                    : "workbench.chat.composer.sendMessage",
+                )}
                 stopLabel={t("workbench.chat.composer.stopGenerating")}
                 onSend={() => dispatchComposer()}
                 onCancel={() => void session.actions.cancel?.().catch(console.error)}

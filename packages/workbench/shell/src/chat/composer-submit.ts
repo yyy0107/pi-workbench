@@ -13,6 +13,15 @@ interface ComposerSubmitOptions {
   readonly steer?: boolean;
 }
 
+export function runningComposerMode(
+  actions: ComposerSubmitSession["actions"],
+  preferred: "queue" | "steer",
+  invert = false,
+): "queue" | "steer" {
+  const mode = actions[preferred] ? preferred : preferred === "steer" ? "queue" : "steer";
+  return invert ? (mode === "queue" ? "steer" : "queue") : mode;
+}
+
 /**
  * Select the action from the live Session snapshot so IME completion cannot race React.
  */

@@ -39,6 +39,7 @@ export type ToolTimelineEntry =
   | {
       kind: "parallel-tools";
       batchId: string;
+      category?: "exploration" | "terminal" | "changes";
       blocks: readonly ToolCallBlock[];
       sourceIndices: readonly number[];
     };
@@ -140,17 +141,43 @@ function firstString(value: unknown): string | undefined {
   return value.find((item): item is string => typeof item === "string" && item.trim().length > 0);
 }
 
-export function timelineEntries(blocks: readonly TimelineSourceBlock[]): ToolTimelineEntry[] {
+export function timelineEntries(
+  blocks: readonly TimelineSourceBlock[],
+  groupParallelTools = true,
+  groups: {
+    groupExplorationTools?: boolean;
+    groupTerminalTools?: boolean;
+    groupFileChanges?: boolean;
+  } = {},
+): ToolTimelineEntry[] {
   const entries: ToolTimelineEntry[] = [];
 
   blocks.forEach((block, sourceIndex) => {
-    const batchId = block.kind === "tool-call" ? block.parallelGroup?.key : undefined;
+    const kind = block.kind === "tool-call" ? toolKind(block.toolName) : undefined;
+    const category =
+      (kind === "read" || kind === "searched") && groups.groupExplorationTools
+        ? "exploration"
+        : kind === "ran" && groups.groupTerminalTools
+          ? "terminal"
+          : kind === "edited" && groups.groupFileChanges
+            ? "changes"
+            : undefined;
+    const previous = entries.at(-1);
+    const parallelId =
+      groupParallelTools && block.kind === "tool-call" ? block.parallelGroup?.key : undefined;
+    const batchId =
+      parallelId ??
+      (category && block.kind === "tool-call"
+        ? previous?.kind === "parallel-tools" && previous.category === category
+          ? previous.batchId
+          : `category:${category}:${block.callId}`
+        : undefined);
+    const groupedCategory = parallelId ? undefined : category;
     if (!batchId || block.kind !== "tool-call") {
       entries.push({ kind: "block", block, sourceIndex });
       return;
     }
 
-    const previous = entries.at(-1);
     if (previous?.kind === "parallel-tools" && previous.batchId === batchId) {
       entries[entries.length - 1] = {
         ...previous,
@@ -163,12 +190,17 @@ export function timelineEntries(blocks: readonly TimelineSourceBlock[]): ToolTim
     entries.push({
       kind: "parallel-tools",
       batchId,
+      ...(groupedCategory ? { category: groupedCategory } : {}),
       blocks: [block],
       sourceIndices: [sourceIndex],
     });
   });
 
-  return entries;
+  return entries.map((entry) =>
+    entry.kind === "parallel-tools" && entry.category && entry.blocks.length === 1
+      ? { kind: "block", block: entry.blocks[0]!, sourceIndex: entry.sourceIndices[0]! }
+      : entry,
+  );
 }
 
 function registeredToolChip(

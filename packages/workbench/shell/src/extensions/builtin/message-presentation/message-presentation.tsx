@@ -25,6 +25,7 @@ import {
 import { ReasoningPanel } from "../../../elements/reasoning-panel";
 import type { Source } from "../../../elements/inline-citation";
 import { useI18n } from "../../../i18n";
+import { useConversationPreferences } from "../../../chat/conversation-preferences";
 
 import {
   completedWorkBoundary,
@@ -34,7 +35,7 @@ import {
 import { CompletedTurnPanel } from "./completed-turn-panel";
 import { messageCitationLayout } from "./message-citations";
 import { MessageDisclosureProvider, useMessageDisclosure } from "./message-disclosure-context";
-import { messageAttachmentReference } from "./message-presentation-policy";
+import { messageAttachmentReference, visibleMessageBlocks } from "./message-presentation-policy";
 import { MessageToolTimeline } from "./message-tool-timeline";
 import { dataTimelineState, type DataTimelineState } from "./tool-timeline-model";
 
@@ -153,11 +154,13 @@ function belongsToPlainTimeline(
 
 function MessageBlockRange({
   end,
+  groupParallelTools,
   node,
   presentations,
   start,
 }: Readonly<{
   end: number;
+  groupParallelTools: boolean;
   node: MessageRendererProps["node"];
   presentations: Readonly<Record<string, DataPresentationDefinition>>;
   start: number;
@@ -220,6 +223,7 @@ function MessageBlockRange({
           indices={indices}
           blocks={node.blocks}
           transportRecovering={false}
+          groupParallelTools={groupParallelTools}
         />,
       );
       continue;
@@ -244,8 +248,18 @@ function MessageBlockRange({
   return content;
 }
 
-export function WorkbenchMessagePresentation({ node }: MessageRendererProps) {
+export function WorkbenchMessagePresentation({ node: sourceNode }: MessageRendererProps) {
   const { t, date, locale, relativeTime } = useI18n();
+  const { showReasoning, showTodos, groupParallelTools } = useConversationPreferences(
+    (state) => state.preferences,
+  );
+  const node = useMemo(
+    () => ({
+      ...sourceNode,
+      blocks: visibleMessageBlocks(sourceNode.blocks, showReasoning, showTodos),
+    }),
+    [sourceNode, showReasoning, showTodos],
+  );
   const dataPresentations = useDataPresentationMap();
   const custom = node.presentation?.custom;
   const storedTurnTiming = custom?.workbenchTurnTiming;
@@ -282,6 +296,7 @@ export function WorkbenchMessagePresentation({ node }: MessageRendererProps) {
             start={0}
             end={completedBoundary}
             presentations={dataPresentations}
+            groupParallelTools={groupParallelTools}
           />
         </CompletedTurnPanel>
       ) : null}
@@ -290,6 +305,7 @@ export function WorkbenchMessagePresentation({ node }: MessageRendererProps) {
         start={completedWork ? completedBoundary : 0}
         end={node.blocks.length}
         presentations={dataPresentations}
+        groupParallelTools={groupParallelTools}
       />
     </MessageDisclosureProvider>
   );

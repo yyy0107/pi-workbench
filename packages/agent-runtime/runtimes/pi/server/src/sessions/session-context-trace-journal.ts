@@ -387,13 +387,14 @@ export class SessionContextTraceJournal {
   static async create(
     sessionId: string,
     activationId: string = randomUUID(),
+    retainAll = false,
   ): Promise<SessionContextTraceJournal> {
     assertActivationId(activationId);
     const root = configuredRoot();
     const directory = sessionDirectory(sessionId);
     await ensurePrivateDirectory(root);
     await ensurePrivateDirectory(directory);
-    await pruneCompletedActivations(sessionId);
+    if (!retainAll) await pruneCompletedActivations(sessionId);
 
     const startedAt = Date.now();
     const header = serializeRecord({

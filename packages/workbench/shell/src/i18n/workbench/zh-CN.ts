@@ -11,7 +11,9 @@ export const workbenchZhCN = {
     },
     composer: {
       placeholder: "描述你想完成的任务，或粘贴需要处理的内容…",
-      runningPlaceholder: "按下 Enter 发送排队消息，按下 Ctrl+Enter 直接发送引导消息…",
+      runningPlaceholder: "按 Enter 加入队列，按 Ctrl/Cmd+Enter 调整当前运行的方向…",
+      runningSteerPlaceholder: "按 Enter 调整当前运行的方向，按 Ctrl/Cmd+Enter 加入队列…",
+      steerMessage: "调整方向",
       selectWorkspacePlaceholder: "请先选择工作区，再开始会话…",
       messageInput: "消息输入框",
       commandSuggestions: "命令建议",

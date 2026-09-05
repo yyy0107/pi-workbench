@@ -21,6 +21,10 @@ export interface PiAgentHostBindings {
   >;
   readonly createBashToolOverride?: (input: PiBashToolFactoryInput) => ToolDefinition;
   readonly askUserSettings?: AskUserCapabilitySettings;
+  readonly readSessionPreferences?: () => Promise<{
+    enhancedSearch: boolean;
+    retainAllModelIO: boolean;
+  }>;
 }
 
 interface PiAgentHostBindingsGlobal {

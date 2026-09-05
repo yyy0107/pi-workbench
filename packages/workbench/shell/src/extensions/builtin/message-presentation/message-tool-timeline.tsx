@@ -20,6 +20,8 @@ import type {
   ToolCallBlock,
 } from "@workbench/agent-runtime-contracts/conversation";
 
+import { useConversationPreferences } from "../../../chat/conversation-preferences";
+import { TodoList } from "./todo-list";
 import { ToolGroupContent, ToolGroupRoot, ToolGroupTrigger } from "../../../chat/tool-group";
 import { ReasoningPanel, type ReasoningStep } from "../../../elements/reasoning-panel";
 import { ReviewableDiff, type HunkDecision } from "../../../elements/reviewable-diff";
@@ -357,14 +359,17 @@ function TimelineToolCall({
   const resultLabel = t("extensions.messagePresentation.toolTimeline.result");
   const request = state.request;
   const result = serializeToolValue(state.result);
-  const fallbackDetail = (
-    <ToolCallDetails
-      request={request}
-      result={result}
-      requestLabel={requestLabel}
-      resultLabel={resultLabel}
-    />
-  );
+  const fallbackDetail =
+    block.toolName === "workbench_todo" && block.status === "complete" ? (
+      <TodoList block={block} />
+    ) : (
+      <ToolCallDetails
+        request={request}
+        result={result}
+        requestLabel={requestLabel}
+        resultLabel={resultLabel}
+      />
+    );
 
   return (
     <ToolCall
@@ -442,6 +447,7 @@ function TimelineToolCall({
 
 function ParallelToolGroup({
   batchId,
+  category,
   blocks,
   kinds,
   node,
@@ -449,12 +455,14 @@ function ParallelToolGroup({
   presentations,
 }: {
   batchId: string;
+  category?: "exploration" | "terminal" | "changes";
   blocks: readonly ToolCallBlock[];
   kinds: readonly ToolTimelineStepKind[];
   node: MessageRendererNode;
   queries: readonly string[];
   presentations: readonly (ToolPresentationDefinition | undefined)[];
 }) {
+  const { t } = useI18n();
   const running = blocks.some((block) => block.status === "running");
   const [open, setOpen] = useMessageDisclosure("parallel-tools", batchId);
 
@@ -467,6 +475,11 @@ function ParallelToolGroup({
     >
       <ToolGroupTrigger
         count={blocks.length}
+        label={
+          category
+            ? t(`extensions.settings.conversation.${category}Group`, { count: blocks.length })
+            : undefined
+        }
         active={running}
         icon={WrenchIcon}
         className="text-foreground/55 hover:text-foreground/90 gap-1.5 py-1 text-[13.5px] transition-colors outline-none"
@@ -495,16 +508,19 @@ function ParallelToolGroup({
 export function MessageToolTimeline({
   blocks,
   children,
+  groupParallelTools = true,
   indices,
   node,
   transportRecovering,
 }: PropsWithChildren<{
   blocks?: readonly MessageBlock[];
+  groupParallelTools?: boolean;
   indices: readonly number[];
   node: MessageRendererNode;
   transportRecovering: boolean;
 }>) {
   const { t, text } = useI18n();
+  const groups = useConversationPreferences((state) => state.preferences);
   const toolPresentations = useToolPresentationMap();
   const dataPresentations = useDataPresentationMap();
   const [open, setOpen] = useMessageDisclosure("steps", indices[0] ?? "empty");
@@ -526,7 +542,10 @@ export function MessageToolTimeline({
     () => timelineSteps(timelineBlocks, toolPresentations),
     [timelineBlocks, toolPresentations],
   );
-  const entries = useMemo(() => timelineEntries(timelineBlocks), [timelineBlocks]);
+  const entries = useMemo(
+    () => timelineEntries(timelineBlocks, groupParallelTools, groups),
+    [timelineBlocks, groupParallelTools, groups],
+  );
   const stats = useMemo(
     () =>
       timelineStats(
@@ -551,6 +570,7 @@ export function MessageToolTimeline({
         body: (
           <ParallelToolGroup
             batchId={entry.batchId}
+            category={entry.category}
             blocks={parallelBlocks}
             kinds={models.flatMap((model) => (model && model.kind !== "data" ? [model.kind] : []))}
             node={node}

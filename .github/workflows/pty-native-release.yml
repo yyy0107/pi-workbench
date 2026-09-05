@@ -105,7 +105,7 @@ jobs:
 
       - name: Build unsigned Electron packages
         if: startsWith(github.ref, 'refs/tags/')
-        run: pnpm --filter @workbench/desktop-electron dist:artifact
+        run: pnpm --filter @workbench/desktop-electron dist:artifact --publish never
 
       - name: Prepare target release assets and checksums
         if: startsWith(github.ref, 'refs/tags/')
@@ -153,5 +153,6 @@ jobs:
           fail_on_unmatched_files: true
           body: |
             These artifacts are unsigned. Windows code signing, Apple signing/notarization,
-            update credentials, and automatic-update publication are not configured in this release.
+            and update credentials must be supplied separately. Per-target automatic-update metadata
+            is included; unsigned macOS builds cannot install updates until signing is configured.
           files: release-downloads/**/*

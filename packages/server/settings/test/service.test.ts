@@ -30,6 +30,37 @@ const { configuredWorkbenchSettingsFile } = (await import(
 )) as typeof import("../src/file");
 moduleHooks.deregister();
 
+test("persists and validates conversation preferences", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-conversation-settings-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const stateFile = path.join(root, "settings.json");
+  const service = new WorkbenchSettingsService({ stateFile });
+  const patch = {
+    runningMessageMode: "steer",
+    showReasoning: false,
+    groupParallelTools: false,
+  } as const;
+  await service.update({ patch });
+  assert.deepEqual(
+    (await new WorkbenchSettingsService({ stateFile }).describe()).preferences,
+    patch,
+  );
+  for (const invalid of [
+    { runningMessageMode: "invalid" },
+    { showReasoning: "false" },
+    { groupParallelTools: 1 },
+  ]) {
+    await assert.rejects(service.update({ patch: invalid as unknown as typeof patch }), {
+      code: "workbench-settings-invalid",
+    });
+  }
+  await service.update({ patch: { showReasoning: null } });
+  assert.deepEqual((await service.describe()).preferences, {
+    runningMessageMode: "steer",
+    groupParallelTools: false,
+  });
+});
+
 test("resolves persistence from injected Host configuration", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-settings-path-"));
   t.after(() => rm(root, { recursive: true, force: true }));

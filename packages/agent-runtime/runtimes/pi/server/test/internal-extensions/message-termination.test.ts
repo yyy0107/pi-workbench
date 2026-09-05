@@ -23,6 +23,7 @@ test("registers Workbench-owned adapters as hidden inline extensions", () => {
   assert.deepEqual(
     workbenchInternalPiExtensions.map(({ name, hidden }) => ({ name, hidden })),
     [
+      { name: "workbench.todo", hidden: true },
       { name: "workbench.message-termination", hidden: true },
       { name: "workbench.ask-user", hidden: true },
       { name: "workbench.composer-context", hidden: true },

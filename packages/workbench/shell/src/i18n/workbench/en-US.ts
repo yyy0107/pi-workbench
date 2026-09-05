@@ -14,7 +14,10 @@ export const workbenchEnUS = {
     composer: {
       placeholder: "Describe what you want to accomplish, or paste content to work with…",
       runningPlaceholder:
-        "Press Enter to queue a message, or Ctrl+Enter to send a steering message directly…",
+        "Press Enter to add to the queue, or Ctrl/Cmd+Enter to steer the ongoing run…",
+      runningSteerPlaceholder:
+        "Press Enter to steer the ongoing run, or Ctrl/Cmd+Enter to add to the queue…",
+      steerMessage: "Steer the run",
       selectWorkspacePlaceholder: "Select a workspace before starting a conversation…",
       messageInput: "Message input",
       commandSuggestions: "Command suggestions",

@@ -16,6 +16,7 @@ const { createWorkbenchPaths } = require("../../../scripts/workbench-paths.cjs")
 const { ELECTRON_RUNTIME_FILES } = require("../scripts/desktop-electron-files.cjs");
 const {
   buildDesktopArtifactSupport,
+  buildDesktopServices,
   buildPackagedMain,
   buildPackagedPreload,
   buildServerProcessLifecycle,
@@ -64,6 +65,7 @@ test("bundles finite packaged support, main, preload, and process cleanup", asyn
     paths,
     outfile: path.join(output, "desktop-artifact-support.cjs"),
   });
+  await buildDesktopServices({ paths, outfile: path.join(output, "desktop-services.cjs") });
   const main = await buildPackagedMain({ paths, outfile: path.join(output, "main.cjs") });
   const preload = await buildPackagedPreload({ paths, outfile: path.join(output, "preload.cjs") });
   const cleanup = await buildServerProcessLifecycle({
@@ -146,6 +148,9 @@ test("stages only admitted renderer and Runtime artifacts", async (t) => {
     },
     async buildSupport({ outfile }) {
       writeFile(outfile, "support\n");
+    },
+    async buildServices({ outfile }) {
+      writeFile(outfile, "services\n");
     },
     async buildMain({ outfile }) {
       writeFile(outfile, "main\n");

@@ -2,6 +2,7 @@ import type { InlineExtension, LoadExtensionsResult } from "@earendil-works/pi-c
 
 import { createAskUserExtension, type AskUserCapabilitySettings } from "./ask-user";
 import { composerContextExtension } from "./composer-context";
+import { todoExtension } from "./todo";
 import { contextTraceExtension } from "./context-trace";
 import { messageTerminationExtension } from "./message-termination";
 import { instrumentSystemPromptHookTracing } from "./system-prompt-hook-trace";
@@ -10,6 +11,7 @@ export const WORKBENCH_INTERNAL_PI_EXTENSION_PATH_PREFIX = "<inline:workbench.";
 
 export function createWorkbenchInternalPiExtensions(askUserSettings?: AskUserCapabilitySettings) {
   return [
+    { name: "workbench.todo", factory: todoExtension, hidden: true },
     {
       name: "workbench.message-termination",
       factory: messageTerminationExtension,
