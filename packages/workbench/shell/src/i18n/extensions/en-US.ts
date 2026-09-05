@@ -865,9 +865,9 @@ export const extensionsEnUS = {
     selectError: "Unable to select this workspace.",
     trustQuestion: "Trust this project folder?",
     trustDescription:
-      "Trusting allows the runtime to load project settings and resources, install missing project packages, and execute project extensions. Only trusted folders are opened in Workbench; choosing not to trust cancels this operation without adding or switching workspaces.",
+      "Trusting allows the runtime to load project settings and resources, install missing project packages, and run extension code. Only open folders from sources you trust. Choosing not to trust cancels opening this folder.",
     trustSecurityDecision: "Project trust",
-    trustAccept: "Trust folder",
+    trustAccept: "Trust and open",
     trustDecline: "Do not trust",
     trustSaving: "Saving…",
     trustCancel: "Cancel project trust",

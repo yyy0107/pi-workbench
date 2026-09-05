@@ -23,11 +23,16 @@ import {
   type TodoParams,
 } from "../../src/internal-extensions/rpiv-todo/tool/types";
 
-async function harness(settings?: ToolCapabilitySettings) {
+async function harness(
+  settings: ToolCapabilitySettings | null = {
+    readEnabled: async () => true,
+    subscribe: () => () => {},
+  },
+) {
   let activeTools = ["read", "todo"];
   let tool: ToolDefinition<typeof TodoParamsSchema, TaskDetails> | undefined;
   const handlers = new Map<string, Array<(event: unknown, ctx: ExtensionContext) => unknown>>();
-  await createTodoExtension(settings)({
+  await createTodoExtension(settings ?? undefined)({
     registerTool: (definition: typeof tool) => {
       tool = definition;
     },
@@ -255,6 +260,16 @@ test("Pi loader exposes only the built-in todo while preserving unrelated extens
   assert.deepEqual([...builtin.tools.keys()], ["todo"]);
   assert.ok(builtin.tools.get("todo")?.definition.promptGuidelines?.length);
   assert.ok(!result.extensions.some((extension) => extension.tools.has("workbench_todo")));
+});
+
+test("Todo is unavailable by default without host settings", async () => {
+  const api = await harness(null);
+  const manager = SessionManager.inMemory();
+  await api.fire("session_start", manager);
+  assert.deepEqual(api.activeTools, ["read"]);
+  const result = await api.execute(manager, { action: "create", subject: "Must not exist" });
+  assert.match(result.details.error!, /disabled/);
+  assert.deepEqual(result.details.tasks, []);
 });
 
 test("Todo toggles preserve tasks, reject stale calls and release preference listeners", async () => {

@@ -10,13 +10,14 @@ export function bindToolAvailability(
   pi: ExtensionAPI,
   toolName: string,
   settings?: ToolCapabilitySettings,
+  defaultEnabled = true,
 ): () => Promise<boolean> {
   const readEnabled = async () => {
     try {
-      return (await settings?.readEnabled()) ?? true;
+      return (await settings?.readEnabled()) ?? defaultEnabled;
     } catch (error) {
       console.error(`[workbench-pi] ${toolName} preference could not be read.`, error);
-      return true;
+      return defaultEnabled;
     }
   };
   const setEnabled = (enabled: boolean) => {
@@ -27,9 +28,9 @@ export function bindToolAvailability(
   let unsubscribe: (() => void) | undefined;
   let revision = 0;
   pi.on("session_start", async () => {
-    if (!settings) return;
+    if (!settings && defaultEnabled) return;
     const initialRevision = ++revision;
-    unsubscribe ??= settings.subscribe((enabled) => {
+    unsubscribe ??= settings?.subscribe((enabled) => {
       revision += 1;
       setEnabled(enabled);
     });

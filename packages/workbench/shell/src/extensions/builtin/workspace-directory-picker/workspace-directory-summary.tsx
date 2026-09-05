@@ -59,8 +59,7 @@ function WorkspaceDirectorySummaryContent({
   const [error, setError] = useState(false);
   const isNewThread = useCurrentSession().isNewThread;
   const { activeWorkspace, draftWorkspace, workspaces } = useWorkspaceSelection();
-  const { beginNewThread, beginNewThreadWithCreatedWorkspace, destroyNewThread } =
-    useWorkspaceCapabilities();
+  const { beginNewThreadWithCreatedWorkspace, destroyNewThread } = useWorkspaceCapabilities();
   const selectedDirectory = isNewThread ? draftWorkspace : activeWorkspace;
   const canClearWorkspace = isNewThread && selectedDirectory !== undefined && !picking;
   const workspaceRequired = submissionBlocked && selectedDirectory === undefined;
@@ -126,10 +125,18 @@ function WorkspaceDirectorySummaryContent({
           setError(false);
           destroyNewThread();
         }}
-        onValueChange={(workspaceId) => {
-          if (isNewThread) {
-            setError(false);
-            beginNewThread(workspaceId);
+        onValueChange={async (workspaceId) => {
+          const workspace = workspaces.find((candidate) => candidate.id === workspaceId);
+          if (!isNewThread || picking || !workspace) return;
+          setSelectorOpen(false);
+          setPicking(true);
+          setError(false);
+          try {
+            await admission.selectPath(workspace.rootPath);
+          } catch {
+            setError(true);
+          } finally {
+            setPicking(false);
           }
         }}
         footer={

@@ -42,6 +42,26 @@ test("parses the persisted Ask User capability preference defensively", () => {
   assert.equal(parseAskUserEnabled("not-json"), true);
 });
 
+test("Todo starts disabled and respects saved choices after hydration", async () => {
+  for (const saved of [undefined, false, true, "read-error"] as const) {
+    const todo = createToolCapabilityPreferences(
+      {
+        load: async () => {
+          if (saved === "read-error") throw new Error("Settings unavailable");
+          return { todoEnabled: saved };
+        },
+        update: async () => {},
+      },
+      "todoEnabled",
+    );
+    assert.equal(todo.getSnapshot().enabled, false);
+    assert.equal(todo.getServerSnapshot().enabled, false);
+    await todo.hydrate();
+    assert.equal(todo.getSnapshot().enabled, saved === true);
+    todo.dispose();
+  }
+});
+
 test("does not migrate, clean up, or notify after a disposed installation resolves hydration", async () => {
   const load = deferred<Record<string, never>>();
   const writes: unknown[] = [];
@@ -97,7 +117,7 @@ test("tool preferences stay independent, preserve Ask User migration and roll ba
       const todo = createToolCapabilityPreferences(settings, "todoEnabled");
       const ask = createAskUserPreferences(settings);
       await todo.hydrate();
-      assert.equal(todo.getSnapshot().enabled, true);
+      assert.equal(todo.getSnapshot().enabled, false);
       assert.deepEqual(writes, []);
       assert.deepEqual(removed, []);
       await ask.hydrate();
@@ -107,14 +127,14 @@ test("tool preferences stay independent, preserve Ask User migration and roll ba
       todo.subscribe(() => {
         notifications += 1;
       });
-      await todo.setEnabled(false);
-      assert.equal(todo.getSnapshot().enabled, false);
-      assert.deepEqual(writes, [{ askUserEnabled: false }, { todoEnabled: false }]);
+      await todo.setEnabled(true);
+      assert.equal(todo.getSnapshot().enabled, true);
+      assert.deepEqual(writes, [{ askUserEnabled: false }, { todoEnabled: true }]);
       assert.equal(removed.length, 1);
       assert.equal(notifications, 2);
       fail = true;
-      await assert.rejects(todo.setEnabled(true), /save failed/);
-      assert.deepEqual(todo.getSnapshot(), { enabled: false, status: "ready", saveFailed: true });
+      await assert.rejects(todo.setEnabled(false), /save failed/);
+      assert.deepEqual(todo.getSnapshot(), { enabled: true, status: "ready", saveFailed: true });
       assert.equal(ask.getSnapshot().enabled, false);
       todo.dispose();
       ask.dispose();

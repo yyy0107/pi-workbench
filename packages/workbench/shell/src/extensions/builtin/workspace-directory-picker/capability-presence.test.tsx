@@ -14,6 +14,7 @@ import type { WorkbenchAgentRuntimeCapabilities } from "@workbench/agent-runtime
 import {
   WorkspaceSelectionProvider,
   type WorkspaceCapabilities,
+  type WorkbenchWorkspaceSummary,
 } from "@workbench/agent-runtime-client/workspaces";
 import { I18nProvider } from "@workbench/shell/i18n";
 import { WorkbenchSettingsProvider } from "@workbench/shell/settings";
@@ -41,7 +42,17 @@ test("directory and trust entry points stay hidden unless both host and workspac
   }
 });
 
-test("the workspace picker footer renders inside a combobox without a menu context", () => {
+function renderWorkspacePicker({
+  capabilities = { host: {}, workspace: {} } as WorkbenchAgentRuntimeCapabilities,
+  workspaceCapabilities = {},
+  workspaces = [],
+  onSelector = () => {},
+}: {
+  capabilities?: WorkbenchAgentRuntimeCapabilities;
+  workspaceCapabilities?: Partial<WorkspaceCapabilities>;
+  workspaces?: WorkbenchWorkspaceSummary[];
+  onSelector?(props: ComponentProps<typeof WorkspaceSelector>): void;
+} = {}) {
   type Runtime = ComponentProps<typeof RuntimeProvider>["runtime"];
   const current = { sessionId: undefined, isNewThread: true };
   const runtime: Pick<Runtime, "current"> = {
@@ -65,6 +76,7 @@ test("the workspace picker footer renders inside a combobox without a menu conte
       (child) => isValidElement(child) && child.type === WorkspaceSelector,
     );
     assert.ok(isValidElement<ComponentProps<typeof WorkspaceSelector>>(selector));
+    onSelector(selector.props);
     return <SearchableSelector items={[]}>{selector.props.footer}</SearchableSelector>;
   }
 
@@ -78,11 +90,11 @@ test("the workspace picker footer renders inside a combobox without a menu conte
             <WorkbenchAgentRuntimeEnvironmentProvider
               id="fixture"
               commands={[]}
-              capabilities={{ host: {}, workspace: {} } as WorkbenchAgentRuntimeCapabilities}
+              capabilities={capabilities}
             >
               <WorkspaceSelectionProvider
-                capabilities={{} as WorkspaceCapabilities}
-                selection={{ workspaces: [], collapsedWorkspaceIds: [] }}
+                capabilities={workspaceCapabilities as WorkspaceCapabilities}
+                selection={{ workspaces, collapsedWorkspaceIds: [] }}
               >
                 <FooterProbe />
               </WorkspaceSelectionProvider>
@@ -92,8 +104,56 @@ test("the workspace picker footer renders inside a combobox without a menu conte
       </I18nProvider>
     </WorkbenchSettingsProvider>,
   );
+  return markup;
+}
 
+test("the workspace picker footer renders inside a combobox without a menu context", () => {
+  const markup = renderWorkspacePicker();
   assert.match(markup, /<button[^>]*type="button"/u);
   assert.match(markup, /Open folder/u);
   assert.doesNotMatch(markup, /role="menuitem"/u);
+});
+
+test("selecting a listed project checks current trust before selecting it", async () => {
+  const workspace = { id: "project", name: "Project", rootPath: "/work/project" };
+  for (const trusted of [null, false, true, "read-error"] as const) {
+    const calls: string[] = [];
+    let selector!: ComponentProps<typeof WorkspaceSelector>;
+    renderWorkspacePicker({
+      workspaces: [workspace],
+      onSelector: (props) => {
+        selector = props;
+      },
+      capabilities: {
+        host: {
+          describeProjectTrust: async (path: string) => {
+            calls.push(`describe:${path}`);
+            if (trusted === "read-error") throw new Error("Trust could not be read");
+            return { path, trusted, requiresTrust: false, promptRequired: trusted === null };
+          },
+        },
+        workspace: {
+          createWorkspace: async (path: string) => {
+            calls.push(`create:${path}`);
+            return { workspace, created: false };
+          },
+        },
+      } as WorkbenchAgentRuntimeCapabilities,
+      workspaceCapabilities: {
+        beginNewThread: (): void => assert.fail("Must not bypass project trust"),
+        beginNewThreadWithCreatedWorkspace: (selected) => {
+          assert.equal(selected, workspace);
+          calls.push(`select:${selected.id}`);
+        },
+      },
+    });
+
+    await selector.onValueChange(workspace.id);
+    assert.deepEqual(
+      calls,
+      trusted === true
+        ? ["describe:/work/project", "create:/work/project", "select:project"]
+        : ["describe:/work/project"],
+    );
+  }
 });

@@ -38,11 +38,11 @@ test("host shutdown releases extension preference listeners before ctx becomes s
     ...previousHostBindings,
     todoSettings: {
       async readEnabled() {
-        return (await settings.describe()).preferences.todoEnabled !== false;
+        return (await settings.describe()).preferences.todoEnabled === true;
       },
       subscribe(listener) {
         return subscribeWorkbenchSettingsPreferences(settings.stateFile, (preferences) => {
-          listener(preferences.todoEnabled !== false);
+          listener(preferences.todoEnabled === true);
         });
       },
     },
@@ -64,7 +64,6 @@ test("host shutdown releases extension preference listeners before ctx becomes s
 
   const cwd = path.join(root, "project");
   await mkdir(cwd, { recursive: true });
-  await settings.update({ patch: { todoEnabled: false } });
   const host = await createSession(cwd, "extension-lifecycle");
   t.after(() => host.shutdown());
   assert.equal(host.session.getActiveToolNames().includes("ask_user"), true);
@@ -84,6 +83,8 @@ test("host shutdown releases extension preference listeners before ctx becomes s
   await settings.update({ patch: { todoEnabled: true } });
   assert.equal(host.session.getActiveToolNames().includes("todo"), true);
   assert.equal(host.session.getActiveToolNames().includes("ask_user"), false);
+  await settings.update({ patch: { todoEnabled: null } });
+  assert.equal(host.session.getActiveToolNames().includes("todo"), false);
   await settings.update({ patch: { todoEnabled: false, askUserEnabled: true } });
   assert.equal(host.session.getActiveToolNames().includes("todo"), false);
   assert.equal(host.session.getActiveToolNames().includes("ask_user"), true);

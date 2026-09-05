@@ -24,7 +24,7 @@ const DEFAULT_PROMPT_GUIDELINES: string[] = [
 
 export function createTodoExtension(settings?: ToolCapabilitySettings): ExtensionFactory {
   return (pi) => {
-    const readEnabled = bindToolAvailability(pi, TOOL_NAME, settings);
+    const readEnabled = bindToolAvailability(pi, TOOL_NAME, settings, false);
     const states = new Map<string, TaskState>();
     const restore = (_event: unknown, ctx: ExtensionContext) => {
       states.set(ctx.sessionManager.getSessionId(), replayFromBranch(ctx));

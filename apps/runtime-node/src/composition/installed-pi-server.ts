@@ -182,11 +182,11 @@ function createInstalledPiAgentHostBindings(
     },
     todoSettings: {
       async readEnabled() {
-        return (await settings.describe()).preferences.todoEnabled !== false;
+        return (await settings.describe()).preferences.todoEnabled === true;
       },
       subscribe(listener) {
         return subscribeWorkbenchSettingsPreferences(settings.stateFile, (preferences) => {
-          listener(preferences.todoEnabled !== false);
+          listener(preferences.todoEnabled === true);
         });
       },
     },

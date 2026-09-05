@@ -27,11 +27,6 @@ export interface ToolCapabilityPreferences {
   dispose(): void;
 }
 
-const SERVER_SNAPSHOT: ToolCapabilityPreferenceSnapshot = Object.freeze({
-  enabled: true,
-  status: "loading",
-  saveFailed: false,
-});
 export type ToolCapabilityPreferenceKey = "askUserEnabled" | "todoEnabled";
 
 const PREFERENCE_RESOURCES = {
@@ -74,10 +69,16 @@ export function createToolCapabilityPreferences(
   settings: WorkbenchSettingsPort,
   key: ToolCapabilityPreferenceKey = "askUserEnabled",
 ): ToolCapabilityPreferences {
+  const defaultEnabled = key === "askUserEnabled";
+  const serverSnapshot: ToolCapabilityPreferenceSnapshot = Object.freeze({
+    enabled: defaultEnabled,
+    status: "loading",
+    saveFailed: false,
+  });
   const clearLegacy = () => {
     if (key === "askUserEnabled") removeLegacyPreference();
   };
-  let snapshot: ToolCapabilityPreferenceSnapshot = SERVER_SNAPSHOT;
+  let snapshot: ToolCapabilityPreferenceSnapshot = serverSnapshot;
   let hydrationPromise: Promise<void> | undefined;
   let closed = false;
   const listeners = new Set<Listener>();
@@ -114,13 +115,13 @@ export function createToolCapabilityPreferences(
         }
         if (closed) return;
         emit({
-          enabled: legacyEnabled ?? true,
+          enabled: legacyEnabled ?? defaultEnabled,
           status: "ready",
           saveFailed: false,
         });
       } catch {
         if (closed) return;
-        emit({ enabled: true, status: "ready", saveFailed: true });
+        emit({ enabled: defaultEnabled, status: "ready", saveFailed: true });
       }
     })().finally(() => {
       hydrationPromise = undefined;
@@ -138,7 +139,7 @@ export function createToolCapabilityPreferences(
       return snapshot;
     },
     getServerSnapshot(): ToolCapabilityPreferenceSnapshot {
-      return SERVER_SNAPSHOT;
+      return serverSnapshot;
     },
     hydrate,
     async setEnabled(enabled: boolean): Promise<void> {
