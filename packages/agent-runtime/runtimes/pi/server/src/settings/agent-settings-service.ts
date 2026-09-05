@@ -8,7 +8,9 @@ import {
   createAgentSession,
   DefaultResourceLoader,
   getAgentDir,
-  getPackageDir,
+  getDocsPath,
+  getExamplesPath,
+  getReadmePath,
   ModelRuntime,
   SessionManager,
   SettingsManager,
@@ -196,13 +198,14 @@ function serializedSettings(settings: JsonObject): string {
 async function createBuiltinSystemPrompt(agentDir: string): Promise<string> {
   const cwd = process.cwd();
   const settingsManager = SettingsManager.inMemory();
-  // Skip resource discovery so this preview contains only Pi's built-in prompt and tools.
+  // Skip resource discovery and tool-specific text; the preview uses placeholders for those values.
   const resourceLoader = new DefaultResourceLoader({ cwd, agentDir, settingsManager });
   const { session } = await createAgentSession({
     cwd,
     agentDir,
     settingsManager,
     resourceLoader,
+    tools: [],
     sessionManager: SessionManager.inMemory(cwd),
     modelRuntime: await ModelRuntime.create({
       credentials: new InMemoryCredentialStore(),
@@ -211,13 +214,14 @@ async function createBuiltinSystemPrompt(agentDir: string): Promise<string> {
     }),
   });
   try {
-    // Preview the static SDK text without the session cwd or machine-specific asset paths.
+    // Keep Pi's static prose and fixed guidelines, with dynamic sections ready to copy into SYSTEM.md.
     return session.systemPrompt
       .replace(/\nCurrent working directory: [\s\S]*$/u, "")
-      .replaceAll(
-        `${path.resolve(getPackageDir())}${path.sep}`,
-        "@earendil-works/pi-coding-agent/",
-      );
+      .replace("Available tools:\n(none)", "Available tools:\n{{pi.tools}}")
+      .replace("Guidelines:\n", "Guidelines:\n{{pi.tool_guidelines}}\n")
+      .replaceAll(getReadmePath(), "{{pi.readme}}")
+      .replaceAll(getDocsPath(), "{{pi.docs}}")
+      .replaceAll(getExamplesPath(), "{{pi.examples}}");
   } finally {
     session.dispose();
   }

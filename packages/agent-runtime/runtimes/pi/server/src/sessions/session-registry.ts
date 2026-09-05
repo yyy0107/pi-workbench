@@ -18,6 +18,8 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 
+import { installSystemPromptPlaceholders } from "./system-prompt-placeholders";
+
 import type {
   PiAssistantMessage,
   PiAgentMessage,
@@ -3444,6 +3446,7 @@ async function createHost(
       ...(options.customTools ?? []),
     ],
   });
+  installSystemPromptPlaceholders(session);
   // Workbench creates and replaces sessions through its registry, but still retains Pi's
   // high-level runtime owner so disposal emits session_shutdown before invalidating extension ctx.
   const sessionRuntime = new AgentSessionRuntime(session, services, async () => {

@@ -38,13 +38,16 @@ test("describes Pi defaults when no global agent settings exist", async (t) => {
   const builtin = described.namespaces[0]?.builtinSystemPrompt;
   assert.ok(builtin);
   assert.match(builtin, /Available tools:/u);
-  assert.match(builtin, /- read:/u);
-  assert.match(builtin, /- bash:/u);
+  assert.ok(builtin.includes("Available tools:\n{{pi.tools}}"));
+  assert.ok(builtin.includes("Guidelines:\n{{pi.tool_guidelines}}"));
+  assert.match(builtin, /- Be concise in your responses/u);
+  assert.match(builtin, /- Show file paths clearly when working with files/u);
+  assert.doesNotMatch(builtin, /- read:|- bash:|Use bash for file operations|Use read to examine/u);
   assert.doesNotMatch(builtin, /Current working directory:|\.desktop-build|node_modules/u);
   assert.ok(!builtin.includes(process.cwd().replaceAll("\\", "/")));
-  assert.match(builtin, /Main documentation: @earendil-works\/pi-coding-agent\/README\.md/u);
-  assert.match(builtin, /Additional docs: @earendil-works\/pi-coding-agent\/docs/u);
-  assert.match(builtin, /Examples: @earendil-works\/pi-coding-agent\/examples/u);
+  assert.ok(builtin.includes("Main documentation: {{pi.readme}}"));
+  assert.ok(builtin.includes("Additional docs: {{pi.docs}}"));
+  assert.ok(builtin.includes("Examples: {{pi.examples}}"));
   assert.deepEqual(await readdir(agentDir), []);
 });
 

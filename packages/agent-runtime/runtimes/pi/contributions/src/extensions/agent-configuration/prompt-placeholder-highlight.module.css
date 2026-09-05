@@ -1,0 +1,4 @@
+.promptEditor ::highlight(pi-prompt-placeholder) {
+  color: var(--info-foreground);
+  background-color: color-mix(in srgb, var(--info) 16%, transparent);
+}

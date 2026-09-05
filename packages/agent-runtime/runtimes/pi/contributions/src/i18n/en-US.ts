@@ -83,6 +83,19 @@ export const piExtensionsEnUS = {
           "Leave this empty and save to use Pi's built-in default. A project-level .pi/SYSTEM.md can override this global value; AGENTS.md, skills, and working-directory context are still added by the runtime.",
         useDefault: "Use default prompt",
       },
+      placeholders: {
+        title: "Dynamic placeholders",
+        description:
+          "Use these placeholders in the system prompt or append prompt. Workbench expands them from the active session; saved files and previews keep the original placeholders. Unknown placeholders stay unchanged.",
+        cwd: "The session's working directory.",
+        tools: "A Markdown list of active tools and their descriptions, including extension tools.",
+        tool_guidelines: "A Markdown list of guidelines for the active tools.",
+        readme: "The absolute path to Pi's README.md.",
+        docs: "The absolute path to Pi's documentation directory.",
+        examples: "The absolute path to Pi's examples directory.",
+        automaticContext:
+          "Pi already appends project instructions, available skills, and the working directory to custom prompts. These do not need placeholders. Placeholders are a Workbench feature; standalone Pi does not expand them.",
+      },
       appendSystemPrompt: {
         title: "Append system prompt",
         description: "Add global instructions after Pi's default or custom system prompt.",

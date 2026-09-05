@@ -84,6 +84,19 @@ export const piExtensionsZhCN = {
           "留空并保存可恢复 Pi 内置默认提示词。项目级 .pi/SYSTEM.md 可覆盖此全局值；AGENTS.md、技能和当前工作目录上下文仍会由运行时追加。",
         useDefault: "使用默认提示词",
       },
+      placeholders: {
+        title: "动态占位符",
+        description:
+          "可用于系统提示词和追加提示词。Workbench 按实际会话展开，保存的文件和预览保留占位符原文，未知占位符保持不变。",
+        cwd: "当前会话的工作目录。",
+        tools: "当前启用的工具及其说明，以 Markdown 列表展开，包含扩展工具。",
+        tool_guidelines: "当前启用工具对应的使用建议，以 Markdown 列表展开。",
+        readme: "Pi 的 README.md 文件绝对路径。",
+        docs: "Pi 文档目录的绝对路径。",
+        examples: "Pi 示例目录的绝对路径。",
+        automaticContext:
+          "Pi 已自动向自定义提示词追加项目指令、可用技能和工作目录，无需占位符。占位符由 Workbench 提供，独立运行的 Pi 不会展开。",
+      },
       appendSystemPrompt: {
         title: "追加系统提示词",
         description: "在 Pi 默认或自定义系统提示词后追加全局指令。",

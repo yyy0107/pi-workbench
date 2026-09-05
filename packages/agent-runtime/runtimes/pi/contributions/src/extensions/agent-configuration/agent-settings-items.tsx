@@ -20,6 +20,8 @@ import {
   type PiAgentSettingsNamespaceView,
   type PiResourceCatalogTarget,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
+import { highlightPromptPlaceholders } from "./prompt-placeholder-highlight";
+import styles from "./prompt-placeholder-highlight.module.css";
 
 type LoadState = "loading" | "ready" | "failed";
 
@@ -150,6 +152,22 @@ function SystemPromptEditor({ target }: { target: PiResourceCatalogTarget }) {
           setSaving={setSaving}
         />
       ))}
+      <SettingsGroup
+        title={t("extensions.agentConfiguration.placeholders.title")}
+        description={t("extensions.agentConfiguration.placeholders.description")}
+        className="mb-4"
+      >
+        {(["cwd", "tools", "tool_guidelines", "readme", "docs", "examples"] as const).map(
+          (name) => (
+            <SettingsRow key={name} label={t(`extensions.agentConfiguration.placeholders.${name}`)}>
+              <code className="select-text text-sm">{`{{pi.${name}}}`}</code>
+            </SettingsRow>
+          ),
+        )}
+      </SettingsGroup>
+      <p className="text-muted-foreground mb-2 text-xs leading-5">
+        {t("extensions.agentConfiguration.placeholders.automaticContext")}
+      </p>
       <p className="text-muted-foreground text-xs leading-5">
         {t("extensions.agentConfiguration.appliesAfterReload")}
       </p>
@@ -174,12 +192,18 @@ function PromptSettingsEditor({
 }) {
   const { t } = usePiI18n();
   const systemPromptId = useId();
+  const promptContainerRef = useRef<HTMLDivElement>(null);
   const configurationClient = usePiConfigurationClient();
   const baseline = view.value[field] ?? "";
   const [draft, setDraft] = useState(baseline);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string>();
   const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    const container = promptContainerRef.current;
+    if (container) return highlightPromptPlaceholders(container);
+  }, []);
 
   useEffect(() => {
     setDraft(baseline);
@@ -267,7 +291,10 @@ function PromptSettingsEditor({
             {editing ? <EyeIcon aria-hidden="true" /> : <Code2Icon aria-hidden="true" />}
           </Button>
         </div>
-        <InputGroup className="mt-2 h-80 min-h-44 resize-y items-stretch overflow-hidden">
+        <InputGroup
+          ref={promptContainerRef}
+          className={`${styles.promptEditor} mt-2 h-80 min-h-44 resize-y items-stretch overflow-hidden`}
+        >
           {editing ? (
             <WorkbenchCodeEditor
               id={systemPromptId}
