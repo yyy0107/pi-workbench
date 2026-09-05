@@ -132,6 +132,63 @@ test("classifies transport failures without discarding provider diagnostics", as
   });
 });
 
+test("classifies delayed abort failures within their run without reusing an earlier stop", async (t) => {
+  const handlers = new Map<string, MessageEndHandler>();
+  messageTerminationExtension({
+    on: (event: string, handler: MessageEndHandler) => handlers.set(event, handler),
+  } as never);
+  const start = handlers.get("agent_start");
+  const end = handlers.get("message_end");
+  assert.ok(start);
+  assert.ok(end);
+  const controller = new AbortController();
+  const context = {
+    signal: controller.signal,
+    sessionManager: {
+      getBranch: () => [
+        {
+          type: "custom",
+          customType: "workbench.cancel-intent.v1",
+          data: { requestedAt: 1_500, source: "workbench" },
+        },
+      ],
+    },
+  };
+  const terminal = (stopReason: string) => ({
+    type: "message_end",
+    message: {
+      role: "assistant",
+      content: [],
+      stopReason,
+      timestamp: 1_509,
+      errorMessage: "This operation was aborted",
+    },
+  });
+  const termination = async (stopReason: string) => {
+    const result = (await end(terminal(stopReason), context)) as {
+      message: { diagnostics: Array<{ details: { kind: string; source?: string } }> };
+    };
+    return result.message.diagnostics.at(-1)?.details;
+  };
+
+  let now = 1_000;
+  t.mock.method(Date, "now", () => now);
+  await start({ type: "agent_start" }, context);
+  // An error message alone does not prove the current run was cancelled.
+  assert.equal((await termination("error"))?.kind, "provider-error");
+  controller.abort();
+  for (const stopReason of ["aborted", "error"]) {
+    const detail = await termination(stopReason);
+    assert.equal(detail?.kind, "cancelled");
+    assert.equal(detail?.source, "workbench");
+  }
+  assert.equal((await termination("stop"))?.kind, "completed");
+
+  now = 2_000;
+  await start({ type: "agent_start" }, context);
+  assert.equal((await termination("aborted"))?.kind, "aborted");
+});
+
 test("replaces an earlier termination diagnostic with the authoritative Workbench result", async () => {
   const handler = captureMessageEndHandler();
   const result = (await handler(

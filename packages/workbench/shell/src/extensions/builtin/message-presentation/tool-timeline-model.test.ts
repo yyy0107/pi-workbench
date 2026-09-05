@@ -298,7 +298,7 @@ test("aggregates edited and written lines by file", () => {
   );
 });
 
-test("does not report failed file mutations as successful changes", () => {
+test("does not report failed or cancelled file mutations as successful changes", () => {
   assert.deepEqual(
     timelineStats([
       {
@@ -316,6 +316,15 @@ test("does not report failed file mutations as successful changes", () => {
         }),
         status: "error",
         result: "disk full",
+      },
+      {
+        ...tool("write", {
+          path: "/workspace/cancelled.tsx",
+          content: "not written",
+        }),
+        status: "incomplete",
+        incompleteReason: "cancelled",
+        result: "Operation aborted",
       },
     ]),
     [],

@@ -254,7 +254,9 @@ export function timelineStats(blocks: readonly TimelineSourceBlock[]): ToolTimel
   const stats = new Map<string, Required<Omit<ToolTimelineStatModel, "file">>>();
 
   for (const block of blocks) {
-    if (block.kind !== "tool-call" || block.status === "error") continue;
+    if (block.kind !== "tool-call" || block.status === "error" || block.status === "incomplete") {
+      continue;
+    }
     const args = asRecord(block.arguments);
     const path = asString(args?.path) ?? asString(args?.file) ?? asString(args?.filePath);
     if (!path || (block.toolName !== "edit" && block.toolName !== "write")) continue;

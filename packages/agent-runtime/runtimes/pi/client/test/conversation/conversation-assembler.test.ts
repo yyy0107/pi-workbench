@@ -109,6 +109,73 @@ test("projects Workbench message chrome metadata and branch navigation", () => {
   });
 });
 
+test("preserves native aborts and normalized cancellations through conversation projection", () => {
+  for (const stopReason of ["aborted", "error"] as const) {
+    const message = piAssistantToThreadMessage(
+      {
+        role: "assistant",
+        content: [],
+        stopReason,
+        errorMessage: "This operation was aborted",
+        ...(stopReason === "error"
+          ? {
+              diagnostics: [
+                {
+                  type: "workbench.message-termination.v1",
+                  timestamp: 1,
+                  details: { schemaVersion: 1, kind: "cancelled", stopReason, source: "workbench" },
+                },
+              ],
+            }
+          : {}),
+      },
+      "stopped",
+    );
+    const [node] = conversationNodesFromPiConversation([message]);
+    assert.equal(node?.kind, "assistant");
+    assert.deepEqual(message.status, { type: "incomplete", reason: "cancelled" });
+    assert.ok(node?.kind === "assistant");
+    assert.equal(node.status, "incomplete");
+    assert.equal(
+      node.blocks.some((block) => block.kind === "error"),
+      false,
+    );
+    assert.deepEqual(node?.presentation?.custom?.workbenchTermination, {
+      schemaVersion: 1,
+      kind: stopReason === "aborted" ? "aborted" : "cancelled",
+      stopReason,
+      ...(stopReason === "aborted"
+        ? { errorMessage: "This operation was aborted" }
+        : { source: "workbench" }),
+    });
+  }
+});
+
+test("distinguishes cancelled tools from real failures in a stopped response", () => {
+  const message = assistant("Partial response");
+  const tool = message.content.find((part) => part.type === "tool-call");
+  assert.ok(tool?.type === "tool-call");
+  const results = ["Operation aborted", { text: "partial output\n\nCommand aborted", details: {} }];
+  for (const result of [...results, "Permission denied"]) {
+    for (const stopped of [false, true]) {
+      const [node] = conversationNodesFromPiConversation([
+        {
+          ...message,
+          content: [{ ...tool, isError: true, result }],
+          status: stopped ? { type: "incomplete", reason: "cancelled" } : { type: "running" },
+        },
+      ]);
+      assert.ok(node?.kind === "assistant");
+      const block = node.blocks[0];
+      assert.ok(block?.kind === "tool-call");
+      const cancelled = stopped && result !== "Permission denied";
+      assert.equal(block.status, cancelled ? "incomplete" : "error");
+      assert.equal(block.incompleteReason, cancelled ? "cancelled" : undefined);
+      assert.deepEqual(block.result, result);
+    }
+  }
+});
+
 test("projects image, file, and document source semantics into Workbench blocks", () => {
   const message = {
     id: "assistant-media",

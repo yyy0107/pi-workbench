@@ -70,7 +70,10 @@ function classifyApiFailure(termination: PiMessageTermination): SessionResumeRea
 }
 
 export function resumeReasonFromAssistantMessage(
-  message: Pick<PiAssistantMessage, "diagnostics">,
+  message: Pick<
+    PiAssistantMessage,
+    "diagnostics" | "stopReason" | "rawStopReason" | "errorMessage"
+  >,
 ): SessionResumeReason | undefined {
   const termination = terminationFromAssistantMessage(message);
   switch (termination?.kind) {

@@ -785,15 +785,24 @@ function toolExecutionOutput(result: unknown): unknown {
   return candidate.details === undefined ? text : { text, details: candidate.details };
 }
 
-function assistantStatus(message: PiAssistantMessage, streaming: boolean, unfinished: boolean) {
+function assistantStatus(
+  message: PiAssistantMessage,
+  streaming: boolean,
+  unfinished: boolean,
+  termination: PiMessageTermination | undefined,
+) {
   if (streaming) return { type: "running" } as const;
   if (unfinished) return { type: "incomplete", reason: "other" } as const;
-  switch (message.stopReason) {
+  switch (termination?.kind ?? message.stopReason) {
+    case "cancelled":
     case "aborted":
       return { type: "incomplete", reason: "cancelled" } as const;
     case "length":
       return { type: "incomplete", reason: "length" } as const;
     case "error":
+    case "network-error":
+    case "api-error":
+    case "provider-error":
       return {
         type: "incomplete",
         reason: "error",
@@ -954,7 +963,7 @@ export function piAssistantToThreadMessage(
     id,
     role: "assistant",
     content,
-    status: assistantStatus(message, streaming, unfinished),
+    status: assistantStatus(message, streaming, unfinished, termination),
     createdAt: messageDate(message.timestamp ?? createdAt, 0),
     metadata: {
       unstable_state: null,

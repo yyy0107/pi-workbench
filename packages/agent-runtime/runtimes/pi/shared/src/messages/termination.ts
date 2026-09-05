@@ -82,7 +82,20 @@ export function terminationFromDiagnostics(
 }
 
 export function terminationFromAssistantMessage(
-  message: Pick<PiAssistantMessage, "diagnostics">,
+  message: Pick<
+    PiAssistantMessage,
+    "diagnostics" | "stopReason" | "rawStopReason" | "errorMessage"
+  >,
 ): PiMessageTermination | undefined {
-  return terminationFromDiagnostics(message.diagnostics);
+  const termination = terminationFromDiagnostics(message.diagnostics);
+  if (termination) return termination;
+  if (message.stopReason !== "aborted" && message.stopReason !== "length") return undefined;
+
+  return {
+    schemaVersion: 1,
+    kind: message.stopReason,
+    stopReason: message.stopReason,
+    ...(message.rawStopReason ? { rawStopReason: message.rawStopReason } : {}),
+    ...(message.errorMessage ? { errorMessage: message.errorMessage } : {}),
+  };
 }

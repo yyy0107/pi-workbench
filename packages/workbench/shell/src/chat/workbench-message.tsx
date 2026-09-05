@@ -28,6 +28,7 @@ import { WorkbenchComposerCommandResponse } from "./composer-command-response";
 import { WorkbenchMessageActions } from "./message-actions";
 import { WorkbenchMessageParts } from "./message-parts";
 import { useConversationMessageContext } from "./conversation-message-context";
+import { isLastAssistantInTurn } from "./message-action-visibility";
 import { isMessageInLatestTurn, shouldShowMessageError } from "./workbench-message-error";
 
 function MessageSlot({ name }: { name: "message.before" | "message.after" }) {
@@ -57,16 +58,19 @@ function WorkbenchMessageError() {
   const isRunning = useSessionState((snapshot) => snapshot.isRunning);
   const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
   const resumeCheckpoint = useSessionState((snapshot) => snapshot.resumeCheckpoint);
-  const isInLatestTurn = isMessageInLatestTurn(
-    nodeKeys.map((key) => {
-      const node = session.node(key).getSnapshot();
-      return {
-        role: node?.kind === "user" || node?.kind === "assistant" ? node.kind : "system",
-      };
-    }),
-    index,
-  );
+  const messages = nodeKeys.map((key) => {
+    const node = session.node(key).getSnapshot();
+    return {
+      role: node?.kind === "user" || node?.kind === "assistant" ? node.kind : ("system" as const),
+    };
+  });
+  const isInLatestTurn = isMessageInLatestTurn(messages, index);
+  const isLastAssistant = isLastAssistantInTurn(messages, index);
   const termination = parseWorkbenchMessageTermination(custom?.workbenchTermination);
+  const kind =
+    termination?.kind ??
+    headlessError?.code ??
+    (status === "error" ? "error" : status === "incomplete" ? "other" : undefined);
   const promptFailure = parseWorkbenchPromptFailureDetails(custom?.workbenchPromptFailure);
   const outputTokens = readWorkbenchMessageUsage(custom?.workbenchUsage)?.output;
   const [retryPhase, setRetryPhase] = useState<"idle" | "requested" | "running">("idle");
@@ -82,17 +86,14 @@ function WorkbenchMessageError() {
     !shouldShowMessageError({
       isRunning,
       isInLatestTurn,
-      terminationKind: termination?.kind,
+      isLastAssistantInTurn: isLastAssistant,
+      terminationKind: kind,
     })
   ) {
     return null;
   }
 
   const rawDetail = termination?.errorMessage ?? headlessError?.message;
-  const kind =
-    termination?.kind ??
-    headlessError?.code ??
-    (status === "error" ? "error" : status === "incomplete" ? "other" : undefined);
   let title = t("workbench.chat.errors.requestFailedTitle");
   let detail = rawDetail ?? t("workbench.chat.errors.unknownFailure");
 
@@ -133,8 +134,9 @@ function WorkbenchMessageError() {
   const canContinueCheckpoint =
     messageResumeCheckpoint?.capability === "ready" && session.actions.resume !== undefined;
   const canRepairAndContinue =
-    messageResumeCheckpoint === undefined &&
+    resumeCheckpoint === undefined &&
     isInLatestTurn &&
+    isLastAssistant &&
     (kind === "cancelled" || kind === "aborted") &&
     session.actions.resumeLatest !== undefined;
   const canContinue = canContinueCheckpoint || canRepairAndContinue;

@@ -38,6 +38,11 @@ function diagnosticText(diagnostic: {
 }
 
 export const messageTerminationExtension: ExtensionFactory = (pi) => {
+  let runStartedAt: number | undefined;
+  pi.on("agent_start", () => {
+    runStartedAt = Date.now();
+  });
+
   pi.on("message_end", (event, context) => {
     if (event.message.role !== "assistant") return;
 
@@ -48,7 +53,7 @@ export const messageTerminationExtension: ExtensionFactory = (pi) => {
 
     if (stopReason === "length") {
       kind = "length";
-    } else if (stopReason === "aborted") {
+    } else if (stopReason === "aborted" || (stopReason === "error" && context.signal?.aborted)) {
       const entries = context.sessionManager.getBranch();
       for (let index = entries.length - 1; index >= 0; index -= 1) {
         const entry = entries[index];
@@ -60,7 +65,8 @@ export const messageTerminationExtension: ExtensionFactory = (pi) => {
         if (
           typeof requestedAt === "number" &&
           Number.isFinite(requestedAt) &&
-          requestedAt >= message.timestamp
+          // Abort failures can create a new terminal message after the stop request.
+          requestedAt >= (runStartedAt ?? message.timestamp)
         ) {
           kind = "cancelled";
           source = "workbench";

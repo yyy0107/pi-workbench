@@ -1,6 +1,7 @@
 interface MessageErrorVisibility {
   readonly isRunning: boolean;
   readonly isInLatestTurn: boolean;
+  readonly isLastAssistantInTurn: boolean;
   readonly terminationKind?: string;
 }
 
@@ -22,11 +23,18 @@ export function isMessageInLatestTurn(
   return true;
 }
 
-/** Only failures belonging to the currently running turn are transient. */
+/** A continuation supersedes earlier stopped cards without changing the stored messages. */
 export function shouldShowMessageError({
   isRunning,
   isInLatestTurn,
+  isLastAssistantInTurn,
   terminationKind,
 }: MessageErrorVisibility): boolean {
+  if (
+    (terminationKind === "cancelled" || terminationKind === "aborted") &&
+    !isLastAssistantInTurn
+  ) {
+    return false;
+  }
   return terminationKind !== "completed" && (!isRunning || !isInLatestTurn);
 }

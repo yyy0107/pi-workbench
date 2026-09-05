@@ -65,6 +65,7 @@ test("classifies persisted interruption reasons, including provider limits", () 
     "quota-exhausted",
   );
   assert.equal(resumeReasonFromAssistantMessage(assistantWithTermination("length")), undefined);
+  assert.equal(resumeReasonFromAssistantMessage({ stopReason: "aborted" }), "process-interrupted");
 });
 
 test("projects the active checkpoint and invalidates it after a new conversation message", () => {

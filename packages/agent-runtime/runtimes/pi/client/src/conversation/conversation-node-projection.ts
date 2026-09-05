@@ -59,7 +59,25 @@ function toolStatus(
   ) {
     return "requires-action";
   }
-  if (part.result !== undefined) return part.isError ? "error" : "complete";
+  if (part.result !== undefined) {
+    const resultText =
+      typeof part.result === "string"
+        ? part.result
+        : part.result && typeof part.result === "object" && "text" in part.result
+          ? part.result.text
+          : undefined;
+    // ponytail: Pi encodes tool aborts in text; use structured cancellation when the SDK exposes it.
+    if (
+      part.isError &&
+      message.status.type === "incomplete" &&
+      message.status.reason === "cancelled" &&
+      typeof resultText === "string" &&
+      /(?:^|\n)(?:Operation|Command) aborted\s*$/.test(resultText)
+    ) {
+      return "incomplete";
+    }
+    return part.isError ? "error" : "complete";
+  }
   return message.status.type === "running" ? "running" : "incomplete";
 }
 

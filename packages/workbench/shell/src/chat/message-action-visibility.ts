@@ -26,6 +26,21 @@ function hasActionableAssistantContent(message: MessageActionVisibilityMessage):
   });
 }
 
+export function isLastAssistantInTurn(
+  messages: readonly Pick<MessageActionVisibilityMessage, "role">[],
+  messageIndex: number,
+): boolean {
+  if (messages[messageIndex]?.role !== "assistant") return false;
+
+  for (let index = messageIndex + 1; index < messages.length; index += 1) {
+    const nextMessage = messages[index];
+    if (!nextMessage || nextMessage.role === "user") break;
+    if (nextMessage.role === "assistant") return false;
+  }
+
+  return true;
+}
+
 export function shouldShowMessageActions(
   messages: readonly MessageActionVisibilityMessage[],
   messageIndex: number,
@@ -34,13 +49,7 @@ export function shouldShowMessageActions(
   if (!message || message.role === "system") return false;
   if (message.role === "user") return true;
 
-  for (let index = messageIndex + 1; index < messages.length; index += 1) {
-    const nextMessage = messages[index];
-    if (!nextMessage || nextMessage.role === "user") break;
-    if (nextMessage.role === "assistant") return false;
-  }
-
-  return hasActionableAssistantContent(message);
+  return isLastAssistantInTurn(messages, messageIndex) && hasActionableAssistantContent(message);
 }
 
 /** Branch navigation must remain reachable even when a branch has no renderable content. */
