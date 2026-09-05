@@ -9,12 +9,21 @@ export type AskUserAnswer = WorkbenchInteractionAnswer;
 export interface QuestionAnswerDraft {
   readonly selected: readonly string[];
   readonly custom: string;
+  readonly skipped?: true;
 }
 
 export function createQuestionAnswerDrafts(
   questions: readonly AskUserQuestion[],
+  answers: readonly AskUserAnswer[] = [],
 ): QuestionAnswerDraft[] {
-  return questions.map(() => ({ selected: [], custom: "" }));
+  return questions.map((question) => {
+    const answer = answers.find((candidate) => candidate.id === question.id);
+    return {
+      selected: answer?.selected ?? [],
+      custom: answer?.custom ?? "",
+      ...(answer?.skipped ? { skipped: true as const } : {}),
+    };
+  });
 }
 
 function replaceDraft(
@@ -40,7 +49,7 @@ export function selectQuestionOption(
   }
 
   if (!question.multiSelect) {
-    return replaceDraft(drafts, index, { ...draft, selected: checked ? [label] : [] });
+    return replaceDraft(drafts, index, { custom: draft.custom, selected: checked ? [label] : [] });
   }
 
   const selected = checked
@@ -48,7 +57,7 @@ export function selectQuestionOption(
       ? [...draft.selected]
       : [...draft.selected, label]
     : draft.selected.filter((candidate) => candidate !== label);
-  return replaceDraft(drafts, index, { ...draft, selected });
+  return replaceDraft(drafts, index, { custom: draft.custom, selected });
 }
 
 export function setQuestionCustomAnswer(
@@ -58,7 +67,14 @@ export function setQuestionCustomAnswer(
 ): QuestionAnswerDraft[] {
   const draft = drafts[index];
   if (!draft) return [...drafts];
-  return replaceDraft(drafts, index, { ...draft, custom });
+  return replaceDraft(drafts, index, { selected: draft.selected, custom });
+}
+
+export function skipQuestion(
+  drafts: readonly QuestionAnswerDraft[],
+  index: number,
+): QuestionAnswerDraft[] {
+  return replaceDraft(drafts, index, { selected: [], custom: "", skipped: true });
 }
 
 export function canSubmitQuestionAnswers(
@@ -83,6 +99,7 @@ function isQuestionValid(
   draft: QuestionAnswerDraft | undefined,
 ): boolean {
   if (!draft) return false;
+  if (draft.skipped) return draft.selected.length === 0 && draft.custom.length === 0;
 
   const options = question.options ?? [];
   if (options.length === 0) {
@@ -116,6 +133,7 @@ export function buildQuestionAnswers(
 ): AskUserAnswer[] {
   return questions.map((question, index) => {
     const draft = drafts[index] ?? { selected: [], custom: "" };
+    if (draft.skipped) return { id: question.id, selected: [], skipped: true };
     return {
       id: question.id,
       selected: [...draft.selected],

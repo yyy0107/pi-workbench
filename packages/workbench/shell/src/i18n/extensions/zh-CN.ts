@@ -2,7 +2,7 @@ import type { MessageFormatters } from "../types";
 
 export const extensionsZhCN = {
   interactiveRequests: {
-    questionTitle: "需要你的回答",
+    questionTitle: "问题",
     questionDescription: "回答此请求后，会话才能继续。",
     approvalTitle: "需要工具授权",
     approvalDescription: "请在允许工具运行前检查此请求。",
@@ -10,9 +10,9 @@ export const extensionsZhCN = {
     pending: ({ count }: { count: number }, { number }: MessageFormatters) =>
       `${number(count)} 个待处理请求`,
     answerLabel: ({ question }: { question: string }) => `${question}的回答`,
-    answerPlaceholder: "请输入回答",
+    answerPlaceholder: "回复…",
     customAnswerLabel: "其他答案",
-    customAnswerPlaceholder: "输入其他答案或补充说明",
+    customAnswerPlaceholder: "或输入你自己的回答",
     required: "必填",
     yes: "是",
     no: "否",
@@ -20,8 +20,12 @@ export const extensionsZhCN = {
     callId: "调用 ID",
     reason: "原因",
     submit: "提交回答",
+    send: "发送",
     submitAndContinue: "提交并继续",
-    nextQuestion: "下一题",
+    nextQuestion: "下一步",
+    skip: "跳过",
+    timeoutCountdown: ({ seconds }: { seconds: number }, { number }: MessageFormatters) =>
+      `${number(seconds)} 秒后自动跳过本题`,
     submitting: "正在发送…",
     cancel: "取消请求",
     close: "关闭授权请求",

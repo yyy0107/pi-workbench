@@ -10,6 +10,7 @@ import {
   findFirstInvalidQuestionIndex,
   selectQuestionOption,
   setQuestionCustomAnswer,
+  skipQuestion,
   type AskUserQuestion,
 } from "./interaction-form-state";
 
@@ -105,4 +106,24 @@ test("finds the first unanswered required question", () => {
   drafts = setQuestionCustomAnswer(drafts, 2, "  Ready  ");
   assert.equal(findFirstInvalidQuestionIndex(requiredQuestions, drafts), undefined);
   assert.equal(canSubmitQuestionAnswers(requiredQuestions, drafts), true);
+});
+
+test("skipping a required question preserves other answers and can be replaced with an answer", () => {
+  const required = questions.map((question) => ({ ...question, required: true }));
+  let drafts = createQuestionAnswerDrafts(required, [
+    { id: "target", selected: ["Code"] },
+    { id: "note", selected: [], custom: "Keep this" },
+  ]);
+  drafts = skipQuestion(drafts, 1);
+  assert.equal(canSubmitQuestionAnswers(required, drafts), true);
+  const answers = buildQuestionAnswers(required, drafts);
+  assert.deepEqual(answers[1], { id: "features", selected: [], skipped: true });
+  assert.deepEqual(answers[0]?.selected, ["Code"]);
+  assert.equal(answers[2]?.custom, "Keep this");
+  assert.deepEqual(createQuestionAnswerDrafts(required, answers), drafts);
+  drafts = selectQuestionOption(drafts, required, 1, "Search", true);
+  assert.equal(drafts[1]?.skipped, undefined);
+  drafts = skipQuestion(drafts, 2);
+  drafts = setQuestionCustomAnswer(drafts, 2, "Changed my mind");
+  assert.equal(drafts[2]?.skipped, undefined);
 });

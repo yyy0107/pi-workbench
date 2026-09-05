@@ -2,7 +2,7 @@ import type { MessageFormatters } from "../types";
 
 export const extensionsEnUS = {
   interactiveRequests: {
-    questionTitle: "Your response is needed",
+    questionTitle: "Question",
     questionDescription: "Answer this request to let the session continue.",
     approvalTitle: "Tool approval required",
     approvalDescription: "Review this tool request before allowing it to run.",
@@ -10,9 +10,9 @@ export const extensionsEnUS = {
     pending: ({ count }: { count: number }, { number }: MessageFormatters) =>
       `${number(count)} pending ${count === 1 ? "request" : "requests"}`,
     answerLabel: ({ question }: { question: string }) => `Answer for ${question}`,
-    answerPlaceholder: "Type your answer",
+    answerPlaceholder: "Reply…",
     customAnswerLabel: "Other answer",
-    customAnswerPlaceholder: "Type another answer or add context",
+    customAnswerPlaceholder: "Or write your own response",
     required: "Required",
     yes: "Yes",
     no: "No",
@@ -20,8 +20,12 @@ export const extensionsEnUS = {
     callId: "Call ID",
     reason: "Reason",
     submit: "Submit response",
+    send: "Send",
     submitAndContinue: "Submit and continue",
-    nextQuestion: "Next question",
+    nextQuestion: "Next",
+    skip: "Skip",
+    timeoutCountdown: ({ seconds }: { seconds: number }, { number }: MessageFormatters) =>
+      `Automatically skip this question in ${number(seconds)} seconds`,
     submitting: "Sending…",
     cancel: "Cancel request",
     close: "Close approval request",
@@ -35,7 +39,7 @@ export const extensionsEnUS = {
       position: (
         { current, total }: { current: number; total: number },
         { number }: MessageFormatters,
-      ) => `${number(current)} / ${number(total)}`,
+      ) => `${number(current)} of ${number(total)}`,
       index: ({ index }: { index: number }, { number }: MessageFormatters) => number(index),
       open: (
         { current, total }: { current: number; total: number },

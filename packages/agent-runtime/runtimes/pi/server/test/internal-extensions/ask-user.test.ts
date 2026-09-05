@@ -83,6 +83,7 @@ test("keeps the hidden Ask User tool aligned with the Workbench capability prefe
 test("routes grouped questions through the Workbench UI and returns normalized answers", async () => {
   const harness = createHarness(true);
   const receivedQuestions: unknown[] = [];
+  const abort = new AbortController();
 
   const result = await harness.tool.execute(
     "tool-call-1",
@@ -102,12 +103,13 @@ test("routes grouped questions through the Workbench UI and returns normalized a
         },
       ],
     },
-    new AbortController().signal,
+    abort.signal,
     () => undefined,
     {
       hasUI: true,
       ui: {
-        async workbenchAskUser(questions: unknown[]) {
+        async workbenchAskUser(questions: unknown[], options: unknown) {
+          assert.deepEqual(options, { signal: abort.signal, timeout: 30_000 });
           receivedQuestions.push(...questions);
           return [
             { id: "scope", selected: ["Composer"], custom: "Keep the change local" },

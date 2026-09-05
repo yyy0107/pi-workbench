@@ -164,6 +164,8 @@ function QuestionComposerOverlay({
   return (
     <AskUserPanel
       questions={interaction.questions}
+      expiresAt={interaction.expiresAt}
+      progress={interaction.progress}
       disabled={submitting}
       error={errorMessage}
       formatOptionLabel={(question, label) =>
@@ -175,9 +177,10 @@ function QuestionComposerOverlay({
         )
       }
       onCancel={() => void submit({ kind: "cancel" })}
-      onSubmit={(answers) =>
+      onSubmit={(answers, nextQuestionIndex) =>
         void submit({
           kind: "question",
+          ...(nextQuestionIndex === undefined ? {} : { nextQuestionIndex }),
           answers: answers.map((answer) => ({
             ...answer,
             selected: [...answer.selected],

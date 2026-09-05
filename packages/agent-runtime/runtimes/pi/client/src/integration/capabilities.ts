@@ -48,6 +48,8 @@ function projectPendingInteraction(interaction: PiPendingInteraction): Workbench
         requestId: interaction.rpcId,
         sessionId: interaction.sessionId,
         questions: interaction.questions,
+        ...(interaction.expiresAt === undefined ? {} : { expiresAt: interaction.expiresAt }),
+        ...(interaction.progress === undefined ? {} : { progress: interaction.progress }),
       }
     : {
         kind: "approval",

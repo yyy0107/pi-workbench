@@ -209,6 +209,7 @@ export interface WorkbenchInteractionAnswer {
   id: string;
   selected: readonly string[];
   custom?: string;
+  skipped?: true;
 }
 
 export type WorkbenchPendingInteraction =
@@ -217,6 +218,9 @@ export type WorkbenchPendingInteraction =
       requestId: string;
       sessionId: string;
       questions: readonly WorkbenchInteractionQuestion[];
+      /** Deadline for the current question in epoch milliseconds. */
+      expiresAt?: number;
+      progress?: { currentIndex: number; answers: readonly WorkbenchInteractionAnswer[] };
     }
   | {
       kind: "approval";
@@ -229,7 +233,7 @@ export type WorkbenchPendingInteraction =
     };
 
 export type WorkbenchInteractionResponse =
-  | { kind: "question"; answers: readonly WorkbenchInteractionAnswer[] }
+  | { kind: "question"; answers: readonly WorkbenchInteractionAnswer[]; nextQuestionIndex?: number }
   | { kind: "approval"; outcome: "allowed-once" | "rejected" }
   | { kind: "cancel"; message?: string };
 

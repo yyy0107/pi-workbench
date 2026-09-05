@@ -12,6 +12,7 @@ import type {
   ApprovalRequestedPayload,
   ApprovalResolvedPayload,
   QuestionItem,
+  QuestionRequestedPayload,
 } from "@workbench/agent-runtime-pi-protocol/stream";
 import type { StreamHub } from "../streams/stream-hub";
 // Node's native TypeScript test runner requires explicit extensions for runtime imports.
@@ -72,7 +73,7 @@ interface PendingQuestion<Value> extends PendingBase {
   kind: "question";
   questions: QuestionItem[];
   defaultValue: Value;
-  parseAnswer: (answer: QuestionAnswerItem[]) => Parsed<Value>;
+  parseAnswer: (answer: QuestionAnswerItem[], nextQuestionIndex?: number) => Parsed<Value>;
   resolve: (value: Value) => void;
 }
 
@@ -118,13 +119,26 @@ function parseQuestionResponseValue(value: unknown): QuestionResponseValue | und
       return undefined;
     }
     if (candidate.custom !== undefined && typeof candidate.custom !== "string") return undefined;
+    if (candidate.skipped !== undefined && candidate.skipped !== true) return undefined;
     answers.push({
       id: candidate.id,
       selected: [...candidate.selected],
       ...(candidate.custom === undefined ? {} : { custom: candidate.custom }),
+      ...(candidate.skipped ? { skipped: true as const } : {}),
     });
   }
-  return { sessionId: value.sessionId, answer: { answers } };
+  const nextQuestionIndex = value.answer.nextQuestionIndex;
+  if (
+    nextQuestionIndex !== undefined &&
+    (typeof nextQuestionIndex !== "number" ||
+      !Number.isInteger(nextQuestionIndex) ||
+      nextQuestionIndex < 0)
+  )
+    return undefined;
+  return {
+    sessionId: value.sessionId,
+    answer: { answers, ...(nextQuestionIndex === undefined ? {} : { nextQuestionIndex }) },
+  };
 }
 
 function parseApprovalResponseValue(value: unknown): ApprovalResponseValue | undefined {
@@ -231,8 +245,10 @@ function validAskUserQuestions(questions: readonly QuestionItem[]): boolean {
 function parseAskUserAnswers(
   questions: readonly QuestionItem[],
   answers: readonly QuestionAnswerItem[],
+  partial = false,
 ): Parsed<QuestionAnswerItem[]> {
-  if (questions.length === 0 || answers.length !== questions.length) return { ok: false };
+  if (questions.length === 0 || (!partial && answers.length !== questions.length))
+    return { ok: false };
 
   const questionsById = new Map<string, QuestionItem>();
   for (const question of questions) {
@@ -245,6 +261,11 @@ function parseAskUserAnswers(
     const question = questionsById.get(answer.id);
     if (!question || answersById.has(answer.id)) return { ok: false };
 
+    if (answer.skipped) {
+      if (answer.selected.length !== 0 || answer.custom !== undefined) return { ok: false };
+      answersById.set(answer.id, { id: answer.id, selected: [], skipped: true });
+      continue;
+    }
     const options = question.options ?? [];
     if (options.length === 0) {
       if (answer.selected.length !== 0 || typeof answer.custom !== "string") {
@@ -277,7 +298,7 @@ function parseAskUserAnswers(
 
   return {
     ok: true,
-    value: questions.map((question) => answersById.get(question.id)!),
+    value: questions.flatMap((question) => answersById.get(question.id) ?? []),
   };
 }
 
@@ -285,6 +306,7 @@ export class InteractiveResponseRegistry {
   private readonly hub: StreamHub;
   private readonly createRpcId: () => string;
   private readonly pending = new Map<string, PendingInteraction>();
+  private readonly questionGroups = new Map<AbortController, string>();
 
   constructor(options: InteractiveResponseRegistryOptions = {}) {
     this.hub = options.hub ?? getStreamHub();
@@ -380,12 +402,14 @@ export class InteractiveResponseRegistry {
     sessionId: string,
     questions: QuestionItem[],
     defaultValue: Value,
-    parseAnswer: (answers: QuestionAnswerItem[]) => Parsed<Value>,
+    parseAnswer: (answers: QuestionAnswerItem[], nextQuestionIndex?: number) => Parsed<Value>,
     options?: DialogOptions,
+    step?: { progress: NonNullable<QuestionRequestedPayload["progress"]>; onTimeout(): Value },
   ): Promise<Value> {
     if (options?.signal?.aborted) return Promise.resolve(defaultValue);
 
     const rpcId = this.nextRpcId();
+    const expiresAt = validTimeout(options?.timeout) ? Date.now() + options.timeout : undefined;
     return new Promise<Value>((resolve) => {
       const wasWaitingForUserInput = this.isSessionWaitingForUserInput(sessionId);
       const entry: PendingQuestion<Value> = {
@@ -403,13 +427,25 @@ export class InteractiveResponseRegistry {
       this.pending.set(rpcId, entry as PendingInteraction);
       if (!wasWaitingForUserInput) this.publishWaitingForUserInput(sessionId, true);
       options?.signal?.addEventListener("abort", onAbort, { once: true });
-      if (validTimeout(options?.timeout)) {
-        entry.timeout = setTimeout(onAbort, options.timeout);
+      if (expiresAt !== undefined) {
+        entry.timeout = setTimeout(
+          () => (step ? this.claimQuestion(entry, step.onTimeout(), "answered") : onAbort()),
+          Math.max(0, expiresAt - Date.now()),
+        );
         entry.timeout.unref?.();
       }
 
       try {
-        this.hub.publishMux({ type: "question/requested", sessionId, questions }, { rpcId });
+        this.hub.publishMux(
+          {
+            type: "question/requested",
+            sessionId,
+            questions,
+            ...(expiresAt === undefined ? {} : { expiresAt }),
+            ...(step === undefined ? {} : { progress: step.progress }),
+          },
+          { rpcId },
+        );
       } catch {
         this.claimQuestion(entry, defaultValue, "cancelled");
       }
@@ -418,17 +454,88 @@ export class InteractiveResponseRegistry {
 
   createExtensionUIContext(sessionId: string): ExtensionUIContext & WorkbenchExtensionUIContext {
     return {
-      workbenchAskUser: (questions, dialogOptions) => {
+      workbenchAskUser: async (questions, dialogOptions) => {
         if (!validAskUserQuestions(questions)) {
-          return Promise.reject(new Error("Invalid Workbench Ask User question group."));
+          throw new Error("Invalid Workbench Ask User question group.");
         }
-        return this.ask<QuestionAnswerItem[] | undefined>(
-          sessionId,
-          questions,
-          undefined,
-          (answers) => parseAskUserAnswers(questions, answers),
-          dialogOptions,
-        );
+        const controller = new AbortController();
+        const signal = dialogOptions?.signal
+          ? AbortSignal.any([controller.signal, dialogOptions.signal])
+          : controller.signal;
+        // Keep cancellation active between the individual question requests.
+        this.questionGroups.set(controller, sessionId);
+        try {
+          let currentIndex = 0;
+          let savedAnswers: QuestionAnswerItem[] = [];
+          while (true) {
+            const result = await this.ask<QuestionResponseValue["answer"] | undefined>(
+              sessionId,
+              questions,
+              undefined,
+              (answers, nextQuestionIndex) => {
+                if (
+                  nextQuestionIndex !== undefined &&
+                  (!Number.isInteger(nextQuestionIndex) ||
+                    nextQuestionIndex < 0 ||
+                    nextQuestionIndex >= questions.length ||
+                    nextQuestionIndex === currentIndex)
+                ) {
+                  return { ok: false };
+                }
+                const parsed = parseAskUserAnswers(
+                  questions,
+                  answers,
+                  nextQuestionIndex !== undefined,
+                );
+                return parsed.ok
+                  ? {
+                      ok: true,
+                      value: {
+                        answers: parsed.value,
+                        ...(nextQuestionIndex === undefined ? {} : { nextQuestionIndex }),
+                      },
+                    }
+                  : parsed;
+              },
+              { ...dialogOptions, signal, timeout: dialogOptions?.timeout ?? 30_000 },
+              {
+                progress: { currentIndex, answers: savedAnswers },
+                onTimeout: () => {
+                  const id = questions[currentIndex]!.id;
+                  const answers: QuestionAnswerItem[] = [
+                    ...savedAnswers.filter((answer) => answer.id !== id),
+                    { id, selected: [], skipped: true },
+                  ];
+                  // Continue with the next unfinished question, including any earlier question
+                  // left empty through the navigator. The previous answers remain intact.
+                  const nextQuestionIndex = questions.findIndex(
+                    (_, index) =>
+                      index > currentIndex &&
+                      !answers.some((answer) => answer.id === questions[index]!.id),
+                  );
+                  const remainingIndex =
+                    nextQuestionIndex >= 0
+                      ? nextQuestionIndex
+                      : questions.findIndex(
+                          (question) => !answers.some((answer) => answer.id === question.id),
+                        );
+                  return {
+                    answers: questions.flatMap(
+                      (question) => answers.find((answer) => answer.id === question.id) ?? [],
+                    ),
+                    ...(remainingIndex < 0 ? {} : { nextQuestionIndex: remainingIndex }),
+                  };
+                },
+              },
+            );
+            if (!result) return undefined;
+            if (result.nextQuestionIndex === undefined) return result.answers;
+            savedAnswers = result.answers;
+            currentIndex = result.nextQuestionIndex;
+          }
+        } finally {
+          this.questionGroups.delete(controller);
+        }
       },
       select: (title, options, dialogOptions) => {
         const id = "selection";
@@ -620,7 +727,7 @@ export class InteractiveResponseRegistry {
     if (!("answer" in value) || value.sessionId !== entry.sessionId) {
       return { accepted: false, reason: "bad-response" };
     }
-    const parsed = entry.parseAnswer(value.answer.answers);
+    const parsed = entry.parseAnswer(value.answer.answers, value.answer.nextQuestionIndex);
     if (!parsed.ok) return { accepted: false, reason: "bad-response" };
     return this.claimQuestion(entry, parsed.value, "answered")
       ? { accepted: true }
@@ -628,6 +735,9 @@ export class InteractiveResponseRegistry {
   }
 
   clearSession(sessionId: string): void {
+    for (const [controller, groupSessionId] of this.questionGroups) {
+      if (groupSessionId === sessionId) controller.abort();
+    }
     for (const entry of this.pending.values()) {
       if (entry.sessionId !== sessionId) continue;
       if (entry.kind === "question") {
@@ -639,6 +749,7 @@ export class InteractiveResponseRegistry {
   }
 
   clear(): void {
+    for (const controller of this.questionGroups.keys()) controller.abort();
     for (const entry of this.pending.values()) {
       if (entry.kind === "question") {
         this.claimQuestion(entry, entry.defaultValue, "cancelled");

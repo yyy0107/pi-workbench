@@ -1,16 +1,17 @@
 "use client";
 
 import {
+  ArrowRightIcon,
   CheckIcon,
-  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CircleIcon,
   LoaderCircleIcon,
+  MessageCircleQuestionMarkIcon,
   PencilLineIcon,
   XIcon,
 } from "lucide-react";
-import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@workbench/shell/ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@workbench/shell/ui";
@@ -25,6 +26,7 @@ import {
   isQuestionAnswered,
   selectQuestionOption,
   setQuestionCustomAnswer,
+  skipQuestion,
   type AskUserAnswer,
   type AskUserQuestion,
   type QuestionAnswerDraft,
@@ -33,19 +35,51 @@ import { AskUserRecommendedMark } from "./ask-user-recommended-mark";
 
 interface AskUserPanelProps {
   questions: readonly AskUserQuestion[];
+  expiresAt?: number;
+  progress?: { currentIndex: number; answers: readonly AskUserAnswer[] };
   disabled?: boolean;
   error?: ReactNode;
   formatOptionLabel?(question: AskUserQuestion, label: string): string;
   onCancel(): void;
-  onSubmit(answers: readonly AskUserAnswer[]): void;
+  onSubmit(answers: readonly AskUserAnswer[], nextQuestionIndex?: number): void;
 }
 
 const answerOptionClassName =
-  "group focus-within:ring-ring/50 flex min-h-[var(--button-height-large)] cursor-pointer items-start gap-3 rounded-[var(--radius-xl)] border border-transparent px-3 py-2.5 text-start transition-[border-color,background-color,box-shadow] hover:bg-muted/60 focus-within:ring-2 has-checked:border-border/70 has-checked:bg-muted has-disabled:cursor-not-allowed has-disabled:opacity-60";
+  "group/answer has-[:focus-visible]:ring-ring/50 flex min-h-[var(--button-height-default)] cursor-pointer items-center gap-2 rounded-[var(--button-radius)] px-2 py-0.5 text-start transition-colors hover:[background:var(--control-state-background-hover)] has-[:focus-visible]:ring-2 has-disabled:cursor-not-allowed has-disabled:opacity-60";
+
+const answerMarkerClassName =
+  "text-muted-foreground bg-muted flex size-[var(--button-height-compact)] shrink-0 items-center justify-center rounded-full border border-border text-xs tabular-nums";
 
 function isRequired(question: AskUserQuestion): boolean {
   const hasOptions = (question.options?.length ?? 0) > 0;
   return question.required ?? (hasOptions && !question.multiSelect);
+}
+
+function QuestionCountdown({ expiresAt }: { expiresAt: number }) {
+  const { number, t } = useI18n();
+  const [now, setNow] = useState(Date.now);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const currentTime = Date.now();
+      setNow(currentTime);
+      if (currentTime >= expiresAt) window.clearInterval(timer);
+    }, 1_000);
+    return () => window.clearInterval(timer);
+  }, [expiresAt]);
+
+  const seconds = Math.max(0, Math.ceil((expiresAt - now) / 1_000));
+  if (seconds > 20) return null;
+
+  return (
+    <span
+      role="timer"
+      aria-label={t("extensions.interactiveRequests.timeoutCountdown", { seconds })}
+      className="text-info-foreground text-xs tabular-nums"
+    >
+      {number(seconds, { style: "unit", unit: "second", unitDisplay: "narrow" })}
+    </span>
+  );
 }
 
 function QuestionNavigator({
@@ -65,7 +99,7 @@ function QuestionNavigator({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex shrink-0 items-center gap-0.5 whitespace-nowrap">
+    <div className="text-muted-foreground flex shrink-0 items-center gap-0.5 whitespace-nowrap">
       <Button
         type="button"
         variant="ghost"
@@ -84,7 +118,7 @@ function QuestionNavigator({
             current: currentIndex + 1,
             total: questions.length,
           })}
-          className="hover:bg-muted focus-visible:ring-ring/50 inline-flex h-[var(--button-height-default)] items-center gap-1 rounded-[var(--button-radius)] px-1.5 text-xs font-medium outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50"
+          render={<Button variant="ghost" className="px-1.5 font-normal tabular-nums" />}
         >
           <span aria-hidden="true">
             {t("extensions.interactiveRequests.navigator.position", {
@@ -92,7 +126,6 @@ function QuestionNavigator({
               total: questions.length,
             })}
           </span>
-          <ChevronDownIcon aria-hidden="true" className="text-muted-foreground size-3.5" />
         </PopoverTrigger>
         <PopoverContent align="end" side="top" className="w-72 gap-1 p-1.5">
           <p className="text-muted-foreground px-2 py-1 text-xs font-medium">
@@ -121,7 +154,7 @@ function QuestionNavigator({
                     aria-hidden="true"
                   >
                     {answered ? (
-                      <CheckIcon className="size-4 text-emerald-600 dark:text-emerald-400" />
+                      <CheckIcon className="size-[var(--icon-size-md)] text-success-foreground" />
                     ) : current ? (
                       <CircleIcon className="size-[var(--icon-size-md)] fill-current text-primary" />
                     ) : (
@@ -185,7 +218,7 @@ function QuestionControl({
 
   return (
     <fieldset
-      className="max-h-72 space-y-1 overflow-y-auto overscroll-contain pe-1 [scrollbar-gutter:stable]"
+      className="-mx-3 max-h-72 space-y-0.5 overflow-y-auto overscroll-contain p-1"
       disabled={disabled}
       aria-labelledby={questionLabelId}
     >
@@ -201,23 +234,23 @@ function QuestionControl({
               value={option.label}
               checked={checked}
               className="sr-only"
+              onClick={() => {
+                if (!question.multiSelect && checked) onOptionChange(option.label, true);
+              }}
               onChange={(event) => onOptionChange(option.label, event.currentTarget.checked)}
             />
-            <span
-              aria-hidden="true"
-              className="text-muted-foreground bg-background/70 flex size-[var(--button-height-large)] shrink-0 items-center justify-center rounded-full border border-border/70 text-sm font-medium tabular-nums"
-            >
+            <span aria-hidden="true" className={answerMarkerClassName}>
               {t("extensions.interactiveRequests.navigator.index", { index: optionIndex + 1 })}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold leading-5">
-                <span className="min-w-0" title={displayLabel}>
+              <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-5">
+                <span className="min-w-0 break-words" title={displayLabel}>
                   {displayLabel}
                 </span>
                 {option.recommended ? <AskUserRecommendedMark /> : null}
               </span>
               {option.description ? (
-                <span className="text-muted-foreground block text-xs leading-4">
+                <span className="text-muted-foreground mt-0.5 block text-xs leading-4">
                   {option.description}
                 </span>
               ) : null}
@@ -225,14 +258,16 @@ function QuestionControl({
             <span
               aria-hidden="true"
               className={cn(
-                "text-muted-foreground mt-2 flex size-5 shrink-0 items-center justify-center transition-opacity",
-                checked ? "opacity-100" : "opacity-0 group-hover:opacity-40",
+                "text-muted-foreground flex size-[var(--icon-size-md)] shrink-0 items-center justify-center transition-opacity",
+                checked ? "opacity-100" : "opacity-0",
+                !question.multiSelect &&
+                  "group-hover/answer:opacity-100 group-has-[:focus-visible]/answer:opacity-100",
               )}
             >
-              {question.multiSelect ? (
-                <CheckIcon className="size-4" />
+              {checked || question.multiSelect ? (
+                <CheckIcon className="size-[var(--icon-size-md)]" />
               ) : (
-                <ChevronRightIcon className="size-5" />
+                <ArrowRightIcon className="size-[var(--icon-size-md)]" />
               )}
             </span>
           </label>
@@ -274,17 +309,23 @@ function CustomAnswerControl({
     : t("extensions.interactiveRequests.answerLabel", { question: question.question });
 
   return (
-    <div className="flex min-w-0 flex-1 items-end gap-2.5 ps-3">
-      <span
-        aria-hidden="true"
-        className="text-muted-foreground bg-muted flex size-[var(--button-height-large)] shrink-0 items-center justify-center rounded-full border border-border/70"
+    <div
+      className={cn(
+        "flex min-w-0 basis-full items-start gap-2",
+        hasOptions && "sm:flex-1 sm:basis-0",
+      )}
+    >
+      <label
+        id={customLabelId}
+        htmlFor={customInputId}
+        className={hasOptions ? cn(answerMarkerClassName, "cursor-text") : "sr-only"}
       >
-        <PencilLineIcon className="size-[var(--icon-size-md)]" />
-      </span>
+        {hasOptions ? (
+          <PencilLineIcon aria-hidden="true" className="size-[var(--icon-size-md)]" />
+        ) : null}
+        <span className="sr-only">{label}</span>
+      </label>
       <div className="min-w-0 flex-1">
-        <label id={customLabelId} htmlFor={customInputId} className="sr-only">
-          {label}
-        </label>
         <Textarea
           id={customInputId}
           rows={1}
@@ -298,7 +339,12 @@ function CustomAnswerControl({
               ? "extensions.interactiveRequests.customAnswerPlaceholder"
               : "extensions.interactiveRequests.answerPlaceholder",
           )}
-          className="min-h-[var(--button-height-large)] max-h-28 resize-y px-3 py-2 text-sm leading-5"
+          className={cn(
+            "max-h-28 resize-none text-sm leading-5",
+            hasOptions
+              ? "min-h-[var(--input-control-height)] border-0 px-0 py-1 [--input-control-background:transparent]"
+              : "min-h-[var(--button-height-large)]",
+          )}
           onChange={(event) => onCustomChange(event.currentTarget.value)}
         />
       </div>
@@ -308,6 +354,8 @@ function CustomAnswerControl({
 
 export function AskUserPanel({
   questions,
+  expiresAt,
+  progress,
   disabled = false,
   error,
   formatOptionLabel = (_question, label) => label,
@@ -317,8 +365,10 @@ export function AskUserPanel({
   const { t } = useI18n();
   const id = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const [drafts, setDrafts] = useState(() => createQuestionAnswerDrafts(questions));
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [drafts, setDrafts] = useState(() =>
+    createQuestionAnswerDrafts(questions, progress?.answers),
+  );
+  const [currentIndex, setCurrentIndex] = useState(progress?.currentIndex ?? 0);
   const [direction, setDirection] = useState<"backward" | "forward">("forward");
   const [validationError, setValidationError] = useState(false);
   const question = questions[currentIndex];
@@ -333,22 +383,45 @@ export function AskUserPanel({
   const questionLabelId = `${id}-question`;
   const validationId = `${id}-validation`;
   const lastQuestion = currentIndex === questions.length - 1;
+  const hasOptions = (question.options?.length ?? 0) > 0;
+  const awaitingRequiredAnswer =
+    isRequired(question) && !draft.skipped && !isQuestionAnswered(question, draft);
 
-  const navigate = (index: number) => {
+  const navigate = (index: number, nextDrafts = drafts) => {
     if (index < 0 || index >= questions.length || index === currentIndex) return;
-    setDirection(index < currentIndex ? "backward" : "forward");
-    setCurrentIndex(index);
+    if (progress) {
+      const answers = buildQuestionAnswers(questions, nextDrafts).filter(
+        (_, answerIndex) =>
+          nextDrafts[answerIndex]?.skipped ||
+          isQuestionAnswered(questions[answerIndex]!, nextDrafts[answerIndex]),
+      );
+      onSubmit(answers, index);
+    } else {
+      setDirection(index < currentIndex ? "backward" : "forward");
+      setCurrentIndex(index);
+    }
   };
 
-  const submit = () => {
-    const firstInvalid = findFirstInvalidQuestionIndex(questions, drafts);
+  const submit = (nextDrafts = drafts) => {
+    const firstInvalid = findFirstInvalidQuestionIndex(questions, nextDrafts);
     if (firstInvalid !== undefined) {
       setValidationError(true);
-      navigate(firstInvalid);
+      navigate(firstInvalid, nextDrafts);
       return;
     }
     setValidationError(false);
-    onSubmit(buildQuestionAnswers(questions, drafts));
+    onSubmit(buildQuestionAnswers(questions, nextDrafts));
+  };
+
+  const skip = () => {
+    if (disabled) return;
+    // Single-question SDK dialogs use cancellation as their empty/default response.
+    if (!progress && questions.length === 1) return onCancel();
+    const nextDrafts = skipQuestion(drafts, currentIndex);
+    setDrafts(nextDrafts);
+    setValidationError(false);
+    if (lastQuestion) submit(nextDrafts);
+    else navigate(currentIndex + 1, nextDrafts);
   };
 
   return (
@@ -357,49 +430,26 @@ export function AskUserPanel({
       aria-labelledby={questionLabelId}
       aria-busy={disabled}
       data-slot="ask-user-panel"
-      className="bg-background flex min-h-[196px] w-full flex-col overflow-hidden rounded-[var(--radius-xl)] border border-border shadow-sm"
+      className="bg-background text-foreground flex w-full flex-col overflow-hidden rounded-[var(--composer-radius,var(--radius-3xl))] border border-border"
     >
-      <header className="flex items-start justify-between gap-3 px-4 pt-4 pb-3 sm:px-5 sm:pt-5">
-        <div
-          key={currentIndex}
-          className={cn(
-            "min-w-0 flex-1 animate-in fade-in duration-150 motion-reduce:animate-none",
-            direction === "forward" ? "slide-in-from-right-1" : "slide-in-from-left-1",
-          )}
-        >
-          {question.header ? (
-            <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
-              {question.header}
-            </p>
-          ) : null}
-          <h2
-            ref={headingRef}
-            id={questionLabelId}
-            tabIndex={-1}
-            className="text-base font-semibold leading-6 outline-none sm:text-lg"
-          >
-            {question.question}
-            {isRequired(question) ? (
-              <>
-                <span className="ms-1 text-destructive" aria-hidden="true">
-                  *
-                </span>
-                <span className="sr-only">{t("extensions.interactiveRequests.required")}</span>
-              </>
-            ) : null}
-          </h2>
-          {question.detail ? (
-            <p className="text-muted-foreground mt-1 text-[13px] leading-5">{question.detail}</p>
-          ) : null}
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <QuestionNavigator
-            questions={questions}
-            drafts={drafts}
-            currentIndex={currentIndex}
-            disabled={disabled}
-            onNavigate={navigate}
+      <header className="flex items-center justify-between gap-3 px-4 py-1 sm:px-5">
+        <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
+          <MessageCircleQuestionMarkIcon
+            aria-hidden="true"
+            className="size-[var(--icon-size-lg)] shrink-0"
           />
+          <span className="truncate">{t("extensions.interactiveRequests.questionTitle")}</span>
+        </div>
+        <div className="text-muted-foreground flex shrink-0 items-center gap-2">
+          {questions.length > 1 ? (
+            <QuestionNavigator
+              questions={questions}
+              drafts={drafts}
+              currentIndex={currentIndex}
+              disabled={disabled}
+              onNavigate={navigate}
+            />
+          ) : null}
           <Button
             type="button"
             variant="ghost"
@@ -417,12 +467,12 @@ export function AskUserPanel({
         className="flex min-h-0 flex-1 flex-col"
         onSubmit={(event) => {
           event.preventDefault();
-          if (disabled) return;
+          if (disabled || awaitingRequiredAnswer) return;
           if (lastQuestion) submit();
           else navigate(currentIndex + 1);
         }}
       >
-        <div className="min-h-0 flex-1 px-3 pb-2 sm:px-4">
+        <div className="min-h-0 flex-1 px-4 sm:px-5">
           <div
             key={currentIndex}
             className={cn(
@@ -430,25 +480,55 @@ export function AskUserPanel({
               direction === "forward" ? "slide-in-from-right-1" : "slide-in-from-left-1",
             )}
           >
-            <QuestionControl
-              question={question}
-              questionIndex={currentIndex}
-              draft={draft}
-              disabled={disabled}
-              groupName={id}
-              questionLabelId={questionLabelId}
-              formatOptionLabel={formatOptionLabel}
-              onOptionChange={(label, checked) => {
-                setValidationError(false);
-                setDrafts((current) =>
-                  selectQuestionOption(current, questions, currentIndex, label, checked),
-                );
-              }}
-            />
+            {question.header ? (
+              <p className="text-muted-foreground mb-1 text-xs">{question.header}</p>
+            ) : null}
+            <h2
+              ref={headingRef}
+              id={questionLabelId}
+              tabIndex={-1}
+              className="text-base font-medium leading-6 outline-none"
+            >
+              {question.question}
+              {isRequired(question) ? (
+                <span className="sr-only">{t("extensions.interactiveRequests.required")}</span>
+              ) : null}
+            </h2>
+            {question.detail ? (
+              <p className="text-muted-foreground mt-1 text-sm leading-5">{question.detail}</p>
+            ) : null}
+            {hasOptions ? (
+              <div className="mt-1">
+                <QuestionControl
+                  question={question}
+                  questionIndex={currentIndex}
+                  draft={draft}
+                  disabled={disabled}
+                  groupName={id}
+                  questionLabelId={questionLabelId}
+                  formatOptionLabel={formatOptionLabel}
+                  onOptionChange={(label, checked) => {
+                    if (disabled) return;
+                    setValidationError(false);
+                    const nextDrafts = selectQuestionOption(
+                      drafts,
+                      questions,
+                      currentIndex,
+                      label,
+                      checked,
+                    );
+                    setDrafts(nextDrafts);
+                    if (checked && !question.multiSelect && !lastQuestion) {
+                      navigate(currentIndex + 1, nextDrafts);
+                    }
+                  }}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
 
-        <div className="mt-auto px-3 pt-2 pb-3 sm:px-4 sm:pb-4">
+        <div className={cn("mt-auto px-4 pb-2 sm:px-5", hasOptions ? "pt-1" : "pt-3")}>
           {validationError ? (
             <p id={validationId} role="alert" className="mb-2 text-sm text-destructive">
               {t("extensions.interactiveRequests.validation.missingRequired")}
@@ -459,7 +539,9 @@ export function AskUserPanel({
               {error}
             </div>
           ) : null}
-          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
+          <div
+            className={cn("flex flex-wrap items-end gap-x-3", hasOptions ? "gap-y-2" : "gap-y-3")}
+          >
             <CustomAnswerControl
               question={question}
               questionIndex={currentIndex}
@@ -474,7 +556,7 @@ export function AskUserPanel({
                 setDrafts((current) => setQuestionCustomAnswer(current, currentIndex, value));
               }}
             />
-            <div className="flex shrink-0 items-center justify-end gap-2">
+            <div className="ms-auto flex shrink-0 items-center justify-end gap-2 [--button-radius:var(--composer-radius,var(--radius-3xl))]">
               {question.multiSelect ? (
                 <span className="text-muted-foreground text-xs" aria-live="polite">
                   {t("extensions.interactiveRequests.selectedCount", {
@@ -483,19 +565,32 @@ export function AskUserPanel({
                 </span>
               ) : null}
               <Button
-                type="submit"
+                type="button"
                 variant="outline"
-                size="lg"
                 disabled={disabled}
+                title={t("extensions.interactiveRequests.skip")}
+                onClick={skip}
+              >
+                {t("extensions.interactiveRequests.skip")}
+                {expiresAt !== undefined && !disabled ? (
+                  <QuestionCountdown key={expiresAt} expiresAt={expiresAt} />
+                ) : null}
+              </Button>
+              <Button
+                type="submit"
+                disabled={disabled || awaitingRequiredAnswer}
                 aria-describedby={validationError ? validationId : undefined}
               >
                 {disabled ? <LoaderCircleIcon aria-hidden="true" className="animate-spin" /> : null}
                 {disabled
                   ? t("extensions.interactiveRequests.submitting")
                   : lastQuestion
-                    ? t("extensions.interactiveRequests.submitAndContinue")
+                    ? t(
+                        hasOptions
+                          ? "extensions.interactiveRequests.submitAndContinue"
+                          : "extensions.interactiveRequests.send",
+                      )
                     : t("extensions.interactiveRequests.nextQuestion")}
-                {!disabled ? <ChevronRightIcon aria-hidden="true" /> : null}
               </Button>
             </div>
           </div>

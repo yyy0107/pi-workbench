@@ -430,9 +430,28 @@ function isMuxPayload(payload: ServerRequestFrame["payload"]): boolean {
     case "question/requested":
       return (
         isNonEmptyString(payload.sessionId) &&
+        (payload.expiresAt === undefined ||
+          (typeof payload.expiresAt === "number" &&
+            Number.isFinite(payload.expiresAt) &&
+            payload.expiresAt > 0)) &&
         Array.isArray(payload.questions) &&
         payload.questions.length > 0 &&
-        payload.questions.every(isQuestion)
+        payload.questions.every(isQuestion) &&
+        (payload.progress === undefined ||
+          (isRecord(payload.progress) &&
+            Number.isInteger(payload.progress.currentIndex) &&
+            (payload.progress.currentIndex as number) >= 0 &&
+            (payload.progress.currentIndex as number) < payload.questions.length &&
+            Array.isArray(payload.progress.answers) &&
+            payload.progress.answers.every(
+              (answer) =>
+                isRecord(answer) &&
+                typeof answer.id === "string" &&
+                Array.isArray(answer.selected) &&
+                answer.selected.every((label) => typeof label === "string") &&
+                isOptionalString(answer.custom) &&
+                (answer.skipped === undefined || answer.skipped === true),
+            )))
       );
     case "question/resolved":
       return (

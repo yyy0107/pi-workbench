@@ -45,11 +45,12 @@ export interface QuestionAnswerItem {
   id: string;
   selected: string[];
   custom?: string;
+  skipped?: true;
 }
 
 export interface QuestionResponseValue {
   sessionId: string;
-  answer: { answers: QuestionAnswerItem[] };
+  answer: { answers: QuestionAnswerItem[]; nextQuestionIndex?: number };
 }
 
 export interface ApprovalResponseValue {

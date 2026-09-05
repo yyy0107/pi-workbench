@@ -130,6 +130,8 @@ export type PendingMuxInteraction =
       readonly rpcId: string;
       readonly sessionId: string;
       readonly questions: readonly QuestionItem[];
+      readonly expiresAt?: number;
+      readonly progress?: { currentIndex: number; answers: QuestionAnswerItem[] };
     }
   | {
       readonly kind: "approval";
@@ -144,7 +146,7 @@ export type PendingMuxInteraction =
 export type PiPendingInteraction = PendingMuxInteraction;
 
 export type PiInteractionResponse =
-  | { kind: "question"; answers: readonly QuestionAnswerItem[] }
+  | { kind: "question"; answers: readonly QuestionAnswerItem[]; nextQuestionIndex?: number }
   | { kind: "approval"; outcome: "allowed-once" | "rejected" }
   | { kind: "cancel"; message?: string };
 
@@ -465,10 +467,14 @@ export class PiSessionManager implements AgentRuntime {
               value: {
                 sessionId: pending.sessionId,
                 answer: {
+                  ...(response.nextQuestionIndex === undefined
+                    ? {}
+                    : { nextQuestionIndex: response.nextQuestionIndex }),
                   answers: response.answers.map((answer) => ({
                     id: answer.id,
                     selected: [...answer.selected],
                     ...(answer.custom === undefined ? {} : { custom: answer.custom }),
+                    ...(answer.skipped ? { skipped: true as const } : {}),
                   })),
                 },
               },
@@ -959,6 +965,10 @@ export class PiSessionManager implements AgentRuntime {
           rpcId: frame.rpcId,
           sessionId: payload.sessionId,
           questions: payload.questions.map((question) => structuredClone(question)),
+          ...(payload.expiresAt === undefined ? {} : { expiresAt: payload.expiresAt }),
+          ...(payload.progress === undefined
+            ? {}
+            : { progress: structuredClone(payload.progress) }),
         },
       });
       this.notify();

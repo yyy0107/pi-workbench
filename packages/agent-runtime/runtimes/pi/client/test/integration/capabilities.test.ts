@@ -67,6 +67,8 @@ function fixtureManager(transportOverride?: PiHttpTransport): PiSessionManager {
     rpcId: "request-1",
     sessionId: "session-1",
     questions: [{ id: "answer", question: "Continue?" }],
+    expiresAt: 1_030_000,
+    progress: { currentIndex: 0, answers: [] },
   };
   const session = {
     setDraftModelSelection: () => undefined,
@@ -139,6 +141,8 @@ test("projects every Pi implementation capability through the Workbench contract
       requestId: "request-1",
       sessionId: "session-1",
       questions: [{ id: "answer", question: "Continue?" }],
+      expiresAt: 1_030_000,
+      progress: { currentIndex: 0, answers: [] },
     },
   ]);
   await capabilities.interactions.respondInteraction("request-1", {

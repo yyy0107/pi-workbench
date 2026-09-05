@@ -232,7 +232,7 @@ export function createAskUserExtension(
         if (typeof ui.workbenchAskUser !== "function") {
           throw new Error("Ask User requires the Workbench question UI");
         }
-        const answers = await ui.workbenchAskUser(questions, { signal });
+        const answers = await ui.workbenchAskUser(questions, { signal, timeout: 30_000 });
         return toolResult(questions, answers);
       },
     });

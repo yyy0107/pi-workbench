@@ -137,6 +137,68 @@ function socketPair(sockets: FakeSocket[], generation: number): [FakeSocket, Fak
   return [mux, host];
 }
 
+test("question frames preserve optional deadlines and reject malformed ones", () => {
+  const sockets: FakeSocket[] = [];
+  const frames: ServerRequest<MuxStreamPayload>[] = [];
+  const controller = new PiConnectionController({
+    webSocketFactory: (path) => {
+      const socket = new FakeSocket(path);
+      sockets.push(socket);
+      return socket;
+    },
+    timers: new FakeTimers(),
+    onMuxFrame: (frame) => frames.push(frame),
+  });
+  controller.startRunningEvents(() => undefined);
+  const [mux, host] = socketPair(sockets, 1);
+  mux.open();
+  host.open();
+  for (const expiresAt of [1_030_000, undefined, null, "1030000", 0, -1]) {
+    mux.message(
+      serverFrame({
+        type: "question/requested",
+        sessionId: "session-1",
+        questions: [{ id: "answer", question: "Continue?" }],
+        expiresAt,
+      }),
+    );
+  }
+  assert.deepEqual(
+    frames.map((frame) =>
+      frame.payload.type === "question/requested" ? frame.payload.expiresAt : null,
+    ),
+    [1_030_000, undefined],
+  );
+  const progress = { currentIndex: 1, answers: [{ id: "first", selected: [], skipped: true }] };
+  for (const candidate of [
+    progress,
+    null,
+    { ...progress, currentIndex: -1 },
+    { ...progress, currentIndex: 2 },
+    { ...progress, currentIndex: 0.5 },
+    { ...progress, answers: [{ id: "first", selected: [], skipped: "yes" }] },
+  ]) {
+    mux.message(
+      serverFrame({
+        type: "question/requested",
+        sessionId: "session-1",
+        questions: [
+          { id: "first", question: "First?" },
+          { id: "second", question: "Second?" },
+        ],
+        progress: candidate,
+      }),
+    );
+  }
+  assert.equal(frames.length, 3);
+  const last = frames.at(-1)!;
+  assert.deepEqual(
+    last.payload.type === "question/requested" ? last.payload.progress : null,
+    progress,
+  );
+  controller.dispose();
+});
+
 test("reconnects both sockets as one generation and ignores stale generation frames", () => {
   const timers = new FakeTimers();
   const sockets: FakeSocket[] = [];

@@ -2,6 +2,7 @@ import type { PiMessagesEvent } from "@earendil-works/pi-ai";
 
 import type { PiAssistantMessage, PiRunTiming, PiSessionSummary } from "./messages";
 import type {
+  QuestionAnswerItem,
   RpcError,
   SessionContextTraceEventSummary,
   SessionEvent,
@@ -142,6 +143,9 @@ export interface QuestionRequestedPayload {
   type: "question/requested";
   sessionId: string;
   questions: QuestionItem[];
+  /** Deadline for the current question in epoch milliseconds. */
+  expiresAt?: number;
+  progress?: { currentIndex: number; answers: QuestionAnswerItem[] };
 }
 
 export interface QuestionResolvedPayload {
