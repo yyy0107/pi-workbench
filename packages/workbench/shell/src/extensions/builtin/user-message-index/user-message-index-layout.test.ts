@@ -2,11 +2,39 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  getMessageElements,
   isMessageInViewport,
   MIN_COMPOSER_INDEX_GAP,
   resolveComposerIndexGap,
   shouldShowUserMessageIndex,
 } from "./user-message-index-layout";
+
+test("resolves all message seats in one scan and refreshes replaced seats", () => {
+  let scans = 0;
+  const elements = Array.from({ length: 200 }, (_, index) => ({
+    dataset: { messageId: `message-${index}` },
+  }));
+  const root = {
+    querySelectorAll(selector: string) {
+      assert.equal(selector, "[data-message-id]");
+      scans += 1;
+      return elements;
+    },
+  } as unknown as HTMLElement;
+
+  const lookup = getMessageElements(root);
+  for (const element of elements) {
+    assert.equal(lookup.get(element.dataset.messageId!), element);
+  }
+  assert.equal(lookup.get("missing"), undefined);
+  assert.equal(scans, 1);
+
+  elements[0] = { dataset: { messageId: 'message-with-"quotes"' } };
+  const refreshed = getMessageElements(root);
+  assert.equal(refreshed.get("message-0"), undefined);
+  assert.equal(refreshed.get('message-with-"quotes"'), elements[0]);
+  assert.equal(scans, 2);
+});
 
 test("measures the available overlay gap from the thread edge to the composer", () => {
   assert.equal(resolveComposerIndexGap({ composerStart: 100, threadStart: 20 }), 80);

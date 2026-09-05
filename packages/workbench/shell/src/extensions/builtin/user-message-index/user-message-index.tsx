@@ -9,7 +9,11 @@ import { useI18n } from "../../../i18n";
 import { useReducedMotion } from "../../../hooks/use-reduced-motion";
 import { cn } from "../../../utils";
 
-import { isMessageInViewport, shouldShowUserMessageIndex } from "./user-message-index-layout";
+import {
+  getMessageElements,
+  isMessageInViewport,
+  shouldShowUserMessageIndex,
+} from "./user-message-index-layout";
 
 interface UserMessageIndexProps {
   threadId?: string;
@@ -64,12 +68,6 @@ function MarkdownIndexPreview({
     >
       <MarkdownTextContent text={text} smooth={false} />
     </div>
-  );
-}
-
-function getMessageElement(root: HTMLElement, messageId: string): HTMLElement | undefined {
-  return Array.from(root.querySelectorAll<HTMLElement>("[data-message-id]")).find(
-    (element) => element.dataset.messageId === messageId,
   );
 }
 
@@ -160,10 +158,14 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
   }, [hasUserMessages, threadId]);
 
   useEffect(() => {
+    if (!indexVisible) return;
+
     const nav = navRef.current;
     const threadRoot = nav?.closest<HTMLElement>('[data-workbench-surface="thread"]');
-    const firstMessage =
-      threadRoot && userMessages[0] ? getMessageElement(threadRoot, userMessages[0].id) : undefined;
+    // Message seats keep their identity until the conversation nodes change. Resolve them once
+    // instead of scanning the entire conversation for every marker on every scroll/resize frame.
+    const messageElements = threadRoot ? getMessageElements(threadRoot) : undefined;
+    const firstMessage = userMessages[0] ? messageElements?.get(userMessages[0].id) : undefined;
     const viewport =
       firstMessage && threadRoot ? getScrollViewport(firstMessage, threadRoot) : undefined;
 
@@ -182,7 +184,7 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
       const nextVisibleMessageIds: string[] = [];
 
       for (const message of userMessages) {
-        const element = getMessageElement(threadRoot, message.id);
+        const element = messageElements?.get(message.id);
         if (!element) continue;
         const messageBounds = element.getBoundingClientRect();
         if (isMessageInViewport(messageBounds, viewportBounds)) {
@@ -215,13 +217,13 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
       window.removeEventListener("resize", scheduleUpdate);
       if (frame !== undefined) window.cancelAnimationFrame(frame);
     };
-  }, [threadId, userMessages]);
+  }, [indexVisible, threadId, userMessages]);
 
   const jumpToMessage = useCallback(
     (messageId: string) => {
       const nav = navRef.current;
       const threadRoot = nav?.closest<HTMLElement>('[data-workbench-surface="thread"]');
-      const message = threadRoot ? getMessageElement(threadRoot, messageId) : undefined;
+      const message = threadRoot ? getMessageElements(threadRoot).get(messageId) : undefined;
       const viewport = message && threadRoot ? getScrollViewport(message, threadRoot) : undefined;
       if (!message || !viewport) return;
 

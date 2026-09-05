@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
+
+import { installMinimalReactDomEnvironment } from "../../test/react-dom-environment";
+import { ThreadScrollStateProvider } from "../thread-scroll-state";
 
 import {
   conversationViewportAtBottom,
   conversationViewportAtTop,
   nextConversationViewportScrollTop,
+  useWorkbenchConversationViewport,
 } from "./workbench-conversation-viewport";
 
 test("native conversation scrolling follows the bottom, respects user lock, and anchors prepends", () => {
@@ -53,4 +59,231 @@ test("native conversation scrolling follows the bottom, respects user lock, and 
     }),
     420,
   );
+});
+
+test("width reflow preserves the visible text line and bottom follow without observing streamed DOM", async () => {
+  const environment = installMinimalReactDomEnvironment();
+  const root = createRoot(environment.container);
+  const originalResize = Object.getOwnPropertyDescriptor(globalThis, "ResizeObserver");
+  const originalMutation = Object.getOwnPropertyDescriptor(globalThis, "MutationObserver");
+  const frames = new Map<number, FrameRequestCallback>();
+  const timeouts = new Map<number, () => void>();
+  const listeners = new Map<string, () => void>();
+  const observed = new Set<Element>();
+  let resize: () => void = () => {};
+  let mutate: () => void = () => {};
+  let mutationOptions: MutationObserverInit | undefined;
+  let nextFrame = 0;
+  let width = 800;
+  let lineContentTop = 392;
+  let textConnected = true;
+  let flowAttached = false;
+  const text = { nodeType: 3 };
+  const flow = { getBoundingClientRect: () => ({ width }) };
+  const viewport = {
+    clientHeight: 300,
+    clientWidth: 900,
+    scrollHeight: 0,
+    scrollTop: 0,
+    children: [flow],
+    querySelector: () => (flowAttached ? flow : null),
+    contains: (node: unknown) => node === text && textConnected,
+    getBoundingClientRect: () => ({ top: 0, bottom: 300, left: 0, width: 900, height: 300 }),
+    ownerDocument: {
+      caretPositionFromPoint: () => ({ offsetNode: text, offset: 5 }),
+      createRange: () => ({
+        startContainer: text,
+        setStart: () => {},
+        collapse: () => {},
+        getBoundingClientRect: () => ({
+          top: lineContentTop - viewport.scrollTop,
+          bottom: lineContentTop - viewport.scrollTop + 20,
+          height: 20,
+        }),
+      }),
+    },
+    scrollTo({ top }: ScrollToOptions) {
+      this.scrollTop = Math.max(0, Math.min(this.scrollHeight - this.clientHeight, top ?? 0));
+    },
+    addEventListener: (event: string, listener: () => void) => listeners.set(event, listener),
+    removeEventListener: (event: string) => listeners.delete(event),
+  };
+  Object.assign(window, {
+    requestAnimationFrame(callback: FrameRequestCallback) {
+      frames.set(++nextFrame, callback);
+      return nextFrame;
+    },
+    cancelAnimationFrame: (frame: number) => frames.delete(frame),
+    setTimeout(callback: () => void) {
+      timeouts.set(++nextFrame, callback);
+      return nextFrame;
+    },
+    clearTimeout: (timeout: number) => timeouts.delete(timeout),
+  });
+  Object.defineProperties(globalThis, {
+    ResizeObserver: {
+      configurable: true,
+      value: class {
+        constructor(callback: () => void) {
+          resize = callback;
+        }
+        observe(element: Element) {
+          observed.add(element);
+        }
+        unobserve(element: Element) {
+          observed.delete(element);
+        }
+        disconnect() {
+          observed.clear();
+        }
+      },
+    },
+    MutationObserver: {
+      configurable: true,
+      value: class {
+        constructor(callback: () => void) {
+          mutate = callback;
+        }
+        observe(_element: Element, options: MutationObserverInit) {
+          mutationOptions = options;
+        }
+        disconnect() {}
+      },
+    },
+  });
+  const nodeKeys = ["message"];
+  let atBottom = true;
+  function Probe() {
+    const state = useWorkbenchConversationViewport({
+      autoScroll: false,
+      isRunning: false,
+      nodeKeys,
+      scrollToBottomOnInitialize: false,
+      sessionId: "reflow",
+    });
+    state.viewportRef(viewport as unknown as HTMLDivElement);
+    atBottom = state.isAtBottom;
+    return null;
+  }
+
+  try {
+    await act(async () => {
+      root.render(
+        createElement(ThreadScrollStateProvider, {
+          persistence: {
+            read: () => JSON.stringify([["reflow", { scrollTop: 360, atBottom: false }]]),
+            write: () => {},
+          },
+          children: createElement(Probe),
+        }),
+      );
+    });
+    await act(async () => {
+      for (const [id, callback] of frames) {
+        frames.delete(id);
+        callback(0);
+      }
+    });
+    assert.equal(viewport.scrollTop, 0);
+    assert.deepEqual(mutationOptions, { childList: true });
+
+    await act(async () => {
+      flowAttached = true;
+      viewport.scrollHeight = 1_200;
+      mutate();
+      listeners.get("scroll")?.();
+    });
+    assert.equal(
+      viewport.scrollTop,
+      360,
+      "initial content width must not cancel history restoration",
+    );
+    assert.equal(atBottom, false);
+    // Only the content gutter changes: viewport.clientWidth stays constant.
+    await act(async () => {
+      width = 600;
+      viewport.scrollHeight = 1_600;
+      lineContentTop += 80;
+      resize();
+    });
+    assert.equal(viewport.scrollTop, 440);
+    assert.equal(lineContentTop - viewport.scrollTop, 32);
+    assert.equal(timeouts.size, 0, "late history restoration must not undo resize compensation");
+
+    await act(async () => {
+      width = 1_000;
+      viewport.scrollHeight = 1_000;
+      lineContentTop -= 180;
+      // Browser clamping/scroll events can precede the resize callback.
+      listeners.get("scroll")?.();
+      resize();
+    });
+    assert.equal(viewport.scrollTop, 260);
+    assert.equal(lineContentTop - viewport.scrollTop, 32);
+    assert.equal(atBottom, false);
+
+    await act(async () => {
+      viewport.scrollHeight += 100;
+      resize();
+    });
+    assert.equal(viewport.scrollTop, 260, "streaming below the reader must not move them");
+    await act(async () => {
+      width = 0;
+      resize();
+    });
+    assert.equal(viewport.scrollTop, 260, "temporarily hidden conversations keep their anchor");
+    await act(async () => {
+      width = 700;
+      lineContentTop += 40;
+      resize();
+    });
+    assert.equal(viewport.scrollTop, 300);
+
+    await act(async () => {
+      textConnected = false;
+      width = 800;
+      resize();
+    });
+    assert.equal(viewport.scrollTop, 300, "detached text must not cause a jump");
+    await act(async () => {
+      viewport.scrollTop = viewport.scrollHeight - viewport.clientHeight;
+      listeners.get("scroll")?.();
+      width = 500;
+      viewport.scrollHeight = 1_800;
+      listeners.get("scroll")?.();
+      resize();
+    });
+    assert.equal(viewport.scrollTop, 1_500);
+    assert.equal(
+      atBottom,
+      true,
+      "resize keeps bottom follow even when streaming auto-scroll is off",
+    );
+
+    await act(async () => {
+      viewport.clientHeight = 220;
+      resize();
+    });
+    assert.equal(viewport.scrollTop, 1_580, "a taller composer keeps the latest message visible");
+    assert.equal(atBottom, true);
+
+    const oldFlow = viewport.children[0];
+    viewport.children = [];
+    await act(async () => {
+      mutate();
+    });
+    assert.equal(observed.has(oldFlow as unknown as Element), false);
+  } finally {
+    await act(async () => {
+      root.unmount();
+    });
+    for (const [name, descriptor] of [
+      ["ResizeObserver", originalResize],
+      ["MutationObserver", originalMutation],
+    ] as const) {
+      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+      else Reflect.deleteProperty(globalThis, name);
+    }
+    environment.restore();
+  }
 });

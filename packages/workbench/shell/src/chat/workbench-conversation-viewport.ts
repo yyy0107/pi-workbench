@@ -13,6 +13,39 @@ export interface ConversationViewportMetrics {
   readonly scrollTop: number;
 }
 
+interface ConversationReadingAnchor {
+  readonly range: Range;
+  readonly offsetTop: number;
+}
+
+function readContentWidth(viewport: HTMLElement): number {
+  return (
+    viewport.querySelector('[data-slot="conversation-flow"]')?.getBoundingClientRect().width ?? 0
+  );
+}
+
+function readReadingAnchor(viewport: HTMLElement): ConversationReadingAnchor | undefined {
+  const bounds = viewport.getBoundingClientRect();
+  const document = viewport.ownerDocument;
+  const x = bounds.left + bounds.width / 2;
+  const y = bounds.top + Math.min(TOP_DISTANCE_THRESHOLD, bounds.height / 2);
+  const caret = document.caretPositionFromPoint?.(x, y);
+  let range: Range | null | undefined;
+  if (caret) {
+    range = document.createRange();
+    range.setStart(caret.offsetNode, caret.offset);
+    range.collapse(true);
+  } else {
+    range = document.caretRangeFromPoint?.(x, y);
+  }
+  if (!range || range.startContainer.nodeType !== 3 || !viewport.contains(range.startContainer)) {
+    return undefined;
+  }
+  const line = range.getBoundingClientRect();
+  if (line.height === 0 || line.bottom <= bounds.top || line.top >= bounds.bottom) return undefined;
+  return { range, offsetTop: line.top - bounds.top };
+}
+
 export function conversationViewportAtBottom(metrics: ConversationViewportMetrics): boolean {
   const distance = metrics.scrollHeight - metrics.clientHeight - metrics.scrollTop;
   return (
@@ -25,11 +58,13 @@ export function conversationViewportAtTop(metrics: ConversationViewportMetrics):
 }
 
 export function nextConversationViewportScrollTop({
+  anchorOffset,
   current,
   followBottom,
   prepended,
   previousScrollHeight,
 }: Readonly<{
+  anchorOffset?: number;
   current: ConversationViewportMetrics;
   followBottom: boolean;
   prepended: boolean;
@@ -37,6 +72,9 @@ export function nextConversationViewportScrollTop({
 }>): number | undefined {
   const maxScrollTop = Math.max(0, current.scrollHeight - current.clientHeight);
   if (followBottom) return maxScrollTop;
+  if (anchorOffset !== undefined) {
+    return Math.max(0, Math.min(maxScrollTop, current.scrollTop + anchorOffset));
+  }
   if (!prepended || current.scrollHeight <= previousScrollHeight) return undefined;
   return Math.min(maxScrollTop, current.scrollTop + current.scrollHeight - previousScrollHeight);
 }
@@ -53,7 +91,13 @@ function observeViewportContent(viewport: HTMLElement, onChange: () => void): ()
   const observedElements = new Set<Element>();
   const resizeObserver = new ResizeObserver(onChange);
   const observeElements = () => {
-    for (const element of [viewport, ...viewport.children]) {
+    const elements = new Set([viewport, ...viewport.children]);
+    for (const element of observedElements) {
+      if (elements.has(element)) continue;
+      resizeObserver.unobserve(element);
+      observedElements.delete(element);
+    }
+    for (const element of elements) {
       if (observedElements.has(element)) continue;
       observedElements.add(element);
       resizeObserver.observe(element);
@@ -65,7 +109,9 @@ function observeViewportContent(viewport: HTMLElement, onChange: () => void): ()
   });
 
   observeElements();
-  mutationObserver.observe(viewport, { childList: true, subtree: true });
+  // Direct children include the conversation flow. ResizeObserver batches text reflow after
+  // layout; observing every streamed DOM mutation forces an extra synchronous layout before it.
+  mutationObserver.observe(viewport, { childList: true });
 
   return () => {
     resizeObserver.disconnect();
@@ -100,6 +146,8 @@ export function useWorkbenchConversationViewport({
   const restorationScrollTop = useRef<number | null>(null);
   const restorationTimeout = useRef<number | null>(null);
   const lastMetrics = useRef<ConversationViewportMetrics | undefined>(undefined);
+  const lastContentWidth = useRef<number | undefined>(undefined);
+  const readingAnchor = useRef<ConversationReadingAnchor | undefined>(undefined);
   const previousNodeKeys = useRef(nodeKeys);
   const previousIsRunning = useRef(isRunning);
 
@@ -117,8 +165,7 @@ export function useWorkbenchConversationViewport({
   }, []);
 
   const rememberPosition = useCallback(
-    (viewport: HTMLElement) => {
-      const metrics = readViewportMetrics(viewport);
+    (viewport: HTMLElement, metrics = readViewportMetrics(viewport)) => {
       const atBottom = conversationViewportAtBottom(metrics);
       lastMetrics.current = metrics;
       setIsAtBottom((current) => (current === atBottom ? current : atBottom));
@@ -229,8 +276,7 @@ export function useWorkbenchConversationViewport({
     const viewport = viewportRef.current;
     if (!viewport) return;
 
-    const handleScroll = () => {
-      const metrics = readViewportMetrics(viewport);
+    const handleScroll = (metrics = readViewportMetrics(viewport)) => {
       if (conversationViewportAtBottom(metrics)) {
         followBottom.current = true;
         if (metrics.scrollHeight > metrics.clientHeight + 1) {
@@ -239,7 +285,7 @@ export function useWorkbenchConversationViewport({
       } else if (pendingScrollBehavior.current === null) {
         followBottom.current = false;
       }
-      rememberPosition(viewport);
+      return rememberPosition(viewport, metrics);
     };
     const cancelPendingScroll = () => {
       stopRestoration();
@@ -247,6 +293,12 @@ export function useWorkbenchConversationViewport({
     };
     const handleContentChange = () => {
       const current = readViewportMetrics(viewport);
+      const width = readContentWidth(viewport);
+      // A maximized workspace can temporarily hide the conversation; keep its last visible anchor.
+      if (width <= 0) return;
+      const widthChanged =
+        lastContentWidth.current !== undefined && lastContentWidth.current !== width;
+      if (widthChanged) stopRestoration();
       if (restoring.current && restorationScrollTop.current !== null) {
         viewport.scrollTo({
           top: Math.min(
@@ -255,23 +307,61 @@ export function useWorkbenchConversationViewport({
           ),
           behavior: "instant",
         });
+        lastContentWidth.current = width;
         handleScroll();
+        readingAnchor.current = readReadingAnchor(viewport);
         return;
       }
       const shouldFollow =
-        pendingScrollBehavior.current !== null || (autoScroll && followBottom.current);
-      if (shouldFollow) {
+        pendingScrollBehavior.current !== null ||
+        ((autoScroll ||
+          widthChanged ||
+          lastMetrics.current?.clientHeight !== current.clientHeight) &&
+          followBottom.current);
+      const anchor = readingAnchor.current;
+      const anchorLine =
+        widthChanged &&
+        anchor?.range.startContainer.nodeType === 3 &&
+        viewport.contains(anchor.range.startContainer)
+          ? anchor.range.getBoundingClientRect()
+          : undefined;
+      const anchorOffset =
+        anchor && anchorLine && anchorLine.height > 0
+          ? anchorLine.top - viewport.getBoundingClientRect().top - anchor.offsetTop
+          : undefined;
+      const nextScrollTop = nextConversationViewportScrollTop({
+        current,
+        followBottom: shouldFollow,
+        anchorOffset,
+        prepended: false,
+        previousScrollHeight: current.scrollHeight,
+      });
+      if (nextScrollTop !== undefined && nextScrollTop !== current.scrollTop) {
         viewport.scrollTo({
-          top: current.scrollHeight,
+          top: nextScrollTop,
           behavior: pendingScrollBehavior.current ?? "instant",
         });
       }
+      lastContentWidth.current = width;
       handleScroll();
     };
 
     const handleViewportScroll = () => {
-      handleScroll();
-      if (conversationViewportAtTop(readViewportMetrics(viewport))) onReachTop?.();
+      const width = readContentWidth(viewport);
+      if (width <= 0) return;
+      if (lastContentWidth.current !== undefined && lastContentWidth.current !== width) {
+        // Resize-induced scroll/clamping can arrive before ResizeObserver. Preserve follow mode
+        // and the pre-reflow text position until compensation has been applied.
+        handleContentChange();
+        return;
+      }
+      const metrics = readViewportMetrics(viewport);
+      const moved = metrics.scrollTop !== lastMetrics.current?.scrollTop;
+      handleScroll(metrics);
+      lastContentWidth.current = width;
+      if (followBottom.current) readingAnchor.current = undefined;
+      else if (moved || !readingAnchor.current) readingAnchor.current = readReadingAnchor(viewport);
+      if (conversationViewportAtTop(metrics)) onReachTop?.();
     };
 
     viewport.addEventListener("scroll", handleViewportScroll, { passive: true });
