@@ -1,17 +1,25 @@
 import assert from "node:assert/strict";
-import { EventEmitter } from "node:events";
+import { EventEmitter, once } from "node:events";
+import { createServer } from "node:http";
 import path from "node:path";
 import test from "node:test";
 
 import {
   parseElectronDevelopmentOptions,
   runElectronDevelopment,
+  startManagedChild,
   waitForDesktopRenderer,
 } from "./electron-dev-orchestrator.mjs";
 import { createWebRuntimeWatchLaunchConfiguration } from "./web-runtime-watch.mjs";
 import workbenchPaths from "./workbench-paths.cjs";
 
 const { createWorkbenchPaths } = workbenchPaths;
+
+async function listenOnLoopback(server) {
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  return `http://127.0.0.1:${server.address().port}`;
+}
 
 test("validates one renderer endpoint, waits before Electron launch, and cleans owners in reverse order", async () => {
   await waitForDesktopRenderer("http://127.0.0.1:3000", {
@@ -77,8 +85,11 @@ test("validates one renderer endpoint, waits before Electron launch, and cleans 
     resolveReady = resolve;
   });
   const never = new Promise(() => undefined);
+  const portProbe = createServer();
+  const rendererOrigin = await listenOnLoopback(portProbe);
+  await new Promise((resolve) => portProbe.close(resolve));
   const running = runElectronDevelopment({
-    options: { mode: "managed", rendererOrigin: "http://127.0.0.1:3000" },
+    options: { mode: "managed", rendererOrigin },
     processControl,
     rendererLaunch: { owner: "renderer" },
     electronLaunch: { owner: "electron" },
@@ -103,7 +114,7 @@ test("validates one renderer endpoint, waits before Electron launch, and cleans 
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(events, ["renderer:start", "renderer:probe", "electron:start"]);
 
-  processControl.emit("SIGTERM");
+  processControl.emit("SIGHUP");
   assert.equal(await running, 0);
   assert.deepEqual(events, [
     "renderer:start",
@@ -112,4 +123,71 @@ test("validates one renderer endpoint, waits before Electron launch, and cleans 
     "electron:shutdown",
     "renderer:shutdown",
   ]);
+  assert.equal(processControl.listenerCount("SIGHUP"), 0);
+});
+
+test("rejects an occupied managed endpoint before launching children, but allows explicit connect", async (t) => {
+  const server = createServer((_request, response) => {
+    response.end('<body data-workbench-desktop-renderer="1">');
+  });
+  const rendererOrigin = await listenOnLoopback(server);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const processControl = new EventEmitter();
+  const launches = [];
+  const configuration = {
+    processControl,
+    rendererLaunch: { owner: "renderer" },
+    electronLaunch: { owner: "electron" },
+    startChild({ launch }) {
+      launches.push(launch.owner);
+      return {
+        exited: Promise.resolve({ code: 0, signal: null, error: false }),
+        async shutdown() {},
+      };
+    },
+  };
+
+  await assert.rejects(
+    runElectronDevelopment({
+      ...configuration,
+      options: { mode: "managed", rendererOrigin },
+    }),
+    /already in use.*pnpm electron:dev:connect/u,
+  );
+  assert.deepEqual(launches, []);
+
+  assert.equal(
+    await runElectronDevelopment({
+      ...configuration,
+      options: { mode: "connect-existing", rendererOrigin },
+      rendererLaunch: undefined,
+    }),
+    0,
+  );
+  assert.deepEqual(launches, ["electron"]);
+  assert.equal(server.listening, true);
+});
+
+test("cleans the owned process tree after a graceful child exit", async () => {
+  const signals = [];
+  const child = Object.assign(new EventEmitter(), {
+    exitCode: null,
+    signalCode: null,
+    kill(signal) {
+      signals.push(signal);
+      this.exitCode = 0;
+      this.emit("exit", 0, null);
+    },
+  });
+  const managed = startManagedChild({
+    launch: {},
+    spawnImpl: () => child,
+    forceProcessTree: (owner) => {
+      assert.equal(owner, child);
+      signals.push("cleanup-tree");
+    },
+  });
+  await managed.shutdown();
+  await managed.shutdown();
+  assert.deepEqual(signals, ["SIGTERM", "cleanup-tree"]);
 });

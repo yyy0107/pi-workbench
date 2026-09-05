@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
+import { createServer } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -205,6 +206,7 @@ export function startManagedChild({
         try {
           child.kill("SIGTERM");
           await bounded(exited, shutdownTimeoutMs, "Development child shutdown");
+          forceProcessTree(child);
         } catch {
           forceProcessTree(child);
           await bounded(exited, forceTimeoutMs, "Development child forced cleanup").catch(
@@ -250,11 +252,13 @@ function terminationLatch(processControl) {
   const onSigterm = () => resolve({ kind: "signal" });
   processControl.once("SIGINT", onSigint);
   processControl.once("SIGTERM", onSigterm);
+  processControl.once("SIGHUP", onSigterm);
   return Object.freeze({
     promise,
     dispose() {
       processControl.off("SIGINT", onSigint);
       processControl.off("SIGTERM", onSigterm);
+      processControl.off("SIGHUP", onSigterm);
     },
   });
 }
@@ -279,6 +283,25 @@ export async function runElectronDevelopment({
   startChild = startManagedChild,
   waitForRenderer = waitForDesktopRenderer,
 } = {}) {
+  if (rendererLaunch) {
+    // An existing renderer's marker must not make a failed managed child look ready.
+    const url = new URL(options.rendererOrigin);
+    await new Promise((resolve, reject) => {
+      const probe = createServer();
+      probe.once("error", (error) => {
+        reject(
+          error.code === "EADDRINUSE"
+            ? stableError(
+                `Desktop renderer endpoint ${url.origin} is already in use. Stop its server, or connect to an existing Desktop renderer with WORKBENCH_DESKTOP_RENDERER_ORIGIN=${url.origin} pnpm electron:dev:connect.`,
+              )
+            : error,
+        );
+      });
+      probe.listen({ host: url.hostname, port: Number(url.port), exclusive: true }, () => {
+        probe.close((error) => (error ? reject(error) : resolve()));
+      });
+    });
+  }
   const termination = terminationLatch(processControl);
   let renderer;
   let electron;
