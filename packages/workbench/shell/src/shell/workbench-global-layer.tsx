@@ -3,6 +3,8 @@
 import type { ComponentType, RefObject } from "react";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 
+import { useI18n } from "../i18n";
+import { Toaster } from "../ui/toast";
 import { CommandPaletteHost } from "./command-palette-host";
 
 export interface WorkbenchInstallationEffectsProps {
@@ -16,10 +18,13 @@ export function WorkbenchGlobalLayer({
   installationEffects?: ComponentType<WorkbenchInstallationEffectsProps>;
   ownerRootRef: RefObject<HTMLElement | null>;
 }>) {
+  const { t } = useI18n();
+
   return (
     <>
       <SlotHost name="shell.overlay" />
       <CommandPaletteHost ownerRootRef={ownerRootRef} />
+      <Toaster label={t("ui.toast.regionLabel")} closeLabel={t("ui.toast.closeLabel")} />
       {InstallationEffects ? <InstallationEffects ownerRootRef={ownerRootRef} /> : null}
     </>
   );

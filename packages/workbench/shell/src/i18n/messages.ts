@@ -8,6 +8,8 @@ import { extensionsEnUS } from "./extensions/en-US";
 import { extensionsZhCN } from "./extensions/zh-CN";
 import { workbenchEnUS } from "./workbench/en-US";
 import { workbenchZhCN } from "./workbench/zh-CN";
+import { uiEnUS } from "../ui/i18n/en-US";
+import { uiZhCN } from "../ui/i18n/zh-CN";
 
 import type { Locale } from "./config";
 import type { CatalogShape } from "./types";
@@ -17,6 +19,7 @@ const enUS = {
   rightWorkspace: rightWorkspaceEnUS,
   workbench: workbenchEnUS,
   extensions: extensionsEnUS,
+  ui: uiEnUS,
   platform: {
     extensions: platformExtensionsEnUS,
   },
@@ -29,6 +32,7 @@ const zhCN = {
   rightWorkspace: rightWorkspaceZhCN,
   workbench: workbenchZhCN,
   extensions: extensionsZhCN,
+  ui: uiZhCN,
   platform: {
     extensions: platformExtensionsZhCN,
   },

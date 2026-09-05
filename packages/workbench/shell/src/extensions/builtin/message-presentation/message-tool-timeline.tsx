@@ -24,6 +24,7 @@ import { ToolGroupContent, ToolGroupRoot, ToolGroupTrigger } from "../../../chat
 import { ReasoningPanel, type ReasoningStep } from "../../../elements/reasoning-panel";
 import { ReviewableDiff, type HunkDecision } from "../../../elements/reviewable-diff";
 import { ShimmerLabel } from "../../../ui/surface";
+import { useToastManager } from "../../../ui/toast";
 import { ToolCall, ToolCallDetails } from "../../../elements/tool-call";
 import { useOpenerService, useWorkspaceContext } from "../../../right-workspace-react";
 import { useI18n } from "../../../i18n";
@@ -218,6 +219,7 @@ function TimelineToolCall({
   presentation?: ToolPresentationDefinition;
 }) {
   const { locale, number, t, text } = useI18n();
+  const { add: addToast } = useToastManager();
   const [open, setOpen] = useMessageDisclosure("tool", block.callId);
   const openers = useOpenerService();
   const workspaceContext = useWorkspaceContext();
@@ -289,10 +291,15 @@ function TimelineToolCall({
           : { type: "application", key: workspaceContext.applicationId },
         policy: "force-focus",
       })
-      .catch((error: unknown) => {
-        console.error("Failed to open file diff", error);
+      .catch(() => {
+        addToast({
+          id: "workspace-file-open-error",
+          type: "error",
+          priority: "high",
+          title: t("extensions.shared.fileTree.openError", { name: fileDiff.filename }),
+        });
       });
-  }, [diffId, fileDiff, openers, workspaceContext]);
+  }, [addToast, diffId, fileDiff, openers, t, workspaceContext]);
   const fileMutationSummary = isFileMutation ? (
     <span
       data-slot="file-mutation-tool-summary"

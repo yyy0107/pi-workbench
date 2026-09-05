@@ -37,6 +37,7 @@ test("every Shell floating primitive targets its installation portal container",
     "dropdown-menu.tsx",
     "popover.tsx",
     "sheet.tsx",
+    "toast.tsx",
     "tooltip.tsx",
   ];
   for (const filename of portalSources) {

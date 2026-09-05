@@ -84,5 +84,31 @@ test("workspace file openers preserve descriptors, diffs, and installation isola
         ),
       /explicit workspace root/u,
     );
+    await assert.rejects(
+      async () =>
+        opener.open(
+          {
+            resource: {
+              scheme: "workspace-file",
+              path: "/projects/testpro/test-0826/test_multiplication_table.py",
+              metadata: {
+                viewMode: "diff",
+                diffId: "outside-workspace-diff",
+                lines: [{ kind: "added", text: "print(1)" }],
+              },
+            },
+            context,
+          },
+          {
+            surfaces: {
+              open: () => assert.fail("Outside-workspace files must not open"),
+              reveal: () => assert.fail("Outside-workspace files must not be revealed"),
+            },
+          },
+        ),
+      /File path is outside the workspace/u,
+    );
+    assert.equal(calls.length, 2, "Outside-workspace paths must not reach the backend");
+    assert.equal(diffs.get("outside-workspace-diff"), undefined);
   }
 });

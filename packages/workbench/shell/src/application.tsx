@@ -69,7 +69,7 @@ import {
 } from "./runtime-connection/runtime-connection-provider";
 import { WorkbenchSettingsProvider, useWorkbenchSettingsService } from "./settings";
 import type { WorkbenchSettingsPort } from "./settings";
-import { TooltipProvider } from "./ui";
+import { ToastProvider, TooltipProvider } from "./ui";
 import { WorkbenchShell, type WorkbenchShellProps } from "./shell/workbench-shell";
 import {
   createWorkspaceDirectoryStoreInstallation,
@@ -105,7 +105,11 @@ function RuntimeApplicationProviders({
   return (
     <WorkbenchSettingsProvider service={settings}>
       <I18nProvider bundles={bundles} initialLocale={initialLocale}>
-        <TooltipProvider>{children}</TooltipProvider>
+        <TooltipProvider>
+          <ToastProvider timeout={5000} limit={3}>
+            {children}
+          </ToastProvider>
+        </TooltipProvider>
       </I18nProvider>
     </WorkbenchSettingsProvider>
   );

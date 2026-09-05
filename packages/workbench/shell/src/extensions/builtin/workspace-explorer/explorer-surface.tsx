@@ -7,7 +7,7 @@ import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 
 import { useI18n } from "../../../i18n";
 import { useActiveWorkspaceSurface, useOpenerService } from "../../../right-workspace-react";
-import { Button, Input } from "../../../ui";
+import { Button, Input, useToastManager } from "../../../ui";
 import {
   fileWorkspaceContext,
   fileWorkspaceOpenableResource,
@@ -45,12 +45,12 @@ export function ExplorerSurface({
   isVisible,
 }: WorkspaceSurfaceProps<ExplorerSurfaceParams>) {
   const { t } = useI18n();
+  const notifications = useToastManager();
   const openers = useOpenerService();
   const { files } = useWorkspaceFileRuntime();
   const activeSurface = useActiveWorkspaceSurface();
   const rootRequest = useRef(0);
   const [filter, setFilter] = useState("");
-  const [openError, setOpenError] = useState<string>();
   const [selectedResourcePath, setSelectedResourcePath] = useState<string>();
   const [treeRefreshToken, setTreeRefreshToken] = useState(0);
   const [truncatedPaths, setTruncatedPaths] = useState<ReadonlySet<string>>(() => new Set());
@@ -100,7 +100,6 @@ export function ExplorerSurface({
 
   useEffect(() => {
     setFilter("");
-    setOpenError(undefined);
     setSelectedResourcePath(undefined);
     setTruncatedPaths(new Set());
     void loadRoot("foreground");
@@ -160,7 +159,6 @@ export function ExplorerSurface({
     async (node: FileNode) => {
       if (!fileSession) throw new Error("The file workspace session is unavailable");
       setSelectedResourcePath(node.path);
-      setOpenError(undefined);
       await openers.open({
         resource: fileWorkspaceOpenableResource(fileSession, node),
         context,
@@ -212,12 +210,6 @@ export function ExplorerSurface({
         </div>
       </div>
 
-      {openError ? (
-        <div role="alert" className="border-b px-3 py-2 text-xs text-destructive">
-          {openError}
-        </div>
-      ) : null}
-
       <div className="min-h-0 flex-1 overflow-hidden px-2.5 pb-1 [overflow-anchor:none]">
         {rootState.status === "loading" && rootState.nodes.length === 0 ? (
           <div
@@ -264,7 +256,12 @@ export function ExplorerSurface({
             openFile={openFile}
             onSelectedPathChange={setSelectedResourcePath}
             onOpenFileError={(_error, node) =>
-              setOpenError(t("extensions.shared.fileTree.openError", { name: node.name }))
+              notifications.add({
+                id: "workspace-file-open-error",
+                type: "error",
+                priority: "high",
+                title: t("extensions.shared.fileTree.openError", { name: node.name }),
+              })
             }
           />
         )}

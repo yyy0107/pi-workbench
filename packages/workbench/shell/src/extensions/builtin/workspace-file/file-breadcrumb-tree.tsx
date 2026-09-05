@@ -4,7 +4,7 @@ import { AlertCircleIcon, ChevronRightIcon, LoaderCircleIcon } from "lucide-reac
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useOpenerService } from "@workbench/shell/right-workspace/react";
-import { Button } from "@workbench/shell/ui";
+import { Button, useToastManager } from "@workbench/shell/ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@workbench/shell/ui";
 import { ExplorerTree } from "@workbench/shell/workspace-file-tree";
 import { useI18n } from "@workbench/shell/i18n";
@@ -34,13 +34,13 @@ function fileName(path: string): string {
 
 export function FileBreadcrumbTree({ surface, context }: WorkspaceSurfaceProps<FileSurfaceParams>) {
   const { t } = useI18n();
+  const notifications = useToastManager();
   const { files } = useWorkspaceFileRuntime();
   const openers = useOpenerService();
   const request = useRef(0);
   const [openSegment, setOpenSegment] = useState<number>();
   const [selectedPath, setSelectedPath] = useState<string>();
   const [treeRootPath, setTreeRootPath] = useState<string>();
-  const [openError, setOpenError] = useState<string>();
   const [truncated, setTruncated] = useState(false);
   const [rootState, setRootState] = useState<RootLoadState>({ status: "idle", nodes: [] });
   const path = surface.params.absolutePath;
@@ -89,7 +89,6 @@ export function FileBreadcrumbTree({ surface, context }: WorkspaceSurfaceProps<F
     request.current += 1;
     setRootState({ status: "idle", nodes: [] });
     setTruncated(false);
-    setOpenError(undefined);
   }, [surface.scope, treeRootPath]);
 
   useEffect(() => {
@@ -118,7 +117,6 @@ export function FileBreadcrumbTree({ surface, context }: WorkspaceSurfaceProps<F
   const openFile = useCallback(
     async (node: FileNode) => {
       if (!fileSession) throw new Error("The file workspace session is unavailable");
-      setOpenError(undefined);
       await openers.open({
         resource: fileWorkspaceOpenableResource(fileSession, node),
         context,
@@ -164,7 +162,6 @@ export function FileBreadcrumbTree({ surface, context }: WorkspaceSurfaceProps<F
                 if (open) {
                   setSelectedPath(segment.path);
                   setTreeRootPath(fileBreadcrumbTreeRootPath(segments, index));
-                  setOpenError(undefined);
                 }
               }}
             >
@@ -187,11 +184,6 @@ export function FileBreadcrumbTree({ surface, context }: WorkspaceSurfaceProps<F
                 sideOffset={4}
                 className="h-[min(26rem,calc(100vh-4rem))] w-[min(22rem,calc(100vw-2rem))] gap-0 overflow-hidden rounded-xl p-0"
               >
-                {openError ? (
-                  <div role="alert" className="border-b px-3 py-2 text-xs text-destructive">
-                    {openError}
-                  </div>
-                ) : null}
                 <div className="min-h-0 flex-1 p-1.5">
                   {rootState.status === "idle" ||
                   (rootState.status === "loading" && rootState.nodes.length === 0) ? (
@@ -229,7 +221,12 @@ export function FileBreadcrumbTree({ surface, context }: WorkspaceSurfaceProps<F
                       openFile={openFile}
                       onSelectedPathChange={setSelectedPath}
                       onOpenFileError={(_error, node) =>
-                        setOpenError(t("extensions.shared.fileTree.openError", { name: node.name }))
+                        notifications.add({
+                          id: "workspace-file-open-error",
+                          type: "error",
+                          priority: "high",
+                          title: t("extensions.shared.fileTree.openError", { name: node.name }),
+                        })
                       }
                     />
                   ) : null}
