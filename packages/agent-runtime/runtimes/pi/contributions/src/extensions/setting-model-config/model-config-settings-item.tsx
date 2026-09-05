@@ -1747,7 +1747,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="border-border bg-background hover:bg-muted inline-flex h-8 items-center justify-center gap-1.5 rounded-[var(--button-radius)] border px-2.5 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                        className="border-border bg-background hover:bg-muted inline-flex h-[var(--button-height-default)] items-center justify-center gap-1.5 rounded-[var(--button-radius)] border px-2.5 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                       >
                         <ExternalLinkIcon className="size-4" />
                         {t("extensions.modelConfig.openLoginPage")}

@@ -99,7 +99,7 @@
 
   /* Control density */
   --control-hit-compact: 24px;
-  --control-hit-default: 32px;
+  --control-hit-default: 30px;
   --control-hit-touch: 44px;
   --form-control-height: var(--control-hit-default);
   --control-text-line-height: 1.25;

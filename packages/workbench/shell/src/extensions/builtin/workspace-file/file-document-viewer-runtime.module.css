@@ -21,7 +21,7 @@
   --file-viewer-toolbar-radius: var(--radius);
   --file-viewer-toolbar-gap: 2px;
   --file-viewer-toolbar-padding: 2px;
-  --file-viewer-toolbar-floating-min-height: 32px;
+  --file-viewer-toolbar-floating-min-height: var(--control-hit-default);
   --file-viewer-toolbar-floating-padding: 2px;
   --file-viewer-toolbar-floating-offset: 8px;
   --file-viewer-group-bg: transparent;

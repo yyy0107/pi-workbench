@@ -25,7 +25,10 @@ export function SurfaceHeaderHost({
   if (!active || !Header) return null;
 
   return (
-    <div data-surface-header={active.kind} className="h-8 shrink-0 overflow-hidden border-b">
+    <div
+      data-surface-header={active.kind}
+      className="h-[var(--control-hit-default)] shrink-0 overflow-hidden border-b"
+    >
       <WorkspaceSurfaceBoundary key={active.id} surfaceId={`${active.id}:header`}>
         <Suspense
           fallback={

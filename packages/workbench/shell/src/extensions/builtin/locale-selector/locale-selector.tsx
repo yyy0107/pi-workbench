@@ -83,7 +83,7 @@ function LocaleSelector({ compact = false }: { compact?: boolean }) {
             <DropdownMenuRadioItem
               key={option}
               value={option}
-              className="min-h-8 px-2.5 pt-[var(--control-content-padding-block-default-start)] pb-[var(--control-content-padding-block-default-end)]"
+              className="min-h-[var(--dropdown-control-height)] px-2.5 pt-[var(--control-content-padding-block-default-start)] pb-[var(--control-content-padding-block-default-end)]"
             >
               {localeLabel(option)}
             </DropdownMenuRadioItem>

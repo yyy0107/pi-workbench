@@ -64,8 +64,8 @@ function ArchivedChatRowsSkeleton({ label, count }: { label: string; count: numb
               <div className="bg-muted h-4 w-2/5 rounded-md" />
               <div className="bg-muted h-3 w-1/4 rounded-md" />
             </div>
-            <div className="bg-muted size-8 rounded-lg" />
-            <div className="bg-muted h-8 w-24 rounded-lg" />
+            <div className="bg-muted size-[var(--button-height-default)] rounded-lg" />
+            <div className="bg-muted h-[var(--button-height-default)] w-24 rounded-lg" />
           </div>
         ))}
       </div>
@@ -366,7 +366,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
           </DropdownMenu>
         </div>
 
-        <div className="flex min-h-8 items-center justify-between gap-3 border-b pb-3">
+        <div className="flex min-h-[var(--button-height-default)] items-center justify-between gap-3 border-b pb-3">
           <p className="text-muted-foreground text-xs">
             {t("extensions.archivedChats.totalCount", { count: visibleChatCount })}
           </p>

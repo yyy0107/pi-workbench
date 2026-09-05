@@ -279,7 +279,7 @@ export function ComposerCommandParameterPanel({
     >
       <div className="flex min-w-0 flex-nowrap items-center justify-between gap-2 border-b px-3 py-2.5 sm:px-4">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 flex size-8 shrink-0 items-center justify-center rounded-lg">
+          <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 flex size-[var(--icon-frame-size-default)] shrink-0 items-center justify-center rounded-lg">
             <SlidersHorizontalIcon aria-hidden="true" className="aui-composer-icon-size-default" />
           </span>
           <div className="grid min-w-0 gap-0.5">

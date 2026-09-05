@@ -326,7 +326,7 @@ export function WorkbenchConversationContent({
                 size="icon"
                 disabled={viewport.isAtBottom}
                 onClick={() => viewport.scrollToBottom(isRunning ? "instant" : "auto")}
-                className="bg-background absolute -top-2 left-1/2 z-30 size-8 -translate-x-1/2 -translate-y-full rounded-full shadow-sm disabled:invisible"
+                className="bg-background absolute -top-2 left-1/2 z-30 -translate-x-1/2 -translate-y-full rounded-full shadow-sm disabled:invisible"
               >
                 {isRunning ? (
                   <TypingIndicator

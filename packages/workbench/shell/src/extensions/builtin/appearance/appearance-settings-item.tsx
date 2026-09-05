@@ -436,7 +436,7 @@ function AnimatedPreviewSelect<Value extends string>({
         aria-hidden="true"
         className={cn(
           "flex shrink-0 items-center justify-center",
-          isPreviewOnly ? "h-8 w-44 px-2" : "h-5",
+          isPreviewOnly ? "h-[var(--form-control-height)] w-44 px-2" : "h-5",
           previewClassName?.(option),
         )}
         style={
@@ -589,9 +589,12 @@ function RangeControl({
   const draftValueLabel = formatValue(draftValue);
 
   return (
-    <div className="flex h-8 w-full items-center gap-3">
+    <div className="flex h-[var(--form-control-height)] w-full items-center gap-3">
       {renderPreview ? (
-        <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center">
+        <span
+          aria-hidden="true"
+          className="flex size-[var(--form-control-height)] shrink-0 items-center justify-center"
+        >
           {renderPreview(draftValue)}
         </span>
       ) : null}
@@ -713,7 +716,7 @@ function ColorControl({
 
   return (
     <label
-      className="flex h-8 w-fit max-w-full items-center gap-2 rounded-[var(--input-control-radius)] px-2.5 text-sm shadow-xs ring-1 ring-black/10 has-disabled:opacity-50"
+      className="flex h-[var(--input-control-height)] w-fit max-w-full items-center gap-2 rounded-[var(--input-control-radius)] px-2.5 text-sm shadow-xs ring-1 ring-black/10 has-disabled:opacity-50"
       style={{
         backgroundColor: draftColor,
         color: getColorControlForeground(draftColor),

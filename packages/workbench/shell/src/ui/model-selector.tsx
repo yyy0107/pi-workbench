@@ -64,7 +64,7 @@ function ModelMenuItem({
       value={model.id}
       closeOnClick={false}
       disabled={disabled || model.unavailable}
-      className="mx-1 h-8 gap-2 px-2 pe-8"
+      className="mx-1 h-[var(--dropdown-control-height)] gap-2 px-2 pe-8"
     >
       <span className="min-w-0 flex-1 truncate" title={model.name}>
         {model.name}
@@ -126,7 +126,7 @@ function ModelMenuGroup({
                 key={candidateId}
                 value={candidateId}
                 closeOnClick={false}
-                className="h-8 px-2 pe-8"
+                className="h-[var(--dropdown-control-height)] px-2 pe-8"
               >
                 <span className="min-w-0 flex-1 truncate" title={candidateName}>
                   {candidateName}
@@ -362,7 +362,7 @@ export function ModelSelector({
                     value={level.id}
                     closeOnClick={false}
                     disabled={selectionLocked}
-                    className="h-8 px-2 pe-8"
+                    className="h-[var(--dropdown-control-height)] px-2 pe-8"
                   >
                     <span className="min-w-0 flex-1 truncate">{getEffortLabel(level)}</span>
                   </DropdownMenuRadioItem>

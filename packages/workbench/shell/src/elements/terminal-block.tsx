@@ -92,7 +92,7 @@ export function TerminalBlock({
     >
       <div
         data-slot="terminal-block-title"
-        className="flex min-h-8 items-center justify-between gap-2 px-3 pt-1.5 pb-1 font-sans text-sm text-muted-foreground"
+        className="flex min-h-[var(--control-hit-default)] items-center justify-between gap-2 px-3 pt-1.5 pb-1 font-sans text-sm text-muted-foreground"
       >
         <span>{title}</span>
         {titleAction}

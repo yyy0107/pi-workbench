@@ -237,7 +237,7 @@ function TraceViewTabs({
               value={view}
               aria-label={label}
               title={label}
-              className="hover:bg-muted/70 h-8 min-h-0 px-2 text-xs"
+              className="hover:bg-muted/70 h-[var(--button-height-default)] min-h-0 px-2 text-xs"
             >
               <Icon aria-hidden="true" className="size-3.5" />
               {compact ? null : <span>{label}</span>}
