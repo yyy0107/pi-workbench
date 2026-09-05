@@ -5,6 +5,11 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
+    "./builtin-prompts": {
+      "types": "./src/builtin-prompts/index.ts",
+      "import": "./src/builtin-prompts/index.ts",
+      "default": "./src/builtin-prompts/index.ts"
+    },
     "./descriptor": {
       "types": "./src/descriptor.ts",
       "import": "./src/descriptor.ts",

@@ -9,6 +9,7 @@ import {
 
 import {
   BUILTIN_TOOL_PREFERENCE_KEYS,
+  type BuiltinResourcePreferenceKey,
   builtinToolEnabled,
   type BuiltinToolPreferenceKey,
   type BuiltinToolName,
@@ -37,9 +38,17 @@ export interface ToolCapabilityPreferences {
 export type ToolCapabilityPreferenceKey =
   | "askUserEnabled"
   | "todoEnabled"
-  | BuiltinToolPreferenceKey;
+  | BuiltinToolPreferenceKey
+  | BuiltinResourcePreferenceKey;
 
 const PREFERENCE_RESOURCES: Record<ToolCapabilityPreferenceKey, symbol> = {
+  piExtensionPromptEnabled: Symbol("workbench.piExtensionPromptEnabled"),
+  piHookPromptEnabled: Symbol("workbench.piHookPromptEnabled"),
+  piToolPromptEnabled: Symbol("workbench.piToolPromptEnabled"),
+  piSkillPromptEnabled: Symbol("workbench.piSkillPromptEnabled"),
+  messageTerminationExtensionEnabled: Symbol("workbench.messageTerminationExtensionEnabled"),
+  composerContextExtensionEnabled: Symbol("workbench.composerContextExtensionEnabled"),
+  contextTraceExtensionEnabled: Symbol("workbench.contextTraceExtensionEnabled"),
   readToolEnabled: Symbol("workbench.read-tool-preferences"),
   bashToolEnabled: Symbol("workbench.bash-tool-preferences"),
   editToolEnabled: Symbol("workbench.edit-tool-preferences"),
@@ -92,7 +101,7 @@ export function createToolCapabilityPreferences(
   );
   const defaultEnabled = builtinName
     ? builtinToolEnabled(builtinName, {})
-    : key === "askUserEnabled";
+    : key !== "todoEnabled";
   const serverSnapshot: ToolCapabilityPreferenceSnapshot = Object.freeze({
     enabled: defaultEnabled,
     status: "loading",

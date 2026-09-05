@@ -194,6 +194,9 @@ function createInstalledPiAgentHostBindings(
         toolTerminalSessions,
       );
     },
+    async readBuiltinResourceEnabled(key) {
+      return (await settings.describe()).preferences[key] !== false;
+    },
     builtinToolSettings(name) {
       return {
         async readEnabled() {

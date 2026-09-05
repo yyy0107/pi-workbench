@@ -3194,6 +3194,24 @@ export interface BuildRuntimeArtifactOptions {
   readonly testOnlyOutputPolicy?: typeof TEST_ONLY_ALLOW_NONSTANDARD_RUNTIME_ARTIFACT_OUTPUT;
 }
 
+export async function copyRuntimeBuiltinResources(
+  repositoryRoot: string,
+  outputDirectory: string,
+): Promise<void> {
+  // Workbench modules are bundled into server.mjs, so import.meta.url resolves at the artifact root.
+  for (const relative of [
+    "skills/builtin-skills",
+    "internal-extensions",
+    "builtin-prompt-license.txt",
+  ]) {
+    await cp(
+      path.join(repositoryRoot, "packages/agent-runtime/runtimes/pi/server/src", relative),
+      path.join(outputDirectory, relative),
+      { recursive: true },
+    );
+  }
+}
+
 export async function buildRuntimeArtifact({
   target: requestedTarget = currentNodeArtifactTarget(),
   targetAdapter,
@@ -3317,13 +3335,14 @@ export async function buildRuntimeArtifact({
       // dependency graph; this replaces just those owner packages with complete target material.
       for (const packageName of RUNTIME_ARTIFACT_NATIVE_PACKAGES)
         await copyOwnedPackage(packageName, appRoot, repositoryRoot, temporaryDirectory);
+      await copyRuntimeBuiltinResources(repositoryRoot, temporaryDirectory);
       await projectTracedPnpmDependencyLinks({
         repositoryRoot,
         outputDirectory: temporaryDirectory,
       });
       await adapter.materialize?.({ target, outputDirectory: temporaryDirectory, repositoryRoot });
-      // Capture the actual physical Pi documentation/examples tree before pruning.
-      // Only its resolved examples members receive the TS/test exception below.
+      // Inventory Pi documentation/examples and Workbench extension sources before pruning.
+      // Workbench snapshots retain TS source; only Pi examples may retain test files.
       const prePruneModelReadable = await collectRuntimeModelReadableResources(temporaryDirectory);
       await pruneRuntimeTree(temporaryDirectory, temporaryDirectory, {
         modelReadableResources: prePruneModelReadable.resources,

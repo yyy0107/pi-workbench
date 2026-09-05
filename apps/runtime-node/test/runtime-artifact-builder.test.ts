@@ -8,6 +8,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
+import { spawnSync } from "node:child_process";
 import {
   access,
   lstat,
@@ -26,8 +27,9 @@ import os from "node:os";
 import { createRequire } from "node:module";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-import type { Metafile } from "esbuild";
+import { build, type Metafile } from "esbuild";
 
 async function temporaryDirectory(prefix: string): Promise<string> {
   return realpath(await mkdtemp(path.join(os.tmpdir(), prefix)));
@@ -50,6 +52,7 @@ import {
   assertRuntimeArtifactInputClosure,
   buildRuntimeArtifact,
   copyRuntimeArtifactClosurePath,
+  copyRuntimeBuiltinResources,
   createCommandRuntimeArtifactTargetAdapter,
   createRuntimeArtifactBuildOptions,
   createRuntimeArtifactManifest,
@@ -69,6 +72,60 @@ import {
   runtimeArtifactTargetKey,
   writeNativeInventory,
 } from "../scripts/build-runtime-artifact";
+
+test("bundled resources install into the Pi directory after relocation and pruning", async (t) => {
+  const outputDirectory = await temporaryDirectory("workbench-builtin-skill-artifact-");
+  t.after(() => rm(outputDirectory, { force: true, recursive: true }));
+  const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
+  await copyRuntimeBuiltinResources(repositoryRoot, outputDirectory);
+  await build({
+    ...createRuntimeArtifactBuildOptions({ outputDirectory }),
+    entryPoints: [
+      path.join(
+        repositoryRoot,
+        "packages/agent-runtime/runtimes/pi/server/src/builtin-resources.ts",
+      ),
+    ],
+  });
+  await symlink(
+    fileURLToPath(new URL("../node_modules/", import.meta.url)),
+    path.join(outputDirectory, "node_modules"),
+    "dir",
+  );
+  const sourceSnapshots = (
+    await readdir(path.join(outputDirectory, "internal-extensions"), { recursive: true })
+  ).map((relative) => `internal-extensions/${relative.split(path.sep).join("/")}`);
+  await pruneRuntimeTree(outputDirectory, outputDirectory, {
+    modelReadableResources: sourceSnapshots,
+  });
+  const bundled = await import(pathToFileURL(path.join(outputDirectory, "server.mjs")).href);
+  const agentDir = await temporaryDirectory("workbench-relocated-agent-");
+  t.after(() => rm(agentDir, { force: true, recursive: true }));
+  const directories = await bundled.ensureWorkbenchBuiltinResources(agentDir);
+  const skillDirectory = path.join(agentDir, "skills", ".builtin", "skill-creator");
+  assert.equal(directories.skills, path.dirname(skillDirectory));
+  assert.ok(
+    (await readFile(path.join(skillDirectory, "SKILL.md"), "utf8")).includes(
+      "name: skill-creator",
+    ),
+  );
+  assert.ok(
+    (await readFile(path.join(directories.extensions, "todo.ts"), "utf8")).includes(
+      "createTodoExtension",
+    ),
+  );
+  assert.ok(
+    (
+      await readFile(path.join(directories.prompts, "zh-CN", "prompts-pi-skill.md"), "utf8")
+    ).includes("SKILL.md"),
+  );
+  const validation = spawnSync(
+    process.execPath,
+    [path.join(skillDirectory, "scripts/validate-skill.mjs"), skillDirectory],
+    { encoding: "utf8" },
+  );
+  assert.equal(validation.status, 0, validation.stderr);
+});
 
 function metafile(
   inputs: readonly string[],

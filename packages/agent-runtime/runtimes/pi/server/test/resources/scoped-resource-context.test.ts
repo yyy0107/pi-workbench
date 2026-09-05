@@ -33,6 +33,10 @@ test("creates cached user and project resource catalogs without an AgentSession"
   assert.equal(await service.get({ scope: "project", workspaceId: "project-1" }), project);
   assert.deepEqual(workspaceLookups, ["project-1"]);
   for (const context of [user, project]) {
+    const skill = context.resourceLoader
+      .getSkills()
+      .skills.find((entry) => entry.name === "skill-creator");
+    assert.equal(skill?.sourceInfo.source, "builtin");
     const builtin = context.resourceLoader
       .getExtensions()
       .extensions.find((extension) => extension.path === "<inline:workbench.rpiv-todo>");

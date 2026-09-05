@@ -51,6 +51,8 @@ import {
 } from "../resources/resource-text-file";
 import { getOrStartSession } from "../sessions/session-registry";
 
+import { builtinSkillEnabled, withWorkbenchBuiltinSkills } from "./builtin-skills";
+
 export const MAX_SKILL_DOCUMENT_BYTES = 1024 * 1024;
 export const MAX_SKILL_FILE_BYTES = 5 * 1024 * 1024;
 const SKILL_DOCUMENT_READ_CHUNK_BYTES = 64 * 1024;
@@ -131,6 +133,7 @@ export interface SkillSessionHost {
 }
 
 export interface SkillServiceDependencies {
+  agentDir(): string;
   getSession(sessionId: string): Promise<SkillSessionHost>;
   getScopedResourceHost(target: PiResourceCatalogTarget): Promise<SkillSessionHost>;
   readSkillDocument(filePath: string): Promise<string>;
@@ -221,6 +224,7 @@ export class SkillService implements SkillProtocol {
 
   constructor(dependencies: Partial<SkillServiceDependencies> = {}) {
     this.dependencies = {
+      agentDir: getAgentDir,
       getSession: getOrStartSession,
       getScopedResourceHost: async (target) => {
         const context = await getScopedResourceContextService().get(target);
@@ -365,6 +369,21 @@ export class SkillService implements SkillProtocol {
       if (!skill || records.some((candidate) => candidate.name === skill.name)) continue;
       records.push({ ...skill, enabled: resource.enabled });
     }
+    const agentDir = this.dependencies.agentDir();
+    const patterns = host.session.settingsManager?.getGlobalSettings().skills ?? [];
+    const builtins = withWorkbenchBuiltinSkills(
+      { skills: [], diagnostics: [] },
+      agentDir,
+      patterns,
+      true,
+    ).skills;
+    for (const skill of builtins) {
+      const existing = records.find((record) => record.name === skill.name);
+      if (existing && existing.filePath !== skill.filePath) continue;
+      const record = { ...skill, enabled: builtinSkillEnabled(skill.filePath, agentDir, patterns) };
+      if (existing) Object.assign(existing, record);
+      else records.push(record);
+    }
     return records;
   }
 
@@ -471,6 +490,8 @@ export class SkillService implements SkillProtocol {
           ? settingsManager.getProjectSettings()
           : settingsManager.getGlobalSettings();
       const skills = withResourceEnabled(settings.skills ?? [], resourcePath, enabled);
+      // Builtins are injected separately; enabling restores that default without duplicate discovery.
+      if (skill.sourceInfo.source === "builtin" && enabled) skills.pop();
       if (skill.sourceInfo.scope === "project") settingsManager.setProjectSkillPaths(skills);
       else settingsManager.setSkillPaths(skills);
     }

@@ -22,6 +22,8 @@ import {
   sessionTerminalShell,
 } from "./system-prompt-placeholders";
 import { createWorkbenchAgentSessionServices } from "../agent-runtime/agent-session-services";
+import { withWorkbenchBuiltinSkills } from "../skills/builtin-skills";
+import { ensureWorkbenchBuiltinResources } from "../builtin-resources";
 import { workbenchToolOverrides } from "../internal-extensions/builtin-tools";
 
 import type {
@@ -3418,11 +3420,13 @@ async function createHost(
   initializeInactiveSessionJournal(sessionManager);
   const cwd = sessionManager.getCwd();
   const hostBindings = getPiAgentHostBindings();
+  await ensureWorkbenchBuiltinResources();
   const sessionPreferences = await hostBindings.readSessionPreferences?.();
   const initialContextPolicy = policyFromSessionEntries(sessionManager.getBranch());
   const services = await createWorkbenchAgentSessionServices({
     cwd,
     resourceLoaderOptions: {
+      skillsOverride: withWorkbenchBuiltinSkills,
       extensionFactories: createWorkbenchInternalPiExtensions(
         hostBindings.askUserSettings,
         hostBindings.todoSettings,

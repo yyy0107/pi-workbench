@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { SUPPORTED_LOCALES, type Locale } from "@workbench/contracts/locale";
+import {
+  BUILTIN_EXTENSION_PREFERENCE_KEYS,
+  BUILTIN_PROMPT_PREFERENCE_KEYS,
+} from "@workbench/agent-runtime-contracts/settings";
 import type { WorkbenchSettingsProtocol } from "@workbench/agent-runtime-contracts/settings";
 import { type ServerResponse } from "@workbench/host-contracts/rpc";
 import { rpcBusinessError } from "@workbench/host-server/rpc";
@@ -48,6 +52,13 @@ async function successValue<Value>(response: Response): Promise<Value> {
   if (!body.result.ok) assert.fail(`Unexpected RPC error: ${body.result.error.code}`);
   return body.result.value;
 }
+
+const builtinSwitches = Object.fromEntries(
+  [
+    ...Object.values(BUILTIN_EXTENSION_PREFERENCE_KEYS),
+    ...Object.values(BUILTIN_PROMPT_PREFERENCE_KEYS),
+  ].map((key) => [key, false]),
+);
 
 const unexpectedDomainError = (error: unknown): never => {
   throw error;
@@ -119,6 +130,7 @@ test("resolves a Workbench Settings service per call and sanitizes preference pa
         groupParallelTools: false,
         askUserEnabled: false,
         todoEnabled: false,
+        ...builtinSwitches,
         askUserAutoContinue: false,
         enhancedSearch: true,
         readToolEnabled: false,
@@ -159,6 +171,7 @@ test("resolves a Workbench Settings service per call and sanitizes preference pa
         groupParallelTools: false,
         askUserEnabled: false,
         todoEnabled: false,
+        ...builtinSwitches,
         askUserAutoContinue: false,
         enhancedSearch: true,
         readToolEnabled: false,

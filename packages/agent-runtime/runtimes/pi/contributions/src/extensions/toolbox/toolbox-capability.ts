@@ -1,4 +1,7 @@
-import { BUILTIN_TOOL_PREFERENCE_KEYS } from "@workbench/agent-runtime-contracts/settings";
+import {
+  BUILTIN_TOOL_PREFERENCE_KEYS,
+  BUILTIN_EXTENSION_PREFERENCE_KEYS,
+} from "@workbench/agent-runtime-contracts/settings";
 
 import type {
   BuiltinExtensionView,
@@ -107,7 +110,7 @@ export function toolboxDirectoryResource(
   params: ToolboxCapabilitySurfaceParams,
   target: PiResourceCatalogTarget | undefined,
 ): OpenableResource | undefined {
-  if (!target || params.builtin) return undefined;
+  if (!target || (params.builtin && params.capabilityKind !== "skill")) return undefined;
 
   if (params.capabilityKind === "skill") {
     return {
@@ -207,6 +210,7 @@ export function skillSurfaceParams(skill: SkillView): ToolboxCapabilitySurfacePa
     ...(skill.whenToUse ? { whenToUse: skill.whenToUse } : {}),
     enabled: skill.enabled,
     modelInvocable: skill.modelInvocable,
+    ...(skill.source === "builtin" ? { builtin: true } : {}),
     source: skill.source,
     scope: skill.scope,
     origin: skill.origin,
@@ -311,9 +315,12 @@ export function packageSurfaceParams(
   };
 }
 
-/** These tool providers use the same global switches as Workbench settings. */
+/** Built-in extensions use the same global switches as Workbench settings. */
 export function builtinToolPreferenceKey(params: ToolboxCapabilitySurfaceParams) {
   if (!params.builtin || params.capabilityKind !== "extension") return undefined;
+  for (const [name, key] of Object.entries(BUILTIN_EXTENSION_PREFERENCE_KEYS)) {
+    if (params.name === name) return key;
+  }
   for (const [name, key] of Object.entries(BUILTIN_TOOL_PREFERENCE_KEYS)) {
     if (
       (params.extensionName ?? params.name) === `workbench.tool.${name}` &&

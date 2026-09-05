@@ -22,17 +22,7 @@ function render(locale: Locale, query = "") {
 }
 
 test("built-in prompts are localized and searchable without a Runtime or local prompt files", () => {
-  const names = [
-    "pi-extension",
-    "pi-hook",
-    "pi-tool",
-    "pi-skill",
-    "code-review",
-    "debug-issue",
-    "implement-feature",
-    "safe-refactor",
-    "write-tests",
-  ];
+  const names = ["pi-extension", "pi-hook", "pi-tool", "pi-skill"];
   for (const locale of ["en-US", "zh-CN"] as const) {
     const templates = getBuiltinPromptTemplates(createPiI18n(locale).t);
     assert.deepEqual(
@@ -45,16 +35,17 @@ test("built-in prompts are localized and searchable without a Runtime or local p
       assert.match(template.content, /\$\{ARGUMENTS:-[^}]+\}/);
       assert.doesNotMatch(template.content, /\/home\/wy\//);
     }
-    assert.equal((render(locale).match(/<li\b/g) ?? []).length, 9);
+    assert.equal((render(locale).match(/<li\b/g) ?? []).length, 4);
     assert.equal((render(locale, "  PI  ").match(/<li\b/g) ?? []).length, 4);
-    assert.doesNotMatch(render(locale), /<button\b[^>]*\sdisabled=/);
-    assert.equal((render(locale).match(/<button\b/g) ?? []).length, 18);
+    assert.match(render(locale), /disabled=/);
+    assert.equal((render(locale).match(/role="switch"/g) ?? []).length, 4);
+    assert.equal((render(locale).match(/<button\b/g) ?? []).length, 8);
     assert.doesNotMatch(render(locale), /<button\b[^>]*>(?:(?!<\/button>)[\s\S])*<button\b/);
     assert.equal(render(locale, "no-such-template"), "");
   }
   assert.match(render("zh-CN", "钩子"), /创建 Pi 钩子/);
   assert.match(render("en-US", "lifecycle"), /Create a Pi hook/);
-  assert.match(render("en-US", "code-review"), /Review code/);
+  assert.equal(render("en-US", "code-review"), "");
   assert.match(render("zh-CN", "pi-hook"), /立即使用/);
   assert.match(render("en-US", "pi-hook"), /Use now/);
   assert.match(render("en-US", "pi-hook"), /aria-label="Open details for Create a Pi hook"/);
@@ -68,8 +59,9 @@ test("built-in prompts expand locally without metadata or a saved prompt ID", ()
       assert.match(expanded, /src\/a b\.ts focus on tools/);
       const defaults = expandBuiltinPromptTemplate(template, "");
       for (const content of [expanded, defaults]) {
-        assert.match(content, /AGENTS\.md/);
+        assert.match(content, /@earendil-works\/pi-coding-agent 0\.84\.2/);
         assert.doesNotMatch(content, /^---|argument-hint:|\$\{ARGUMENTS/);
+        if (template.name === "pi-tool") assert.match(content, /Hello, \$\{params\.name\}!/);
       }
     }
   }

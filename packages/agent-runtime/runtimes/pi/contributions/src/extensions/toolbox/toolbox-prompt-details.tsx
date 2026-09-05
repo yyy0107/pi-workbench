@@ -16,6 +16,11 @@ import {
   Switch,
   TooltipIconButton,
 } from "@workbench/shell/ui";
+import { BUILTIN_PROMPT_PREFERENCE_KEYS } from "@workbench/agent-runtime-contracts/settings";
+import {
+  useToolCapabilityPreferences,
+  useToolCapabilityPreferencesController,
+} from "@workbench/shell/tool-capability-preferences";
 import { definePiMessage, usePiI18n } from "../../i18n";
 import type { ToolboxCapabilitySurfaceParams } from "./toolbox-capability";
 import { SkillDocumentPanel } from "./toolbox-capability-presentation";
@@ -32,6 +37,11 @@ export function ToolboxPromptDetails({ params }: { params: ToolboxCapabilitySurf
         ? getBuiltinPromptTemplates(t).find((template) => template.name === params.name)
         : undefined,
     [params.builtin, params.name, t],
+  );
+  const builtinKey = builtin ? BUILTIN_PROMPT_PREFERENCE_KEYS[builtin.name] : undefined;
+  const builtinPreference = useToolCapabilityPreferences(builtinKey ?? "piExtensionPromptEnabled");
+  const builtinController = useToolCapabilityPreferencesController(
+    builtinKey ?? "piExtensionPromptEnabled",
   );
   const client = usePiResourceClient();
   const mainViews = useMainViewService();
@@ -101,6 +111,10 @@ export function ToolboxPromptDetails({ params }: { params: ToolboxCapabilitySurf
       params: { section: "prompts" },
     });
   const mutate = async (action: "toggle" | "delete") => {
+    if (builtinKey && action === "toggle") {
+      await builtinController.setEnabled(!builtinPreference.enabled).catch(() => undefined);
+      return;
+    }
     if (params.builtin || !value || inFlight.current) return;
     inFlight.current = true;
     setBusy(true);
@@ -127,10 +141,16 @@ export function ToolboxPromptDetails({ params }: { params: ToolboxCapabilitySurf
   const prompt = params.builtin ? builtin : value;
   const documentLoadState = params.builtin ? (builtin ? "ready" : "failed") : loadState;
   const ready = documentLoadState === "ready" && prompt;
-  const enabled = params.builtin ? Boolean(builtin) : value?.enabled === true;
+  const enabled = params.builtin
+    ? Boolean(builtin) && builtinPreference.enabled && builtinPreference.status === "ready"
+    : value?.enabled === true;
   const editable = !params.builtin && value?.editable === true;
   const displayedError =
-    params.builtin && !builtin ? t("extensions.toolbox.prompts.notFound") : error;
+    params.builtin && !builtin
+      ? t("extensions.toolbox.prompts.notFound")
+      : builtinKey && builtinPreference.saveFailed
+        ? t("extensions.toolbox.prompts.failed")
+        : error;
   return (
     <div className="h-full min-h-0 overflow-y-auto [scrollbar-gutter:stable]">
       <div className="mx-auto w-full max-w-5xl px-5 py-7 @2xl:px-10">
@@ -144,16 +164,18 @@ export function ToolboxPromptDetails({ params }: { params: ToolboxCapabilitySurf
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {!params.builtin && value ? (
+            {builtinKey || value ? (
               <label className="text-muted-foreground mr-2 flex items-center gap-2 text-xs">
                 <Switch
-                  checked={value.enabled}
-                  disabled={!ready || busy}
+                  checked={builtinKey ? builtinPreference.enabled : value?.enabled === true}
+                  disabled={
+                    !ready || busy || Boolean(builtinKey && builtinPreference.status !== "ready")
+                  }
                   aria-label={t("extensions.toolbox.prompts.enabled")}
                   onCheckedChange={() => void mutate("toggle")}
                 />
                 {t(
-                  value.enabled
+                  (builtinKey ? builtinPreference.enabled : value?.enabled)
                     ? "extensions.toolbox.skills.enabledStatus"
                     : "extensions.toolbox.skills.disabledStatus",
                 )}
@@ -251,7 +273,7 @@ export function ToolboxPromptDetails({ params }: { params: ToolboxCapabilitySurf
           }}
         />
       ) : null}
-      {prompt && dialog === "use" ? (
+      {enabled && prompt && dialog === "use" ? (
         <PromptUseDialog
           target={target}
           template={

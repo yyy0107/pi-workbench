@@ -6,6 +6,7 @@ const { ARTIFACT_TEST_SHAPE_PATTERN, isArtifactTestShapedPath } = require("./sou
 
 const PI_CODING_AGENT_PACKAGE = "@earendil-works/pi-coding-agent";
 const PI_MODEL_READABLE_ROOTS = Object.freeze(["README.md", "docs", "examples"]);
+const WORKBENCH_BUILTIN_EXTENSION_ROOT = "internal-extensions";
 const RUNTIME_TEST_PATH_PATTERN = ARTIFACT_TEST_SHAPE_PATTERN;
 const RUNTIME_TYPESCRIPT_SOURCE_PATTERN = /\.(?:[cm]?ts|tsx)$/iu;
 
@@ -45,7 +46,9 @@ function isRuntimeArtifactModelReadableException(
   return (
     Array.isArray(modelReadableResources) &&
     modelReadableResources.includes(relativePath) &&
-    isPathInResolvedExamplesTree(relativePath, resolvedExamplesRoot)
+    (isPathInResolvedExamplesTree(relativePath, resolvedExamplesRoot) ||
+      (relativePath.startsWith(`${WORKBENCH_BUILTIN_EXTENSION_ROOT}/`) &&
+        !isArtifactTestShapedPath(relativePath)))
   );
 }
 
@@ -86,8 +89,8 @@ function collectDirectory(directory, artifactRoot, packageRoot, result) {
 }
 
 /**
- * Derives the advertised model-readable Pi closure only from the final artifact's resolved
- * package. The public alias may be a pnpm symlink; reported paths always name physical files.
+ * Derives model-readable Pi documentation and Workbench extension snapshots from the final
+ * artifact. The public Pi alias may be a pnpm symlink; reported paths name physical files.
  */
 function collectRuntimeArtifactModelReadableResources({ artifactRoot } = {}) {
   if (typeof artifactRoot !== "string" || !path.isAbsolute(artifactRoot)) {
@@ -137,6 +140,17 @@ function collectRuntimeArtifactModelReadableResources({ artifactRoot } = {}) {
   const examplesDirectory = path.join(packageRoot, examplesName);
   collectDirectory(docsDirectory, resolvedArtifactRoot, packageRoot, resources);
   collectDirectory(examplesDirectory, resolvedArtifactRoot, packageRoot, resources);
+  const builtinExtensions = path.join(resolvedArtifactRoot, WORKBENCH_BUILTIN_EXTENSION_ROOT);
+  let builtinStats;
+  try {
+    builtinStats = lstatSync(builtinExtensions);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  // Older artifacts do not contain Workbench source snapshots.
+  if (builtinStats) {
+    collectDirectory(builtinExtensions, resolvedArtifactRoot, builtinExtensions, resources);
+  }
 
   return Object.freeze({
     resources: Object.freeze([...new Set(resources)].sort()),
@@ -146,7 +160,7 @@ function collectRuntimeArtifactModelReadableResources({ artifactRoot } = {}) {
   });
 }
 
-/** Enforces the schema subset plus the stricter producer/consumer exact Pi closure policy. */
+/** Enforces the producer/consumer inventory of Pi docs and Workbench extension snapshots. */
 function assertRuntimeArtifactModelReadableResourceClassification({
   resources,
   modelReadableResources,
@@ -171,7 +185,7 @@ function assertRuntimeArtifactModelReadableResourceClassification({
     JSON.stringify(actual) !== JSON.stringify(expected)
   ) {
     throw new Error(
-      "Runtime artifact model-readable resources do not match the Pi package closure.",
+      "Runtime artifact model-readable resources do not match the Pi package and Workbench source closure.",
     );
   }
   const resourceSet = new Set(resources);
@@ -184,7 +198,7 @@ function assertRuntimeArtifactModelReadableResourceClassification({
       !isRuntimeArtifactModelReadableException(resource, actual, resolvedExamplesRoot)
     ) {
       throw new Error(
-        `Runtime artifact TS/test resource is outside Pi's resolved examples tree: ${resource}.`,
+        `Runtime artifact TS/test resource is outside Pi's resolved examples tree or inventoried Workbench extension sources: ${resource}.`,
       );
     }
   }

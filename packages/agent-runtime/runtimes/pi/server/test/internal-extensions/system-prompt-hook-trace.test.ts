@@ -3,6 +3,15 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import {
+  BUILTIN_EXTENSION_PREFERENCE_KEYS,
+  BUILTIN_PROMPT_PREFERENCE_KEYS,
+} from "@workbench/agent-runtime-contracts/settings";
+import { WorkbenchSettingsService } from "@workbench/settings-server/service";
+import {
+  bindPiAgentHostBindings,
+  getPiAgentHostBindings,
+} from "../../src/agent-runtime/pi-agent-host-bindings";
 
 const { contextTraceExtension } = await import("../../src/internal-extensions/context-trace");
 const { prepareWorkbenchPiExtensions } = await import("../../src/internal-extensions/index");
@@ -161,4 +170,56 @@ test("records every effective before_agent_start system-prompt mutation in execu
       },
     ],
   );
+});
+
+test("all builtin lifecycle extensions switch live without losing their catalog or persisted state", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "builtin-resource-switches-"));
+  const previous = getPiAgentHostBindings();
+  t.after(async () => {
+    bindPiAgentHostBindings(previous);
+    await rm(root, { recursive: true, force: true });
+  });
+  const stateFile = path.join(root, "settings.json");
+  const settings = new WorkbenchSettingsService({ stateFile });
+  bindPiAgentHostBindings({
+    readBuiltinResourceEnabled: async (key) =>
+      (await new WorkbenchSettingsService({ stateFile }).describe()).preferences[key] !== false,
+  });
+  for (const [name, key] of Object.entries(BUILTIN_EXTENSION_PREFERENCE_KEYS)) {
+    let calls = 0;
+    const result = {
+      extensions: [
+        {
+          path: `<inline:${name}>`,
+          tools: new Map(),
+          handlers: new Map([["context", [async () => ++calls]]]),
+        },
+      ],
+      errors: [],
+      runtime: {},
+    };
+    prepareWorkbenchPiExtensions(result as never);
+    const handler = result.extensions[0].handlers.get("context")![0];
+    assert.equal(await handler(), 1);
+    await settings.update({ patch: { [key]: false } });
+    assert.equal(await handler(), undefined);
+    assert.equal(calls, 1);
+    assert.equal(result.extensions.length, 1);
+    assert.equal(result.extensions[0].handlers.get("context")?.length, 1);
+    await settings.update({ patch: { [key]: true } });
+    assert.equal(await handler(), 2);
+  }
+  for (const key of [
+    ...Object.values(BUILTIN_EXTENSION_PREFERENCE_KEYS),
+    ...Object.values(BUILTIN_PROMPT_PREFERENCE_KEYS),
+  ]) {
+    await settings.update({ patch: { [key]: false } });
+    assert.equal(
+      (await new WorkbenchSettingsService({ stateFile }).describe()).preferences[key],
+      false,
+    );
+    await assert.rejects(settings.update({ patch: { [key]: "false" } as never }), {
+      code: "workbench-settings-invalid",
+    });
+  }
 });

@@ -1,3 +1,5 @@
+import { BUILTIN_EXTENSION_PREFERENCE_KEYS } from "@workbench/agent-runtime-contracts/settings";
+import { isBuiltinResourceEnabled } from "../agent-runtime/pi-agent-host-bindings";
 import type { InlineExtension, LoadExtensionsResult } from "@earendil-works/pi-coding-agent";
 
 import { createBuiltinToolExtensions, type BuiltinToolSettings } from "./builtin-tools";
@@ -81,6 +83,20 @@ export function prepareWorkbenchPiExtensions(result: LoadExtensionsResult): Load
       (error) =>
         !(todoOwners.has(error.path) && error.error.startsWith('Tool "todo" conflicts with ')),
     );
+  }
+  // Keep the catalog intact; read persisted state at dispatch so live sessions switch immediately.
+  for (const [name, key] of Object.entries(BUILTIN_EXTENSION_PREFERENCE_KEYS)) {
+    const extension = result.extensions.find((entry) => entry.path === `<inline:${name}>`);
+    if (!extension) continue;
+    for (const [event, handlers] of extension.handlers) {
+      extension.handlers.set(
+        event,
+        handlers.map((handler) => async (...args: Parameters<typeof handler>) => {
+          if (!(await isBuiltinResourceEnabled(key))) return;
+          return handler(...args);
+        }),
+      );
+    }
   }
   reportWorkbenchInternalPiExtensionErrors(result);
   return instrumentSystemPromptHookTracing(result);

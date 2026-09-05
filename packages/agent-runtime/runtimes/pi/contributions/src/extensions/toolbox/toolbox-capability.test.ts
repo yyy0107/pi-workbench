@@ -65,6 +65,23 @@ test("preserves a disabled Skill when opening its Toolbox details", () => {
   );
 });
 
+test("marks bundled skills as built-in while retaining their readable directory", () => {
+  const skill = {
+    name: "skill-creator",
+    description: "Create reusable skills.",
+    enabled: true,
+    modelInvocable: true,
+    source: "builtin",
+    scope: "user" as const,
+    origin: "top-level" as const,
+  };
+  const params = skillSurfaceParams(skill);
+  assert.equal(params.builtin, true);
+  assert.equal(params.modelInvocable, true);
+  assert.equal(toolboxDirectoryResource(params, { scope: "user" })?.scheme, "skill-directory");
+  assert.equal(skillSurfaceParams({ ...skill, source: "auto" }).builtin, undefined);
+});
+
 test("gives project capabilities a project-specific identity and label context", () => {
   const params = bindCapabilityToCatalogTarget(
     capability("skill"),

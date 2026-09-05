@@ -9,6 +9,8 @@ import type { PiResourceCatalogTarget } from "@workbench/agent-runtime-pi-protoc
 import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
 import { getProjectTrustService } from "../trust/project-trust-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
+import { withWorkbenchBuiltinSkills } from "../skills/builtin-skills";
+import { ensureWorkbenchBuiltinResources } from "../builtin-resources";
 import {
   prepareWorkbenchPiExtensions,
   workbenchInternalPiExtensions,
@@ -131,6 +133,7 @@ export class ScopedResourceContextService {
           ? await this.dependencies.isProjectTrusted(workspace.path)
           : false;
       const agentDir = this.dependencies.agentDir();
+      await ensureWorkbenchBuiltinResources(agentDir);
       const settingsManager = SettingsManager.create(cwd, agentDir, { projectTrusted });
       const resourceLoader = new DefaultResourceLoader({
         cwd,
@@ -138,6 +141,12 @@ export class ScopedResourceContextService {
         settingsManager,
         noContextFiles: true,
         noThemes: true,
+        skillsOverride: (base) =>
+          withWorkbenchBuiltinSkills(
+            base,
+            agentDir,
+            settingsManager.getGlobalSettings().skills ?? [],
+          ),
         extensionFactories: workbenchInternalPiExtensions,
         extensionsOverride: prepareWorkbenchPiExtensions,
       });

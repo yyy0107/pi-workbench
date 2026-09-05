@@ -214,15 +214,17 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
   const extensionDirectoryPath = params.filePath ? parentDirectoryPath(params.filePath) : undefined;
   const skillPackageSource = params.packageName ?? params.source;
   const skillSourceLabel = isSkill
-    ? params.origin === "package"
-      ? skillPackageSource
-        ? t("extensions.toolbox.details.skillSourcePackage", {
-            source: skillPackageSource,
-          })
-        : t("extensions.toolbox.details.skillSourcePackageUnknown")
-      : params.origin === "top-level"
-        ? t("extensions.toolbox.details.skillSourceIndependent")
-        : t("extensions.toolbox.details.notExposed")
+    ? params.builtin
+      ? t("extensions.toolbox.status.builtin")
+      : params.origin === "package"
+        ? skillPackageSource
+          ? t("extensions.toolbox.details.skillSourcePackage", {
+              source: skillPackageSource,
+            })
+          : t("extensions.toolbox.details.skillSourcePackageUnknown")
+        : params.origin === "top-level"
+          ? t("extensions.toolbox.details.skillSourceIndependent")
+          : t("extensions.toolbox.details.notExposed")
     : undefined;
   const officialDetails = packageDetails.value;
   const displayedPackageDetails = isInstalledPackage
@@ -466,14 +468,16 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
       (installedPackageDetails.loadState === "loading"
         ? "…"
         : t("extensions.toolbox.packages.installedDescriptionUnavailable"))
-    : params.description ||
-      (isExtension
-        ? t("extensions.toolbox.extensions.capabilitySummary", {
-            events: params.eventNames?.length ?? 0,
-            tools: params.toolNames?.length ?? 0,
-            commands: params.commandNames?.length ?? 0,
-          })
-        : t("extensions.toolbox.details.descriptionUnavailable"));
+    : isSkill && params.builtin && params.name === "skill-creator"
+      ? t("extensions.toolbox.skills.creatorDescription")
+      : params.description ||
+        (isExtension
+          ? t("extensions.toolbox.extensions.capabilitySummary", {
+              events: params.eventNames?.length ?? 0,
+              tools: params.toolNames?.length ?? 0,
+              commands: params.commandNames?.length ?? 0,
+            })
+          : t("extensions.toolbox.details.descriptionUnavailable"));
 
   const copyInstallCommand = () => {
     if (!selectedInstallCommand) return;
@@ -1026,11 +1030,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
           </div>
         ) : null}
 
-        {isExtension && params.builtin && !builtinPreferenceKey ? (
-          <p className="text-muted-foreground mt-5 text-sm">
-            {t("extensions.toolbox.builtins.readOnly")}
-          </p>
-        ) : isExtension ? (
+        {isExtension ? (
           <ExtensionControls
             builtin={params.builtin}
             canDelete={canDeleteExtension}

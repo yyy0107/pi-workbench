@@ -134,3 +134,34 @@ test("rejects symlinks inside actual Pi model-readable roots", (t) => {
     /contains a symlink/u,
   );
 });
+
+test("admits only inventoried Workbench extension source snapshots and rejects links", (t) => {
+  const value = fixture(t);
+  const root = path.join(value.artifactRoot, "internal-extensions");
+  mkdirSync(root);
+  writeFileSync(path.join(root, "todo.ts"), "export {};\n");
+  const closure = collectRuntimeArtifactModelReadableResources({
+    artifactRoot: value.artifactRoot,
+  });
+  assert.ok(closure.resources.includes("internal-extensions/todo.ts"));
+  const classification = {
+    resources: closure.resources,
+    modelReadableResources: closure.resources,
+    expectedModelReadableResources: closure.resources,
+    resolvedExamplesRoot: closure.resolvedExamplesRoot,
+  };
+  assertRuntimeArtifactModelReadableResourceClassification(classification);
+  assert.throws(
+    () =>
+      assertRuntimeArtifactModelReadableResourceClassification({
+        ...classification,
+        resources: [...closure.resources, "internal-extensions/not-in-inventory.ts"],
+      }),
+    /outside Pi's/,
+  );
+  symlinkSync(path.join(value.packageRoot, "README.md"), path.join(root, "linked.md"));
+  assert.throws(
+    () => collectRuntimeArtifactModelReadableResources({ artifactRoot: value.artifactRoot }),
+    /contains a symlink/,
+  );
+});

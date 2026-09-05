@@ -5,6 +5,7 @@ import { getAgentDir, VERSION as PI_VERSION } from "@earendil-works/pi-coding-ag
 import type { HostDescription } from "@workbench/agent-runtime-pi-protocol/rpc";
 import { getAttachedSessionCount, listModels } from "../sessions/session-registry";
 import { canOpenHostPath } from "@workbench/local-host-server/directories";
+import { ensureWorkbenchBuiltinResources } from "../builtin-resources";
 
 const WORKBENCH_VERSION = process.env.npm_package_version ?? "0.1.0";
 
@@ -17,6 +18,7 @@ export class HostService implements HostProtocol {
   async describe(): Promise<HostDescription> {
     const cwd = process.cwd();
     const userResourceDir = getAgentDir();
+    await ensureWorkbenchBuiltinResources(userResourceDir);
     const models = await listModels(cwd).catch(() => undefined);
     return {
       product: "pi-workbench",

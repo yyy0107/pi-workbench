@@ -106,7 +106,7 @@ test("built-in entries have localized labels and share the searchable Pi extensi
   assert.doesNotMatch(render("", "en-US", resources), />Enabled<|>Available</);
 });
 
-test("only built-in tool providers are switchable and their disabled state stays visible", () => {
+test("built-in tools and lifecycle extensions are switchable and disabled entries stay visible", () => {
   const params = {
     capabilityId: "builtin-extension:todo",
     capabilityKind: "extension" as const,
@@ -122,7 +122,10 @@ test("only built-in tool providers are switchable and their disabled state stays
   );
   assert.equal(builtinToolPreferenceKey({ ...params, builtin: false }), undefined);
   assert.equal(builtinToolPreferenceKey({ ...params, toolNames: [] }), undefined);
-  assert.equal(builtinToolPreferenceKey({ ...params, name: "workbench.context-trace" }), undefined);
+  assert.equal(
+    builtinToolPreferenceKey({ ...params, name: "workbench.context-trace" }),
+    "contextTraceExtensionEnabled",
+  );
   const resources: ToolboxCapabilityItem[] = [
     { id: params.capabilityId, kind: "extension", name: params.name, searchText: "todo", params },
   ];

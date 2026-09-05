@@ -17,10 +17,7 @@ export const toolboxExtension = defineExtension({
   name: "Toolbox",
   version: "1.0.0",
   setup(context) {
-    const prompts = createBuiltinPromptCommands();
-    const promptCommands = prompts.commands.map((command) =>
-      context.composerCommands.register(command),
-    );
+    const prompts = createBuiltinPromptCommands(context.composerCommands);
     const promptLocale = context.slots.register("shell.overlay", {
       id: "workbench.toolbox.prompt-commands",
       component: prompts.component,
@@ -43,6 +40,6 @@ export const toolboxExtension = defineExtension({
       kind: "toolbox",
       component: ToolboxMainView,
     });
-    return [sidebar, mainView, openers, resourceBridge, promptLocale, ...promptCommands];
+    return [sidebar, mainView, openers, resourceBridge, promptLocale];
   },
 });

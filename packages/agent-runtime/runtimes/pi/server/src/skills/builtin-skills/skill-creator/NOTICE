@@ -1,0 +1,6 @@
+Skill Creator instructions are adapted from OpenAI's skill-creator skill,
+provided under the Apache License, Version 2.0.
+
+Modified for Workbench and Pi: skill locations, invocation policy, resource
+loading, and SDK-based validation. The original Codex-specific metadata and
+Python scaffolding scripts are not included.

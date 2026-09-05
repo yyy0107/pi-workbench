@@ -3,6 +3,7 @@ import test from "node:test";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { I18nProvider } from "@workbench/shell/i18n";
+import { useToolCapabilityPreferencesController } from "@workbench/shell/tool-capability-preferences";
 import { WorkbenchSettingsProvider } from "@workbench/shell/settings";
 import { ComposerCommandRegistryImpl } from "../../../../../../../extension-platform/sdk/src/registries/composer-command-registry";
 import { installMinimalReactDomEnvironment } from "../../../../../../../workbench/shell/test/react-dom-environment";
@@ -19,11 +20,15 @@ test("built-in commands keep the displayed request compact and apply localized t
   const environment = installMinimalReactDomEnvironment();
   const root = createRoot(environment.container);
   const registry = new ComposerCommandRegistryImpl();
-  const { commands, component: LocaleBridge } = createBuiltinPromptCommands();
-  const registrations = commands.map((command) => registry.register(command));
+  const { commands, component: LocaleBridge } = createBuiltinPromptCommands(registry);
+  let controller;
+  function Controls() {
+    controller = useToolCapabilityPreferencesController("piHookPromptEnabled");
+    return createElement(LocaleBridge);
+  }
   const settings = { load: async () => ({}), update: async () => undefined };
   try {
-    assert.equal(registry.getAll().length, 9);
+    assert.equal(registry.getAll().length, 0);
     for (const locale of ["en-US", "zh-CN"]) {
       await act(async () => {
         root.render(
@@ -33,11 +38,12 @@ test("built-in commands keep the displayed request compact and apply localized t
             createElement(
               I18nProvider,
               { key: locale, initialLocale: locale, bundles: [piTranslationBundle] },
-              createElement(LocaleBridge),
+              createElement(Controls),
             ),
           ),
         );
       });
+      assert.equal(registry.getAll().length, 4);
       for (const command of commands) {
         const token = workbenchComposerDirectiveFormatter.serialize({
           id: command.id,
@@ -52,17 +58,24 @@ test("built-in commands keep the displayed request compact and apply localized t
           assert.deepEqual(request.document, document);
           assert.equal(request.commands[0]?.commandId, command.id);
           assert.equal(request.commands[0]?.source, "workbench");
-          assert.match(request.text, /AGENTS\.md/);
-          assert.doesNotMatch(request.sourceText, /AGENTS\.md/);
+          assert.match(request.text, /@earendil-works\/pi-coding-agent 0\.84\.2/);
+          assert.doesNotMatch(request.sourceText, /@earendil-works\/pi-coding-agent/);
           assert.doesNotMatch(request.text, /argument-hint:|\$\{ARGUMENTS/);
           if (arguments_) assert(request.text.includes(arguments_));
           assert.equal(/[\u4e00-\u9fff]/u.test(request.text), locale === "zh-CN");
         }
       }
     }
+    const command = commands.find((item) => item.id === "prompts-pi-hook");
+    await act(async () => controller.setEnabled(false));
+    assert.equal(registry.get("prompts-pi-hook"), undefined);
+    assert.equal(registry.getAll().length, 3);
+    assert.throws(() => command.composer.apply({ text: "example" }), /启用模板/);
+    await act(async () => controller.setEnabled(true));
+    assert.ok(registry.get("prompts-pi-hook"));
+    assert.equal(registry.getAll().length, 4);
   } finally {
     await act(async () => root.unmount());
-    registrations.forEach((registration) => registration.dispose());
     environment.restore();
   }
   assert.equal(registry.getAll().length, 0);

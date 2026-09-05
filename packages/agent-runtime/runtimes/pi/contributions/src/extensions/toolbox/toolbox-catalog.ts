@@ -147,6 +147,11 @@ export function useToolboxCatalogs(
 ) {
   const { t } = usePiI18n();
   const askUserPreference = useToolCapabilityPreferences("askUserEnabled");
+  const messageTerminationPreference = useToolCapabilityPreferences(
+    "messageTerminationExtensionEnabled",
+  );
+  const composerContextPreference = useToolCapabilityPreferences("composerContextExtensionEnabled");
+  const contextTracePreference = useToolCapabilityPreferences("contextTraceExtensionEnabled");
   const todoPreference = useToolCapabilityPreferences("todoEnabled");
   const readPreference = useToolCapabilityPreferences("readToolEnabled");
   const bashPreference = useToolCapabilityPreferences("bashToolEnabled");
@@ -219,16 +224,21 @@ export function useToolboxCatalogs(
                 entryTarget.resource,
                 entryTarget.project,
               );
+              const description =
+                params.builtin && skill.name === "skill-creator"
+                  ? t("extensions.toolbox.skills.creatorDescription")
+                  : skill.description;
               return {
                 id: params.capabilityId,
                 kind: "skill" as const,
                 name: skill.name,
-                description: skill.description,
+                description,
                 ...(params.projectId && entryTarget.project
                   ? { project: entryTarget.project }
                   : {}),
                 searchText: [
                   skill.name,
+                  description,
                   skill.description,
                   skill.whenToUse ?? "",
                   params.projectId ? projectSearchText(entryTarget) : "",
@@ -238,7 +248,7 @@ export function useToolboxCatalogs(
             }),
         ),
       ),
-    [scope, skillsCatalog.entries],
+    [scope, skillsCatalog.entries, t],
   );
 
   const extensionItems = useMemo<readonly ToolboxCapabilityItem[]>(
@@ -339,6 +349,9 @@ export function useToolboxCatalogs(
               ? {
                   askUserEnabled: askUserPreference,
                   todoEnabled: todoPreference,
+                  messageTerminationExtensionEnabled: messageTerminationPreference,
+                  composerContextExtensionEnabled: composerContextPreference,
+                  contextTraceExtensionEnabled: contextTracePreference,
                   readToolEnabled: readPreference,
                   bashToolEnabled: bashPreference,
                   editToolEnabled: editPreference,
@@ -382,6 +395,9 @@ export function useToolboxCatalogs(
       t,
       askUserPreference,
       todoPreference,
+      messageTerminationPreference,
+      composerContextPreference,
+      contextTracePreference,
       readPreference,
       bashPreference,
       editPreference,

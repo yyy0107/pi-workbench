@@ -1,5 +1,6 @@
 import type { LoadExtensionsResult } from "@earendil-works/pi-coding-agent";
 
+import { isBuiltinResourceEnabled } from "../agent-runtime/pi-agent-host-bindings";
 import { getSessionContextTrace } from "../sessions/session-context-trace";
 
 const INSTRUMENTED_HANDLER = Symbol.for("pi-workbench.context-trace.before-agent-start-handler");
@@ -40,6 +41,8 @@ export function instrumentSystemPromptHookTracing(
         const wrapped: PiExtensionHandler = async (...args) => {
           const hookResult = await handler(...args);
           try {
+            if (!(await isBuiltinResourceEnabled("contextTraceExtensionEnabled")))
+              return hookResult;
             const event = args[0];
             const context = args[1];
             if (

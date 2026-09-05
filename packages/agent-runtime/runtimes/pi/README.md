@@ -509,6 +509,21 @@ Workbench 进程全部信任的显式覆盖。升级到 Project Trust 的首次�
 
 ## Skills
 
+Workbench 随 Runtime 内置 `skill-creator`，用于创建和更新技能。会话与 Toolbox 通过 Pi 的
+`skillsOverride` 加入同一份资源，复用技能详情、文件浏览、自动发现和 `/skill:skill-creator` 调用。
+内置项在用户范围显示，来源为 `builtin`，默认启用且不可删除；已有同名用户或受信任项目技能优先。
+启停复用 `skill.setEnabled` 与用户级 Pi 设置中的精确资源路径开关。停用后目录和文档仍可查看，
+技能不再进入模型提示词和命令列表；所有受影响会话按现有资源变更流程重载，重启后保持设置。
+Runtime 会将内置资源同步到 Pi 用户目录（默认 `~/.pi/agent`，遵循 `PI_CODING_AGENT_DIR`）：
+技能位于 `skills/.builtin/skill-creator/`，扩展源码与资源位于 `extensions/.builtin/`，双语提示词
+Markdown 位于 `prompts/.builtin/en-US/` 和 `prompts/.builtin/zh-CN/`。同步复用进程间锁与原子文件替换，
+内容相同时不重写，也不修改 `.builtin` 外的自定义资源。校验脚本通过随安装生成的 `runtime.json` 定位
+当前 Runtime 的公开 Pi SDK，不依赖 Python 或 Codex 配置。
+
+`.builtin` 不参与 Pi 的常规自动发现，内置技能由 Workbench 显式加载；扩展保持宿主内联注册，磁盘保存
+其源码快照，不会再加载一份。提示词文件与 Composer 的双语模板共享同一份数据源，现有 `/prompts-*`
+命令保持不变。Runtime artifact 同时携带这些资源，其中扩展源码作为明确登记的模型可读资源保留。
+
 Skills、Extensions 与已安装 Package 的兼容 RPC 接受两种互斥资源身份：会话内设置界面可继续提交
 `{ sessionId }`；Toolbox 必须提交 `{ target: { scope: "user" } }` 或
 `{ target: { scope: "project", workspaceId } }`。服务端将 target 解析为缓存的
@@ -673,6 +688,9 @@ Pi TUI 中仅对终端有意义的命令（例如 `/quit`、`/copy`）不会出�
 Workbench 等价语义的内置命令才会被暴露，避免把 UI action 错当成普通 prompt。Pi 包源码与
 `registerCommand()` 契约保持不变。
 
+内置提示词同样通过共享 Workbench 设置启停；停用后仍可查看和复制，但不会注册对应的
+`/prompts-*` 命令，列表和详情中的使用入口会停用。切换语言不会重置开关。
+
 ## Extensions
 
 五个 `extension.*` 方法的完整扩展身份、payload validator、只读/变更信任边界与 handler 映射由
@@ -695,11 +713,12 @@ host、文件系统边界和 mutation coordinator 仍由 `ExtensionService` 独�
 
 Workbench 自身依赖的 Pi 生命周期适配器通过 `DefaultResourceLoader` 的隐藏内联
 `extensionFactories` 注入。工具箱的独立资源上下文也注册同一组工厂以读取声明，不创建 AgentSession。
-它们不写入用户或项目扩展目录；`extension.list` 的可选 `builtins` 数组单独返回名称及工具、命令和事件
+它们的源码与资源同步到用户目录的 `extensions/.builtin/`，执行仍由宿主的内联工厂负责；
+`extension.list` 的可选 `builtins` 数组单独返回名称及工具、命令和事件
 声明，与用户安装的扩展一并显示在工具箱“Pi 扩展”列表与详情页。Todo 与 Ask User 可通过共享 Workbench 设置启停
 （`todoEnabled` 默认停用，`askUserEnabled` 默认启用），即时同步活动会话的可用工具，保留工具历史；纯生命周期
-扩展始终启用。内置项不包含文件或 mutation 身份，不进入文件读取和
-启停/删除 RPC，也不会被同一 Pi agent 目录下的 TUI 或其他客户端自动加载。
+扩展也使用共享设置开关，在每次事件分发时读取最新状态，默认启用。内置项不包含文件或 mutation 身份，不进入文件读取和
+Pi 资源启停/删除 RPC，也不会被同一 Pi agent 目录下的 TUI 或其他客户端自动加载。
 内部扩展初始化失败写入 Host 日志，不计入面向用户的扩展加载错误数量。当前消息终止原因
 归一化使用这一机制在 Pi 持久化 `message_end` 前写入版本化 diagnostic；Workbench 的 `ask_user`
 工具也由隐藏内联扩展注册，通过统一 Workbench settings 中的 `askUserEnabled` 开关同步到每个已加载
