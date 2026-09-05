@@ -631,14 +631,12 @@ export const extensionsEnUS = {
     showDetails: "Show context and conversation statistics",
     description: "Current context usage and cumulative conversation statistics",
     currentContextTitle: "Current context",
-    currentContextDescription:
-      "Current context occupancy is the next request's working set. It is different from cumulative session tokens billed across all turns.",
     currentContextValue: ({ used, budget }: { used: string; budget: string }) =>
       `${used} / ${budget}`,
     contextUsed: "Context used",
     estimatedContextValue: ({ used, budget }: { used: string; budget: string }) =>
-      `~${used} / ${budget}`,
-    estimatedTokenValue: ({ tokens }: { tokens: string }) => `~${tokens}`,
+      `${used} / ${budget}`,
+    estimatedTokenValue: ({ tokens }: { tokens: string }) => tokens,
     nearingCompaction:
       "Context is approaching the automatic compaction point. Pi will preserve recent work when it compacts.",
     modelInputBreakdown: "Model input composition",
@@ -659,15 +657,7 @@ export const extensionsEnUS = {
       "tool-results": "Tool results",
       other: "Other model input",
     },
-    usageEstimateDescription: "Estimates update as model steps progress.",
     contextSettings: "Context settings",
-    contextBudgetDescription:
-      "Follows the current model configuration by default. A custom limit applies only to this conversation and cannot increase model capacity.",
-    modelCapacity: ({ tokens }: { tokens: string }) =>
-      `Configured model capacity: ${tokens} tokens`,
-    compactionThreshold: ({ tokens }: { tokens: string }) =>
-      `Auto-compaction threshold: ${tokens} tokens`,
-    autoCompactionDisabled: "Automatic compaction is disabled",
     contextBudget: "Context limit",
     contextBudgetControlLabel: ({ mode, tokens }: { mode: string; tokens: string }) =>
       `Session context budget: ${mode}, ${tokens}`,

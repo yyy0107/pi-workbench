@@ -15,7 +15,6 @@ import { useOpenerService, useWorkspaceContext } from "@workbench/shell/right-wo
 import {
   Popover,
   PopoverContent,
-  PopoverDescription,
   PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
@@ -442,9 +441,6 @@ function ThreadTokenUsage() {
                 {context?.model?.name ?? unavailable}
               </span>
             </div>
-            <PopoverDescription className="sr-only">
-              {t("extensions.tokenUsage.currentContextDescription")}
-            </PopoverDescription>
           </PopoverHeader>
           <div className="space-y-1.5">
             <div className="flex items-baseline justify-between gap-3 tabular-nums">
@@ -534,17 +530,13 @@ function ThreadTokenUsage() {
             </div>
           ) : null}
 
-          <p className="text-muted-foreground text-xs">
-            {t("extensions.tokenUsage.usageEstimateDescription")}
-          </p>
-
           <div className="border-t border-border pt-1">
             <TokenUsageSection
               label={t("extensions.tokenUsage.contextSettings")}
               value={selectedContextBudgetModeLabel}
             >
               <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
                   <p className="text-xs font-medium">{t("extensions.tokenUsage.contextBudget")}</p>
                   <DropdownMenu>
                     <SettingsDropdownTrigger
@@ -552,7 +544,7 @@ function ThreadTokenUsage() {
                         mode: selectedContextBudgetModeLabel,
                         tokens: displayedContextBudgetLabel,
                       })}
-                      className="h-[var(--button-height-compact)] justify-between gap-1 px-2 text-xs"
+                      className="-me-2 ms-auto h-[var(--button-height-compact)] justify-between gap-1 px-2 text-xs"
                       disabled={
                         isRunning ||
                         contextPolicy.status === "saving" ||
@@ -650,23 +642,6 @@ function ThreadTokenUsage() {
                     ) : null}
                   </div>
                 ) : null}
-                <div className="text-muted-foreground space-y-1 text-xs">
-                  <p>{t("extensions.tokenUsage.contextBudgetDescription")}</p>
-                  {modelCapacity !== undefined ? (
-                    <p>
-                      {t("extensions.tokenUsage.modelCapacity", { tokens: number(modelCapacity) })}
-                    </p>
-                  ) : null}
-                  <p>
-                    {context?.compaction.enabled === false
-                      ? t("extensions.tokenUsage.autoCompactionDisabled")
-                      : context?.compaction.thresholdTokens !== undefined
-                        ? t("extensions.tokenUsage.compactionThreshold", {
-                            tokens: number(context.compaction.thresholdTokens),
-                          })
-                        : unavailable}
-                  </p>
-                </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
@@ -710,10 +685,7 @@ function ThreadTokenUsage() {
             ) : null}
 
             <TokenUsageSection label={t("extensions.tokenUsage.cumulativeTitle")}>
-              <p className="text-muted-foreground text-xs">
-                {t("extensions.tokenUsage.currentContextDescription")}
-              </p>
-              <div className="text-foreground mt-2 flex flex-col gap-1.5 text-xs tabular-nums">
+              <div className="text-foreground flex flex-col gap-1.5 text-xs tabular-nums">
                 <div className="flex flex-wrap items-center gap-x-1">
                   <span>{t("extensions.tokenUsage.turns", { count: statistics.turns })}</span>
                   <span aria-hidden="true">·</span>

@@ -615,14 +615,12 @@ export const extensionsZhCN = {
     showDetails: "查看上下文与会话统计",
     description: "当前上下文占用与会话累计统计",
     currentContextTitle: "当前上下文",
-    currentContextDescription:
-      "当前上下文占用是下一次请求的工作集，与会话所有轮次累计计费的 token 不同。",
     currentContextValue: ({ used, budget }: { used: string; budget: string }) =>
       `${used} / ${budget}`,
     contextUsed: "上下文已用",
     estimatedContextValue: ({ used, budget }: { used: string; budget: string }) =>
-      `~${used} / ${budget}`,
-    estimatedTokenValue: ({ tokens }: { tokens: string }) => `~${tokens}`,
+      `${used} / ${budget}`,
+    estimatedTokenValue: ({ tokens }: { tokens: string }) => tokens,
     nearingCompaction: "上下文已接近自动压缩点；压缩时 Pi 会尽量保留近期工作内容。",
     modelInputBreakdown: "模型输入构成",
     breakdownGroups: {
@@ -642,12 +640,7 @@ export const extensionsZhCN = {
       "tool-results": "工具结果",
       other: "其他模型输入",
     },
-    usageEstimateDescription: "估算值 · 随模型步骤更新",
     contextSettings: "上下文设置",
-    contextBudgetDescription: "默认跟随当前模型配置；自定义仅限制本会话，不会增加模型容量。",
-    modelCapacity: ({ tokens }: { tokens: string }) => `模型配置容量：${tokens} token`,
-    compactionThreshold: ({ tokens }: { tokens: string }) => `自动压缩阈值：${tokens} token`,
-    autoCompactionDisabled: "自动压缩已关闭",
     contextBudget: "上下文上限",
     contextBudgetControlLabel: ({ mode, tokens }: { mode: string; tokens: string }) =>
       `会话上下文预算：${mode}，${tokens}`,
