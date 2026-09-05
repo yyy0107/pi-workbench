@@ -1,6 +1,17 @@
 import type { MessageFormatters } from "../types";
 
 export const extensionsZhCN = {
+  todoPanel: {
+    title: "任务列表",
+    updating: "正在更新任务",
+    empty: "当前没有待办事项。",
+    progress: (
+      { completed, total }: { completed: number; total: number },
+      { number }: MessageFormatters,
+    ) => `已完成 ${number(completed)} / ${number(total)}`,
+    owner: ({ owner }: { owner: string }) => `负责人：${owner}`,
+    blockedBy: ({ tasks }: { tasks: string }) => `依赖任务：${tasks}`,
+  },
   interactiveRequests: {
     questionTitle: "问题",
     questionDescription: "回答此请求后，会话才能继续。",
@@ -938,7 +949,7 @@ export const extensionsZhCN = {
       retainAllModelIODescription:
         "保留已采集的全部模型请求与响应历史，不自动清理。关闭时，每个会话最多保留 100 次已结束的激活记录或 1 GiB 审计历史。下次打开会话时生效，已删除的历史无法恢复。",
       showTodos: "显示待办",
-      showTodosDescription: "在消息时间线中显示 Workbench Todo 工具记录的任务清单。",
+      showTodosDescription: "在输入框上方和消息时间线中显示受支持的 Todo 工具记录的任务清单。",
       groupExplorationTools: "分组探索工具",
       groupExplorationToolsDescription: "将连续的读取和搜索工具调用聚合为可展开的探索分组。",
       groupTerminalTools: "分组终端命令",

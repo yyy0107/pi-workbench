@@ -21,7 +21,6 @@ import type {
 } from "@workbench/agent-runtime-contracts/conversation";
 
 import { useConversationPreferences } from "../../../chat/conversation-preferences";
-import { TodoList } from "./todo-list";
 import { ToolGroupContent, ToolGroupRoot, ToolGroupTrigger } from "../../../chat/tool-group";
 import { ReasoningPanel, type ReasoningStep } from "../../../elements/reasoning-panel";
 import { ReviewableDiff, type HunkDecision } from "../../../elements/reviewable-diff";
@@ -359,17 +358,14 @@ function TimelineToolCall({
   const resultLabel = t("extensions.messagePresentation.toolTimeline.result");
   const request = state.request;
   const result = serializeToolValue(state.result);
-  const fallbackDetail =
-    block.toolName === "workbench_todo" && block.status === "complete" ? (
-      <TodoList block={block} />
-    ) : (
-      <ToolCallDetails
-        request={request}
-        result={result}
-        requestLabel={requestLabel}
-        resultLabel={resultLabel}
-      />
-    );
+  const fallbackDetail = (
+    <ToolCallDetails
+      request={request}
+      result={result}
+      requestLabel={requestLabel}
+      resultLabel={resultLabel}
+    />
+  );
 
   return (
     <ToolCall

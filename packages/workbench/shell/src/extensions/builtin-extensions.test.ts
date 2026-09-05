@@ -19,6 +19,7 @@ const SHELL_CORE_EXTENSION_IDS = Object.freeze([
   "workbench.message-actions",
   "workbench.user-message-index",
   "workbench.message-queue",
+  "workbench.todo-panel",
   "workbench.archived-chats",
 ]);
 const SHELL_SETTINGS_EXTENSION_IDS = Object.freeze(["workbench.settings"]);

@@ -1,6 +1,17 @@
 import type { MessageFormatters } from "../types";
 
 export const extensionsEnUS = {
+  todoPanel: {
+    title: "Tasks",
+    updating: "Updating tasks",
+    empty: "No tasks remaining.",
+    progress: (
+      { completed, total }: { completed: number; total: number },
+      { number }: MessageFormatters,
+    ) => `${number(completed)} / ${number(total)} completed`,
+    owner: ({ owner }: { owner: string }) => `Owner: ${owner}`,
+    blockedBy: ({ tasks }: { tasks: string }) => `Depends on: ${tasks}`,
+  },
   interactiveRequests: {
     questionTitle: "Question",
     questionDescription: "Answer this request to let the session continue.",
@@ -966,7 +977,7 @@ export const extensionsEnUS = {
         "Keep all recorded model request and response history without automatic cleanup. Otherwise completed audit history is limited to 100 activations or 1 GiB per session. Applies when a session is next opened; already deleted history cannot be restored.",
       showTodos: "Show todo lists",
       showTodosDescription:
-        "Show task checklists recorded by the Workbench Todo tool in the message timeline.",
+        "Show task lists from supported Todo tools above the composer and in the message timeline.",
       groupExplorationTools: "Group exploration tools",
       groupExplorationToolsDescription:
         "Group consecutive read and search tool calls into an expandable Explore group.",

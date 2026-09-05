@@ -6,6 +6,7 @@ import { localeSelectorExtension } from "./builtin/locale-selector";
 import { messageActionsExtension } from "./builtin/message-actions";
 import { messagePresentationExtension } from "./builtin/message-presentation";
 import { messageQueueExtension } from "./builtin/message-queue";
+import { todoPanelExtension } from "./builtin/todo-panel";
 import { settingsExtension } from "./builtin/settings";
 import { terminalExtension } from "./builtin/terminal";
 import { userMessageIndexExtension } from "./builtin/user-message-index";
@@ -36,6 +37,7 @@ export const shellCoreExtensions: readonly WorkbenchExtension[] = Object.freeze(
   messageActionsExtension,
   userMessageIndexExtension,
   messageQueueExtension,
+  todoPanelExtension,
   archivedChatsExtension,
 ]);
 

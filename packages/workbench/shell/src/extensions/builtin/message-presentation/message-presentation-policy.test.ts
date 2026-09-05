@@ -30,7 +30,9 @@ test("the todo preference hides only its recorded tool cards", () => {
     status: "complete",
   } as const;
   const text = { kind: "text", key: "answer", text: "Answer" } as const;
-  assert.deepEqual(visibleMessageBlocks([todo, text], true, false), [text]);
+  const rpiv = { ...todo, key: "rpiv", toolName: "todo" };
+  const other = { ...todo, key: "other", toolName: "another_todo_tool" };
+  assert.deepEqual(visibleMessageBlocks([todo, rpiv, other, text], true, false), [other, text]);
 });
 
 const kinds: readonly MessagePresentationDisclosure[] = [

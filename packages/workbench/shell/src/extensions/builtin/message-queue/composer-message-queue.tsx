@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { useState, type DragEvent } from "react";
 
+import { composerPanel, composerPanelRow } from "../../../chat/composer-panel-styles";
+import { Button } from "../../../ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,7 +80,8 @@ function ComposerQueueItem({
         onDrop(queueItem.key, dropPosition(event));
       }}
       className={cn(
-        "group relative flex min-h-9 items-center px-2 transition-colors duration-100 hover:bg-muted/40",
+        composerPanelRow,
+        "group relative transition-colors hover:[background:var(--control-state-background-hover)] motion-reduce:transition-none",
         dragging && "bg-muted/50 opacity-40",
       )}
     >
@@ -91,48 +94,53 @@ function ComposerQueueItem({
           )}
         />
       ) : null}
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon"
         draggable
         aria-label={t("extensions.messageQueue.drag")}
         title={t("extensions.messageQueue.drag")}
         onDragStart={(event) => onDragStart(event, queueItem.key)}
         onDragEnd={onDragEnd}
-        className="me-1 flex size-[var(--icon-frame-size-default)] shrink-0 cursor-grab items-center justify-center rounded-[var(--button-radius)] text-muted-foreground/50 hover:[background:var(--icon-frame-background-hover)] hover:text-foreground active:cursor-grabbing"
+        className="cursor-grab text-muted-foreground active:cursor-grabbing"
       >
-        <ListRestartIcon className="size-[var(--icon-size-md)]" />
-      </button>
+        <ListRestartIcon aria-hidden="true" />
+      </Button>
 
-      <span className="min-w-0 flex-1 truncate text-[13px] text-foreground/90">
+      <span className="min-w-0 flex-1 truncate">
         {text || t("extensions.messageQueue.messageFallback")}
       </span>
 
       <div className="ms-2 flex shrink-0 items-center gap-0.5">
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={(event) => {
             event.preventDefault();
             onSteer(queueItem.key);
           }}
-          className="flex h-[var(--button-height-default)] items-center gap-1 rounded-[var(--button-radius)] px-2 text-xs text-muted-foreground/65 transition-colors hover:[background:var(--button-background-hover)] hover:text-foreground"
+          className="gap-1 px-2 text-xs font-normal text-muted-foreground"
         >
-          <CornerDownLeftIcon className="size-[var(--icon-size-md)]" />
+          <CornerDownLeftIcon aria-hidden="true" />
           <span>{t("extensions.messageQueue.steer")}</span>
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           aria-label={t("extensions.messageQueue.remove")}
           onClick={() => onRemove(queueItem.key)}
-          className="flex size-[var(--icon-frame-size-default)] items-center justify-center rounded-[var(--button-radius)] text-muted-foreground/50 transition-colors hover:[background:var(--icon-frame-background-hover)] hover:text-foreground"
+          className="text-muted-foreground"
         >
-          <Trash2Icon className="size-[var(--icon-size-md)]" />
-        </button>
+          <Trash2Icon aria-hidden="true" />
+        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={t("extensions.messageQueue.more")}
-            className="flex size-[var(--icon-frame-size-default)] items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:[background:var(--icon-frame-background-hover)] hover:text-foreground data-popup-open:[background:var(--icon-frame-background-selected)] data-popup-open:[color:var(--icon-frame-foreground-selected)]"
+            render={<Button variant="ghost" size="icon" className="text-muted-foreground" />}
           >
-            <MoreHorizontalIcon className="size-[var(--icon-size-sm)]" />
+            <MoreHorizontalIcon aria-hidden="true" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" side="bottom" sideOffset={4} className="min-w-36">
             <DropdownMenuItem onClick={() => onEdit(queueItem.key)} className="gap-2">
@@ -202,7 +210,7 @@ export function ComposerMessageQueue() {
   };
 
   return (
-    <div className="w-full overflow-hidden rounded-2xl border border-border/60 bg-background">
+    <div className={composerPanel}>
       <ul>
         {visibleQueue.map((queueItem) => (
           <ComposerQueueItem

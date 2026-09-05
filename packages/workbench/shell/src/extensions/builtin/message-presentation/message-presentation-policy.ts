@@ -1,5 +1,6 @@
 import type { AttachmentReference } from "@workbench/attachment-understanding-contracts/state-machine";
 import type { MessageBlock } from "@workbench/agent-runtime-contracts/conversation";
+import { isTodoTool } from "../../../chat/todo-model";
 
 export function visibleMessageBlocks(
   blocks: readonly MessageBlock[],
@@ -11,7 +12,7 @@ export function visibleMessageBlocks(
     : blocks.filter(
         (block) =>
           (showReasoning || block.kind !== "reasoning") &&
-          (showTodos || block.kind !== "tool-call" || block.toolName !== "workbench_todo"),
+          (showTodos || block.kind !== "tool-call" || !isTodoTool(block.toolName)),
       );
 }
 
