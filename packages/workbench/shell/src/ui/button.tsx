@@ -78,15 +78,10 @@ const buttonVariants = cva(
         icon: iconButtonStyles,
         "icon-sm": compactIconButtonStyles,
       },
-      motion: {
-        none: "",
-        press: "active:not-aria-[haspopup]:translate-y-px",
-      },
     },
     defaultVariants: {
       variant: "default",
       size: "default",
-      motion: "none",
     },
   },
 );
@@ -95,13 +90,12 @@ function Button({
   className,
   variant = "default",
   size = "default",
-  motion = "none",
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, motion, className }))}
+      className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
   );

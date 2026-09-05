@@ -945,7 +945,7 @@ export const extensionsZhCN = {
       explorationGroup: ({ count }: { count: number }, { number }: MessageFormatters) =>
         `探索 · ${number(count)}`,
       terminalGroup: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `终端 · ${number(count)}`,
+        `运行了 ${number(count)} 个命令`,
       changesGroup: ({ count }: { count: number }, { number }: MessageFormatters) =>
         `更改 · ${number(count)}`,
       todosEmpty: "当前没有待办事项。",

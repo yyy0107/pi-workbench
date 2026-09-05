@@ -970,8 +970,8 @@ export const extensionsEnUS = {
         "Group consecutive Write, Edit and Apply Patch calls into an expandable Changes group.",
       explorationGroup: ({ count }: { count: number }, { number }: MessageFormatters) =>
         `Explore · ${number(count)}`,
-      terminalGroup: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `Terminal · ${number(count)}`,
+      terminalGroup: ({ count }: { count: number }, { number, plural }: MessageFormatters) =>
+        `Ran ${number(count)} ${plural(count) === "one" ? "command" : "commands"}`,
       changesGroup: ({ count }: { count: number }, { number }: MessageFormatters) =>
         `Changes · ${number(count)}`,
       todosEmpty: "No outstanding todo items.",

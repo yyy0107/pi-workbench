@@ -38,7 +38,7 @@ import {
   useToolPresentationMap,
 } from "@workbench/extension-host/hosts/renderer-host";
 
-import { useMessageDisclosure } from "./message-disclosure-context";
+import { MessageDisclosureScope, useMessageDisclosure } from "./message-disclosure-context";
 import { toolDiffModel } from "./tool-diff-model";
 import {
   activeToolPresentationLabel,
@@ -438,41 +438,43 @@ function ParallelToolGroup({
   const [open, setOpen] = useMessageDisclosure("parallel-tools", batchId);
 
   return (
-    <ToolGroupRoot
-      variant="ghost"
-      open={open}
-      onOpenChange={setOpen}
-      className="max-w-none [overflow-anchor:none]"
-    >
-      <ToolGroupTrigger
-        count={blocks.length}
-        label={
-          category
-            ? t(`extensions.settings.conversation.${category}Group`, { count: blocks.length })
-            : undefined
-        }
-        active={running}
-        icon={WrenchIcon}
-        className="text-foreground/55 hover:text-foreground/90 gap-1.5 py-1 text-[13.5px] transition-colors outline-none"
-      />
-      <ToolGroupContent className="[&>div]:ms-1 [&>div]:border-s [&>div]:border-foreground/10 [&>div]:ps-3">
-        {blocks.map((block, index) => {
-          const kind = kinds[index];
-          const query = queries[index];
-          if (!kind || query === undefined) return null;
-          return (
-            <TimelineToolCall
-              key={block.callId}
-              block={block}
-              kind={kind}
-              node={node}
-              query={query}
-              presentation={presentations[index]}
-            />
-          );
-        })}
-      </ToolGroupContent>
-    </ToolGroupRoot>
+    <MessageDisclosureScope kind="parallel-tools" id={batchId}>
+      <ToolGroupRoot
+        variant="ghost"
+        open={open}
+        onOpenChange={setOpen}
+        className="max-w-none [overflow-anchor:none]"
+      >
+        <ToolGroupTrigger
+          count={blocks.length}
+          label={
+            category
+              ? t(`extensions.settings.conversation.${category}Group`, { count: blocks.length })
+              : undefined
+          }
+          active={running}
+          icon={WrenchIcon}
+          className="text-foreground/55 hover:text-foreground/90 gap-1.5 py-1 text-[13.5px] transition-colors outline-none"
+        />
+        <ToolGroupContent className="[&>div]:ms-1 [&>div]:border-s [&>div]:border-foreground/10 [&>div]:ps-3">
+          {blocks.map((block, index) => {
+            const kind = kinds[index];
+            const query = queries[index];
+            if (!kind || query === undefined) return null;
+            return (
+              <TimelineToolCall
+                key={block.callId}
+                block={block}
+                kind={kind}
+                node={node}
+                query={query}
+                presentation={presentations[index]}
+              />
+            );
+          })}
+        </ToolGroupContent>
+      </ToolGroupRoot>
+    </MessageDisclosureScope>
   );
 }
 
@@ -604,16 +606,18 @@ export function MessageToolTimeline({
   if (timelineBlocks.length === 0) return children;
 
   return (
-    <ReasoningPanel
-      steps={steps}
-      visibleSteps={entries.length}
-      streaming={timelineRunning}
-      open={open}
-      onOpenChange={setOpen}
-      restingLabel={t("extensions.messagePresentation.toolTimeline.summary", summaryArgs)}
-      activeLabel={t("extensions.messagePresentation.toolTimeline.active", summaryArgs)}
-      icon={ListChecksIcon}
-      className="my-1 max-w-none [overflow-anchor:none]"
-    />
+    <MessageDisclosureScope kind="steps" id={indices[0] ?? "empty"}>
+      <ReasoningPanel
+        steps={steps}
+        visibleSteps={entries.length}
+        streaming={timelineRunning}
+        open={open}
+        onOpenChange={setOpen}
+        restingLabel={t("extensions.messagePresentation.toolTimeline.summary", summaryArgs)}
+        activeLabel={t("extensions.messagePresentation.toolTimeline.active", summaryArgs)}
+        icon={ListChecksIcon}
+        className="my-1 max-w-none [overflow-anchor:none]"
+      />
+    </MessageDisclosureScope>
   );
 }

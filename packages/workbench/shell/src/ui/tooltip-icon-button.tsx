@@ -5,7 +5,6 @@ import { Slot } from "radix-ui";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";
 import { Button } from "./button";
-import { cn } from "../utils";
 
 export type TooltipIconButtonProps = ComponentPropsWithRef<typeof Button> & {
   tooltip: string;
@@ -23,7 +22,7 @@ export const TooltipIconButton = forwardRef<HTMLButtonElement, TooltipIconButton
                 variant="ghost"
                 size="icon-sm"
                 {...rest}
-                className={cn("active:scale-90", className)}
+                className={className}
                 ref={ref}
               />
             }

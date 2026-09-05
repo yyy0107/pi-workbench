@@ -115,7 +115,6 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
       data-slot="message-actions"
       aria-hidden={hideActionBar || undefined}
       className={cn(
-        "[&_button.aui-button-icon]:active:scale-100",
         "text-muted-foreground flex min-h-[var(--button-height-default)] flex-wrap items-center transition-opacity duration-150 ease-out motion-reduce:transition-none",
         hideActionBar && "invisible pointer-events-none opacity-0",
         role === "user" &&

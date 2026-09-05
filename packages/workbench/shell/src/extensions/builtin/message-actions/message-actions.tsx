@@ -103,7 +103,6 @@ function MessagePerformance({ node }: Readonly<{ node: ConversationNode }>) {
               variant="ghost"
               size="icon-sm"
               aria-label={label}
-              className="active:scale-90"
             />
           }
         >

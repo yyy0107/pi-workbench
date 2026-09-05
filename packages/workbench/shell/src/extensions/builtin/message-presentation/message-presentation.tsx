@@ -35,7 +35,11 @@ import {
 } from "../../../chat/completed-turn-model";
 import { CompletedTurnPanel } from "./completed-turn-panel";
 import { messageCitationLayout } from "./message-citations";
-import { MessageDisclosureProvider, useMessageDisclosure } from "./message-disclosure-context";
+import {
+  MessageDisclosureProvider,
+  MessageDisclosureScope,
+  useMessageDisclosure,
+} from "./message-disclosure-context";
 import { messageAttachmentReference, visibleMessageBlocks } from "./message-presentation-policy";
 import { MessageToolTimeline } from "./message-tool-timeline";
 import { dataTimelineState, type DataTimelineState } from "./tool-timeline-model";
@@ -54,17 +58,19 @@ function MessageDataTimelineGroup({
   const [open, setOpen] = useMessageDisclosure("steps", `data-group:${firstIndex}`);
 
   return (
-    <ReasoningPanel
-      steps={[{ marker: false, body: <div className="space-y-1">{children}</div> }]}
-      visibleSteps={1}
-      streaming={running}
-      open={open}
-      onOpenChange={setOpen}
-      activeLabel={text(group.activeLabel)}
-      restingLabel={text(group.label)}
-      icon={group.icon}
-      className="my-1 max-w-none [overflow-anchor:none]"
-    />
+    <MessageDisclosureScope kind="steps" id={`data-group:${firstIndex}`}>
+      <ReasoningPanel
+        steps={[{ marker: false, body: <div className="space-y-1">{children}</div> }]}
+        visibleSteps={1}
+        streaming={running}
+        open={open}
+        onOpenChange={setOpen}
+        activeLabel={text(group.activeLabel)}
+        restingLabel={text(group.label)}
+        icon={group.icon}
+        className="my-1 max-w-none [overflow-anchor:none]"
+      />
+    </MessageDisclosureScope>
   );
 }
 

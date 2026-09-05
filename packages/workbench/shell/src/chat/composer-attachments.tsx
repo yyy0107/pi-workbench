@@ -43,7 +43,7 @@ function AttachmentTile({
       className={cn(
         "bg-muted relative size-14 overflow-hidden rounded-[max(0px,calc(var(--composer-radius,1.5rem)-var(--composer-padding,8px)))] outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:ring-inset dark:after:ring-white/10",
         isImage &&
-          "hover:after:bg-foreground/10 focus-visible:ring-ring/50 cursor-zoom-in transition-transform after:transition-colors focus-visible:ring-3 active:scale-[0.96] motion-reduce:transition-none",
+          "hover:after:bg-foreground/10 focus-visible:ring-ring/50 cursor-zoom-in after:transition-colors focus-visible:ring-3 motion-reduce:transition-none",
       )}
       role={isImage ? "button" : "group"}
       tabIndex={isImage ? 0 : undefined}
@@ -89,7 +89,7 @@ function AttachmentTile({
             tooltip={t("assistant.composer.removeFile")}
             type="button"
             data-frame="none"
-            className="aui-composer-attachment-remove absolute end-0.5 top-0.5 rounded-full bg-black/50! p-1! text-white backdrop-blur-sm after:absolute after:-inset-1 hover:bg-black/70! hover:text-white! active:scale-[0.96] motion-reduce:transition-none"
+            className="aui-composer-attachment-remove absolute end-0.5 top-0.5 rounded-full bg-black/50! p-1! text-white backdrop-blur-sm after:absolute after:-inset-1 hover:bg-black/70! hover:text-white! motion-reduce:transition-none"
             side="top"
             onClick={() => onRemove(attachment.key)}
           >

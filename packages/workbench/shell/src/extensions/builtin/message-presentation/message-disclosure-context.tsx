@@ -23,6 +23,7 @@ interface MessageDisclosureContextValue {
 }
 
 const MessageDisclosureContext = createContext<MessageDisclosureContextValue | null>(null);
+const MessageDisclosureParentContext = createContext("");
 const EMPTY_DISCLOSURES: Readonly<Record<string, boolean>> = Object.freeze({});
 
 interface MessageDisclosureState {
@@ -58,18 +59,13 @@ export function MessageDisclosureProvider({
     (key: string, open: boolean) => {
       setState((current) => {
         const currentOpenByKey = current.phase === phase ? current.openByKey : EMPTY_DISCLOSURES;
-        if (current.phase === phase && currentOpenByKey[key] === open) return current;
-
-        return {
-          phase,
-          openByKey:
-            currentOpenByKey[key] === open
-              ? currentOpenByKey
-              : {
-                  ...currentOpenByKey,
-                  [key]: open,
-                },
-        };
+        const openByKey = { ...currentOpenByKey, [key]: open };
+        if (!open) {
+          for (const childKey of Object.keys(openByKey)) {
+            if (childKey.startsWith(`${key}/`)) openByKey[childKey] = false;
+          }
+        }
+        return { phase, openByKey };
       });
     },
     [phase],
@@ -81,16 +77,30 @@ export function MessageDisclosureProvider({
   );
 }
 
+export function MessageDisclosureScope({
+  kind,
+  id,
+  children,
+}: PropsWithChildren<{ kind: MessagePresentationDisclosure; id: string | number }>) {
+  const parent = useContext(MessageDisclosureParentContext);
+  return (
+    <MessageDisclosureParentContext.Provider value={`${parent}${JSON.stringify([kind, id])}/`}>
+      {children}
+    </MessageDisclosureParentContext.Provider>
+  );
+}
+
 export function useMessageDisclosure(
   kind: MessagePresentationDisclosure,
   id: string | number,
 ): readonly [boolean, (open: boolean) => void] {
   const context = useContext(MessageDisclosureContext);
+  const parent = useContext(MessageDisclosureParentContext);
   if (!context) {
     throw new Error("useMessageDisclosure must be used within MessageDisclosureProvider");
   }
 
-  const key = `${kind}:${id}`;
+  const key = `${parent}${JSON.stringify([kind, id])}`;
   const open = context.openByKey[key] ?? defaultMessageDisclosureOpen(kind, context.phase);
   const onOpenChange = useCallback(
     (nextOpen: boolean) => context.setOpen(key, nextOpen),

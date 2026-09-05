@@ -310,7 +310,7 @@ export function ComposerAddMenuView({
             variant="ghost"
             size="icon"
             data-frame="none"
-            className="aui-composer-add-menu text-muted-foreground hover:text-foreground hover:bg-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-[var(--composer-attachment-action-size)] rounded-[var(--button-radius)] active:scale-[0.96] motion-reduce:transition-none"
+            className="aui-composer-add-menu text-muted-foreground hover:text-foreground hover:bg-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-[var(--composer-attachment-action-size)] rounded-[var(--button-radius)] motion-reduce:transition-none"
             aria-label={labels.open}
           >
             <PlusIcon className="aui-composer-add-menu-icon" />
