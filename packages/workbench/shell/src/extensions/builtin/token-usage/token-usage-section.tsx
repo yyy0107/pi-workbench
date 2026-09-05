@@ -37,8 +37,8 @@ export function TokenUsageSection({
         render={
           <Button
             variant="ghost"
-            size="sm"
-            className="group/section w-full justify-start gap-2 text-xs font-normal"
+            size="xs"
+            className="group/section w-full justify-start gap-1.5 text-xs font-normal"
           />
         }
       >
@@ -53,7 +53,7 @@ export function TokenUsageSection({
         />
       </CollapsibleTrigger>
       <CollapsibleContent className={collapsePanel}>
-        <div className="px-2.5 pt-1 pb-2">{children}</div>
+        <div className="px-2 pt-1 pb-1.5">{children}</div>
       </CollapsibleContent>
     </Collapsible>
   );

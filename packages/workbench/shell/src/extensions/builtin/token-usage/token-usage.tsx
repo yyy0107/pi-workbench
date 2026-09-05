@@ -428,7 +428,7 @@ function ThreadTokenUsage() {
           side="top"
           align="end"
           sideOffset={6}
-          className="max-h-[calc(100vh-1rem)] w-[min(23rem,calc(100vw-1rem))] gap-2 overflow-y-auto p-3"
+          className="max-h-[calc(100vh-1rem)] w-[min(18rem,calc(100vw-1rem))] gap-1.5 overflow-y-auto p-2.5"
         >
           <PopoverHeader>
             <div className="flex items-center justify-between gap-3">
@@ -446,9 +446,9 @@ function ThreadTokenUsage() {
               {t("extensions.tokenUsage.currentContextDescription")}
             </PopoverDescription>
           </PopoverHeader>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="flex items-baseline justify-between gap-3 tabular-nums">
-              <span className="text-foreground text-xl font-semibold tracking-tight">
+              <span className="text-foreground text-lg font-semibold tracking-tight">
                 {contextUsedPercentLabel}
               </span>
               <span className="text-muted-foreground text-xs">{contextEstimateLabel}</span>
@@ -501,11 +501,7 @@ function ThreadTokenUsage() {
           </div>
 
           {contextBreakdown ? (
-            <div
-              className="space-y-0.5"
-              role="list"
-              aria-label={t("extensions.tokenUsage.modelInputBreakdown")}
-            >
+            <div role="list" aria-label={t("extensions.tokenUsage.modelInputBreakdown")}>
               {contextBreakdownGroups.map((group) => (
                 <div key={group.id} role="listitem">
                   <TokenUsageSection
@@ -515,7 +511,7 @@ function ThreadTokenUsage() {
                       tokens: compactTokens(group.tokens),
                     })}
                   >
-                    <div className="text-muted-foreground ml-1 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 border-l border-border py-1 pl-3 text-xs">
+                    <div className="text-muted-foreground ml-1 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 border-l border-border py-1 pl-3 text-xs">
                       {group.categories.map((category) => {
                         const tokens = contextBreakdownItems.get(category)?.tokens ?? 0;
                         return (
@@ -542,12 +538,12 @@ function ThreadTokenUsage() {
             {t("extensions.tokenUsage.usageEstimateDescription")}
           </p>
 
-          <div className="space-y-0.5 border-t border-border pt-2">
+          <div className="border-t border-border pt-1">
             <TokenUsageSection
               label={t("extensions.tokenUsage.contextSettings")}
               value={selectedContextBudgetModeLabel}
             >
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-medium">{t("extensions.tokenUsage.contextBudget")}</p>
                   <DropdownMenu>
@@ -556,7 +552,7 @@ function ThreadTokenUsage() {
                         mode: selectedContextBudgetModeLabel,
                         tokens: displayedContextBudgetLabel,
                       })}
-                      className="min-w-28 justify-between gap-1.5 px-2.5 text-xs"
+                      className="h-[var(--button-height-compact)] justify-between gap-1 px-2 text-xs"
                       disabled={
                         isRunning ||
                         contextPolicy.status === "saving" ||
@@ -564,7 +560,7 @@ function ThreadTokenUsage() {
                         !context?.model
                       }
                     >
-                      <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="flex min-w-0 items-center gap-1">
                         <span>{selectedContextBudgetModeLabel}</span>
                         <span className="text-muted-foreground tabular-nums">
                           {displayedContextBudgetLabel}
@@ -717,7 +713,7 @@ function ThreadTokenUsage() {
               <p className="text-muted-foreground text-xs">
                 {t("extensions.tokenUsage.currentContextDescription")}
               </p>
-              <div className="text-foreground mt-3 flex flex-col gap-2 text-xs tabular-nums">
+              <div className="text-foreground mt-2 flex flex-col gap-1.5 text-xs tabular-nums">
                 <div className="flex flex-wrap items-center gap-x-1">
                   <span>{t("extensions.tokenUsage.turns", { count: statistics.turns })}</span>
                   <span aria-hidden="true">·</span>
