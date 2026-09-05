@@ -45,6 +45,7 @@ import {
   resolvePackageUpdateMetadata,
   type InstalledPackageUpdateState,
 } from "./package-update-metadata";
+import { readPackageResourceDetails } from "./package-resource-details";
 
 interface PackageSettingsSnapshot {
   packages?: readonly PackageSource[];
@@ -269,10 +270,20 @@ async function describeInstalledPackage(
   }
 
   try {
-    return await readInstalledPackageDetails(configuredPackage.installedPath, {
+    const details = await readInstalledPackageDetails(configuredPackage.installedPath, {
       source: request.source,
       scope: request.target.scope,
     });
+    // Missing packages must never be installed by a read-only details request.
+    const paths = await packageManager.resolve(async () => "skip");
+    details.resources = await readPackageResourceDetails(
+      paths,
+      configuredPackage.installedPath,
+      request.source,
+      request.target.scope,
+      context.resourceLoader.getExtensions().extensions,
+    );
+    return details;
   } catch (error) {
     throw new InstalledPackageServiceError(
       "package-details-unavailable",

@@ -855,6 +855,18 @@ export interface InstalledPackageDetailsView {
   dependencyCount: number;
   peerDependencyCount: number;
   manifestJson?: string;
+  /** Resources discovered in this installed version, including disabled resources. */
+  resources?: PiPackageResourceView[];
+}
+
+export interface PiPackageResourceView {
+  type: Exclude<PiPackageResourceType, "package">;
+  name: string;
+  description?: string;
+  enabled: boolean;
+  commandNames?: string[];
+  toolNames?: string[];
+  eventNames?: string[];
 }
 
 export type PiPackageUpdatesPayload = InstalledPackageListPayload;
