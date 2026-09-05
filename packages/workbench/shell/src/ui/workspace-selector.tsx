@@ -115,11 +115,11 @@ export function WorkspaceSelector({
           >
             <FolderIcon
               aria-hidden="true"
-              className="size-4 group-hover/workspace:hidden group-focus-visible/clear:hidden"
+              className="size-[var(--button-icon-size,var(--icon-size-md))] group-hover/workspace:hidden group-focus-visible/clear:hidden"
             />
             <XIcon
               aria-hidden="true"
-              className="absolute hidden size-4 group-hover/workspace:block group-focus-visible/clear:block"
+              className="absolute hidden size-[var(--button-icon-size,var(--icon-size-md))] group-hover/workspace:block group-focus-visible/clear:block"
             />
           </SearchableSelectorClear>
         ) : null}
@@ -141,11 +141,9 @@ export function WorkspaceSelector({
         >
           {!clearable ? (
             picking ? (
-              <LoaderCircleIcon aria-hidden="true" className="size-4 shrink-0 animate-spin" />
+              <LoaderCircleIcon aria-hidden="true" className="animate-spin" />
             ) : (
-              (selectedWorkspace?.icon ?? (
-                <FolderIcon aria-hidden="true" className="size-4 shrink-0" />
-              ))
+              (selectedWorkspace?.icon ?? <FolderIcon aria-hidden="true" />)
             )
           ) : null}
           <span className="min-w-0 flex-1 truncate text-start">

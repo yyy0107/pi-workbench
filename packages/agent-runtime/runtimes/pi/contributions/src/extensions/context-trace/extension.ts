@@ -92,8 +92,8 @@ export const contextTraceExtension = defineExtension({
           status: "loading",
         }),
     });
-    const trigger = context.slots.register("header.left", {
-      id: "workbench.context-trace.header-left",
+    const trigger = context.slots.register("thread.menu", {
+      id: "workbench.context-trace.thread-menu",
       order: 80,
       component: ContextTraceTrigger,
     });

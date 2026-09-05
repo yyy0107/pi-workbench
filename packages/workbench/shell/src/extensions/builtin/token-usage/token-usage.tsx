@@ -835,11 +835,11 @@ function AvailableTokenUsage() {
     mainViews.getSnapshot,
     mainViews.getInitialSnapshot,
   );
-  const threadId = useCurrentSession().sessionId;
+  const { sessionId, isNewThread } = useCurrentSession();
 
-  if (activeMainView) return null;
+  if (activeMainView || isNewThread) return null;
 
-  return <ThreadTokenUsage key={threadId} />;
+  return <ThreadTokenUsage key={sessionId} />;
 }
 
 export function TokenUsage() {

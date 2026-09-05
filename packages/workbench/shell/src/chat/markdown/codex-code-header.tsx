@@ -12,7 +12,7 @@ export interface CodexCodeHeaderProps {
   language?: string;
   className?: string;
   expanded: boolean;
-  onToggleExpanded: () => void;
+  onToggleExpanded?: () => void;
 }
 
 export function CodexCodeHeader({
@@ -37,13 +37,15 @@ export function CodexCodeHeader({
     <div className={cn("aui-codex-code-header", className)}>
       <span className="aui-codex-code-language">{displayedLanguage}</span>
       <div className="flex items-center gap-1">
-        <TooltipIconButton
-          tooltip={t(expanded ? "assistant.codeBlock.collapse" : "assistant.codeBlock.expand")}
-          aria-expanded={expanded}
-          onClick={onToggleExpanded}
-        >
-          {expanded ? <MinimizeIcon aria-hidden="true" /> : <MaximizeIcon aria-hidden="true" />}
-        </TooltipIconButton>
+        {onToggleExpanded ? (
+          <TooltipIconButton
+            tooltip={t(expanded ? "assistant.codeBlock.collapse" : "assistant.codeBlock.expand")}
+            aria-expanded={expanded}
+            onClick={onToggleExpanded}
+          >
+            {expanded ? <MinimizeIcon aria-hidden="true" /> : <MaximizeIcon aria-hidden="true" />}
+          </TooltipIconButton>
+        ) : null}
         <TooltipIconButton tooltip={copyLabel} disabled={!code} onClick={() => void copy(code)}>
           {isCopied ? (
             <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />

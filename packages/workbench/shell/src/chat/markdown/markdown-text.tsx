@@ -10,6 +10,7 @@ import {
   memo,
   useContext,
   useDeferredValue,
+  useLayoutEffect,
   useMemo,
   useState,
   type ComponentProps,
@@ -178,7 +179,35 @@ function MarkdownCode({
   ...props
 }: ComponentProps<"code"> & { node?: unknown; "data-block"?: string }) {
   const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
   const [bodyRef, , prepareDisclosureTransition] = useDisclosureScrollLock(setExpanded);
+  const code = dataBlock ? renderedText(children) : "";
+
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body || expanded) return;
+
+    const measure = () => {
+      const viewport = body.querySelector<HTMLElement>('[data-streamdown="code-block-body"]');
+      setOverflowing(Boolean(viewport && viewport.scrollHeight > viewport.clientHeight + 1));
+    };
+    const resizeObserver = new ResizeObserver(measure);
+    const observeContent = () => {
+      resizeObserver.disconnect();
+      body.querySelectorAll('[data-streamdown="code-block-body"], pre').forEach((element) => {
+        resizeObserver.observe(element);
+      });
+      measure();
+    };
+    // Highlighting can replace the scroll viewport after the initial render.
+    const mutationObserver = new MutationObserver(observeContent);
+    mutationObserver.observe(body, { childList: true, subtree: true, characterData: true });
+    observeContent();
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, [bodyRef, code, dataBlock, expanded]);
 
   if (!dataBlock) {
     return (
@@ -188,22 +217,27 @@ function MarkdownCode({
     );
   }
   const language = /language-([^\s]+)/.exec(className ?? "")?.[1] ?? "text";
-  const code = renderedText(children);
   return (
     <>
       <CodexCodeHeader
         code={code}
         language={language}
         expanded={expanded}
-        onToggleExpanded={() => {
-          const duration = bodyRef.current
-            ? Number.parseFloat(
-                getComputedStyle(bodyRef.current).getPropertyValue("--layout-motion-duration"),
-              )
-            : 0;
-          prepareDisclosureTransition(!expanded, duration || 0);
-          setExpanded(!expanded);
-        }}
+        onToggleExpanded={
+          expanded || overflowing
+            ? () => {
+                const duration = bodyRef.current
+                  ? Number.parseFloat(
+                      getComputedStyle(bodyRef.current).getPropertyValue(
+                        "--layout-motion-duration",
+                      ),
+                    )
+                  : 0;
+                prepareDisclosureTransition(!expanded, duration || 0);
+                setExpanded(!expanded);
+              }
+            : undefined
+        }
       />
       <div ref={bodyRef} className="aui-codex-code-body" data-expanded={expanded}>
         <CodeBlock code={code} language={language} lineNumbers={false} />

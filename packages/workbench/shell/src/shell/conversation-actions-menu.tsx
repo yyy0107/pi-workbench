@@ -114,7 +114,12 @@ export function ConversationActionsMenu({
         >
           <MoreHorizontalIcon aria-hidden="true" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="w-64 p-1.5">
+        <DropdownMenuContent
+          align="start"
+          side="bottom"
+          sideOffset={4}
+          className="w-64 p-2 [&_[data-slot=dropdown-menu-item]]:min-h-[var(--dropdown-control-height)]"
+        >
           {threadActions.setPinned ? (
             <DropdownMenuItem
               disabled={pendingAction !== undefined}

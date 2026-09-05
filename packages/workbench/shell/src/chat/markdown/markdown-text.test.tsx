@@ -40,8 +40,8 @@ test("routes fenced code and code previews through Streamdown's code block", () 
   ]) {
     const markup = render(node);
     assert.match(markup, /data-expanded="false"/);
-    assert.match(markup, /aria-expanded="false"/);
-    assert.match(markup, /Expand code block/);
+    assert.doesNotMatch(markup, /Expand code block/);
+    assert.match(markup, />Copy</);
     assert.match(markup, /data-streamdown="code-block"/);
     assert.match(markup, /data-streamdown="code-block-body"/);
     assert.match(markup, /data-language="typescript"/);
@@ -107,6 +107,12 @@ test("renders structured citations with stable accessible labels", () => {
 });
 
 test("code header exposes expand and collapse controls before copy", () => {
+  const fittedMarkup = render(
+    createElement(CodexCodeHeader, { code: "const answer = 42;", expanded: false }),
+  );
+  assert.doesNotMatch(fittedMarkup, /Expand code block|Collapse code block/);
+  assert.match(fittedMarkup, />Copy</);
+
   for (const expanded of [false, true]) {
     const markup = render(
       createElement(CodexCodeHeader, {

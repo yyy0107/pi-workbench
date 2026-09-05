@@ -27,7 +27,7 @@ function SearchableSelectorTrigger({
     <ComboboxPrimitive.Trigger
       data-slot="searchable-selector-trigger"
       className={cn(
-        "group/searchable-selector inline-flex h-[var(--dropdown-control-height)] min-w-0 items-center justify-between gap-2 rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] px-2.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-sm leading-[var(--control-text-line-height)]! outline-none transition-colors hover:[background:var(--button-background-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] data-placeholder:text-muted-foreground disabled:pointer-events-none disabled:opacity-50",
+        "group/searchable-selector inline-flex h-[var(--dropdown-control-height)] min-w-0 items-center justify-between gap-2 rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] px-2.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-sm leading-[var(--control-text-line-height)]! outline-none transition-colors hover:[background:var(--button-background-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] data-placeholder:text-muted-foreground disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--button-icon-size,var(--icon-size-md))]",
         className,
       )}
       {...props}
@@ -114,7 +114,7 @@ function SearchableSelectorEmpty({ className, ...props }: ComboboxPrimitive.Empt
   return (
     <ComboboxPrimitive.Empty
       data-slot="searchable-selector-empty"
-      className={cn("px-2.5 py-4 text-center text-sm text-muted-foreground", className)}
+      className={cn("px-2.5 py-4 text-center text-sm text-muted-foreground empty:p-0", className)}
       {...props}
     />
   );

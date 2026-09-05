@@ -162,6 +162,7 @@ function WorkspaceDirectorySection({
   const [menuOpen, setMenuOpen] = useState(false);
   const active = sidebar.selection.activeWorkspaceId === directory.id;
   const expanded = !sidebar.selection.collapsedWorkspaceIds.includes(directory.id);
+  const FolderStateIcon = expanded ? FolderOpenIcon : FolderIcon;
   const running = !expanded && sidebar.groups.runningWorkspaceIds.has(directory.id);
   const pinned = directory.pinned === true;
   const query = sidebar.searchQuery.trim().toLocaleLowerCase();
@@ -214,7 +215,7 @@ function WorkspaceDirectorySection({
             running && runningIndicatorId !== "none" ? (
               <RunningThreadIndicator id={runningIndicatorId} />
             ) : (
-              <FolderIcon className={active ? "text-primary" : undefined} />
+              <FolderStateIcon className={active ? "text-primary" : undefined} />
             )
           }
           hoverIcon={<ChevronRightIcon className={expanded ? "rotate-90" : undefined} />}
