@@ -144,6 +144,7 @@ import {
   SESSION_EVENT_JOURNAL_CUSTOM_TYPE,
 } from "./session-event-journal";
 import { SessionQueueProjection } from "./session-queue";
+import { ensureSessionPersistence, reconcileInterruptedSession } from "./session-interruption";
 import { resolveConversationReferenceContexts } from "./composer-conversation-context";
 import { resolveWorkspaceFileReferenceContexts } from "./composer-workspace-file-context";
 import { getStreamHub } from "../streams/stream-hub";
@@ -1036,6 +1037,7 @@ class HostedPiSession {
   private journalWritable = true;
   private journalFailureReported = false;
   private alive = true;
+  private shutdownTask: Promise<void> | undefined;
   private suppressQueueUpdates = 0;
   private pausedQueue?: PromptQueueSnapshot;
   private readonly toolStartedAtById = new Map<string, number>();
@@ -1665,7 +1667,10 @@ class HostedPiSession {
   }
 
   private runQueueMutation<Value>(mutation: () => Promise<Value>): Promise<Value> {
-    return this.mutations.run(mutation);
+    return this.mutations.run(() => {
+      if (!this.alive) throw new PiServerError("pi_session_not_found", 404);
+      return mutation();
+    });
   }
 
   private modelContextKey(model: { provider: string; id: string }): string {
@@ -1826,6 +1831,7 @@ class HostedPiSession {
 
   private touch(): void {
     if (this.idleTimer) clearTimeout(this.idleTimer);
+    if (!this.alive) return;
     this.idleTimer = setTimeout(() => {
       const hasPausedPrompts = Boolean(
         this.pausedQueue &&
@@ -1867,7 +1873,7 @@ class HostedPiSession {
     selection?: PiModelSelection,
     cancellationSignal?: AbortSignal,
   ): Promise<boolean> {
-    if (cancellationSignal?.aborted) return false;
+    if (!this.alive || cancellationSignal?.aborted) return false;
     if (this.hasActiveAgentRun) throw new PiServerError("pi_session_busy", 409);
     this.applyContextCompactionOverrides();
 
@@ -1892,7 +1898,7 @@ class HostedPiSession {
 
     this.requireModelImageCompatibility(this.session.model, Boolean(images?.length));
     this.prepareModelContext(this.session.model);
-    if (cancellationSignal?.aborted) return false;
+    if (!this.alive || cancellationSignal?.aborted) return false;
 
     let reportPreflight: ((accepted: boolean) => void) | undefined;
     const preflight = new Promise<boolean>((resolvePreflight) => {
@@ -2005,6 +2011,7 @@ class HostedPiSession {
   }
 
   private startAgentContinuation(): void {
+    if (!this.alive) throw new PiServerError("pi_session_not_found", 404);
     const run = this.session.agent.continue();
     this.promptTask = run;
     this.activePromptHasImages = false;
@@ -2958,6 +2965,7 @@ class HostedPiSession {
     const recognition = this.imageRecognitionTask;
     const recognitionCompletion = this.imageRecognitionCompletion;
     this.imageRecognitionAbort?.abort();
+    this.session.abortCompaction();
     await this.session.abort();
     await recognition?.catch(() => undefined);
     await recognitionCompletion?.catch(() => undefined);
@@ -3248,16 +3256,30 @@ class HostedPiSession {
     return { summary, info: sessionManagerInfo(manager, summary) };
   }
 
-  async shutdown(): Promise<void> {
+  shutdown(): Promise<void> {
+    return (this.shutdownTask ??= this.shutdownNow());
+  }
+
+  private async shutdownNow(): Promise<void> {
     if (!this.alive) return;
+    const interruptedRunSeq = this.hasActiveAgentRun
+      ? this.canonicalEventsValue.findLast((event) => event.type === "agent_start")?.seq
+      : undefined;
     this.alive = false;
     getInteractiveResponseRegistry().clearSession(this.id);
     if (this.idleTimer) clearTimeout(this.idleTimer);
     const recognitionCompletion = this.imageRecognitionCompletion;
     this.imageRecognitionAbort?.abort();
+    let stopped = false;
     try {
+      this.session.abortCompaction();
+      this.session.abortBranchSummary();
+      this.session.abortBash();
       if (this.isBusy) await this.session.abort();
+      await this.promptTask?.catch(() => undefined);
       await recognitionCompletion?.catch(() => undefined);
+      await this.mutations.run(async () => undefined);
+      stopped = true;
     } catch {
       // Disposal below remains authoritative.
     }
@@ -3265,9 +3287,24 @@ class HostedPiSession {
     this.clearAssistantMessageStream();
     this.unsubscribeAgent();
     this.listeners.clear();
-    await this.sessionRuntime.dispose();
-    await releaseSessionContextTrace(this.id, this.contextTrace);
-    this.onDestroyed();
+    try {
+      if (stopped && this.journalWritable) {
+        reconcileInterruptedSession(
+          this.session.sessionManager,
+          this.canonicalEventsValue,
+          interruptedRunSeq,
+        );
+        this.sequence = this.canonicalEventsValue.at(-1)?.seq ?? -1;
+        resumeStateFromManager(this.session.sessionManager, this.canonicalEventsValue);
+      }
+    } finally {
+      try {
+        await this.sessionRuntime.dispose();
+      } finally {
+        await releaseSessionContextTrace(this.id, this.contextTrace);
+        this.onDestroyed();
+      }
+    }
   }
 }
 
@@ -3369,6 +3406,7 @@ async function createHost(
   initialModel?: PiModelSelection,
   options: { customTools?: readonly ToolDefinition[] } = {},
 ): Promise<HostedPiSession> {
+  initializeInactiveSessionJournal(sessionManager);
   const cwd = sessionManager.getCwd();
   const hostBindings = getPiAgentHostBindings();
   const initialContextPolicy = policyFromSessionEntries(sessionManager.getBranch());
@@ -3602,7 +3640,10 @@ function forkLeafForSequence(manager: SessionManager, atSeq?: number): SessionEn
   let turnOpen = false;
   for (const candidate of journal) {
     if (candidate.event.seq > boundary.event.seq) break;
-    if (candidate.event.type === "turn_start") {
+    if (candidate.event.type === "agent_start") {
+      // Regeneration and message-anchored forks may retain an open turn from the previous run.
+      turnOpen = false;
+    } else if (candidate.event.type === "turn_start") {
       if (turnOpen) throw forkUnavailable();
       turnOpen = true;
     } else if (candidate.event.type === "message_end") {
@@ -3720,6 +3761,7 @@ export async function getOrStartSession(id: string): Promise<HostedPiSession> {
   const registry = state();
   const existing = registry.sessions.get(id);
   if (existing?.isAlive) return existing;
+  if (existing) await existing.shutdown();
 
   const starting = registry.startLocks.get(id);
   if (starting) return starting;
@@ -3959,6 +4001,7 @@ export async function createSession(
       requireRequestedCwd(sessionId, workspace.cwd, existing.session.sessionManager.getCwd());
       return existing;
     }
+    if (existing) await existing.shutdown();
 
     const starting = registry.startLocks.get(sessionId);
     if (starting) {
@@ -4721,27 +4764,38 @@ function legacySessionEventsFromManager(manager: SessionManager): SessionEvent[]
   }));
 }
 
+function initializeInactiveSessionJournal(manager: SessionManager): SessionEvent[] {
+  ensureSessionPersistence(manager);
+  const initialized = initializeSessionEventJournal(
+    manager,
+    legacySessionEventsFromManager(manager),
+  );
+  if (initialized.error !== undefined) throw initialized.error;
+  reconcileInterruptedSession(manager, initialized.events);
+  resumeStateFromManager(manager, initialized.events);
+  return initialized.events;
+}
+
 export async function getSessionHistory(id: string): Promise<PiSessionHistory> {
   const live = state().sessions.get(id);
   if (live?.isAlive) return historyFromManager(live.session.sessionManager);
+  if (live) await live.shutdown();
   const info = await persistedSession(id);
   if (!info) throw new PiServerError("pi_session_not_found", 404);
-  return historyFromManager(SessionManager.open(info.path));
+  const manager = SessionManager.open(info.path);
+  initializeInactiveSessionJournal(manager);
+  return historyFromManager(manager);
 }
 
 export async function getSessionEvents(id: string): Promise<SessionEvent[]> {
   const live = state().sessions.get(id);
   if (live?.isAlive) return [...live.canonicalEvents];
+  if (live) await live.shutdown();
   const info = await persistedSession(id);
   if (!info) throw new PiServerError("pi_session_not_found", 404);
   return coldSessionEventCache.load(info.path, (canonicalPath) => {
     const manager = SessionManager.open(canonicalPath);
-    const initialized = initializeSessionEventJournal(
-      manager,
-      legacySessionEventsFromManager(manager),
-    );
-    if (initialized.error !== undefined) throw initialized.error;
-    return initialized.events;
+    return initializeInactiveSessionJournal(manager);
   });
 }
 
@@ -4896,14 +4950,11 @@ function sessionEventBranchesFromManager(manager: SessionManager): SessionHistor
 export async function getSessionEventBranches(id: string): Promise<SessionHistoryBranches> {
   const live = state().sessions.get(id);
   if (live?.isAlive) return sessionEventBranchesFromManager(live.session.sessionManager);
+  if (live) await live.shutdown();
   const info = await persistedSession(id);
   if (!info) throw new PiServerError("pi_session_not_found", 404);
   const manager = SessionManager.open(info.path);
-  const initialized = initializeSessionEventJournal(
-    manager,
-    legacySessionEventsFromManager(manager),
-  );
-  if (initialized.error !== undefined) throw initialized.error;
+  initializeInactiveSessionJournal(manager);
   return sessionEventBranchesFromManager(manager);
 }
 
@@ -4936,10 +4987,11 @@ export async function getSessionResumeState(id: string): Promise<SessionResumeSt
     if (live.isBusy) return {};
     return resumeStateFromManager(live.session.sessionManager, live.canonicalEvents);
   }
+  if (live) await live.shutdown();
   const info = await persistedSession(id);
   if (!info) throw new PiServerError("pi_session_not_found", 404);
   const manager = SessionManager.open(info.path);
-  return resumeStateFromManager(manager, readSessionEventJournal(manager));
+  return resumeStateFromManager(manager, initializeInactiveSessionJournal(manager));
 }
 
 export async function regenerateSession(
@@ -5161,8 +5213,9 @@ export type HostedSession = HostedPiSession;
 
 registerWorkbenchShutdownHook("pi-sessions", async () => {
   const registry = state();
+  await Promise.allSettled(registry.startLocks.values());
   const results = await Promise.allSettled(
-    getLoadedSessions().map((session) => session.shutdown()),
+    [...registry.sessions.values()].map((session) => session.shutdown()),
   );
   const failures = results.flatMap((result) =>
     result.status === "rejected" ? [result.reason] : [],

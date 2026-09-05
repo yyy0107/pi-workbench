@@ -844,6 +844,13 @@ canonical entry id、恢复前的 context anchor、事件序号、模型与中�
 branch 上仍有效的 checkpoint 投影到 `resume.checkpoint`。后续出现新的 user/assistant/tool-result
 context message 时，该 checkpoint 自动失效，不需要修改或删除旧 JSONL entry。
 
+会话建立时即启用 Pi JSONL 持久化，避免首次 assistant 尚未结束时进程退出导致整个请求丢失。
+正常关闭会先取消压缩、分支摘要、Bash 与活动生成，等待 prompt 和已接收的 mutation 收尾，再保存
+中断边界并释放 SDK；重复关闭会等待同一个 Promise。冷加载会从未 settled 的 run 恢复已持久化的
+assistant chunks，追加 `aborted` 终态与恢复 checkpoint；已完成的回答只补齐 settled 边界，重复加载
+不会产生重复中断。工具已开始但结果未持久化时仍走 `confirmation-required`，不会自动重放。
+异常退出导致的 JSONL 尾部残行保留原文并补充分行边界，防止后续恢复记录粘连到残行而无法读取。
+
 `session.resume({ sessionId, checkpointId, expectedLeafId })` 是“继续当前任务”：服务端同时校验
 checkpoint identity 与当前 branch leaf，拒绝 stale 请求；再从持久化 context 中去掉末尾未完成的
 assistant error/aborted message，要求剩余上下文以 user 或 tool-result 结束，然后调用 Pi continuation。
@@ -1186,6 +1193,7 @@ packages/agent-runtime/runtimes/pi/
     │   ├── session-queue.ts
     │   ├── session-registry.ts
     │   ├── session-resume.ts
+    │   ├── session-interruption.ts
     │   └── session-rpc-service.ts
     └── streams/
         ├── legacy-sse.ts

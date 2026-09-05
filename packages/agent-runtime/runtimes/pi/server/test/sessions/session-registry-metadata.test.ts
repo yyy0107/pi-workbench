@@ -24,6 +24,7 @@ const {
   getSessionEventBranches,
   getSessionEvents,
   getSessionHistory,
+  getSessionResumeState,
   getOrStartSession,
   getScratchSessionRecord,
   listSessions,
@@ -1814,6 +1815,131 @@ test("continues text-only prompts while retaining native image history for the U
   assert.equal(promptContexts.length, 3);
   assert.equal(messagesHaveImages(promptContexts[2] ?? []), true);
   assert.match(JSON.stringify(promptContexts[2]), /iVBORw0KGgo=/);
+});
+
+test("cancels compaction before waiting for the agent to become idle", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-compaction-cancel-"));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  t.after(async () => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    await rm(root, { recursive: true, force: true });
+  });
+  const host = await createSession(root, "compaction-cancel");
+  t.after(() => host.shutdown());
+  const controller = new AbortController();
+  t.mock.method(host.session, "abortCompaction", () => controller.abort());
+  t.mock.method(host.session, "abort", async () => {
+    assert.equal(controller.signal.aborted, true, "idle must not wait for uncancelled compaction");
+  });
+
+  await cancelSession(host.id);
+  assert.equal(controller.signal.aborted, true);
+});
+
+test("shutdown waits for prompt completion and saves one interruption before a cold reopen", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-shutdown-interruption-"));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  t.after(async () => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    await rm(root, { recursive: true, force: true });
+  });
+  const host = await createSession(root, "shutdown-interruption");
+  const sink = host.session as unknown as {
+    _handleAgentEvent(event: Record<string, unknown>): Promise<void>;
+  };
+  await sink._handleAgentEvent({ type: "agent_start" });
+  await sink._handleAgentEvent({
+    type: "message_end",
+    message: {
+      role: "user",
+      content: "Keep this task",
+      timestamp: 1_000,
+    },
+  });
+  await sink._handleAgentEvent({
+    type: "message_start",
+    message: assistantMessage("Partial answer", 1_001),
+  });
+  assert.equal(existsSync(host.session.sessionManager.getSessionFile()!), true);
+  const compaction = t.mock.method(host.session, "abortCompaction");
+  const summary = t.mock.method(host.session, "abortBranchSummary");
+  t.mock.method(host.session, "abort", async () => undefined);
+  let finish!: () => void;
+  (host as unknown as { promptTask: Promise<void> }).promptTask = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+
+  const first = host.shutdown();
+  const second = host.shutdown();
+  assert.equal(first, second, "repeat shutdown calls must join the same completion");
+  const hooks = (
+    globalThis as unknown as Record<symbol, { hooks: Map<string, () => Promise<void>> }>
+  )[Symbol.for("pi-workbench.shutdown-hooks.v1")];
+  const shutdownHook = hooks?.hooks.get("pi-sessions");
+  assert.ok(shutdownHook);
+  const runtimeShutdown = shutdownHook();
+  let runtimeClosed = false;
+  void runtimeShutdown.then(() => {
+    runtimeClosed = true;
+  });
+  let closed = false;
+  void first.then(() => {
+    closed = true;
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(closed, false, "the active prompt still owns pending terminal events");
+  assert.equal(runtimeClosed, false, "runtime shutdown must include sessions already closing");
+  assert.equal(compaction.mock.callCount(), 1);
+  assert.equal(summary.mock.callCount(), 1);
+  finish();
+  await Promise.all([first, runtimeShutdown]);
+  const history = await getSessionHistory(host.id);
+  assert.equal(history.context.messages.at(-1)?.role, "assistant");
+  assert.match(JSON.stringify(history.context.messages.at(-1)), /Partial answer/);
+  const resume = await getSessionResumeState(host.id);
+  assert.equal(resume.checkpoint?.reason, "process-interrupted");
+  assert.equal(resume.checkpoint?.capability, "ready");
+  assert.deepEqual(await getSessionResumeState(host.id), resume);
+});
+
+test("cold history repairs a crashed first turn and the next hosted session sees the same checkpoint", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-cold-interruption-"));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  t.after(async () => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    await rm(root, { recursive: true, force: true });
+  });
+  const { ensureSessionPersistence } = await import("../../src/sessions/session-interruption");
+  const manager = SessionManager.create(root, undefined, { id: "cold-interruption" });
+  ensureSessionPersistence(manager);
+  manager.appendThinkingLevelChange("off");
+  initializeSessionEventJournal(manager, []);
+  appendSessionEventJournal(manager, { type: "agent_start", seq: 0, time: 1_000, data: {} });
+  const user = { role: "user" as const, content: "Recover me", timestamp: 1_001 };
+  appendSessionEventJournal(manager, {
+    type: "message_end",
+    seq: 1,
+    time: 1_001,
+    data: { message: user },
+  });
+  manager.appendMessage(user);
+  const events = await getSessionEvents("cold-interruption");
+  assert.equal(events.at(-1)?.type, "agent_settled");
+  const resume = await getSessionResumeState("cold-interruption");
+  assert.equal(resume.checkpoint?.reason, "process-interrupted");
+  const branches = await getSessionEventBranches("cold-interruption");
+  assert.equal(branches.headLeafId, resume.checkpoint?.branchLeafId);
+  const host = await getOrStartSession("cold-interruption");
+  t.after(() => host.shutdown());
+  assert.deepEqual(await getSessionEvents(host.id), events);
+  assert.deepEqual(await getSessionResumeState(host.id), resume);
+  assert.equal(host.session.agent.state.messages.at(-1)?.role, "assistant");
 });
 
 test("cancels in-flight recognition and retries it with freshly loaded routing", async (t) => {
@@ -3810,6 +3936,69 @@ test("forks sessions whose durable custom messages precede their lifecycle event
     sourceSessionId: "fork-custom-source",
     sourceEventSeq: 6,
   });
+});
+
+test("forks a regenerated branch after a new agent run completes", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-session-fork-regenerated-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = SessionManager.create(root, root, { id: "fork-regenerated-source" });
+  const user = { role: "user" as const, content: "hello", timestamp: 1 };
+  const original = assistantMessage("original", 2);
+  const regenerated = assistantMessage("regenerated", 3);
+
+  appendSessionEventJournal(source, { type: "agent_start", seq: 0, time: 1, data: {} });
+  appendSessionEventJournal(source, { type: "turn_start", seq: 1, time: 2, data: {} });
+  appendSessionEventJournal(source, {
+    type: "message_end",
+    seq: 2,
+    time: 3,
+    data: { message: user },
+  });
+  const userEntryId = source.appendMessage(user);
+  appendSessionEventJournal(source, {
+    type: "message_end",
+    seq: 3,
+    time: 4,
+    data: { message: original },
+  });
+  source.appendMessage(original);
+  appendSessionEventJournal(source, { type: "turn_end", seq: 4, time: 5, data: {} });
+
+  // Regeneration retains the user entry and its open turn, but replaces the original answer.
+  source.branch(userEntryId);
+  appendSessionEventJournal(source, { type: "agent_start", seq: 3, time: 6, data: {} });
+  appendSessionEventJournal(source, { type: "turn_start", seq: 4, time: 7, data: {} });
+  appendSessionEventJournal(source, {
+    type: "message_end",
+    seq: 5,
+    time: 8,
+    data: { message: regenerated },
+  });
+  source.appendMessage(regenerated);
+  appendSessionEventJournal(source, { type: "turn_end", seq: 6, time: 9, data: {} });
+
+  const sourcePath = source.getSessionFile();
+  assert.ok(sourcePath);
+  const before = await readFile(sourcePath, "utf8");
+  for (const atSeq of [undefined, 6]) {
+    const forked = createDetachedSessionFork(sourcePath, atSeq);
+    assert.notEqual(forked.getSessionId(), source.getSessionId());
+    assert.deepEqual(forked.buildSessionContext().messages, [user, regenerated]);
+  }
+  assert.equal(await readFile(sourcePath, "utf8"), before);
+
+  // A second turn_start in the same run is still invalid.
+  source.branch(userEntryId);
+  appendSessionEventJournal(source, { type: "turn_start", seq: 3, time: 10, data: {} });
+  appendSessionEventJournal(source, {
+    type: "message_end",
+    seq: 4,
+    time: 11,
+    data: { message: regenerated },
+  });
+  source.appendMessage(regenerated);
+  appendSessionEventJournal(source, { type: "turn_end", seq: 5, time: 12, data: {} });
+  assert.throws(() => createDetachedSessionFork(sourcePath), { code: "pi_fork_unavailable" });
 });
 
 test("rejects in-log anchors without a reliably persisted message boundary", async (t) => {
