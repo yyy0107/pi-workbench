@@ -1,10 +1,10 @@
 "use client";
 
 import { CheckIcon, CircleXIcon, CopyIcon } from "lucide-react";
-import { useMemo } from "react";
 
 import {
   useConversationNode,
+  useConversationNodes,
   useConversationSession,
   useSessionState,
 } from "@workbench/agent-runtime-client";
@@ -78,15 +78,10 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
   const { messageId, role, isLast, index } = useConversationMessageContext();
   const session = useConversationSession();
   const node = useConversationNode(messageId);
-  const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
+  const nodes = useConversationNodes();
   const isRunning = useSessionState((snapshot) => snapshot.isRunning);
-  const messages = useMemo(
-    () =>
-      nodeKeys.flatMap((key, nodeIndex) => {
-        const item = session.node(key).getSnapshot();
-        return item ? [visibilityMessage(item, nodeIndex === nodeKeys.length - 1)] : [];
-      }),
-    [nodeKeys, session],
+  const messages = nodes.map((item, nodeIndex) =>
+    visibilityMessage(item, nodeIndex === nodes.length - 1),
   );
   if (!node) return null;
   const message = visibilityMessage(node, isLast);
