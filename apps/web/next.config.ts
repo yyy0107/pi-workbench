@@ -53,6 +53,14 @@ export const nextConfig: NextConfig = {
   outputFileTracingRoot: WEB_REPOSITORY_ROOT,
   turbopack: {
     root: WEB_REPOSITORY_ROOT,
+    // ponytail: valid CSS; remove once bundled Lightning CSS fixes github.com/parcel-bundler/lightningcss/issues/1300.
+    ignoreIssue: [
+      {
+        path: "**/agent-configuration/prompt-placeholder-highlight.module.css",
+        title: "Parsing CSS source code failed",
+        description: /'highlight' is not recognized as a valid pseudo-element/,
+      },
+    ],
   },
   // Desktop assets are local and versioned with the application. Avoid shipping the server-side
   // image optimizer (and sharp/libvips) for icons that never need runtime transformation.

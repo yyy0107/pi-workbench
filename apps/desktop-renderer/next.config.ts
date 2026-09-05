@@ -13,6 +13,14 @@ export const nextConfig: NextConfig = {
   output: "export",
   turbopack: {
     root: DESKTOP_RENDERER_REPOSITORY_ROOT,
+    // ponytail: valid CSS; remove once bundled Lightning CSS fixes github.com/parcel-bundler/lightningcss/issues/1300.
+    ignoreIssue: [
+      {
+        path: "**/agent-configuration/prompt-placeholder-highlight.module.css",
+        title: "Parsing CSS source code failed",
+        description: /'highlight' is not recognized as a valid pseudo-element/,
+      },
+    ],
   },
   images: {
     unoptimized: true,
