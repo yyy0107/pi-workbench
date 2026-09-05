@@ -133,6 +133,7 @@ function parsePreferences(value: unknown): WorkbenchSettingsPreferences {
     preferences.runningMessageMode = value.runningMessageMode;
   }
   for (const key of [
+    "todoEnabled",
     "showReasoning",
     "groupParallelTools",
     "enhancedSearch",

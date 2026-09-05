@@ -1,5 +1,6 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 
+import type { ToolCapabilitySettings } from "../internal-extensions/tool-availability";
 import type { AskUserCapabilitySettings } from "../internal-extensions/ask-user";
 
 export interface PiBashToolFactoryInput {
@@ -21,6 +22,7 @@ export interface PiAgentHostBindings {
   >;
   readonly createBashToolOverride?: (input: PiBashToolFactoryInput) => ToolDefinition;
   readonly askUserSettings?: AskUserCapabilitySettings;
+  readonly todoSettings?: ToolCapabilitySettings;
   readonly readSessionPreferences?: () => Promise<{
     enhancedSearch: boolean;
     retainAllModelIO: boolean;

@@ -34,6 +34,7 @@ const workbenchSettingsUpdatePayload = rpcObject({
     showReasoning: rpcOptional(rpcNullable(rpcBoolean)),
     groupParallelTools: rpcOptional(rpcNullable(rpcBoolean)),
     askUserEnabled: rpcOptional(rpcNullable(rpcBoolean)),
+    todoEnabled: rpcOptional(rpcNullable(rpcBoolean)),
     enhancedSearch: rpcOptional(rpcNullable(rpcBoolean)),
     askUserAutoContinue: rpcOptional(rpcNullable(rpcBoolean)),
     retainAllModelIO: rpcOptional(rpcNullable(rpcBoolean)),

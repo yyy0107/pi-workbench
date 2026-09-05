@@ -36,6 +36,16 @@ test("host shutdown releases extension preference listeners before ctx becomes s
   const previousHostBindings = getPiAgentHostBindings();
   bindPiAgentHostBindings({
     ...previousHostBindings,
+    todoSettings: {
+      async readEnabled() {
+        return (await settings.describe()).preferences.todoEnabled !== false;
+      },
+      subscribe(listener) {
+        return subscribeWorkbenchSettingsPreferences(settings.stateFile, (preferences) => {
+          listener(preferences.todoEnabled !== false);
+        });
+      },
+    },
     askUserSettings: {
       async readEnabled() {
         return (await settings.describe()).preferences.askUserEnabled !== false;
@@ -54,9 +64,12 @@ test("host shutdown releases extension preference listeners before ctx becomes s
 
   const cwd = path.join(root, "project");
   await mkdir(cwd, { recursive: true });
+  await settings.update({ patch: { todoEnabled: false } });
   const host = await createSession(cwd, "extension-lifecycle");
   t.after(() => host.shutdown());
   assert.equal(host.session.getActiveToolNames().includes("ask_user"), true);
+
+  assert.equal(host.session.getActiveToolNames().includes("todo"), false);
 
   const errors: unknown[][] = [];
   const originalConsoleError = console.error;
@@ -68,8 +81,15 @@ test("host shutdown releases extension preference listeners before ctx becomes s
   await settings.update({ patch: { askUserEnabled: false } });
   assert.equal(host.session.getActiveToolNames().includes("ask_user"), false);
 
+  await settings.update({ patch: { todoEnabled: true } });
+  assert.equal(host.session.getActiveToolNames().includes("todo"), true);
+  assert.equal(host.session.getActiveToolNames().includes("ask_user"), false);
+  await settings.update({ patch: { todoEnabled: false, askUserEnabled: true } });
+  assert.equal(host.session.getActiveToolNames().includes("todo"), false);
+  assert.equal(host.session.getActiveToolNames().includes("ask_user"), true);
+
   await host.shutdown();
-  await settings.update({ patch: { askUserEnabled: true } });
+  await settings.update({ patch: { askUserEnabled: false, todoEnabled: true } });
 
   assert.deepEqual(errors, []);
 });

@@ -1,5 +1,6 @@
 import type { ExtensionFactory, ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { bindToolAvailability, type ToolCapabilitySettings } from "./tool-availability";
 
 import type { QuestionAnswerItem } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type { QuestionItem } from "@workbench/agent-runtime-pi-protocol/stream";
@@ -15,11 +16,9 @@ interface AskUserDetails {
   disabled?: boolean;
 }
 
-export interface AskUserCapabilitySettings {
+export interface AskUserCapabilitySettings extends ToolCapabilitySettings {
   readAutoContinue?(): Promise<boolean>;
   subscribeAutoContinue?(listener: (enabled: boolean) => void): () => void;
-  readEnabled(): Promise<boolean>;
-  subscribe(listener: (enabled: boolean) => void): () => void;
 }
 
 const OptionSchema = Type.Object(
@@ -89,24 +88,6 @@ const AskUserParameters = Type.Object(
   },
   { additionalProperties: false },
 );
-
-const DEFAULT_ASK_USER_CAPABILITY_SETTINGS = Object.freeze({
-  async readEnabled() {
-    return true;
-  },
-  subscribe() {
-    return () => undefined;
-  },
-}) satisfies AskUserCapabilitySettings;
-
-async function readEnabledOrDefault(settings: AskUserCapabilitySettings): Promise<boolean> {
-  try {
-    return await settings.readEnabled();
-  } catch (error) {
-    console.error("[workbench-pi] Ask User preference could not be read.", error);
-    return true;
-  }
-}
 
 function normalizeQuestions(questions: QuestionItem[]): QuestionItem[] {
   const ids = new Set<string>();
@@ -192,22 +173,9 @@ function toolResult(
   };
 }
 
-function setToolEnabled(pi: Parameters<ExtensionFactory>[0], enabled: boolean): void {
-  const activeTools = pi.getActiveTools();
-  const currentlyEnabled = activeTools.includes(ASK_USER_TOOL_NAME);
-  if (enabled === currentlyEnabled) return;
-  pi.setActiveTools(
-    enabled
-      ? [...activeTools, ASK_USER_TOOL_NAME]
-      : activeTools.filter((toolName) => toolName !== ASK_USER_TOOL_NAME),
-  );
-}
-
-export function createAskUserExtension(
-  settings: AskUserCapabilitySettings = DEFAULT_ASK_USER_CAPABILITY_SETTINGS,
-): ExtensionFactory {
+export function createAskUserExtension(settings?: AskUserCapabilitySettings): ExtensionFactory {
   return (pi) => {
-    let unsubscribe: (() => void) | undefined;
+    const readEnabled = bindToolAvailability(pi, ASK_USER_TOOL_NAME, settings);
 
     pi.registerTool({
       name: ASK_USER_TOOL_NAME,
@@ -227,7 +195,7 @@ export function createAskUserExtension(
 
       async execute(_toolCallId, params, signal, _onUpdate, context) {
         const questions = normalizeQuestions(params.questions);
-        if (!(await readEnabledOrDefault(settings))) return toolResult(questions, undefined, true);
+        if (!(await readEnabled())) return toolResult(questions, undefined, true);
         if (!context.hasUI) throw new Error("Ask User requires an interactive Workbench host");
 
         const ui = context.ui as ExtensionUIContext & Partial<WorkbenchExtensionUIContext>;
@@ -237,16 +205,6 @@ export function createAskUserExtension(
         const answers = await ui.workbenchAskUser(questions, { signal });
         return toolResult(questions, answers);
       },
-    });
-
-    pi.on("session_start", async () => {
-      unsubscribe ??= settings.subscribe((enabled) => setToolEnabled(pi, enabled));
-      setToolEnabled(pi, await readEnabledOrDefault(settings));
-    });
-
-    pi.on("session_shutdown", () => {
-      unsubscribe?.();
-      unsubscribe = undefined;
     });
   };
 }

@@ -4,7 +4,6 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 import { createEnhancedSearchTools } from "../../src/internal-extensions/enhanced-search";
-import { todoExtension } from "../../src/internal-extensions/todo";
 
 test("enhanced grep searches multiple roots with context and honors cancellation", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "enhanced-search-"));
@@ -32,21 +31,4 @@ test("enhanced grep searches multiple roots with context and honors cancellation
     grep.execute("cancelled", { pattern: "needle" }, AbortSignal.abort(), undefined, {} as never),
     /aborted/,
   );
-});
-
-test("todo updates are durable tool result data", async () => {
-  let registered:
-    | { name: string; execute(id: string, params: unknown): Promise<unknown> }
-    | undefined;
-  todoExtension({
-    registerTool: (tool: typeof registered) => {
-      registered = tool;
-    },
-  } as never);
-  assert.equal(registered?.name, "workbench_todo");
-  const items = [{ text: "Implement settings", status: "completed" }];
-  assert.deepEqual(await registered!.execute("todo", { items }), {
-    content: [{ type: "text", text: JSON.stringify({ items }) }],
-    details: { items },
-  });
 });

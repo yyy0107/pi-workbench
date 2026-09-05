@@ -9,6 +9,7 @@ const PORTABLE_KEYS = [
   "locale",
   "modelSelector",
   "askUserEnabled",
+  "todoEnabled",
   "runningMessageMode",
   "showReasoning",
   "groupParallelTools",

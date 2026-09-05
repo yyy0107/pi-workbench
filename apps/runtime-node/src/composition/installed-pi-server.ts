@@ -180,6 +180,16 @@ function createInstalledPiAgentHostBindings(
         ...(shellPath === undefined ? {} : { shellPath }),
       });
     },
+    todoSettings: {
+      async readEnabled() {
+        return (await settings.describe()).preferences.todoEnabled !== false;
+      },
+      subscribe(listener) {
+        return subscribeWorkbenchSettingsPreferences(settings.stateFile, (preferences) => {
+          listener(preferences.todoEnabled !== false);
+        });
+      },
+    },
     askUserSettings: {
       async readAutoContinue() {
         return (await settings.describe()).preferences.askUserAutoContinue !== false;

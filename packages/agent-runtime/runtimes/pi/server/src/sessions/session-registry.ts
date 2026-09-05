@@ -3417,7 +3417,10 @@ async function createHost(
   const services = await createWorkbenchAgentSessionServices({
     cwd,
     resourceLoaderOptions: {
-      extensionFactories: createWorkbenchInternalPiExtensions(hostBindings.askUserSettings),
+      extensionFactories: createWorkbenchInternalPiExtensions(
+        hostBindings.askUserSettings,
+        hostBindings.todoSettings,
+      ),
       extensionsOverride: prepareWorkbenchPiExtensions,
     },
     resourceLoaderReloadOptions: {

@@ -30,6 +30,7 @@ export type WorkbenchToolboxScopePreference =
 export interface WorkbenchSettingsPreferences {
   appearance?: Record<string, WorkbenchSettingsJsonValue>;
   askUserEnabled?: boolean;
+  todoEnabled?: boolean;
   runningMessageMode?: "queue" | "steer";
   showReasoning?: boolean;
   groupParallelTools?: boolean;
