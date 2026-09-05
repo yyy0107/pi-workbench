@@ -28,7 +28,7 @@ export function SidebarPrimaryNavigation({
   const searchLabel = activeSection?.search ? text(activeSection.search.label) : "";
 
   return (
-    <div className="flex h-11 shrink-0 items-center gap-1 ps-4 pe-0.5 sm:h-10 sm:ps-[calc(var(--icon-frame-size-default)+14px)]">
+    <div className="mb-2 flex h-11 shrink-0 items-center gap-1 ps-4 pe-0.5 sm:h-10 sm:ps-[calc(var(--icon-frame-size-default)+14px)]">
       <nav
         aria-label={t("workbench.sidebar.mainNavigation")}
         data-active-section={activeSectionId}
