@@ -4566,101 +4566,121 @@ test("holds an early prompt composition for the next assistant message", (t) => 
   );
 });
 
-test("hydrates only persisted prompt-composition Parts when an idle session opens", async (t) => {
-  const originalFetch = globalThis.fetch;
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
-  const methods: string[] = [];
-  globalThis.fetch = async (_input, init) => {
-    const request = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
-    methods.push(request.method);
-    const value =
-      request.method === "session.contextTrace.promptParts"
-        ? {
-            parts: [
-              {
-                event: {
-                  schemaVersion: 1,
-                  traceId: "persisted-activation:1",
-                  sessionId: "persisted-session",
-                  activationId: "persisted-activation",
-                  seq: 1,
-                  time: 1_500,
-                  kind: "prompt-composition",
-                  detailBytes: 128,
-                  truncated: false,
-                  redacted: false,
-                  roundId: "persisted-round",
-                  promptPreview: "Explain persistence",
-                  promptInjections: ["system-prompt", "workspace", "skills", "tools", "extensions"],
-                  promptResources: {
-                    cwd: "/workspace",
-                    systemPromptCharacters: 12,
-                    systemPromptSourceCount: 1,
-                    systemPromptSources: [{ kind: "builtin", scope: "builtin" }],
-                    contextFileCount: 1,
-                    contextFiles: ["/workspace/AGENTS.md"],
-                    skills: [{ name: "review", disableModelInvocation: false }],
-                    extensions: [{ name: "audit", hidden: false }],
-                    tools: { active: ["read"], total: 1 },
-                  },
-                },
-                assistantMessageTimestamp: 2_000,
-              },
-            ],
-          }
-        : {
-            events: [
-              {
-                event: {
-                  type: "message",
-                  seq: 0,
-                  time: 1_000,
-                  entryId: "persisted-user",
-                  data: { role: "user", content: "Explain persistence", timestamp: 1_000 },
-                },
-              },
-              {
-                event: {
-                  type: "message",
-                  seq: 1,
-                  time: 2_000,
-                  entryId: "persisted-assistant",
-                  data: {
-                    role: "assistant",
-                    content: [{ type: "text", text: "It persists." }],
-                    timestamp: 2_000,
-                  },
-                },
-              },
-            ],
-            hasMore: false,
-          };
-    return Response.json({
-      type: "server-response",
-      rpcId: request.rpcId,
-      result: { ok: true, value },
+for (const trigger of ["open", "agent_settled"] as const) {
+  test(`hydrates persisted prompt-composition Parts on ${trigger} without live trace events`, async (t) => {
+    const originalFetch = globalThis.fetch;
+    t.after(() => {
+      globalThis.fetch = originalFetch;
     });
-  };
+    const methods: string[] = [];
+    globalThis.fetch = async (_input, init) => {
+      const request = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
+      methods.push(request.method);
+      const value =
+        request.method === "session.contextTrace.promptParts"
+          ? {
+              parts: [
+                {
+                  event: {
+                    schemaVersion: 1,
+                    traceId: "persisted-activation:1",
+                    sessionId: "persisted-session",
+                    activationId: "persisted-activation",
+                    seq: 1,
+                    time: 1_500,
+                    kind: "prompt-composition",
+                    detailBytes: 128,
+                    truncated: false,
+                    redacted: false,
+                    roundId: "persisted-round",
+                    promptPreview: "Explain persistence",
+                    promptInjections: [
+                      "system-prompt",
+                      "workspace",
+                      "skills",
+                      "tools",
+                      "extensions",
+                    ],
+                    promptResources: {
+                      cwd: "/workspace",
+                      systemPromptCharacters: 12,
+                      systemPromptSourceCount: 1,
+                      systemPromptSources: [{ kind: "builtin", scope: "builtin" }],
+                      contextFileCount: 1,
+                      contextFiles: ["/workspace/AGENTS.md"],
+                      skills: [{ name: "review", disableModelInvocation: false }],
+                      extensions: [{ name: "audit", hidden: false }],
+                      tools: { active: ["read"], total: 1 },
+                    },
+                  },
+                  assistantMessageTimestamp: 2_000,
+                },
+              ],
+            }
+          : {
+              events: [
+                {
+                  event: {
+                    type: "message",
+                    seq: 0,
+                    time: 1_000,
+                    entryId: "persisted-user",
+                    data: { role: "user", content: "Explain persistence", timestamp: 1_000 },
+                  },
+                },
+                {
+                  event: {
+                    type: "message",
+                    seq: 1,
+                    time: 2_000,
+                    entryId: "persisted-assistant",
+                    data: {
+                      role: "assistant",
+                      content: [{ type: "text", text: "It persists." }],
+                      timestamp: 2_000,
+                    },
+                  },
+                },
+              ],
+              hasMore: false,
+            };
+      return Response.json({
+        type: "server-response",
+        rpcId: request.rpcId,
+        result: { ok: true, value },
+      });
+    };
 
-  const manager = new PiSessionManager();
-  t.after(() => manager.dispose());
-  const session = manager.getSession("persisted-session", "persisted-session");
+    const manager = new PiSessionManager();
+    t.after(() => manager.dispose());
+    const session = manager.getSession("persisted-session", "persisted-session");
 
-  await session.open();
+    if (trigger === "open") {
+      await session.open();
+    } else {
+      manager.refreshMetadata = async () => undefined;
+      const internals = session as unknown as {
+        handleEvent(event: PiEvent): void;
+        reloadTask?: Promise<void>;
+      };
+      internals.handleEvent({ type: "agent_settled" });
+      await internals.reloadTask;
+    }
 
-  assert.deepEqual(methods.sort(), ["session.contextTrace.promptParts", "session.history"]);
-  const assistant = session.getSnapshot().messages.find((message) => message.role === "assistant");
-  assert.equal(assistant?.role, "assistant");
-  if (assistant?.role !== "assistant") return;
-  assert.deepEqual(
-    assistant.content.map((part) => (part.type === "data" ? `data:${part.name}` : part.type)),
-    [
-      "data:workbench.pi-context-trace-event",
-      "data:workbench.pi-context-trace-event",
-      "data:workbench.pi-context-trace-event",
-      "text",
-    ],
-  );
-});
+    assert.deepEqual(methods.sort(), ["session.contextTrace.promptParts", "session.history"]);
+    const assistant = session
+      .getSnapshot()
+      .messages.find((message) => message.role === "assistant");
+    assert.equal(assistant?.role, "assistant");
+    if (assistant?.role !== "assistant") return;
+    assert.deepEqual(
+      assistant.content.map((part) => (part.type === "data" ? `data:${part.name}` : part.type)),
+      [
+        "data:workbench.pi-context-trace-event",
+        "data:workbench.pi-context-trace-event",
+        "data:workbench.pi-context-trace-event",
+        "text",
+      ],
+    );
+  });
+}

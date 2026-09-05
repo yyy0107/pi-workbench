@@ -1600,7 +1600,7 @@ export class PiClientSession implements ConversationSession {
     else if (this.remoteIdValue) {
       this.manager.connections.scheduleSessionClose(this.remoteIdValue);
       if (wasRunning) {
-        void this.reload().catch((error) =>
+        void this.reload(true).catch((error) =>
           console.error("[workbench-pi] background history refresh failed", error),
         );
       }
@@ -1903,7 +1903,7 @@ export class PiClientSession implements ConversationSession {
         this.setRunning(false);
       }
       if (this.remoteIdValue) this.manager.connections.scheduleSessionClose(this.remoteIdValue);
-      void this.reload()
+      void this.reload(true)
         .then(() => this.manager.refreshMetadata())
         .catch((error) => console.error("[workbench-pi] history refresh failed", error));
     }
@@ -1917,7 +1917,7 @@ export class PiClientSession implements ConversationSession {
       .catch(() => undefined)
       .then(async () => {
         if (this.disposed || generation !== this.historyRebaselineGeneration) return;
-        await this.reload();
+        await this.reload(true);
       })
       .catch((error) => console.error("[workbench-pi] stream rebaseline failed", error));
   }
