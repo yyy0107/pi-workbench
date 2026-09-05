@@ -299,6 +299,10 @@ export class AgentSettingsService implements AgentSettingsProtocol {
     return {
       ns: PI_AGENT_SETTINGS_NAMESPACE,
       builtinSystemPrompt: this.builtinSystemPrompt,
+      promptFiles: {
+        systemPrompt: path.resolve(this.systemPromptFile),
+        appendSystemPrompt: path.resolve(this.appendSystemPromptFile),
+      },
       schema: AGENT_SETTINGS_SCHEMA,
       value: snapshot.value,
       base: {

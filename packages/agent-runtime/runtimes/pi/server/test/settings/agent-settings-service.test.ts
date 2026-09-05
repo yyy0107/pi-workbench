@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -24,6 +24,10 @@ test("describes Pi defaults when no global agent settings exist", async (t) => {
   assert.equal(described.writable, true);
   assert.equal(described.hasDocument, false);
   assert.equal(described.namespaces.length, 1);
+  assert.deepEqual(described.namespaces[0]?.promptFiles, {
+    systemPrompt: path.join(agentDir, "SYSTEM.md"),
+    appendSystemPrompt: path.join(agentDir, "APPEND_SYSTEM.md"),
+  });
   assert.deepEqual(described.namespaces[0]?.value, {
     systemPrompt: "",
     appendSystemPrompt: "",
@@ -222,6 +226,11 @@ test("prompt scopes isolate project overrides and inherit user prompts after cle
   });
   const target = { scope: "project", workspaceId: "one" } as const;
   const initial = (await service.describe(target)).namespaces[0]!;
+  const firstProjectRoot = await realpath(firstProject);
+  assert.deepEqual(initial.promptFiles, {
+    systemPrompt: path.join(firstProjectRoot, ".pi", "SYSTEM.md"),
+    appendSystemPrompt: path.join(firstProjectRoot, ".pi", "APPEND_SYSTEM.md"),
+  });
   assert.equal(initial.value.systemPrompt, "");
   assert.equal(initial.value.appendSystemPrompt, "");
   assert.equal(initial.base?.systemPrompt, "User base");
@@ -236,6 +245,7 @@ test("prompt scopes isolate project overrides and inherit user prompts after cle
     patch: { systemPrompt: "Project base", appendSystemPrompt: "Project addition" },
   });
   assert.equal(saved.value.systemPrompt, "Project base");
+  assert.deepEqual(saved.promptFiles, initial.promptFiles);
   assert.equal(saved.base?.systemPrompt, "User base");
   assert.equal(await readFile(path.join(firstProject, ".pi", "SYSTEM.md"), "utf8"), "Project base");
   assert.equal(
@@ -244,6 +254,11 @@ test("prompt scopes isolate project overrides and inherit user prompts after cle
   );
   assert.deepEqual((await service.describe()).namespaces[0]?.value, user.value);
   const other = (await service.describe({ scope: "project", workspaceId: "two" })).namespaces[0]!;
+  const secondProjectRoot = await realpath(secondProject);
+  assert.deepEqual(other.promptFiles, {
+    systemPrompt: path.join(secondProjectRoot, ".pi", "SYSTEM.md"),
+    appendSystemPrompt: path.join(secondProjectRoot, ".pi", "APPEND_SYSTEM.md"),
+  });
   assert.equal(other.value.systemPrompt, "");
   assert.equal(other.base?.systemPrompt, "User base");
   assert.deepEqual(await readdir(secondProject), []);

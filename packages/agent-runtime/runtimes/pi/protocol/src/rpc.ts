@@ -578,6 +578,8 @@ export type PiAgentSettingsNamespaceView = SettingsNamespaceView<
   ns: typeof PI_AGENT_SETTINGS_NAMESPACE;
   /** Static read-only Pi prompt, without session cwd, local asset paths, or user/project resources. */
   builtinSystemPrompt?: string;
+  /** Actual save destinations for the selected resource scope. */
+  promptFiles?: Record<"systemPrompt" | "appendSystemPrompt", string>;
 };
 
 export interface SettingsDescribeValue {

@@ -52,6 +52,11 @@ export const piExtensionsEnUS = {
       save: "Save",
       saving: "Saving…",
       saved: "Saved.",
+      unsaved: "Unsaved changes",
+      edit: "Edit",
+      promptType: "Prompt type",
+      saveLocation: "Save location",
+      saveLocationUnavailable: "The save location is currently unavailable.",
       cancel: "Cancel",
       editValue: ({ label }: { label: string }) => `Edit ${label}`,
       appliesAfterReload:
@@ -65,11 +70,15 @@ export const piExtensionsEnUS = {
       },
       systemPrompt: {
         title: "System prompt",
+        tabLabel: "SYSTEM",
+        sectionTitle: "Base prompt",
+        pageDescription:
+          "Shape your agent's behavior with a base prompt and additional instructions.",
         description: "Set the global system prompt Pi uses across all workspaces.",
         projectDescription: "Set the system prompt Pi uses in the selected project.",
         inheritedLabel: "Inherited user system prompt (read-only)",
         projectDefaultHint:
-          "Saved to this project's .pi/SYSTEM.md. Leave empty and save to inherit the user prompt or Pi's built-in default. Project instructions take effect when the project is trusted.",
+          "Leave empty and save to inherit the user prompt or Pi's built-in default. Project instructions take effect when the project is trusted.",
         useInherited: "Use inherited prompt",
         editorLabel: "Custom system prompt",
         builtinLabel: "Built-in system prompt (read-only)",
@@ -98,11 +107,13 @@ export const piExtensionsEnUS = {
       },
       appendSystemPrompt: {
         title: "Append system prompt",
+        tabLabel: "Additional instructions",
+        sectionTitle: "Additional instructions",
         description: "Add global instructions after Pi's default or custom system prompt.",
         projectDescription: "Add instructions after the system prompt in the selected project.",
         inheritedLabel: "Inherited user additional instructions (read-only)",
         projectDefaultHint:
-          "Saved to this project's .pi/APPEND_SYSTEM.md. Leave empty and save to inherit user additional instructions. Project instructions take effect when the project is trusted.",
+          "Leave empty and save to inherit user additional instructions. Project instructions take effect when the project is trusted.",
         useInherited: "Use inherited instructions",
         editorLabel: "Additional instructions",
         exitEditor: "Press Escape to leave the append system prompt editor.",

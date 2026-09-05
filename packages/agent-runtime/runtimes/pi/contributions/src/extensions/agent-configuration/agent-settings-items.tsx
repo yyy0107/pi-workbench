@@ -1,14 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Code2Icon, EyeIcon } from "lucide-react";
+import { Code2Icon, EyeIcon, InfoIcon } from "lucide-react";
 
 import { Button } from "@workbench/shell/ui";
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@workbench/shell/ui";
 import { Input } from "@workbench/shell/ui";
 import { InputGroup } from "@workbench/shell/ui";
 import { SettingsInlineEditor } from "@workbench/shell/ui";
 import { SettingsGroup, SettingsRow } from "@workbench/shell/ui";
 import { Switch } from "@workbench/shell/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workbench/shell/ui";
 import { WorkbenchCodeEditor } from "@workbench/shell/code-highlighting";
 import { usePiI18n } from "../../i18n";
 import { MarkdownPreview } from "@workbench/shell/chat";
@@ -113,14 +122,37 @@ export function SystemPromptMainView({ view }: MainViewProps<{ target: PiResourc
   return (
     <section
       aria-label={t("extensions.agentConfiguration.systemPrompt.title")}
-      className="h-full min-h-0 overflow-y-auto"
+      className="@container h-full min-h-0 overflow-y-auto [scrollbar-gutter:stable]"
     >
-      <div className="mx-auto w-full max-w-5xl px-6 py-4 sm:px-12">
-        <SystemPromptEditor
-          key={target.scope === "user" ? "user" : `project:${target.workspaceId}`}
-          target={target}
-        />
-      </div>
+      <Tabs
+        key={target.scope === "user" ? "user" : `project:${target.workspaceId}`}
+        defaultValue="systemPrompt"
+        className="mx-auto w-full max-w-5xl px-5 py-8 @2xl:px-10 @2xl:py-10"
+      >
+        <header className="mb-8">
+          <h1 className="text-foreground text-3xl font-medium tracking-tight">
+            {t("extensions.agentConfiguration.systemPrompt.title")}
+          </h1>
+          <p className="text-muted-foreground mt-3 text-base leading-6">
+            {t("extensions.agentConfiguration.systemPrompt.pageDescription")}
+          </p>
+        </header>
+        <TabsList
+          aria-label={t("extensions.agentConfiguration.promptType")}
+          className="mb-6 gap-2 bg-transparent p-0"
+        >
+          {(["systemPrompt", "appendSystemPrompt"] as const).map((field) => (
+            <TabsTrigger
+              key={field}
+              value={field}
+              className="data-active:bg-muted data-active:shadow-none"
+            >
+              {t(`extensions.agentConfiguration.${field}.tabLabel`)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <SystemPromptEditor target={target} />
+      </Tabs>
     </section>
   );
 }
@@ -142,35 +174,17 @@ function SystemPromptEditor({ target }: { target: PiResourceCatalogTarget }) {
   return (
     <div className="pb-5">
       {(["systemPrompt", "appendSystemPrompt"] as const).map((field) => (
-        <PromptSettingsEditor
-          key={field}
-          field={field}
-          target={target}
-          view={view}
-          setView={setView}
-          saving={saving}
-          setSaving={setSaving}
-        />
+        <TabsContent key={field} value={field} keepMounted>
+          <PromptSettingsEditor
+            field={field}
+            target={target}
+            view={view}
+            setView={setView}
+            saving={saving}
+            setSaving={setSaving}
+          />
+        </TabsContent>
       ))}
-      <SettingsGroup
-        title={t("extensions.agentConfiguration.placeholders.title")}
-        description={t("extensions.agentConfiguration.placeholders.description")}
-        className="mb-4"
-      >
-        {(["cwd", "tools", "tool_guidelines", "readme", "docs", "examples"] as const).map(
-          (name) => (
-            <SettingsRow key={name} label={t(`extensions.agentConfiguration.placeholders.${name}`)}>
-              <code className="select-text text-sm">{`{{pi.${name}}}`}</code>
-            </SettingsRow>
-          ),
-        )}
-      </SettingsGroup>
-      <p className="text-muted-foreground mb-2 text-xs leading-5">
-        {t("extensions.agentConfiguration.placeholders.automaticContext")}
-      </p>
-      <p className="text-muted-foreground text-xs leading-5">
-        {t("extensions.agentConfiguration.appliesAfterReload")}
-      </p>
     </div>
   );
 }
@@ -262,10 +276,57 @@ function PromptSettingsEditor({
         label: t(`extensions.agentConfiguration.${field}.editorLabel`),
       });
   return (
-    <div className="py-5">
-      <div>
-        <h3 className="text-sm font-medium">{t(`extensions.agentConfiguration.${field}.title`)}</h3>
-        <p className="text-muted-foreground mt-1 text-sm leading-5">
+    <section aria-labelledby={`${systemPromptId}-heading`}>
+      <div className="border-b pb-4">
+        <div className="flex items-center gap-2">
+          <h2 id={`${systemPromptId}-heading`} className="text-foreground text-lg font-medium">
+            {t(`extensions.agentConfiguration.${field}.sectionTitle`)}
+          </h2>
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground"
+                  aria-label={t("extensions.agentConfiguration.placeholders.title")}
+                  title={t("extensions.agentConfiguration.placeholders.title")}
+                />
+              }
+            >
+              <InfoIcon aria-hidden="true" />
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              className="max-h-[min(32rem,var(--available-height))] w-[min(32rem,calc(100vw-2rem))] overflow-y-auto p-4"
+            >
+              <PopoverHeader>
+                <PopoverTitle>{t("extensions.agentConfiguration.placeholders.title")}</PopoverTitle>
+                <PopoverDescription className="mt-1 text-xs leading-5">
+                  {t("extensions.agentConfiguration.placeholders.description")}
+                </PopoverDescription>
+              </PopoverHeader>
+              <dl className="divide-border divide-y">
+                {(["cwd", "tools", "tool_guidelines", "readme", "docs", "examples"] as const).map(
+                  (name) => (
+                    <div key={name} className="py-2.5">
+                      <dt>
+                        <code className="select-text text-sm">{`{{pi.${name}}}`}</code>
+                      </dt>
+                      <dd className="text-muted-foreground mt-1 text-xs leading-5">
+                        {t(`extensions.agentConfiguration.placeholders.${name}`)}
+                      </dd>
+                    </div>
+                  ),
+                )}
+              </dl>
+              <p className="text-muted-foreground text-xs leading-5">
+                {t("extensions.agentConfiguration.placeholders.automaticContext")}
+              </p>
+            </PopoverContent>
+          </Popover>
+        </div>
+        <p className="text-muted-foreground mt-2 text-sm leading-6">
           {t(
             `extensions.agentConfiguration.${field}.${projectScope ? "projectDescription" : "description"}`,
           )}
@@ -273,25 +334,29 @@ function PromptSettingsEditor({
       </div>
 
       <div className="mt-4">
-        <div className="flex items-center justify-between gap-2">
-          <label htmlFor={systemPromptId} className="text-muted-foreground block text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span id={`${systemPromptId}-label`} className="text-muted-foreground text-sm">
             {editorLabel}
-          </label>
+          </span>
           <Button
             type="button"
             variant="ghost"
-            size="icon-sm"
-            aria-pressed={!editing}
+            size="sm"
+            aria-controls={`${systemPromptId}-panel`}
             aria-label={viewToggleLabel}
             title={viewToggleLabel}
-            className={!editing ? "bg-muted/55" : undefined}
             disabled={saving}
             onClick={() => setEditing((current) => !current)}
           >
             {editing ? <EyeIcon aria-hidden="true" /> : <Code2Icon aria-hidden="true" />}
+            {editing
+              ? t(`extensions.agentConfiguration.${field}.preview`)
+              : t("extensions.agentConfiguration.edit")}
           </Button>
         </div>
         <InputGroup
+          id={`${systemPromptId}-panel`}
+          aria-labelledby={`${systemPromptId}-label`}
           ref={promptContainerRef}
           className={`${styles.promptEditor} mt-2 h-80 min-h-44 resize-y items-stretch overflow-hidden`}
         >
@@ -333,15 +398,35 @@ function PromptSettingsEditor({
             </div>
           )}
         </InputGroup>
-        <p className="text-muted-foreground mt-2 text-xs leading-5">
+        <dl className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs leading-5">
+          <dt className="text-muted-foreground">
+            {t("extensions.agentConfiguration.saveLocation")}
+          </dt>
+          <dd className="min-w-0 select-text break-all">
+            {view.promptFiles?.[field] ? (
+              <code>{view.promptFiles[field]}</code>
+            ) : (
+              t("extensions.agentConfiguration.saveLocationUnavailable")
+            )}
+          </dd>
+        </dl>
+        <p className="text-muted-foreground mt-1 text-xs leading-5">
           {t(
             `extensions.agentConfiguration.${field}.${projectScope ? "projectDefaultHint" : "defaultHint"}`,
           )}
         </p>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <SaveFeedback saved={saved} error={saveError} />
-          <div className="ms-auto flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            {dirty && !saveError ? (
+              <p className="text-muted-foreground text-sm" role="status">
+                {t("extensions.agentConfiguration.unsaved")}
+              </p>
+            ) : (
+              <SaveFeedback saved={saved} error={saveError} />
+            )}
+          </div>
+          <div className="ms-auto flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="outline"
@@ -366,8 +451,11 @@ function PromptSettingsEditor({
             </Button>
           </div>
         </div>
+        <p className="text-muted-foreground mt-3 text-xs leading-5">
+          {t("extensions.agentConfiguration.appliesAfterReload")}
+        </p>
       </div>
-    </div>
+    </section>
   );
 }
 
