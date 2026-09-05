@@ -2691,18 +2691,12 @@ export class PiClientSession implements ConversationSession {
     if (this.disposed) return;
     if (this.messagePublishScheduled) return;
     this.messagePublishScheduled = true;
-    const publish = () => {
+    // Message state must advance even when Electron pauses animation frames.
+    queueMicrotask(() => {
       this.messagePublishScheduled = false;
       if (this.disposed) return;
-      // This callback is already the streaming animation-frame boundary; publishing the
-      // assembler immediately here avoids adding a second frame of visible latency.
       this.publishMessages();
-    };
-    if (typeof globalThis.requestAnimationFrame === "function") {
-      globalThis.requestAnimationFrame(publish);
-    } else {
-      queueMicrotask(publish);
-    }
+    });
   }
 
   private conversationPatch(

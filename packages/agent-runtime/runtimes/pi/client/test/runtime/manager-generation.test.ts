@@ -1657,7 +1657,22 @@ test("keeps a streaming assistant segment before steering messages as they arriv
   );
 });
 
-test("applies cumulative transient updates without advancing the durable sequence", async (t) => {
+test("publishes streaming updates before completion even when animation frames are suspended", async (t) => {
+  const originalFrameScheduler = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "requestAnimationFrame",
+  );
+  Object.defineProperty(globalThis, "requestAnimationFrame", {
+    configurable: true,
+    value: () => 1,
+  });
+  t.after(() => {
+    if (originalFrameScheduler) {
+      Object.defineProperty(globalThis, "requestAnimationFrame", originalFrameScheduler);
+    } else {
+      Reflect.deleteProperty(globalThis, "requestAnimationFrame");
+    }
+  });
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
