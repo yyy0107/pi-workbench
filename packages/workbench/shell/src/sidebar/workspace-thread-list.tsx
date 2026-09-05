@@ -197,7 +197,6 @@ function WorkspaceDirectorySection({
         <SidebarRow
           variant="folder"
           label={directory.name}
-          active={active}
           menuOpen={menuOpen}
           drag={{ ...drag, dropPosition: drag.dropPosition === "inside" ? "inside" : undefined }}
           trigger={<CollapsibleTrigger />}
