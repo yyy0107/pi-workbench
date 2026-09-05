@@ -141,6 +141,8 @@ export const piExtensionsEnUS = {
         description:
           "Use these placeholders in the system prompt or append prompt. Workbench expands them from the active session; saved files and previews keep the original placeholders. Unknown placeholders stay unchanged.",
         cwd: "The session's working directory.",
+        terminal_environment:
+          "The runtime operating system and Shell used by the current agent terminal.",
         tools: "A Markdown list of active tools and their descriptions, including extension tools.",
         tool_guidelines: "A Markdown list of guidelines for the active tools.",
         readme: "The absolute path to Pi's README.md.",

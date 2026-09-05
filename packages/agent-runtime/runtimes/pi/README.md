@@ -219,10 +219,11 @@ Pi coding agent 的 `piVersion`、用户级资源根目录 `userResourceDir`，�
 项目覆盖留空时显示继承的用户提示词；没有继承内容时显示内置静态预览。
 编辑和保存仍只操作自定义草稿，不会把内置内容写入 `SYSTEM.md`。
 
-Workbench 的 `SYSTEM.md` 和 `APPEND_SYSTEM.md` 支持 `{{pi.cwd}}`、`{{pi.tools}}`、
-`{{pi.tool_guidelines}}`、`{{pi.readme}}`、`{{pi.docs}}` 和 `{{pi.examples}}`。
-它们分别展开为会话工作目录、当前启用工具的 Markdown 说明列表、工具提供的使用建议列表，以及
-Pi README、文档和示例的绝对路径。保存和静态预览保留占位符；会话通过 Pi 公开的 ResourceLoader
+Workbench 的 `SYSTEM.md` 和 `APPEND_SYSTEM.md` 支持 `{{pi.cwd}}`、
+`{{pi.terminal_environment}}`、`{{pi.tools}}`、`{{pi.tool_guidelines}}`、`{{pi.readme}}`、
+`{{pi.docs}}` 和 `{{pi.examples}}`。它们分别展开为会话工作目录、运行时操作系统与智能体终端 Shell、
+当前启用工具的 Markdown 说明列表、工具提供的使用建议列表，以及 Pi README、文档和示例的绝对路径。
+保存和静态预览保留占位符；会话通过 Pi 公开的 ResourceLoader
 读取时展开，工具切换、扩展绑定和资源 reload 复用 Pi 原生的提示词重建流程，因此恢复会话也适用。
 替换只处理已加载的系统/追加提示词，执行单次白名单替换，不递归解释注入的内容；未知占位符保持原样。
 项目指令、技能和 cwd 仍由 Pi 原生追加，不需要占位符。这是 Workbench 提供的功能，独立 Pi 不会展开。

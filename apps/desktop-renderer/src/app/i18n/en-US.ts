@@ -33,6 +33,10 @@ export const desktopRendererEnUS = {
     keepAwake: "Keep the computer awake",
     keepAwakeDescription:
       "Prevent idle system sleep while the app is open. Manual sleep and lid closure still work.",
+    terminalShell: "Integrated terminal Shell",
+    terminalShellDescription:
+      "Choose the default Shell used by integrated and agent tool terminals. Restart required.",
+    terminalShells: { powershell: "PowerShell", "command-prompt": "Command Prompt" },
     httpProxy: "HTTP proxy",
     httpProxyDescription:
       "One proxy for models, MCP, command tools, and the built-in browser. Leave empty for direct runtime traffic and the browser’s system proxy. Restart required.",
@@ -62,7 +66,8 @@ export const desktopRendererEnUS = {
     soundRestartRequired:
       "Fully quit and reopen Pi Workbench to enable built-in notification tones.",
     retry: "Retry",
-    restartRequired: "Quit and reopen the app to apply hardware acceleration and network changes.",
+    restartRequired:
+      "Quit and reopen the app to apply terminal, hardware acceleration, and network changes.",
     notificationsUnsupported: "Desktop notifications are unavailable on this system.",
     invalidProxy: "Enter an HTTP or HTTPS proxy origin without credentials, path, or query.",
     invalidBypass: "Use comma-separated host rules without spaces, slashes, or semicolons.",

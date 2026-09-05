@@ -186,6 +186,35 @@ test("chooses command arguments from the actual shell executable", async () => {
   }
 });
 
+test("uses the desktop-selected shell for agent tool terminals", async () => {
+  const terminal = new FakePty();
+  let shell = "";
+  const manager = new ToolTerminalSessionManager({
+    env: {
+      PI_WORKBENCH_TERMINAL_SHELL: "cmd.exe",
+      WORKBENCH_TERMINAL_SHELL: "powershell.exe",
+    },
+    platform: "win32",
+    spawnPty: (file) => {
+      shell = file;
+      return terminal;
+    },
+    terminatePty: (target) => target.kill(),
+  });
+
+  const running = manager.execute({
+    sessionId: "desktop-shell",
+    toolCallId: "call",
+    command: "echo ready",
+    cwd: "C:\\workspace",
+    onData: () => {},
+  });
+  assert.equal(shell, "cmd.exe");
+  terminal.emitExit({ exitCode: 0 });
+  await running;
+  manager.dispose();
+});
+
 test("shares tool PTY output, input, resize, and interruption with attached clients", async () => {
   const terminals: FakePty[] = [];
   const manager = new ToolTerminalSessionManager({

@@ -3,7 +3,9 @@
 import { useEffect, useId, useState } from "react";
 import {
   DESKTOP_NOTIFICATION_SOUNDS,
+  DESKTOP_TERMINAL_SHELLS,
   isDesktopNotificationSound,
+  isDesktopTerminalShell,
   readDesktopSettingsPort,
   type DesktopPreferences,
   type DesktopSettingsSnapshot,
@@ -132,6 +134,47 @@ function DesktopSettingsItem() {
   return (
     <div className="space-y-4" aria-busy={busy || !snapshot}>
       <SettingsGroup>
+        {snapshot.platform === "win32" ? (
+          <SettingsRow
+            label={
+              <label htmlFor={`${id}-terminal-shell`}>
+                {t("desktopRenderer.settings.terminalShell")}
+              </label>
+            }
+            description={
+              <span id={`${id}-terminal-shell-description`}>
+                {t("desktopRenderer.settings.terminalShellDescription")}
+              </span>
+            }
+          >
+            <DropdownMenu>
+              <SettingsDropdownTrigger
+                id={`${id}-terminal-shell`}
+                aria-label={t("desktopRenderer.settings.terminalShell")}
+                aria-describedby={`${id}-terminal-shell-description`}
+                disabled={busy}
+              >
+                {t(`desktopRenderer.settings.terminalShells.${snapshot.preferences.terminalShell}`)}
+              </SettingsDropdownTrigger>
+              <SettingsDropdownContent align="end">
+                <DropdownMenuRadioGroup
+                  value={snapshot.preferences.terminalShell}
+                  aria-label={t("desktopRenderer.settings.terminalShell")}
+                  onValueChange={(value) => {
+                    if (port && isDesktopTerminalShell(value))
+                      void save(() => port.update({ terminalShell: value }));
+                  }}
+                >
+                  {DESKTOP_TERMINAL_SHELLS.map((shell) => (
+                    <SettingsDropdownRadioItem key={shell} value={shell}>
+                      {t(`desktopRenderer.settings.terminalShells.${shell}`)}
+                    </SettingsDropdownRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </SettingsDropdownContent>
+            </DropdownMenu>
+          </SettingsRow>
+        ) : null}
         {toggles.map((key) => (
           <SettingsRow
             key={key}
@@ -410,6 +453,7 @@ export const desktopSettingsExtension = defineExtension({
           "taskNotifications",
           "notificationSounds",
           "notificationSound",
+          "terminalShell",
           "httpProxy",
           "noProxy",
         ] as const

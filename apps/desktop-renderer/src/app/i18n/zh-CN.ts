@@ -29,6 +29,9 @@ export const desktopRendererZhCN = {
     sounds: { chime: "清脆", soft: "柔和", bell: "铃声", droplet: "水滴" },
     keepAwake: "保持电脑运行",
     keepAwakeDescription: "应用打开时阻止系统因空闲进入休眠，仍可手动睡眠或合盖休眠。",
+    terminalShell: "集成终端 Shell",
+    terminalShellDescription: "选择集成终端和智能体工具终端默认使用的 Shell。修改后需重启应用。",
+    terminalShells: { powershell: "PowerShell", "command-prompt": "命令提示符" },
     httpProxy: "HTTP 代理",
     httpProxyDescription:
       "统一用于模型、MCP、命令工具与内置浏览器。留空时运行时流量直连，内置浏览器跟随系统代理。修改后需重启应用。",
@@ -53,7 +56,7 @@ export const desktopRendererZhCN = {
     loadError: "无法加载桌面设置，请重试。若刚更新应用，请完全退出并重新打开 Pi Workbench。",
     soundRestartRequired: "请完全退出并重新打开 Pi Workbench，以启用内置通知提示音。",
     retry: "重试",
-    restartRequired: "请退出并重新打开应用，使硬件加速和网络设置生效。",
+    restartRequired: "请退出并重新打开应用，使终端、硬件加速和网络设置生效。",
     notificationsUnsupported: "此系统暂不支持桌面通知。",
     invalidProxy: "请输入 HTTP 或 HTTPS 代理地址，不含用户名、密码、路径或查询参数。",
     invalidBypass: "请使用英文逗号分隔主机规则，不包含空格、斜杠或分号。",

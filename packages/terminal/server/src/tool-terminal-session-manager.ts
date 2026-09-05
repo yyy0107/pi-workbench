@@ -136,7 +136,11 @@ function configuredShell(
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,
 ): string {
-  const candidate = shell?.trim() || env.WORKBENCH_TERMINAL_SHELL?.trim() || env.SHELL?.trim();
+  const candidate =
+    shell?.trim() ||
+    env.PI_WORKBENCH_TERMINAL_SHELL?.trim() ||
+    env.WORKBENCH_TERMINAL_SHELL?.trim() ||
+    env.SHELL?.trim();
   if (candidate) return candidate;
   return platform === "win32" ? "powershell.exe" : "/bin/bash";
 }

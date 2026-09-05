@@ -6,7 +6,16 @@ import {
 } from "@earendil-works/pi-coding-agent";
 
 /** Expand only configured prompt files, before Pi appends project context and skills. */
-export function installSystemPromptPlaceholders(session: AgentSession): void {
+export function installSystemPromptPlaceholders(
+  session: AgentSession,
+  {
+    environment = process.env,
+    platform = process.platform,
+  }: {
+    environment?: Readonly<NodeJS.ProcessEnv>;
+    platform?: NodeJS.Platform;
+  } = {},
+): void {
   const loader = session.resourceLoader;
   const getSystemPrompt = loader.getSystemPrompt.bind(loader);
   const getAppendSystemPrompt = loader.getAppendSystemPrompt.bind(loader);
@@ -22,8 +31,23 @@ export function installSystemPromptPlaceholders(session: AgentSession): void {
       toolNames.includes("bash") && !["grep", "find", "ls"].some((name) => toolNames.includes(name))
         ? ["Use bash for file operations like ls, rg, find"]
         : [];
+    const shell =
+      session.settingsManager.getShellPath()?.trim() ||
+      environment.PI_WORKBENCH_TERMINAL_SHELL?.trim() ||
+      environment.WORKBENCH_TERMINAL_SHELL?.trim() ||
+      environment.SHELL?.trim() ||
+      (platform === "win32" ? "powershell.exe" : "/bin/bash");
+    const platformName =
+      platform === "win32"
+        ? "Windows native"
+        : platform === "darwin"
+          ? "macOS"
+          : platform === "linux"
+            ? "Linux"
+            : platform;
     const values = {
       cwd: session.sessionManager.getCwd().replaceAll("\\", "/"),
+      terminal_environment: `${platformName}; shell: ${shell}`,
       tools:
         tools
           .map((tool) => `- ${tool.name}: ${tool.promptSnippet || tool.description}`)
@@ -43,7 +67,7 @@ export function installSystemPromptPlaceholders(session: AgentSession): void {
     };
     // One pass: values containing placeholder-like text are never interpreted again.
     return template.replace(
-      /\{\{pi\.(cwd|tools|tool_guidelines|readme|docs|examples)\}\}/gu,
+      /\{\{pi\.(cwd|terminal_environment|tools|tool_guidelines|readme|docs|examples)\}\}/gu,
       (_match, name: keyof typeof values) => values[name],
     );
   };

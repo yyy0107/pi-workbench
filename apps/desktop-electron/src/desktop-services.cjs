@@ -9,6 +9,7 @@ const DEFAULTS = Object.freeze({
   taskNotifications: true,
   notificationSounds: true,
   notificationSound: "chime",
+  terminalShell: "powershell",
   httpProxy: "",
   noProxy: "",
 });
@@ -26,6 +27,11 @@ function validatePreferences(value) {
   if (
     result.notificationSound !== undefined &&
     !["chime", "soft", "bell", "droplet"].includes(result.notificationSound)
+  )
+    throw new Error("invalid-settings");
+  if (
+    result.terminalShell !== undefined &&
+    !["powershell", "command-prompt"].includes(result.terminalShell)
   )
     throw new Error("invalid-settings");
   if (result.httpProxy) {
@@ -69,8 +75,8 @@ function readDesktopSettings(app) {
   return { file, preferences: { ...DEFAULTS, ...validatePreferences(preferences) }, updateToken };
 }
 
-/** All desktop-owned outbound processes receive the same explicit proxy environment. */
-function proxyEnvironment(environment, preferences) {
+/** Build the explicit environment shared by desktop-owned outbound processes. */
+function proxyEnvironment(environment, preferences, platform = process.platform) {
   const result = { ...environment };
   delete result.PI_WORKBENCH_UPDATE_TOKEN;
   for (const key of Object.keys(result)) {
@@ -83,6 +89,9 @@ function proxyEnvironment(environment, preferences) {
   result.NO_PROXY = result.no_proxy = [LOOPBACK_BYPASS, preferences.noProxy]
     .filter(Boolean)
     .join(",");
+  if (platform === "win32")
+    result.PI_WORKBENCH_TERMINAL_SHELL =
+      preferences.terminalShell === "command-prompt" ? "cmd.exe" : "powershell.exe";
   return result;
 }
 
@@ -134,6 +143,7 @@ function createDesktopServices(
     onInstallFailed = () => {},
     getUpdater = () => require("electron-updater").autoUpdater,
     hasActiveTasks = async () => true,
+    platform = process.platform,
   },
 ) {
   const { app, ipcMain, session, powerSaveBlocker, Notification, safeStorage, dialog } = electron;
@@ -156,8 +166,9 @@ function createDesktopServices(
     preferences: { ...preferences },
     update: { ...update },
     version: app.getVersion(),
+    platform,
     tokenConfigured: Boolean(encryptedToken || process.env.PI_WORKBENCH_UPDATE_TOKEN),
-    restartRequired: ["hardwareAcceleration", "httpProxy", "noProxy"].some(
+    restartRequired: ["hardwareAcceleration", "terminalShell", "httpProxy", "noProxy"].some(
       (key) => startupPreferences[key] !== preferences[key],
     ),
     notificationsSupported: Notification.isSupported(),
@@ -397,7 +408,7 @@ function createDesktopServices(
     lastActivity = Date.now();
   });
   return {
-    environment: proxyEnvironment(process.env, startupPreferences),
+    environment: proxyEnvironment(process.env, startupPreferences, platform),
     async start() {
       const proxyConfig = startupPreferences.httpProxy
         ? {

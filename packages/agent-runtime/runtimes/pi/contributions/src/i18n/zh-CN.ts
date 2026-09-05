@@ -141,6 +141,7 @@ export const piExtensionsZhCN = {
         description:
           "可用于系统提示词和追加提示词。Workbench 按实际会话展开，保存的文件和预览保留占位符原文，未知占位符保持不变。",
         cwd: "当前会话的工作目录。",
+        terminal_environment: "当前智能体终端使用的运行时操作系统和 Shell。",
         tools: "当前启用的工具及其说明，以 Markdown 列表展开，包含扩展工具。",
         tool_guidelines: "当前启用工具对应的使用建议，以 Markdown 列表展开。",
         readme: "Pi 的 README.md 文件绝对路径。",

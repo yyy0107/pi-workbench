@@ -127,6 +127,9 @@ test("desktop settings apply power, secure credentials, activity notifications a
   assert.throws(() => handlers.get("workbench:desktop-settings")({}, {}), /untrusted/);
   call("update-token", "example-test-token");
   assert.equal(call("settings").tokenConfigured, true);
+  assert.equal(call("settings").platform, process.platform);
+  assert.equal(call("settings", { terminalShell: "command-prompt" }).restartRequired, true);
+  assert.equal(readDesktopSettings(app).preferences.terminalShell, "command-prompt");
   assert.ok(
     !fs
       .readFileSync(path.join(directory, "desktop-settings.json"), "utf8")
@@ -204,7 +207,7 @@ test("the actual Electron Node child applies the shared proxy to fetch and HTTP 
   });
   const address = `http://127.0.0.1:${proxy.address().port}`;
   const environment = packagedChildEnvironment(
-    proxyEnvironment(process.env, { ...DEFAULTS, httpProxy: address }),
+    proxyEnvironment(process.env, { ...DEFAULTS, httpProxy: address }, "linux"),
   );
   const { stdout } = await promisify(execFile)(
     require("electron"),
@@ -227,6 +230,7 @@ test("the actual Electron Node child applies the shared proxy to fetch and HTTP 
 test("proxy settings replace inherited values and keep credentials in the main process", () => {
   assert.throws(() => validatePreferences({ notificationSound: "unknown" }), /invalid-settings/);
   assert.throws(() => validatePreferences({ notificationSound: "" }), /invalid-settings/);
+  assert.throws(() => validatePreferences({ terminalShell: "unknown" }), /invalid-settings/);
   assert.throws(() => validatePreferences({ httpProxy: "file:///tmp/proxy" }), /invalid-proxy/);
   assert.throws(() => validatePreferences({ keepAwake: "true" }), /invalid-settings/);
   assert.throws(() => validatePreferences({ noProxy: "host;other" }), /invalid-bypass/);
@@ -239,6 +243,7 @@ test("proxy settings replace inherited values and keep credentials in the main p
       PATH: "/bin",
     },
     DEFAULTS,
+    "linux",
   );
   assert.deepEqual(direct, {
     PATH: "/bin",
@@ -248,7 +253,17 @@ test("proxy settings replace inherited values and keep credentials in the main p
   const configured = proxyEnvironment(
     {},
     { ...DEFAULTS, httpProxy: "http://127.0.0.1:7890", noProxy: ".example.com" },
+    "linux",
   );
   assert.equal(configured.HTTPS_PROXY, configured.http_proxy);
   assert.equal(configured.NO_PROXY, "localhost,127.0.0.1,::1,.example.com");
+  assert.equal(
+    proxyEnvironment({}, DEFAULTS, "win32").PI_WORKBENCH_TERMINAL_SHELL,
+    "powershell.exe",
+  );
+  assert.equal(
+    proxyEnvironment({}, { ...DEFAULTS, terminalShell: "command-prompt" }, "win32")
+      .PI_WORKBENCH_TERMINAL_SHELL,
+    "cmd.exe",
+  );
 });

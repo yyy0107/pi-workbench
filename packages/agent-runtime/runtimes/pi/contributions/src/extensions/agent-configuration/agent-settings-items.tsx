@@ -307,18 +307,26 @@ function PromptSettingsEditor({
                 </PopoverDescription>
               </PopoverHeader>
               <dl className="divide-border divide-y">
-                {(["cwd", "tools", "tool_guidelines", "readme", "docs", "examples"] as const).map(
-                  (name) => (
-                    <div key={name} className="py-2.5">
-                      <dt>
-                        <code className="select-text text-sm">{`{{pi.${name}}}`}</code>
-                      </dt>
-                      <dd className="text-muted-foreground mt-1 text-xs leading-5">
-                        {t(`extensions.agentConfiguration.placeholders.${name}`)}
-                      </dd>
-                    </div>
-                  ),
-                )}
+                {(
+                  [
+                    "cwd",
+                    "terminal_environment",
+                    "tools",
+                    "tool_guidelines",
+                    "readme",
+                    "docs",
+                    "examples",
+                  ] as const
+                ).map((name) => (
+                  <div key={name} className="py-2.5">
+                    <dt>
+                      <code className="select-text text-sm">{`{{pi.${name}}}`}</code>
+                    </dt>
+                    <dd className="text-muted-foreground mt-1 text-xs leading-5">
+                      {t(`extensions.agentConfiguration.placeholders.${name}`)}
+                    </dd>
+                  </div>
+                ))}
               </dl>
               <p className="text-muted-foreground text-xs leading-5">
                 {t("extensions.agentConfiguration.placeholders.automaticContext")}

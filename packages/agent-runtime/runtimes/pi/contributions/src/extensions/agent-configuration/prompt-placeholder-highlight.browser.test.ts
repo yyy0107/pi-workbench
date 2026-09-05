@@ -27,7 +27,7 @@ test(
         file,
         `<!doctype html>
       <style>:root { --info: blue; --info-foreground: navy; } ${css}</style>
-      <div id="editor" class="promptEditor"><div data-workbench-code><pre>中文😀 <span>{{pi.</span><span>tool_guidelines}}</span> {{pi.cwd}} {{pi.unknown}} {{pi.docs</pre></div><textarea>{{pi.cwd}}</textarea></div>
+      <div id="editor" class="promptEditor"><div data-workbench-code><pre>中文😀 <span>{{pi.</span><span>tool_guidelines}}</span> {{pi.cwd}} {{pi.terminal_environment}} {{pi.unknown}} {{pi.docs</pre></div><textarea>{{pi.cwd}}</textarea></div>
       <div id="preview" class="promptEditor"><div data-slot="markdown-preview"><article><p>{{pi.tools}} <code>{{pi.readme}}</code> {{pi.docs}} {{pi.examples}}</p></article></div></div>
       <output id="result"></output>
       <script type="module">
@@ -44,7 +44,7 @@ test(
         const clearPreview = highlightPromptPlaceholders(preview);
         const highlight = CSS.highlights.get('pi-prompt-placeholder');
         const texts = () => [...highlight].map(range => range.toString());
-        check(JSON.stringify(texts()) === JSON.stringify(['{{pi.tool_guidelines}}', '{{pi.cwd}}', '{{pi.tools}}', '{{pi.readme}}', '{{pi.docs}}', '{{pi.examples}}']), 'Known tokens and split syntax spans');
+        check(JSON.stringify(texts()) === JSON.stringify(['{{pi.tool_guidelines}}', '{{pi.cwd}}', '{{pi.terminal_environment}}', '{{pi.tools}}', '{{pi.readme}}', '{{pi.docs}}', '{{pi.examples}}']), 'Known tokens and split syntax spans');
         check(editor.innerHTML === original && editor.querySelector('textarea').value === '{{pi.cwd}}', 'Source and copy text preserved');
         check(editor.offsetWidth === width && editor.offsetHeight === height, 'No editor layout changes');
         const code = editor.querySelector('pre span');

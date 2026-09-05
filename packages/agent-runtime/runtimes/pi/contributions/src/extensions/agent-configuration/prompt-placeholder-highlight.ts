@@ -1,5 +1,6 @@
 const HIGHLIGHT_NAME = "pi-prompt-placeholder";
-const PLACEHOLDER = /\{\{pi\.(?:cwd|tools|tool_guidelines|readme|docs|examples)\}\}/gu;
+const PLACEHOLDER =
+  /\{\{pi\.(?:cwd|terminal_environment|tools|tool_guidelines|readme|docs|examples)\}\}/gu;
 
 export function highlightPromptPlaceholders(container: HTMLElement): () => void {
   if (!globalThis.CSS?.highlights || typeof Highlight === "undefined") return () => {};

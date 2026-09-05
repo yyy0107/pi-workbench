@@ -31,6 +31,7 @@ test("expands scoped prompt files through Pi tool changes, reload, and continuat
   await mkdir(path.join(cwd, ".pi"), { recursive: true });
   const template = [
     "Workspace: {{pi.cwd}}",
+    "Environment: {{pi.terminal_environment}}",
     "Tools:\n{{pi.tools}}",
     "Guidelines:\n{{pi.tool_guidelines}}",
     "Docs: {{pi.readme}} | {{pi.docs}} | {{pi.examples}}",
@@ -86,13 +87,20 @@ test("expands scoped prompt files through Pi tool changes, reload, and continuat
       ],
     });
     t.after(() => session.dispose());
-    installSystemPromptPlaceholders(session);
+    installSystemPromptPlaceholders(session, {
+      environment: {
+        PI_WORKBENCH_TERMINAL_SHELL: "cmd.exe",
+        WORKBENCH_TERMINAL_SHELL: "powershell.exe",
+      },
+      platform: "win32",
+    });
     await session.bindExtensions({ mode: "rpc" });
     return session;
   };
   const session = await createSession(cwd);
   const prompt = session.systemPrompt;
   assert.ok(prompt.includes(`Workspace: ${cwd}`));
+  assert.ok(prompt.includes("Environment: Windows native; shell: cmd.exe"));
   assert.ok(prompt.includes(`Append: ${cwd}`));
   assert.ok(prompt.includes(`Docs: ${getReadmePath()} | ${getDocsPath()} | ${getExamplesPath()}`));
   assert.ok(prompt.includes("- probe: Keep {{pi.docs}} literal"));
