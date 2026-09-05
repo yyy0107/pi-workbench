@@ -621,8 +621,8 @@ export const extensionsEnUS = {
     tokenUnit: "tok",
     unavailable: "—",
     detailsTitle: "Conversation statistics",
-    showDetails: "Show conversation statistics",
-    description: "Aggregated statistics for the current conversation",
+    showDetails: "Show context and conversation statistics",
+    description: "Current context usage and cumulative conversation statistics",
     currentContextTitle: "Current context",
     currentContextDescription:
       "Current context occupancy is the next request's working set. It is different from cumulative session tokens billed across all turns.",
@@ -637,7 +637,7 @@ export const extensionsEnUS = {
     modelInputBreakdown: "Model input composition",
     breakdownGroups: {
       instructions: "Instructions and context",
-      tools: "Tool schemas",
+      tools: "Tool definitions",
       conversation: "Conversation content",
     },
     breakdownCategories: {
@@ -652,7 +652,17 @@ export const extensionsEnUS = {
       "tool-results": "Tool results",
       other: "Other model input",
     },
-    contextBudget: "Session context budget",
+    usageEstimateDescription:
+      "Usage and categories are estimates, updated as model steps progress.",
+    contextSettings: "Context settings",
+    contextBudgetDescription:
+      "Follows the current model configuration by default. A custom limit applies only to this conversation and cannot increase model capacity.",
+    modelCapacity: ({ tokens }: { tokens: string }) =>
+      `Configured model capacity: ${tokens} tokens`,
+    compactionThreshold: ({ tokens }: { tokens: string }) =>
+      `Auto-compaction threshold: ${tokens} tokens`,
+    autoCompactionDisabled: "Automatic compaction is disabled",
+    contextBudget: "Context limit",
     contextBudgetControlLabel: ({ mode, tokens }: { mode: string; tokens: string }) =>
       `Session context budget: ${mode}, ${tokens}`,
     customContextBudget: "Custom session context budget",
@@ -660,7 +670,7 @@ export const extensionsEnUS = {
     customContextBudgetInvalid: ({ tokens }: { tokens: string }) =>
       `Enter a whole number no greater than this model's ${tokens}-token capacity.`,
     contextBudgetModes: {
-      inherit: "Inherit",
+      inherit: "Follow model",
       auto: "Auto",
       maximum: "Maximum",
       custom: "Custom",
@@ -674,7 +684,7 @@ export const extensionsEnUS = {
     contextCompactionCancelled: "Context compaction was cancelled.",
     contextActionBusy: "The conversation is running. Wait for the current operation and try again.",
     contextActionFailed: "The context action could not be completed. Try again.",
-    cumulativeTitle: "Cumulative session tokens and timing",
+    cumulativeTitle: "Cumulative usage and performance",
   },
 
   workspaceFile: {

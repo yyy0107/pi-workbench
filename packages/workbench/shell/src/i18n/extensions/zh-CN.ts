@@ -604,8 +604,8 @@ export const extensionsZhCN = {
     tokenUnit: "tok",
     unavailable: "—",
     detailsTitle: "会话统计",
-    showDetails: "展开会话统计",
-    description: "汇总当前会话全部轮次的统计信息",
+    showDetails: "查看上下文与会话统计",
+    description: "当前上下文占用与会话累计统计",
     currentContextTitle: "当前上下文",
     currentContextDescription:
       "当前上下文占用是下一次请求的工作集，与会话所有轮次累计计费的 token 不同。",
@@ -619,7 +619,7 @@ export const extensionsZhCN = {
     modelInputBreakdown: "模型输入构成",
     breakdownGroups: {
       instructions: "指令与上下文",
-      tools: "工具 Schema",
+      tools: "工具定义",
       conversation: "会话内容",
     },
     breakdownCategories: {
@@ -634,7 +634,13 @@ export const extensionsZhCN = {
       "tool-results": "工具结果",
       other: "其他模型输入",
     },
-    contextBudget: "会话上下文预算",
+    usageEstimateDescription: "占用与分类均为估算值，随模型步骤更新。",
+    contextSettings: "上下文设置",
+    contextBudgetDescription: "默认跟随当前模型配置；自定义仅限制本会话，不会增加模型容量。",
+    modelCapacity: ({ tokens }: { tokens: string }) => `模型配置容量：${tokens} token`,
+    compactionThreshold: ({ tokens }: { tokens: string }) => `自动压缩阈值：${tokens} token`,
+    autoCompactionDisabled: "自动压缩已关闭",
+    contextBudget: "上下文上限",
     contextBudgetControlLabel: ({ mode, tokens }: { mode: string; tokens: string }) =>
       `会话上下文预算：${mode}，${tokens}`,
     customContextBudget: "自定义会话上下文预算",
@@ -642,7 +648,7 @@ export const extensionsZhCN = {
     customContextBudgetInvalid: ({ tokens }: { tokens: string }) =>
       `请输入不超过当前模型 ${tokens} token 容量的整数。`,
     contextBudgetModes: {
-      inherit: "继承",
+      inherit: "跟随模型",
       auto: "自动",
       maximum: "最大",
       custom: "自定义",
@@ -654,7 +660,7 @@ export const extensionsZhCN = {
     contextCompactionCancelled: "上下文压缩已取消。",
     contextActionBusy: "会话正在运行；请等待当前操作完成后再试。",
     contextActionFailed: "无法完成上下文操作，请重试。",
-    cumulativeTitle: "会话累计 token 与耗时",
+    cumulativeTitle: "累计用量与性能",
   },
 
   workspaceFile: {

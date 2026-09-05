@@ -384,6 +384,35 @@ test("marks account-runtime overrides and restores the provider source", async (
   );
 });
 
+test("custom model settings and catalogs report the effective capacity override", async () => {
+  const effectiveModel = { ...models[0], contextWindow: 131_072 };
+  const service = modelService({
+    modelConfigStore: memoryModelConfigStore({
+      openai: {
+        models: [{ id: effectiveModel.id, contextWindow: 1_000_000 }],
+        modelOverrides: { [effectiveModel.id]: { contextWindow: 131_072 } },
+      },
+    }),
+    runtime: runtime({
+      getModels: () => [effectiveModel],
+      getAvailable: async () => [effectiveModel],
+    }),
+  });
+
+  const configured = (await service.providerConfig({ provider: "openai" })).models[0];
+  const capacity = await service.modelContextWindow({
+    provider: "openai",
+    model: effectiveModel.id,
+  });
+  const catalog = (await service.models()).groups.find(({ id }) => id === "openai")?.models[0];
+  assert.equal(configured?.contextWindow, 131_072);
+  assert.equal(configured?.contextWindowSource, "override");
+  assert.equal(capacity.contextWindow, 131_072);
+  assert.equal(capacity.source, "override");
+  assert.equal(catalog?.contextWindow, 131_072);
+  assert.equal(catalog?.contextWindowSource, "override");
+});
+
 test("maps provider auth status without reading credential values", async () => {
   let statusReads = 0;
   let credentialReads = 0;

@@ -1310,7 +1310,15 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
         runtimeModelConfiguration(model, "provider"),
       ),
       models:
-        stored?.models?.map((model) => ({ ...model, contextWindowSource: "custom" as const })) ??
+        stored?.models?.map((model) => {
+          const contextWindow = stored.modelOverrides?.[model.id]?.contextWindow;
+          return {
+            ...model,
+            ...(contextWindow === undefined ? {} : { contextWindow }),
+            contextWindowSource:
+              contextWindow === undefined ? ("custom" as const) : ("override" as const),
+          };
+        }) ??
         runtimeModels.map((model) =>
           runtimeModelConfiguration(
             model,
@@ -1658,11 +1666,12 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
       throw new ModelServiceError("model-not-found", "The model does not exist.", input);
     }
     const stored = (await this.modelConfigStore.providers())[input.provider];
-    const source = stored?.models?.some(({ id }) => id === input.model)
-      ? "custom"
-      : stored?.modelOverrides?.[input.model]?.contextWindow === undefined
-        ? "provider"
-        : "override";
+    const source =
+      stored?.modelOverrides?.[input.model]?.contextWindow !== undefined
+        ? "override"
+        : stored?.models?.some(({ id }) => id === input.model)
+          ? "custom"
+          : "provider";
     return {
       provider: model.provider,
       model: model.id,
@@ -1914,7 +1923,9 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
                           ? imageInputCapability(storedModel.input)
                           : "unknown",
                         storedModel.imageInputSource,
-                        "custom",
+                        modelOverrides?.[model.id]?.contextWindow === undefined
+                          ? "custom"
+                          : "override",
                       )
                     : toModelCatalogModel(
                         model,

@@ -270,6 +270,42 @@ test("writes one model context-window override while preserving provider configu
   assert.equal(await readFile(stateFile, "utf8"), original);
 });
 
+test("saving a custom model capacity supersedes only its stale capacity override", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "workbench-model-capacity-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const stateFile = path.join(directory, "models.json");
+  const original = JSON.stringify({
+    providers: {
+      acme: {
+        apiKey: "keep-secret",
+        models: [{ id: "flash", contextWindow: 1_000_000 }],
+        modelOverrides: {
+          flash: { contextWindow: 131_072, maxTokens: 32_000 },
+          other: { contextWindow: 64_000 },
+        },
+      },
+    },
+  });
+  await writeFile(stateFile, original);
+  const store = new ModelConfigStore({ stateFile });
+
+  const mutation = await store.setProvider("acme", {
+    baseURL: "https://api.example.test/v1",
+    api: "openai-completions",
+    models: [{ id: "flash", contextWindow: 1_000_000 }, { id: "other" }],
+  });
+  const saved = JSON.parse(await readFile(stateFile, "utf8"));
+  assert.equal(saved.providers.acme.models[0].contextWindow, 1_000_000);
+  assert.deepEqual(saved.providers.acme.modelOverrides, {
+    flash: { maxTokens: 32_000 },
+    other: { contextWindow: 64_000 },
+  });
+  assert.equal(saved.providers.acme.apiKey, "keep-secret");
+
+  await mutation.rollback();
+  assert.equal(await readFile(stateFile, "utf8"), original);
+});
+
 test("resets only one context-window override and preserves sibling override fields", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "workbench-model-config-reset-"));
   t.after(() => rm(directory, { recursive: true, force: true }));

@@ -331,6 +331,19 @@ export class ModelConfigStore implements ModelConfigStorage {
         nextProvider.models = configuration.models.map((model) =>
           storedModel(existingModels.get(model.id), model),
         );
+        // Saving an explicit model capacity supersedes an older per-model capacity override.
+        const modelOverrides = isObject(current.modelOverrides)
+          ? { ...current.modelOverrides }
+          : {};
+        for (const model of configuration.models) {
+          const override = modelOverrides[model.id];
+          if (model.contextWindow === undefined || !isObject(override)) continue;
+          const { contextWindow: _contextWindow, ...remaining } = override;
+          if (Object.keys(remaining).length > 0) modelOverrides[model.id] = remaining;
+          else delete modelOverrides[model.id];
+        }
+        if (Object.keys(modelOverrides).length > 0) nextProvider.modelOverrides = modelOverrides;
+        else delete nextProvider.modelOverrides;
         const providerSources = Object.fromEntries(
           configuration.models.flatMap((model) =>
             model.imageInputSource ? [[model.id, model.imageInputSource] as const] : [],

@@ -15,7 +15,7 @@ import {
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { ScrollCompensatedDetails } from "@workbench/shell/elements";
-import { Button } from "@workbench/shell/ui";
+import { Button, buttonVariants } from "@workbench/shell/ui";
 import { DropdownMenu, DropdownMenuRadioGroup } from "@workbench/shell/ui";
 import { Input } from "@workbench/shell/ui";
 import { useOpenerService, useWorkspaceContext } from "@workbench/shell/right-workspace/react";
@@ -63,17 +63,17 @@ const CONTEXT_BREAKDOWN_GROUPS = [
   {
     id: "instructions",
     categories: ["system-prompt", "skills", "context-files"],
-    colorClassName: "bg-slate-400 dark:bg-slate-500",
+    colorClassName: "bg-muted-foreground",
   },
   {
     id: "tools",
     categories: ["builtin-tools", "mcp-tools", "extension-tools"],
-    colorClassName: "bg-violet-500 dark:bg-violet-400",
+    colorClassName: "bg-chart-4",
   },
   {
     id: "conversation",
     categories: ["user-input", "assistant-history", "tool-results", "other"],
-    colorClassName: "bg-blue-500 dark:bg-blue-400",
+    colorClassName: "bg-info",
   },
 ] as const satisfies ReadonlyArray<{
   id: "instructions" | "tools" | "conversation";
@@ -270,7 +270,7 @@ function ThreadTokenUsage() {
   const compactTokens = (tokens: number) =>
     number(Math.round(tokens), {
       notation: "compact",
-      minimumFractionDigits: 1,
+      minimumFractionDigits: 0,
       maximumFractionDigits: 1,
     });
   const duration = (milliseconds: number) =>
@@ -369,8 +369,8 @@ function ThreadTokenUsage() {
   ]);
 
   useEffect(() => {
-    if (!isRunning && remoteId) void contextPolicy.refresh().catch(() => undefined);
-  }, [contextPolicy.refresh, isRunning, nodes.length, remoteId]);
+    if (remoteId) void contextPolicy.refresh().catch(() => undefined);
+  }, [contextPolicy.refresh, isRunning, nodes.length, currentStatistics.steps, remoteId]);
 
   const updateContextPolicy = (policy: WorkbenchContextPolicy) => {
     setContextActionError(null);
@@ -416,16 +416,16 @@ function ThreadTokenUsage() {
               aria-label={t("extensions.tokenUsage.showDetails")}
               className={`h-6 gap-1 rounded-sm px-1 text-[11px] tabular-nums ${
                 context?.nearingCompaction
-                  ? "text-amber-700 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200"
+                  ? "text-warning-foreground"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             />
           }
         >
           {context?.nearingCompaction ? (
-            <TriangleAlertIcon aria-hidden="true" className="size-3.5" />
+            <TriangleAlertIcon aria-hidden="true" className="size-(--icon-size-sm)" />
           ) : (
-            <GaugeIcon aria-hidden="true" className="size-3.5" />
+            <GaugeIcon aria-hidden="true" className="size-(--icon-size-sm)" />
           )}
           <span>{contextUsageLabel}</span>
         </PopoverTrigger>
@@ -433,7 +433,7 @@ function ThreadTokenUsage() {
           side="top"
           align="end"
           sideOffset={6}
-          className="max-h-[calc(100vh-1rem)] w-[min(23rem,calc(100vw-1rem))] gap-4 overflow-y-auto rounded-2xl p-4"
+          className="max-h-[calc(100vh-1rem)] w-[min(23rem,calc(100vw-1rem))] gap-3 overflow-y-auto p-4"
         >
           <PopoverHeader className="sr-only">
             <PopoverTitle>{t("extensions.tokenUsage.currentContextTitle")}</PopoverTitle>
@@ -485,9 +485,7 @@ function ThreadTokenUsage() {
               ) : (
                 <div
                   aria-hidden="true"
-                  className={
-                    context?.nearingCompaction ? "h-full bg-amber-500" : "h-full bg-primary"
-                  }
+                  className={context?.nearingCompaction ? "h-full bg-warning" : "h-full bg-primary"}
                   style={{
                     width: `${Math.min(100, Math.max(0, contextUsedPercent ?? 0))}%`,
                   }}
@@ -495,8 +493,11 @@ function ThreadTokenUsage() {
               )}
             </div>
             {context?.nearingCompaction ? (
-              <p className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
-                <TriangleAlertIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+              <p className="text-warning-foreground flex items-start gap-1.5 text-xs">
+                <TriangleAlertIcon
+                  aria-hidden="true"
+                  className="mt-0.5 size-(--icon-size-sm) shrink-0"
+                />
                 <span>{t("extensions.tokenUsage.nearingCompaction")}</span>
               </p>
             ) : null}
@@ -510,14 +511,21 @@ function ThreadTokenUsage() {
             >
               {contextBreakdownGroups.map((group) => (
                 <ScrollCompensatedDetails key={group.id} role="listitem" className="group">
-                  <summary className="hover:bg-muted/60 focus-visible:ring-ring -mx-1 flex min-h-7 cursor-pointer list-none items-center gap-1.5 rounded-md px-1 text-xs outline-none focus-visible:ring-2 [&::-webkit-details-marker]:hidden">
+                  <summary
+                    className={buttonVariants({
+                      variant: "ghost",
+                      size: "sm",
+                      className:
+                        "flex w-full cursor-pointer list-none justify-start text-xs [&::-webkit-details-marker]:hidden",
+                    })}
+                  >
                     <ChevronRightIcon
                       aria-hidden="true"
-                      className="text-muted-foreground size-3 shrink-0 transition-transform group-open:rotate-90"
+                      className="text-muted-foreground size-(--icon-size-sm) shrink-0 transition-transform group-open:rotate-90"
                     />
                     <span
                       aria-hidden="true"
-                      className={`size-2.5 shrink-0 rounded-[3px] ${group.colorClassName}`}
+                      className={`size-2.5 shrink-0 rounded-(--radius-sm) ${group.colorClassName}`}
                     />
                     <span className="min-w-0 flex-1">
                       {t(`extensions.tokenUsage.breakdownGroups.${group.id}`)}
@@ -548,154 +556,206 @@ function ThreadTokenUsage() {
             </div>
           ) : null}
 
-          <div className="border-t pt-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-medium">{t("extensions.tokenUsage.contextBudget")}</p>
-              <DropdownMenu>
-                <SettingsDropdownTrigger
-                  aria-label={t("extensions.tokenUsage.contextBudgetControlLabel", {
-                    mode: selectedContextBudgetModeLabel,
-                    tokens: displayedContextBudgetLabel,
-                  })}
-                  className="min-w-28 justify-between gap-1.5 px-2.5 text-xs"
-                  disabled={
-                    isRunning || contextPolicy.status === "saving" || !remoteId || !context?.model
-                  }
-                >
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <span>{selectedContextBudgetModeLabel}</span>
-                    <span className="text-muted-foreground tabular-nums">
-                      {displayedContextBudgetLabel}
-                    </span>
-                  </span>
-                  <ChevronDownIcon
-                    aria-hidden="true"
-                    className="text-muted-foreground size-3 shrink-0"
-                  />
-                </SettingsDropdownTrigger>
-                <SettingsDropdownContent align="end" side="bottom">
-                  <DropdownMenuRadioGroup
-                    value={selectedContextBudgetMode}
-                    aria-label={t("extensions.tokenUsage.contextBudget")}
-                    onValueChange={(nextMode) => {
-                      const mode = CONTEXT_BUDGET_MODES.find((candidate) => candidate === nextMode);
-                      if (mode) selectContextBudgetMode(mode);
-                    }}
+          <p className="text-muted-foreground text-xs">
+            {t("extensions.tokenUsage.usageEstimateDescription")}
+          </p>
+
+          <ScrollCompensatedDetails className="group/settings border-t pt-2">
+            <summary
+              className={buttonVariants({
+                variant: "ghost",
+                size: "sm",
+                className:
+                  "flex w-full cursor-pointer list-none justify-start text-xs [&::-webkit-details-marker]:hidden",
+              })}
+            >
+              <ChevronRightIcon
+                aria-hidden="true"
+                className="text-muted-foreground transition-transform group-open/settings:rotate-90"
+              />
+              <span className="flex-1">{t("extensions.tokenUsage.contextSettings")}</span>
+              <span className="text-muted-foreground">{selectedContextBudgetModeLabel}</span>
+            </summary>
+            <div className="mt-2 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-medium">{t("extensions.tokenUsage.contextBudget")}</p>
+                <DropdownMenu>
+                  <SettingsDropdownTrigger
+                    aria-label={t("extensions.tokenUsage.contextBudgetControlLabel", {
+                      mode: selectedContextBudgetModeLabel,
+                      tokens: displayedContextBudgetLabel,
+                    })}
+                    className="min-w-28 justify-between gap-1.5 px-2.5 text-xs"
+                    disabled={
+                      isRunning || contextPolicy.status === "saving" || !remoteId || !context?.model
+                    }
                   >
-                    {CONTEXT_BUDGET_MODES.map((mode) => (
-                      <SettingsDropdownRadioItem
-                        key={mode}
-                        value={mode}
-                        className="py-1 text-xs"
-                        disabled={isRunning || contextPolicy.status === "saving" || !remoteId}
-                      >
-                        {t(`extensions.tokenUsage.contextBudgetModes.${mode}`)}
-                      </SettingsDropdownRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </SettingsDropdownContent>
-              </DropdownMenu>
-            </div>
-            {selectedContextBudgetMode === "custom" && modelCapacity ? (
-              <div className="mt-1.5">
-                <div className="flex gap-2">
-                  <Input
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={customBudget}
-                    disabled={isRunning || contextPolicy.status === "saving"}
-                    aria-label={t("extensions.tokenUsage.customContextBudget")}
-                    aria-invalid={invalidCustomBudget}
-                    aria-describedby={invalidCustomBudget ? contextBudgetValidationId : undefined}
-                    className="text-xs tabular-nums"
-                    onChange={(event) => {
-                      setCustomBudget(event.currentTarget.value.replace(/\D+/gu, ""));
-                      setContextActionError(null);
-                    }}
-                  />
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span>{selectedContextBudgetModeLabel}</span>
+                      <span className="text-muted-foreground tabular-nums">
+                        {displayedContextBudgetLabel}
+                      </span>
+                    </span>
+                    <ChevronDownIcon
+                      aria-hidden="true"
+                      className="text-muted-foreground size-(--icon-size-sm) shrink-0"
+                    />
+                  </SettingsDropdownTrigger>
+                  <SettingsDropdownContent align="end" side="bottom">
+                    <DropdownMenuRadioGroup
+                      value={selectedContextBudgetMode}
+                      aria-label={t("extensions.tokenUsage.contextBudget")}
+                      onValueChange={(nextMode) => {
+                        const mode = CONTEXT_BUDGET_MODES.find(
+                          (candidate) => candidate === nextMode,
+                        );
+                        if (mode) selectContextBudgetMode(mode);
+                      }}
+                    >
+                      {CONTEXT_BUDGET_MODES.map((mode) => (
+                        <SettingsDropdownRadioItem
+                          key={mode}
+                          value={mode}
+                          className="py-1 text-xs"
+                          disabled={isRunning || contextPolicy.status === "saving" || !remoteId}
+                        >
+                          {t(`extensions.tokenUsage.contextBudgetModes.${mode}`)}
+                        </SettingsDropdownRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </SettingsDropdownContent>
+                </DropdownMenu>
+              </div>
+              {selectedContextBudgetMode === "custom" && modelCapacity ? (
+                <div className="mt-1.5">
+                  <div className="flex gap-2">
+                    <Input
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={customBudget}
+                      disabled={isRunning || contextPolicy.status === "saving"}
+                      aria-label={t("extensions.tokenUsage.customContextBudget")}
+                      aria-invalid={invalidCustomBudget}
+                      aria-describedby={invalidCustomBudget ? contextBudgetValidationId : undefined}
+                      className="text-xs tabular-nums"
+                      onChange={(event) => {
+                        setCustomBudget(event.currentTarget.value.replace(/\D+/gu, ""));
+                        setContextActionError(null);
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={
+                        isRunning ||
+                        contextPolicy.status === "saving" ||
+                        invalidCustomBudget ||
+                        !remoteId
+                      }
+                      onClick={() =>
+                        updateContextPolicy({
+                          mode: "custom",
+                          desiredContextTokens: parsedCustomBudget,
+                          ...(context?.policy.compaction
+                            ? { compaction: context.policy.compaction }
+                            : {}),
+                        })
+                      }
+                    >
+                      {t("extensions.tokenUsage.applyContextBudget")}
+                    </Button>
+                  </div>
+                  {invalidCustomBudget ? (
+                    <p
+                      id={contextBudgetValidationId}
+                      className="text-destructive mt-1 text-[11px] leading-4"
+                      role="alert"
+                    >
+                      {t("extensions.tokenUsage.customContextBudgetInvalid", {
+                        tokens: number(modelCapacity),
+                      })}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="text-muted-foreground space-y-1 text-xs">
+                <p>{t("extensions.tokenUsage.contextBudgetDescription")}</p>
+                {modelCapacity !== undefined ? (
+                  <p>
+                    {t("extensions.tokenUsage.modelCapacity", { tokens: number(modelCapacity) })}
+                  </p>
+                ) : null}
+                <p>
+                  {context?.compaction.enabled === false
+                    ? t("extensions.tokenUsage.autoCompactionDisabled")
+                    : context?.compaction.thresholdTokens !== undefined
+                      ? t("extensions.tokenUsage.compactionThreshold", {
+                          tokens: number(context.compaction.thresholdTokens),
+                        })
+                      : unavailable}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={isRunning || contextPolicy.status === "saving" || !remoteId}
+                  onClick={() => {
+                    setContextActionError(null);
+                    void contextPolicy
+                      .compact()
+                      .catch((error: unknown) => setContextActionError(error));
+                  }}
+                >
+                  {t("extensions.tokenUsage.compactNow")}
+                </Button>
+                {canOpenContextTrace ? (
                   <Button
                     type="button"
                     size="sm"
-                    className="rounded-full"
-                    disabled={
-                      isRunning ||
-                      contextPolicy.status === "saving" ||
-                      invalidCustomBudget ||
-                      !remoteId
-                    }
-                    onClick={() =>
-                      updateContextPolicy({
-                        mode: "custom",
-                        desiredContextTokens: parsedCustomBudget,
-                        ...(context?.policy.compaction
-                          ? { compaction: context.policy.compaction }
-                          : {}),
-                      })
-                    }
+                    variant="ghost"
+                    disabled={!remoteId}
+                    onClick={() => {
+                      if (!traceRequest) return;
+                      void openers
+                        .open(traceRequest)
+                        .catch((error: unknown) => setContextActionError(error));
+                      setDetailsOpen(false);
+                    }}
                   >
-                    {t("extensions.tokenUsage.applyContextBudget")}
+                    <ScanSearchIcon aria-hidden="true" />
+                    {t("extensions.tokenUsage.viewContextTrace")}
                   </Button>
-                </div>
-                {invalidCustomBudget ? (
-                  <p
-                    id={contextBudgetValidationId}
-                    className="text-destructive mt-1 text-[11px] leading-4"
-                    role="alert"
-                  >
-                    {t("extensions.tokenUsage.customContextBudgetInvalid", {
-                      tokens: number(modelCapacity),
-                    })}
-                  </p>
                 ) : null}
               </div>
-            ) : null}
-          </div>
-
-          <div className="flex flex-wrap gap-2 border-t pt-3">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="rounded-full"
-              disabled={isRunning || contextPolicy.status === "saving" || !remoteId}
-              onClick={() => {
-                setContextActionError(null);
-                void contextPolicy
-                  .compact()
-                  .catch((error: unknown) => setContextActionError(error));
-              }}
-            >
-              {t("extensions.tokenUsage.compactNow")}
-            </Button>
-            {canOpenContextTrace ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="rounded-full"
-                disabled={!remoteId}
-                onClick={() => {
-                  if (!traceRequest) return;
-                  void openers
-                    .open(traceRequest)
-                    .catch((error: unknown) => setContextActionError(error));
-                  setDetailsOpen(false);
-                }}
-              >
-                <ScanSearchIcon aria-hidden="true" />
-                {t("extensions.tokenUsage.viewContextTrace")}
-              </Button>
-            ) : null}
-          </div>
+            </div>
+          </ScrollCompensatedDetails>
           {contextActionFailure !== undefined && contextActionFailure !== null ? (
             <p className="text-destructive text-xs" role="alert">
               {t(contextActionErrorMessageKey(contextActionFailure))}
             </p>
           ) : null}
 
-          <div className="border-t pt-3">
-            <p className="mb-2 text-xs font-medium">{t("extensions.tokenUsage.cumulativeTitle")}</p>
-            <div className="text-foreground flex flex-col gap-2 text-xs tabular-nums">
+          <ScrollCompensatedDetails className="group/statistics border-t pt-2">
+            <summary
+              className={buttonVariants({
+                variant: "ghost",
+                size: "sm",
+                className:
+                  "flex w-full cursor-pointer list-none justify-start text-xs [&::-webkit-details-marker]:hidden",
+              })}
+            >
+              <ChevronRightIcon
+                aria-hidden="true"
+                className="text-muted-foreground transition-transform group-open/statistics:rotate-90"
+              />
+              {t("extensions.tokenUsage.cumulativeTitle")}
+            </summary>
+            <p className="text-muted-foreground mt-2 text-xs">
+              {t("extensions.tokenUsage.currentContextDescription")}
+            </p>
+            <div className="text-foreground mt-3 flex flex-col gap-2 text-xs tabular-nums">
               <div className="flex flex-wrap items-center gap-x-1">
                 <span>{t("extensions.tokenUsage.turns", { count: statistics.turns })}</span>
                 <span aria-hidden="true">·</span>
@@ -747,7 +807,7 @@ function ThreadTokenUsage() {
                 </span>
               </div>
             </div>
-          </div>
+          </ScrollCompensatedDetails>
         </PopoverContent>
       </Popover>
 
