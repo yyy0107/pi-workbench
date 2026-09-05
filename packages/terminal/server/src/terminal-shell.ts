@@ -12,7 +12,26 @@ export function terminalShellExecutable(
 ): string {
   if (shell === "command-prompt") return "cmd.exe";
   if (shell === "wsl") return "wsl.exe";
-  if (shell === "powershell") return "powershell.exe";
+  if (shell === "powershell") {
+    const searchPath = Object.entries(environment).find(
+      ([key]) => key.toLowerCase() === "path",
+    )?.[1];
+    const directories = [
+      ...(searchPath ?? "").split(";").map((entry) => entry.trim().replace(/^"|"$/g, "")),
+      ...[environment.ProgramW6432, environment.ProgramFiles, environment["ProgramFiles(x86)"]]
+        .filter((root): root is string => Boolean(root))
+        .map((root) => win32.join(root, "PowerShell", "7")),
+      environment.LOCALAPPDATA && win32.join(environment.LOCALAPPDATA, "Microsoft", "WindowsApps"),
+    ];
+    return (
+      directories
+        .filter((directory): directory is string =>
+          Boolean(directory && win32.isAbsolute(directory)),
+        )
+        .map((directory) => win32.join(directory, "pwsh.exe"))
+        .find(exists) ?? "powershell.exe"
+    );
+  }
   return (
     [
       environment.ProgramFiles,
@@ -39,7 +58,7 @@ export function configuredTerminalShell(
     environment.PI_WORKBENCH_TERMINAL_SHELL?.trim() ||
     environment.WORKBENCH_TERMINAL_SHELL?.trim() ||
     environment.SHELL?.trim() ||
-    (platform === "win32" ? "powershell.exe" : "/bin/bash")
+    (platform === "win32" ? terminalShellExecutable("powershell", environment) : "/bin/bash")
   );
 }
 

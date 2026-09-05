@@ -127,8 +127,15 @@ and restricted to loopback and the four known profiles. Executable paths are res
 Server, not accepted from the renderer. Settings distinguish saved/applying, applied, and failed;
 failed synchronization retains the saved profile for retry and the next Runtime start.
 
+The Windows PowerShell profile prefers `pwsh.exe` from absolute `PATH` entries (in order), then the
+standard `PowerShell/7` directories under `ProgramW6432`, `ProgramFiles`, and `ProgramFiles(x86)`,
+then the current user's `LOCALAPPDATA/Microsoft/WindowsApps` entry. If none exists, it falls back to
+`powershell.exe`. This finds PowerShell 7 without replacing existing terminal or AgentSession
+snapshots; custom ZIP installations must be on `PATH` or explicitly configured.
+
 Without a desktop profile, the fallback is `$PI_WORKBENCH_TERMINAL_SHELL`, then
-`$WORKBENCH_TERMINAL_SHELL`, then `$SHELL`, then the platform default (`/bin/bash` or `powershell.exe`).
+`$WORKBENCH_TERMINAL_SHELL`, then `$SHELL`, then the platform default (`/bin/bash` or the same Windows
+PowerShell discovery). Explicit executable overrides are not upgraded or replaced.
 Existing PTYs are never restarted by a default change. Each live Pi AgentSession snapshots its
 explicit `shellPath` or the Runtime default once and shares that value between its Bash tool and
 `{{pi.terminal_environment}}`, including after prompt rebuilds and `/reload`. Reopening a cold
