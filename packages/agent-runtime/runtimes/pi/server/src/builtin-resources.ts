@@ -1,4 +1,4 @@
-import { lstat, mkdir, readFile, readdir, realpath, rm } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, realpath, rm, rmdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -55,15 +55,19 @@ export async function ensureWorkbenchBuiltinResources(agentDir = getAgentDir()) 
           throw new Error("Built-in resources must stay inside the Pi agent directory.");
         await ensureBuiltinDirectory(directory);
       }
-      // ponytail: retire known legacy names below; add a removal manifest if that list grows.
       await copyBuiltinDirectory(
         fileURLToPath(new URL("./skills/builtin-skills/", import.meta.url)),
         directories.skills,
       );
-      await copyBuiltinDirectory(
-        fileURLToPath(new URL("./internal-extensions/", import.meta.url)),
-        directories.extensions,
-      );
+      const extensionSource = fileURLToPath(new URL("./internal-extensions/", import.meta.url));
+      // Each extension owns a directory; the root registry belongs to the compiled host.
+      for (const entry of await readdir(extensionSource, { withFileTypes: true })) {
+        if (entry.isDirectory())
+          await copyBuiltinDirectory(
+            path.join(extensionSource, entry.name),
+            path.join(directories.extensions, entry.name),
+          );
+      }
       // The installed validator lives outside node_modules; record this Runtime's public SDK entry.
       await writeBuiltinFile(
         path.join(directories.skills, "skill-creator", "runtime.json"),
@@ -87,19 +91,49 @@ export async function ensureWorkbenchBuiltinResources(agentDir = getAgentDir()) 
         if (failure) throw failure.error;
       }
       await rm(path.join(directories.skills, "skills-creator"), { recursive: true, force: true });
+      const promptLicense = await readFile(
+        new URL("./builtin-prompt-license.txt", import.meta.url),
+        "utf8",
+      );
       for (const [locale, templates] of Object.entries(piBuiltinPromptCatalogs)) {
-        await ensureBuiltinDirectory(path.join(directories.prompts, locale));
         for (const [name, template] of Object.entries(templates)) {
-          await writeBuiltinFile(
-            path.join(directories.prompts, locale, `prompts-${name}.md`),
-            template.content + "\n",
-          );
+          const directory = path.join(directories.prompts, name);
+          await ensureBuiltinDirectory(directory);
+          await writeBuiltinFile(path.join(directory, `${locale}.md`), template.content + "\n");
+          await writeBuiltinFile(path.join(directory, "LICENSE.pi"), promptLicense);
         }
       }
-      await writeBuiltinFile(
-        path.join(directories.prompts, "LICENSE.pi"),
-        await readFile(new URL("./builtin-prompt-license.txt", import.meta.url), "utf8"),
-      );
+      // Remove only previously shipped flat paths after their replacements have been written.
+      for (const name of [
+        "ask-user",
+        "builtin-tools",
+        "composer-context",
+        "context-trace",
+        "enhanced-search",
+        "index",
+        "legacy-message-termination",
+        "legacy-message-termination-extension-source",
+        "message-termination",
+        "system-prompt-hook-trace",
+        "todo",
+        "tool-availability",
+      ]) {
+        await rm(path.join(directories.extensions, `${name}.ts`), { force: true });
+      }
+      for (const [locale, templates] of Object.entries(piBuiltinPromptCatalogs)) {
+        const legacyDirectory = path.join(directories.prompts, locale);
+        try {
+          if ((await lstat(legacyDirectory)).isSymbolicLink())
+            throw new Error("A built-in resource directory cannot be a symbolic link.");
+          for (const name of Object.keys(templates))
+            await rm(path.join(legacyDirectory, `prompts-${name}.md`), { force: true });
+          await rmdir(legacyDirectory);
+        } catch (error) {
+          const code = (error as NodeJS.ErrnoException).code;
+          if (code !== "ENOENT" && code !== "ENOTEMPTY") throw error;
+        }
+      }
+      await rm(path.join(directories.prompts, "LICENSE.pi"), { force: true });
     },
   );
   return directories;

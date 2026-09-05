@@ -4,12 +4,12 @@ import type { InlineExtension, LoadExtensionsResult } from "@earendil-works/pi-c
 
 import { createBuiltinToolExtensions, type BuiltinToolSettings } from "./builtin-tools";
 import { createAskUserExtension, type AskUserCapabilitySettings } from "./ask-user";
-import type { ToolCapabilitySettings } from "./tool-availability";
+import type { ToolCapabilitySettings } from "./_shared/tool-availability";
 import { composerContextExtension } from "./composer-context";
-import { TODO_EXTENSION_NAME, createTodoExtension } from "./todo";
+import { TODO_EXTENSION_NAME, createTodoExtension } from "./rpiv-todo";
 import { contextTraceExtension } from "./context-trace";
 import { messageTerminationExtension } from "./message-termination";
-import { instrumentSystemPromptHookTracing } from "./system-prompt-hook-trace";
+import { instrumentSystemPromptHookTracing } from "./context-trace/system-prompt-hook-trace";
 
 export const WORKBENCH_INTERNAL_PI_EXTENSION_PATH_PREFIX = "<inline:workbench.";
 

@@ -515,8 +515,10 @@ Workbench 随 Runtime 内置 `skill-creator`，用于创建和更新技能。会
 启停复用 `skill.setEnabled` 与用户级 Pi 设置中的精确资源路径开关。停用后目录和文档仍可查看，
 技能不再进入模型提示词和命令列表；所有受影响会话按现有资源变更流程重载，重启后保持设置。
 Runtime 会将内置资源同步到 Pi 用户目录（默认 `~/.pi/agent`，遵循 `PI_CODING_AGENT_DIR`）：
-技能位于 `skills/.builtin/skill-creator/`，扩展源码与资源位于 `extensions/.builtin/`，双语提示词
-Markdown 位于 `prompts/.builtin/en-US/` 和 `prompts/.builtin/zh-CN/`。同步复用进程间锁与原子文件替换，
+所有内置资源按“一项一个目录”组织：技能位于 `skills/.builtin/skill-creator/`；扩展位于
+`extensions/.builtin/<扩展名>/`，入口为 `index.ts`，专用辅助文件与入口共置，公共能力放在 `_shared/`；
+每个提示词位于 `prompts/.builtin/<提示词名>/`，包含 `en-US.md`、`zh-CN.md` 和 `LICENSE.pi`。
+同步会清理旧版已知的散落文件与空语言目录，保留未知文件。同步复用进程间锁与原子文件替换，
 内容相同时不重写，也不修改 `.builtin` 外的自定义资源。校验脚本通过随安装生成的 `runtime.json` 定位
 当前 Runtime 的公开 Pi SDK，不依赖 Python 或 Codex 配置。
 
@@ -713,7 +715,8 @@ host、文件系统边界和 mutation coordinator 仍由 `ExtensionService` 独�
 
 Workbench 自身依赖的 Pi 生命周期适配器通过 `DefaultResourceLoader` 的隐藏内联
 `extensionFactories` 注入。工具箱的独立资源上下文也注册同一组工厂以读取声明，不创建 AgentSession。
-它们的源码与资源同步到用户目录的 `extensions/.builtin/`，执行仍由宿主的内联工厂负责；
+它们的源码与资源按扩展目录同步到用户目录的 `extensions/.builtin/`，执行仍由宿主的内联工厂负责；
+源码根目录的 `index.ts` 只负责宿主注册，不作为独立资源安装。
 `extension.list` 的可选 `builtins` 数组单独返回名称及工具、命令和事件
 声明，与用户安装的扩展一并显示在工具箱“Pi 扩展”列表与详情页。Todo 与 Ask User 可通过共享 Workbench 设置启停
 （`todoEnabled` 默认停用，`askUserEnabled` 默认启用），即时同步活动会话的可用工具，保留工具历史；纯生命周期
@@ -1237,7 +1240,15 @@ packages/agent-runtime/runtimes/pi/
     ├── extensions/
     │   └── extension-service.ts
     ├── internal-extensions/
-    │   └── message-termination.ts
+    │   ├── index.ts
+    │   ├── _shared/
+    │   ├── ask-user/
+    │   ├── builtin-tools/
+    │   ├── composer-context/
+    │   ├── context-trace/
+    │   ├── enhanced-search/
+    │   ├── message-termination/
+    │   └── rpiv-todo/
     ├── skills/
     │   └── skill-service.ts
     ├── workspaces/

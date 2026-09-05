@@ -1,15 +1,15 @@
 import type { ExtensionContext, ExtensionFactory } from "@earendil-works/pi-coding-agent";
-import { replayFromBranch } from "./rpiv-todo/state/replay";
-import { applyTaskMutation } from "./rpiv-todo/state/state-reducer";
-import type { TaskState } from "./rpiv-todo/state/state";
-import { buildToolResult } from "./rpiv-todo/tool/response-envelope";
-import { TOOL_NAME, TOOL_LABEL, TodoParamsSchema } from "./rpiv-todo/tool/types";
+import { replayFromBranch } from "./state/replay";
+import { applyTaskMutation } from "./state/state-reducer";
+import type { TaskState } from "./state/state";
+import { buildToolResult } from "./tool/response-envelope";
+import { TOOL_NAME, TOOL_LABEL, TodoParamsSchema } from "./tool/types";
 
-import { bindToolAvailability, type ToolCapabilitySettings } from "./tool-availability";
+import { bindToolAvailability, type ToolCapabilitySettings } from "../_shared/tool-availability";
 
 export const TODO_EXTENSION_NAME = "workbench.rpiv-todo";
 
-// Tool guidance adapted from rpiv todo 2.9.0 (MIT); see ./rpiv-todo/LICENSE.
+// Tool guidance adapted from rpiv todo 2.9.0 (MIT); see ./LICENSE.
 const DEFAULT_PROMPT_SNIPPET = "Manage a task list to track multi-step progress";
 const DEFAULT_PROMPT_GUIDELINES: string[] = [
   "Use `todo` for complex work with 3+ steps, when the user gives you a list of tasks, or immediately after receiving new instructions to capture requirements. Skip it for single trivial tasks and purely conversational requests.",

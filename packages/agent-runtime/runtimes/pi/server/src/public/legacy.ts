@@ -7,7 +7,7 @@ export {
   migrateLegacyWorkbenchMessageTerminationExtension,
   type LegacyWorkbenchMessageTerminationMigrationResult,
   type LegacyWorkbenchMessageTerminationMigrationStatus,
-} from "../internal-extensions/legacy-message-termination";
+} from "../internal-extensions/message-termination/legacy-message-termination";
 
 type SessionRegistryModule = typeof import("../sessions/session-registry");
 type LegacySseModule = typeof import("../streams/legacy-sse");

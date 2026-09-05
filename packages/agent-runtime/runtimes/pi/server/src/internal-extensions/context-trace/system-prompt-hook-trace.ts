@@ -1,7 +1,7 @@
 import type { LoadExtensionsResult } from "@earendil-works/pi-coding-agent";
 
-import { isBuiltinResourceEnabled } from "../agent-runtime/pi-agent-host-bindings";
-import { getSessionContextTrace } from "../sessions/session-context-trace";
+import { isBuiltinResourceEnabled } from "../../agent-runtime/pi-agent-host-bindings";
+import { getSessionContextTrace } from "../../sessions/session-context-trace";
 
 const INSTRUMENTED_HANDLER = Symbol.for("pi-workbench.context-trace.before-agent-start-handler");
 

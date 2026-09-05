@@ -2,7 +2,7 @@ import type { BuiltinResourcePreferenceKey } from "@workbench/agent-runtime-cont
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 
 import type { BuiltinToolSettings } from "../internal-extensions/builtin-tools";
-import type { ToolCapabilitySettings } from "../internal-extensions/tool-availability";
+import type { ToolCapabilitySettings } from "../internal-extensions/_shared/tool-availability";
 import type { AskUserCapabilitySettings } from "../internal-extensions/ask-user";
 
 export interface PiBashToolFactoryInput {

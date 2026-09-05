@@ -105,20 +105,22 @@ test("bundled resources install into the Pi directory after relocation and pruni
   const skillDirectory = path.join(agentDir, "skills", ".builtin", "skill-creator");
   assert.equal(directories.skills, path.dirname(skillDirectory));
   assert.ok(
-    (await readFile(path.join(skillDirectory, "SKILL.md"), "utf8")).includes(
-      "name: skill-creator",
-    ),
+    (await readFile(path.join(skillDirectory, "SKILL.md"), "utf8")).includes("name: skill-creator"),
   );
   assert.ok(
-    (await readFile(path.join(directories.extensions, "todo.ts"), "utf8")).includes(
+    (await readFile(path.join(directories.extensions, "rpiv-todo", "index.ts"), "utf8")).includes(
       "createTodoExtension",
     ),
   );
   assert.ok(
-    (
-      await readFile(path.join(directories.prompts, "zh-CN", "prompts-pi-skill.md"), "utf8")
-    ).includes("SKILL.md"),
+    (await readFile(path.join(directories.prompts, "pi-skill", "zh-CN.md"), "utf8")).includes(
+      "SKILL.md",
+    ),
   );
+  for (const directory of Object.values(directories) as string[])
+    assert.ok(
+      (await readdir(directory, { withFileTypes: true })).every((entry) => entry.isDirectory()),
+    );
   const validation = spawnSync(
     process.execPath,
     [path.join(skillDirectory, "scripts/validate-skill.mjs"), skillDirectory],

@@ -138,12 +138,12 @@ test("rejects symlinks inside actual Pi model-readable roots", (t) => {
 test("admits only inventoried Workbench extension source snapshots and rejects links", (t) => {
   const value = fixture(t);
   const root = path.join(value.artifactRoot, "internal-extensions");
-  mkdirSync(root);
-  writeFileSync(path.join(root, "todo.ts"), "export {};\n");
+  mkdirSync(path.join(root, "rpiv-todo"), { recursive: true });
+  writeFileSync(path.join(root, "rpiv-todo", "index.ts"), "export {};\n");
   const closure = collectRuntimeArtifactModelReadableResources({
     artifactRoot: value.artifactRoot,
   });
-  assert.ok(closure.resources.includes("internal-extensions/todo.ts"));
+  assert.ok(closure.resources.includes("internal-extensions/rpiv-todo/index.ts"));
   const classification = {
     resources: closure.resources,
     modelReadableResources: closure.resources,

@@ -9,9 +9,9 @@ const {
   LEGACY_WORKBENCH_MESSAGE_TERMINATION_EXTENSION_FILE,
   legacyWorkbenchMessageTerminationExtensionSource,
   migrateLegacyWorkbenchMessageTerminationExtension,
-} = await import("../../src/internal-extensions/legacy-message-termination");
+} = await import("../../src/internal-extensions/message-termination/legacy-message-termination");
 const { LEGACY_WORKBENCH_MESSAGE_TERMINATION_EXTENSION_SOURCE } =
-  await import("../../src/internal-extensions/legacy-message-termination-extension-source");
+  await import("../../src/internal-extensions/message-termination/legacy-message-termination-extension-source");
 
 test("embeds the byte-identical historical extension source", async () => {
   const embeddedBytes = Buffer.from(LEGACY_WORKBENCH_MESSAGE_TERMINATION_EXTENSION_SOURCE, "utf8");

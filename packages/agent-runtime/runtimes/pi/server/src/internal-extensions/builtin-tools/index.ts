@@ -14,12 +14,12 @@ import {
   builtinToolEnabled,
   type BuiltinToolName,
 } from "@workbench/agent-runtime-contracts/settings";
-import { bindToolAvailability, type ToolCapabilitySettings } from "./tool-availability";
+import { bindToolAvailability, type ToolCapabilitySettings } from "../_shared/tool-availability";
 import type {
   PiAgentHostBindings,
   PiBashToolFactoryInput,
-} from "../agent-runtime/pi-agent-host-bindings";
-import { createEnhancedSearchTools } from "./enhanced-search";
+} from "../../agent-runtime/pi-agent-host-bindings";
+import { createEnhancedSearchTools } from "../enhanced-search";
 
 export type BuiltinToolSettings = (name: BuiltinToolName) => ToolCapabilitySettings;
 

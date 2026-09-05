@@ -14,7 +14,7 @@ Create skills that give the Workbench agent useful, task-specific guidance. Pres
 - Respect a requested destination. Otherwise use `.pi/skills/<skill-name>/` in the current project; project skills load only after that project is trusted.
 - When the user wants a skill available across projects, use the runtime's user resource directory: `$PI_CODING_AGENT_DIR/skills/` when configured, otherwise `~/.pi/agent/skills/`. Do not infer the user directory from this bundled skill's path.
 - Workbench also discovers `.agents/skills/`. Follow an existing repository convention when present rather than creating a second skills tree.
-- Workbench keeps bundled skills under the user resource directory's `skills/.builtin/`, extension source snapshots under `extensions/.builtin/`, and localized prompt templates under `prompts/.builtin/`. These directories are maintained by the application. Customize resources outside `.builtin/`.
+- Workbench keeps each bundled resource in its own folder: `skills/.builtin/<skill>/SKILL.md`, `extensions/.builtin/<extension>/index.ts`, and `prompts/.builtin/<prompt>/{en-US,zh-CN}.md`. Extension helpers live with their extension; shared helpers live under `extensions/.builtin/_shared/`. These directories are maintained by the application. Customize resources outside `.builtin/`.
 - Ask only for missing information that changes the result. Proceed when the request and available examples establish a useful scope.
 
 ## Write a focused skill

@@ -1,10 +1,10 @@
 import type { ExtensionFactory, ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { bindToolAvailability, type ToolCapabilitySettings } from "./tool-availability";
+import { bindToolAvailability, type ToolCapabilitySettings } from "../_shared/tool-availability";
 
 import type { QuestionAnswerItem } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type { QuestionItem } from "@workbench/agent-runtime-pi-protocol/stream";
-import type { WorkbenchExtensionUIContext } from "../sessions/interactive-response-registry";
+import type { WorkbenchExtensionUIContext } from "../../sessions/interactive-response-registry";
 
 /** Stable model-facing name owned by Workbench's hidden Pi extension. */
 export const ASK_USER_TOOL_NAME = "ask_user";

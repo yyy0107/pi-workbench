@@ -16,7 +16,7 @@ import {
   captureSessionContextTraceJson,
   captureSessionContextTraceText,
   getSessionContextTrace,
-} from "../sessions/session-context-trace";
+} from "../../sessions/session-context-trace";
 
 function sessionId(context: { sessionManager: { getSessionId(): string } }): string {
   return context.sessionManager.getSessionId();

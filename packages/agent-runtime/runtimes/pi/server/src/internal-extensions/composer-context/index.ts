@@ -3,7 +3,7 @@ import type { ContextEvent, ExtensionFactory, SessionEntry } from "@earendil-wor
 import {
   PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE,
   type PiComposerModelInput,
-} from "../commands/pi-composer-prompt";
+} from "../../commands/pi-composer-prompt";
 
 function modelInput(value: unknown): PiComposerModelInput | undefined {
   if (typeof value !== "object" || value === null) return undefined;

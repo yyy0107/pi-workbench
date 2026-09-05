@@ -10,13 +10,13 @@ import {
   type ExtensionContext,
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import type { ToolCapabilitySettings } from "../../src/internal-extensions/tool-availability";
+import type { ToolCapabilitySettings } from "../../src/internal-extensions/_shared/tool-availability";
 import { prepareWorkbenchPiExtensions } from "../../src/internal-extensions/index";
 import {
   TODO_EXTENSION_NAME,
   todoExtension,
   createTodoExtension,
-} from "../../src/internal-extensions/todo";
+} from "../../src/internal-extensions/rpiv-todo";
 import {
   TodoParamsSchema,
   type TaskDetails,

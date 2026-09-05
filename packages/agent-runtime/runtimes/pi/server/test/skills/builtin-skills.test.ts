@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -218,6 +218,30 @@ test("installs all built-in resource kinds without touching custom files or dupl
   await mkdir(path.join(agentDir, "prompts"));
   const custom = path.join(agentDir, "prompts", "custom.md");
   await writeFile(custom, "Custom instructions\n");
+  const legacyExtensions = path.join(agentDir, "extensions", ".builtin");
+  await mkdir(legacyExtensions, { recursive: true });
+  for (const name of [
+    "ask-user",
+    "builtin-tools",
+    "composer-context",
+    "context-trace",
+    "enhanced-search",
+    "index",
+    "legacy-message-termination",
+    "legacy-message-termination-extension-source",
+    "message-termination",
+    "system-prompt-hook-trace",
+    "todo",
+    "tool-availability",
+  ])
+    await writeFile(path.join(legacyExtensions, `${name}.ts`), "Old source snapshot\n");
+  for (const [locale, templates] of Object.entries(piBuiltinPromptCatalogs)) {
+    const directory = path.join(agentDir, "prompts", ".builtin", locale);
+    await mkdir(directory, { recursive: true });
+    for (const name of Object.keys(templates))
+      await writeFile(path.join(directory, `prompts-${name}.md`), "Old prompt\n");
+  }
+  await writeFile(path.join(agentDir, "prompts", ".builtin", "LICENSE.pi"), "Old license\n");
   const legacySkill = path.join(agentDir, "skills", ".builtin", "skills-creator");
   await mkdir(legacySkill, { recursive: true });
   await writeFile(path.join(legacySkill, "SKILL.md"), "Old built-in skill");
@@ -238,20 +262,72 @@ test("installs all built-in resource kinds without touching custom files or dupl
   );
   for (const [kind, directory] of Object.entries(directories)) {
     assert.equal(directory, path.join(agentDir, kind, ".builtin"));
+    assert.ok(
+      (await readdir(directory, { withFileTypes: true })).every((entry) => entry.isDirectory()),
+    );
   }
+  assert.deepEqual((await readdir(directories.extensions)).sort(), [
+    "_shared",
+    "ask-user",
+    "builtin-tools",
+    "composer-context",
+    "context-trace",
+    "enhanced-search",
+    "message-termination",
+    "rpiv-todo",
+  ]);
+  for (const name of [
+    "ask-user",
+    "builtin-tools",
+    "composer-context",
+    "context-trace",
+    "enhanced-search",
+    "message-termination",
+    "rpiv-todo",
+  ])
+    assert.ok((await stat(path.join(directories.extensions, name, "index.ts"))).isFile());
   assert.ok(
-    (await readFile(path.join(directories.extensions, "todo.ts"), "utf8")).includes(
+    (await readFile(path.join(directories.extensions, "rpiv-todo", "index.ts"), "utf8")).includes(
       "createTodoExtension",
     ),
+  );
+  assert.ok(
+    (await stat(path.join(directories.extensions, "rpiv-todo", "state", "replay.ts"))).isFile(),
+  );
+  assert.ok(
+    (
+      await stat(path.join(directories.extensions, "context-trace", "system-prompt-hook-trace.ts"))
+    ).isFile(),
+  );
+  assert.ok(
+    (
+      await stat(
+        path.join(directories.extensions, "message-termination", "legacy-message-termination.ts"),
+      )
+    ).isFile(),
+  );
+  assert.deepEqual(
+    (await readdir(directories.prompts)).sort(),
+    Object.keys(piBuiltinPromptCatalogs["en-US"]).sort(),
   );
   for (const [locale, templates] of Object.entries(piBuiltinPromptCatalogs)) {
     for (const [name, template] of Object.entries(templates)) {
       assert.equal(
-        await readFile(path.join(directories.prompts, locale, `prompts-${name}.md`), "utf8"),
+        await readFile(path.join(directories.prompts, name, `${locale}.md`), "utf8"),
         template.content + "\n",
+      );
+      assert.ok(
+        (await readFile(path.join(directories.prompts, name, "LICENSE.pi"), "utf8")).includes(
+          "MIT License",
+        ),
       );
     }
   }
+  // Unknown files in a legacy directory must survive cleanup as well.
+  const legacyLocale = path.join(directories.prompts, "en-US");
+  await mkdir(legacyLocale);
+  const unknown = path.join(legacyLocale, "custom.md");
+  await writeFile(unknown, "Keep this file\n");
   const skill = path.join(directories.skills, "skill-creator", "SKILL.md");
   const before = await stat(skill);
   await Promise.all([
@@ -260,6 +336,7 @@ test("installs all built-in resource kinds without touching custom files or dupl
   ]);
   assert.equal((await stat(skill)).mtimeMs, before.mtimeMs);
   assert.equal(await readFile(custom, "utf8"), "Custom instructions\n");
+  assert.equal(await readFile(unknown, "utf8"), "Keep this file\n");
   const loader = new DefaultResourceLoader({
     cwd: agentDir,
     agentDir,
@@ -276,4 +353,19 @@ test("installs all built-in resource kinds without touching custom files or dupl
   await mkdir(outside);
   await symlink(outside, path.join(directories.skills, "skill-creator", "scripts"), "dir");
   await assert.rejects(ensureWorkbenchBuiltinResources(agentDir), /symbolic link/);
+});
+
+test("built-in migration does not follow legacy prompt directory links", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-builtin-migration-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const agentDir = path.join(root, "agent");
+  const outside = path.join(root, "outside");
+  await mkdir(outside);
+  const custom = path.join(outside, "prompts-pi-skill.md");
+  await writeFile(custom, "User content\n");
+  const prompts = path.join(agentDir, "prompts", ".builtin");
+  await mkdir(prompts, { recursive: true });
+  await symlink(outside, path.join(prompts, "en-US"), "dir");
+  await assert.rejects(ensureWorkbenchBuiltinResources(agentDir), /symbolic link/);
+  assert.equal(await readFile(custom, "utf8"), "User content\n");
 });
