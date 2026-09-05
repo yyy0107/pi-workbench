@@ -2,7 +2,17 @@ import { createHash } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
 
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { InMemoryCredentialStore } from "@earendil-works/pi-ai";
+import {
+  CONFIG_DIR_NAME,
+  createAgentSession,
+  DefaultResourceLoader,
+  getAgentDir,
+  getPackageDir,
+  ModelRuntime,
+  SessionManager,
+  SettingsManager,
+} from "@earendil-works/pi-coding-agent";
 
 import {
   PI_AGENT_SETTINGS_NAMESPACE,
@@ -12,6 +22,7 @@ import {
   type PiAgentSettingsUserValue,
   type PiAgentSettingsValue,
   type PiCompactionSettingsValue,
+  type PiResourceCatalogTarget,
   type SettingsDescribeValue,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 import {
@@ -19,6 +30,8 @@ import {
   withCrossProcessFileLock,
 } from "@workbench/server-core/file-persistence";
 import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { resolvePiWorkspaceRoot } from "../workspaces/workspace-service-bindings";
+import { validateWorkspace } from "../workspaces/workspace-paths";
 
 type JsonObject = Record<string, unknown>;
 
@@ -26,6 +39,7 @@ export interface AgentSettingsServiceErrorDetails {
   "settings-not-exposed": { ns: string };
   "settings-conflict": { ns: string; expected: number; actual: number };
   "settings-rejected": { ns: string };
+  "workspace-not-found": { workspaceId: string };
 }
 
 export type AgentSettingsServiceErrorCode = keyof AgentSettingsServiceErrorDetails;
@@ -51,15 +65,16 @@ export class AgentSettingsServiceError<
 
 export interface AgentSettingsServiceOptions {
   agentDir?: string;
+  resolveWorkspaceRoot?: (workspaceId: string) => Promise<string | undefined>;
 }
 
 export type AgentSettingsUpdateRequest = Omit<PiAgentSettingsUpdatePayload, "ns"> & {
   ns: string;
 };
 
-/** Stable transport-facing operations; Pi agent-directory ownership stays in this service. */
+/** Stable transport-facing operations; user and project prompt files stay owned by this service. */
 export interface AgentSettingsProtocol {
-  describe(): Promise<SettingsDescribeValue>;
+  describe(target?: PiResourceCatalogTarget): Promise<SettingsDescribeValue>;
   prepareDocument(): Promise<string>;
   update(payload: AgentSettingsUpdateRequest): Promise<PiAgentSettingsNamespaceView>;
 }
@@ -67,6 +82,7 @@ export interface AgentSettingsProtocol {
 interface AgentSettingsSnapshot {
   settingsContent?: string;
   systemPromptContent?: string;
+  appendSystemPromptContent?: string;
   settings: JsonObject;
   user: PiAgentSettingsUserValue;
   value: PiAgentSettingsValue;
@@ -85,7 +101,13 @@ const AGENT_SETTINGS_SCHEMA = Object.freeze({
   properties: {
     systemPrompt: {
       type: "string",
-      description: "A custom global Pi system prompt. Empty uses Pi's bundled default.",
+      description:
+        "A custom Pi system prompt for this scope. Empty uses the inherited or bundled prompt.",
+    },
+    appendSystemPrompt: {
+      type: "string",
+      description:
+        "Instructions appended to Pi's system prompt in this scope. Empty removes this override.",
     },
     compaction: {
       type: "object",
@@ -151,6 +173,7 @@ function parseSettings(content: string | undefined): {
 function revisionOf(
   settingsContent: string | undefined,
   promptContent: string | undefined,
+  appendPromptContent: string | undefined,
 ): number {
   const digest = createHash("sha256")
     .update(
@@ -158,6 +181,10 @@ function revisionOf(
     )
     .update("\0")
     .update(promptContent === undefined ? "prompt:absent" : `prompt:present:${promptContent}`)
+    .update("\0")
+    .update(
+      appendPromptContent === undefined ? "append:absent" : `append:present:${appendPromptContent}`,
+    )
     .digest();
   return digest.readUInt32BE(0);
 }
@@ -166,15 +193,63 @@ function serializedSettings(settings: JsonObject): string {
   return `${JSON.stringify(settings, undefined, 2)}\n`;
 }
 
+async function createBuiltinSystemPrompt(agentDir: string): Promise<string> {
+  const cwd = process.cwd();
+  const settingsManager = SettingsManager.inMemory();
+  // Skip resource discovery so this preview contains only Pi's built-in prompt and tools.
+  const resourceLoader = new DefaultResourceLoader({ cwd, agentDir, settingsManager });
+  const { session } = await createAgentSession({
+    cwd,
+    agentDir,
+    settingsManager,
+    resourceLoader,
+    sessionManager: SessionManager.inMemory(cwd),
+    modelRuntime: await ModelRuntime.create({
+      credentials: new InMemoryCredentialStore(),
+      modelsPath: null,
+      refreshOnCreate: false,
+    }),
+  });
+  try {
+    // Preview the static SDK text without the session cwd or machine-specific asset paths.
+    return session.systemPrompt
+      .replace(/\nCurrent working directory: [\s\S]*$/u, "")
+      .replaceAll(
+        `${path.resolve(getPackageDir())}${path.sep}`,
+        "@earendil-works/pi-coding-agent/",
+      );
+  } finally {
+    session.dispose();
+  }
+}
+
 export class AgentSettingsService implements AgentSettingsProtocol {
   readonly agentDir: string;
   readonly settingsFile: string;
   readonly systemPromptFile: string;
+  readonly appendSystemPromptFile: string;
+  private builtinSystemPrompt?: string;
+  private readonly resolveWorkspaceRoot: NonNullable<
+    AgentSettingsServiceOptions["resolveWorkspaceRoot"]
+  >;
 
   constructor(options: AgentSettingsServiceOptions = {}) {
     this.agentDir = options.agentDir ?? getAgentDir();
     this.settingsFile = path.join(this.agentDir, "settings.json");
     this.systemPromptFile = path.join(this.agentDir, "SYSTEM.md");
+    this.appendSystemPromptFile = path.join(this.agentDir, "APPEND_SYSTEM.md");
+    this.resolveWorkspaceRoot = options.resolveWorkspaceRoot ?? resolvePiWorkspaceRoot;
+  }
+
+  private async projectSettings(workspaceId: string): Promise<AgentSettingsService> {
+    const root = await this.resolveWorkspaceRoot(workspaceId);
+    if (!root) {
+      throw new AgentSettingsServiceError("workspace-not-found", "The workspace does not exist.", {
+        workspaceId,
+      });
+    }
+    const cwd = validateWorkspace(root).cwd;
+    return new AgentSettingsService({ agentDir: path.join(cwd, CONFIG_DIR_NAME) });
   }
 
   private async readOptional(file: string): Promise<string | undefined> {
@@ -187,34 +262,46 @@ export class AgentSettingsService implements AgentSettingsProtocol {
   }
 
   private async snapshot(): Promise<AgentSettingsSnapshot> {
-    const [settingsContent, systemPromptContent] = await Promise.all([
+    const [settingsContent, systemPromptContent, appendSystemPromptContent] = await Promise.all([
       this.readOptional(this.settingsFile),
       this.readOptional(this.systemPromptFile),
+      this.readOptional(this.appendSystemPromptFile),
     ]);
     const { settings, compaction } = parseSettings(settingsContent);
     const user: PiAgentSettingsUserValue = {
       ...(systemPromptContent !== undefined ? { systemPrompt: systemPromptContent } : {}),
+      ...(appendSystemPromptContent !== undefined
+        ? { appendSystemPrompt: appendSystemPromptContent }
+        : {}),
       ...(compaction && Object.keys(compaction).length > 0 ? { compaction } : {}),
     };
     return {
       settingsContent,
       systemPromptContent,
+      appendSystemPromptContent,
       settings,
       user,
       value: {
         systemPrompt: systemPromptContent ?? "",
+        appendSystemPrompt: appendSystemPromptContent ?? "",
         compaction: { ...DEFAULT_COMPACTION_SETTINGS, ...compaction },
       },
-      revision: revisionOf(settingsContent, systemPromptContent),
+      revision: revisionOf(settingsContent, systemPromptContent, appendSystemPromptContent),
     };
   }
 
-  private namespace(snapshot: AgentSettingsSnapshot): PiAgentSettingsNamespaceView {
+  private async namespace(snapshot: AgentSettingsSnapshot): Promise<PiAgentSettingsNamespaceView> {
+    this.builtinSystemPrompt ??= await createBuiltinSystemPrompt(this.agentDir);
     return {
       ns: PI_AGENT_SETTINGS_NAMESPACE,
+      builtinSystemPrompt: this.builtinSystemPrompt,
       schema: AGENT_SETTINGS_SCHEMA,
       value: snapshot.value,
-      base: { systemPrompt: "", compaction: { ...DEFAULT_COMPACTION_SETTINGS } },
+      base: {
+        systemPrompt: "",
+        appendSystemPrompt: "",
+        compaction: { ...DEFAULT_COMPACTION_SETTINGS },
+      },
       user: snapshot.user,
       applies: "restart",
       secrets: [],
@@ -237,14 +324,25 @@ export class AgentSettingsService implements AgentSettingsProtocol {
     );
   }
 
-  async describe(): Promise<SettingsDescribeValue> {
+  async describe(target?: PiResourceCatalogTarget): Promise<SettingsDescribeValue> {
+    if (target?.scope === "project") {
+      const project = await this.projectSettings(target.workspaceId);
+      const described = await project.describe();
+      const inherited = (await this.snapshot()).value;
+      return {
+        ...described,
+        namespaces: described.namespaces.map((view) => ({ ...view, base: inherited })),
+      };
+    }
     try {
       const snapshot = await this.snapshot();
       return {
         writable: true,
         hasDocument:
-          snapshot.settingsContent !== undefined || snapshot.systemPromptContent !== undefined,
-        namespaces: [this.namespace(snapshot)],
+          snapshot.settingsContent !== undefined ||
+          snapshot.systemPromptContent !== undefined ||
+          snapshot.appendSystemPromptContent !== undefined,
+        namespaces: [await this.namespace(snapshot)],
       };
     } catch (error) {
       throw new AgentSettingsServiceError(
@@ -282,6 +380,23 @@ export class AgentSettingsService implements AgentSettingsProtocol {
         { ns: payload.ns },
       );
     }
+    if (payload.target?.scope === "project") {
+      if (payload.patch.compaction !== undefined) {
+        throw new AgentSettingsServiceError(
+          "settings-rejected",
+          "Project prompt settings do not expose compaction settings.",
+          { ns: payload.ns },
+        );
+      }
+      const project = await this.projectSettings(payload.target.workspaceId);
+      const inherited = (await this.snapshot()).value;
+      const updated = await project.update({
+        ns: payload.ns,
+        patch: payload.patch,
+        expectedRevision: payload.expectedRevision,
+      });
+      return { ...updated, base: inherited };
+    }
     return this.withLock(async () => {
       let current: AgentSettingsSnapshot;
       try {
@@ -309,6 +424,7 @@ export class AgentSettingsService implements AgentSettingsProtocol {
       const patch: PiAgentSettingsPatch = payload.patch;
       let nextSettingsContent = current.settingsContent;
       let nextPromptContent = current.systemPromptContent;
+      let nextAppendPromptContent = current.appendSystemPromptContent;
       if (patch.compaction !== undefined) {
         const existingCompaction = isObject(current.settings.compaction)
           ? current.settings.compaction
@@ -321,6 +437,10 @@ export class AgentSettingsService implements AgentSettingsProtocol {
       if (patch.systemPrompt !== undefined) {
         nextPromptContent = patch.systemPrompt.trim().length > 0 ? patch.systemPrompt : undefined;
       }
+      if (patch.appendSystemPrompt !== undefined) {
+        nextAppendPromptContent =
+          patch.appendSystemPrompt.trim().length > 0 ? patch.appendSystemPrompt : undefined;
+      }
 
       try {
         if (nextSettingsContent !== current.settingsContent) {
@@ -329,11 +449,15 @@ export class AgentSettingsService implements AgentSettingsProtocol {
         if (nextPromptContent !== current.systemPromptContent) {
           await this.writeOptional(this.systemPromptFile, nextPromptContent);
         }
-        return this.namespace(await this.snapshot());
+        if (nextAppendPromptContent !== current.appendSystemPromptContent) {
+          await this.writeOptional(this.appendSystemPromptFile, nextAppendPromptContent);
+        }
+        return await this.namespace(await this.snapshot());
       } catch (error) {
         await Promise.allSettled([
           this.writeOptional(this.settingsFile, current.settingsContent),
           this.writeOptional(this.systemPromptFile, current.systemPromptContent),
+          this.writeOptional(this.appendSystemPromptFile, current.appendSystemPromptContent),
         ]);
         throw new AgentSettingsServiceError(
           "settings-rejected",

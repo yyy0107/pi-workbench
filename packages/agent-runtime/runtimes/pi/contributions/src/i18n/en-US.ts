@@ -59,12 +59,22 @@ export const piExtensionsEnUS = {
       errors: {
         loadFailed: "Agent configuration could not be loaded.",
         saveFailed: "Agent configuration could not be saved. Try again.",
+        unsupportedPrompt:
+          "The Runtime did not confirm this prompt setting. Your draft is preserved. Restart with the updated Runtime, then save again.",
         conflict: "These settings changed elsewhere. Reload the page and try again.",
       },
       systemPrompt: {
         title: "System prompt",
         description: "Set the global system prompt Pi uses across all workspaces.",
+        projectDescription: "Set the system prompt Pi uses in the selected project.",
+        inheritedLabel: "Inherited user system prompt (read-only)",
+        projectDefaultHint:
+          "Saved to this project's .pi/SYSTEM.md. Leave empty and save to inherit the user prompt or Pi's built-in default. Project instructions take effect when the project is trusted.",
+        useInherited: "Use inherited prompt",
         editorLabel: "Custom system prompt",
+        builtinLabel: "Built-in system prompt (read-only)",
+        builtinUnavailable:
+          "The built-in prompt preview is unavailable from this Runtime. Restart with the updated Runtime to view it.",
         exitEditor: "Press Escape to leave the system prompt editor.",
         saveShortcut: "Save system prompt (Ctrl or Command + S)",
         preview: "Preview Markdown",
@@ -72,6 +82,23 @@ export const piExtensionsEnUS = {
         defaultHint:
           "Leave this empty and save to use Pi's built-in default. A project-level .pi/SYSTEM.md can override this global value; AGENTS.md, skills, and working-directory context are still added by the runtime.",
         useDefault: "Use default prompt",
+      },
+      appendSystemPrompt: {
+        title: "Append system prompt",
+        description: "Add global instructions after Pi's default or custom system prompt.",
+        projectDescription: "Add instructions after the system prompt in the selected project.",
+        inheritedLabel: "Inherited user additional instructions (read-only)",
+        projectDefaultHint:
+          "Saved to this project's .pi/APPEND_SYSTEM.md. Leave empty and save to inherit user additional instructions. Project instructions take effect when the project is trusted.",
+        useInherited: "Use inherited instructions",
+        editorLabel: "Additional instructions",
+        exitEditor: "Press Escape to leave the append system prompt editor.",
+        saveShortcut: "Save append system prompt (Ctrl or Command + S)",
+        preview: "Preview Markdown",
+        placeholder: "Enter instructions to append to the system prompt…",
+        defaultHint:
+          "Leave this empty and save to remove the global addition. A trusted project's .pi/APPEND_SYSTEM.md can override this global value.",
+        clear: "Clear additional instructions",
       },
       context: {
         title: "Context",

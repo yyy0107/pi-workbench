@@ -44,7 +44,8 @@ export function usePiConfigurationClient() {
         discoverPiModels(payload, options),
       testModelImageInput: (payload: Parameters<typeof testPiModelImageInput>[0]) =>
         testPiModelImageInput(payload, options),
-      describeAgentSettings: () => describePiSettings(options),
+      describeAgentSettings: (target?: Parameters<typeof describePiSettings>[1]) =>
+        describePiSettings(options, target),
       updateAgentSettings: (payload: Parameters<typeof updatePiAgentSettings>[0]) =>
         updatePiAgentSettings(payload, options),
       openAgentSettingsDocument: () => openPiSettingsDocument(options),

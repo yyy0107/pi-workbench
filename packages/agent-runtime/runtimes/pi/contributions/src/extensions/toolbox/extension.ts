@@ -28,7 +28,7 @@ export const toolboxExtension = defineExtension({
       icon: ToolboxIcon,
       component: ToolboxSidebar,
       order: 20,
-      mainViewKinds: ["toolbox"],
+      mainViewKinds: ["toolbox", "system-prompts"],
       search: {
         label: definePiMessage("extensions.toolbox.sidebar.search"),
         placeholder: definePiMessage("extensions.toolbox.sidebar.searchPlaceholder"),

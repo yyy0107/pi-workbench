@@ -199,16 +199,30 @@ Pi coding agent 的 `piVersion`，以及用户级 Pi Package 的权威 `userPack
 `product` 识别服务，状态栏等客户端界面应使用 `piVersion` 展示 Pi 版本。工具箱使用
 `userPackageDir` 展示安装位置，不在浏览器中推导用户主目录或写死默认路径。
 
-当前 Settings 协议只暴露全局 `pi.agent` 命名空间，并且仅允许 loopback 请求。系统提示词写入
-Pi agent 目录下的 `SYSTEM.md`；上下文压缩参数写入同目录的 `settings.json`，且会保留文件中的
+当前 Settings 协议暴露 `pi.agent` 命名空间，并且仅允许 loopback 请求。
+`settings.describe`、`settings.update` 和 `settings.openDocument` 继续管理全局配置；
+工具箱通过 `settings.describeScoped`、`settings.updateScoped` 携带必填的用户或项目 target。
+独立的范围接口使旧 Runtime 无法忽略项目 target 而误写全局文件。
+用户范围的系统提示词写入 Pi agent 目录下的 `SYSTEM.md`，追加提示词写入 `APPEND_SYSTEM.md`；
+项目范围通过已登记的 workspaceId 解析目录，分别写入该项目的 `.pi/SYSTEM.md` 和 `.pi/APPEND_SYSTEM.md`。
+留空保存移除当前范围的覆盖文件；项目范围返回的 `base` 包含继承的用户配置，且不允许修改上下文压缩参数。
+追加内容由 Pi 原生加载器应用到默认或自定义系统提示词后，受信任项目的 `.pi/APPEND_SYSTEM.md` 优先于全局追加文件。
+上下文压缩参数仍写入 Pi agent 目录下的 `settings.json`，且会保留文件中的
 其他 Pi 配置。更新使用 revision 进行冲突检测，并在新 session 或已有 session 执行 `/reload`
 后生效。`settings.openDocument` 会在文件不存在时创建最小的 `settings.json`，再交给本地主机的
 默认应用打开。
 
+`pi.agent` 快照还返回只读的 `builtinSystemPrompt` 预览，由 Pi 官方 SDK 的内存会话生成，
+仅保留静态正文，移除当前工作目录，并将文档安装路径改为包内路径；
+不发现用户或项目资源、不读取凭据或创建会话文件。系统提示词与追加提示词统一在工具箱的
+「能力 → 系统提示词」页面管理，并跟随工具箱的范围选择。
+项目覆盖留空时显示继承的用户提示词；没有继承内容时显示内置静态预览。
+编辑和保存仍只操作自定义草稿，不会把内置内容写入 `SYSTEM.md`。
+
 三个设置子域分别由 Pi 的 `transport/routes/agent-settings-rpc-routes.ts`、
 `@workbench/settings-server/rpc` 和 `@workbench/attachment-understanding-server/rpc` 拥有，避免把 Pi
 原生设置、Workbench preferences 与附件识别凭据合并成一个泛化服务。Agent Settings route 只依赖
-`AgentSettingsProtocol` 和组合根注入的文档打开函数，三个方法全部保持 loopback-only，并独占 4 MiB
+`AgentSettingsProtocol` 和组合根注入的文档打开函数，所有方法保持 loopback-only，写入接口使用 4 MiB
 更新载体预算与打开取消映射；Workbench Settings route 通过 late-bound `WorkbenchSettingsProtocol`
 保留环境覆盖和 HMR 语义，describe/update 允许显式 trusted host，文档打开保持 loopback-only，
 并独占 24 MiB 更新载体预算与打开取消映射；Image

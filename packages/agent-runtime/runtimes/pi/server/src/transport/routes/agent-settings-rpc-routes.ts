@@ -5,6 +5,7 @@ import type {
   AgentSettingsUpdateRequest,
 } from "../../settings/agent-settings-service";
 import { compactionSettingsPatch } from "../compaction-rpc-validator";
+import { resourceCatalogTarget } from "../resource-rpc-validators";
 import {
   handleRpcPost,
   rpcBusinessError,
@@ -26,13 +27,22 @@ export interface AgentSettingsRpcRoutesDependencies {
 }
 
 const emptyPayload = rpcObject({});
-const settingsUpdatePayload = rpcObject({
+const scopedDescribePayload = rpcObject({ target: resourceCatalogTarget });
+const settingsUpdateFields = {
   ns: rpcString({ minLength: 1 }),
   patch: rpcObject({
     systemPrompt: rpcOptional(rpcString({ maxLength: 500_000 })),
+    appendSystemPrompt: rpcOptional(rpcString({ maxLength: 500_000 })),
     compaction: rpcOptional(compactionSettingsPatch),
   }),
   expectedRevision: rpcOptional(rpcInteger({ minimum: 0 })),
+};
+const settingsUpdatePayload = rpcObject(
+  settingsUpdateFields,
+) as RpcValidator<AgentSettingsUpdateRequest>;
+const scopedUpdatePayload = rpcObject({
+  ...settingsUpdateFields,
+  target: resourceCatalogTarget,
 }) as RpcValidator<AgentSettingsUpdateRequest>;
 
 function isAborted(error: unknown, signal: AbortSignal): boolean {
@@ -80,6 +90,23 @@ export function createAgentSettingsRpcRoutes({
   return {
     handle(request, method) {
       switch (method) {
+        // Separate methods ensure older Runtimes cannot discard a project target and save globally.
+        case "settings.describeScoped":
+          return handleRpcPost(request, {
+            method,
+            payload: scopedDescribePayload,
+            loopbackOnly: true,
+            handler: ({ target }) =>
+              invokeService(() => service.describe(target), projectDomainError),
+          });
+        case "settings.updateScoped":
+          return handleRpcPost(request, {
+            method,
+            payload: scopedUpdatePayload,
+            maxRequestBodyBytes: RPC_REQUEST_BODY_LIMITS.agentSettingsUpdate,
+            loopbackOnly: true,
+            handler: (payload) => invokeService(() => service.update(payload), projectDomainError),
+          });
         case "settings.describe":
           return handleRpcPost(request, {
             method,

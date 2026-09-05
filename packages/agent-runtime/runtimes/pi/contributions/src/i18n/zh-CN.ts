@@ -60,12 +60,22 @@ export const piExtensionsZhCN = {
       errors: {
         loadFailed: "无法加载 Agent 配置。",
         saveFailed: "无法保存 Agent 配置，请重试。",
+        unsupportedPrompt:
+          "Runtime 未确认此提示词设置，草稿已保留。请使用更新后的 Runtime 重启，再次保存。",
         conflict: "这些设置已在其他位置发生变化，请刷新页面后重试。",
       },
       systemPrompt: {
         title: "系统提示词",
         description: "设置 Pi 在所有工作区中使用的全局系统提示词。",
+        projectDescription: "设置 Pi 在所选项目中使用的系统提示词。",
+        inheritedLabel: "继承的用户系统提示词（只读）",
+        projectDefaultHint:
+          "保存到此项目的 .pi/SYSTEM.md。留空并保存后继承用户提示词或 Pi 内置默认提示词。项目指令在项目受信任后生效。",
+        useInherited: "使用继承的提示词",
         editorLabel: "自定义系统提示词",
+        builtinLabel: "内置系统提示词（只读）",
+        builtinUnavailable:
+          "当前 Runtime 未提供内置提示词预览，请使用更新后的 Runtime 重启后查看。",
         exitEditor: "按 Escape 离开系统提示词编辑器。",
         saveShortcut: "保存系统提示词（Ctrl 或 Command + S）",
         preview: "预览 Markdown",
@@ -73,6 +83,23 @@ export const piExtensionsZhCN = {
         defaultHint:
           "留空并保存可恢复 Pi 内置默认提示词。项目级 .pi/SYSTEM.md 可覆盖此全局值；AGENTS.md、技能和当前工作目录上下文仍会由运行时追加。",
         useDefault: "使用默认提示词",
+      },
+      appendSystemPrompt: {
+        title: "追加系统提示词",
+        description: "在 Pi 默认或自定义系统提示词后追加全局指令。",
+        projectDescription: "在所选项目的系统提示词后追加指令。",
+        inheritedLabel: "继承的用户追加提示词（只读）",
+        projectDefaultHint:
+          "保存到此项目的 .pi/APPEND_SYSTEM.md。留空并保存后继承用户追加提示词。项目指令在项目受信任后生效。",
+        useInherited: "使用继承的追加提示词",
+        editorLabel: "追加提示词",
+        exitEditor: "按 Escape 离开追加系统提示词编辑器。",
+        saveShortcut: "保存追加系统提示词（Ctrl 或 Command + S）",
+        preview: "预览 Markdown",
+        placeholder: "输入要追加到系统提示词后的指令…",
+        defaultHint:
+          "留空并保存可移除全局追加内容。受信任项目中的 .pi/APPEND_SYSTEM.md 可覆盖此全局值。",
+        clear: "清空追加提示词",
       },
       context: {
         title: "上下文",

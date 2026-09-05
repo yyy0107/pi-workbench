@@ -748,6 +748,7 @@ test("Pi agent settings helpers use the shared Settings RPC methods", async (t) 
       schema: {},
       value: {
         systemPrompt: "",
+        appendSystemPrompt: "",
         compaction: { enabled: true, reserveTokens: 16_384, keepRecentTokens: 20_000 },
       },
       applies: "restart" as const,
@@ -783,6 +784,96 @@ test("Pi agent settings helpers use the shared Settings RPC methods", async (t) 
     true,
   );
   assert.deepEqual(methods, ["settings.describe", "settings.openDocument", "settings.update"]);
+});
+
+test("Pi prompt updates reject missing response fields instead of reporting a successful save", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  let value: Record<string, unknown> = { systemPrompt: "Existing prompt" };
+  globalThis.fetch = async (_input, init) => {
+    const { rpcId } = JSON.parse(String(init?.body));
+    return Response.json({
+      type: "server-response",
+      rpcId,
+      result: { ok: true, value: { ns: "pi.agent", value, revision: 12 } },
+    });
+  };
+
+  for (const field of ["appendSystemPrompt", "systemPrompt"] as const) {
+    for (const returned of [undefined, null, 42]) {
+      value = { [field]: returned };
+      for (const draft of ["Additional instructions", ""]) {
+        await assert.rejects(
+          updatePiAgentSettings({ ns: "pi.agent", patch: { [field]: draft } }),
+          (error) => error instanceof PiApiError && error.code === "settings-unsupported",
+        );
+      }
+    }
+    value = { [field]: "" };
+    assert.equal(
+      (await updatePiAgentSettings({ ns: "pi.agent", patch: { [field]: " \n" } })).value[field],
+      "",
+    );
+  }
+
+  value = { systemPrompt: "Existing prompt" };
+  assert.equal(
+    (await updatePiAgentSettings({ ns: "pi.agent", patch: { systemPrompt: "Existing prompt" } }))
+      .value.systemPrompt,
+    "Existing prompt",
+  );
+});
+
+test("scoped prompt requests preserve their target and never fall back to global methods", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const requests: Array<{ method: string; payload: unknown }> = [];
+  let unsupported = false;
+  globalThis.fetch = async (_input, init) => {
+    const { rpcId, method, payload } = JSON.parse(String(init?.body));
+    requests.push({ method, payload });
+    return Response.json({
+      type: "server-response",
+      rpcId,
+      result: unsupported
+        ? { ok: false, error: { code: "not-found", message: "Unknown method", details: {} } }
+        : {
+            ok: true,
+            value:
+              method === "settings.describeScoped"
+                ? { writable: true, hasDocument: false, namespaces: [] }
+                : { ns: "pi.agent", value: { systemPrompt: "Project base" }, revision: 1 },
+          },
+    });
+  };
+  for (const target of [{ scope: "user" }, { scope: "project", workspaceId: "one" }] as const) {
+    const payload = {
+      ns: "pi.agent" as const,
+      target,
+      patch: { systemPrompt: "Project base" },
+      expectedRevision: 0,
+    };
+    await describePiSettings(undefined, target);
+    await updatePiAgentSettings(payload);
+    assert.deepEqual(requests.splice(0), [
+      { method: "settings.describeScoped", payload: { target } },
+      { method: "settings.updateScoped", payload },
+    ]);
+  }
+  unsupported = true;
+  const target = { scope: "project", workspaceId: "one" } as const;
+  await assert.rejects(describePiSettings(undefined, target));
+  await assert.rejects(
+    updatePiAgentSettings({ ns: "pi.agent", target, patch: { systemPrompt: "" } }),
+  );
+  assert.deepEqual(
+    requests.map(({ method }) => method),
+    ["settings.describeScoped", "settings.updateScoped"],
+  );
 });
 
 test("Workbench settings helpers use the shared Workbench Settings RPC methods", async (t) => {

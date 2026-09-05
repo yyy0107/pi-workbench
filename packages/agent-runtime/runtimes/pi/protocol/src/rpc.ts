@@ -538,13 +538,16 @@ export interface PiCompactionSettingsValue {
 }
 
 export interface PiAgentSettingsValue {
-  /** Empty means Pi builds and uses its bundled default system prompt. */
+  /** Empty removes this scope's override so Pi uses the inherited or bundled prompt. */
   systemPrompt: string;
+  /** Appended by Pi from this scope's APPEND_SYSTEM.md; empty removes its override. */
+  appendSystemPrompt: string;
   compaction: PiCompactionSettingsValue;
 }
 
 export interface PiAgentSettingsUserValue {
   systemPrompt?: string;
+  appendSystemPrompt?: string;
   compaction?: Partial<PiCompactionSettingsValue>;
 }
 
@@ -568,7 +571,11 @@ export type PiAgentSettingsNamespaceView = SettingsNamespaceView<
   PiAgentSettingsValue,
   PiAgentSettingsUserValue,
   Record<string, unknown>
-> & { ns: typeof PI_AGENT_SETTINGS_NAMESPACE };
+> & {
+  ns: typeof PI_AGENT_SETTINGS_NAMESPACE;
+  /** Static read-only Pi prompt, without session cwd, local asset paths, or user/project resources. */
+  builtinSystemPrompt?: string;
+};
 
 export interface SettingsDescribeValue {
   writable: boolean;
@@ -613,6 +620,7 @@ export type ImageUnderstandingUpdatePayload = AttachmentUnderstandingUpdatePaylo
 
 export interface PiAgentSettingsPatch {
   systemPrompt?: string;
+  appendSystemPrompt?: string;
   compaction?: Partial<PiCompactionSettingsValue>;
 }
 
@@ -620,6 +628,7 @@ export interface PiAgentSettingsUpdatePayload {
   ns: typeof PI_AGENT_SETTINGS_NAMESPACE;
   patch: PiAgentSettingsPatch;
   expectedRevision?: number;
+  target?: PiResourceCatalogTarget;
 }
 
 export type PiResourceCatalogTarget = { scope: "user" } | { scope: "project"; workspaceId: string };

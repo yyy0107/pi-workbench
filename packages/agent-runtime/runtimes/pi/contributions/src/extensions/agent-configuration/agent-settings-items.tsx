@@ -12,12 +12,13 @@ import { Switch } from "@workbench/shell/ui";
 import { WorkbenchCodeEditor } from "@workbench/shell/code-highlighting";
 import { usePiI18n } from "../../i18n";
 import { MarkdownPreview } from "@workbench/shell/chat";
-import type { SettingsItemComponentProps } from "@workbench/extension-sdk";
+import type { MainViewProps, SettingsItemComponentProps } from "@workbench/extension-sdk";
 import { usePiConfigurationClient } from "@workbench/agent-runtime-pi-client/configuration";
 import { PiApiError } from "@workbench/agent-runtime-pi-client/errors";
 import {
   PI_AGENT_SETTINGS_NAMESPACE,
   type PiAgentSettingsNamespaceView,
+  type PiResourceCatalogTarget,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 
 type LoadState = "loading" | "ready" | "failed";
@@ -26,7 +27,7 @@ const DEFAULT_RESERVE_TOKENS = 16_384;
 const DEFAULT_KEEP_RECENT_TOKENS = 20_000;
 const MAX_CONTEXT_SETTING_TOKENS = 10_000_000;
 
-function useAgentSettingsNamespace() {
+function useAgentSettingsNamespace(target?: PiResourceCatalogTarget) {
   const configurationClient = usePiConfigurationClient();
   const [view, setView] = useState<PiAgentSettingsNamespaceView>();
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -37,7 +38,7 @@ function useAgentSettingsNamespace() {
     const request = ++requestRef.current;
     setLoadState("loading");
     setLoadError(undefined);
-    void configurationClient.describeAgentSettings().then(
+    void configurationClient.describeAgentSettings(target).then(
       (result) => {
         if (request !== requestRef.current) return;
         const namespace = result.namespaces.find(({ ns }) => ns === PI_AGENT_SETTINGS_NAMESPACE);
@@ -55,7 +56,7 @@ function useAgentSettingsNamespace() {
         setLoadState("failed");
       },
     );
-  }, [configurationClient]);
+  }, [configurationClient, target]);
 
   useEffect(() => {
     load();
@@ -102,52 +103,30 @@ function saveErrorLabel(error: unknown, conflict: string, fallback: string): str
   return error instanceof PiApiError && error.code === "settings-conflict" ? conflict : fallback;
 }
 
-export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
+export function SystemPromptMainView({ view }: MainViewProps<{ target: PiResourceCatalogTarget }>) {
   const { t } = usePiI18n();
-  const systemPromptId = useId();
-  const configurationClient = usePiConfigurationClient();
-  const { view, setView, loadState, load } = useAgentSettingsNamespace();
-  const [draft, setDraft] = useState("");
-  const [baseline, setBaseline] = useState("");
+  const target = view.params.target;
+  if (!target) return null;
+
+  return (
+    <section
+      aria-label={t("extensions.agentConfiguration.systemPrompt.title")}
+      className="h-full min-h-0 overflow-y-auto"
+    >
+      <div className="mx-auto w-full max-w-5xl px-6 py-4 sm:px-12">
+        <SystemPromptEditor
+          key={target.scope === "user" ? "user" : `project:${target.workspaceId}`}
+          target={target}
+        />
+      </div>
+    </section>
+  );
+}
+
+function SystemPromptEditor({ target }: { target: PiResourceCatalogTarget }) {
+  const { t } = usePiI18n();
+  const { view, setView, loadState, load } = useAgentSettingsNamespace(target);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [saveError, setSaveError] = useState<string>();
-  const [editing, setEditing] = useState(false);
-
-  useEffect(() => {
-    if (!view) return;
-    setDraft(view.value.systemPrompt);
-    setBaseline(view.value.systemPrompt);
-  }, [view]);
-
-  const save = useCallback(async () => {
-    if (!view || saving || draft === baseline) return;
-    setSaving(true);
-    setSaved(false);
-    setSaveError(undefined);
-    try {
-      const updated = await configurationClient.updateAgentSettings({
-        ns: PI_AGENT_SETTINGS_NAMESPACE,
-        patch: { systemPrompt: draft },
-        expectedRevision: view.revision,
-      });
-      setView(updated);
-      setBaseline(updated.value.systemPrompt);
-      setDraft(updated.value.systemPrompt);
-      setSaved(true);
-      setEditing(false);
-    } catch (error) {
-      setSaveError(
-        saveErrorLabel(
-          error,
-          t("extensions.agentConfiguration.errors.conflict"),
-          t("extensions.agentConfiguration.errors.saveFailed"),
-        ),
-      );
-    } finally {
-      setSaving(false);
-    }
-  }, [baseline, configurationClient, draft, saving, setView, t, view]);
 
   if (loadState === "loading") {
     return (
@@ -158,27 +137,121 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
   }
   if (loadState === "failed" || !view) return <LoadFailure onRetry={load} />;
 
+  return (
+    <div className="pb-5">
+      {(["systemPrompt", "appendSystemPrompt"] as const).map((field) => (
+        <PromptSettingsEditor
+          key={field}
+          field={field}
+          target={target}
+          view={view}
+          setView={setView}
+          saving={saving}
+          setSaving={setSaving}
+        />
+      ))}
+      <p className="text-muted-foreground text-xs leading-5">
+        {t("extensions.agentConfiguration.appliesAfterReload")}
+      </p>
+    </div>
+  );
+}
+
+function PromptSettingsEditor({
+  field,
+  target,
+  view,
+  setView,
+  saving,
+  setSaving,
+}: {
+  field: "systemPrompt" | "appendSystemPrompt";
+  target: PiResourceCatalogTarget;
+  view: PiAgentSettingsNamespaceView;
+  setView(view: PiAgentSettingsNamespaceView): void;
+  saving: boolean;
+  setSaving(saving: boolean): void;
+}) {
+  const { t } = usePiI18n();
+  const systemPromptId = useId();
+  const configurationClient = usePiConfigurationClient();
+  const baseline = view.value[field] ?? "";
+  const [draft, setDraft] = useState(baseline);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    setDraft(baseline);
+  }, [baseline]);
+
+  const save = useCallback(async () => {
+    if (saving || draft === baseline) return;
+    setSaving(true);
+    setSaved(false);
+    setSaveError(undefined);
+    try {
+      const updated = await configurationClient.updateAgentSettings({
+        ns: PI_AGENT_SETTINGS_NAMESPACE,
+        target,
+        patch: { [field]: draft },
+        expectedRevision: view.revision,
+      });
+      setView(updated);
+      setDraft(updated.value[field]);
+      setSaved(true);
+      setEditing(false);
+    } catch (error) {
+      setSaveError(
+        error instanceof PiApiError && error.code === "settings-unsupported"
+          ? t("extensions.agentConfiguration.errors.unsupportedPrompt")
+          : saveErrorLabel(
+              error,
+              t("extensions.agentConfiguration.errors.conflict"),
+              t("extensions.agentConfiguration.errors.saveFailed"),
+            ),
+      );
+    } finally {
+      setSaving(false);
+    }
+  }, [baseline, configurationClient, draft, field, saving, setSaving, setView, t, target, view]);
+
   const dirty = draft !== baseline;
+  const projectScope = target.scope === "project";
+  const showingDefault = !editing && draft.trim().length === 0;
+  const inherited = projectScope ? view.base?.[field] : undefined;
+  const showingInherited = showingDefault && Boolean(inherited);
+  const showingBuiltin = field === "systemPrompt" && showingDefault && !showingInherited;
+  const previewContent = showingInherited
+    ? inherited
+    : showingBuiltin
+      ? view.builtinSystemPrompt
+      : draft;
+  const editorLabel = showingInherited
+    ? t(`extensions.agentConfiguration.${field}.inheritedLabel`)
+    : showingBuiltin
+      ? t("extensions.agentConfiguration.systemPrompt.builtinLabel")
+      : t(`extensions.agentConfiguration.${field}.editorLabel`);
   const viewToggleLabel = editing
-    ? t("extensions.agentConfiguration.systemPrompt.preview")
+    ? t(`extensions.agentConfiguration.${field}.preview`)
     : t("extensions.agentConfiguration.editValue", {
-        label: t("extensions.agentConfiguration.systemPrompt.editorLabel"),
+        label: t(`extensions.agentConfiguration.${field}.editorLabel`),
       });
   return (
-    <div data-settings-section={sectionId} data-settings-item={itemId} className="py-5">
+    <div className="py-5">
       <div>
-        <h3 className="text-sm font-medium">
-          {t("extensions.agentConfiguration.systemPrompt.title")}
-        </h3>
+        <h3 className="text-sm font-medium">{t(`extensions.agentConfiguration.${field}.title`)}</h3>
         <p className="text-muted-foreground mt-1 text-sm leading-5">
-          {t("extensions.agentConfiguration.systemPrompt.description")}
+          {t(
+            `extensions.agentConfiguration.${field}.${projectScope ? "projectDescription" : "description"}`,
+          )}
         </p>
       </div>
 
       <div className="mt-4">
         <div className="flex items-center justify-between gap-2">
           <label htmlFor={systemPromptId} className="text-muted-foreground block text-sm">
-            {t("extensions.agentConfiguration.systemPrompt.editorLabel")}
+            {editorLabel}
           </label>
           <Button
             type="button"
@@ -198,15 +271,15 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
           {editing ? (
             <WorkbenchCodeEditor
               id={systemPromptId}
-              ariaLabel={t("extensions.agentConfiguration.systemPrompt.editorLabel")}
-              exitLabel={t("extensions.agentConfiguration.systemPrompt.exitEditor")}
-              saveLabel={t("extensions.agentConfiguration.systemPrompt.saveShortcut")}
-              name="SYSTEM.md"
+              ariaLabel={t(`extensions.agentConfiguration.${field}.editorLabel`)}
+              exitLabel={t(`extensions.agentConfiguration.${field}.exitEditor`)}
+              saveLabel={t(`extensions.agentConfiguration.${field}.saveShortcut`)}
+              name={field === "systemPrompt" ? "SYSTEM.md" : "APPEND_SYSTEM.md"}
               autoFocus
               value={draft}
               maxLength={500_000}
               disabled={saving}
-              placeholder={t("extensions.agentConfiguration.systemPrompt.placeholder")}
+              placeholder={t(`extensions.agentConfiguration.${field}.placeholder`)}
               className="h-full w-full"
               onSave={save}
               onChange={(value) => {
@@ -217,25 +290,26 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
             />
           ) : (
             <div className="h-full w-full overflow-hidden">
-              {draft ? (
-                <MarkdownPreview
-                  content={draft}
-                  ariaLabel={t("extensions.agentConfiguration.systemPrompt.editorLabel")}
-                />
+              {previewContent ? (
+                <MarkdownPreview content={previewContent} ariaLabel={editorLabel} />
               ) : (
                 <p
                   role="document"
-                  aria-label={t("extensions.agentConfiguration.systemPrompt.editorLabel")}
+                  aria-label={editorLabel}
                   className="text-muted-foreground px-8 py-7 text-sm leading-7"
                 >
-                  {t("extensions.agentConfiguration.systemPrompt.placeholder")}
+                  {showingBuiltin
+                    ? t("extensions.agentConfiguration.systemPrompt.builtinUnavailable")
+                    : t(`extensions.agentConfiguration.${field}.placeholder`)}
                 </p>
               )}
             </div>
           )}
         </InputGroup>
         <p className="text-muted-foreground mt-2 text-xs leading-5">
-          {t("extensions.agentConfiguration.systemPrompt.defaultHint")}
+          {t(
+            `extensions.agentConfiguration.${field}.${projectScope ? "projectDefaultHint" : "defaultHint"}`,
+          )}
         </p>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -247,11 +321,16 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
               disabled={saving || draft.length === 0}
               onClick={() => {
                 setDraft("");
+                setEditing(false);
                 setSaved(false);
                 setSaveError(undefined);
               }}
             >
-              {t("extensions.agentConfiguration.systemPrompt.useDefault")}
+              {projectScope
+                ? t(`extensions.agentConfiguration.${field}.useInherited`)
+                : field === "systemPrompt"
+                  ? t("extensions.agentConfiguration.systemPrompt.useDefault")
+                  : t("extensions.agentConfiguration.appendSystemPrompt.clear")}
             </Button>
             <Button type="button" disabled={saving || !dirty} onClick={() => void save()}>
               {saving
@@ -261,10 +340,6 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
           </div>
         </div>
       </div>
-
-      <p className="text-muted-foreground mt-3 text-xs leading-5">
-        {t("extensions.agentConfiguration.appliesAfterReload")}
-      </p>
     </div>
   );
 }

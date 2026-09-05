@@ -115,6 +115,7 @@ test("maps Agent Settings calls, sanitizes updates, and preserves the open reque
       ns: "pi.agent",
       patch: {
         systemPrompt: "system",
+        appendSystemPrompt: "addition",
         compaction: { enabled: false, reserveTokens: 1_024, ignored: true },
         ignored: true,
       },
@@ -139,6 +140,7 @@ test("maps Agent Settings calls, sanitizes updates, and preserves the open reque
         ns: "pi.agent",
         patch: {
           systemPrompt: "system",
+          appendSystemPrompt: "addition",
           compaction: { enabled: false, reserveTokens: 1_024 },
         },
         expectedRevision: 7,
@@ -174,6 +176,8 @@ test("validates Agent Settings updates before invoking the protocol", async () =
     { ns: "pi.agent", patch: { compaction: { reserveTokens: 0 } } },
     { ns: "pi.agent", patch: { compaction: { keepRecentTokens: 10_000_001 } } },
     { ns: "pi.agent", patch: { systemPrompt: "x".repeat(500_001) } },
+    { ns: "pi.agent", patch: { appendSystemPrompt: "x".repeat(500_001) } },
+    { ns: "pi.agent", patch: { appendSystemPrompt: 42 } },
     { ns: "pi.agent", patch: {}, expectedRevision: -1 },
   ]) {
     const response = routes.handle(rpcRequest("settings.update", payload), "settings.update");
@@ -184,6 +188,60 @@ test("validates Agent Settings updates before invoking the protocol", async () =
     assert.equal(body.result.error.code, "bad-request");
   }
   assert.equal(calls, 0);
+});
+
+test("scoped settings require and forward a validated target for reads and writes", async () => {
+  const calls: unknown[] = [];
+  const routes = createAgentSettingsRpcRoutes({
+    service: protocol({
+      async describe(target) {
+        calls.push(target);
+        return { writable: true, hasDocument: false, namespaces: [] };
+      },
+      async update(payload) {
+        calls.push(payload);
+        return {} as never;
+      },
+    }),
+    openDocument: async () => ({ opened: true }),
+    projectDomainError: unexpectedDomainError,
+  });
+  for (const target of [{ scope: "user" }, { scope: "project", workspaceId: "project-one" }]) {
+    const payload = {
+      ns: "pi.agent",
+      target,
+      patch: { appendSystemPrompt: "Scoped addition" },
+      expectedRevision: 4,
+    };
+    await successValue(
+      await routes.handle(
+        rpcRequest("settings.describeScoped", { target }),
+        "settings.describeScoped",
+      )!,
+    );
+    await successValue(
+      await routes.handle(rpcRequest("settings.updateScoped", payload), "settings.updateScoped")!,
+    );
+    assert.deepEqual(calls.splice(0), [target, payload]);
+  }
+  for (const target of [
+    undefined,
+    {},
+    { scope: "project" },
+    { scope: "project", workspaceId: "" },
+    { scope: "all" },
+  ]) {
+    for (const method of ["settings.describeScoped", "settings.updateScoped"]) {
+      const response = await routes.handle(
+        rpcRequest(method, { target, ns: "pi.agent", patch: {} }),
+        method,
+      )!;
+      const body = await response.json();
+      assert.equal(body.result.ok, false);
+      assert.equal(body.result.error.code, "bad-request");
+    }
+  }
+  assert.deepEqual(calls, []);
 });
 
 test("keeps every Agent Settings method loopback-only", async (t) => {
@@ -219,8 +277,10 @@ test("keeps every Agent Settings method loopback-only", async (t) => {
 
   for (const [method, payload] of [
     ["settings.describe", {}],
+    ["settings.describeScoped", { target: { scope: "project", workspaceId: "one" } }],
     ["settings.openDocument", {}],
     ["settings.update", { ns: "pi.agent", patch: {} }],
+    ["settings.updateScoped", { ns: "pi.agent", target: { scope: "user" }, patch: {} }],
   ] as const) {
     const response = routes.handle(rpcRequest(method, payload, options), method);
     assert.ok(response);

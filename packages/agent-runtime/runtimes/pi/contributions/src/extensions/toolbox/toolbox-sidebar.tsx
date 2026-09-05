@@ -11,7 +11,7 @@ import {
   WandSparklesIcon,
   type LucideIcon,
 } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { collapsePanel } from "@workbench/shell/ui";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@workbench/shell/ui";
@@ -21,7 +21,10 @@ import { definePiMessage, usePiI18n } from "../../i18n";
 import { cn } from "@workbench/shell/utils";
 import { useMainViewService } from "@workbench/extension-host";
 import type { SidebarSectionComponentProps } from "@workbench/extension-sdk";
-import type { PiPackageCatalogItemView } from "@workbench/agent-runtime-pi-protocol/rpc";
+import type {
+  PiPackageCatalogItemView,
+  PiResourceCatalogTarget,
+} from "@workbench/agent-runtime-pi-protocol/rpc";
 
 import {
   packageSurfaceParams,
@@ -280,7 +283,8 @@ export function ToolboxSidebar({ onNavigate, searchQuery }: SidebarSectionCompon
   const { locale, number, t } = usePiI18n();
   const mainViews = useMainViewService();
   useEffect(() => {
-    if (mainViews.getSnapshot()?.kind === "toolbox") return;
+    const kind = mainViews.getSnapshot()?.kind;
+    if (kind === "toolbox" || kind === "system-prompts") return;
     mainViews.open({
       kind: "toolbox",
       title: TOOLBOX_SECTION_TITLES.skills,
@@ -288,6 +292,26 @@ export function ToolboxSidebar({ onNavigate, searchQuery }: SidebarSectionCompon
     });
   }, [mainViews]);
   const scope = useToolboxScope();
+  const openSystemPrompts = useCallback(() => {
+    const active = mainViews.getSnapshot();
+    const target = toolboxScopeTarget(scope);
+    const currentTarget = active?.params.target as PiResourceCatalogTarget | undefined;
+    if (
+      active?.kind === "system-prompts" &&
+      currentTarget?.scope === target.scope &&
+      (target.scope === "user" ||
+        (currentTarget.scope === "project" && currentTarget.workspaceId === target.workspaceId))
+    )
+      return;
+    mainViews.open({
+      kind: "system-prompts",
+      title: definePiMessage("extensions.agentConfiguration.systemPrompt.title"),
+      params: { target },
+    });
+  }, [mainViews, scope]);
+  useEffect(() => {
+    if (mainViews.getSnapshot()?.kind === "system-prompts") openSystemPrompts();
+  }, [mainViews, openSystemPrompts]);
   const [expandedSections, setExpandedSections] = useState<ReadonlySet<ToolboxMainSection>>(
     () => new Set(),
   );
@@ -422,6 +446,14 @@ export function ToolboxSidebar({ onNavigate, searchQuery }: SidebarSectionCompon
           <>
             <section className="mb-1 flex flex-col gap-[2px]">
               <SectionLabel>{t("extensions.toolbox.capabilities")}</SectionLabel>
+              <ManagementRow
+                icon={FileTextIcon}
+                label={t("extensions.agentConfiguration.systemPrompt.title")}
+                onClick={() => {
+                  openSystemPrompts();
+                  onNavigate?.();
+                }}
+              />
               <CapabilityCategory
                 icon={WandSparklesIcon}
                 label={t("extensions.toolbox.skills.title")}

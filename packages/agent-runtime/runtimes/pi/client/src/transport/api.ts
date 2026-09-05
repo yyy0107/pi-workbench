@@ -45,6 +45,7 @@ import type {
   ModelProvidersValue,
   PiAgentSettingsNamespaceView,
   PiAgentSettingsUpdatePayload,
+  PiResourceCatalogTarget,
   PiPackageCatalogDescribePayload,
   PiPackageCatalogDetailsView,
   PiPackageCatalogSearchPayload,
@@ -652,8 +653,15 @@ export function describePiPackageCatalog(
   return callPiRpc("packageCatalog.describe", payload, options);
 }
 
-export function describePiSettings(options?: PiRpcCallOptions): Promise<SettingsDescribeValue> {
-  return callPiRpc("settings.describe", {}, options);
+export function describePiSettings(
+  options?: PiRpcCallOptions,
+  target?: PiResourceCatalogTarget,
+): Promise<SettingsDescribeValue> {
+  return callPiRpc(
+    target ? "settings.describeScoped" : "settings.describe",
+    target ? { target } : {},
+    options,
+  );
 }
 
 export function openPiSettingsDocument(
@@ -662,11 +670,22 @@ export function openPiSettingsDocument(
   return callPiRpc("settings.openDocument", {}, options);
 }
 
-export function updatePiAgentSettings(
+export async function updatePiAgentSettings(
   payload: PiAgentSettingsUpdatePayload,
   options?: PiRpcCallOptions,
 ): Promise<PiAgentSettingsNamespaceView> {
-  return callPiRpc("settings.update", payload, options);
+  const updated: PiAgentSettingsNamespaceView = await callPiRpc(
+    payload.target ? "settings.updateScoped" : "settings.update",
+    payload,
+    options,
+  );
+  // Older Runtimes may accept the request while silently stripping unknown prompt fields.
+  for (const field of ["systemPrompt", "appendSystemPrompt"] as const) {
+    if (payload.patch[field] !== undefined && typeof updated.value?.[field] !== "string") {
+      throw new PiApiError("settings-unsupported", 200, { field });
+    }
+  }
+  return updated;
 }
 
 export function listPiRpcSessions(

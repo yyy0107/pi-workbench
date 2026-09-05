@@ -5,7 +5,7 @@ import { defineMessage } from "@workbench/shell/i18n";
 
 import { definePiMessage } from "../../i18n";
 
-import { ContextManagementSettingsItem, SystemPromptSettingsItem } from "./agent-settings-items";
+import { ContextManagementSettingsItem, SystemPromptMainView } from "./agent-settings-items";
 
 export const agentConfigurationExtension = defineExtension({
   id: "workbench.agent-configuration",
@@ -13,17 +13,9 @@ export const agentConfigurationExtension = defineExtension({
   version: "1.0.0",
 
   setup(context) {
-    const systemPrompt = context.settings.registerItem({
-      sectionId: "general",
-      id: "system-prompt",
-      title: definePiMessage("extensions.agentConfiguration.systemPrompt.title"),
-      description: definePiMessage("extensions.agentConfiguration.systemPrompt.description"),
-      keywords: [
-        definePiMessage("extensions.agentConfiguration.systemPrompt.editorLabel"),
-        definePiMessage("extensions.agentConfiguration.systemPrompt.useDefault"),
-      ],
-      component: SystemPromptSettingsItem,
-      order: 20,
+    const systemPrompt = context.mainViews.register({
+      kind: "system-prompts",
+      component: SystemPromptMainView,
     });
     const contextSection = context.settings.registerSection({
       id: "context-management",
