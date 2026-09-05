@@ -1,36 +1,65 @@
-import { existsSync } from "node:fs";
+import fs from "node:fs";
 import { win32 } from "node:path";
 
 import { isTerminalShell, type TerminalShell } from "@workbench/terminal-contracts";
 
 type Environment = Readonly<Record<string, string | undefined>>;
 
+function executableExists(path: string): boolean {
+  if (fs.existsSync(path)) return true;
+  // Store execution aliases can be launched even when stat/exists returns EACCES.
+  // Inspect the reparse point itself instead of following its protected target.
+  try {
+    return fs.lstatSync(path, { throwIfNoEntry: false })?.isSymbolicLink() ?? false;
+  } catch {
+    return false;
+  }
+}
+
 export function terminalShellExecutable(
   shell: TerminalShell,
   environment: Environment,
-  exists: (path: string) => boolean = existsSync,
+  exists: (path: string) => boolean = executableExists,
 ): string {
   if (shell === "command-prompt") return "cmd.exe";
   if (shell === "wsl") return "wsl.exe";
   if (shell === "powershell") {
-    const searchPath = Object.entries(environment).find(
-      ([key]) => key.toLowerCase() === "path",
-    )?.[1];
-    const directories = [
-      ...(searchPath ?? "").split(";").map((entry) => entry.trim().replace(/^"|"$/g, "")),
-      ...[environment.ProgramW6432, environment.ProgramFiles, environment["ProgramFiles(x86)"]]
-        .filter((root): root is string => Boolean(root))
-        .map((root) => win32.join(root, "PowerShell", "7")),
-      environment.LOCALAPPDATA && win32.join(environment.LOCALAPPDATA, "Microsoft", "WindowsApps"),
-    ];
-    return (
-      directories
-        .filter((directory): directory is string =>
-          Boolean(directory && win32.isAbsolute(directory)),
-        )
-        .map((directory) => win32.join(directory, "pwsh.exe"))
-        .find(exists) ?? "powershell.exe"
+    // Windows environment keys are case-insensitive, including in copied environments.
+    const env = Object.fromEntries(
+      Object.entries(environment).map(([key, value]) => [key.toLowerCase(), value]),
     );
+    const absolutePaths = (paths: Array<string | undefined>): string[] =>
+      paths.filter((path): path is string => Boolean(path && win32.isAbsolute(path)));
+    const pathDirectories = absolutePaths(
+      (env.path ?? "").split(";").map((entry) => entry.trim().replace(/^"|"$/g, "")),
+    );
+    const programRoots = absolutePaths([
+      env.programw6432,
+      env.programfiles,
+      env["programfiles(x86)"],
+    ]);
+    const storeDirectories = absolutePaths([env.localappdata]).map((root) =>
+      win32.join(root, "Microsoft", "WindowsApps"),
+    );
+    const scoopRoots = absolutePaths([
+      env.scoop || (env.userprofile && win32.join(env.userprofile, "scoop")),
+      env.scoop_global || (env.programdata && win32.join(env.programdata, "scoop")),
+    ]);
+    const candidates = [
+      ...pathDirectories.map((root) => win32.join(root, "pwsh.exe")),
+      ...programRoots.map((root) => win32.join(root, "PowerShell", "7", "pwsh.exe")),
+      ...storeDirectories.map((root) => win32.join(root, "pwsh.exe")),
+      ...absolutePaths([env.dotnet_cli_home || env.userprofile]).map((root) =>
+        win32.join(root, ".dotnet", "tools", "pwsh.exe"),
+      ),
+      ...scoopRoots.map((root) => win32.join(root, "apps", "pwsh", "current", "pwsh.exe")),
+      // Known Preview locations are fallbacks; an explicit PATH choice still wins.
+      ...programRoots.map((root) => win32.join(root, "PowerShell", "7-preview", "pwsh.exe")),
+      ...[...pathDirectories, ...storeDirectories].map((root) =>
+        win32.join(root, "pwsh-preview.exe"),
+      ),
+    ];
+    return [...new Set(candidates)].find(exists) ?? "powershell.exe";
   }
   return (
     [

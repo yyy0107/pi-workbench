@@ -129,9 +129,16 @@ failed synchronization retains the saved profile for retry and the next Runtime 
 
 The Windows PowerShell profile prefers `pwsh.exe` from absolute `PATH` entries (in order), then the
 standard `PowerShell/7` directories under `ProgramW6432`, `ProgramFiles`, and `ProgramFiles(x86)`,
-then the current user's `LOCALAPPDATA/Microsoft/WindowsApps` entry. If none exists, it falls back to
-`powershell.exe`. This finds PowerShell 7 without replacing existing terminal or AgentSession
+then the current user's `LOCALAPPDATA/Microsoft/WindowsApps` entry, .NET global tools under
+`DOTNET_CLI_HOME` (or `USERPROFILE`), and Scoop's `apps/pwsh/current` under `SCOOP`/`SCOOP_GLOBAL`
+(defaulting to `USERPROFILE/scoop` and `ProgramData/scoop`). Preview installations in standard
+`PowerShell/7-preview` directories and `pwsh-preview.exe` PATH/Store aliases are checked last.
+An explicit `pwsh.exe` PATH choice keeps priority, including portable, package-manager, and Preview
+installations. Windows environment keys are matched case-insensitively.
+If none exists, it falls back to `powershell.exe`. This finds PowerShell 7 without replacing existing terminal or AgentSession
 snapshots; custom ZIP installations must be on `PATH` or explicitly configured.
+Store execution aliases are also detected through `lstat`, because following their protected
+targets with `existsSync` can report them as missing even when Windows can launch them.
 
 Without a desktop profile, the fallback is `$PI_WORKBENCH_TERMINAL_SHELL`, then
 `$WORKBENCH_TERMINAL_SHELL`, then `$SHELL`, then the platform default (`/bin/bash` or the same Windows

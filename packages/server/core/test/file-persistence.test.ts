@@ -1,5 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readdir, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  rmdir,
+  stat,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { registerHooks } from "node:module";
 import { hostname, tmpdir } from "node:os";
 import path from "node:path";
@@ -64,6 +74,59 @@ test("serializes lock contenders and removes ownership after release", async (t)
 
   assert.deepEqual(events, ["first:start", "first:end", "second:start", "second:end"]);
   await assert.rejects(stat(lockDirectory), { code: "ENOENT" });
+});
+
+test("retries owner read conflicts and keeps unreadable locks intact until timeout", async (t) => {
+  for (const code of ["EPERM", "EACCES", "EBUSY"]) {
+    const directory = await fixture(t);
+    const lockDirectory = path.join(directory, "settings.lock");
+    const ownerFile = path.join(lockDirectory, "owner");
+    await mkdir(lockDirectory);
+    const content = JSON.stringify({ host: hostname(), pid: process.pid, token: "held-by-test" });
+    await writeFile(ownerFile, content);
+    const old = new Date(Date.now() - 5_000);
+    await utimes(ownerFile, old, old);
+    await utimes(lockDirectory, old, old);
+    const readHook = Symbol.for("workbench.file-persistence.test.read-hook");
+    let attempts = 0;
+    let releaseOnRetry = false;
+    let readErrorCode = code;
+    Reflect.set(globalThis, readHook, async (target: string | URL) => {
+      if (target.toString() !== ownerFile) return;
+      attempts++;
+      if (releaseOnRetry && attempts === 2) {
+        await rm(ownerFile);
+        await rmdir(lockDirectory);
+        return;
+      }
+      throw Object.assign(new Error("owner read conflict"), { code: readErrorCode });
+    });
+    t.after(() => {
+      Reflect.deleteProperty(globalThis, readHook);
+    });
+    await assert.rejects(
+      withCrossProcessFileLock({ lockDirectory, waitTimeoutMs: 30, staleAfterMs: 1 }, async () =>
+        assert.fail("must not acquire an unreadable lock"),
+      ),
+      CrossProcessFileLockTimeoutError,
+    );
+    assert.ok(attempts > 1);
+    assert.equal(await readFile(ownerFile, "utf8"), content);
+    readErrorCode = "EIO";
+    await assert.rejects(
+      withCrossProcessFileLock({ lockDirectory }, async () => assert.fail("must not acquire")),
+      { code: "EIO" },
+    );
+    readErrorCode = code;
+    attempts = 0;
+    releaseOnRetry = true;
+    assert.equal(
+      await withCrossProcessFileLock({ lockDirectory, waitTimeoutMs: 500 }, async () => "acquired"),
+      "acquired",
+    );
+    assert.equal(attempts, 2);
+    Reflect.deleteProperty(globalThis, readHook);
+  }
 });
 
 test("release cannot remove a successor created after owner validation", async (t) => {
@@ -255,8 +318,11 @@ test("atomically replaces mode-0600 content and removes temporary files", async 
   });
 
   assert.equal(await readFile(file, "utf8"), "second\n");
-  assert.equal((await stat(parent)).mode & 0o777, 0o700);
-  assert.equal((await stat(file)).mode & 0o777, 0o600);
+  // Windows does not expose POSIX owner/group permission bits through stat.
+  if (process.platform !== "win32") {
+    assert.equal((await stat(parent)).mode & 0o777, 0o700);
+    assert.equal((await stat(file)).mode & 0o777, 0o600);
+  }
   assert.deepEqual(await readdir(parent), ["settings.json"]);
 });
 
