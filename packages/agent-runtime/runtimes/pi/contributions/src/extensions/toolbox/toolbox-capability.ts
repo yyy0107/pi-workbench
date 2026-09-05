@@ -7,6 +7,7 @@ import type {
   PiResourceCatalogTarget,
   PiPackageCatalogItemView,
   PromptCommandView,
+  PromptTemplateView,
   SkillView,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type { OpenableResource } from "@workbench/extension-sdk";
@@ -30,6 +31,8 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   enabled?: boolean;
   invocationName?: string;
   argumentHint?: string;
+  promptId?: string;
+  editable?: boolean;
   source?: string;
   filePath?: string;
   extensionName?: string;
@@ -230,10 +233,15 @@ export function extensionSurfaceParams(extension: ExtensionView): ToolboxCapabil
   };
 }
 
-export function promptSurfaceParams(prompt: PromptCommandView): ToolboxCapabilitySurfaceParams {
+export function promptSurfaceParams(
+  prompt: PromptCommandView | PromptTemplateView,
+): ToolboxCapabilitySurfaceParams {
   const packageName = npmPackageNameFromSource(prompt.source);
   return {
-    capabilityId: promptCapabilityId(prompt),
+    capabilityId: "id" in prompt ? `prompt:${prompt.id}` : promptCapabilityId(prompt),
+    ...("id" in prompt
+      ? { promptId: prompt.id, enabled: prompt.enabled, editable: prompt.editable }
+      : {}),
     capabilityKind: "prompt",
     name: prompt.name,
     ...(prompt.description ? { description: prompt.description } : {}),

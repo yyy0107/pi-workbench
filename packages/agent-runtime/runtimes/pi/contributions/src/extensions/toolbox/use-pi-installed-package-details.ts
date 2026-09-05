@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 import { usePiResourceClient } from "@workbench/agent-runtime-pi-client/resources";
 import type {
@@ -28,6 +28,11 @@ export function usePiInstalledPackageDetails(
 ) {
   const resourceClient = usePiResourceClient();
   const key = packageDetailsKey(target, source);
+  const catalogRevision = useSyncExternalStore(
+    resourceClient.subscribeCatalog,
+    resourceClient.getCatalogRevision,
+    resourceClient.getCatalogRevision,
+  );
   const [state, setState] = useState<InstalledPackageDetailsState>({
     key: "",
     loadState: "idle",
@@ -54,7 +59,7 @@ export function usePiInstalledPackageDetails(
     return () => {
       active = false;
     };
-  }, [enabled, key, resourceClient, revision, source, target]);
+  }, [catalogRevision, enabled, key, resourceClient, revision, source, target]);
 
   const refresh = useCallback(() => setRevision((current) => current + 1), []);
   const isCurrentPackage = state.key === key;

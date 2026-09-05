@@ -76,5 +76,5 @@ export function usePiPackageCatalog({
 
   const refresh = useCallback(() => setRevision((current) => current + 1), []);
 
-  return { loadState, refresh, value } as const;
+  return { hasValue: value !== EMPTY_CATALOG, loadState, refresh, value } as const;
 }

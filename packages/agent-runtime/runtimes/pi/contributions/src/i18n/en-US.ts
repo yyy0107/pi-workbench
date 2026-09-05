@@ -557,6 +557,62 @@ export const piExtensionsEnUS = {
           `${number(count)} ${count === 1 ? "extension failed" : "extensions failed"} to load`,
       },
       prompts: {
+        viewMode: "Template view mode",
+        existingDraft:
+          "You have an unsent draft. Use the current draft, or finish it before switching conversations.",
+        create: "New template",
+        edit: "Edit template",
+        copy: "Copy to my templates",
+        use: "Use",
+        useNamed: ({ name }: { name: string }) => `Use ${name}`,
+        delete: "Delete template",
+        deleteDescription: ({ name }: { name: string }) =>
+          `Delete the template file for ${name}? This cannot be undone.`,
+        cancel: "Cancel",
+        save: "Save",
+        saving: "Saving…",
+        name: "Template name",
+        nameHint:
+          "Use letters, numbers, hyphens, underscores, or dots. This is also the /command and file name.",
+        content: "Template content",
+        emptyContent: "This template has no content.",
+        editorHint:
+          "Saved in the prompts directory of the selected scope. Optional YAML frontmatter can define description and argument-hint.",
+        useExample: "Use reference template",
+        example:
+          '---\n# description: Explains the template\'s purpose in the template list.\ndescription: "Review code changes, identify evidence-backed issues, and suggest minimal fixes."\n# argument-hint: A hint shown in the use dialog and command menu; it does not enforce validation.\nargument-hint: "[file or directory] [review focus] [additional requirements...]"\n# Suggested template name: review, available as /review after saving.\n# Enter only the arguments in the use dialog, without /review:\n# "src/app page.tsx" "error handling" "preserve existing interfaces" "check edge cases"\n# Separate arguments with spaces and quote values containing spaces. Leave empty to use defaults.\n# $1 and $2: The first and second arguments; $ARGUMENTS or $@: All arguments.\n# ${1:-default}: Use a default when the first argument is missing.\n# ${@:3}: Arguments from the third onward; ${@:3:2}: Two arguments starting at the third.\n# This YAML configuration and its comments are excluded from the expanded prompt.\n---\nYou are a careful code reviewer. Understand the code\'s actual behavior before suggesting changes.\n\n## Review target\n- Scope: ${1:-uncommitted changes in the current project}\n- Focus: ${2:-correctness, error handling, and maintainability}\n- Additional requirements: ${@:3}\n\n## Steps\n1. Read project instructions and relevant code to understand expected behavior, callers, and constraints.\n2. Trace inputs, state changes, error paths, and boundary conditions through the call chain.\n3. Prioritize reproducible issues; explain their triggers, impact, and supporting code evidence.\n4. Suggest the smallest fix for each issue and the cheapest effective way to verify it.\n\n## Constraints\n- Report findings first. Modify files only when the user explicitly requests changes.\n- Reuse existing components, tools, and conventions; avoid unrelated refactors and new dependencies.\n- Do not guess missing context. State uncertainties and the information needed to resolve them.\n- Do not claim unrun checks passed. Say clearly when no issues were found.\n\n## Output format\n1. Conclusion: Summarize the review in one or two sentences.\n2. Findings: Order by severity; include file locations, triggers, impact, and suggested fixes.\n3. Verification: List checks actually performed, their results, and what remains unverified.',
+        discardTitle: "Discard unsaved changes?",
+        discardDescription: "Closing will discard your unsaved changes.",
+        keepEditing: "Keep editing",
+        discard: "Discard changes",
+        destination: "Destination conversation",
+        newConversation: "New conversation",
+        currentDraft: "Current draft",
+        untitledConversation: "Untitled conversation",
+        selectWorkspace: "Select a project",
+        searchWorkspace: "Search projects",
+        noWorkspaces: "Add a project first.",
+        arguments: "Template arguments",
+        argumentsHint:
+          "Separate arguments with spaces; quote arguments containing spaces. Leave empty to use template defaults.",
+        preparing: "Preparing…",
+        insert: "Insert into composer",
+        useHint:
+          "The expanded template is appended to the composer, preserving your draft. Review it before sending.",
+        enabled: "Enable template",
+        independent: "Independent template",
+        packageSource: ({ source }: { source: string }) => `From ${source}`,
+        untrusted: "Trust this project in project settings before managing its templates.",
+        busy: "A related conversation is running. Wait for it to finish, then retry.",
+        conflict:
+          "The file has changed. Keep a copy of your draft, close the editor, refresh, and retry.",
+        nameExists: "A template with this name already exists in this scope. Choose another name.",
+        invalidContent:
+          "Check the template name and YAML format. Content cannot be empty, and the file must not exceed 256 KiB.",
+        readOnly: "This template is read-only. Copy it to your templates to make changes.",
+        notFound: "This template is no longer available. Refresh the list.",
+        disabledUse: "Enable this template before using it.",
+        failed: "The operation failed. Check your connection and file permissions, then retry.",
         title: "Prompts",
         empty: "No prompt templates are available.",
       },
@@ -585,6 +641,10 @@ export const piExtensionsEnUS = {
         empty: "No installed Pi Packages were found.",
         browseEmpty: "No Pi packages match this search and filter.",
         checkUpdates: "Check downloaded packages for updates",
+        checkUpdatesAction: "Check for updates",
+        updateNamed: ({ name }: { name: string }) => `Update ${name}`,
+        retryUpdateNamed: ({ name }: { name: string }) => `Retry updating ${name}`,
+        updated: "Updated",
         checkingUpdates: "Checking downloaded package versions…",
         updateCheckDescription:
           "Compare downloaded Pi packages with their latest npm version or Git revision.",
@@ -613,7 +673,21 @@ export const piExtensionsEnUS = {
           count === 1 ? "1 update" : `${number(count)} updates`,
         filteredResources: "Selected resources",
         allResources: "All package resources",
-        typeFilter: "Type",
+        typeFilter: "Category",
+        installedResourceVersion: ({ version }: { version: string }) =>
+          `Resources in installed version ${version} in the current scope, including disabled items.`,
+        installedResources: "Resources in the current installation, including disabled items.",
+        resourcesEmpty: "No resources of this type were found in the current installation.",
+        resourcesLoadFailed:
+          "Could not read the installed package's resource details. Retry to load them.",
+        resourceDescriptionUnavailable: "No description is provided for this resource.",
+        resourceDetailsUnavailable: ({ kind }: { kind: string }) =>
+          `This package declares ${kind} resources, but the market does not publish their names or descriptions. See the package documentation; details can be read locally after installation.`,
+        installContents: "Installation contents",
+        installContentsUnavailable:
+          "Installation contents are unavailable. Retry loading the package details.",
+        noBundledPrompts:
+          "This package does not include prompt templates. Installing it will not add entries to the prompt template list.",
         sortLabel: "Sort",
         results: "Packages",
         pagination: "Package pages",
@@ -695,10 +769,10 @@ export const piExtensionsEnUS = {
         repository: "Repository",
         filters: {
           all: "All packages",
-          extension: "Extensions",
-          skill: "Skills",
-          prompt: "Prompts",
-          theme: "Themes",
+          extension: "Extension-related",
+          skill: "Skill-related",
+          prompt: "Prompt-related",
+          theme: "TUI themes",
         },
         sort: {
           downloads: "Popular",
@@ -708,12 +782,13 @@ export const piExtensionsEnUS = {
         types: {
           extension: "Extension",
           skill: "Skill",
-          prompt: "Prompt",
+          prompt: "Prompt template",
           theme: "Theme",
           package: "Package",
         },
       },
       details: {
+        information: "Information",
         overview: "Overview",
         capabilityDetails: "Capability details",
         descriptionUnavailable: "No description is exposed by the current Pi protocol.",
@@ -765,8 +840,6 @@ export const piExtensionsEnUS = {
         skillDocumentLoadFailed: "This skill's SKILL.md could not be loaded.",
         skillDocumentEmpty: "This skill's SKILL.md is empty.",
         retry: "Retry",
-        promptProtocolLimit:
-          "Prompt content and source paths are not included in the current command-list response.",
         extensionProtocolLimit:
           "Version, permissions, changelog, panels, editors, and file types are not included in the current extension-list response; extension-point details show only safe declarative metadata, never handler or execution source.",
       },

@@ -11,7 +11,7 @@ import {
   RefreshCwIcon,
   SearchIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type Ref } from "react";
 
 import { useMainViewService } from "@workbench/extension-host";
 import {
@@ -216,7 +216,7 @@ export function ToolboxInstalledView({
               </Button>
             </div>
           </header>
-          <InputGroup className="[--input-control-height:var(--button-height-large)]">
+          <InputGroup>
             <InputGroupAddon>
               <SearchIcon aria-hidden="true" />
             </InputGroupAddon>
@@ -282,25 +282,48 @@ export function ToolboxInstalledView({
         </div>
       </div>
       {selected ? (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="shrink-0 overflow-y-auto border-b border-border [scrollbar-gutter:stable]">
-            <div className="mx-auto w-full max-w-5xl px-5 py-3 @2xl:px-10">
-              <Button
-                ref={backButton}
-                variant="ghost"
-                className="justify-start px-0"
-                onClick={() => setSelected(undefined)}
-              >
-                <ArrowLeftIcon aria-hidden="true" />
-                {t("extensions.toolbox.main.backToList", { name: title })}
-              </Button>
-            </div>
-          </div>
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <ToolboxCapabilityDetails key={selected.capabilityId} params={selected} />
-          </div>
-        </div>
+        <ToolboxDetailView
+          params={selected}
+          listTitle={title}
+          backButtonRef={backButton}
+          onBack={() => setSelected(undefined)}
+        />
       ) : null}
     </section>
+  );
+}
+
+export function ToolboxDetailView({
+  params,
+  listTitle,
+  backButtonRef,
+  onBack,
+}: {
+  params: ToolboxCapabilitySurfaceParams;
+  listTitle: string;
+  backButtonRef: Ref<HTMLButtonElement>;
+  onBack(): void;
+}) {
+  const { t } = usePiI18n();
+
+  return (
+    <div className="@container flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0 overflow-y-auto border-b border-border [scrollbar-gutter:stable]">
+        <div className="mx-auto w-full max-w-5xl px-5 py-3 @2xl:px-10">
+          <Button
+            ref={backButtonRef}
+            variant="ghost"
+            className="justify-start px-0"
+            onClick={onBack}
+          >
+            <ArrowLeftIcon aria-hidden="true" />
+            {t("extensions.toolbox.main.backToList", { name: listTitle })}
+          </Button>
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <ToolboxCapabilityDetails key={params.capabilityId} params={params} />
+      </div>
+    </div>
   );
 }
