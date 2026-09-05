@@ -418,7 +418,7 @@ export function ToolboxSidebar({ onNavigate, searchQuery }: SidebarSectionCompon
             {t("extensions.toolbox.scope.label")}
           </span>
           <div className="min-w-0 flex-1">
-            <ToolboxScopeSelect className="h-7" />
+            <ToolboxScopeSelect />
           </div>
         </section>
         {normalizedQuery ? (

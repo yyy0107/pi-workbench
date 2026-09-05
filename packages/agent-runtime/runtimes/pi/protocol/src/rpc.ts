@@ -247,6 +247,8 @@ export interface HostDescription {
   version: string;
   piVersion: string;
   cwd: string;
+  /** Root directory for user-scoped Pi resources. */
+  userResourceDir?: string;
   /** Managed npm package directory for user-scoped Pi packages. */
   userPackageDir?: string;
   provider?: string;

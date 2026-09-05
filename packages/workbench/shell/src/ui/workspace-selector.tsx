@@ -18,7 +18,8 @@ import { cn } from "../utils";
 export interface WorkspaceSelectorOption {
   id: string;
   name: string;
-  rootPath: string;
+  rootPath?: string;
+  icon?: ReactNode;
 }
 
 export interface WorkspaceSelectorLabels {
@@ -73,7 +74,7 @@ export function WorkspaceSelector({
       open={open}
       onOpenChange={onOpenChange}
       value={selectedWorkspace ?? null}
-      itemToStringLabel={(workspace) => `${workspace.name} ${workspace.rootPath}`}
+      itemToStringLabel={(workspace) => `${workspace.name} ${workspace.rootPath ?? ""}`}
       isItemEqualToValue={(workspace, value) => workspace.id === value.id}
       onValueChange={(workspace) => {
         if (workspace) {
@@ -86,7 +87,7 @@ export function WorkspaceSelector({
         const normalizedQuery = query.trim().toLocaleLowerCase();
         return (
           workspace.name.toLocaleLowerCase().includes(normalizedQuery) ||
-          workspace.rootPath.toLocaleLowerCase().includes(normalizedQuery)
+          (workspace.rootPath ?? "").toLocaleLowerCase().includes(normalizedQuery)
         );
       }}
     >
@@ -109,6 +110,7 @@ export function WorkspaceSelector({
             className={cn(
               "group/clear relative size-[var(--dropdown-control-height)] shrink-0",
               variant === "outline" ? "rounded-[var(--input-control-radius)]" : "rounded-full",
+              variant === "ghost" && "hover:bg-transparent",
             )}
           >
             <FolderIcon
@@ -133,7 +135,7 @@ export function WorkspaceSelector({
             "h-[var(--dropdown-control-height)] min-w-0 flex-1 cursor-pointer border-0 text-base font-normal focus-visible:-outline-offset-2 disabled:cursor-default disabled:opacity-100",
             variant === "outline" ? "rounded-[var(--input-control-radius)]" : "rounded-full",
             variant === "ghost" &&
-              "[background:transparent] hover:[background:var(--button-background-hover)]",
+              "[background:transparent] hover:[background:transparent] data-popup-open:[background:transparent]",
             clearable ? "ps-0" : "ps-2.5",
           )}
         >
@@ -141,7 +143,9 @@ export function WorkspaceSelector({
             picking ? (
               <LoaderCircleIcon aria-hidden="true" className="size-4 shrink-0 animate-spin" />
             ) : (
-              <FolderIcon aria-hidden="true" className="size-4 shrink-0" />
+              (selectedWorkspace?.icon ?? (
+                <FolderIcon aria-hidden="true" className="size-4 shrink-0" />
+              ))
             )
           ) : null}
           <span className="min-w-0 flex-1 truncate text-start">
@@ -182,8 +186,17 @@ export function WorkspaceSelector({
               className="min-h-9 gap-2.5 rounded-lg px-2.5 pe-9 text-sm"
               title={workspace.rootPath}
             >
-              <FolderIcon aria-hidden="true" className="size-4 text-muted-foreground" />
-              <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
+              {workspace.icon ?? (
+                <FolderIcon aria-hidden="true" className="size-4 text-muted-foreground" />
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{workspace.name}</span>
+                {workspace.rootPath ? (
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {workspace.rootPath}
+                  </span>
+                ) : null}
+              </span>
             </SearchableSelectorItem>
           )}
         </SearchableSelectorList>

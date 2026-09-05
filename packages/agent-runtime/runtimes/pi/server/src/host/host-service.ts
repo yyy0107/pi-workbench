@@ -16,13 +16,15 @@ export interface HostProtocol {
 export class HostService implements HostProtocol {
   async describe(): Promise<HostDescription> {
     const cwd = process.cwd();
+    const userResourceDir = getAgentDir();
     const models = await listModels(cwd).catch(() => undefined);
     return {
       product: "pi-workbench",
       version: WORKBENCH_VERSION,
       piVersion: PI_VERSION,
       cwd,
-      userPackageDir: path.join(getAgentDir(), "npm"),
+      userResourceDir,
+      userPackageDir: path.join(userResourceDir, "npm"),
       ...(models?.defaultModel
         ? {
             provider: models.defaultModel.provider,

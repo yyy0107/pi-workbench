@@ -195,9 +195,9 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 尚未在本目录实现。
 
 `host.describe` 同时返回稳定的 `product: "pi-workbench"`、Workbench 的 `version`、当前嵌入
-Pi coding agent 的 `piVersion`，以及用户级 Pi Package 的权威 `userPackageDir`；原生壳使用
+Pi coding agent 的 `piVersion`、用户级资源根目录 `userResourceDir`，以及用户级 Pi Package 的权威 `userPackageDir`；原生壳使用
 `product` 识别服务，状态栏等客户端界面应使用 `piVersion` 展示 Pi 版本。工具箱使用
-`userPackageDir` 展示安装位置，不在浏览器中推导用户主目录或写死默认路径。
+`userResourceDir` 展示用户级范围路径，使用 `userPackageDir` 展示安装位置，不在浏览器中推导用户主目录或写死默认路径。
 
 当前 Settings 协议暴露 `pi.agent` 命名空间，并且仅允许 loopback 请求。
 `settings.describe`、`settings.update` 和 `settings.openDocument` 继续管理全局配置；
