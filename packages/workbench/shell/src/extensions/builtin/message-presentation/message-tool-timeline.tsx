@@ -128,17 +128,18 @@ function useElapsedSeconds(running: boolean, timing?: MessageBlockTiming): numbe
 }
 
 export function useReasoningStalled(running: boolean, content: string): boolean {
-  const [stalled, setStalled] = useState(false);
+  const activity = useMemo(() => ({ running, content }), [running, content]);
+  const [stalledActivity, setStalledActivity] = useState<typeof activity>();
 
   useEffect(() => {
-    setStalled(false);
-    if (!running) return;
+    if (!activity.running) return;
 
-    const timer = window.setTimeout(() => setStalled(true), REASONING_STALL_DELAY_MS);
+    const timer = window.setTimeout(() => setStalledActivity(activity), REASONING_STALL_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [content, running]);
+  }, [activity]);
 
-  return stalled;
+  // A new activity resets the label during render, without a synchronous effect update.
+  return running && stalledActivity === activity;
 }
 
 function TimelineReasoning({
