@@ -152,14 +152,14 @@ export function TerminalBlock({
       >
         {done ? (
           <>
-            <CheckIcon aria-hidden="true" className="size-4" />
+            <CheckIcon aria-hidden="true" className="aui-chat-icon-size-default" />
             <span>{successLabel}</span>
           </>
         ) : (
           <>
             <Loader2Icon
               aria-hidden="true"
-              className="size-3.5 animate-spin motion-reduce:animate-none"
+              className="aui-chat-icon-size-default animate-spin motion-reduce:animate-none"
             />
             <span>{runningLabel}</span>
           </>

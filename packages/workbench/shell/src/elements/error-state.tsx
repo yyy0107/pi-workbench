@@ -47,7 +47,7 @@ export function ErrorState({
         )}
         {...props}
       >
-        <RefreshCwIcon className="text-foreground/45 size-3.5 shrink-0 animate-spin motion-reduce:animate-none" />
+        <RefreshCwIcon className="text-foreground/45 aui-chat-icon-size-default animate-spin motion-reduce:animate-none" />
         <ShimmerLabel className="text-foreground/55 relative inline-block">
           {retryingLabel}
         </ShimmerLabel>
@@ -68,9 +68,9 @@ export function ErrorState({
       {...props}
     >
       {tone === "error" ? (
-        <CircleAlertIcon className="mt-0.5 size-4 shrink-0 text-red-500/80" />
+        <CircleAlertIcon className="mt-0.5 aui-chat-icon-size-default text-red-500/80" />
       ) : (
-        <CircleStopIcon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+        <CircleStopIcon className="text-muted-foreground mt-0.5 aui-chat-icon-size-default" />
       )}
       <div className="min-w-0 flex-1">
         <p
@@ -104,11 +104,7 @@ export function ErrorState({
               : "text-foreground/70 hover:bg-foreground/5 focus-visible:ring-ring",
           )}
         >
-          {actionKind === "continue" ? (
-            <PlayIcon className="size-3 fill-current" />
-          ) : (
-            <RefreshCwIcon className="size-3" />
-          )}
+          {actionKind === "continue" ? <PlayIcon className="fill-current" /> : <RefreshCwIcon />}
           {retryLabel}
         </Button>
       ) : null}

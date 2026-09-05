@@ -142,7 +142,7 @@ export function ComposerCommandToken({
           <span
             data-slot="composer-command-token-icon"
             aria-hidden="true"
-            className="inline-flex size-[var(--icon-size-sm)] shrink-0 items-center justify-center [&_svg]:size-full [&_svg.lucide]:[stroke-width:1.5]"
+            className="aui-composer-icon-size-default inline-flex items-center justify-center [&_svg]:size-full"
           >
             {icon}
           </span>

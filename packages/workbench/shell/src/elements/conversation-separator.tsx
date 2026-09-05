@@ -48,7 +48,7 @@ export function ConversationSeparator({
     >
       <span aria-hidden="true" className="bg-current/15 h-px min-w-4 flex-1" />
       <span className="flex min-w-0 flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-center">
-        {icon ? <span className="shrink-0 [&>svg]:size-3">{icon}</span> : null}
+        {icon ? <span className="aui-chat-icon-size-default [&>svg]:size-full">{icon}</span> : null}
         <span className="text-[11px] leading-4 font-medium">{label}</span>
         {detail ? (
           <span
@@ -113,7 +113,10 @@ export function ModelChangeSeparator({
           {previousModel ? (
             <>
               <span className="break-all">{previousModel}</span>
-              <ArrowRightIcon aria-hidden="true" className="size-2.5 shrink-0 rtl:rotate-180" />
+              <ArrowRightIcon
+                aria-hidden="true"
+                className="aui-chat-icon-size-default rtl:rotate-180"
+              />
             </>
           ) : null}
           <span className="break-all text-current">{model}</span>

@@ -106,13 +106,13 @@ function ToolGroupTrigger({
       {active ? (
         <LoaderIcon
           data-slot="tool-group-trigger-loader"
-          className="aui-tool-group-trigger-loader text-foreground/45 size-3.5 shrink-0 animate-spin [animation-duration:0.6s] motion-reduce:animate-none"
+          className="aui-tool-group-trigger-loader text-foreground/45 aui-chat-icon-size-default animate-spin [animation-duration:0.6s] motion-reduce:animate-none"
         />
       ) : Icon ? (
         <Icon
           data-slot="tool-group-trigger-icon"
           aria-hidden
-          className="aui-tool-group-trigger-icon text-foreground/45 size-3.5 shrink-0"
+          className="aui-tool-group-trigger-icon text-foreground/45 aui-chat-icon-size-default"
         />
       ) : null}
       <span
@@ -138,7 +138,7 @@ function ToolGroupTrigger({
       <ChevronDownIcon
         data-slot="tool-group-trigger-chevron"
         className={cn(
-          "aui-tool-group-trigger-chevron size-3 shrink-0",
+          "aui-tool-group-trigger-chevron aui-chat-icon-size-default",
           "transition-transform duration-(--animation-duration) ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
           "-rotate-90",
           "group-data-open/trigger:rotate-0",

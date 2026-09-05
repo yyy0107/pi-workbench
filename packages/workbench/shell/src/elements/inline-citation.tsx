@@ -80,7 +80,7 @@ function Citation({ index, source, open, onOpenChange }: CitationProps) {
                 <span>{source.title}</span>
                 <ExternalLinkIcon
                   aria-hidden="true"
-                  className="mt-0.5 size-3 shrink-0 opacity-50"
+                  className="mt-0.5 aui-chat-icon-size-default opacity-50"
                 />
               </a>
             ) : (

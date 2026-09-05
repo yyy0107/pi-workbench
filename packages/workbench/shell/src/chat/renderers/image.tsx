@@ -204,7 +204,7 @@ function ImagePreview({
           data-slot="image-preview-loading"
           className="bg-muted/50 absolute inset-0 flex items-center justify-center"
         >
-          <ImageIcon className="text-muted-foreground size-8 animate-pulse motion-reduce:animate-none" />
+          <ImageIcon className="text-muted-foreground aui-chat-icon-size-placeholder animate-pulse motion-reduce:animate-none" />
         </div>
       )}
       {error ? (
@@ -212,7 +212,7 @@ function ImagePreview({
           data-slot="image-preview-error"
           className="bg-muted/50 flex min-h-32 items-center justify-center p-4"
         >
-          <ImageOffIcon className="text-muted-foreground size-8" />
+          <ImageOffIcon className="text-muted-foreground aui-chat-icon-size-placeholder" />
         </div>
       ) : (
         <img
@@ -292,7 +292,7 @@ function ImageGenerating({ className }: { className?: string }) {
       data-slot="image-generating"
       className={cn("bg-muted/50 flex min-h-32 items-center justify-center p-4", className)}
     >
-      <Loader2Icon className="text-muted-foreground size-8 animate-spin" />
+      <Loader2Icon className="text-muted-foreground aui-chat-icon-size-placeholder animate-spin" />
       <span className="sr-only">{t("assistant.image.generating")}</span>
     </div>
   );
@@ -309,7 +309,7 @@ function ImageContentFilterError({ className, reason }: { className?: string; re
         className,
       )}
     >
-      <ShieldAlertIcon className="text-muted-foreground size-8" />
+      <ShieldAlertIcon className="text-muted-foreground aui-chat-icon-size-placeholder" />
       <p className="text-sm font-medium">{t("assistant.image.failed")}</p>
       {reason && <p className="text-muted-foreground text-xs">{reason}</p>}
     </div>

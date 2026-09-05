@@ -1,0 +1,46 @@
+/* Composer controls and detached menus have their own icon scale. */
+:where([data-slot="workbench-composer-shell"], [data-workbench-composer-popup]) {
+  --composer-icon-size: var(--icon-size-lg);
+  --composer-stop-icon-size: calc(var(--composer-icon-size) - 2px);
+  --composer-attachment-action-size: var(--control-hit-default);
+  --composer-primary-action-size: var(--control-hit-default);
+}
+
+@layer components {
+  /* Explicit size-* classes also opt out of the shared menu's fallback icon sizing. */
+  .aui-composer-icon-size-default,
+  .aui-composer-icon-size-attachment {
+    --button-icon-size: var(--composer-icon-size, var(--icon-size-sm));
+    width: var(--button-icon-size);
+    height: var(--button-icon-size);
+    flex-shrink: 0;
+  }
+
+  .aui-composer-icon-size-attachment {
+    --composer-icon-size: var(--icon-frame-size-compact);
+    stroke-width: 1.5;
+  }
+
+  :where([data-slot="workbench-composer-shell"], [data-workbench-composer-popup])
+    :where(button[data-slot]) {
+    --button-icon-size: var(--composer-icon-size, var(--icon-size-sm));
+  }
+
+  [data-slot="workbench-composer-actions"] .aui-composer-add-menu {
+    --button-icon-frame-size: var(--composer-attachment-action-size);
+  }
+
+  [data-slot="workbench-composer-actions"] .aui-composer-primary-action {
+    --button-icon-frame-size: var(--composer-primary-action-size);
+  }
+
+  .aui-composer-attachment-remove {
+    --button-icon-frame-size: calc(var(--icon-frame-size-compact) - 4px);
+    --button-icon-size: var(--composer-stop-icon-size, calc(var(--icon-size-sm) - 2px));
+  }
+
+  [data-slot="workbench-composer-actions"]
+    .aui-composer-primary-action:has(.aui-composer-stop-icon) {
+    --button-icon-size: var(--composer-stop-icon-size);
+  }
+}

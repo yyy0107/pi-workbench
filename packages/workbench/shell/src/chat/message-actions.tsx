@@ -41,11 +41,11 @@ function CopyAction({ role, text }: Readonly<{ role: "user" | "assistant"; text:
     <div className="flex items-center gap-0.5">
       <TooltipIconButton type="button" tooltip={tooltip} onClick={() => void copy(text)}>
         {isCopied ? (
-          <CheckIcon className="size-3.5" />
+          <CheckIcon />
         ) : status === "failed" ? (
-          <CircleXIcon className="text-destructive size-3.5" />
+          <CircleXIcon className="text-destructive" />
         ) : (
-          <CopyIcon className="size-3.5" />
+          <CopyIcon />
         )}
       </TooltipIconButton>
     </div>
@@ -114,7 +114,7 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
       aria-hidden={hideActionBar || undefined}
       className={cn(
         "[&_button.aui-button-icon]:active:scale-100",
-        "text-muted-foreground flex min-h-8 flex-wrap items-center gap-0.5 transition-opacity duration-150 ease-out motion-reduce:transition-none",
+        "text-muted-foreground flex min-h-8 flex-wrap items-center transition-opacity duration-150 ease-out motion-reduce:transition-none",
         hideActionBar && "invisible pointer-events-none opacity-0",
         role === "user" &&
           "opacity-100 md:opacity-0 md:group-focus-within/message:opacity-100 md:group-hover/message:opacity-100",
@@ -129,7 +129,7 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
       {actionsVisible && copyText && (role === "user" || role === "assistant") ? (
         <CopyAction role={role} text={copyText} />
       ) : null}
-      <SlotHost name="message.actions" context={context} className="flex items-center gap-0.5" />
+      <SlotHost name="message.actions" context={context} className="flex items-center" />
     </div>
   );
 }

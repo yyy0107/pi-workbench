@@ -61,7 +61,7 @@ export function ReasoningPanel({
           <span
             data-slot="reasoning-panel-icon"
             aria-hidden="true"
-            className="flex size-3.5 shrink-0 items-center justify-center"
+            className="flex aui-chat-icon-size-default items-center justify-center"
           >
             {activeIcon}
           </span>
@@ -69,7 +69,7 @@ export function ReasoningPanel({
           <Icon
             data-slot="reasoning-panel-icon"
             aria-hidden="true"
-            className="text-foreground/45 size-3.5 shrink-0"
+            className="text-foreground/45 aui-chat-icon-size-default"
           />
         ) : null}
         <span
@@ -107,7 +107,7 @@ export function ReasoningPanel({
             </span>
           )}
         </span>
-        <ChevronRightIcon className="size-3.5 shrink-0 opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/trigger:opacity-60 group-focus-visible/trigger:opacity-60 group-data-open/trigger:rotate-90 group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none" />
+        <ChevronRightIcon className="aui-chat-icon-size-default opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/trigger:opacity-60 group-focus-visible/trigger:opacity-60 group-data-open/trigger:rotate-90 group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none" />
       </CollapsibleTrigger>
       <CollapsibleContent className={cn(collapsePanel, "w-full outline-none")}>
         <ol className="flex w-full flex-col gap-0 pb-1">

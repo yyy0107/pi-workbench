@@ -336,7 +336,7 @@ export function WorkbenchConversationContent({
                     className="scale-75"
                   />
                 ) : (
-                  <ArrowDownIcon className="size-4" />
+                  <ArrowDownIcon />
                 )}
               </TooltipIconButton>
             ) : null}

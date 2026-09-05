@@ -108,7 +108,7 @@ export function ToolCall({
           data-slot="tool-call-icon"
           aria-hidden="true"
           className={cn(
-            "size-3.5 shrink-0",
+            "aui-chat-icon-size-default",
             hasCustomSummary ? "text-current" : "text-foreground/45",
             iconClassName,
           )}
@@ -145,20 +145,20 @@ export function ToolCall({
         <CircleXIcon
           aria-hidden="true"
           className={cn(
-            "fade-in zoom-in-90 animate-in size-3.5 shrink-0 duration-200 motion-reduce:animate-none",
+            "fade-in zoom-in-90 animate-in aui-chat-icon-size-default duration-200 motion-reduce:animate-none",
             failed ? "text-destructive" : "text-muted-foreground",
           )}
         />
       ) : !running && !requiresAction && showCompletionIcon ? (
         <CheckIcon
           aria-hidden="true"
-          className="fade-in zoom-in-90 animate-in size-3.5 shrink-0 text-emerald-500 duration-200 motion-reduce:animate-none"
+          className="fade-in zoom-in-90 animate-in aui-chat-icon-size-default text-emerald-500 duration-200 motion-reduce:animate-none"
         />
       ) : null}
     </>
   );
   const chevron = expandable ? (
-    <ChevronRightIcon className="size-3.5 shrink-0 opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/trigger:opacity-60 group-focus-visible/trigger:opacity-60 group-data-open/trigger:rotate-90 group-data-open/trigger:opacity-60 group-data-panel-open/trigger:rotate-90 group-data-panel-open/trigger:opacity-60 motion-reduce:transition-none" />
+    <ChevronRightIcon className="aui-chat-icon-size-default opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/trigger:opacity-60 group-focus-visible/trigger:opacity-60 group-data-open/trigger:rotate-90 group-data-open/trigger:opacity-60 group-data-panel-open/trigger:rotate-90 group-data-panel-open/trigger:opacity-60 motion-reduce:transition-none" />
   ) : null;
   const detailContent = children ? (
     <div className="mt-2 min-w-0">{children}</div>
@@ -218,7 +218,7 @@ export function ToolCall({
             <div className="pointer-events-none relative z-10 flex min-w-0 items-center gap-1.5 text-foreground/55 [--tool-diff-additions:currentColor] [--tool-diff-deletions:currentColor] transition-colors group-hover/tool-summary:text-foreground group-hover/tool-summary:[--tool-diff-additions:var(--color-emerald-600)] group-hover/tool-summary:[--tool-diff-deletions:var(--color-red-600)] group-focus-within/tool-summary:text-foreground group-focus-within/tool-summary:[--tool-diff-additions:var(--color-emerald-600)] group-focus-within/tool-summary:[--tool-diff-deletions:var(--color-red-600)] dark:group-hover/tool-summary:[--tool-diff-additions:var(--color-emerald-400)] dark:group-hover/tool-summary:[--tool-diff-deletions:var(--color-red-400)] dark:group-focus-within/tool-summary:[--tool-diff-additions:var(--color-emerald-400)] dark:group-focus-within/tool-summary:[--tool-diff-deletions:var(--color-red-400)]">
               {summaryContent}
             </div>
-            <ChevronRightIcon className="pointer-events-none relative z-10 size-3.5 shrink-0 opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] peer-hover/trigger:opacity-60 peer-focus-visible/trigger:opacity-60 peer-data-open/trigger:rotate-90 peer-data-open/trigger:opacity-60 peer-data-panel-open/trigger:rotate-90 peer-data-panel-open/trigger:opacity-60 motion-reduce:transition-none" />
+            <ChevronRightIcon className="pointer-events-none relative z-10 aui-chat-icon-size-default opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] peer-hover/trigger:opacity-60 peer-focus-visible/trigger:opacity-60 peer-data-open/trigger:rotate-90 peer-data-open/trigger:opacity-60 peer-data-panel-open/trigger:rotate-90 peer-data-panel-open/trigger:opacity-60 motion-reduce:transition-none" />
           </div>
           <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
             {detailContent}

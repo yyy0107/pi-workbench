@@ -107,7 +107,7 @@ function MessagePerformance({ node }: Readonly<{ node: ConversationNode }>) {
             />
           }
         >
-          <GaugeIcon className="size-3.5" />
+          <GaugeIcon />
         </PopoverTrigger>
         <PopoverContent side="right" align="center" sideOffset={6} className="w-52 p-3">
           <PopoverTitle className="sr-only">{label}</PopoverTitle>
@@ -152,7 +152,7 @@ function BranchPicker({ node }: Readonly<{ node: ConversationNode }>) {
         disabled={!branch.previousKey}
         onClick={() => select(branch.previousKey)}
       >
-        <ChevronLeftIcon className="size-3.5" />
+        <ChevronLeftIcon />
       </TooltipIconButton>
       <span className="px-0.5 font-medium tabular-nums">
         {branch.index + 1} / {branch.count}
@@ -163,7 +163,7 @@ function BranchPicker({ node }: Readonly<{ node: ConversationNode }>) {
         disabled={!branch.nextKey}
         onClick={() => select(branch.nextKey)}
       >
-        <ChevronRightIcon className="size-3.5" />
+        <ChevronRightIcon />
       </TooltipIconButton>
     </div>
   );
@@ -213,7 +213,7 @@ function AssistantActions({ node }: Readonly<{ node: ConversationNode }>) {
   };
 
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center">
       {stateToken && session.actions.fork ? (
         <TooltipIconButton
           tooltip={forkTooltip}
@@ -221,7 +221,7 @@ function AssistantActions({ node }: Readonly<{ node: ConversationNode }>) {
           disabled={forkState === "pending"}
           onClick={forkConversation}
         >
-          <SplitIcon className="size-3.5 rotate-90" />
+          <SplitIcon className="rotate-90" />
         </TooltipIconButton>
       ) : null}
       {session.actions.retry ? (
@@ -235,7 +235,7 @@ function AssistantActions({ node }: Readonly<{ node: ConversationNode }>) {
           disabled={isRunning}
           onClick={retry}
         >
-          <RefreshCwIcon className="size-3.5" />
+          <RefreshCwIcon />
         </TooltipIconButton>
       ) : null}
     </div>

@@ -167,7 +167,7 @@ function ScrollingComposerContextItem({
       onPointerDown={(event) => event.preventDefault()}
       onClick={() => onSelect(item)}
     >
-      <Icon aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
+      <Icon aria-hidden="true" className="text-muted-foreground aui-composer-icon-size-default" />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate" title={item.label}>
           {item.label}
@@ -259,7 +259,10 @@ export function WorkbenchComposerContextMenuView({
             <div className="text-muted-foreground flex min-h-10 items-center justify-center gap-2 px-3 py-2 text-xs">
               {isLoading ? (
                 <>
-                  <LoaderCircleIcon aria-hidden="true" className="size-3.5 animate-spin" />
+                  <LoaderCircleIcon
+                    aria-hidden="true"
+                    className="aui-composer-icon-size-default animate-spin"
+                  />
                   <span>{labels.loading}</span>
                 </>
               ) : (
@@ -310,7 +313,7 @@ export function ComposerAddMenuView({
             className="aui-composer-add-menu text-muted-foreground hover:text-foreground hover:bg-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-[var(--composer-attachment-action-size)] rounded-[var(--button-radius)] active:scale-[0.96] motion-reduce:transition-none"
             aria-label={labels.open}
           >
-            <PlusIcon className="aui-composer-add-menu-icon size-[var(--composer-attachment-icon-size)]" />
+            <PlusIcon className="aui-composer-add-menu-icon" />
           </TooltipIconButton>
         }
       />
@@ -326,15 +329,24 @@ export function ComposerAddMenuView({
           disabled={!attachmentsEnabled}
           onClick={onChooseAttachment}
         >
-          <PaperclipIcon aria-hidden="true" className="text-muted-foreground size-4" />
+          <PaperclipIcon
+            aria-hidden="true"
+            className="text-muted-foreground aui-composer-icon-size-default"
+          />
           <span>{labels.attachment}</span>
         </DropdownMenuItem>
         <DropdownMenuItem className="min-h-9 gap-2.5 px-2.5" onClick={() => onInsertTrigger("@")}>
-          <AtSignIcon aria-hidden="true" className="text-muted-foreground size-4" />
+          <AtSignIcon
+            aria-hidden="true"
+            className="text-muted-foreground aui-composer-icon-size-default"
+          />
           <span>{labels.context}</span>
         </DropdownMenuItem>
         <DropdownMenuItem className="min-h-9 gap-2.5 px-2.5" onClick={() => onInsertTrigger("/")}>
-          <SquareSlashIcon aria-hidden="true" className="text-muted-foreground size-4" />
+          <SquareSlashIcon
+            aria-hidden="true"
+            className="text-muted-foreground aui-composer-icon-size-default"
+          />
           <span>{labels.capability}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -502,7 +514,7 @@ export function ComposerErrorAlertView({
       aria-live="polite"
       className="border-destructive/25 bg-destructive/8 text-destructive mt-2 flex items-start gap-2 rounded-xl border px-3 py-2 text-sm"
     >
-      <AlertCircleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+      <AlertCircleIcon aria-hidden="true" className="mt-0.5 aui-composer-icon-size-default" />
       <span className="min-w-0 flex-1">{message}</span>
       <Button
         type="button"

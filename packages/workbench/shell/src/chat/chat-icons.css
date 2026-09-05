@@ -1,0 +1,56 @@
+/* Shared icon sizing for conversation content and message controls. */
+:where([data-slot="workbench-conversation"]) {
+  --chat-icon-size: var(--icon-size-sm);
+  --message-action-size: var(--icon-frame-size-compact);
+}
+
+@layer components {
+  /* Explicit size-* classes also opt out of the shared menu's fallback icon sizing. */
+  .aui-chat-icon-size-default,
+  .aui-chat-icon-size-file,
+  .aui-chat-icon-size-placeholder {
+    --button-icon-size: var(--chat-icon-size, var(--icon-size-sm));
+    width: var(--button-icon-size);
+    height: var(--button-icon-size);
+    flex-shrink: 0;
+  }
+
+  .aui-chat-icon-size-file {
+    --chat-icon-size: calc(var(--icon-size-md) * 1.25);
+  }
+
+  .aui-chat-icon-size-placeholder {
+    --chat-icon-size: var(--icon-frame-size-default);
+  }
+
+  :where(
+      [data-slot="workbench-conversation"],
+      [data-slot="message-actions"],
+      [data-slot="markdown-preview"],
+      .aui-codex-code-header
+    )
+    :where(button[data-slot]) {
+    --button-icon-size: var(--chat-icon-size, var(--icon-size-sm));
+  }
+
+  [data-slot="message-actions"] .aui-button-icon {
+    --button-icon-frame-size: var(--message-action-size, var(--icon-frame-size-compact));
+    --button-radius: var(--radius-sm);
+    --message-action-hit-padding: max(
+      0px,
+      calc((var(--icon-frame-size-default) - var(--button-icon-frame-size)) / 2)
+    );
+    position: relative;
+    margin: var(--message-action-hit-padding);
+  }
+
+  /* Preserve the original hit area around the compact visible action frame. */
+  [data-slot="message-actions"] .aui-button-icon::after {
+    content: "";
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: var(--icon-frame-size-default);
+    height: var(--icon-frame-size-default);
+    translate: -50% -50%;
+  }
+}

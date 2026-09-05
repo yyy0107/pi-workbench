@@ -32,9 +32,12 @@ export function CompletedTurnPanel({
       className="mb-2 w-full [overflow-anchor:none]"
     >
       <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full items-center gap-1.5 py-1 text-[13.5px] transition-colors outline-none">
-        <CheckCircle2Icon aria-hidden="true" className="text-foreground/45 size-3.5 shrink-0" />
+        <CheckCircle2Icon
+          aria-hidden="true"
+          className="text-foreground/45 aui-chat-icon-size-default"
+        />
         <span className="text-start leading-(--control-text-line-height)">{label}</span>
-        <ChevronRightIcon className="size-3.5 shrink-0 opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/trigger:opacity-60 group-focus-visible/trigger:opacity-60 group-data-open/trigger:rotate-90 group-data-open/trigger:opacity-60 motion-reduce:transition-none" />
+        <ChevronRightIcon className="aui-chat-icon-size-default opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/trigger:opacity-60 group-focus-visible/trigger:opacity-60 group-data-open/trigger:rotate-90 group-data-open/trigger:opacity-60 motion-reduce:transition-none" />
       </CollapsibleTrigger>
       <hr className="mt-2 border-border" />
       <CollapsibleContent

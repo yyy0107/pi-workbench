@@ -41,7 +41,7 @@ export function MessageSource({
   return (
     <a href={url} target="_blank" rel="noopener noreferrer" className={className}>
       <span className="truncate">{label}</span>
-      <ExternalLinkIcon aria-hidden="true" className="size-3 shrink-0" />
+      <ExternalLinkIcon aria-hidden="true" className="aui-chat-icon-size-default" />
     </a>
   );
 }

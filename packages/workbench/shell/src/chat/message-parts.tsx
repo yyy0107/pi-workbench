@@ -40,7 +40,7 @@ function DefaultBlock({
       case "text":
         return streaming && block.text === "" ? (
           <span className="my-2 inline-flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2Icon className="size-3.5 animate-spin" />
+            <Loader2Icon className="aui-chat-icon-size-default animate-spin" />
             {t("workbench.chat.generating")}
           </span>
         ) : (

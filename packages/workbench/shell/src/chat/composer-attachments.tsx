@@ -56,7 +56,7 @@ function AttachmentTile({
           className="rounded-none object-cover"
         />
         <AvatarFallback>
-          <FileTextIcon className="text-muted-foreground/80 size-6 stroke-[1.5]" />
+          <FileTextIcon className="text-muted-foreground/80 aui-composer-icon-size-attachment" />
         </AvatarFallback>
       </Avatar>
     </div>
@@ -89,11 +89,11 @@ function AttachmentTile({
             tooltip={t("assistant.composer.removeFile")}
             type="button"
             data-frame="none"
-            className="absolute end-0.5 top-0.5 size-5! min-h-0! min-w-0! rounded-full bg-black/50! p-1! text-white backdrop-blur-sm after:absolute after:-inset-1 [&_svg]:size-3! hover:bg-black/70! hover:text-white! active:scale-[0.96] motion-reduce:transition-none"
+            className="aui-composer-attachment-remove absolute end-0.5 top-0.5 rounded-full bg-black/50! p-1! text-white backdrop-blur-sm after:absolute after:-inset-1 hover:bg-black/70! hover:text-white! active:scale-[0.96] motion-reduce:transition-none"
             side="top"
             onClick={() => onRemove(attachment.key)}
           >
-            <XIcon className="size-3 stroke-[2.5]" />
+            <XIcon />
           </TooltipIconButton>
         </div>
         <TooltipContent side="top">{attachment.name}</TooltipContent>

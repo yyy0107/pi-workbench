@@ -185,7 +185,10 @@ export function WorkbenchComposerCommandResponse({
         )}
       >
         <Icon
-          className={cn("size-4", running && "animate-spin motion-reduce:animate-none")}
+          className={cn(
+            "aui-chat-icon-size-default",
+            running && "animate-spin motion-reduce:animate-none",
+          )}
           aria-hidden="true"
         />
       </span>

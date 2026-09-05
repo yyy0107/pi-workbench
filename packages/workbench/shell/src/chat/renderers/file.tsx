@@ -122,7 +122,7 @@ function FileIconDisplay({ mimeType, className, children, ...props }: FileIconDi
       className={cn("text-muted-foreground shrink-0", className)}
       {...props}
     >
-      {children ?? <IconComponent className="size-5" />}
+      {children ?? <IconComponent className="aui-chat-icon-size-file" />}
     </span>
   );
 }
@@ -193,7 +193,7 @@ function FileDownload({
       )}
       {...props}
     >
-      {children || <DownloadIcon className="size-4" />}
+      {children || <DownloadIcon className="aui-chat-icon-size-default" />}
     </a>
   );
 }

@@ -30,7 +30,7 @@ export function MarkdownPreview({
   );
 
   return (
-    <div className="relative h-full bg-transparent">
+    <div data-slot="markdown-preview" className="relative h-full bg-transparent">
       <TooltipIconButton
         tooltip={copyLabel}
         aria-label={copyLabel}
@@ -39,11 +39,11 @@ export function MarkdownPreview({
         onClick={() => void copy(content)}
       >
         {isCopied ? (
-          <CheckIcon className="size-4" />
+          <CheckIcon />
         ) : status === "failed" ? (
-          <CircleXIcon className="text-destructive size-4" />
+          <CircleXIcon className="text-destructive" />
         ) : (
-          <CopyIcon className="size-4" />
+          <CopyIcon />
         )}
       </TooltipIconButton>
       <div role="document" aria-label={ariaLabel} className="h-full overflow-auto">
