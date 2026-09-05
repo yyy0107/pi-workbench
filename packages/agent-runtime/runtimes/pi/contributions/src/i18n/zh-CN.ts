@@ -662,18 +662,18 @@ export const piExtensionsZhCN = {
         toolSchema: "TOOL SCHEMA",
       },
       messagePart: {
-        composeContext: "组成上下文",
-        composingContext: "正在组成上下文",
-        contextComposed: "上下文已组成",
-        systemPromptInjected: "· System Prompt 已注入",
+        composeContext: "准备上下文",
+        composingContext: "正在准备上下文",
+        contextComposed: "上下文已就绪",
+        systemPromptInjected: "· 已添加系统提示词",
         toolsInjected: ({ count }: { count: number }, { number }: MessageFormatters) =>
-          `· 工具已注入（${number(count)}）`,
+          `· 已添加 ${number(count)} 个工具`,
         extensionsLoaded: ({ count }: { count: number }, { number }: MessageFormatters) =>
-          `· 扩展已加载（${number(count)}）`,
+          `· 已加载 ${number(count)} 个扩展`,
         extensions: "扩展",
-        systemPromptSources: "System Prompt 注入来源",
+        systemPromptSources: "系统提示词来源",
         modelTools: "实际提供给模型的工具",
-        systemPromptCharacters: "System Prompt 字符数",
+        systemPromptCharacters: "系统提示词字符数",
       },
       tree: {
         turn: ({ index }: { index: number }, { number }: MessageFormatters) =>

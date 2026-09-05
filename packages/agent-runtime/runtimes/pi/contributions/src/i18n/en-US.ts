@@ -725,16 +725,16 @@ export const piExtensionsEnUS = {
         toolSchema: "TOOL SCHEMA",
       },
       messagePart: {
-        composeContext: "Compose context",
-        composingContext: "Composing context",
-        contextComposed: "Context composed",
-        systemPromptInjected: "· System Prompt injected",
+        composeContext: "Prepare context",
+        composingContext: "Preparing context",
+        contextComposed: "Context ready",
+        systemPromptInjected: "· System prompt added",
         toolsInjected: ({ count }: { count: number }, { number }: MessageFormatters) =>
-          `· Tools injected (${number(count)})`,
+          `· Tools added (${number(count)})`,
         extensionsLoaded: ({ count }: { count: number }, { number }: MessageFormatters) =>
           `· Extensions loaded (${number(count)})`,
         extensions: "Extensions",
-        systemPromptSources: "System prompt injection sources",
+        systemPromptSources: "System prompt sources",
         modelTools: "Tools sent to the model",
         systemPromptCharacters: "System prompt characters",
       },
