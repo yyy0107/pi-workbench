@@ -1,0 +1,24 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index f43bc9620f36d198d75abeeb5c84e171de0d5ffe..9196ba65418dc588020958626e01c973d245ddd2 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -13,6 +13,7 @@ export { type ModelScopeDiagnostic, type ResolveCliModelResult, type ResolveMode
+ export { type CreateModelRuntimeOptions, CredentialSynchronizationError, type CredentialSynchronizationOperation, ModelRuntime, type ModelRuntimeAuthOverrides, } from "./core/model-runtime.ts";
+ export type { PackageManager, PathMetadata, ProgressCallback, ProgressEvent, ResolvedPaths, ResolvedResource, } from "./core/package-manager.ts";
+ export { DefaultPackageManager } from "./core/package-manager.ts";
++export { isStdoutTakenOver, restoreStdout, takeOverStdout } from "./core/output-guard.ts";
+ export type { ResourceCollision, ResourceDiagnostic, ResourceLoader } from "./core/resource-loader.ts";
+ export { DefaultResourceLoader, loadProjectContextFiles } from "./core/resource-loader.ts";
+ export { AgentSessionRuntime, type AgentSessionRuntimeDiagnostic, type AgentSessionServices, type CreateAgentSessionFromServicesOptions, type CreateAgentSessionOptions, type CreateAgentSessionResult, type CreateAgentSessionRuntimeFactory, type CreateAgentSessionRuntimeResult, type CreateAgentSessionServicesOptions, createAgentSession, createAgentSessionFromServices, createAgentSessionRuntime, createAgentSessionServices, createBashTool, createCodingTools, createEditTool, createFindTool, createGrepTool, createLsTool, createReadOnlyTools, createReadTool, createWriteTool, type PromptTemplate, } from "./core/sdk.ts";
+diff --git a/dist/index.js b/dist/index.js
+index 76d728eb6fa4cac493dfe1ba623ef8170235a310..53904943e980ca86c283245763f871ec1d038c53 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -13,6 +13,7 @@ export { ModelRegistry } from "./core/model-registry.js";
+ export { resolveCliModel, resolveModelScopeWithDiagnostics, } from "./core/model-resolver.js";
+ export { CredentialSynchronizationError, ModelRuntime, } from "./core/model-runtime.js";
+ export { DefaultPackageManager } from "./core/package-manager.js";
++export { isStdoutTakenOver, restoreStdout, takeOverStdout } from "./core/output-guard.js";
+ export { DefaultResourceLoader, loadProjectContextFiles } from "./core/resource-loader.js";
+ // SDK for programmatic usage
+ export { AgentSessionRuntime, 

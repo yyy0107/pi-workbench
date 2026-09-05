@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@earendil-works/pi-coding-agent@0.84.2': 4adae1daa6dc97da68b83849c9578a6d7a24698fe89b997e39ba111997d32002
+
 importers:
 
   .:
@@ -159,7 +162,7 @@ importers:
     dependencies:
       '@earendil-works/pi-coding-agent':
         specifier: 0.84.2
-        version: 0.84.2(ws@8.21.3)
+        version: 0.84.2(patch_hash=4adae1daa6dc97da68b83849c9578a6d7a24698fe89b997e39ba111997d32002)(ws@8.21.3)
       '@workbench/agent-runtime-pi-protocol':
         specifier: workspace:*
         version: link:../../packages/agent-runtime/runtimes/pi/protocol
@@ -595,7 +598,7 @@ importers:
         version: 0.84.2(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
       '@earendil-works/pi-coding-agent':
         specifier: 0.84.2
-        version: 0.84.2(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
+        version: 0.84.2(patch_hash=4adae1daa6dc97da68b83849c9578a6d7a24698fe89b997e39ba111997d32002)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../../core/contracts
@@ -953,7 +956,7 @@ importers:
     dependencies:
       '@earendil-works/pi-coding-agent':
         specifier: 0.84.2
-        version: 0.84.2(ws@8.21.3)
+        version: 0.84.2(patch_hash=4adae1daa6dc97da68b83849c9578a6d7a24698fe89b997e39ba111997d32002)(ws@8.21.3)
       '@workbench/terminal-contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -6638,7 +6641,7 @@ snapshots:
     dependencies:
       '@earendil-works/pi-protocol': 0.84.2
 
-  '@earendil-works/pi-coding-agent@0.84.2(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)':
+  '@earendil-works/pi-coding-agent@0.84.2(patch_hash=4adae1daa6dc97da68b83849c9578a6d7a24698fe89b997e39ba111997d32002)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)':
     dependencies:
       '@earendil-works/pi-agent-core': 0.84.2(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
       '@earendil-works/pi-ai': 0.84.2(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
@@ -6671,7 +6674,7 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-coding-agent@0.84.2(ws@8.21.3)':
+  '@earendil-works/pi-coding-agent@0.84.2(patch_hash=4adae1daa6dc97da68b83849c9578a6d7a24698fe89b997e39ba111997d32002)(ws@8.21.3)':
     dependencies:
       '@earendil-works/pi-agent-core': 0.84.2(ws@8.21.3)
       '@earendil-works/pi-ai': 0.84.2(ws@8.21.3)

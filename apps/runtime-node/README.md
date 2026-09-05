@@ -100,6 +100,10 @@ pnpm --filter @workbench/runtime-node smoke:native
 control, Host composition, lifecycle, RPC/WebSocket/Terminal admission, and artifact production
 boundaries.
 
+Control mode also enables Pi's stdout takeover so package install/update/remove subprocesses use
+stderr and cannot inherit the NDJSON input/output descriptors. The version-pinned pnpm patch in
+`patches/` only exports Pi's existing output-guard functions; remove it when upstream exports them.
+
 Release CI supplies `WORKBENCH_NODE_PTY_NATIVE_BUILD_MANIFEST` from the native Runner's
 `@workbench/terminal-server native:pty:build` step. When it is present, artifact publication fails
 unless the retained `node-pty` files exactly match the recorded SHA-256, size, and mode. Local builds

@@ -3,6 +3,7 @@ import { PassThrough, Readable } from "node:stream";
 import test from "node:test";
 
 import { RuntimeHostControlSessionResultCode } from "@workbench/host-server/runtime-host-control-session";
+import { isStdoutTakenOver } from "@workbench/agent-runtime-pi-server/installation";
 
 import {
   disposeInstalledRuntimeLifecycleWithinDeadline,
@@ -70,20 +71,33 @@ test("runtime-only control force-exits when control-error cleanup throws", async
   }
 });
 
-test("runtime-only control exits zero only after complete disposal", async () => {
+test("runtime-only control keeps exit diagnostics off stdout through the force-exit boundary", async (t) => {
   const exitCodes: number[] = [];
   const previousExitCode = process.exitCode;
+  const originalInfo = console.info;
+  const originalWrite = process.stdout.write;
+  const diagnostics: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => diagnostics.push(args));
   try {
     await runInstalledRuntimeHostControl({
       input: Readable.from([]),
-      output: new PassThrough(),
-      forceExit: (code) => exitCodes.push(code),
-      runControlSession: async () => ({
-        code: RuntimeHostControlSessionResultCode.shutdownAcknowledged,
-      }),
+      forceExit: (code) => {
+        assert.notEqual(console.info, originalInfo);
+        assert.equal(isStdoutTakenOver(), true);
+        console.info("runtime exit diagnostic");
+        exitCodes.push(code);
+      },
+      runControlSession: async ({ output }) => {
+        assert.notEqual(output, process.stdout);
+        return { code: RuntimeHostControlSessionResultCode.shutdownAcknowledged };
+      },
     });
     assert.deepEqual(exitCodes, [0]);
     assert.equal(process.exitCode, 0);
+    assert.deepEqual(diagnostics, [["runtime exit diagnostic"]]);
+    assert.equal(console.info, originalInfo);
+    assert.equal(process.stdout.write, originalWrite);
+    assert.equal(isStdoutTakenOver(), false);
   } finally {
     process.exitCode = previousExitCode;
   }

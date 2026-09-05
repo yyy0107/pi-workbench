@@ -10,6 +10,8 @@ export {
 } from "../agent-runtime/pi-agent-server-implementation";
 export { CommandService, type CommandCatalogProtocol } from "../commands/command-service";
 export { shutdownPiPackageCatalogService } from "../packages/package-catalog-service";
+// Use the package service's SDK instance; pnpm can install distinct peer-context instances.
+export { isStdoutTakenOver, restoreStdout, takeOverStdout } from "@earendil-works/pi-coding-agent";
 export {
   createPiAutomationRuntimeBindings,
   type PiAutomationRuntimeBindingOptions,

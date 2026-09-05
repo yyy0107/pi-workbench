@@ -1,5 +1,10 @@
 import type { WebSocketServer } from "ws";
 import type { Writable } from "node:stream";
+import {
+  isStdoutTakenOver,
+  restoreStdout,
+  takeOverStdout,
+} from "@workbench/agent-runtime-pi-server/installation";
 
 import {
   API_ONLY_RUNTIME_HOST,
@@ -18,6 +23,7 @@ import { migrateLegacyWorkbenchMessageTerminationExtension } from "@workbench/ag
 
 import { createInstalledRuntimeService } from "./installed-runtime-service";
 import { warmRuntimeRpc } from "./runtime-rpc-warmup";
+import { claimRuntimeControlStdout } from "./runtime-control-stdout";
 
 const DEFAULT_RUNTIME_HOST_SHUTDOWN_DEADLINE_MS = 5_000;
 
@@ -216,6 +222,11 @@ export async function runInstalledRuntimeHostControl({
   managedChild = process.env.WORKBENCH_RUNTIME_MANAGED_CHILD === "1",
   runControlSession = runRuntimeHostControlSession,
 }: RunInstalledRuntimeHostControlOptions = {}): Promise<void> {
+  const controlStdout = output === process.stdout ? claimRuntimeControlStdout() : undefined;
+  const ownsPiStdout = !isStdoutTakenOver();
+  // Pi's package commands consult this state before inheriting OS descriptors. Redirecting
+  // process.stdout.write alone cannot keep npm/git output off the NDJSON control channel.
+  if (ownsPiStdout) takeOverStdout();
   const restoreConsole = redirectControlConsoleToStderr();
   let activeHost: RunningApiOnlyRuntimeHost | undefined;
   let signalShutdown = false;
@@ -244,39 +255,36 @@ export async function runInstalledRuntimeHostControl({
   process.on("SIGINT", signalHandler);
   process.on("SIGTERM", signalHandler);
 
-  let controlFailure: unknown;
-  let controlFailed = false;
-  let result: Awaited<ReturnType<typeof runRuntimeHostControlSession>> | undefined;
   try {
-    result = await runControlSession({
-      input,
-      output,
-      async startHost({ desktopSidecarAuth }) {
-        activeHost = await startInstalledApiOnlyRuntimeHost({ desktopSidecarAuth });
-        return activeHost;
-      },
-    });
-  } catch (error) {
-    controlFailed = true;
-    controlFailure = error;
+    let result: Awaited<ReturnType<typeof runRuntimeHostControlSession>>;
+    try {
+      result = await runControlSession({
+        input,
+        output: controlStdout?.output ?? output,
+        async startHost({ desktopSidecarAuth }) {
+          activeHost = await startInstalledApiOnlyRuntimeHost({ desktopSidecarAuth });
+          return activeHost;
+        },
+      });
+    } catch (error) {
+      process.exitCode = 1;
+      forceExit?.(1);
+      throw error;
+    }
+    if (!result) throw new Error("Runtime Host control session returned no result.");
+    process.exitCode =
+      result.code === RuntimeHostControlSessionResultCode.shutdownAcknowledged ||
+      result.code === RuntimeHostControlSessionResultCode.controlDisconnected
+        ? 0
+        : 1;
+    // Keep diagnostics redirected through process.exit(), including synchronous exit hooks.
+    // Disposal is complete; node-pty can still retain internal worker handles on Windows.
+    forceExit?.(process.exitCode === 0 ? 0 : 1);
   } finally {
     process.off("SIGINT", signalHandler);
     process.off("SIGTERM", signalHandler);
     restoreConsole();
+    if (ownsPiStdout) restoreStdout();
+    controlStdout?.release();
   }
-  if (controlFailed) {
-    process.exitCode = 1;
-    forceExit?.(1);
-    throw controlFailure;
-  }
-  if (!result) throw new Error("Runtime Host control session returned no result.");
-  process.exitCode =
-    result.code === RuntimeHostControlSessionResultCode.shutdownAcknowledged ||
-    result.code === RuntimeHostControlSessionResultCode.controlDisconnected
-      ? 0
-      : 1;
-  // The control result is emitted only after the HTTP, WebSocket, Pi, and terminal owners finish
-  // disposal. Exit at that completed process boundary because node-pty can retain an internal
-  // ConPTY/WinPTY worker handle after its shell has already reported a clean exit on Windows.
-  forceExit?.(process.exitCode === 0 ? 0 : 1);
 }
