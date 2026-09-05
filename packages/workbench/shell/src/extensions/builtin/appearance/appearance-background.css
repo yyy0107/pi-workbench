@@ -35,10 +35,17 @@
   --secondary-foreground: var(--workbench-theme-foreground);
   --accent: var(--muted);
   --accent-foreground: var(--workbench-theme-foreground);
+  /* Re-resolve interaction colors at the Shell's theme boundary. */
+  --control-state-background-hover: color-mix(in oklab, var(--foreground) 6%, transparent);
+  --control-state-background-active: color-mix(in oklab, var(--foreground) 10%, transparent);
   --control-state-background-selected: var(--accent);
   --control-state-foreground-selected: var(--accent-foreground);
+  --button-background-hover: var(--control-state-background-hover);
+  --button-background-active: var(--control-state-background-active);
   --button-background-selected: var(--control-state-background-selected);
   --button-foreground-selected: var(--control-state-foreground-selected);
+  --icon-frame-background-hover: var(--control-state-background-hover);
+  --icon-frame-background-active: var(--control-state-background-active);
   --icon-frame-background-selected: var(--control-state-background-selected);
   --icon-frame-foreground-selected: var(--control-state-foreground-selected);
   /* Re-resolve derived radii where the appearance controller overrides their source values. */
@@ -146,22 +153,7 @@
     [data-workbench-surface="panel"],
     [data-workbench-surface="statusbar"],
     [data-slot="workbench-composer-card"],
-    [data-workbench-glass-surface],
-    [data-workbench-selection-surface]:hover,
-    [data-workbench-selection-surface]:focus-visible,
-    [data-workbench-selection-surface]:focus-within,
-    [data-workbench-selection-surface][data-active]:not(
-        [data-workbench-selection-mode="foreground"]
-      ),
-    [data-workbench-selection-surface][data-state="active"]:not(
-        [data-workbench-selection-mode="foreground"]
-      ),
-    [data-workbench-selection-surface][aria-current="page"]:not(
-        [data-workbench-selection-mode="foreground"]
-      ),
-    [data-workbench-selection-surface][aria-selected="true"]:not(
-        [data-workbench-selection-mode="foreground"]
-      )
+    [data-workbench-glass-surface]
   ) {
   background-color: color-mix(
     in srgb,
