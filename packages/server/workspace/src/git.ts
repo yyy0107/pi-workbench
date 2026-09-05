@@ -10,6 +10,7 @@ import {
   type WorkbenchWorkspaceGitBranchRequest as WorkspaceGitCreateBranchPayload,
   type WorkbenchWorkspaceGitRequest as WorkspaceGitDescribePayload,
   type WorkbenchWorkspaceGitLog as WorkspaceGitLogValue,
+  type WorkbenchWorkspaceGitLogRequest,
   type WorkbenchWorkspaceGitStatus as WorkspaceGitStatus,
   type WorkbenchWorkspaceGitBranchRequest as WorkspaceGitSwitchBranchPayload,
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
@@ -52,7 +53,7 @@ export interface WorkspaceGitServiceDependencies {
 
 export interface WorkspaceGitProtocol {
   describe(input: WorkspaceGitDescribePayload, signal: AbortSignal): Promise<WorkspaceGitStatus>;
-  log(input: WorkspaceGitDescribePayload, signal: AbortSignal): Promise<WorkspaceGitLogValue>;
+  log(input: WorkbenchWorkspaceGitLogRequest, signal: AbortSignal): Promise<WorkspaceGitLogValue>;
   switchBranch(
     input: WorkspaceGitSwitchBranchPayload,
     signal: AbortSignal,
@@ -327,7 +328,7 @@ class DefaultWorkspaceGitService implements WorkspaceGitProtocol {
   }
 
   async log(
-    input: WorkspaceGitDescribePayload,
+    input: WorkbenchWorkspaceGitLogRequest,
     signal: AbortSignal,
   ): Promise<WorkspaceGitLogValue> {
     const workspace = await this.requireWorkspace(input.workspaceId);
@@ -340,6 +341,7 @@ class DefaultWorkspaceGitService implements WorkspaceGitProtocol {
         "--topo-order",
         "--decorate=full",
         `--max-count=${WORKSPACE_GIT_LOG_COMMIT_LIMIT + 1}`,
+        `--skip=${input.offset ?? 0}`,
         "--format=%H%x00%h%x00%P%x00%an%x00%aI%x00%s%x00%D",
       ],
       workspace,
@@ -352,8 +354,34 @@ class DefaultWorkspaceGitService implements WorkspaceGitProtocol {
         workspaceId: input.workspaceId,
       });
     }
+    let totalCount: number | undefined;
+    if (!input.offset) {
+      const count = await this.runCommand(
+        ["rev-list", "--all", "--count"],
+        workspace,
+        signal,
+        "git-log-failed",
+        { workspaceId: input.workspaceId },
+      );
+      totalCount = Number(count.stdout.trim());
+      if (
+        count.exitCode !== 0 ||
+        !count.stdout.trim() ||
+        !Number.isSafeInteger(totalCount) ||
+        totalCount < 0
+      ) {
+        throw new WorkspaceGitServiceError(
+          "git-log-failed",
+          "The Git history count could not be read.",
+          {
+            workspaceId: input.workspaceId,
+          },
+        );
+      }
+    }
     const commits = parseWorkspaceGitLog(result.stdout);
     return {
+      ...(totalCount === undefined ? {} : { totalCount }),
       commits: commits.slice(0, WORKSPACE_GIT_LOG_COMMIT_LIMIT),
       truncated: commits.length > WORKSPACE_GIT_LOG_COMMIT_LIMIT,
     };

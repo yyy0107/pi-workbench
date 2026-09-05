@@ -109,7 +109,7 @@ export interface WorkbenchWorkspaceCapability {
   ): Promise<WorkbenchWorkspaceGitStatus>;
   readGitLog(
     workspaceId: string,
-    options?: WorkbenchCapabilityRequestOptions,
+    options?: WorkbenchCapabilityRequestOptions & { offset?: number },
   ): Promise<WorkbenchWorkspaceGitLog>;
   switchGitBranch(workspaceId: string, branch: string): Promise<WorkbenchWorkspaceGitStatus>;
   createGitBranch(workspaceId: string, branch: string): Promise<WorkbenchWorkspaceGitStatus>;

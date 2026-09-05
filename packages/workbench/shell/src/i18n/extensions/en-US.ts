@@ -775,14 +775,13 @@ export const extensionsEnUS = {
       loading: "Loading Git history…",
       loadError: "Git history could not be read.",
       refreshError: "Git history could not be refreshed. The previous results are still shown.",
+      loadMoreError: "Older commits could not be loaded.",
       retry: "Retry",
       empty: "This repository does not have any commits yet.",
       tableLabel: "Git commit history",
       noSubject: "No commit subject",
       commitCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} ${count === 1 ? "commit" : "commits"}`,
-      truncated: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `Showing the most recent ${number(count)} commits`,
+        `${number(count)} ${count === 1 ? "commit" : "commits"} in total`,
       columns: {
         graph: "Graph",
         subject: "Description",

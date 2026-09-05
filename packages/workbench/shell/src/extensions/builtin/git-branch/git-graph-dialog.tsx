@@ -204,9 +204,14 @@ export function GitGraphDialog({
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
+  const nextOffset = useRef(0);
+  const loadingMoreRef = useRef(false);
   const requestController = useRef<AbortController | undefined>(undefined);
   const requestRevision = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(
     async (initial: boolean) => {
@@ -216,6 +221,9 @@ export function GitGraphDialog({
       requestController.current = controller;
       const revision = ++requestRevision.current;
       setError(false);
+      setLoadMoreError(false);
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
       if (initial) {
         setData(undefined);
         setSelectedHash(undefined);
@@ -227,6 +235,7 @@ export function GitGraphDialog({
       try {
         const value = await workspaceClient.readGitLog(workspaceId, { signal: controller.signal });
         if (controller.signal.aborted || revision !== requestRevision.current) return;
+        nextOffset.current = value.commits.length;
         setData(value);
         setSelectedHash((current) =>
           current && value.commits.some((commit) => commit.hash === current)
@@ -253,6 +262,69 @@ export function GitGraphDialog({
     void load(true);
     return () => requestController.current?.abort();
   }, [load, open]);
+
+  const loadMore = useCallback(async () => {
+    if (
+      !workspaceClient ||
+      !open ||
+      !data?.truncated ||
+      loading ||
+      refreshing ||
+      loadingMoreRef.current
+    )
+      return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    setLoadMoreError(false);
+    const controller = new AbortController();
+    requestController.current = controller;
+    const revision = ++requestRevision.current;
+    try {
+      const value = await workspaceClient.readGitLog(workspaceId, {
+        signal: controller.signal,
+        offset: nextOffset.current,
+      });
+      if (controller.signal.aborted || revision !== requestRevision.current) return;
+      const seen = new Set(data.commits.map((commit) => commit.hash));
+      const added = value.commits.filter((commit) => !seen.has(commit.hash));
+      if (value.truncated && added.length === 0) {
+        throw new Error("Git history pagination made no progress.");
+      }
+      nextOffset.current += value.commits.length;
+      // ponytail: offset pagination follows live refs; refresh after history rewrites, use snapshot cursors if needed.
+      setData({ ...data, commits: [...data.commits, ...added], truncated: value.truncated });
+    } catch {
+      if (!controller.signal.aborted && revision === requestRevision.current)
+        setLoadMoreError(true);
+    } finally {
+      if (!controller.signal.aborted && revision === requestRevision.current) {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
+    }
+  }, [workspaceClient, workspaceId, open, data, loading, refreshing]);
+
+  useEffect(() => {
+    const target = loadMoreSentinelRef.current;
+    if (
+      !open ||
+      !target ||
+      !data?.truncated ||
+      loading ||
+      refreshing ||
+      loadingMore ||
+      loadMoreError
+    )
+      return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) void loadMore();
+      },
+      { root: scrollRef.current, rootMargin: `${GRAPH_ROW_HEIGHT * 8}px 0px` },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [open, data, loading, refreshing, loadingMore, loadMoreError, loadMore]);
 
   const graph = useMemo(() => createGitGraphLayout(data?.commits ?? []), [data?.commits]);
   const graphWidth = Math.min(
@@ -444,7 +516,7 @@ export function GitGraphDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         closeLabel={t("extensions.gitBranch.graph.close")}
-        className="grid h-[min(88vh,60rem)] max-h-[calc(100vh-2rem)] w-[min(96vw,88rem)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:max-w-none"
+        className="grid h-[min(76vh,48rem)] max-h-[calc(100vh-2rem)] w-[min(84vw,72rem)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:max-w-none"
       >
         <DialogHeader className="min-w-0 gap-1 border-b px-4 py-3 pe-24">
           <DialogTitle className="flex min-w-0 items-center gap-2 text-lg">
@@ -454,11 +526,9 @@ export function GitGraphDialog({
           <DialogDescription className="sr-only">
             {t("extensions.gitBranch.graph.description")}
           </DialogDescription>
-          {data ? (
+          {data?.totalCount !== undefined ? (
             <p className="text-xs text-muted-foreground">
-              {data.truncated
-                ? t("extensions.gitBranch.graph.truncated", { count: data.commits.length })
-                : t("extensions.gitBranch.graph.commitCount", { count: data.commits.length })}
+              {t("extensions.gitBranch.graph.commitCount", { count: data.totalCount })}
             </p>
           ) : null}
         </DialogHeader>
@@ -489,6 +559,32 @@ export function GitGraphDialog({
             </div>
           ) : null}
           {renderTable()}
+          {data?.truncated ? (
+            <div ref={loadMoreSentinelRef} className="flex items-center justify-center gap-2 p-3">
+              {loadingMore ? (
+                <span
+                  role="status"
+                  className="flex items-center gap-2 text-sm text-muted-foreground"
+                >
+                  <LoaderCircleIcon
+                    aria-hidden="true"
+                    className="size-4 animate-spin motion-reduce:animate-none"
+                  />
+                  {t("extensions.gitBranch.graph.loading")}
+                </span>
+              ) : null}
+              {loadMoreError ? (
+                <>
+                  <span role="alert" className="text-sm text-destructive">
+                    {t("extensions.gitBranch.graph.loadMoreError")}
+                  </span>
+                  <Button type="button" variant="ghost" onClick={() => void loadMore()}>
+                    {t("extensions.gitBranch.graph.retry")}
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         {selectedCommit ? (

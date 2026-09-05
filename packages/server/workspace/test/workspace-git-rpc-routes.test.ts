@@ -62,9 +62,9 @@ test("claims only the Workspace Git subdomain and forwards sanitized payloads", 
     },
     {
       method: "workspace.git.log",
-      payload: { workspaceId: "workspace-1", ignored: true },
+      payload: { workspaceId: "workspace-1", offset: 500, ignored: true },
       operation: "log",
-      expected: { workspaceId: "workspace-1" },
+      expected: { workspaceId: "workspace-1", offset: 500 },
     },
     {
       method: "workspace.git.switchBranch",
@@ -115,6 +115,9 @@ test("validates bounded Workspace Git identities before invoking the service", a
   const cases = [
     ["workspace.git.describe", { workspaceId: "" }],
     ["workspace.git.log", { workspaceId: "" }],
+    ...[-1, 0.5, "500", Number.MAX_SAFE_INTEGER + 1].map(
+      (offset) => ["workspace.git.log", { workspaceId: "workspace-1", offset }] as const,
+    ),
     ["workspace.git.switchBranch", { workspaceId: "workspace-1", branch: "   " }],
     [
       "workspace.git.createBranch",

@@ -753,14 +753,13 @@ export const extensionsZhCN = {
       loading: "正在加载 Git 历史…",
       loadError: "无法读取 Git 历史。",
       refreshError: "无法刷新 Git 历史，仍显示上一次的结果。",
+      loadMoreError: "无法加载更早的提交。",
       retry: "重试",
       empty: "此仓库还没有提交。",
       tableLabel: "Git 提交历史",
       noSubject: "无提交主题",
       commitCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} 个提交`,
-      truncated: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `显示最近 ${number(count)} 个提交`,
+        `共 ${number(count)} 个提交`,
       columns: {
         graph: "图",
         subject: "描述",

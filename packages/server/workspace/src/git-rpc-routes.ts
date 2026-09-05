@@ -10,6 +10,8 @@ import {
   handleRpcPost,
   rpcBusinessError,
   rpcObject,
+  rpcOptional,
+  rpcNumber,
   rpcString,
   type RpcValidator,
 } from "@workbench/host-server/rpc";
@@ -29,6 +31,10 @@ const branchName = rpcString({
 const describePayload = rpcObject({
   workspaceId: nonEmptyString,
 }) as RpcValidator<WorkspaceGitDescribePayload>;
+const logPayload = rpcObject({
+  workspaceId: nonEmptyString,
+  offset: rpcOptional(rpcNumber({ integer: true, minimum: 0, maximum: Number.MAX_SAFE_INTEGER })),
+});
 const switchBranchPayload = rpcObject({
   workspaceId: nonEmptyString,
   branch: branchName,
@@ -78,7 +84,7 @@ export function createWorkspaceGitRpcRoutes({
         case "workspace.git.log":
           return handleRpcPost(request, {
             method,
-            payload: describePayload,
+            payload: logPayload,
             handler: (payload, context) =>
               invokeService(
                 () => service.log(payload, context.signal),

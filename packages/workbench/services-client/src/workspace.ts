@@ -4,6 +4,7 @@ import type {
   WorkbenchWorkspaceGitBranchRequest as WorkspaceGitCreateBranchPayload,
   WorkbenchWorkspaceGitBranchRequest as WorkspaceGitSwitchBranchPayload,
   WorkbenchWorkspaceGitLog as WorkspaceGitLogValue,
+  WorkbenchWorkspaceGitLogRequest,
   WorkbenchWorkspaceFilesListRequest as WorkspaceFilesListPayload,
   WorkbenchWorkspaceFilesListResult as WorkspaceFilesListValue,
   WorkbenchWorkspaceFilesSearchRequest as WorkspaceFilesSearchPayload,
@@ -162,7 +163,7 @@ export function describeWorkspaceGit(
 }
 
 export function readWorkspaceGitLog(
-  payload: WorkspaceGitDescribePayload,
+  payload: WorkbenchWorkspaceGitLogRequest,
   options?: RpcCallOptions,
 ): Promise<WorkspaceGitLogValue> {
   return callServiceRpc("workspace.git.log", payload, options);
@@ -208,7 +209,12 @@ export function createWorkspaceClient(
         describeWorkspaceGit({ workspaceId }, { ...options, ...requestOptions }),
       ),
     readGitLog: (workspaceId, requestOptions) =>
-      capabilityCall(() => readWorkspaceGitLog({ workspaceId }, { ...options, ...requestOptions })),
+      capabilityCall(() =>
+        readWorkspaceGitLog(
+          { workspaceId, offset: requestOptions?.offset },
+          { ...options, ...requestOptions },
+        ),
+      ),
     switchGitBranch: (workspaceId, branch) =>
       capabilityCall(() => switchWorkspaceGitBranch({ workspaceId, branch }, options)),
     createGitBranch: (workspaceId, branch) =>

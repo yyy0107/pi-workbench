@@ -10,7 +10,16 @@ import {
   SearchIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { Button } from "@workbench/shell/ui";
 import {
@@ -44,8 +53,11 @@ import { useWorkbenchWorkspaceCapability } from "@workbench/agent-runtime-client
 import type { WorkbenchWorkspaceGitStatus } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 
-import { GitGraphDialog } from "./git-graph-dialog";
 import { publishGitBranchStatus, subscribeGitBranchStatus } from "./git-branch-status-bus";
+
+const GitGraphDialog = lazy(() =>
+  import("./git-graph-dialog").then((module) => ({ default: module.GitGraphDialog })),
+);
 
 type BranchActionError = "session-busy" | "invalid" | "exists" | "switch" | "create";
 type GitBranchSelectorPlacement = "composer" | "header";
@@ -80,6 +92,7 @@ function GitBranchSelector({
   const [switchError, setSwitchError] = useState<BranchActionError>();
   const [createOpen, setCreateOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
+  const [graphMounted, setGraphMounted] = useState(false);
   const [branchName, setBranchName] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<BranchActionError>();
@@ -409,6 +422,7 @@ function GitBranchSelector({
               className="min-h-9 w-full justify-start gap-2.5 rounded-lg px-2.5 text-sm"
               onClick={() => {
                 setMenuOpen(false);
+                setGraphMounted(true);
                 setGraphOpen(true);
               }}
             >
@@ -621,7 +635,11 @@ function GitBranchSelector({
         </DialogContent>
       </Dialog>
 
-      <GitGraphDialog open={graphOpen} workspaceId={workspaceId} onOpenChange={setGraphOpen} />
+      {graphMounted ? (
+        <Suspense fallback={null}>
+          <GitGraphDialog open={graphOpen} workspaceId={workspaceId} onOpenChange={setGraphOpen} />
+        </Suspense>
+      ) : null}
     </>
   );
 }

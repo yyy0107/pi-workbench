@@ -219,7 +219,7 @@ test("returns a bounded topological Git log for the imported repository", async 
       subject: `Commit ${index}`,
       decorations: index === 0 ? "HEAD -> refs/heads/main" : "",
     });
-  }).join("");
+  });
   const { service } = harness({
     runGit: async (args) => {
       commands.push([...args]);
@@ -227,7 +227,14 @@ test("returns a bounded topological Git log for the imported repository", async 
       if (args[0] === "symbolic-ref") return result("main\n");
       if (args[0] === "for-each-ref") return result("main\n");
       if (args[0] === "status" || args[0] === "diff") return result();
-      if (args[0] === "log") return result(history);
+      if (args[0] === "rev-list") {
+        assert.deepEqual(args, ["rev-list", "--all", "--count"]);
+        return result(`${history.length}\n`);
+      }
+      if (args[0] === "log") {
+        const offset = Number(args.find((arg) => arg.startsWith("--skip="))?.slice(7) ?? 0);
+        return result(history.slice(offset, offset + WORKSPACE_GIT_LOG_COMMIT_LIMIT + 1).join(""));
+      }
       throw new Error(`Unexpected git command: ${args.join(" ")}`);
     },
   });
@@ -235,6 +242,7 @@ test("returns a bounded topological Git log for the imported repository", async 
   const value = await service.log({ workspaceId: workspace.workspaceId }, signal);
   assert.equal(value.commits.length, WORKSPACE_GIT_LOG_COMMIT_LIMIT);
   assert.equal(value.truncated, true);
+  assert.equal(value.totalCount, history.length);
   assert.deepEqual(value.commits[0]?.refs, [
     { name: "HEAD", kind: "head" },
     { name: "main", kind: "local" },
@@ -248,6 +256,20 @@ test("returns a bounded topological Git log for the imported repository", async 
         args.includes(`--max-count=${WORKSPACE_GIT_LOG_COMMIT_LIMIT + 1}`),
     ),
   );
+  const nextPage = await service.log(
+    { workspaceId: workspace.workspaceId, offset: value.commits.length },
+    signal,
+  );
+  assert.equal(nextPage.commits.length, 1);
+  assert.equal(nextPage.truncated, false);
+  assert.equal(nextPage.commits[0]?.subject, `Commit ${WORKSPACE_GIT_LOG_COMMIT_LIMIT}`);
+  assert.ok(!value.commits.some((commit) => commit.hash === nextPage.commits[0]?.hash));
+  const end = await service.log(
+    { workspaceId: workspace.workspaceId, offset: value.commits.length + nextPage.commits.length },
+    signal,
+  );
+  assert.deepEqual(end, { commits: [], truncated: false });
+  assert.equal(commands.filter((args) => args[0] === "rev-list").length, 1);
 });
 
 test("switches and creates local branches inside the serialized project mutation", async () => {
