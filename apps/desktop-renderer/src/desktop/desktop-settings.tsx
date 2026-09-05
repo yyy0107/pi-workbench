@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { Fragment, useEffect, useId, useState } from "react";
 import {
   DESKTOP_NOTIFICATION_SOUNDS,
   DESKTOP_TERMINAL_SHELLS,
@@ -18,6 +18,7 @@ import {
   DropdownMenuRadioGroup,
   Input,
   SettingsDropdownContent,
+  SettingsDropdownItem,
   SettingsDropdownRadioItem,
   SettingsDropdownTrigger,
   SettingsGroup,
@@ -204,6 +205,7 @@ function DesktopSettingsItem() {
                   </SettingsDropdownTrigger>
                   <SettingsDropdownContent align="end">
                     <DropdownMenuRadioGroup
+                      className="grid grid-cols-[minmax(0,1fr)_auto]"
                       value={snapshot?.preferences.notificationSound ?? "chime"}
                       aria-label={t("desktopRenderer.settings.notificationSound")}
                       onValueChange={(value) => {
@@ -211,32 +213,30 @@ function DesktopSettingsItem() {
                           void save(() => port.update({ notificationSound: value }));
                       }}
                     >
-                      {DESKTOP_NOTIFICATION_SOUNDS.map((sound) => (
-                        <SettingsDropdownRadioItem key={sound} value={sound}>
-                          {t(`desktopRenderer.settings.sounds.${sound}`)}
-                        </SettingsDropdownRadioItem>
-                      ))}
+                      {DESKTOP_NOTIFICATION_SOUNDS.map((sound) => {
+                        const label = t(`desktopRenderer.settings.sounds.${sound}`);
+                        return (
+                          <Fragment key={sound}>
+                            <SettingsDropdownRadioItem value={sound} className="rounded-r-none">
+                              {label}
+                            </SettingsDropdownRadioItem>
+                            <SettingsDropdownItem
+                              closeOnClick={false}
+                              className="text-muted-foreground justify-center rounded-l-none"
+                              onClick={() => {
+                                setSoundError(false);
+                                void playNotificationSound(sound).catch(() => setSoundError(true));
+                              }}
+                            >
+                              {t("desktopRenderer.settings.previewSound")}
+                              <span className="sr-only">{label}</span>
+                            </SettingsDropdownItem>
+                          </Fragment>
+                        );
+                      })}
                     </DropdownMenuRadioGroup>
                   </SettingsDropdownContent>
                 </DropdownMenu>
-                <Button
-                  variant="ghost"
-                  disabled={
-                    !port?.onNotificationSound ||
-                    busy ||
-                    !snapshot.preferences.notificationSounds ||
-                    !snapshot.preferences.taskNotifications
-                  }
-                  onClick={() => {
-                    if (!snapshot) return;
-                    setSoundError(false);
-                    void playNotificationSound(snapshot.preferences.notificationSound).catch(() =>
-                      setSoundError(true),
-                    );
-                  }}
-                >
-                  {t("desktopRenderer.settings.previewSound")}
-                </Button>
               </>
             ) : null}
             <Switch
