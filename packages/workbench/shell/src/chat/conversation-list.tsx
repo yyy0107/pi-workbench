@@ -21,7 +21,7 @@ import {
   shouldShowWorkingStatus,
   steeredTurnEnd,
 } from "./workbench-message-rows";
-import { SteeredTurn } from "./steered-turn";
+import { SteeredTurn, SteeredTurnWork } from "./steered-turn";
 import {
   WorkbenchAssistantMessage,
   WorkbenchSystemMessage,
@@ -191,20 +191,21 @@ function ConversationMessages({
                   nodes={nodes.slice(turnStart, turnEnd + 1)}
                   running={showWorkingStatus}
                 >
-                  {({ open, finalMessageId }) =>
-                    rows.slice(turnStart, turnEnd + 1).map((entry) => (
-                      <div
-                        key={entry.id}
-                        hidden={
-                          !open &&
-                          entry.role !== "user" &&
-                          entry.id !== finalMessageId &&
-                          nodes[entry.index]?.kind !== "error"
-                        }
-                      >
-                        <ConversationNodeSeat index={entry.index} nodeKey={entry.id} />
-                      </div>
-                    ))
+                  {({ finalMessageId }) =>
+                    rows.slice(turnStart, turnEnd + 1).map((entry) => {
+                      const seat = <ConversationNodeSeat index={entry.index} nodeKey={entry.id} />;
+                      return entry.role !== "user" &&
+                        entry.id !== finalMessageId &&
+                        nodes[entry.index]?.kind !== "error" ? (
+                        <SteeredTurnWork key={entry.id}>
+                          <div className="pb-4">{seat}</div>
+                        </SteeredTurnWork>
+                      ) : (
+                        <div key={entry.id} className="pb-4 last:pb-0">
+                          {seat}
+                        </div>
+                      );
+                    })
                   }
                 </SteeredTurn>
               ) : hasAssistantMessage ? (

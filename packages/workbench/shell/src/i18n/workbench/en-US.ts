@@ -2,8 +2,6 @@ import type { MessageFormatters } from "../types";
 
 export const workbenchEnUS = {
   chat: {
-    turnDuration: ({ duration }: { duration: string }) => `Worked for ${duration}`,
-    turnDetails: "Work details",
     empty: {
       question: ({ productName }: { productName: string }) =>
         `What will you make in ${productName}?`,

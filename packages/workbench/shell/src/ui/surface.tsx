@@ -98,7 +98,9 @@ export function SwapLabel({
   useLayoutEffect(() => {
     const target = layers[active]?.current;
     if (!target) return undefined;
-    const measure = () => setWidth(target.offsetWidth);
+    const measure = () => {
+      if (target.getClientRects().length > 0) setWidth(target.offsetWidth);
+    };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(target);

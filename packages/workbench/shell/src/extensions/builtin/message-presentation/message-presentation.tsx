@@ -26,13 +26,13 @@ import { ReasoningPanel } from "../../../elements/reasoning-panel";
 import type { Source } from "../../../elements/inline-citation";
 import { useI18n } from "../../../i18n";
 import { useConversationPreferences } from "../../../chat/conversation-preferences";
-import { useSteeredTurn } from "../../../chat/steered-turn";
+import { SteeredTurnWork, useSteeredTurn } from "../../../chat/steered-turn";
 
 import {
   completedWorkBoundary,
   formatCompletedAt,
   formatCompletedDuration,
-} from "./completed-turn-model";
+} from "../../../chat/completed-turn-model";
 import { CompletedTurnPanel } from "./completed-turn-panel";
 import { messageCitationLayout } from "./message-citations";
 import { MessageDisclosureProvider, useMessageDisclosure } from "./message-disclosure-context";
@@ -290,20 +290,23 @@ export function WorkbenchMessagePresentation({ node: sourceNode }: MessageRender
     node.kind === "assistant" && !interruptedBySteering && completedBoundary > 0;
 
   if (steeredTurn && node.kind === "assistant") {
+    const finalMessage = steeredTurn.finalMessageId === node.key;
     return (
       <MessageDisclosureProvider phase={disclosurePhase}>
-        <div hidden={!steeredTurn.open}>
-          <MessageBlockRange
-            node={node}
-            start={0}
-            end={completedBoundary}
-            presentations={dataPresentations}
-            groupParallelTools={groupParallelTools}
-          />
-        </div>
+        {finalMessage && completedBoundary > 0 ? (
+          <SteeredTurnWork>
+            <MessageBlockRange
+              node={node}
+              start={0}
+              end={completedBoundary}
+              presentations={dataPresentations}
+              groupParallelTools={groupParallelTools}
+            />
+          </SteeredTurnWork>
+        ) : null}
         <MessageBlockRange
           node={node}
-          start={completedBoundary}
+          start={finalMessage ? completedBoundary : 0}
           end={node.blocks.length}
           presentations={dataPresentations}
           groupParallelTools={groupParallelTools}

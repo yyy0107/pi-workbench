@@ -1,6 +1,6 @@
-import { formatCompactDuration } from "../../../format-duration";
+import { formatCompactDuration } from "../format-duration";
 
-import type { MessageFormatters } from "../../../i18n";
+import type { MessageFormatters } from "../i18n";
 
 interface MessageBlockLike {
   readonly kind: string;
