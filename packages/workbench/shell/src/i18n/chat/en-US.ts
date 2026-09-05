@@ -36,6 +36,9 @@ export const assistantEnUS = {
     expand: "Expand code block",
     collapse: "Collapse code block",
     plainText: "Text",
+    mermaidDiagram: "Mermaid diagram",
+    mermaidLoading: "Rendering diagram…",
+    mermaidError: "Couldn't render the Mermaid diagram. Check the source below.",
   },
   linkSafety: {
     title: "Open external link?",

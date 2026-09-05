@@ -36,6 +36,9 @@ export const assistantZhCN = {
     expand: "展开代码块",
     collapse: "收起代码块",
     plainText: "文本",
+    mermaidDiagram: "Mermaid 图表",
+    mermaidLoading: "正在渲染图表…",
+    mermaidError: "Mermaid 图表渲染失败，请检查下方源码。",
   },
   linkSafety: {
     title: "打开外部链接？",

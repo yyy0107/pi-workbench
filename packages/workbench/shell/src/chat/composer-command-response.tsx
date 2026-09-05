@@ -172,7 +172,8 @@ export function WorkbenchComposerCommandResponse({
       data-status={response.status}
       data-workbench-glass-surface=""
       className={cn(
-        "flex w-fit max-w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-sm shadow-sm sm:max-w-2xl",
+        "flex max-w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-sm shadow-sm",
+        response.commandId === "reload" ? "w-full" : "w-fit sm:max-w-2xl",
         failed
           ? "border-destructive/25 bg-destructive/[0.045] dark:border-destructive/30 dark:bg-destructive/[0.07]"
           : "border-border bg-muted/40",

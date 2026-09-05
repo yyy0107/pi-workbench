@@ -41,6 +41,7 @@ import {
 } from "../../ui/dialog";
 import { cn } from "../../utils";
 import { CodexCodeHeader } from "./codex-code-header";
+import { MermaidCode } from "./mermaid-code";
 import {
   INLINE_CITATION_GROUP_SENTINEL,
   parseInlineCitationUrlSentinel,
@@ -246,9 +247,19 @@ function MarkdownCode({
   );
 }
 
-const streamdownComponents = {
+const sourceCodeComponents = {
   code: MarkdownCode,
   sup: MarkdownSuperscript,
+} as Components;
+
+const streamdownComponents = {
+  ...sourceCodeComponents,
+  code: (props: ComponentProps<typeof MarkdownCode>) =>
+    props["data-block"] && /(?:^|\s)language-mermaid(?:\s|$)/i.test(props.className ?? "") ? (
+      <MermaidCode code={renderedText(props.children)} />
+    ) : (
+      <MarkdownCode {...props} />
+    ),
 } as Components;
 
 function MarkdownLinkSafetyDialog({ isOpen, onClose, onConfirm, url }: LinkSafetyModalProps) {
@@ -324,11 +335,12 @@ const ConfiguredMarkdownText = memo(function ConfiguredMarkdownText({
   mode = isRunning ? "streaming" : "static",
   preserveWhitespace = false,
   preprocess,
+  renderDiagrams = true,
   resetParagraphMargins = false,
   smooth = false,
   text,
   ...props
-}: MarkdownTextProps & Readonly<{ text: string }>) {
+}: MarkdownTextProps & Readonly<{ text: string; renderDiagrams?: boolean }>) {
   const { codeTheme: preferredCodeTheme } = useAppearancePreferences();
   const { light, dark } = CODE_THEME_PAIRS[codeThemeOverride ?? preferredCodeTheme];
   const codePlugin = useMemo(() => createCodePlugin({ themes: [light, dark] }), [dark, light]);
@@ -350,7 +362,7 @@ const ConfiguredMarkdownText = memo(function ConfiguredMarkdownText({
         resetParagraphMargins && "[&_p]:m-0!",
         className,
       )}
-      components={streamdownComponents}
+      components={renderDiagrams ? streamdownComponents : sourceCodeComponents}
       controls={false}
       isAnimating={isRunning}
       lineNumbers={false}
@@ -422,6 +434,7 @@ export const MarkdownCodeBlockContent = memo(function MarkdownCodeBlockContent({
       className={className}
       codeTheme={codeTheme}
       mode="static"
+      renderDiagrams={false}
     />
   );
 });

@@ -76,6 +76,30 @@ test("keeps Markdown editor source literal through Streamdown highlighting", () 
   assert.ok(markup.includes("**nested source**"));
 });
 
+test("routes Mermaid fences to diagrams while keeping source previews literal", () => {
+  const code = "graph TD\n  A[Start] --> B[Done]";
+  for (const language of ["mermaid", "Mermaid"]) {
+    for (const isRunning of [false, true]) {
+      const markup = render(
+        createElement(MarkdownTextContent, {
+          text: `\`\`\`${language}\n${code}\n${isRunning ? "" : "\`\`\`"}`,
+          isRunning,
+        }),
+      );
+      assert.match(markup, /data-streamdown="mermaid-block"/);
+      assert.match(markup, /aria-busy="true"/);
+      assert.match(markup, /Rendering diagram/);
+      assert.match(markup, />Copy</);
+      assert.doesNotMatch(markup, /data-streamdown="code-block"/);
+    }
+  }
+
+  const source = render(createElement(MarkdownCodeBlockContent, { code, language: "mermaid" }));
+  assert.match(source, /data-streamdown="code-block"/);
+  assert.match(source, /A\[Start\]/);
+  assert.doesNotMatch(source, /data-streamdown="mermaid-block"/);
+});
+
 test("renders supported math delimiters without treating currency as math", () => {
   const markup = render(
     createElement(MarkdownTextContent, {
