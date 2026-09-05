@@ -652,8 +652,7 @@ export const extensionsEnUS = {
       "tool-results": "Tool results",
       other: "Other model input",
     },
-    usageEstimateDescription:
-      "Usage and categories are estimates, updated as model steps progress.",
+    usageEstimateDescription: "Estimates update as model steps progress.",
     contextSettings: "Context settings",
     contextBudgetDescription:
       "Follows the current model configuration by default. A custom limit applies only to this conversation and cannot increase model capacity.",

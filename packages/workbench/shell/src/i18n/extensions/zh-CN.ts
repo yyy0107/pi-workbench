@@ -634,7 +634,7 @@ export const extensionsZhCN = {
       "tool-results": "工具结果",
       other: "其他模型输入",
     },
-    usageEstimateDescription: "占用与分类均为估算值，随模型步骤更新。",
+    usageEstimateDescription: "估算值 · 随模型步骤更新",
     contextSettings: "上下文设置",
     contextBudgetDescription: "默认跟随当前模型配置；自定义仅限制本会话，不会增加模型容量。",
     modelCapacity: ({ tokens }: { tokens: string }) => `模型配置容量：${tokens} token`,
