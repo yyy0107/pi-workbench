@@ -191,13 +191,16 @@ export function createSidebarDragSession() {
     shield = document.createElement("div");
     shield.setAttribute("aria-hidden", "true");
     shield.setAttribute("data-sidebar-drag-shield", "true");
+    // Keep the portaled row inside the sidebar's shared style and token scope.
+    shield.setAttribute("data-workbench-surface", "sidebar");
     Object.assign(shield.style, {
       cursor: "grabbing",
       inset: "0",
       position: "fixed",
       zIndex: "2147483646",
     });
-    (portal ?? document.body).append(shield, overlay);
+    shield.append(overlay);
+    (portal ?? document.body).append(shield);
     scrollRoot = candidate.element.closest<HTMLElement>("[data-workspace-scroll-container]");
     positionOverlay();
     scrollFrame = requestAnimationFrame(autoScroll);
