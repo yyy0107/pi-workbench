@@ -1,4 +1,3 @@
-import { createAgentSessionServices } from "@earendil-works/pi-coding-agent";
 import type {
   Api,
   AssistantMessage,
@@ -9,6 +8,7 @@ import type {
   ModelsApiStreamOptions,
 } from "@earendil-works/pi-ai";
 import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
+import { createWorkbenchAgentSessionServices } from "../agent-runtime/agent-session-services";
 
 import {
   PI_THINKING_LEVELS,
@@ -1166,7 +1166,7 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
 
   constructor(options: ModelServiceOptions = {}) {
     this.cwd = options.cwd ?? process.cwd();
-    this.serviceFactory = options.serviceFactory ?? createAgentSessionServices;
+    this.serviceFactory = options.serviceFactory ?? createWorkbenchAgentSessionServices;
     this.injectedRuntime = options.runtime;
     this.fetcher = options.fetcher ?? fetch;
     this.settingsOverrides = options.providerSettings;

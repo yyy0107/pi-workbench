@@ -409,6 +409,14 @@ Workspace Git 同样只接受 `workspaceId`，并从 `WorkspaceStore` 解析权�
 
 ## 模型
 
+模型服务与会话统一通过 `server/src/agent-runtime/agent-session-services.ts` 创建 Pi services。
+该入口在扩展加载前保存宿主 `fetch`，并通过 Pi 的请求级 `fetch` 参数保护支持注入的 HTTP
+适配器；普通回答、压缩、图片理解及 deferred 请求共用这条边界。调用方显式传入的 `fetch`、
+认证、代理环境参数和 WebSocket transport 选择继续由 SDK 处理，不改写扩展使用的全局 `fetch`。
+Pi 0.84.2 的 Google 适配器不支持注入，Bedrock 使用自己的 HTTP handler，未知扩展 API 也保留
+原有传输。这是对全局 `fetch` 被意外替换的定向防护，不是同进程扩展的安全沙箱，也不覆盖认证
+刷新和模型目录请求；升级 SDK 时需复核支持注入的 API 列表。
+
 Pi `ModelRuntime` 是 provider、model 和凭证状态的权威来源：
 
 - `llm.providers` 返回当前可配置或已注册的 provider，并刷新 Pi 的认证可用性快照，因此 Pi TUI

@@ -9,7 +9,6 @@ import {
   type AgentSessionServices,
   buildContextEntries,
   createAgentSessionFromServices,
-  createAgentSessionServices,
   getAgentDir,
   sessionEntryToContextMessages,
   type SessionInfo,
@@ -19,6 +18,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 
 import { installSystemPromptPlaceholders } from "./system-prompt-placeholders";
+import { createWorkbenchAgentSessionServices } from "../agent-runtime/agent-session-services";
 
 import type {
   PiAssistantMessage,
@@ -3412,7 +3412,7 @@ async function createHost(
   const cwd = sessionManager.getCwd();
   const hostBindings = getPiAgentHostBindings();
   const initialContextPolicy = policyFromSessionEntries(sessionManager.getBranch());
-  const services = await createAgentSessionServices({
+  const services = await createWorkbenchAgentSessionServices({
     cwd,
     resourceLoaderOptions: {
       extensionFactories: createWorkbenchInternalPiExtensions(hostBindings.askUserSettings),
@@ -3509,7 +3509,7 @@ async function createHost(
 
 async function modelServices(cwd: string): Promise<AgentSessionServices> {
   const workspace = validateWorkspace(cwd);
-  return createAgentSessionServices({
+  return createWorkbenchAgentSessionServices({
     cwd: workspace.cwd,
     resourceLoaderReloadOptions: {
       resolveProjectTrust: async () => getProjectTrustService().isTrusted(workspace.cwd),
