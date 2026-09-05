@@ -12,7 +12,7 @@ const {
   DEFAULTS,
   readDesktopSettings,
   validatePreferences,
-  terminalShellExecutable,
+  applyRuntimeTerminalShell,
   proxyEnvironment,
   createDesktopServices,
   runtimeHasActiveTasks,
@@ -49,6 +49,95 @@ test("update installation checks authoritative and hidden task activity and trea
     }),
     true,
   );
+});
+
+test("shell RPC requires an authenticated, matching Runtime acknowledgement", async () => {
+  const connection = { httpOrigin: "http://127.0.0.1:1234", accessToken: "test-only" };
+  await applyRuntimeTerminalShell(connection, "wsl", async (url, options) => {
+    assert.equal(url, `${connection.httpOrigin}/api/terminal.setDefaultShell`);
+    assert.equal(options.headers.Authorization, "Bearer test-only");
+    const request = JSON.parse(options.body);
+    assert.deepEqual(request.payload, { shell: "wsl" });
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value: { shell: "wsl" } },
+    });
+  });
+  await assert.rejects(applyRuntimeTerminalShell(undefined, "wsl"), /terminal-shell-unavailable/);
+  await assert.rejects(
+    applyRuntimeTerminalShell(connection, "wsl", async () =>
+      Response.json({ result: { ok: true, value: { shell: "wsl" } } }),
+    ),
+    /terminal-shell-unavailable/,
+  );
+});
+
+test("shell settings serialize live application, retain failures for retry, and start with the latest saved profile", async (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-shell-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const handlers = new Map();
+  const events = [];
+  const calls = [];
+  let fail = false;
+  let release;
+  let blocked = false;
+  const app = { isPackaged: false, getPath: () => directory, getVersion: () => "test" };
+  const service = createDesktopServices(
+    {
+      app,
+      ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) },
+      Notification: { isSupported: () => false },
+      powerSaveBlocker: {},
+    },
+    {
+      settings: readDesktopSettings(app),
+      platform: "win32",
+      isTrusted: () => true,
+      getWindow: () => ({ webContents: { send: (_channel, value) => events.push(value) } }),
+      async applyTerminalShell(shell) {
+        calls.push(shell);
+        if (blocked)
+          await new Promise((resolve) => {
+            release = resolve;
+          });
+        if (fail) throw new Error("offline");
+      },
+    },
+  );
+  t.after(() => service.dispose());
+  const settings = (patch) => handlers.get("workbench:desktop-settings")({}, patch);
+  await service.synchronizeTerminalShell();
+  assert.equal(settings().terminalShellStatus, "applied");
+  blocked = true;
+  const first = settings({ terminalShell: "command-prompt" });
+  const second = settings({ terminalShell: "wsl" });
+  await new Promise(setImmediate);
+  assert.deepEqual(calls, ["powershell", "command-prompt"]);
+  assert.equal(settings().terminalShellStatus, "applying");
+  assert.equal(readDesktopSettings(app).preferences.terminalShell, "command-prompt");
+  blocked = false;
+  release();
+  assert.equal((await first).preferences.terminalShell, "command-prompt");
+  assert.equal((await second).preferences.terminalShell, "wsl");
+  assert.equal(settings().restartRequired, false);
+  assert.equal(service.environment.PI_WORKBENCH_TERMINAL_SHELL_PROFILE, "wsl");
+  fail = true;
+  assert.equal((await settings({ terminalShell: "git-bash" })).terminalShellStatus, "failed");
+  assert.equal(readDesktopSettings(app).preferences.terminalShell, "git-bash");
+  fail = false;
+  assert.equal((await settings({ terminalShell: "git-bash" })).terminalShellStatus, "applied");
+  await service.synchronizeTerminalShell(); // The same handshake after a Runtime restart.
+  assert.deepEqual(calls, [
+    "powershell",
+    "command-prompt",
+    "wsl",
+    "git-bash",
+    "git-bash",
+    "git-bash",
+  ]);
+  assert.equal(service.environment.PI_WORKBENCH_TERMINAL_SHELL_PROFILE, "git-bash");
+  assert.ok(events.some((event) => event.terminalShellStatus === "failed"));
 });
 
 test("desktop settings apply power, secure credentials, activity notifications and guarded update installation", async (t) => {
@@ -129,7 +218,10 @@ test("desktop settings apply power, secure credentials, activity notifications a
   call("update-token", "example-test-token");
   assert.equal(call("settings").tokenConfigured, true);
   assert.equal(call("settings").platform, process.platform);
-  assert.equal(call("settings", { terminalShell: "command-prompt" }).restartRequired, true);
+  assert.equal(
+    (await call("settings", { terminalShell: "command-prompt" })).restartRequired,
+    false,
+  );
   assert.equal(readDesktopSettings(app).preferences.terminalShell, "command-prompt");
   assert.ok(
     !fs
@@ -139,7 +231,7 @@ test("desktop settings apply power, secure credentials, activity notifications a
   await service.start();
   await new Promise(setImmediate);
   assert.deepEqual(proxy, { mode: "system" });
-  call("settings", { keepAwake: true, notificationSounds: false });
+  await call("settings", { keepAwake: true, notificationSounds: false });
   assert.deepEqual(power, ["prevent-app-suspension"]);
   assert.equal(updater.autoInstallOnAppQuit, false);
   assert.equal(updater.feed.owner, "yyy0107");
@@ -157,7 +249,7 @@ test("desktop settings apply power, secure credentials, activity notifications a
     failed: false,
   };
   call("task-state", { locale: "zh-CN", tasks: [task] });
-  call("settings", { automaticUpdates: true });
+  await call("settings", { automaticUpdates: true });
   updater.emit("update-downloaded", { version: "0.2.0" });
   await new Promise(setImmediate);
   assert.equal(installed, 0);
@@ -176,7 +268,7 @@ test("desktop settings apply power, secure credentials, activity notifications a
     events.filter(([channel]) => channel === "workbench:desktop-notification-sound");
   assert.deepEqual(soundEvents(), []);
   for (const sound of ["chime", "soft", "bell", "droplet"]) {
-    call("settings", { notificationSounds: true, notificationSound: sound });
+    await call("settings", { notificationSounds: true, notificationSound: sound });
     assert.equal(readDesktopSettings(app).preferences.notificationSound, sound);
     call("task-state", { locale: "zh-CN", tasks: [task] });
     call("task-state", {
@@ -189,7 +281,7 @@ test("desktop settings apply power, secure credentials, activity notifications a
     ["chime", "soft", "bell", "droplet"],
   );
   assert.ok(notifications.every((notification) => notification.silent));
-  call("settings", { notificationSounds: false });
+  await call("settings", { notificationSounds: false });
   call("task-state", { locale: "zh-CN", tasks: [task] });
   call("task-state", {
     locale: "zh-CN",
@@ -200,7 +292,7 @@ test("desktop settings apply power, secure credentials, activity notifications a
   call("task-state", { locale: "zh-CN", tasks: [task] });
   call("task-state", { locale: "zh-CN", tasks: [{ ...task, running: false }] });
   assert.equal(notifications.length, countBeforeOutgoingMessage);
-  call("settings", { notificationSounds: true, taskNotifications: false });
+  await call("settings", { notificationSounds: true, taskNotifications: false });
   const count = notifications.length;
   call("task-state", { locale: "zh-CN", tasks: [task] });
   call("task-state", {
@@ -290,25 +382,12 @@ test("proxy settings replace inherited values and keep credentials in the main p
   assert.equal(configured.HTTPS_PROXY, configured.http_proxy);
   assert.equal(configured.NO_PROXY, "localhost,127.0.0.1,::1,.example.com");
   assert.equal(
-    proxyEnvironment({}, DEFAULTS, "win32").PI_WORKBENCH_TERMINAL_SHELL,
-    "powershell.exe",
+    proxyEnvironment({}, DEFAULTS, "win32").PI_WORKBENCH_TERMINAL_SHELL_PROFILE,
+    "powershell",
   );
   assert.equal(
     proxyEnvironment({}, { ...DEFAULTS, terminalShell: "command-prompt" }, "win32")
-      .PI_WORKBENCH_TERMINAL_SHELL,
-    "cmd.exe",
-  );
-  assert.deepEqual(
-    shells.map((shell) => terminalShellExecutable(shell, {}, () => false)),
-    ["powershell.exe", "cmd.exe", "bash.exe", "wsl.exe"],
-  );
-  const gitBash = String.raw`C:\Program Files\Git\bin\bash.exe`;
-  assert.equal(
-    terminalShellExecutable(
-      "git-bash",
-      { ProgramFiles: String.raw`C:\Program Files` },
-      (candidate) => candidate === gitBash,
-    ),
-    gitBash,
+      .PI_WORKBENCH_TERMINAL_SHELL_PROFILE,
+    "command-prompt",
   );
 });

@@ -4,6 +4,7 @@ const electron = require("electron");
 const {
   readDesktopSettings,
   createDesktopServices,
+  applyRuntimeTerminalShell,
   runtimeHasActiveTasks,
 } = require("./desktop-services.cjs");
 const { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, session, shell } =
@@ -62,6 +63,10 @@ const desktopServices = desktopSettings
       settings: desktopSettings,
       isTrusted: isTrustedMainFrameEvent,
       getWindow: () => mainWindow,
+      applyTerminalShell: (shell) =>
+        applyRuntimeTerminalShell(rendererRuntimeConnection, shell, (url, options) =>
+          net.fetch(url, options),
+        ),
       hasActiveTasks: () =>
         runtimeHasActiveTasks(rendererRuntimeConnection, (url, options) => net.fetch(url, options)),
       onInstallFailed() {
@@ -284,6 +289,7 @@ function startWorkbenchRuntime() {
   if (runtimeStartPromise) return runtimeStartPromise;
   const starting = startPackagedWorkbenchRuntime({
     ...runtimeConfiguration,
+    environment: desktopServices.environment,
     beforeStop: stopRendererRequestIntake,
     onUnexpectedExit(error) {
       if (isQuitting) return;
@@ -340,6 +346,7 @@ async function restartWorkbenchRuntime() {
   }
   if (app.isPackaged) installPackagedRendererProtocol(nextSession);
   rendererRuntimeConnection = nextSession.runtimeConnection;
+  await desktopServices.synchronizeTerminalShell();
   runtimeReady = true;
 }
 
@@ -405,7 +412,6 @@ async function bootstrap() {
     supportPath,
     rendererOrigin,
     reportOwner: createPackagedSmokeOwnerReporter(),
-    environment: desktopServices.environment,
   });
   packagedRuntimeSession = await startWorkbenchRuntime();
   if (isQuitting) {
@@ -413,6 +419,7 @@ async function bootstrap() {
     return;
   }
   rendererRuntimeConnection = packagedRuntimeSession.runtimeConnection;
+  await desktopServices.synchronizeTerminalShell();
 
   const workbenchUrl = `${rendererOrigin}/`;
   if (app.isPackaged) {

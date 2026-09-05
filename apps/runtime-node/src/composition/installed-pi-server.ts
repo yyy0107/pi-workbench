@@ -60,13 +60,17 @@ import {
   type PiRuntimeHttpHandler,
 } from "@workbench/agent-runtime-pi-server/http";
 import { createWorkbenchBashToolOverride } from "@workbench/pi-terminal-tool";
+import { createTerminalShellPreference } from "@workbench/terminal-server/shell";
+import { ToolTerminalSessionManager } from "@workbench/terminal-server/tool-sessions";
 import { runWorkbenchShutdownHooks } from "@workbench/server-core/shutdown-hooks";
 import { subscribeWorkbenchSettingsPreferences } from "@workbench/settings-server/service";
 import { createInstalledWorkbenchSettingsService } from "./installed-workbench-settings";
 import { getInstalledPiAutomationService } from "./installed-automation";
 
 export interface InstalledPiServer {
-  readonly lifecycleVersion: 4;
+  readonly lifecycleVersion: 5;
+  readonly terminalShell: ReturnType<typeof createTerminalShellPreference>;
+  readonly toolTerminalSessions: ToolTerminalSessionManager;
   readonly agent: WorkbenchAgentServerAdapter;
   readonly handleRpcPost: PiRpcPostHandler;
   readonly handleHttpRequest: PiRuntimeHttpHandler;
@@ -162,10 +166,13 @@ function createInstalledPiRuntimeHttpHandler(
 
 function createInstalledPiAgentHostBindings(
   workspaceFiles: WorkspaceFileService,
+  terminalShell: ReturnType<typeof createTerminalShellPreference>,
+  toolTerminalSessions: ToolTerminalSessionManager,
 ): PiAgentHostBindings {
   const settings = createInstalledWorkbenchSettingsService();
   return {
     workspaceFiles,
+    getDefaultTerminalShell: terminalShell.getShell,
     attachmentUnderstandingSettings: getImageUnderstandingSettingsStore,
     async readSessionPreferences() {
       const { preferences } = await settings.describe();
@@ -175,10 +182,15 @@ function createInstalledPiAgentHostBindings(
       };
     },
     createBashToolOverride({ cwd, sessionId, commandPrefix, shellPath }) {
-      return createWorkbenchBashToolOverride(cwd, sessionId, {
-        ...(commandPrefix === undefined ? {} : { commandPrefix }),
-        ...(shellPath === undefined ? {} : { shellPath }),
-      });
+      return createWorkbenchBashToolOverride(
+        cwd,
+        sessionId,
+        {
+          ...(commandPrefix === undefined ? {} : { commandPrefix }),
+          ...(shellPath === undefined ? {} : { shellPath }),
+        },
+        toolTerminalSessions,
+      );
     },
     todoSettings: {
       async readEnabled() {
@@ -238,7 +250,13 @@ function createInstalledPiServer(
     resolveWorkspaceRoot: resolvePiWorkspaceRoot,
     mutateWorkspace: mutatePiWorkspace,
   });
-  const host = createInstalledPiAgentHostBindings(workspaceFiles);
+  const terminalShell = createTerminalShellPreference();
+  const toolTerminalSessions = new ToolTerminalSessionManager({ getShell: terminalShell.getShell });
+  const host = createInstalledPiAgentHostBindings(
+    workspaceFiles,
+    terminalShell,
+    toolTerminalSessions,
+  );
   bindPiAgentHostBindings(host);
   const commands = new CommandService();
   const agent = existingAgent ?? createPiAgentServerImplementation({ commands, host });
@@ -271,7 +289,9 @@ function createInstalledPiServer(
     automation,
   });
   return Object.freeze({
-    lifecycleVersion: 4 as const,
+    lifecycleVersion: 5 as const,
+    terminalShell,
+    toolTerminalSessions,
     agent,
     host,
     handleRpcPost,
@@ -289,7 +309,7 @@ export function getInstalledPiServer(): InstalledPiServer {
   const current = installedGlobal.__workbenchInstalledPiServer;
   if (current) {
     bindPiAgentHostBindings(current.host);
-    if (current.lifecycleVersion !== 4) {
+    if (current.lifecycleVersion !== 5) {
       const upgraded = createInstalledPiServer(current.agent);
       installedGlobal.__workbenchInstalledPiServer = upgraded;
       return upgraded;

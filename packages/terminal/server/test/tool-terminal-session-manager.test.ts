@@ -48,6 +48,34 @@ class FakePty implements TerminalPty {
   }
 }
 
+test("explicit AgentSession shells stay pinned after the shared default changes", async (t) => {
+  let shell = "powershell.exe";
+  const spawned: { file: string; pty: FakePty }[] = [];
+  const manager = new ToolTerminalSessionManager({
+    getShell: () => shell,
+    platform: "win32",
+    spawnPty: (file) => {
+      const pty = new FakePty();
+      spawned.push({ file, pty });
+      return pty;
+    },
+    terminatePty: (pty) => pty.kill(),
+  });
+  t.after(() => manager.dispose());
+  const options = { sessionId: "agent", command: "echo test", cwd: "C:\\workspace", onData() {} };
+  const old = manager.spawn({ ...options, toolCallId: "old", shell });
+  shell = "cmd.exe";
+  const pinned = manager.spawn({ ...options, toolCallId: "pinned", shell: "powershell.exe" });
+  const fresh = manager.spawn({ ...options, toolCallId: "fresh" });
+  assert.deepEqual(
+    spawned.map(({ file }) => file),
+    ["powershell.exe", "powershell.exe", "cmd.exe"],
+  );
+  assert.ok(spawned.every(({ pty }) => !pty.killed));
+  spawned.forEach(({ pty }) => pty.emitExit({ exitCode: 0 }));
+  await Promise.all([old.completion, pinned.completion, fresh.completion]);
+});
+
 test("registers a stable process handle before the tool process exits", async () => {
   const terminal = new FakePty();
   const manager = new ToolTerminalSessionManager({

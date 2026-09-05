@@ -49,7 +49,7 @@ test("retains one installed RPC and Runtime HTTP router facade", () => {
   const second = getInstalledPiServer();
 
   assert.equal(second, first);
-  assert.equal(second.lifecycleVersion, 4);
+  assert.equal(second.lifecycleVersion, 5);
   assert.equal(second.agent, first.agent);
   assert.equal(second.handleRpcPost, first.handleRpcPost);
   assert.equal(second.handleHttpRequest, first.handleHttpRequest);

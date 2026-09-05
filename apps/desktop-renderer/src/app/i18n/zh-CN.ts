@@ -30,7 +30,12 @@ export const desktopRendererZhCN = {
     keepAwake: "保持电脑运行",
     keepAwakeDescription: "应用打开时阻止系统因空闲进入休眠，仍可手动睡眠或合盖休眠。",
     terminalShell: "集成终端 Shell",
-    terminalShellDescription: "选择集成终端和智能体工具终端默认使用的 Shell。修改后需重启应用。",
+    terminalShellDescription: "立即用于新建终端和智能体会话，已有终端与会话继续使用原来的 Shell。",
+    terminalShellStatus: {
+      applying: "正在应用 Shell 配置…",
+      applied: "Shell 配置已生效。",
+      failed: "配置已保存，但尚未生效。请重试以应用到新建终端和会话。",
+    },
     terminalShells: {
       powershell: "PowerShell",
       "command-prompt": "命令提示符",

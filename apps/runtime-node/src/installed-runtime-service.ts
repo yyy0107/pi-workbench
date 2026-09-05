@@ -12,15 +12,18 @@ import {
   configuredApiTrustedHosts,
   inspectApiRequestTrust,
 } from "@workbench/server-core/request-trust";
-import { TERMINAL_WEBSOCKET_PATH } from "@workbench/terminal-contracts";
+import {
+  SET_DEFAULT_TERMINAL_SHELL_METHOD,
+  TERMINAL_WEBSOCKET_PATH,
+} from "@workbench/terminal-contracts";
 import {
   createTerminalGateway,
   type TerminalSessionManagerLike,
 } from "@workbench/terminal-server/gateway";
 import { TerminalSessionManager } from "@workbench/terminal-server/shell-sessions";
-import { getToolTerminalSessionManager } from "@workbench/terminal-server/tool-sessions";
 
 import { getInstalledPiServer } from "./composition/installed-pi-server";
+import { createTerminalShellRpcHandler } from "./terminal-shell-rpc";
 
 const MAX_RUNTIME_WEBSOCKET_PAYLOAD_BYTES = 128 * 1024;
 
@@ -149,8 +152,14 @@ export function createInstalledRuntimeService(
     perMessageDeflate: false,
     maxPayload: MAX_RUNTIME_WEBSOCKET_PAYLOAD_BYTES,
   });
-  const terminalSessions = new TerminalSessionManager();
-  const toolTerminalSessions = getToolTerminalSessionManager();
+  const installedPi = getInstalledPiServer();
+  const terminalSessions = new TerminalSessionManager({
+    getShell: installedPi.terminalShell.getShell,
+  });
+  const toolTerminalSessions = installedPi.toolTerminalSessions;
+  const setDefaultShell = options.desktopSidecarAuth
+    ? createTerminalShellRpcHandler(installedPi.terminalShell.setShell)
+    : undefined;
   const gatewayTerminalSessions: TerminalSessionManagerLike = {
     attach: (attachOptions) =>
       attachOptions.toolCallId
@@ -188,13 +197,16 @@ export function createInstalledRuntimeService(
     },
   };
 
-  const installedPi = getInstalledPiServer();
   const dispose = createInstalledRuntimeDisposer({
     disposePi: () => installedPi.dispose(),
     disposeTerminals: [() => terminalSessions.dispose(), () => toolTerminalSessions.dispose()],
   });
   return Object.freeze({
-    handleHttpRequest: installedPi.handleHttpRequest,
+    handleHttpRequest: (request: Request) =>
+      setDefaultShell &&
+      new URL(request.url).pathname === `/api/${SET_DEFAULT_TERMINAL_SHELL_METHOD}`
+        ? setDefaultShell(request)
+        : installedPi.handleHttpRequest(request),
     webSocketGateway,
     webSocketServers: Object.freeze([piWebSocketServer, terminalWebSocketServer]),
     upgradeRequiredPaths: INSTALLED_RUNTIME_WEBSOCKET_PATHS,

@@ -1,5 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const { randomUUID } = require("node:crypto");
 
 const DEFAULTS = Object.freeze({
   hardwareAcceleration: true,
@@ -76,22 +77,6 @@ function readDesktopSettings(app) {
 }
 
 /** Build the explicit environment shared by desktop-owned outbound processes. */
-function terminalShellExecutable(shell, environment, exists = fs.existsSync) {
-  if (shell === "command-prompt") return "cmd.exe";
-  if (shell === "wsl") return "wsl.exe";
-  if (shell !== "git-bash") return "powershell.exe";
-  return (
-    [
-      environment.ProgramFiles,
-      environment["ProgramFiles(x86)"],
-      environment.LOCALAPPDATA && path.win32.join(environment.LOCALAPPDATA, "Programs"),
-    ]
-      .filter(Boolean)
-      .map((root) => path.win32.join(root, "Git", "bin", "bash.exe"))
-      .find(exists) ?? "bash.exe"
-  );
-}
-
 function proxyEnvironment(environment, preferences, platform = process.platform) {
   const result = { ...environment };
   delete result.PI_WORKBENCH_UPDATE_TOKEN;
@@ -105,12 +90,33 @@ function proxyEnvironment(environment, preferences, platform = process.platform)
   result.NO_PROXY = result.no_proxy = [LOOPBACK_BYPASS, preferences.noProxy]
     .filter(Boolean)
     .join(",");
-  if (platform === "win32")
-    result.PI_WORKBENCH_TERMINAL_SHELL = terminalShellExecutable(
-      preferences.terminalShell,
-      environment,
-    );
+  if (platform === "win32") result.PI_WORKBENCH_TERMINAL_SHELL_PROFILE = preferences.terminalShell;
   return result;
+}
+
+async function applyRuntimeTerminalShell(connection, shell, fetchImpl = fetch) {
+  if (!connection) throw new Error("terminal-shell-unavailable");
+  const rpcId = `desktop-terminal-shell:${randomUUID()}`;
+  const method = "terminal.setDefaultShell";
+  const response = await fetchImpl(`${connection.httpOrigin}/api/${method}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${connection.accessToken}`,
+    },
+    body: JSON.stringify({ type: "client-request", rpcId, method, payload: { shell } }),
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!response.ok) throw new Error("terminal-shell-unavailable");
+  const result = await response.json();
+  if (
+    result.type !== "server-response" ||
+    result.rpcId !== rpcId ||
+    result.result?.ok !== true ||
+    result.result.value?.shell !== shell
+  ) {
+    throw new Error("terminal-shell-unavailable");
+  }
 }
 
 /** Recheck authoritative state, including hidden sessions, immediately before update installation. */
@@ -161,12 +167,17 @@ function createDesktopServices(
     onInstallFailed = () => {},
     getUpdater = () => require("electron-updater").autoUpdater,
     hasActiveTasks = async () => true,
+    applyTerminalShell = async () => {
+      throw new Error("terminal-shell-unavailable");
+    },
     platform = process.platform,
   },
 ) {
   const { app, ipcMain, session, powerSaveBlocker, Notification, safeStorage, dialog } = electron;
   const startupPreferences = { ...settings.preferences };
   let preferences = settings.preferences;
+  let terminalShellStatus = platform === "win32" ? "applying" : "applied";
+  let settingsOperation = Promise.resolve();
   let encryptedToken = settings.updateToken;
   let updater;
   let update = { status: app.isPackaged ? "idle" : "development" };
@@ -186,7 +197,8 @@ function createDesktopServices(
     version: app.getVersion(),
     platform,
     tokenConfigured: Boolean(encryptedToken || process.env.PI_WORKBENCH_UPDATE_TOKEN),
-    restartRequired: ["hardwareAcceleration", "terminalShell", "httpProxy", "noProxy"].some(
+    terminalShellStatus,
+    restartRequired: ["hardwareAcceleration", "httpProxy", "noProxy"].some(
       (key) => startupPreferences[key] !== preferences[key],
     ),
     notificationsSupported: Notification.isSupported(),
@@ -320,14 +332,35 @@ function createDesktopServices(
       return handler(payload);
     });
   }
+  function enqueueSettings(operation) {
+    const next = settingsOperation.then(operation);
+    settingsOperation = next.catch(() => {});
+    return next;
+  }
+  async function synchronizeTerminalShell() {
+    if (platform !== "win32") return;
+    terminalShellStatus = "applying";
+    publish();
+    try {
+      await applyTerminalShell(preferences.terminalShell);
+      terminalShellStatus = "applied";
+    } catch {
+      terminalShellStatus = "failed";
+    }
+    publish();
+  }
   handle("workbench:desktop-settings", (patch) => {
-    if (patch !== undefined) {
+    if (patch === undefined) return snapshot();
+    const validated = validatePreferences(patch);
+    return enqueueSettings(async () => {
       if (operation || installing || update.status === "downloading")
         throw new Error("update-in-progress");
-      const next = { ...preferences, ...validatePreferences(patch) };
+      const next = { ...preferences, ...validated };
       const channelChanged = next.previewUpdates !== preferences.previewUpdates;
       const autoChanged = next.automaticUpdates !== preferences.automaticUpdates;
       save(next);
+      if (platform === "win32" && validated.terminalShell !== undefined)
+        terminalShellStatus = "applying";
       applyPower();
       if (updater && channelChanged) {
         setUpdate({ status: "idle" });
@@ -338,8 +371,9 @@ function createDesktopServices(
           void runUpdate("download");
       }
       publish();
-    }
-    return snapshot();
+      if (validated.terminalShell !== undefined) await synchronizeTerminalShell();
+      return snapshot();
+    });
   });
   handle("workbench:desktop-update-token", (value) => {
     if (typeof value !== "string" || value.length > 4096 || /\s/u.test(value))
@@ -428,7 +462,17 @@ function createDesktopServices(
     lastActivity = Date.now();
   });
   return {
-    environment: proxyEnvironment(process.env, startupPreferences, platform),
+    get environment() {
+      return proxyEnvironment(
+        process.env,
+        {
+          ...startupPreferences,
+          terminalShell: preferences.terminalShell,
+        },
+        platform,
+      );
+    },
+    synchronizeTerminalShell: () => enqueueSettings(synchronizeTerminalShell),
     async start() {
       const proxyConfig = startupPreferences.httpProxy
         ? {
@@ -495,7 +539,7 @@ module.exports = {
   DEFAULTS,
   readDesktopSettings,
   validatePreferences,
-  terminalShellExecutable,
+  applyRuntimeTerminalShell,
   proxyEnvironment,
   createDesktopServices,
 };

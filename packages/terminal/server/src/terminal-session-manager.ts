@@ -10,6 +10,7 @@ import type {
   TerminalProcessSnapshot,
 } from "@workbench/terminal-contracts";
 import { terminalEnvironment } from "./terminal-environment";
+import { configuredTerminalShell } from "./terminal-shell";
 import { TerminalProcessBuffer, type TerminalProcessReplay } from "./terminal-process-buffer";
 
 const DEFAULT_COLS = 100;
@@ -55,6 +56,7 @@ export interface TerminalSessionManagerOptions {
   spawnPty?: TerminalPtySpawner;
   canonicalizeDirectory?: (candidate: string) => Promise<string>;
   shell?: string;
+  getShell?: () => string;
   env?: Readonly<Record<string, string | undefined>>;
   platform?: NodeJS.Platform;
   defaultCwd?: string;
@@ -97,6 +99,7 @@ export class TerminalSessionError extends Error {
 }
 
 interface ManagedTerminalSession {
+  readonly shell: string;
   readonly id: string;
   readonly processHandle: string;
   readonly cwd: string;
@@ -120,20 +123,6 @@ function defaultPtySpawner(
   return spawn(file, [...args], options);
 }
 
-function configuredShell(
-  shell: string | undefined,
-  env: Readonly<Record<string, string | undefined>>,
-  platform: NodeJS.Platform,
-): string {
-  const candidate =
-    shell?.trim() ||
-    env.PI_WORKBENCH_TERMINAL_SHELL?.trim() ||
-    env.WORKBENCH_TERMINAL_SHELL?.trim() ||
-    env.SHELL?.trim();
-  if (candidate) return candidate;
-  return platform === "win32" ? "powershell.exe" : "/bin/bash";
-}
-
 function validSessionId(sessionId: string): boolean {
   return /^[A-Za-z0-9._:-]{1,200}$/.test(sessionId);
 }
@@ -152,7 +141,7 @@ async function canonicalDirectory(candidate: string): Promise<string> {
 export class TerminalSessionManager {
   readonly #spawnPty: TerminalPtySpawner;
   readonly #canonicalizeDirectory: (candidate: string) => Promise<string>;
-  readonly #shell: string;
+  readonly #getShell: () => string;
   readonly #environment: Readonly<Record<string, string | undefined>>;
   readonly #defaultCwd: string;
   readonly #maxHistoryBytes: number;
@@ -166,11 +155,12 @@ export class TerminalSessionManager {
     this.#spawnPty = options.spawnPty ?? defaultPtySpawner;
     this.#canonicalizeDirectory = options.canonicalizeDirectory ?? canonicalDirectory;
     this.#environment = options.env ?? process.env;
-    this.#shell = configuredShell(
-      options.shell,
-      this.#environment,
-      options.platform ?? process.platform,
-    );
+    this.#getShell = () =>
+      configuredTerminalShell(
+        options.shell?.trim() || options.getShell?.(),
+        this.#environment,
+        options.platform ?? process.platform,
+      );
     this.#defaultCwd = options.defaultCwd ?? process.cwd();
     this.#maxHistoryBytes = options.maxHistoryBytes ?? DEFAULT_HISTORY_BYTES;
     this.#idleTimeoutMs = options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS;
@@ -233,7 +223,8 @@ export class TerminalSessionManager {
       TERM_PROGRAM: "Pi Workbench",
     };
     this.#assertOpen();
-    const terminal = this.#spawnPty(this.#shell, [], {
+    const shell = this.#getShell();
+    const terminal = this.#spawnPty(shell, [], {
       cwd: options.cwd,
       cols,
       rows,
@@ -250,6 +241,7 @@ export class TerminalSessionManager {
     }
     const processHandle = options.sessionId;
     const session: ManagedTerminalSession = {
+      shell,
       id: options.sessionId,
       processHandle,
       cwd: options.cwd,
@@ -398,7 +390,7 @@ export class TerminalSessionManager {
       sessionId: session.id,
       kind: "shell",
       cwd: session.cwd,
-      process: session.pty.process || basename(this.#shell),
+      process: session.pty.process || basename(session.shell),
       pid: session.pty.pid,
       tty: true,
       processState: session.exitEvent?.processState ?? "running",

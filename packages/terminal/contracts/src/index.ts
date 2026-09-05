@@ -1,6 +1,7 @@
 export const TERMINAL_WEBSOCKET_PATH = "/api/terminal";
 
 export * from "./bash-tool-input";
+export * from "./shell";
 
 export const TERMINAL_ERROR_CODES = [
   "invalid-message",

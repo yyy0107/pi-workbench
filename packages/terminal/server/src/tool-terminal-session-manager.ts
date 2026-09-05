@@ -18,6 +18,7 @@ import {
   type TerminalSessionSubscription,
 } from "./terminal-session-manager";
 import { terminalEnvironment } from "./terminal-environment";
+import { configuredTerminalShell } from "./terminal-shell";
 import {
   TerminalInteractionDetector,
   type TerminalInteractionDetectorOptions,
@@ -71,6 +72,7 @@ export interface AttachToolTerminalOptions {
 }
 
 export interface ToolTerminalSessionManagerOptions {
+  getShell?: () => string;
   spawnPty?: TerminalPtySpawner;
   terminatePty?: (terminal: TerminalPty) => void;
   shell?: string;
@@ -131,20 +133,6 @@ function defaultPtyTerminator(platform: NodeJS.Platform): (terminal: TerminalPty
   };
 }
 
-function configuredShell(
-  shell: string | undefined,
-  env: NodeJS.ProcessEnv,
-  platform: NodeJS.Platform,
-): string {
-  const candidate =
-    shell?.trim() ||
-    env.PI_WORKBENCH_TERMINAL_SHELL?.trim() ||
-    env.WORKBENCH_TERMINAL_SHELL?.trim() ||
-    env.SHELL?.trim();
-  if (candidate) return candidate;
-  return platform === "win32" ? "powershell.exe" : "/bin/bash";
-}
-
 function shellExecutableName(shell: string, platform: NodeJS.Platform): string {
   const name = platform === "win32" ? win32.basename(shell) : basename(shell);
   return name.toLowerCase().replace(/\.exe$/, "");
@@ -189,7 +177,7 @@ function terminalError(code: TerminalErrorCode, message: string): TerminalSessio
 export class ToolTerminalSessionManager {
   readonly #spawnPty: TerminalPtySpawner;
   readonly #terminatePty: (terminal: TerminalPty) => void;
-  readonly #shell: string;
+  readonly #getShell: () => string;
   readonly #environment: NodeJS.ProcessEnv;
   readonly #platform: NodeJS.Platform;
   readonly #maxHistoryBytes: number;
@@ -204,7 +192,12 @@ export class ToolTerminalSessionManager {
     this.#environment = options.env ?? process.env;
     this.#platform = options.platform ?? process.platform;
     this.#terminatePty = options.terminatePty ?? defaultPtyTerminator(this.#platform);
-    this.#shell = configuredShell(options.shell, this.#environment, this.#platform);
+    this.#getShell = () =>
+      configuredTerminalShell(
+        options.shell?.trim() || options.getShell?.(),
+        this.#environment,
+        this.#platform,
+      );
     this.#maxHistoryBytes = options.maxHistoryBytes ?? DEFAULT_HISTORY_BYTES;
     this.#retentionMs = options.retentionMs ?? DEFAULT_RETENTION_MS;
     this.#maxSessions = options.maxSessions ?? DEFAULT_MAX_SESSIONS;
@@ -242,7 +235,7 @@ export class ToolTerminalSessionManager {
       COLORTERM: "truecolor",
       TERM_PROGRAM: "Pi Workbench",
     };
-    const shell = options.shell?.trim() || this.#shell;
+    const shell = options.shell?.trim() || this.#getShell();
     this.#assertOpen();
     const terminal = this.#spawnPty(shell, shellArguments(shell, this.#platform, options.command), {
       cwd: options.cwd,

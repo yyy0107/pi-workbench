@@ -51,6 +51,40 @@ class FakePty implements TerminalPty {
   }
 }
 
+test("new PTYs read the latest default without touching live process state", async (t) => {
+  let shell = "powershell.exe";
+  const processes: { file: string; pty: FakePty }[] = [];
+  const manager = new TerminalSessionManager({
+    getShell: () => shell,
+    platform: "win32",
+    canonicalizeDirectory: async () => "C:\\workspace",
+    spawnPty: (file) => {
+      const pty = new FakePty();
+      Object.defineProperty(pty, "process", { value: "" });
+      processes.push({ file, pty });
+      return pty;
+    },
+  });
+  t.after(() => manager.dispose());
+  const old = await manager.attach({ sessionId: "old", cwd: "C:\\workspace" });
+  old.writeStdin("running command\r");
+  processes[0]!.pty.emitData("old output");
+  const before = old.snapshot();
+  shell = "cmd.exe";
+  await manager.attach({ sessionId: "new", cwd: "C:\\workspace" });
+  await manager.attach({ sessionId: "old", cwd: "C:\\workspace" });
+  assert.deepEqual(
+    processes.map(({ file }) => file),
+    ["powershell.exe", "cmd.exe"],
+  );
+  assert.deepEqual(old.snapshot(), before);
+  assert.equal(processes[0]!.pty.killed, false);
+  assert.deepEqual(processes[0]!.pty.writes, ["running command\r"]);
+  const replay = old.subscribe({ onOutput() {}, onExit() {} });
+  assert.equal(replay.replay.data, "old output");
+  replay.detach();
+});
+
 test("keeps a PTY alive across clients and replays bounded output", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "workbench-terminal-"));
   const terminals: FakePty[] = [];

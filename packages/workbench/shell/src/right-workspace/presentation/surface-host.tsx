@@ -1,6 +1,14 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { useI18n } from "../../i18n";
 import { cn } from "../../utils";
@@ -12,7 +20,7 @@ import type {
 import {
   selectActiveAuxiliarySurface,
   selectActiveSurface,
-  selectContextSurfacesByPlacement,
+  scopeMatchesContext,
   shouldMountWorkspaceSurface,
   workspaceTabId,
   workspaceTabPanelId,
@@ -31,10 +39,15 @@ import { SurfaceHeaderHost } from "./surface-header-host";
 import { WorkspaceSplitResizeHandle } from "./workspace-split-resize-handle";
 import { WorkspaceStatusLayer } from "./workspace-status-layer";
 import { useWorkbenchDomIds } from "../../dom";
+import {
+  RightWorkspaceReactContext,
+  useRightWorkspaceEnvironment,
+} from "../right-workspace-context";
+import { reconcileSurfaceMountContexts } from "../surface-mount-contexts";
 
 interface SurfacePaneProps {
   active?: WorkspaceSurfaceInstance;
-  activatedSurfaceIds: ReadonlySet<string>;
+  mountedContexts: ReadonlyMap<string, WorkspaceContext>;
   context: WorkspaceContext;
   definitionByKind: ReadonlyMap<string, AnyWorkspaceSurfaceDefinition>;
   empty?: ReactNode;
@@ -45,7 +58,7 @@ interface SurfacePaneProps {
 
 function SurfacePane({
   active,
-  activatedSurfaceIds,
+  mountedContexts,
   context,
   definitionByKind,
   empty,
@@ -58,20 +71,19 @@ function SurfacePane({
   const controller = useRightWorkspace();
   const [retryTokens, setRetryTokens] = useState<Readonly<Record<string, number>>>({});
 
-  if (!active) return empty ?? null;
-
   return (
     <div className="relative size-full overflow-hidden">
+      {!active ? empty : null}
       {surfaces.map((surface) => {
         const definition = definitionByKind.get(surface.kind);
-        const isActive = surface.id === active.id;
+        const isActive = surface.id === active?.id;
         const isVisible = paneVisible && isActive;
         if (
           !shouldMountWorkspaceSurface({
             available: Boolean(definition),
             cachePolicy: definition?.cachePolicy,
             dirty: surface.dirty === true,
-            hasActivated: activatedSurfaceIds.has(surface.id),
+            hasActivated: mountedContexts.has(surface.id),
             isVisible,
           })
         ) {
@@ -135,40 +147,61 @@ function SurfacePane({
                   </div>
                 }
               >
-                <Surface
-                  surface={surface}
-                  context={context}
-                  isVisible={isVisible}
-                  retryToken={retryTokens[surface.id] ?? 0}
-                />
+                <SurfaceOwnerContext context={mountedContexts.get(surface.id) ?? context}>
+                  <Surface
+                    surface={surface}
+                    context={mountedContexts.get(surface.id) ?? context}
+                    isVisible={isVisible}
+                    retryToken={retryTokens[surface.id] ?? 0}
+                  />
+                </SurfaceOwnerContext>
               </Suspense>
             </WorkspaceSurfaceBoundary>
           </div>
         );
       })}
-      <WorkspaceStatusLayer
-        surface={active}
-        onRetry={() => {
-          setRetryTokens((current) => ({
-            ...current,
-            [active.id]: (current[active.id] ?? 0) + 1,
-          }));
-          controller.update(active.id, { status: "ready", statusMessage: undefined });
-        }}
-      />
+      {active ? (
+        <WorkspaceStatusLayer
+          surface={active}
+          onRetry={() => {
+            setRetryTokens((current) => ({
+              ...current,
+              [active.id]: (current[active.id] ?? 0) + 1,
+            }));
+            controller.update(active.id, { status: "ready", statusMessage: undefined });
+          }}
+        />
+      ) : null}
     </div>
   );
 }
 
-export function SurfaceHost() {
+function SurfaceOwnerContext({
+  context,
+  children,
+}: {
+  context: WorkspaceContext;
+  children: ReactNode;
+}) {
+  const environment = useRightWorkspaceEnvironment();
+  const value = useMemo(() => ({ ...environment, context }), [environment, context]);
+  return (
+    <RightWorkspaceReactContext.Provider value={value}>
+      {children}
+    </RightWorkspaceReactContext.Provider>
+  );
+}
+
+export function SurfaceHost({ isVisible = true }: { isVisible?: boolean }) {
   const { text } = useI18n();
   const domIds = useWorkbenchDomIds();
   const context = useWorkspaceContext();
   const state = useRightWorkspaceState((current) => current);
-  const { auxiliaryOpen, auxiliaryWidth, open: workspaceOpen } = state;
-  const [activatedSurfaceIds, setActivatedSurfaceIds] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
+  const { auxiliaryOpen, auxiliaryWidth } = state;
+  const workspaceOpen = isVisible && state.open;
+  const [previousMountedContexts, setMountedContexts] = useState<
+    ReadonlyMap<string, WorkspaceContext>
+  >(() => new Map());
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const auxiliaryPaneRef = useRef<HTMLElement>(null);
@@ -177,20 +210,35 @@ export function SurfaceHost() {
     () => new Map(definitions.map((definition) => [definition.kind, definition])),
     [definitions],
   );
-  const primarySurfaces = useMemo(
-    () => selectContextSurfacesByPlacement(state, context, "primary"),
-    [context, state],
-  );
-  const auxiliarySurfaces = useMemo(
-    () => selectContextSurfacesByPlacement(state, context, "auxiliary"),
-    [context, state],
-  );
   const active = useMemo(() => selectActiveSurface(state, context), [context, state]);
   const activeAuxiliary = useMemo(
     () => selectActiveAuxiliarySurface(state, context),
     [context, state],
   );
   const activeAuxiliaryId = activeAuxiliary?.id;
+  const auxiliaryVisible = auxiliaryOpen && Boolean(activeAuxiliary);
+  const mountedContexts = reconcileSurfaceMountContexts(
+    previousMountedContexts,
+    state.surfaces,
+    definitionByKind,
+    context,
+    workspaceOpen
+      ? [active?.id, auxiliaryVisible ? activeAuxiliaryId : undefined].filter((id): id is string =>
+          Boolean(id),
+        )
+      : [],
+  );
+  useLayoutEffect(() => {
+    if (mountedContexts !== previousMountedContexts) setMountedContexts(mountedContexts);
+  }, [mountedContexts, previousMountedContexts]);
+  const mountedSurfaces = state.surfaceOrder.flatMap((id) => {
+    const surface = state.surfaces[id];
+    return surface && (scopeMatchesContext(surface.scope, context) || mountedContexts.has(id))
+      ? [surface]
+      : [];
+  });
+  const primarySurfaces = mountedSurfaces.filter((surface) => surface.placement === "primary");
+  const auxiliarySurfaces = mountedSurfaces.filter((surface) => surface.placement === "auxiliary");
   const split = resolveWorkspaceSplitLayout(
     containerWidth,
     auxiliaryWidth,
@@ -234,20 +282,6 @@ export function SurfaceHost() {
     };
   }, [activeAuxiliaryId, auxiliaryOpen, workspaceOpen]);
 
-  useEffect(() => {
-    const visibleIds = workspaceOpen
-      ? [active?.id, auxiliaryOpen ? activeAuxiliary?.id : undefined].filter((id): id is string =>
-          Boolean(id),
-        )
-      : [];
-    if (visibleIds.every((id) => activatedSurfaceIds.has(id))) return;
-    setActivatedSurfaceIds((current) => {
-      const next = new Set(current);
-      for (const id of visibleIds) next.add(id);
-      return next;
-    });
-  }, [active, activeAuxiliary, activatedSurfaceIds, auxiliaryOpen, workspaceOpen]);
-
   return (
     <div
       ref={containerRef}
@@ -275,7 +309,7 @@ export function SurfaceHost() {
         >
           <SurfacePane
             active={active}
-            activatedSurfaceIds={activatedSurfaceIds}
+            mountedContexts={mountedContexts}
             context={context}
             definitionByKind={definitionByKind}
             empty={workspaceOpen ? <WorkspaceEmptyState /> : null}
@@ -285,9 +319,9 @@ export function SurfaceHost() {
           />
         </div>
 
-        {activeAuxiliary ? (
+        {activeAuxiliary || auxiliarySurfaces.length > 0 ? (
           <>
-            {auxiliaryOpen ? (
+            {auxiliaryVisible ? (
               split.mode === "horizontal" ? (
                 <WorkspaceSplitResizeHandle
                   key="auxiliary-resize-handle"
@@ -307,10 +341,10 @@ export function SurfaceHost() {
               ref={auxiliaryPaneRef}
               key="auxiliary-pane"
               id={domIds.rightWorkspaceAuxiliaryPane}
-              aria-label={text(activeAuxiliary.title)}
-              aria-hidden={!auxiliaryOpen ? true : undefined}
-              inert={!auxiliaryOpen ? true : undefined}
-              data-state={auxiliaryOpen ? "open" : "closed"}
+              aria-label={activeAuxiliary ? text(activeAuxiliary.title) : undefined}
+              aria-hidden={!auxiliaryVisible ? true : undefined}
+              inert={!auxiliaryVisible ? true : undefined}
+              data-state={auxiliaryVisible ? "open" : "closed"}
               className={cn(
                 "relative min-w-0 overflow-hidden transition-[width,flex-basis,min-height,opacity,transform] duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none data-[state=closed]:pointer-events-none data-[state=closed]:opacity-0",
                 split.mode === "stacked"
@@ -319,16 +353,16 @@ export function SurfaceHost() {
               )}
               style={
                 split.mode === "horizontal"
-                  ? { width: auxiliaryOpen ? split.auxiliaryWidth : 0 }
+                  ? { width: auxiliaryVisible ? split.auxiliaryWidth : 0 }
                   : undefined
               }
             >
               <SurfacePane
                 active={activeAuxiliary}
-                activatedSurfaceIds={activatedSurfaceIds}
+                mountedContexts={mountedContexts}
                 context={context}
                 definitionByKind={definitionByKind}
-                paneVisible={workspaceOpen && auxiliaryOpen}
+                paneVisible={workspaceOpen && auxiliaryVisible}
                 surfaces={auxiliarySurfaces}
               />
             </aside>

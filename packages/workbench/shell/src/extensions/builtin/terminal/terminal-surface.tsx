@@ -10,8 +10,7 @@ import {
   type ITheme,
 } from "@xterm/xterm";
 import { SquareIcon } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useAgentRuntime, useCurrentSession } from "@workbench/agent-runtime-client";
+import { useEffect, useRef, useState } from "react";
 import { createRuntimeWebSocketFactory, type RuntimeWebSocket } from "@workbench/host-client";
 import {
   createTerminalFrameWriter,
@@ -48,11 +47,11 @@ import {
 } from "./terminal-target";
 import {
   bashCommandFromArgs,
-  findBashToolCall,
   terminalOutputAppendDelta,
   terminalResultLines,
 } from "./terminal-tool-transcript";
 import styles from "./terminal-surface.module.css";
+import { useTerminalToolCall } from "./use-terminal-tool-call";
 
 type ConnectionStatus =
   | { phase: "connecting" }
@@ -69,43 +68,6 @@ type ToolConnectionStatus =
   | { phase: "exited"; exitCode: number }
   | { phase: "fallback" }
   | { phase: "error" };
-
-function useCurrentBashToolCall(toolCallId: string) {
-  const runtime = useAgentRuntime();
-  const current = useCurrentSession();
-  const session = current.sessionId ? runtime.session(current.sessionId) : undefined;
-  const subscribe = useCallback(
-    (listener: () => void) => {
-      if (!session) return () => {};
-      let nodeSubscriptions: (() => void)[] = [];
-      const subscribeNodes = () => {
-        nodeSubscriptions.forEach((dispose) => dispose());
-        nodeSubscriptions = session.snapshot
-          .getSnapshot()
-          .nodeKeys.map((key) => session.node(key).subscribe(listener));
-      };
-      subscribeNodes();
-      const disposeSnapshot = session.snapshot.subscribe(() => {
-        subscribeNodes();
-        listener();
-      });
-      return () => {
-        disposeSnapshot();
-        nodeSubscriptions.forEach((dispose) => dispose());
-      };
-    },
-    [session],
-  );
-  const getSnapshot = useCallback(() => {
-    if (!session) return undefined;
-    const nodes = session.snapshot
-      .getSnapshot()
-      .nodeKeys.flatMap((key) => session.node(key).getSnapshot() ?? []);
-    return findBashToolCall(nodes, toolCallId);
-  }, [session, toolCallId]);
-
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-}
 
 const TERMINAL_MONOSPACE_FALLBACK =
   'ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
@@ -319,7 +281,7 @@ function TerminalTranscriptSurface({
   const [connection, setConnection] = useState<ToolConnectionStatus>({ phase: "connecting" });
   const [interactionState, setInteractionState] = useState<TerminalInteractionState>("none");
   const { piSessionId, toolCallId } = target;
-  const block = useCurrentBashToolCall(toolCallId);
+  const block = useTerminalToolCall(target);
   const command = bashCommandFromArgs(block?.arguments) ?? target.command;
   const output = terminalResultLines(block?.result ?? block?.error?.message).join("\n");
   const running = block?.status === "running";

@@ -30,10 +30,11 @@ function workspaceMaximum(element: HTMLElement | null): number {
   );
 }
 
-export function RightWorkspace() {
+export function RightWorkspace({ isVisible = true }: { isVisible?: boolean }) {
   const { t } = useI18n();
   const domIds = useWorkbenchDomIds();
-  const open = useRightWorkspaceState((state) => state.open);
+  const workspaceOpen = useRightWorkspaceState((state) => state.open);
+  const open = isVisible && workspaceOpen;
   const width = useRightWorkspaceState((state) => state.width);
   const maximized = useRightWorkspaceState((state) => state.maximized);
   const [maximum, setMaximum] = useState(DEFAULT_RIGHT_WORKSPACE_WIDTH);
@@ -107,7 +108,7 @@ export function RightWorkspace() {
           className="relative min-h-0 flex-1 overflow-hidden"
           style={{ contentVisibility: open ? "visible" : "hidden" }}
         >
-          <SurfaceHost />
+          <SurfaceHost isVisible={open} />
           {open ? <WorkspaceFeedbackLayer /> : null}
         </div>
         {presentation === "panel" ? (

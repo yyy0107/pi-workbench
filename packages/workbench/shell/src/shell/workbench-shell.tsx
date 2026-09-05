@@ -338,7 +338,7 @@ export function WorkbenchShell({
                         </PanelLayout>
                         <WorkbenchStatusbar />
                       </div>
-                      {rightWorkspaceVisible ? <RightWorkspace /> : null}
+                      <RightWorkspace isVisible={rightWorkspaceVisible} />
                     </div>
                     {rightWorkspaceVisible ? (
                       <RightWorkspaceToggleButton className="absolute top-[calc((var(--workbench-header-height)-var(--control-hit-default))/2)] z-30 [inset-inline-end:var(--right-workspace-toggle-inset-end)]" />

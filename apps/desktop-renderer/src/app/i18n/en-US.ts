@@ -35,7 +35,13 @@ export const desktopRendererEnUS = {
       "Prevent idle system sleep while the app is open. Manual sleep and lid closure still work.",
     terminalShell: "Integrated terminal Shell",
     terminalShellDescription:
-      "Choose the default Shell used by integrated and agent tool terminals. Restart required.",
+      "Applies immediately to new terminals and agent sessions. Existing terminals and sessions keep their Shell.",
+    terminalShellStatus: {
+      applying: "Applying Shell configuration…",
+      applied: "Shell configuration applied.",
+      failed:
+        "Configuration saved, but not yet applied. Retry to apply it to new terminals and sessions.",
+    },
     terminalShells: {
       powershell: "PowerShell",
       "command-prompt": "Command Prompt",

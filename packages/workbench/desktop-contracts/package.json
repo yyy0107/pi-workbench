@@ -26,7 +26,8 @@
     "test": "node ../../../scripts/run-typescript-tests.mjs --package"
   },
   "dependencies": {
-    "@workbench/host-contracts": "workspace:*"
+    "@workbench/host-contracts": "workspace:*",
+    "@workbench/terminal-contracts": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

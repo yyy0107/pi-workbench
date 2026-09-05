@@ -1010,6 +1010,9 @@ importers:
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../host-contracts
+      '@workbench/terminal-contracts':
+        specifier: workspace:*
+        version: link:../../terminal/contracts
     devDependencies:
       '@types/node':
         specifier: ^26.2.0

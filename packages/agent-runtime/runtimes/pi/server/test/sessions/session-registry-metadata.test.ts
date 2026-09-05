@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { Type } from "@earendil-works/pi-ai";
 
 import { convertToLlm, getAgentDir, SessionManager } from "@earendil-works/pi-coding-agent";
 
@@ -75,6 +76,77 @@ function getImageUnderstandingSettingsStore() {
 bindPiAgentHostBindings({
   attachmentUnderstandingSettings: getImageUnderstandingSettingsStore,
   workspaceFiles: createWorkspaceFileService({ resolveWorkspaceRoot: resolvePiWorkspaceRoot }),
+});
+
+test("AgentSession tools and prompt share one shell snapshot across reload and cold reopen", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-session-shell-"));
+  const agentDir = path.join(root, "agent");
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
+  const bindings = getPiAgentHostBindings();
+  process.env.PI_CODING_AGENT_DIR = agentDir;
+  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
+  await mkdir(agentDir, { recursive: true });
+  await writeFile(path.join(agentDir, "SYSTEM.md"), "{{pi.terminal_environment}}");
+  const hosts: Awaited<ReturnType<typeof createSession>>[] = [];
+  t.after(async () => {
+    for (const host of hosts) await host.shutdown();
+    bindPiAgentHostBindings(bindings);
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
+    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
+    await rm(root, { recursive: true, force: true });
+  });
+  let defaultShell = "/bin/bash";
+  const chosen: string[] = [];
+  bindPiAgentHostBindings({
+    ...bindings,
+    getDefaultTerminalShell: () => defaultShell,
+    createBashToolOverride: ({ shellPath }) => {
+      chosen.push(shellPath!);
+      return {
+        name: "bash",
+        label: "Bash",
+        description: "Test shell snapshot",
+        parameters: Type.Object({}),
+        async execute() {
+          return { content: [{ type: "text", text: shellPath! }], details: {} };
+        },
+      };
+    },
+  });
+  const first = await createSession(root, "shell-first");
+  hosts.push(first);
+  const runBash = async (host: typeof first) => {
+    const tool = host.session.agent.state.tools.find((tool) => tool.name === "bash");
+    assert.ok(tool);
+    return (await tool.execute("shell-probe", {}, undefined)).content;
+  };
+  defaultShell = "/bin/sh";
+  const second = await createSession(root, "shell-second");
+  hosts.push(second);
+  await first.session.reload();
+  first.session.setActiveToolsByName(["bash"]);
+  assert.match(first.session.systemPrompt, /shell: \/bin\/bash/);
+  assert.match(second.session.systemPrompt, /shell: \/bin\/sh/);
+  assert.deepEqual(await runBash(first), [{ type: "text", text: "/bin/bash" }]);
+  assert.deepEqual(await runBash(second), [{ type: "text", text: "/bin/sh" }]);
+  await first.shutdown();
+  const reopened = await getOrStartSession(first.id);
+  hosts.push(reopened);
+  assert.notEqual(reopened, first);
+  assert.match(reopened.session.systemPrompt, /shell: \/bin\/sh/);
+  assert.deepEqual(await runBash(reopened), [{ type: "text", text: "/bin/sh" }]);
+  await writeFile(
+    path.join(agentDir, "settings.json"),
+    JSON.stringify({ shellPath: "/explicit/shell" }),
+  );
+  const explicit = await createSession(root, "shell-explicit");
+  hosts.push(explicit);
+  assert.match(explicit.session.systemPrompt, /shell: \/explicit\/shell/);
+  assert.deepEqual(await runBash(explicit), [{ type: "text", text: "/explicit/shell" }]);
+  assert.deepEqual(chosen, ["/bin/bash", "/bin/sh", "/bin/sh", "/explicit/shell"]);
 });
 
 test("detects image content across durable session message roles", () => {

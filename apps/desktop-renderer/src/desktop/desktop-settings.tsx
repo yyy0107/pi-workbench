@@ -137,15 +137,23 @@ function DesktopSettingsItem() {
       <SettingsGroup>
         {snapshot.platform === "win32" ? (
           <SettingsRow
+            controlClassName="flex flex-wrap items-center gap-3"
             label={
               <label htmlFor={`${id}-terminal-shell`}>
                 {t("desktopRenderer.settings.terminalShell")}
               </label>
             }
             description={
-              <span id={`${id}-terminal-shell-description`}>
-                {t("desktopRenderer.settings.terminalShellDescription")}
-              </span>
+              <>
+                <span id={`${id}-terminal-shell-description`}>
+                  {t("desktopRenderer.settings.terminalShellDescription")}
+                </span>
+                <p role={snapshot.terminalShellStatus === "failed" ? "alert" : "status"}>
+                  {t(
+                    `desktopRenderer.settings.terminalShellStatus.${snapshot.terminalShellStatus}`,
+                  )}
+                </p>
+              </>
             }
           >
             <DropdownMenu>
@@ -174,6 +182,20 @@ function DesktopSettingsItem() {
                 </DropdownMenuRadioGroup>
               </SettingsDropdownContent>
             </DropdownMenu>
+            {snapshot.terminalShellStatus === "failed" ? (
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() =>
+                  port &&
+                  void save(() =>
+                    port.update({ terminalShell: snapshot.preferences.terminalShell }),
+                  )
+                }
+              >
+                {t("desktopRenderer.settings.retry")}
+              </Button>
+            ) : null}
           </SettingsRow>
         ) : null}
         {toggles.map((key) => (

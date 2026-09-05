@@ -5,6 +5,11 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
+    "./shell": {
+      "types": "./src/terminal-shell.ts",
+      "import": "./src/terminal-shell.ts",
+      "default": "./src/terminal-shell.ts"
+    },
     "./bash-command-policy": {
       "types": "./src/bash-command-policy.ts",
       "import": "./src/bash-command-policy.ts",

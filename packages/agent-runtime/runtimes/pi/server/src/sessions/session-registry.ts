@@ -17,7 +17,10 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 
-import { installSystemPromptPlaceholders } from "./system-prompt-placeholders";
+import {
+  installSystemPromptPlaceholders,
+  sessionTerminalShell,
+} from "./system-prompt-placeholders";
 import { createWorkbenchAgentSessionServices } from "../agent-runtime/agent-session-services";
 import { createEnhancedSearchTools } from "../internal-extensions/enhanced-search";
 
@@ -3431,6 +3434,9 @@ async function createHost(
     initialModel,
     services.modelRuntime.getAvailableSnapshot(),
   );
+  const shell = sessionTerminalShell(
+    services.settingsManager.getShellPath()?.trim() || hostBindings.getDefaultTerminalShell?.(),
+  );
   const { session } = await createAgentSessionFromServices({
     services,
     sessionManager,
@@ -3445,14 +3451,14 @@ async function createHost(
               cwd,
               sessionId: sessionManager.getSessionId(),
               commandPrefix: services.settingsManager.getShellCommandPrefix(),
-              shellPath: services.settingsManager.getShellPath(),
+              shellPath: shell,
             }),
           ]
         : []),
       ...(options.customTools ?? []),
     ],
   });
-  installSystemPromptPlaceholders(session);
+  installSystemPromptPlaceholders(session, { shell });
   // Workbench creates and replaces sessions through its registry, but still retains Pi's
   // high-level runtime owner so disposal emits session_shutdown before invalidating extension ctx.
   const sessionRuntime = new AgentSessionRuntime(session, services, async () => {

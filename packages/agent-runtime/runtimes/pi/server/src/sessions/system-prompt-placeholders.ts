@@ -5,15 +5,31 @@ import {
   getReadmePath,
 } from "@earendil-works/pi-coding-agent";
 
+export function sessionTerminalShell(
+  shellPath: string | undefined,
+  environment: Readonly<NodeJS.ProcessEnv> = process.env,
+  platform: NodeJS.Platform = process.platform,
+): string {
+  return (
+    shellPath?.trim() ||
+    environment.PI_WORKBENCH_TERMINAL_SHELL?.trim() ||
+    environment.WORKBENCH_TERMINAL_SHELL?.trim() ||
+    environment.SHELL?.trim() ||
+    (platform === "win32" ? "powershell.exe" : "/bin/bash")
+  );
+}
+
 /** Expand only configured prompt files, before Pi appends project context and skills. */
 export function installSystemPromptPlaceholders(
   session: AgentSession,
   {
     environment = process.env,
     platform = process.platform,
+    shell = sessionTerminalShell(session.settingsManager.getShellPath(), environment, platform),
   }: {
     environment?: Readonly<NodeJS.ProcessEnv>;
     platform?: NodeJS.Platform;
+    shell?: string;
   } = {},
 ): void {
   const loader = session.resourceLoader;
@@ -31,12 +47,6 @@ export function installSystemPromptPlaceholders(
       toolNames.includes("bash") && !["grep", "find", "ls"].some((name) => toolNames.includes(name))
         ? ["Use bash for file operations like ls, rg, find"]
         : [];
-    const shell =
-      session.settingsManager.getShellPath()?.trim() ||
-      environment.PI_WORKBENCH_TERMINAL_SHELL?.trim() ||
-      environment.WORKBENCH_TERMINAL_SHELL?.trim() ||
-      environment.SHELL?.trim() ||
-      (platform === "win32" ? "powershell.exe" : "/bin/bash");
     const usesWsl = platform === "win32" && /(?:^|[\\/])wsl(?:\.exe)?$/iu.test(shell);
     const platformName = usesWsl
       ? "WSL"

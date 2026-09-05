@@ -52,6 +52,13 @@ to 1 MiB of output for reconnect replay, reports when that replay cap rolls, lim
 32 concurrent sessions, and releases an unattached PTY after ten minutes. Closing a Workspace tab
 changes attachment state without killing the shell, so reopening that process resumes it.
 
+Navigation does not close that attachment: activated `keep-alive` surfaces stay mounted across
+threads, settings, and collapsed Workspace panes, with their owning Workspace context. Hidden
+xterm instances keep their socket, scrollback, and input state while pausing measurement and cursor
+blinking. Closing a tab, removing its extension, or disposing the installation releases the viewer.
+This guarantee covers one application run; quitting, crashing, or restarting the Runtime does not
+preserve PTY processes.
+
 Workbench registers `createWorkbenchBashToolOverride` as a custom tool named `bash`. Pi registers
 built-ins first and then replaces matching names with custom/extension definitions, so this
 definition deliberately overrides Pi's built-in `bash` without patching the Pi package or changing
@@ -113,9 +120,23 @@ terminals retain bounded output briefly for replay; tool calls from
 before the server acquired their PTY fall back to the conversation's stored output and remain
 read-only.
 
-The default program is `$WORKBENCH_TERMINAL_SHELL`, then `$SHELL`, then the platform default
-(`/bin/bash` or `powershell.exe`). Interactive programs such as `claude` and `codex` run inside the
-same PTY when launched from that shell. Tool commands choose their invocation arguments from the
+The Runtime owns one in-memory default program, read when allocating each new PTY. Windows Desktop
+passes its persisted `$PI_WORKBENCH_TERMINAL_SHELL_PROFILE` at startup and updates it live through
+`terminal.setDefaultShell({ shell })`, available only at the authenticated desktop-sidecar ingress
+and restricted to loopback and the four known profiles. Executable paths are resolved by Terminal
+Server, not accepted from the renderer. Settings distinguish saved/applying, applied, and failed;
+failed synchronization retains the saved profile for retry and the next Runtime start.
+
+Without a desktop profile, the fallback is `$PI_WORKBENCH_TERMINAL_SHELL`, then
+`$WORKBENCH_TERMINAL_SHELL`, then `$SHELL`, then the platform default (`/bin/bash` or `powershell.exe`).
+Existing PTYs are never restarted by a default change. Each live Pi AgentSession snapshots its
+explicit `shellPath` or the Runtime default once and shares that value between its Bash tool and
+`{{pi.terminal_environment}}`, including after prompt rebuilds and `/reload`. Reopening a cold
+historical session creates a new snapshot; opening a new right-side terminal always uses the latest
+default, even within an older AgentSession.
+
+Interactive programs such as `claude` and `codex` run inside the same PTY when launched from that
+shell. Tool commands choose their invocation arguments from the
 resolved executable: POSIX shells use login-command mode, PowerShell uses its command flags, and
 `cmd.exe` uses `/d /s /c`. Unknown executables retain the platform default argument behavior. Bash
 tool timeouts use Pi's finite, positive, Node-timer-bounded validation before a PTY is allocated.
