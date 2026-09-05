@@ -48,7 +48,7 @@ function Surface({
 }
 
 const labelSwap =
-  "col-start-1 row-start-1 flex w-max items-center gap-1.5 leading-none transition-[opacity,filter] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none";
+  "col-start-1 row-start-1 flex w-max items-center gap-1.5 leading-(--control-text-line-height) transition-[opacity,filter] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none";
 
 const labelSwapIn = "opacity-100 blur-none";
 
@@ -98,7 +98,7 @@ export function SwapLabel({
   useLayoutEffect(() => {
     const target = layers[active]?.current;
     if (!target) return undefined;
-    const measure = () => setWidth(Math.ceil(target.getBoundingClientRect().width));
+    const measure = () => setWidth(target.offsetWidth);
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(target);

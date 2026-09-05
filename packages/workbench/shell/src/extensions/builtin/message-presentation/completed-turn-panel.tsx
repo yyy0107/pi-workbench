@@ -29,14 +29,20 @@ export function CompletedTurnPanel({
       data-slot="completed-turn-panel"
       open={open}
       onOpenChange={handleOpenChange}
-      className="w-full [overflow-anchor:none]"
+      className="mb-2 w-full [overflow-anchor:none]"
     >
       <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full items-center gap-1.5 py-1 text-[13.5px] transition-colors outline-none">
         <CheckCircle2Icon aria-hidden="true" className="text-foreground/45 size-3.5 shrink-0" />
-        <span className="text-start leading-none">{label}</span>
+        <span className="text-start leading-(--control-text-line-height)">{label}</span>
         <ChevronRightIcon className="size-3.5 shrink-0 opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/trigger:opacity-60 group-focus-visible/trigger:opacity-60 group-data-open/trigger:rotate-90 group-data-open/trigger:opacity-60 motion-reduce:transition-none" />
       </CollapsibleTrigger>
-      <CollapsibleContent className={cn(collapsePanel, "w-full outline-none")}>
+      <hr className="mt-2 border-border" />
+      <CollapsibleContent
+        className={cn(
+          collapsePanel,
+          "w-full transition-[height,opacity] outline-none data-open:duration-400 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0",
+        )}
+      >
         <div className="w-full pt-1 pb-1">{children}</div>
       </CollapsibleContent>
     </Collapsible>

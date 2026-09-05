@@ -79,7 +79,7 @@ export function ReasoningPanel({
           )}
         >
           <SwapLabel active={streaming ? 0 : 1} className="shrink-0 text-start">
-            <ShimmerLabel active={streaming} className="relative inline-block leading-none">
+            <ShimmerLabel active={streaming} className="relative inline-block">
               {activeLabel}
             </ShimmerLabel>
             <>{restingLabel}</>
