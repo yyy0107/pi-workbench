@@ -78,7 +78,7 @@
 
 .aui-codex-code-header {
   display: flex;
-  min-height: calc(var(--button-height-default) + 0.5rem);
+  min-height: calc(var(--button-height-default) + 0.25rem);
   margin-top: 1rem;
   align-items: center;
   justify-content: space-between;
@@ -112,12 +112,25 @@
 }
 
 .aui-codex-code-body [data-streamdown="code-block-body"] {
+  interpolate-size: allow-keywords;
+  transition: max-height var(--layout-motion-duration) var(--layout-motion-ease);
   border: 0;
   border-radius: 0;
   background: transparent;
   padding: 0.875rem 1rem;
   font-size: var(--workbench-code-font-size, 13px);
   line-height: 1.625;
+}
+
+/* Streamdown sets its scroll viewport height cap inline. */
+.aui-codex-code-body[data-expanded="true"] [data-streamdown="code-block-body"] {
+  max-height: max-content !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aui-codex-code-body [data-streamdown="code-block-body"] {
+    transition: none;
+  }
 }
 
 .aui-codex-code-body [data-streamdown="code-block-body"] pre {

@@ -124,7 +124,7 @@ export function useDisclosureScrollLock<T extends HTMLElement = HTMLDivElement>(
   useEffect(() => () => cleanupRef.current?.(), []);
 
   const prepareDisclosureTransition = useCallback(
-    (opening: boolean) => {
+    (opening: boolean, duration = DISCLOSURE_ANIMATION_DURATION) => {
       cleanupRef.current?.();
       cleanupRef.current = null;
 
@@ -133,7 +133,7 @@ export function useDisclosureScrollLock<T extends HTMLElement = HTMLDivElement>(
       cleanupRef.current = lockDisclosureTransition(
         root,
         shouldCompensateDisclosureOpening(opening, preferUpward),
-        DISCLOSURE_ANIMATION_DURATION,
+        duration,
       );
     },
     [preferUpward],

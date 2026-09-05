@@ -33,6 +33,8 @@ export const assistantEnUS = {
     refresh: "Refresh",
   },
   codeBlock: {
+    expand: "Expand code block",
+    collapse: "Collapse code block",
     plainText: "Text",
   },
   linkSafety: {

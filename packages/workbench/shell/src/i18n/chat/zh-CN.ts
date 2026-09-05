@@ -33,6 +33,8 @@ export const assistantZhCN = {
     refresh: "重新生成",
   },
   codeBlock: {
+    expand: "展开代码块",
+    collapse: "收起代码块",
     plainText: "文本",
   },
   linkSafety: {

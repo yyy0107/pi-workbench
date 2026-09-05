@@ -26,6 +26,7 @@ import {
 
 import { CODE_THEME_PAIRS, type CodeTheme, useAppearancePreferences } from "../../appearance";
 import { InlineCitation, type Source } from "../../elements/inline-citation";
+import { useDisclosureScrollLock } from "../../elements/use-disclosure-scroll-lock";
 import { useClipboardCopy } from "../../hooks/use-clipboard-copy";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/button";
@@ -176,6 +177,9 @@ function MarkdownCode({
   "data-block": dataBlock,
   ...props
 }: ComponentProps<"code"> & { node?: unknown; "data-block"?: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [bodyRef, , prepareDisclosureTransition] = useDisclosureScrollLock(setExpanded);
+
   if (!dataBlock) {
     return (
       <code className={cn("aui-streamdown-inline-code", className)} {...props}>
@@ -187,8 +191,21 @@ function MarkdownCode({
   const code = renderedText(children);
   return (
     <>
-      <CodexCodeHeader code={code} language={language} />
-      <div className="aui-codex-code-body">
+      <CodexCodeHeader
+        code={code}
+        language={language}
+        expanded={expanded}
+        onToggleExpanded={() => {
+          const duration = bodyRef.current
+            ? Number.parseFloat(
+                getComputedStyle(bodyRef.current).getPropertyValue("--layout-motion-duration"),
+              )
+            : 0;
+          prepareDisclosureTransition(!expanded, duration || 0);
+          setExpanded(!expanded);
+        }}
+      />
+      <div ref={bodyRef} className="aui-codex-code-body" data-expanded={expanded}>
         <CodeBlock code={code} language={language} lineNumbers={false} />
       </div>
     </>
