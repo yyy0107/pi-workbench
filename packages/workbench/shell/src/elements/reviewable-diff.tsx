@@ -1,14 +1,13 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, type ComponentProps, type ReactNode } from "react";
-import { CheckIcon, XIcon } from "lucide-react";
+import { useLayoutEffect, useMemo, useRef, type ComponentProps } from "react";
 
 import { languageForFilename } from "../code-highlighting/shiki-catalog";
 import { useWorkbenchHighlightedCode } from "../code-highlighting/use-workbench-highlighted-code";
 import { cn } from "../utils";
 
 import { DiffHeader, type DiffLine } from "./code-diff";
-import { codeScroll, codeSurface, mono, paper } from "../ui/surface";
+import { codeScroll, codeSurface, paper } from "../ui/surface";
 
 export type HunkDecision = "pending" | "kept" | "discarded";
 
@@ -18,21 +17,6 @@ export interface DiffHunk {
   decision: HunkDecision;
   lines: readonly DiffLine[];
 }
-
-export interface ReviewableDiffLabels {
-  discard: ReactNode;
-  discardHunk: (range: string) => string;
-  keep: ReactNode;
-  keepAll: ReactNode;
-  keepHunk: (range: string) => string;
-  kept: ReactNode;
-  discarded: ReactNode;
-  remaining: (count: number) => ReactNode;
-  allReviewed: ReactNode;
-}
-
-const KEEP_BUTTON_CLASS =
-  "flex h-6 items-center gap-1 rounded-full bg-emerald-500/12 px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-[11px] leading-[var(--control-text-line-height)]! font-medium text-emerald-700 transition-[background-color,scale] duration-150 hover:bg-emerald-500/20 active:scale-[0.96] dark:text-emerald-300";
 
 export function numberedHunkLines(hunk: DiffHunk) {
   const range = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(hunk.range);
@@ -95,17 +79,11 @@ function ReviewableDiffHunkCode({ filename, hunk }: { filename: string; hunk: Di
 export function ReviewableDiff({
   filename,
   hunks,
-  labels,
-  onKeep,
-  onDiscard,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "children" | "filename" | "hunks" | "onKeep" | "onDiscard"> & {
+}: Omit<ComponentProps<"div">, "children" | "filename" | "hunks"> & {
   filename: string;
   hunks: readonly DiffHunk[];
-  labels: ReviewableDiffLabels;
-  onKeep?: (id: string) => void;
-  onDiscard?: (id: string) => void;
 }) {
   const additions = hunks.reduce(
     (total, hunk) => total + hunk.lines.filter((line) => line.kind === "added").length,
@@ -115,12 +93,6 @@ export function ReviewableDiff({
     (total, hunk) => total + hunk.lines.filter((line) => line.kind === "removed").length,
     0,
   );
-  const pending = hunks.filter((hunk) => hunk.decision === "pending").length;
-  const keepAll = () => {
-    for (const hunk of hunks) {
-      if (hunk.decision === "pending") onKeep?.(hunk.id);
-    }
-  };
 
   return (
     <div
@@ -128,19 +100,7 @@ export function ReviewableDiff({
       className={cn(paper, "flex w-full max-w-md flex-col overflow-hidden rounded-2xl", className)}
       {...props}
     >
-      <DiffHeader filename={filename} additions={additions} deletions={deletions}>
-        <div className="ms-3 flex shrink-0 items-center gap-2 text-xs">
-          <span className="text-muted-foreground">
-            {pending > 0 ? labels.remaining(pending) : labels.allReviewed}
-          </span>
-          {pending > 0 ? (
-            <button type="button" onClick={keepAll} className={KEEP_BUTTON_CLASS}>
-              <CheckIcon className="size-[var(--icon-size-md)]" />
-              {labels.keepAll}
-            </button>
-          ) : null}
-        </div>
-      </DiffHeader>
+      <DiffHeader filename={filename} additions={additions} deletions={deletions} />
 
       <div
         data-slot="reviewable-diff-scroll"
@@ -154,47 +114,8 @@ export function ReviewableDiff({
               className={cn(
                 "transition-opacity duration-300",
                 hunkIndex === 0 ? "border-foreground/[0.06] border-t" : "border-muted border-t-4",
-                hunk.decision === "discarded" && "opacity-40",
               )}
             >
-              <div className="flex items-center justify-end px-4 py-1.5">
-                <span className="flex items-center gap-1">
-                  {hunk.decision === "pending" ? (
-                    <>
-                      <button
-                        type="button"
-                        aria-label={labels.discardHunk(hunk.range)}
-                        onClick={() => onDiscard?.(hunk.id)}
-                        className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 flex h-6 items-center gap-1 rounded-full px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-[11px] leading-[var(--control-text-line-height)]! font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
-                      >
-                        <XIcon className="size-[var(--icon-size-md)]" />
-                        {labels.discard}
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={labels.keepHunk(hunk.range)}
-                        onClick={() => onKeep?.(hunk.id)}
-                        className={KEEP_BUTTON_CLASS}
-                      >
-                        <CheckIcon className="size-[var(--icon-size-md)]" />
-                        {labels.keep}
-                      </button>
-                    </>
-                  ) : (
-                    <span
-                      className={cn(
-                        mono,
-                        "fade-in animate-in duration-300",
-                        hunk.decision === "kept"
-                          ? "text-emerald-600 dark:text-emerald-400"
-                          : "text-foreground/35",
-                      )}
-                    >
-                      {hunk.decision === "kept" ? labels.kept : labels.discarded}
-                    </span>
-                  )}
-                </span>
-              </div>
               <div className={cn(codeScroll, "pb-1.5")}>
                 <div className={codeSurface}>
                   <ReviewableDiffHunkCode filename={filename} hunk={hunk} />

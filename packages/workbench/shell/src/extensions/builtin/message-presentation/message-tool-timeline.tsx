@@ -23,7 +23,7 @@ import type {
 import { useConversationPreferences } from "../../../chat/conversation-preferences";
 import { ToolGroupContent, ToolGroupRoot, ToolGroupTrigger } from "../../../chat/tool-group";
 import { ReasoningPanel, type ReasoningStep } from "../../../elements/reasoning-panel";
-import { ReviewableDiff, type HunkDecision } from "../../../elements/reviewable-diff";
+import { ReviewableDiff } from "../../../elements/reviewable-diff";
 import { ShimmerLabel } from "../../../ui/surface";
 import { useToastManager } from "../../../ui/toast";
 import { ToolCall, ToolCallDetails } from "../../../elements/tool-call";
@@ -258,18 +258,6 @@ function TimelineToolCall({
         : undefined,
     [block],
   );
-  const [hunkDecisions, setHunkDecisions] = useState<Readonly<Record<string, HunkDecision>>>({});
-  const reviewHunks = useMemo(
-    () =>
-      fileDiff?.hunks.map((hunk) => ({
-        ...hunk,
-        decision: hunkDecisions[hunk.id] ?? hunk.decision,
-      })) ?? [],
-    [fileDiff, hunkDecisions],
-  );
-  const decideHunk = useCallback((id: string, decision: HunkDecision) => {
-    setHunkDecisions((current) => ({ ...current, [id]: decision }));
-  }, []);
   const diffId = `file-diff:${workspaceContext.threadId ?? workspaceContext.applicationId}:${block.callId}`;
   const openWorkspaceDiff = useCallback(() => {
     if (!fileDiff) return;
@@ -415,23 +403,10 @@ function TimelineToolCall({
             })
       }
     >
-      {fileDiff && reviewHunks.length > 0 ? (
+      {fileDiff && fileDiff.hunks.length > 0 ? (
         <ReviewableDiff
           filename={fileDiff.filename}
-          hunks={reviewHunks}
-          labels={{
-            discard: t("extensions.shared.reviewableDiff.discard"),
-            discardHunk: (range) => t("extensions.shared.reviewableDiff.discardHunk", { range }),
-            keep: t("extensions.shared.reviewableDiff.keep"),
-            keepAll: t("extensions.shared.reviewableDiff.keepAll"),
-            keepHunk: (range) => t("extensions.shared.reviewableDiff.keepHunk", { range }),
-            kept: t("extensions.shared.reviewableDiff.kept"),
-            discarded: t("extensions.shared.reviewableDiff.discarded"),
-            remaining: (count) => t("extensions.shared.reviewableDiff.remaining", { count }),
-            allReviewed: t("extensions.shared.reviewableDiff.allReviewed"),
-          }}
-          onKeep={(id) => decideHunk(id, "kept")}
-          onDiscard={(id) => decideHunk(id, "discarded")}
+          hunks={fileDiff.hunks}
           className="max-w-none"
         />
       ) : (
