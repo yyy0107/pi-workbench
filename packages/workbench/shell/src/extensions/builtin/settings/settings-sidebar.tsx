@@ -169,7 +169,7 @@ export function SettingsSidebar({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-10 w-full shrink-0 justify-start gap-2 px-2.5"
+          className="h-[var(--sidebar-row-height)] min-h-[var(--sidebar-row-height)] w-full shrink-0 justify-start gap-2 px-2.5"
           onClick={() => {
             close();
             onNavigate?.();
@@ -262,7 +262,7 @@ export function SettingsSidebar({
                         data-workbench-selection-surface=""
                         aria-current={active ? "page" : undefined}
                         className={cn(
-                          "flex h-9 w-full shrink-0 items-center gap-2 rounded-[var(--button-radius)] px-2.5 text-left text-sm transition-colors",
+                          "flex h-[var(--sidebar-row-height)] w-full shrink-0 items-center gap-2 rounded-[var(--button-radius)] px-2.5 text-left text-sm transition-colors",
                           active
                             ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                             : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",

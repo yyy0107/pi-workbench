@@ -34,7 +34,7 @@ function AvailableAutomationSidebar({ onNavigate }: SidebarSectionComponentProps
       <Button
         type="button"
         variant="ghost"
-        className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground h-9 w-full justify-start"
+        className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground h-[var(--sidebar-row-height)] min-h-[var(--sidebar-row-height)] w-full justify-start"
         onClick={() => {
           mainViews.open(automationMainViewRequest({ page: "automations" }));
           onNavigate?.();
@@ -46,7 +46,7 @@ function AvailableAutomationSidebar({ onNavigate }: SidebarSectionComponentProps
       <Button
         type="button"
         variant="ghost"
-        className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground h-9 w-full justify-start"
+        className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground h-[var(--sidebar-row-height)] min-h-[var(--sidebar-row-height)] w-full justify-start"
         onClick={() => {
           mainViews.open(automationMainViewRequest({ page: "automation-create" }));
           onNavigate?.();

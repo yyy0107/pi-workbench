@@ -46,7 +46,7 @@ const TOOLBOX_SECTION_TITLES = {
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <h2 className="text-muted-foreground flex h-9 shrink-0 items-center px-2 text-sm font-medium">
+    <h2 className="text-muted-foreground flex h-[var(--sidebar-row-height)] shrink-0 items-center px-2 text-sm font-medium">
       {children}
     </h2>
   );
@@ -64,7 +64,7 @@ function CatalogSkeleton() {
   return (
     <div className="flex flex-col gap-[2px]" aria-hidden="true">
       {[0, 1, 2].map((item) => (
-        <div key={item} className="flex h-11 items-center px-1.5">
+        <div key={item} className="flex h-[var(--sidebar-row-height)] items-center px-1.5">
           <div className="min-w-0 flex-1">
             <Skeleton className="h-3 w-24" />
             <Skeleton className="mt-1.5 h-2.5 w-36" />
@@ -108,7 +108,7 @@ function CapabilityCategory({
         data-workbench-selection-surface=""
         aria-label={expansionLabel}
         title={expansionLabel}
-        className="hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex h-9 w-full items-center gap-1 rounded-lg px-1.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-left leading-[var(--control-text-line-height)]! outline-none transition-colors focus-visible:ring-2"
+        className="hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex h-[var(--sidebar-row-height)] w-full items-center gap-1 rounded-lg px-1.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-left leading-[var(--control-text-line-height)]! outline-none transition-colors focus-visible:ring-2"
       >
         <span className="flex size-7 shrink-0 items-center justify-center">
           <Icon aria-hidden="true" className="size-4" />
@@ -143,7 +143,7 @@ function CapabilityRow({
     <button
       type="button"
       data-workbench-selection-surface=""
-      className="hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex min-h-9 w-full min-w-0 items-center rounded-lg px-1.5 py-1.5 text-left outline-none transition-colors focus-visible:ring-2"
+      className="hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex h-[var(--sidebar-row-height)] min-h-[var(--sidebar-row-height)] w-full min-w-0 items-center rounded-lg px-1.5 text-left outline-none transition-colors focus-visible:ring-2"
       title={t("extensions.toolbox.openDetails", { name: item.name })}
       onClick={() => onOpen(item)}
     >
@@ -161,7 +161,7 @@ function CapabilityRow({
           ) : null}
         </span>
         {item.description ? (
-          <span className="text-muted-foreground mt-0.5 block truncate text-[11px]">
+          <span className="text-muted-foreground block truncate text-[11px] leading-[var(--control-text-line-height)]">
             {item.description}
           </span>
         ) : null}
@@ -186,13 +186,13 @@ function PackageRow({
     <button
       type="button"
       data-workbench-selection-surface=""
-      className="hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex min-h-11 w-full items-center rounded-lg px-1.5 py-1.5 text-left outline-none transition-colors focus-visible:ring-2"
+      className="hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex h-[var(--sidebar-row-height)] min-h-[var(--sidebar-row-height)] w-full items-center rounded-lg px-1.5 text-left outline-none transition-colors focus-visible:ring-2"
       title={t("extensions.toolbox.openDetails", { name: item.name })}
       onClick={() => onOpen(item)}
     >
       <span className="min-w-0 flex-1">
         <span className="block truncate font-mono text-xs font-medium">{item.name}</span>
-        <span className="text-muted-foreground mt-0.5 block truncate text-[11px]">
+        <span className="text-muted-foreground block truncate text-[11px] leading-[var(--control-text-line-height)]">
           {item.author || t("extensions.toolbox.packages.unknownAuthor")} ·{" "}
           {t("extensions.toolbox.packages.downloadsPerMonth", {
             count: number(item.monthlyDownloads, { notation: "compact", maximumFractionDigits: 1 }),
@@ -231,7 +231,7 @@ function ManagementRow({
       <div
         aria-disabled="true"
         title={title}
-        className="text-muted-foreground flex h-9 items-center gap-1 rounded-lg px-1.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] leading-[var(--control-text-line-height)]! opacity-70"
+        className="text-muted-foreground flex h-[var(--sidebar-row-height)] items-center gap-1 rounded-lg px-1.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] leading-[var(--control-text-line-height)]! opacity-70"
       >
         <span className="flex size-7 shrink-0 items-center justify-center">
           <Icon aria-hidden="true" className="size-4" />
@@ -247,7 +247,7 @@ function ManagementRow({
       type="button"
       data-workbench-selection-surface=""
       className={cn(
-        "hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex h-9 w-full items-center gap-1 rounded-lg px-1.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-left leading-[var(--control-text-line-height)]! outline-none transition-colors focus-visible:ring-2",
+        "hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex h-[var(--sidebar-row-height)] w-full items-center gap-1 rounded-lg px-1.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-left leading-[var(--control-text-line-height)]! outline-none transition-colors focus-visible:ring-2",
         emphasized && "hover:bg-emerald-500/10",
       )}
       onClick={onClick}
