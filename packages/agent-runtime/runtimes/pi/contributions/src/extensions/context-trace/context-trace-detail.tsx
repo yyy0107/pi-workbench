@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { MarkdownTextContent } from "@workbench/shell/chat";
 import { WorkbenchCodeView } from "@workbench/shell/code-highlighting";
 import { type PiTranslate, usePiI18n } from "../../i18n";
 import type {
@@ -249,11 +250,26 @@ function CaptureMetadata({ capture }: { capture: SessionContextTraceCaptureMetad
   );
 }
 
-function CodeBlock({ children }: { children: string }) {
+function CodeBlock({ children, ariaLabel }: { children: string; ariaLabel?: string }) {
+  const { t } = usePiI18n();
   return (
-    <pre className="bg-muted/35 max-h-[32rem] overflow-auto rounded-lg p-3 font-mono text-[11px] leading-5 whitespace-pre-wrap break-words">
-      {children}
-    </pre>
+    <WorkbenchCodeView
+      ariaLabel={ariaLabel ?? t("extensions.contextTrace.detailTabs.preview")}
+      name="context-trace.json"
+      value={children}
+      className="bg-muted/35 max-h-[32rem] rounded-lg"
+    />
+  );
+}
+
+function TextBlock({ children }: { children: string }) {
+  return (
+    <MarkdownTextContent
+      text={children}
+      mode="static"
+      preserveWhitespace
+      className="max-h-[32rem] overflow-auto text-sm leading-6 break-words"
+    />
   );
 }
 
@@ -261,36 +277,22 @@ function TextCaptureView({ capture }: { capture: SessionContextTraceTextCapture 
   return (
     <>
       <CaptureMetadata capture={capture} />
-      <CodeBlock>{capture.text}</CodeBlock>
+      <TextBlock>{capture.text}</TextBlock>
     </>
   );
 }
 
-function JsonCaptureView({ capture }: { capture: SessionContextTraceJsonCapture }) {
-  return (
-    <>
-      <CaptureMetadata capture={capture.capture} />
-      <CodeBlock>{JSON.stringify(capture.value, null, 2)}</CodeBlock>
-    </>
-  );
-}
-
-function JsonCodeCaptureView({
+function JsonCaptureView({
   ariaLabel,
   capture,
 }: {
-  ariaLabel: string;
+  ariaLabel?: string;
   capture: SessionContextTraceJsonCapture;
 }) {
   return (
     <>
       <CaptureMetadata capture={capture.capture} />
-      <WorkbenchCodeView
-        ariaLabel={ariaLabel}
-        name="tool-schema.json"
-        value={JSON.stringify(capture.value, null, 2)}
-        className="bg-muted/35 max-h-[32rem] rounded-lg"
-      />
+      <CodeBlock ariaLabel={ariaLabel}>{JSON.stringify(capture.value, null, 2)}</CodeBlock>
     </>
   );
 }
@@ -401,9 +403,9 @@ function UserMessagePreview({
     return (
       <>
         <CaptureMetadata capture={event.detail.prompt} />
-        <p className="whitespace-pre-wrap break-words text-sm leading-6">
+        <TextBlock>
           {event.detail.prompt.text || t("extensions.contextTrace.contextContentUnavailable")}
-        </p>
+        </TextBlock>
       </>
     );
   }
@@ -412,9 +414,7 @@ function UserMessagePreview({
       (candidate) => candidate.sourceIndex === focus.sourceIndex,
     );
     return (
-      <p className="whitespace-pre-wrap break-words text-sm leading-6">
-        {entry?.text || t("extensions.contextTrace.contextContentUnavailable")}
-      </p>
+      <TextBlock>{entry?.text || t("extensions.contextTrace.contextContentUnavailable")}</TextBlock>
     );
   }
   return <DetailStateMessage state={{ status: "idle" }} />;
@@ -547,9 +547,7 @@ function ToolExecutionSchemaDetail({
   return (
     <div className="space-y-2 text-sm leading-6">
       <p className="font-semibold">{tool.name}</p>
-      <p className="text-muted-foreground">
-        {tool.description || t("extensions.contextTrace.none")}
-      </p>
+      <TextBlock>{tool.description || t("extensions.contextTrace.none")}</TextBlock>
       {showParameters ? <JsonCaptureView capture={tool.parameters} /> : null}
     </div>
   );
@@ -746,9 +744,9 @@ function MessageList({
                         </span>
                       </summary>
                       <div className="border-t p-2">
-                        <CodeBlock>
+                        <TextBlock>
                           {entry.text || t("extensions.contextTrace.contextContentUnavailable")}
-                        </CodeBlock>
+                        </TextBlock>
                       </div>
                     </details>
                   ))
@@ -868,9 +866,7 @@ function SkillsView({ metadata }: { metadata: PromptMetadata }) {
                 <BotIcon className="text-muted-foreground size-3.5" />
                 {skill.name}
               </div>
-              {skill.description ? (
-                <p className="text-muted-foreground mt-1">{skill.description}</p>
-              ) : null}
+              {skill.description ? <TextBlock>{skill.description}</TextBlock> : null}
               {skill.filePath ? (
                 <p className="text-muted-foreground mt-1 break-all font-mono text-[11px]">
                   {skill.filePath}
@@ -917,11 +913,11 @@ function ToolSchemasView({
                 </span>
               </summary>
               <div className="space-y-2 border-t p-3 text-xs">
-                <p>{tool.description}</p>
+                <TextBlock>{tool.description}</TextBlock>
                 <p className="text-muted-foreground break-all font-mono text-[11px]">
                   {tool.source.path}
                 </p>
-                <JsonCodeCaptureView
+                <JsonCaptureView
                   ariaLabel={`${t("extensions.contextTrace.toolSchemas")}: ${tool.name}`}
                   capture={tool.parameters}
                 />
@@ -945,11 +941,11 @@ function ToolSchemaView({ metadata, toolName }: { metadata: PromptMetadata; tool
   return (
     <div className="space-y-3">
       <Section title={tool.name}>
-        <p className="mb-2 text-xs">{tool.description}</p>
+        <TextBlock>{tool.description}</TextBlock>
         <p className="text-muted-foreground break-all font-mono text-[11px]">{tool.source.path}</p>
       </Section>
       <Section title={t("extensions.contextTrace.toolSchemas")}>
-        <JsonCodeCaptureView
+        <JsonCaptureView
           ariaLabel={`${t("extensions.contextTrace.toolSchemas")}: ${tool.name}`}
           capture={tool.parameters}
         />
@@ -1483,10 +1479,10 @@ function FocusedContextDetail({
       <Section title={t("extensions.contextTrace.modelOutput")}>
         {value === undefined ? (
           <p className="text-muted-foreground text-xs">{t("extensions.contextTrace.none")}</p>
+        ) : typeof value === "string" ? (
+          <TextBlock>{value}</TextBlock>
         ) : (
-          <CodeBlock>
-            {typeof value === "string" ? value : JSON.stringify(value, null, 2)}
-          </CodeBlock>
+          <CodeBlock>{JSON.stringify(value, null, 2)}</CodeBlock>
         )}
       </Section>
     );
@@ -1525,11 +1521,11 @@ function FocusedContextDetail({
   const selectedValue = contextTraceSelectedRawValue(event, focus);
   return (
     <Section title={contextTraceEventLabel(t, event.kind)}>
-      <CodeBlock>
-        {typeof selectedValue === "string"
-          ? selectedValue
-          : (JSON.stringify(selectedValue, null, 2) ?? "")}
-      </CodeBlock>
+      {typeof selectedValue === "string" ? (
+        <TextBlock>{selectedValue}</TextBlock>
+      ) : (
+        <CodeBlock>{JSON.stringify(selectedValue, null, 2) ?? ""}</CodeBlock>
+      )}
     </Section>
   );
 }
