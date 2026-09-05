@@ -179,7 +179,9 @@
   padding: 0;
 }
 
-.aui-streamdown :where([data-streamdown="table-wrapper"] > div:last-child) {
+.aui-streamdown [data-streamdown="table-wrapper"] > div:last-child {
+  max-height: none !important;
+  overflow: visible;
   border: 0;
   border-radius: 0;
   background: transparent;
