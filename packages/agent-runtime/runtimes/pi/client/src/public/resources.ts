@@ -13,6 +13,11 @@ import {
   listPiExtensionFiles,
   listPiExtensions,
   listPiPrompts,
+  describePiPrompt,
+  savePiPrompt,
+  removePiPrompt,
+  setPiPromptEnabled,
+  expandPiPrompt,
   listPiSkillFiles,
   listPiSkills,
   readPiExtensionFile,
@@ -84,6 +89,25 @@ export function usePiResourceClient() {
       },
       listPrompts: (payload: Parameters<typeof listPiPrompts>[0]) =>
         listPiPrompts(payload, options),
+      describePrompt: (payload: Parameters<typeof describePiPrompt>[0]) =>
+        describePiPrompt(payload, options),
+      expandPrompt: (payload: Parameters<typeof expandPiPrompt>[0]) =>
+        expandPiPrompt(payload, options),
+      savePrompt: async (payload: Parameters<typeof savePiPrompt>[0]) => {
+        const value = await savePiPrompt(payload, options);
+        invalidateCatalog();
+        return value;
+      },
+      removePrompt: async (payload: Parameters<typeof removePiPrompt>[0]) => {
+        const value = await removePiPrompt(payload, options);
+        invalidateCatalog();
+        return value;
+      },
+      setPromptEnabled: async (payload: Parameters<typeof setPiPromptEnabled>[0]) => {
+        const value = await setPiPromptEnabled(payload, options);
+        invalidateCatalog();
+        return value;
+      },
       listInstalledPackages: (payload: Parameters<typeof listInstalledPiPackages>[0]) =>
         listInstalledPiPackages(payload, options),
       describeInstalledPackage: (payload: Parameters<typeof describeInstalledPiPackage>[0]) =>

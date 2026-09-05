@@ -1030,7 +1030,48 @@ export interface PromptListPayload {
 }
 
 export interface PromptListValue {
-  prompts: PromptCommandView[];
+  prompts: PromptTemplateView[];
+}
+
+export interface PromptTemplateView extends PromptCommandView {
+  /** Opaque identity of one resolved resource, including same-name templates. */
+  id: string;
+  enabled: boolean;
+  editable: boolean;
+}
+
+export interface PromptDescribePayload extends PromptListPayload {
+  id: string;
+}
+
+export interface PromptDescribeValue extends PromptTemplateView {
+  content: string;
+  filePath: string;
+  version: string;
+}
+
+export interface PromptSavePayload extends PromptListPayload {
+  /** Omit both id and version to create a template. */
+  id?: string;
+  version?: string;
+  name: string;
+  content: string;
+}
+
+export interface PromptRemovePayload extends PromptDescribePayload {
+  version: string;
+}
+
+export interface PromptSetEnabledPayload extends PromptDescribePayload {
+  enabled: boolean;
+}
+
+export interface PromptExpandPayload extends PromptDescribePayload {
+  arguments: string;
+}
+
+export interface PromptExpandValue {
+  content: string;
 }
 
 export interface SessionProjections {

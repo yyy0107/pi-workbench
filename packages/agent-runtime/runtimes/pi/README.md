@@ -161,7 +161,7 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 - Skills：`skill.list`、`skill.describe`、`skill.setEnabled`、`skill.files.list`、`skill.files.read`、
   `skill.remove`；
 - Commands / Prompts：会话或新会话资源目标的命令目录 `command.list`，以及独立资源目录
-  `prompt.list`；
+  `prompt.list`、`prompt.describe`、`prompt.expand`、`prompt.save`、`prompt.setEnabled`、`prompt.remove`；
 - Extensions：`extension.list`、`extension.files.list`、`extension.files.read`、
   `extension.setEnabled`、`extension.remove`；
 - Pi Packages：`package.list`、`package.describe`、`package.updates`、`package.install`、
@@ -554,6 +554,22 @@ package 提供的技能关联到同一个官方 Package 详情，同时保留技
 
 技能发现沿用 Pi 的全局、package、settings 和项目资源规则。项目级技能仍受按目录保存的 Pi
 Project Trust 决策控制；未信任时不会因为打开设置页而绕过资源信任边界。
+
+## Prompt templates
+
+工具箱的 `prompt.list` 通过 Pi `DefaultPackageManager.resolve()` 枚举当前 target 的 Markdown 模板，
+包括已停用的 Package 模板；同名模板使用由完整资源身份生成的 opaque `id` 区分。
+`prompt.describe` 只按 target 和 id 解析授权文件，按需返回最大 256 KiB 的 UTF-8 原文、路径和
+SHA-256 version。预览隐藏 YAML frontmatter，源码保留原文和自定义字段。
+`prompt.expand` 复用 Composer 的 Pi 参数替换语义，不执行模板、不创建或提交 Agent turn，输出上限为
+1 Mi 字符；UI 将结果追加到所选对话的草稿，保留已有正文，并保护切换对话时可能被释放的未发送草稿。
+
+`prompt.save`、`prompt.remove` 和 `prompt.setEnabled` 仅允许 loopback 请求，项目 target 必须来自
+已登记且受信任的 Workspace。保存与删除复用资源 mutation coordinator 和跨进程锁；修改已有文件
+必须带读取时的 version，冲突保留磁盘内容。只能修改或删除自动发现、位于当前范围 `prompts` 目录内的
+独立普通文件；Package 文件和符号链接保持只读，可复制到独立模板。创建使用排他写入防止覆盖同名文件，
+编辑使用原子替换。启停沿用 Pi settings 的精确资源 filter，变更后 reload 受影响的空闲会话并失效资源目录。
+路径校验同时核对真实路径与来源根目录，不接受浏览器提交任意文件路径。
 
 ## Commands
 
@@ -1289,7 +1305,7 @@ packages/agent-runtime/runtimes/pi/
   `ModelContextWindowProtocol`。`host-rpc-routes.ts` 只保留包含 Pi 信息的 `host.describe`；原生目录操作、应用发现与打开及其
   loopback-only 约束属于 `@workbench/local-host-server`。`project-trust-rpc-routes.ts` 通过延迟解析的 `ProjectTrustProtocol` 读写决定，并只在
   成功更新后调用组合根注入的资源失效回调；`resource-catalog-rpc-routes.ts` 复用共享资源身份校验，
-  分别通过 `CommandCatalogProtocol` 与 `PromptCatalogProtocol` 提供两个只读目录。Pi 专属领域 route 由
+  分别通过 `CommandCatalogProtocol` 与 `PromptCatalogProtocol` 提供命令目录和模板管理。Pi 专属领域 route 由
   `createPiRpcRouteGroups(dependencies)` 从显式依赖创建，并通过 `@workbench/host-server/rpc` 的 first-claim
   dispatcher 统一委托；`createDefaultPiRpcRouteGroups()` 只负责当前 server module generation 的一份
   长寿命默认服务图，共享 resource mutation coordinator、CommandService、ModelService 和 HostService，

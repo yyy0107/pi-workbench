@@ -62,6 +62,13 @@ import type {
   ProjectTrustDescribeValue,
   ProjectTrustUpdatePayload,
   PromptListPayload,
+  PromptDescribePayload,
+  PromptDescribeValue,
+  PromptSavePayload,
+  PromptRemovePayload,
+  PromptSetEnabledPayload,
+  PromptExpandPayload,
+  PromptExpandValue,
   PromptListValue,
   RemoveModelProviderPayload,
   RespondModelProviderLoginPayload,
@@ -930,4 +937,39 @@ export async function setPiSessionQueuePaused(
       },
     ),
   );
+}
+
+export function describePiPrompt(
+  payload: PromptDescribePayload,
+  options?: PiRpcCallOptions,
+): Promise<PromptDescribeValue> {
+  return callPiRpc("prompt.describe", payload, options);
+}
+
+export function savePiPrompt(
+  payload: PromptSavePayload,
+  options?: PiRpcCallOptions,
+): Promise<PromptDescribeValue> {
+  return callPiRpc("prompt.save", payload, options);
+}
+
+export function removePiPrompt(
+  payload: PromptRemovePayload,
+  options?: PiRpcCallOptions,
+): Promise<{ removed: true }> {
+  return callPiRpc("prompt.remove", payload, options);
+}
+
+export function setPiPromptEnabled(
+  payload: PromptSetEnabledPayload,
+  options?: PiRpcCallOptions,
+): Promise<{ enabled: boolean }> {
+  return callPiRpc("prompt.setEnabled", payload, options);
+}
+
+export function expandPiPrompt(
+  payload: PromptExpandPayload,
+  options?: PiRpcCallOptions,
+): Promise<PromptExpandValue> {
+  return callPiRpc("prompt.expand", payload, options);
 }

@@ -33,6 +33,24 @@ const unexpectedDomainError = (error: unknown): never => {
   throw error;
 };
 
+const promptMutations = {
+  describe: async () => {
+    throw new Error("unexpected describe");
+  },
+  save: async () => {
+    throw new Error("unexpected save");
+  },
+  remove: async () => {
+    throw new Error("unexpected remove");
+  },
+  setEnabled: async () => {
+    throw new Error("unexpected setEnabled");
+  },
+  expand: async () => {
+    throw new Error("unexpected expand");
+  },
+};
+
 test("maps Command and Prompt catalogs to separate narrow protocols", async () => {
   const calls: unknown[] = [];
   const commands: CommandCatalogProtocol = {
@@ -42,6 +60,7 @@ test("maps Command and Prompt catalogs to separate narrow protocols", async () =
     },
   };
   const prompts: PromptCatalogProtocol = {
+    ...promptMutations,
     async list(payload) {
       calls.push(["prompts", payload]);
       return { prompts: [] };
@@ -81,6 +100,7 @@ test("preserves the legacy session identity for Command catalogs", async () => {
       },
     },
     prompts: {
+      ...promptMutations,
       async list() {
         return { prompts: [] };
       },
@@ -140,6 +160,7 @@ test("delegates Command and Prompt catalog failures to the shared error projecto
       },
     },
     prompts: {
+      ...promptMutations,
       async list() {
         throw failure;
       },
@@ -172,7 +193,7 @@ test("keeps read-only Resource Catalogs available to explicitly trusted hosts", 
   });
   const routes = createResourceCatalogRpcRoutes({
     commands: { list: async () => ({ commands: [] }) },
-    prompts: { list: async () => ({ prompts: [] }) },
+    prompts: { ...promptMutations, list: async () => ({ prompts: [] }) },
     projectDomainError: unexpectedDomainError,
   });
   const options = { host: "workbench.example:3080", origin: "http://workbench.example:3080" };
@@ -185,4 +206,61 @@ test("keeps read-only Resource Catalogs available to explicitly trusted hosts", 
     assert.ok(response);
     assert.equal((await response).status, 200);
   }
+});
+
+test("prompt mutations validate identities and stay loopback-only", async (t) => {
+  const previous = process.env.PI_WORKBENCH_TRUSTED_HOSTS;
+  process.env.PI_WORKBENCH_TRUSTED_HOSTS = "workbench.example:3080";
+  t.after(() => {
+    if (previous === undefined) delete process.env.PI_WORKBENCH_TRUSTED_HOSTS;
+    else process.env.PI_WORKBENCH_TRUSTED_HOSTS = previous;
+  });
+  const calls: unknown[] = [];
+  const routes = createResourceCatalogRpcRoutes({
+    commands: { list: async () => ({ commands: [] }) },
+    prompts: {
+      ...promptMutations,
+      list: async () => ({ prompts: [] }),
+      save: async (payload) => {
+        calls.push(payload);
+        return {} as never;
+      },
+      setEnabled: async (payload) => {
+        calls.push(payload);
+        return { enabled: payload.enabled };
+      },
+      remove: async (payload) => {
+        calls.push(payload);
+        return { removed: true };
+      },
+    },
+    projectDomainError: unexpectedDomainError,
+  });
+  for (const [method, payload] of [
+    ["prompt.save", { target: { scope: "user" }, name: "review", content: "Review" }],
+    [
+      "prompt.setEnabled",
+      { target: { scope: "project", workspaceId: "p" }, id: "a".repeat(64), enabled: false },
+    ],
+    ["prompt.remove", { target: { scope: "user" }, id: "a".repeat(64), version: "b".repeat(64) }],
+  ] as const) {
+    const rejected = routes.handle(
+      rpcRequest(method, payload, { host: "workbench.example:3080" }),
+      method,
+    )!;
+    assert.equal((await rejected).status, 403);
+    assert.equal(
+      (await responseBody(await routes.handle(rpcRequest(method, payload), method)!)).result.ok,
+      true,
+    );
+  }
+  assert.equal(calls.length, 3);
+  const invalid = await responseBody(
+    await routes.handle(
+      rpcRequest("prompt.remove", { target: { scope: "user" }, id: "../../file" }),
+      "prompt.remove",
+    )!,
+  );
+  assert.equal(invalid.result.ok, false);
+  assert.equal(calls.length, 3);
 });

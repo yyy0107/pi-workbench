@@ -23,3 +23,8 @@ test("expands positional, aggregate, default, and slice placeholders", () => {
     "one|two words|one two words|fallback|two words|two words",
   );
 });
+
+test("bounds expansion before repeated arguments can allocate an oversized result", () => {
+  assert.equal(expandPromptTemplateContent("$1 $1", "abc", 7), "abc abc");
+  assert.throws(() => expandPromptTemplateContent("$1 $1", "abc", 6), RangeError);
+});
