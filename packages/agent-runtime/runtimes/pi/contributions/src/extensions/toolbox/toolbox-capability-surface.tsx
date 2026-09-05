@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  BoxesIcon,
+  PlugIcon,
   CheckIcon,
   ChevronDownIcon,
   CircleXIcon,
@@ -9,11 +9,11 @@ import {
   FolderIcon,
   LoaderCircleIcon,
   MapPinIcon,
-  MessageSquareTextIcon,
+  FileTextIcon,
   PackageIcon,
   PackagePlusIcon,
   RefreshCwIcon,
-  SparklesIcon,
+  BoxIcon,
   SquareTerminalIcon,
   Trash2Icon,
   UserRoundIcon,
@@ -21,7 +21,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { useOpenerService, useWorkspaceContext } from "@workbench/shell/right-workspace/react";
-import { Button, buttonVariants } from "@workbench/shell/ui";
+import { Button, StatusBadge, buttonVariants } from "@workbench/shell/ui";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +66,7 @@ import {
   ExtensionCapabilityDetailsPanel,
   ExtensionControls,
   PackageOverviewPanel,
+  SkillControls,
   SkillDocumentPanel,
 } from "./toolbox-capability-presentation";
 
@@ -210,12 +211,12 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     : officialDetails;
   const Icon =
     isPrompt || isPromptPackage
-      ? MessageSquareTextIcon
+      ? FileTextIcon
       : isPackage
         ? PackageIcon
         : isSkill
-          ? SparklesIcon
-          : BoxesIcon;
+          ? BoxIcon
+          : PlugIcon;
   const {
     copy: copyInstallCommandText,
     isCopied: installCommandCopied,
@@ -809,74 +810,64 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   })();
 
   return (
-    <section className="flex h-full min-h-0 flex-col">
+    <section className="@container/toolbox-detail h-full min-h-0 min-w-0 overflow-y-auto [scrollbar-gutter:stable]">
       <div
         className={
           isSkill
-            ? "flex min-h-0 flex-1 flex-col overflow-hidden px-12 py-4"
-            : isExtension
-              ? "min-h-0 flex-1 overflow-y-auto px-12 pt-4 pb-6"
-              : "min-h-0 flex-1 overflow-y-auto px-12 py-4"
+            ? "mx-auto w-full max-w-5xl px-5 py-6 @2xl/toolbox-detail:px-10"
+            : "mx-auto w-full max-w-5xl px-5 py-8 @2xl/toolbox-detail:px-10 @2xl/toolbox-detail:py-10"
         }
       >
-        <header className="flex shrink-0 items-start gap-2.5">
-          {!isSkill && !isExtension && !isPackage ? (
-            <span className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-xl">
-              <Icon aria-hidden="true" className="size-4" />
-            </span>
-          ) : null}
-          <div className="min-w-0 flex-1">
-            {!isSkill && !isExtension ? (
-              <p className="text-muted-foreground text-xs font-medium">
+        <header
+          className={
+            isSkill ? "flex flex-wrap items-center gap-3" : "flex flex-wrap items-start gap-3"
+          }
+        >
+          <span className="bg-muted/40 flex size-(--button-height-large) shrink-0 items-center justify-center rounded-(--radius)">
+            <Icon aria-hidden="true" className="size-[calc(var(--icon-size-md)*1.5)]" />
+          </span>
+          <div className="min-w-0 flex-1 basis-48">
+            {!isSkill ? (
+              <p className="text-muted-foreground mb-1 text-xs font-medium">
                 {t(
-                  isPrompt
-                    ? "extensions.toolbox.capabilityKinds.prompt"
-                    : isPackage
-                      ? isPromptPackage
-                        ? "extensions.toolbox.capabilityKinds.prompt"
-                        : "extensions.toolbox.capabilityKinds.package"
-                      : "extensions.toolbox.capabilityKinds.extension",
+                  `extensions.toolbox.capabilityKinds.${isPromptPackage ? "prompt" : params.capabilityKind}`,
                 )}
               </p>
             ) : null}
-            {isSkill ? (
-              <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-                <h1 className="font-mono text-2xl leading-8 font-semibold break-all">
-                  {params.name}
-                </h1>
-                <span className="text-muted-foreground text-xs leading-5">{skillSourceLabel}</span>
-              </div>
-            ) : (
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
               <h1
                 className={
-                  isExtension || isPackage
-                    ? "font-mono text-2xl leading-8 font-semibold break-all"
-                    : "mt-0.5 font-mono text-lg font-semibold break-all"
+                  isSkill
+                    ? "text-2xl leading-8 font-semibold tracking-tight break-words"
+                    : "text-2xl leading-8 font-medium tracking-tight break-words @2xl/toolbox-detail:text-3xl"
                 }
               >
                 {params.name}
               </h1>
-            )}
-            {displayedHeaderFilePath ? (
-              <span
-                className="text-muted-foreground mt-1 block text-base leading-6 break-all"
-                title={headerFilePathTitle}
-              >
-                {displayedHeaderFilePath}
-              </span>
-            ) : null}
+              {isSkill ? (
+                <StatusBadge className="max-w-full leading-5 break-words">
+                  {skillSourceLabel}
+                </StatusBadge>
+              ) : null}
+            </div>
           </div>
+          {isSkill ? (
+            <SkillControls
+              canDelete={canDeleteSkill}
+              canOpenDirectory={directoryResource?.scheme === "skill-directory"}
+              canToggle={canToggleSkill}
+              enabled={skillEnabled}
+              mutationState={skillMutationState}
+              name={params.name}
+              removed={skillRemoved}
+              onDelete={() => setSkillDeleteDialogOpen(true)}
+              onOpenDirectory={openSkillDirectory}
+              onToggle={updateSkillEnabled}
+            />
+          ) : null}
           {!isSkill ? (
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-              <span
-                className={
-                  capabilityInactive
-                    ? "bg-muted text-muted-foreground rounded-full border px-2.5 py-1 text-[11px] font-medium"
-                    : packageUpdateAvailable
-                      ? "rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
-                      : "rounded-full border border-emerald-500/15 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
-                }
-              >
+              <StatusBadge tone={capabilityInactive ? "neutral" : "success"} className="leading-5">
                 {t(
                   isExtension
                     ? extensionEnabled && !extensionRemoved
@@ -894,7 +885,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                           ? "extensions.toolbox.status.available"
                           : "extensions.toolbox.status.loaded",
                 )}
-              </span>
+              </StatusBadge>
               {isInstalledPackage && packageUpdateAvailable ? (
                 <Button
                   type="button"
@@ -923,9 +914,27 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
           ) : null}
         </header>
 
-        <p className="text-muted-foreground mt-3 shrink-0 text-sm leading-5">
+        <p
+          className={
+            isSkill
+              ? "text-muted-foreground mt-4 text-sm leading-6 break-words"
+              : "text-muted-foreground mt-4 max-w-prose text-sm leading-6 break-words"
+          }
+        >
           {displayedDescription}
         </p>
+        {displayedHeaderFilePath ? (
+          <p
+            className={
+              isSkill
+                ? "text-muted-foreground mt-2 truncate font-mono text-xs leading-5"
+                : "text-muted-foreground mt-3 font-mono text-xs leading-5 break-all"
+            }
+            title={headerFilePathTitle}
+          >
+            {displayedHeaderFilePath}
+          </p>
+        ) : null}
 
         {isInstalledPackage &&
         (updateFeedback.status !== "idle" ||
@@ -937,7 +946,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                   updateFeedback.status === "failed"
                     ? "text-destructive text-xs"
                     : updateFeedback.status === "updated"
-                      ? "text-emerald-700 text-xs dark:text-emerald-300"
+                      ? "text-success-foreground text-xs"
                       : "text-muted-foreground text-xs"
                 }
                 role={updateFeedback.status === "failed" ? "alert" : "status"}
@@ -993,65 +1002,8 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
           </p>
         ) : null}
 
-        {!isSkill && (!isExtension || showPackageOverview) ? (
-          <PackageOverviewPanel
-            associatedPackageName={associatedPackageName}
-            catalogDetailUrl={catalogDetailUrl}
-            checkedPackageUpdate={checkedPackageUpdate}
-            details={displayedPackageDetails}
-            detailsLoadState={packageDetailsLoadState}
-            detailsPlaceholder={detailsPlaceholder}
-            isExtension={isExtension}
-            isInstalledPackage={isInstalledPackage}
-            monthlyDownloads={monthlyDownloads}
-            npmUrl={npmUrl}
-            packageSize={packageSize}
-            packageTypes={packageTypes}
-            packageUpdateAvailable={packageUpdateAvailable}
-            params={params}
-            publishedAt={publishedAt}
-            refreshDetails={refreshPackageDetails}
-            showPackageOverview={showPackageOverview}
-            weeklyDownloads={weeklyDownloads}
-          />
-        ) : null}
-
-        {showPackageOverview && !isCatalogPackage && !isExtension ? (
-          <div className="mt-4 border-t pt-4">
-            <h2 className="mb-3 text-sm font-semibold">
-              {t("extensions.toolbox.details.capabilityDetails")}
-            </h2>
-            <dl className="grid gap-3">
-              <CapabilityMetadataFields params={params} />
-            </dl>
-          </div>
-        ) : null}
-
-        {isExtension ? <ExtensionCapabilityDetailsPanel params={params} /> : null}
-
-        {isSkill ? (
-          <SkillDocumentPanel
-            canDelete={canDeleteSkill}
-            canOpenDirectory={directoryResource?.scheme === "skill-directory"}
-            canToggle={canToggleSkill}
-            content={skillDetails.value?.content}
-            documentMode={skillDocumentMode}
-            enabled={skillEnabled}
-            loadState={skillDetails.loadState}
-            mutationState={skillMutationState}
-            name={params.name}
-            removed={skillRemoved}
-            scopeAvailable={Boolean(catalogTarget)}
-            onDelete={() => setSkillDeleteDialogOpen(true)}
-            onDocumentModeChange={setSkillDocumentMode}
-            onOpenDirectory={openSkillDirectory}
-            onRefresh={skillDetails.refresh}
-            onToggle={updateSkillEnabled}
-          />
-        ) : null}
-
         {isCatalogPackage ? (
-          <div className="mt-4 border-t pt-4">
+          <div className="mt-6 border-t border-border pt-6">
             <h2 className="mb-3 text-sm font-semibold">
               {t("extensions.toolbox.packages.installLocation")}
             </h2>
@@ -1078,7 +1030,10 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                       ? installTargetLabel(selectedInstallTarget)
                       : t("extensions.toolbox.packages.chooseInstallLocation")}
                   </span>
-                  <ChevronDownIcon aria-hidden="true" className="size-3.5 shrink-0 opacity-70" />
+                  <ChevronDownIcon
+                    aria-hidden="true"
+                    className="size-(--icon-size-sm) shrink-0 opacity-70"
+                  />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" side="bottom" className="w-72">
                   <DropdownMenuGroup>
@@ -1105,7 +1060,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                         <CheckIcon
                           aria-hidden="true"
                           className={
-                            installedTargets.has("user") ? "mt-0.5 text-emerald-600" : "mt-0.5"
+                            installedTargets.has("user")
+                              ? "mt-0.5 text-success-foreground"
+                              : "mt-0.5"
                           }
                         />
                       ) : null}
@@ -1166,7 +1123,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                               {targetInstalled || selectedInstallKey === targetKey ? (
                                 <CheckIcon
                                   aria-hidden="true"
-                                  className={targetInstalled ? "mt-0.5 text-emerald-600" : "mt-0.5"}
+                                  className={
+                                    targetInstalled ? "mt-0.5 text-success-foreground" : "mt-0.5"
+                                  }
                                 />
                               ) : null}
                             </DropdownMenuItem>
@@ -1190,7 +1149,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                 </p>
               )}
             </div>
-            <div className="mt-4 grid gap-4 border-t pt-4 sm:grid-cols-[15rem_minmax(0,1fr)]">
+            <div className="mt-5 grid gap-5 @3xl/toolbox-detail:grid-cols-2">
               <div className="min-w-0">
                 <h2 className="mb-3 text-sm font-semibold">
                   {t("extensions.toolbox.packages.installQuick")}
@@ -1247,7 +1206,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                         installFeedback.status === "failed"
                           ? "text-destructive text-xs"
                           : installFeedback.status === "installed"
-                            ? "text-emerald-700 text-xs dark:text-emerald-300"
+                            ? "text-success-foreground text-xs"
                             : "text-muted-foreground text-xs"
                       }
                       role={installFeedback.status === "failed" ? "alert" : "status"}
@@ -1271,11 +1230,11 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                   ) : null}
                 </div>
               </div>
-              <div className="min-w-0 border-t pt-4 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4">
+              <div className="min-w-0">
                 <h2 className="mb-3 text-sm font-semibold">
                   {t("extensions.toolbox.packages.install")}
                 </h2>
-                <div className="bg-muted inline-flex max-w-full items-center gap-1.5 rounded-lg p-1 ps-2.5">
+                <div className="bg-muted inline-flex max-w-full items-center gap-1.5 rounded-(--radius) p-1 ps-2.5">
                   <code className="min-w-0 overflow-x-auto text-xs leading-5 whitespace-nowrap">
                     {selectedInstallCommand}
                   </code>
@@ -1305,6 +1264,52 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
               </div>
             </div>
           </div>
+        ) : null}
+
+        {!isSkill && (!isExtension || showPackageOverview) ? (
+          <PackageOverviewPanel
+            associatedPackageName={associatedPackageName}
+            catalogDetailUrl={catalogDetailUrl}
+            checkedPackageUpdate={checkedPackageUpdate}
+            details={displayedPackageDetails}
+            detailsLoadState={packageDetailsLoadState}
+            detailsPlaceholder={detailsPlaceholder}
+            isInstalledPackage={isInstalledPackage}
+            monthlyDownloads={monthlyDownloads}
+            npmUrl={npmUrl}
+            packageSize={packageSize}
+            packageTypes={packageTypes}
+            packageUpdateAvailable={packageUpdateAvailable}
+            params={params}
+            publishedAt={publishedAt}
+            refreshDetails={refreshPackageDetails}
+            showPackageOverview={showPackageOverview}
+            weeklyDownloads={weeklyDownloads}
+          />
+        ) : null}
+
+        {showPackageOverview && !isCatalogPackage && !isExtension ? (
+          <div className="mt-6 border-t border-border pt-6">
+            <h2 className="mb-3 text-sm font-semibold">
+              {t("extensions.toolbox.details.capabilityDetails")}
+            </h2>
+            <dl className="grid gap-x-6 gap-y-5 @lg/toolbox-detail:grid-cols-2 @3xl/toolbox-detail:grid-cols-3">
+              <CapabilityMetadataFields params={params} />
+            </dl>
+          </div>
+        ) : null}
+
+        {isExtension ? <ExtensionCapabilityDetailsPanel params={params} /> : null}
+
+        {isSkill ? (
+          <SkillDocumentPanel
+            content={skillDetails.value?.content}
+            documentMode={skillDocumentMode}
+            loadState={skillDetails.loadState}
+            scopeAvailable={Boolean(catalogTarget)}
+            onDocumentModeChange={setSkillDocumentMode}
+            onRefresh={skillDetails.refresh}
+          />
         ) : null}
 
         {showUninstallRow ? (
@@ -1338,7 +1343,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                   removeFeedback.status === "failed"
                     ? "text-destructive text-xs"
                     : removeFeedback.status === "removed"
-                      ? "text-emerald-700 text-xs dark:text-emerald-300"
+                      ? "text-success-foreground text-xs"
                       : "text-muted-foreground text-xs"
                 }
                 role={removeFeedback.status === "failed" ? "alert" : "status"}
@@ -1364,7 +1369,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         ) : null}
 
         {!isPackage && !isSkill ? (
-          <aside className="text-muted-foreground mt-5 border-t pt-4 text-xs leading-5">
+          <aside className="text-muted-foreground mt-6 border-t border-border pt-6 text-xs leading-5">
             {t(
               isPrompt
                 ? "extensions.toolbox.details.promptProtocolLimit"

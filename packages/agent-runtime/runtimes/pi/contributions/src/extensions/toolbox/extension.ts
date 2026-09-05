@@ -29,10 +29,6 @@ export const toolboxExtension = defineExtension({
       component: ToolboxSidebar,
       order: 20,
       mainViewKinds: ["toolbox", "system-prompts"],
-      search: {
-        label: definePiMessage("extensions.toolbox.sidebar.search"),
-        placeholder: definePiMessage("extensions.toolbox.sidebar.searchPlaceholder"),
-      },
     });
     const mainView = context.mainViews.register({
       kind: "toolbox",

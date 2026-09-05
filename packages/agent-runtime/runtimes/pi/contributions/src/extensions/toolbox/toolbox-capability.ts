@@ -12,7 +12,13 @@ import type {
 import type { OpenableResource } from "@workbench/extension-sdk";
 
 export type ToolboxCapabilityKind = "skill" | "extension" | "prompt" | "package";
-export type ToolboxMainSection = "skills" | "extensions" | "prompts" | "packages" | "updates";
+export type ToolboxMainSection =
+  | "skills"
+  | "extensions"
+  | "prompts"
+  | "installed"
+  | "packages"
+  | "updates";
 
 export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> {
   capabilityId: string;

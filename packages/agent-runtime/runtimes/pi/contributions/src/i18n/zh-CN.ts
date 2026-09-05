@@ -378,6 +378,17 @@ export const piExtensionsZhCN = {
         searchPlaceholder: "搜索 Skills、Pi 扩展、Prompts 和 Packages",
       },
       main: {
+        searchIn: ({ name }: { name: string }) => `搜索${name}`,
+        backToList: ({ name }: { name: string }) => `返回${name}列表`,
+        refresh: "刷新列表",
+        loading: "正在加载资源…",
+        descriptions: {
+          packages: "为智能体发现技能、扩展、提示模板和主题。",
+          skills: "通过任务专用技能扩展智能体的能力。",
+          extensions: "管理 Pi 扩展提供的工具、命令和事件。",
+          prompts: "保存可复用的提示模板，随时用于下一项任务。",
+          installed: "管理当前范围内已安装的 Pi 包。",
+        },
         search: "搜索能力",
         searchPlaceholder: "搜索 Skills、Pi 扩展、Prompts 和 Packages",
         selectCapability: "选择一项能力",
@@ -425,7 +436,7 @@ export const piExtensionsZhCN = {
         "top-level": "本地扩展",
       },
       skills: {
-        title: "Skills",
+        title: "技能",
         currentSession: "当前会话",
         empty: "没有可用的 Skill。",
         browse: "浏览 Skills",
@@ -488,7 +499,7 @@ export const piExtensionsZhCN = {
           `${number(count)} 个扩展加载失败`,
       },
       prompts: {
-        title: "Prompts",
+        title: "提示词模板",
         empty: "没有可用的提示模板。",
       },
       plugins: {

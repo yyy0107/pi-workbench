@@ -415,6 +415,17 @@ export const piExtensionsEnUS = {
         searchPlaceholder: "Search skills, Pi extensions, prompts, and packages",
       },
       main: {
+        searchIn: ({ name }: { name: string }) => `Search ${name}`,
+        backToList: ({ name }: { name: string }) => `Back to ${name}`,
+        refresh: "Refresh list",
+        loading: "Loading resources…",
+        descriptions: {
+          packages: "Discover skills, extensions, prompts, and themes for your agent.",
+          skills: "Extend your agent with task-specific skills.",
+          extensions: "Manage the tools, commands, and events added by Pi extensions.",
+          prompts: "Keep reusable prompts ready for your next task.",
+          installed: "Manage the Pi packages installed in this scope.",
+        },
         search: "Search capabilities",
         searchPlaceholder: "Search skills, Pi extensions, prompts, and packages",
         selectCapability: "Select a capability",

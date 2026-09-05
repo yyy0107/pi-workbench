@@ -130,7 +130,10 @@ function projectSearchText(target: ToolboxCatalogTarget): string {
   return target.project ? `${target.project.name} ${target.project.path}` : "";
 }
 
-export function useToolboxCatalogs(scope: WorkbenchToolboxScopePreference) {
+export function useToolboxCatalogs(
+  scope: WorkbenchToolboxScopePreference,
+  kind?: ToolboxCapabilityItem["kind"],
+) {
   const { t } = usePiI18n();
   const resourceClient = usePiResourceClient();
   const workspaces = usePiWorkspaces();
@@ -165,10 +168,22 @@ export function useToolboxCatalogs(scope: WorkbenchToolboxScopePreference) {
       (await resourceClient.listInstalledPackages({ target: catalogTarget })).packages,
     [resourceClient],
   );
-  const skillsCatalog = useToolboxCatalog(target, loadSkills);
-  const extensionsCatalog = useToolboxCatalog(target, loadExtensions);
-  const promptsCatalog = useToolboxCatalog(target, loadPrompts);
-  const packagesCatalog = useToolboxCatalog(target, loadPackages);
+  const skillsCatalog = useToolboxCatalog(
+    !kind || kind === "skill" ? target : undefined,
+    loadSkills,
+  );
+  const extensionsCatalog = useToolboxCatalog(
+    !kind || kind === "extension" ? target : undefined,
+    loadExtensions,
+  );
+  const promptsCatalog = useToolboxCatalog(
+    !kind || kind === "prompt" ? target : undefined,
+    loadPrompts,
+  );
+  const packagesCatalog = useToolboxCatalog(
+    !kind || kind === "package" ? target : undefined,
+    loadPackages,
+  );
 
   const skillItems = useMemo<readonly ToolboxCapabilityItem[]>(
     () =>
