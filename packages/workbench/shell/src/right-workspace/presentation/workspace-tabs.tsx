@@ -42,6 +42,11 @@ import {
 } from "../../right-workspace-react";
 
 type DropPosition = "before" | "after";
+type DragPreview = {
+  surfaceId: string;
+  targetId: string;
+  position: DropPosition;
+};
 type TabLayout = {
   left: number;
   width: number;
@@ -113,12 +118,6 @@ function horizontalLayoutBounds(element: HTMLElement) {
   }
 }
 
-function horizontalDropPosition(clientX: number, element: HTMLElement): DropPosition {
-  const bounds = horizontalLayoutBounds(element);
-  const direction = getComputedStyle(element).direction === "rtl" ? "rtl" : "ltr";
-  return workspaceTabDropPosition(clientX, bounds.left, bounds.width, direction);
-}
-
 export function WorkspaceTabs() {
   const { t, text } = useI18n();
   const domIds = useWorkbenchDomIds();
@@ -130,6 +129,8 @@ export function WorkspaceTabs() {
   const { surfaces: surfacesById } = workspaceState;
   const activeSurfaceId = selectActiveSurface(workspaceState, context)?.id ?? null;
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
+  const pendingDrop = useRef<DragPreview | null>(null);
   const [pendingClose, setPendingClose] = useState<PendingSurfaceClose>();
   const [tabDirection, setTabDirection] = useState<"ltr" | "rtl">("ltr");
   const draggingIdRef = useRef<string | null>(null);
@@ -149,10 +150,16 @@ export function WorkspaceTabs() {
     () => new Map(definitions.map((definition) => [definition.kind, definition])),
     [definitions],
   );
-  const surfaces = useMemo(
-    () => selectContextSurfacesByPlacement(workspaceState, context, "primary"),
-    [context, workspaceState],
-  );
+  const surfaces = useMemo(() => {
+    const visible = selectContextSurfacesByPlacement(workspaceState, context, "primary");
+    if (!dragPreview) return visible;
+    const dragged = visible.find((surface) => surface.id === dragPreview.surfaceId);
+    const reordered = visible.filter((surface) => surface.id !== dragPreview.surfaceId);
+    const targetIndex = reordered.findIndex((surface) => surface.id === dragPreview.targetId);
+    if (!dragged || targetIndex < 0) return visible;
+    reordered.splice(targetIndex + (dragPreview.position === "after" ? 1 : 0), 0, dragged);
+    return reordered;
+  }, [context, workspaceState, dragPreview]);
   const captureTabLayouts = useCallback(() => {
     const layouts = new Map<string, TabLayout>();
     for (const [surfaceId, element] of tabElements.current) {
@@ -361,24 +368,39 @@ export function WorkspaceTabs() {
 
       previousTabLayouts.current = captureTabLayouts();
       cancelTabAnimations();
-      controller.reorder(currentDraggingId, targetId, position);
+      // Keep drag previews local; committing here rerenders every surface and persists every move.
+      pendingDrop.current = { surfaceId: currentDraggingId, targetId, position };
+      setDragPreview(pendingDrop.current);
     },
-    [cancelTabAnimations, captureTabLayouts, controller, surfaces],
+    [cancelTabAnimations, captureTabLayouts, surfaces],
   );
   const previewReorderAt = useCallback(
     (clientX: number) => {
-      const targets = surfaces.flatMap((surface) => {
-        const element = tabElements.current.get(surface.id);
-        return element ? [{ element, surface }] : [];
-      });
+      const list = tabListElement.current;
+      if (!list) return;
+      const pointerX = clientX - list.getBoundingClientRect().left + list.scrollLeft;
+      const targets = (tabDirection === "rtl" ? surfaces.toReversed() : surfaces).flatMap(
+        (surface) => {
+          const element = tabElements.current.get(surface.id);
+          return element ? [{ element, surface }] : [];
+        },
+      );
       if (targets.length === 0) return;
       const target =
-        targets.find(({ element }) => clientX <= horizontalLayoutBounds(element).right) ??
+        targets.find(({ element }) => pointerX <= element.offsetLeft + element.offsetWidth) ??
         targets.at(-1);
       if (!target) return;
-      previewReorder(target.surface.id, horizontalDropPosition(clientX, target.element));
+      previewReorder(
+        target.surface.id,
+        workspaceTabDropPosition(
+          pointerX,
+          target.element.offsetLeft,
+          target.element.offsetWidth,
+          tabDirection,
+        ),
+      );
     },
-    [previewReorder, surfaces],
+    [previewReorder, surfaces, tabDirection],
   );
   const previewReorderAtRef = useRef(previewReorderAt);
   previewReorderAtRef.current = previewReorderAt;
@@ -444,7 +466,7 @@ export function WorkspaceTabs() {
   }, [draggingId, positionDragOverlay, reduceMotion, surfaces]);
 
   useLayoutEffect(() => {
-    if (!activeSurfaceId) return;
+    if (!activeSurfaceId || draggingIdRef.current) return;
     const list = tabListElement.current;
     const activeTab = tabElements.current.get(activeSurfaceId);
     if (!list || !activeTab) return;
@@ -457,7 +479,7 @@ export function WorkspaceTabs() {
       left: delta,
       behavior: reduceMotion ? "auto" : "smooth",
     });
-  }, [activeSurfaceId, reduceMotion, surfaces]);
+  }, [activeSurfaceId, draggingId, reduceMotion, surfaces]);
 
   useEffect(() => {
     const element = tabListElement.current;
@@ -478,45 +500,47 @@ export function WorkspaceTabs() {
   }, []);
 
   useEffect(() => {
-    let autoScrollFrame: number | null = null;
-    const stopAutoScroll = () => {
-      if (autoScrollFrame === null) return;
-      window.cancelAnimationFrame(autoScrollFrame);
-      autoScrollFrame = null;
+    let dragFrame: number | null = null;
+    const stopDragFrame = () => {
+      if (dragFrame === null) return;
+      window.cancelAnimationFrame(dragFrame);
+      dragFrame = null;
     };
     const clearPointerDrag = () => {
-      stopAutoScroll();
+      stopDragFrame();
       pointerDragCandidate.current = null;
       draggingIdRef.current = null;
+      pendingDrop.current = null;
       setDraggingId(null);
+      setDragPreview(null);
     };
-    const runAutoScroll = () => {
-      autoScrollFrame = null;
+    const runDragFrame = () => {
+      dragFrame = null;
       const candidate = pointerDragCandidate.current;
       const element = tabListElement.current;
       if (!candidate || !draggingIdRef.current || !element) return;
-      if (element.scrollWidth <= element.clientWidth) return;
-
-      const bounds = element.getBoundingClientRect();
-      if (
-        candidate.lastClientY < bounds.top - TAB_AUTO_SCROLL_VERTICAL_TOLERANCE_PX ||
-        candidate.lastClientY > bounds.bottom + TAB_AUTO_SCROLL_VERTICAL_TOLERANCE_PX
-      ) {
-        return;
+      let scrolled = false;
+      if (element.scrollWidth > element.clientWidth) {
+        const bounds = element.getBoundingClientRect();
+        if (
+          candidate.lastClientY >= bounds.top - TAB_AUTO_SCROLL_VERTICAL_TOLERANCE_PX &&
+          candidate.lastClientY <= bounds.bottom + TAB_AUTO_SCROLL_VERTICAL_TOLERANCE_PX
+        ) {
+          const velocity = tabAutoScrollVelocity(candidate.lastClientX, bounds);
+          if (velocity !== 0) {
+            const previousScrollLeft = element.scrollLeft;
+            element.scrollLeft += velocity;
+            scrolled = Math.abs(element.scrollLeft - previousScrollLeft) >= 0.5;
+          }
+        }
       }
-
-      const velocity = tabAutoScrollVelocity(candidate.lastClientX, bounds);
-      if (velocity === 0) return;
-      const previousScrollLeft = element.scrollLeft;
-      element.scrollLeft += velocity;
-      if (Math.abs(element.scrollLeft - previousScrollLeft) < 0.5) return;
-
       previewReorderAtRef.current(candidate.lastClientX);
-      autoScrollFrame = window.requestAnimationFrame(runAutoScroll);
+      positionDragOverlay(candidate.lastClientX, candidate.lastClientY);
+      if (scrolled) dragFrame = window.requestAnimationFrame(runDragFrame);
     };
-    const scheduleAutoScroll = () => {
-      if (autoScrollFrame !== null) return;
-      autoScrollFrame = window.requestAnimationFrame(runAutoScroll);
+    const scheduleDragFrame = () => {
+      if (dragFrame !== null) return;
+      dragFrame = window.requestAnimationFrame(runDragFrame);
     };
     const handlePointerMove = (event: globalThis.PointerEvent) => {
       const candidate = pointerDragCandidate.current;
@@ -539,9 +563,9 @@ export function WorkspaceTabs() {
       }
 
       if (event.cancelable) event.preventDefault();
-      positionDragOverlay(event.clientX, event.clientY);
-      previewReorderAtRef.current(event.clientX);
-      scheduleAutoScroll();
+      candidate.lastClientX = event.clientX;
+      candidate.lastClientY = event.clientY;
+      scheduleDragFrame();
     };
     const handlePointerUp = (event: globalThis.PointerEvent) => {
       const candidate = pointerDragCandidate.current;
@@ -549,6 +573,8 @@ export function WorkspaceTabs() {
       if (draggingIdRef.current === candidate.surfaceId) {
         if (event.cancelable) event.preventDefault();
         previewReorderAtRef.current(event.clientX);
+        const drop = pendingDrop.current;
+        if (drop) controller.reorder(drop.surfaceId, drop.targetId, drop.position);
         suppressedClick.current = {
           surfaceId: candidate.surfaceId,
           until: performance.now() + TAB_DRAG_CLICK_SUPPRESSION_MS,
@@ -574,7 +600,7 @@ export function WorkspaceTabs() {
     return () => {
       pointerDragCandidate.current = null;
       draggingIdRef.current = null;
-      stopAutoScroll();
+      stopDragFrame();
       window.removeEventListener("pointermove", handlePointerMove, true);
       window.removeEventListener("pointerup", handlePointerUp, true);
       window.removeEventListener("pointercancel", handlePointerCancel, true);
@@ -586,7 +612,13 @@ export function WorkspaceTabs() {
       cancelTabAnimations();
       cancelTabWidthAnimations();
     };
-  }, [cancelTabAnimations, cancelTabWidthAnimations, positionDragOverlay, scheduleTabWidthRelease]);
+  }, [
+    cancelTabAnimations,
+    cancelTabWidthAnimations,
+    controller,
+    positionDragOverlay,
+    scheduleTabWidthRelease,
+  ]);
 
   const draggingSurface = draggingId ? surfacesById[draggingId] : undefined;
   const DraggingIcon = draggingSurface
@@ -626,8 +658,20 @@ export function WorkspaceTabs() {
                     role="presentation"
                     data-state={active ? "active" : "inactive"}
                     data-dragging={draggingId === surface.id ? "true" : undefined}
+                    onMouseDown={(event) => {
+                      if (event.button === 1) event.preventDefault();
+                    }}
+                    onAuxClick={(event) => {
+                      if (event.button !== 1) return;
+                      event.preventDefault();
+                      requestCloseWithTabAnimation(
+                        [surface.id],
+                        () => controller.close(surface.id, context),
+                        true,
+                      );
+                    }}
                     className={cn(
-                      "group/tab text-muted-foreground hover:text-foreground data-[state=active]:[color:var(--control-state-foreground-selected)] after:bg-border/70 relative flex h-[var(--button-height-default)] w-40 min-w-20 max-w-40 flex-[1_1_10rem] select-none items-center rounded-[var(--button-radius)] text-xs transition-[background-color,color,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] before:pointer-events-none before:absolute before:inset-0 before:rounded-[var(--button-radius)] before:[background:var(--control-state-background-selected)] before:opacity-0 before:scale-[0.96] before:transition-[opacity,scale] before:duration-200 before:ease-[cubic-bezier(0.32,0.72,0,1)] before:content-[''] after:absolute after:inset-y-1.5 after:end-[-3px] after:w-px after:content-[''] hover:[background:var(--button-background-hover)] last:after:hidden hover:after:hidden focus-within:after:hidden motion-reduce:transition-none motion-reduce:before:transition-none data-[dragging=true]:cursor-grabbing data-[dragging=true]:opacity-25 data-[state=active]:before:opacity-100 data-[state=active]:before:scale-100 data-[state=active]:after:hidden",
+                      "group/tab text-muted-foreground hover:text-foreground data-[state=active]:[color:var(--control-state-foreground-selected)] after:bg-border/70 relative flex h-[calc(var(--button-height-default)-4px)] w-40 min-w-20 max-w-40 flex-[1_1_10rem] select-none items-center rounded-[var(--button-radius)] text-xs transition-[background-color,color,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] before:pointer-events-none before:absolute before:inset-0 before:rounded-[var(--button-radius)] before:[background:var(--control-state-background-selected)] before:opacity-0 before:scale-[0.96] before:transition-[opacity,scale] before:duration-200 before:ease-[cubic-bezier(0.32,0.72,0,1)] before:content-[''] after:absolute after:inset-y-1.5 after:end-[-3px] after:w-px after:content-[''] hover:[background:var(--button-background-hover)] last:after:hidden hover:after:hidden focus-within:after:hidden motion-reduce:transition-none motion-reduce:before:transition-none data-[dragging=true]:cursor-grabbing data-[dragging=true]:opacity-25 data-[state=active]:before:opacity-100 data-[state=active]:before:scale-100 data-[state=active]:after:hidden",
                       surfaces.length > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-default",
                     )}
                     onPointerDown={(event) => {
@@ -714,7 +758,7 @@ export function WorkspaceTabs() {
                         event.preventDefault();
                         requestCloseWithTabAnimation(
                           [surface.id],
-                          () => controller.close(surface.id),
+                          () => controller.close(surface.id, context),
                           event.pointerType === "mouse",
                         );
                       }}
@@ -722,7 +766,7 @@ export function WorkspaceTabs() {
                         if (event.detail !== 0) return;
                         requestCloseWithTabAnimation(
                           [surface.id],
-                          () => controller.close(surface.id),
+                          () => controller.close(surface.id, context),
                           false,
                         );
                       }}
@@ -740,7 +784,7 @@ export function WorkspaceTabs() {
                       onClick={() =>
                         requestCloseWithTabAnimation(
                           [surface.id],
-                          () => controller.close(surface.id),
+                          () => controller.close(surface.id, context),
                           false,
                         )
                       }
@@ -792,7 +836,7 @@ export function WorkspaceTabs() {
                 ref={dragOverlayElement}
                 aria-hidden="true"
                 data-workspace-tab-drag-overlay="true"
-                className="bg-muted text-foreground pointer-events-none fixed left-0 top-0 z-[2147483647] flex animate-in select-none items-center gap-2 overflow-hidden rounded-lg px-2.5 text-xs opacity-95 shadow-xl ring-1 ring-black/10 fade-in-0 duration-100 will-change-transform motion-reduce:animate-none dark:ring-white/10"
+                className="bg-muted text-foreground pointer-events-none fixed left-0 top-0 z-[2147483647] flex select-none items-center gap-2 overflow-hidden rounded-lg px-2.5 text-xs opacity-95 shadow-xl ring-1 ring-black/10 will-change-transform dark:ring-white/10"
                 style={{
                   height: pointerDragCandidate.current.height,
                   width: pointerDragCandidate.current.width,

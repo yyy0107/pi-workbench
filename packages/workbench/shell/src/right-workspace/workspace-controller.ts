@@ -48,7 +48,7 @@ export interface RightWorkspaceController {
   reveal<P extends Record<string, unknown>>(request: OpenSurfaceRequest<P>): string;
   focus(surfaceId: string): void;
   reorder(surfaceId: string, targetSurfaceId: string, position: "before" | "after"): void;
-  close(surfaceId: string): void;
+  close(surfaceId: string, context?: WorkspaceContext): void;
   closeToRight(surfaceId: string, context: WorkspaceContext): void;
   closeOthers(surfaceId: string, context?: WorkspaceContext): void;
   closeAll(): void;
@@ -430,7 +430,7 @@ export class DefaultRightWorkspaceController implements RightWorkspaceController
     this.setState(() => ({ surfaceOrder }));
   };
 
-  close = (surfaceId: string): void => {
+  close = (surfaceId: string, context?: WorkspaceContext): void => {
     this.assertNotDisposed();
     const current = this.#store.getState();
     if (!current.surfaces[surfaceId]) return;
@@ -445,7 +445,9 @@ export class DefaultRightWorkspaceController implements RightWorkspaceController
       const candidateSurface = surfaces[candidate];
       return (
         candidateSurface?.placement === closed.placement &&
-        sameScope(candidateSurface.scope, closed.scope)
+        (context
+          ? scopeMatchesContext(candidateSurface.scope, context)
+          : sameScope(candidateSurface.scope, closed.scope))
       );
     };
     const closedIndex = current.surfaceOrder.indexOf(surfaceId);
@@ -456,20 +458,34 @@ export class DefaultRightWorkspaceController implements RightWorkspaceController
             ...current.surfaceOrder.slice(0, closedIndex).reverse(),
           ]
         : navigationHistory.toReversed();
+    const currentActiveId = context
+      ? ((closed.placement === "primary"
+          ? selectActiveSurface(current, context)
+          : selectActiveAuxiliarySurface(current, context)
+        )?.id ?? null)
+      : activeSurfaceIdForPlacement(current, closed.placement);
     const nextActiveId =
-      activeSurfaceIdForPlacement(current, closed.placement) === surfaceId
+      currentActiveId === surfaceId
         ? (adjacentSurfaceIds.find(matchesClosedPane) ?? null)
-        : activeSurfaceIdForPlacement(current, closed.placement);
+        : currentActiveId;
     const activeSurfaceId = closed.placement === "primary" ? nextActiveId : current.activeSurfaceId;
     const activeAuxiliarySurfaceId =
       closed.placement === "auxiliary" ? nextActiveId : current.activeAuxiliarySurfaceId;
+    const hasActiveSurface = context
+      ? nextActiveId !== null ||
+        Boolean(
+          closed.placement === "primary"
+            ? selectActiveAuxiliarySurface(current, context)
+            : selectActiveSurface(current, context),
+        )
+      : Boolean(activeSurfaceId || activeAuxiliarySurfaceId);
     this.setState(() => ({
       surfaces,
       surfaceOrder,
       navigationHistory,
       activeSurfaceId,
       activeAuxiliarySurfaceId,
-      open: activeSurfaceId || activeAuxiliarySurfaceId ? current.open : false,
+      open: hasActiveSurface ? current.open : false,
     }));
   };
 

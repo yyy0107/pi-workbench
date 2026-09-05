@@ -38,7 +38,7 @@ export function ExplorerRuntimeBridge() {
     if (!hydrated) return;
 
     for (const surface of contextExplorers) {
-      if (!fileSession || surface.id !== currentExplorer?.id) controller.close(surface.id);
+      if (!fileSession || surface.id !== currentExplorer?.id) controller.close(surface.id, context);
     }
     if (!fileSession || currentExplorer) return;
 

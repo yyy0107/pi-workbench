@@ -440,6 +440,75 @@ test("closing an active surface selects the adjacent right tab before falling ba
   assert.equal(store.getState().activeSurfaceId, first);
 });
 
+test("context-aware close follows visible neighbors across scopes and preserves other panes", () => {
+  const store = createRightWorkspaceStore();
+  const controller = createController(store);
+  const left = controller.open({
+    kind: "terminal",
+    title: "Application terminal",
+    params: { sessionId: "terminal" },
+    context,
+  });
+  const active = controller.open({
+    kind: "artifact",
+    title: "Thread artifact",
+    params: { artifactId: "active" },
+    context,
+  });
+  const hidden = controller.open({
+    kind: "artifact",
+    title: "Other thread",
+    params: { artifactId: "hidden" },
+    context: { ...context, threadId: "thread-2" },
+  });
+  const explorer = controller.open({
+    kind: "explorer",
+    title: "Explorer",
+    params: { rootPath: "/workspace" },
+    context,
+  });
+  const hiddenExplorer = controller.open({
+    kind: "explorer",
+    title: "Other worktree explorer",
+    params: { rootPath: "/other" },
+    context: { ...context, worktreeId: "worktree-2" },
+  });
+  const right = controller.open({
+    kind: "file",
+    title: "Worktree file",
+    params: { absolutePath: "/workspace/app.ts" },
+    context,
+  });
+  controller.focus(explorer);
+  // The visible active tab may be resolved from history while the raw ID belongs to another scope.
+  controller.focus(active);
+  controller.focus(hidden);
+  assert.equal(selectActiveSurface(store.getState(), context)?.id, active);
+
+  controller.close(active, context);
+  assert.equal(store.getState().activeSurfaceId, right);
+  assert.equal(store.getState().activeAuxiliarySurfaceId, explorer);
+  assert.equal(store.getState().open, true);
+  assert.ok(store.getState().surfaces[hidden]);
+
+  controller.close(right, context);
+  assert.equal(store.getState().activeSurfaceId, left);
+  assert.equal(store.getState().open, true);
+
+  controller.close(hidden, context);
+  assert.equal(store.getState().activeSurfaceId, left);
+
+  controller.close(left, context);
+  assert.equal(store.getState().activeSurfaceId, null);
+  assert.equal(store.getState().activeAuxiliarySurfaceId, explorer);
+  assert.equal(store.getState().open, true);
+
+  controller.close(explorer, context);
+  assert.equal(store.getState().activeAuxiliarySurfaceId, null);
+  assert.equal(store.getState().open, false);
+  assert.deepEqual(store.getState().surfaceOrder, [hiddenExplorer]);
+});
+
 test("primary and auxiliary surfaces activate independently", () => {
   const store = createRightWorkspaceStore();
   const controller = new DefaultRightWorkspaceController(store, createRegistry());

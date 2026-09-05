@@ -15,7 +15,10 @@ import { markScratchSessionPromoted } from "./scratch-session-lease";
 import { openPromotedSideChatConversation } from "./side-chat-navigation";
 import type { SideChatSurfaceParams } from "./side-chat-workspace";
 
-function AvailableSideChatHeader({ surface }: WorkspaceSurfaceProps<SideChatSurfaceParams>) {
+function AvailableSideChatHeader({
+  surface,
+  context,
+}: WorkspaceSurfaceProps<SideChatSurfaceParams>) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
   const navigation = useWorkbenchNavigation();
@@ -45,7 +48,7 @@ function AvailableSideChatHeader({ surface }: WorkspaceSurfaceProps<SideChatSurf
             .promoteScratchSession({ sessionId: surface.params.scratchSessionId })
             .then((promoted) => {
               markScratchSessionPromoted(manager, surface.params.scratchSessionId);
-              controller.close(surface.id);
+              controller.close(surface.id, context);
               openPromotedSideChatConversation(navigation, promoted.sessionId);
             })
             .catch((error: unknown) => {
