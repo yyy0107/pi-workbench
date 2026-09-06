@@ -1,6 +1,7 @@
 @import "./code-highlighting/workbench-code-editor.css";
 @import "./elements/reviewable-diff.css";
 @import "./extensions/builtin/appearance/appearance-background.css";
+@import "./extensions/builtin/user-message-index/user-message-index.css";
 @import "./shell/shell-layout.css";
 @import "./ui/sidebar-items.css";
 @import "./ui/control-icons.css";

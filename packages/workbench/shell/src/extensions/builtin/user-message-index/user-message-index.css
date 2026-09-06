@@ -1,0 +1,28 @@
+[data-workbench-user-message-index] {
+  & > ol > li {
+    --index-marker-scale: calc(7 / 29);
+
+    &:has(> button:is(:hover, :focus-visible)) + li + li + li,
+    &:has(+ li + li + li > button:is(:hover, :focus-visible)) {
+      --index-marker-scale: calc(11 / 29);
+    }
+
+    &:has(> button:is(:hover, :focus-visible)) + li + li,
+    &:has(+ li + li > button:is(:hover, :focus-visible)) {
+      --index-marker-scale: calc(15 / 29);
+    }
+
+    &:has(> button:is(:hover, :focus-visible)) + li,
+    &:has(+ li > button:is(:hover, :focus-visible)) {
+      --index-marker-scale: calc(21 / 29);
+    }
+
+    &:has(> button:is(:hover, :focus-visible)) {
+      --index-marker-scale: 1;
+    }
+
+    & > button > span {
+      transform: scaleX(var(--index-marker-scale));
+    }
+  }
+}

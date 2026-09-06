@@ -26,13 +26,6 @@ interface UserMessageSummary {
 }
 
 const PREVIEW_LENGTH = 280;
-const BASE_MARKER_WIDTH = 7;
-const MARKER_WIDTHS = [29, 21, 15, 11] as const;
-
-function getMarkerWidth(index: number, highlightedIndex: number | undefined): number {
-  if (highlightedIndex === undefined) return BASE_MARKER_WIDTH;
-  return MARKER_WIDTHS[Math.abs(index - highlightedIndex)] ?? BASE_MARKER_WIDTH;
-}
 
 function getTextPreview(
   content: readonly { kind: string; text?: string }[],
@@ -60,13 +53,15 @@ function MarkdownIndexPreview({
       inert
       className={cn(
         "min-w-0 max-w-full text-start leading-5",
-        "[&>.aui-md]:overflow-hidden [&>.aui-md>*]:my-0 [&>.aui-md>*]:text-[inherit] [&>.aui-md>*]:leading-[inherit]",
-        "[&_.aui-code-header-root]:hidden [&_.aui-md-pre]:rounded-md [&_.aui-md-pre]:border-t [&_.aui-md-pre]:p-1",
-        lines === 1 ? "[&>.aui-md]:line-clamp-1" : "[&>.aui-md]:line-clamp-2",
+        "[&>.aui-streamdown>*]:my-0! [&>.aui-streamdown>*]:text-[inherit]! [&>.aui-streamdown>*]:leading-[inherit]!",
+        "[&_.aui-codex-code-header]:hidden!",
+        lines === 1
+          ? "[&>*]:line-clamp-1 [&_pre]:line-clamp-1"
+          : "[&>*]:line-clamp-2 [&_pre]:line-clamp-2",
         className,
       )}
     >
-      <MarkdownTextContent text={text} smooth={false} />
+      <MarkdownTextContent text={text} smooth={false} inheritLineHeight resetParagraphMargins />
     </div>
   );
 }
@@ -90,10 +85,7 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
   const navRef = useRef<HTMLElement>(null);
   const [activeMessageId, setActiveMessageId] = useState<string>();
   const [visibleMessageIds, setVisibleMessageIds] = useState<readonly string[]>([]);
-  const [hoveredMarkerIndex, setHoveredMarkerIndex] = useState<number>();
-  const [focusedMarkerIndex, setFocusedMarkerIndex] = useState<number>();
   const [indexVisible, setIndexVisible] = useState(false);
-  const highlightedMarkerIndex = hoveredMarkerIndex ?? focusedMarkerIndex;
 
   const userMessages = useMemo<readonly UserMessageSummary[]>(() => {
     const summaries: UserMessageSummary[] = [];
@@ -252,7 +244,6 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
           "absolute inset-y-0 left-0 z-10 h-full w-12",
           indexVisible ? "block in-data-[conversation-index=hidden]:hidden" : "hidden",
         )}
-        onPointerLeave={() => setHoveredMarkerIndex(undefined)}
       >
         <ol className="flex h-full w-full flex-col overflow-y-auto py-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {userMessages.map((message, index) => {
@@ -269,30 +260,15 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
                         type="button"
                         aria-label={label}
                         aria-current={isActive ? "location" : undefined}
-                        className="group/marker flex w-full items-center py-1.5 pl-2.5 outline-none"
+                        className="group/marker flex w-full items-center py-0.75 pl-2.5 outline-none"
                         onClick={() => jumpToMessage(message.id)}
-                        onPointerEnter={() => setHoveredMarkerIndex(index)}
-                        onPointerLeave={() =>
-                          setHoveredMarkerIndex((current) =>
-                            current === index ? undefined : current,
-                          )
-                        }
-                        onFocus={() => setFocusedMarkerIndex(index)}
-                        onBlur={() =>
-                          setFocusedMarkerIndex((current) =>
-                            current === index ? undefined : current,
-                          )
-                        }
                       >
                         <span
                           aria-hidden="true"
                           className={cn(
-                            "block h-0.5 origin-left rounded-full transition-[width,background-color] duration-100 ease-out",
-                            highlightedMarkerIndex === index || isVisible
-                              ? "bg-foreground"
-                              : "bg-muted-foreground/35",
+                            "block h-0.5 w-[29px] origin-left rounded-full transition-[transform,background-color] duration-50 ease-out group-hover/marker:bg-foreground group-focus-visible/marker:bg-foreground motion-reduce:transition-none",
+                            isVisible ? "bg-foreground" : "bg-muted-foreground/35",
                           )}
-                          style={{ width: getMarkerWidth(index, highlightedMarkerIndex) }}
                         />
                       </button>
                     }
