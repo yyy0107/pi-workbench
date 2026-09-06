@@ -1,0 +1,35 @@
+[data-slot="composer-message-queue"] {
+  --queue-enter-duration: var(--layout-state-motion-duration);
+  --queue-row-height: calc(
+    var(--control-hit-default) + var(--control-content-padding-block-compact)
+  );
+  --queue-enter-distance: calc(var(--control-hit-default) / 4);
+
+  [data-slot="composer-queue-item"] {
+    animation: composer-queue-enter var(--queue-enter-duration) var(--layout-motion-ease) backwards;
+  }
+}
+
+/* Expand each new row in place so the dock follows its height without a sudden jump. */
+@keyframes composer-queue-enter {
+  from {
+    height: 0;
+    min-height: 0;
+    overflow: clip;
+    opacity: 0;
+    transform: translateY(var(--queue-enter-distance));
+  }
+  to {
+    height: var(--queue-row-height);
+    min-height: 0;
+    overflow: clip;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="composer-message-queue"] [data-slot="composer-queue-item"] {
+    animation: none;
+  }
+}

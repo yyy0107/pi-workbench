@@ -25,6 +25,8 @@ import {
 import { useI18n } from "../../../i18n";
 import { cn } from "../../../utils";
 
+import "./message-queue.css";
+
 type DropPosition = "before" | "after";
 
 function dropPosition(event: DragEvent<HTMLElement>): DropPosition {
@@ -74,6 +76,7 @@ function ComposerQueueItem({
 
   return (
     <li
+      data-slot="composer-queue-item"
       onDragOver={(event) => onDragOver(event, queueItem.key)}
       onDrop={(event) => {
         event.preventDefault();
@@ -210,7 +213,7 @@ export function ComposerMessageQueue() {
   };
 
   return (
-    <div className={composerPanel}>
+    <div data-slot="composer-message-queue" className={composerPanel}>
       <ul>
         {visibleQueue.map((queueItem) => (
           <ComposerQueueItem

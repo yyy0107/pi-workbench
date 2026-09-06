@@ -9,7 +9,6 @@ import {
 import { DisclosureScrollDirectionProvider } from "../elements/disclosure-scroll-direction";
 import { ErrorState } from "../elements/error-state";
 import { useI18n } from "../i18n";
-import { cn } from "../utils";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 import {
   useConversationNode,
@@ -224,11 +223,9 @@ export function WorkbenchUserMessage() {
     >
       <MessageSlot name="message.before" />
       <div
-        className={cn(
-          "flex max-w-full min-w-0 flex-col items-end gap-2",
-          animateOnMount &&
-            "fade-in-0 slide-in-from-bottom-2 animate-in fill-mode-both duration-200 ease-out motion-reduce:animate-none",
-        )}
+        data-slot="user-message-content"
+        data-animate-enter={animateOnMount || undefined}
+        className="flex max-w-full min-w-0 flex-col items-end gap-2"
       >
         <WorkbenchMessageParts />
       </div>
