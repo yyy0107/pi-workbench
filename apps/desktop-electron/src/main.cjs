@@ -85,9 +85,10 @@ const desktopServices = desktopSettings
 
 function titleBarOverlayOptions() {
   if (rendererTitleBarOverlayOptions) return rendererTitleBarOverlayOptions;
-  return nativeTheme.shouldUseDarkColors
-    ? { color: "#18181b", symbolColor: "#fafafa" }
-    : { color: "#ffffff", symbolColor: "#18181b" };
+  return {
+    color: "#00000000",
+    symbolColor: nativeTheme.shouldUseDarkColors ? "#fafafa" : "#18181b",
+  };
 }
 
 ipcMain.on(TITLE_BAR_OVERLAY_CHANNEL, (event, options) => {

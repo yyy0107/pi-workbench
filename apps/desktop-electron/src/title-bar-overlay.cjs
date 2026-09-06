@@ -9,7 +9,7 @@ function isTitleBarOverlayOptions(value) {
     Object.prototype.hasOwnProperty.call(value, "color") &&
     Object.prototype.hasOwnProperty.call(value, "symbolColor") &&
     typeof value.color === "string" &&
-    OPAQUE_HEX_COLOR_PATTERN.test(value.color) &&
+    (value.color === "#00000000" || OPAQUE_HEX_COLOR_PATTERN.test(value.color)) &&
     typeof value.symbolColor === "string" &&
     OPAQUE_HEX_COLOR_PATTERN.test(value.symbolColor)
   );

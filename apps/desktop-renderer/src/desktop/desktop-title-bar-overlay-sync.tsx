@@ -43,16 +43,16 @@ function readTitleBarOverlay(owner: HTMLElement): TitleBarOverlay | undefined {
   probe.style.position = "fixed";
   probe.style.visibility = "hidden";
   probe.style.pointerEvents = "none";
-  probe.style.backgroundColor = "var(--workbench-canvas-background, var(--background))";
   probe.style.color = "var(--foreground)";
   owner.append(probe);
 
   const style = getComputedStyle(probe);
-  const color = cssColorToHex(style.backgroundColor, document_);
   const symbolColor = cssColorToHex(style.color, document_);
   probe.remove();
-  if (!color || !symbolColor) return undefined;
-  return defineTitleBarOverlay({ color, symbolColor });
+  if (!symbolColor) return undefined;
+  // The full-width Workbench header already paints the background, opacity, and blur.
+  // Electron's native color parser requires an explicit alpha value, not `transparent`.
+  return defineTitleBarOverlay({ color: "#00000000", symbolColor });
 }
 
 /** Sync Workbench appearance through the container-neutral desktop title-bar capability. */

@@ -33,14 +33,14 @@ function isOpaqueHexColor(value: unknown): value is string {
 
 /**
  * Converts untrusted bridge input into an immutable title-bar payload. The
- * narrow color grammar prevents arbitrary objects or transparent colors from
- * crossing a desktop bridge.
+ * narrow color grammar allows a transparent background while keeping symbols
+ * opaque and rejecting arbitrary CSS at the desktop bridge.
  */
 export function parseTitleBarOverlay(value: unknown): TitleBarOverlay | undefined {
   if (
     !isRecord(value) ||
     !hasOnlyKeys(value, ["color", "symbolColor"]) ||
-    !isOpaqueHexColor(value.color) ||
+    (value.color !== "#00000000" && !isOpaqueHexColor(value.color)) ||
     !isOpaqueHexColor(value.symbolColor)
   ) {
     return undefined;
