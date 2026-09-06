@@ -231,7 +231,7 @@ export function ToolboxPromptsView({ initialQuery = "" }: { initialQuery?: strin
                         setSelected(item.params);
                       }}
                     >
-                      <span className="bg-muted/30 group-hover/button:bg-background flex size-(--button-height-large) shrink-0 items-center justify-center rounded-(--button-radius) transition-colors">
+                      <span className="bg-muted/30 group-hover/button:bg-card flex size-(--button-height-large) shrink-0 items-center justify-center rounded-(--button-radius) transition-colors">
                         <FileTextIcon
                           aria-hidden="true"
                           className="[--button-icon-size:calc(var(--icon-size-md)*1.75)]"

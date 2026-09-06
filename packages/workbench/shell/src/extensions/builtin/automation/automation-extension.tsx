@@ -28,7 +28,11 @@ const AutomationMainViewContent = lazy(() =>
 
 function AutomationMainView(props: MainViewProps<AutomationMainViewParams>) {
   return (
-    <Suspense fallback={<div className="bg-background size-full" aria-busy="true" />}>
+    <Suspense
+      fallback={
+        <div data-workbench-glass-surface="" className="bg-background size-full" aria-busy="true" />
+      }
+    >
       <AutomationMainViewContent {...props} />
     </Suspense>
   );

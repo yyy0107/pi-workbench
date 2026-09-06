@@ -202,6 +202,7 @@ export function AutomationHome({
     <>
       <section
         aria-labelledby={titleId}
+        data-workbench-glass-surface=""
         className="@container/automation bg-background h-full min-h-0 overflow-y-auto"
       >
         <div className="mx-auto w-full max-w-5xl px-5 py-8 @2xl/automation:px-10 @2xl/automation:py-10">

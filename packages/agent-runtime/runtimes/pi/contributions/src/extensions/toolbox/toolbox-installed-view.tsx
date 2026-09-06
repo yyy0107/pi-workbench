@@ -130,7 +130,7 @@ export function ToolboxResourceList({
                 >
                   <span
                     className={cn(
-                      "bg-muted/30 group-hover/button:bg-background flex w-[var(--button-height-large)] shrink-0 items-center justify-center self-stretch rounded-[var(--button-radius)] transition-colors",
+                      "bg-muted/30 group-hover/button:bg-card flex w-[var(--button-height-large)] shrink-0 items-center justify-center self-stretch rounded-[var(--button-radius)] transition-colors",
                       (item.kind === "skill" || item.kind === "extension") &&
                         !disabled &&
                         "text-info-foreground",

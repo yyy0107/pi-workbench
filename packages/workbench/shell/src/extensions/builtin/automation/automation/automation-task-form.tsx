@@ -511,7 +511,10 @@ export function AutomationTaskForm({
 
   if (editingAutomationId && loadState !== "ready") {
     return (
-      <section className="bg-background flex h-full min-h-0 items-center justify-center p-6">
+      <section
+        data-workbench-glass-surface=""
+        className="bg-background flex h-full min-h-0 items-center justify-center p-6"
+      >
         {loadState === "loading" ? (
           <p className="text-muted-foreground flex items-center gap-2 text-sm" role="status">
             <RefreshCwIcon aria-hidden="true" className="size-4 animate-spin" />
@@ -540,6 +543,7 @@ export function AutomationTaskForm({
     <>
       <section
         aria-labelledby={titleId}
+        data-workbench-glass-surface=""
         className="@container/automation bg-background h-full min-h-0 overflow-y-auto"
       >
         <form

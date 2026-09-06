@@ -186,7 +186,7 @@ function MainPackageRow({
       className="h-auto w-full min-w-0 items-start justify-start gap-3 px-3 py-[calc(var(--control-content-padding-block-default)*1.5)] text-left font-normal whitespace-normal"
       onClick={(event) => onOpen(item, event)}
     >
-      <span className="bg-muted/30 group-hover/button:bg-background flex size-(--button-height-large) shrink-0 items-center justify-center rounded-(--button-radius) transition-colors">
+      <span className="bg-muted/30 group-hover/button:bg-card flex size-(--button-height-large) shrink-0 items-center justify-center rounded-(--button-radius) transition-colors">
         <PackageIcon
           aria-hidden="true"
           className="[--button-icon-size:calc(var(--icon-size-md)*1.75)]"
@@ -275,7 +275,7 @@ export function PackageUpdateRow({
         className="h-auto min-w-0 flex-1 justify-start gap-3 px-3 py-[calc(var(--control-content-padding-block-default)*1.5)] text-left font-normal whitespace-normal"
         onClick={(event) => onOpen(item, event)}
       >
-        <span className="bg-muted/30 group-hover/button:bg-background flex size-(--button-height-large) shrink-0 items-center justify-center rounded-(--button-radius) transition-colors">
+        <span className="bg-muted/30 group-hover/button:bg-card flex size-(--button-height-large) shrink-0 items-center justify-center rounded-(--button-radius) transition-colors">
           <PackageIcon
             aria-hidden="true"
             className="[--button-icon-size:calc(var(--icon-size-md)*1.75)]"

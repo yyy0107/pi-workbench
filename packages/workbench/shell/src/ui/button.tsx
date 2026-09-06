@@ -63,7 +63,7 @@ const buttonVariants = cva(
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/80",
         outline: cn(
-          "border-border bg-background hover:text-foreground dark:border-input dark:[background:var(--input-control-background)]",
+          "border-border bg-card hover:text-foreground dark:border-input",
           neutralButtonInteractionStyles,
         ),
         secondary: cn("bg-secondary text-secondary-foreground", neutralButtonInteractionStyles),
