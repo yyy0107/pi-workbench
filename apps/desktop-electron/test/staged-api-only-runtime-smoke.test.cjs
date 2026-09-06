@@ -350,8 +350,8 @@ function fixture({
   rejectAuthorized = false,
   allowedOrigin = DEFAULT_ALLOWED_ORIGIN,
 } = {}) {
-  const stateRoot = path.join("/temporary", "staged-api-only-runtime-smoke");
-  const runtimeDirectory = path.join("/real", "staged", "runtime-node", "electron-target");
+  const stateRoot = path.resolve("/temporary", "staged-api-only-runtime-smoke");
+  const runtimeDirectory = path.resolve("/real", "staged", "runtime-node", "electron-target");
   const runtimeArtifact = Object.freeze({
     artifactRoot: runtimeDirectory,
     entrypoint: path.join(runtimeDirectory, "server.mjs"),
@@ -577,7 +577,7 @@ test("smokes the staged API-only Host through control, auth, RPC, WebSockets, PT
 });
 
 test("uses the release cwd without giving it ownership of isolated smoke state", async () => {
-  const childWorkingDirectory = path.join("/real", "staged", "desktop-runtime");
+  const childWorkingDirectory = path.resolve("/real", "staged", "desktop-runtime");
   const setup = fixture({ childWorkingDirectory });
 
   await runStagedApiOnlyRuntimeSmoke(setup.options);
@@ -698,10 +698,11 @@ test("retains and reports only its isolated root when a failed Host survives cle
     setup.stopped.push(target);
     return { exited: false, forced: true };
   };
-  await assert.rejects(
-    runStagedApiOnlyRuntimeSmoke(setup.options),
-    new RegExp(`could not be stopped.*${setup.stateRoot}`, "u"),
-  );
+  await assert.rejects(runStagedApiOnlyRuntimeSmoke(setup.options), (error) => {
+    assert.match(error.message, /could not be stopped/u);
+    assert.ok(error.message.includes(setup.stateRoot));
+    return true;
+  });
   assert.deepEqual(setup.stopped, [setup.child]);
   assert.deepEqual(setup.removed, []);
 });
