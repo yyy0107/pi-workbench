@@ -3,7 +3,8 @@ require("tsx/cjs");
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
 const { EventEmitter } = require("node:events");
-const { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } = require("node:fs");
+const { mkdirSync, mkdtempSync, rmSync, symlinkSync } = require("node:fs");
+const { realpath } = require("node:fs/promises");
 const { tmpdir } = require("node:os");
 const path = require("node:path");
 const { PassThrough, Writable } = require("node:stream");
@@ -405,6 +406,7 @@ function fixture({
       runtimeArtifact,
       childWorkingDirectory,
       target: ELECTRON_TARGET,
+      platform: ELECTRON_TARGET.platform,
       readIdentity: () => ELECTRON_IDENTITY,
       spawnChild: (...arguments_) => {
         spawned.push(arguments_);
@@ -426,7 +428,7 @@ function fixture({
   };
 }
 
-test("smoke state uses a canonical directory when the temporary parent is a symlink", (t) => {
+test("smoke state matches Terminal native realpath through aliases and Windows path casing", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "workbench-smoke-state-test-"));
   t.after(() => rmSync(root, { force: true, recursive: true }));
   const target = path.join(root, "target");
@@ -434,10 +436,13 @@ test("smoke state uses a canonical directory when the temporary parent is a syml
   mkdirSync(target);
   symlinkSync(target, alias, "junction");
 
-  const stateRoot = createSmokeStateDirectory(path.join(alias, "state-"));
+  const prefix = path.join(alias, "state-");
+  const stateRoot = createSmokeStateDirectory(
+    process.platform === "win32" ? prefix.toLowerCase() : prefix,
+  );
 
-  assert.equal(path.dirname(stateRoot), realpathSync(target));
-  assert.equal(stateRoot, realpathSync(stateRoot));
+  assert.equal(path.dirname(stateRoot), await realpath(target));
+  assert.equal(stateRoot, await realpath(stateRoot));
 });
 
 test("requires an explicit staged runtime CLI argument", () => {

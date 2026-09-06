@@ -13,8 +13,8 @@ const DEFAULT_OPERATION_TIMEOUT_MS = 30_000;
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 12_000;
 
 function createSmokeStateDirectory(prefix) {
-  // The Host and Terminal report real paths, including macOS /var -> /private/var.
-  return realpathSync(mkdtempSync(prefix));
+  // Match Terminal's fs/promises.realpath, including Windows short names and macOS /var aliases.
+  return realpathSync.native(mkdtempSync(prefix));
 }
 
 function withTimeout(promise, label, timeoutMs, timers) {

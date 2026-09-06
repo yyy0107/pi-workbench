@@ -75,7 +75,7 @@ jobs:
         run: node --no-warnings=ExperimentalWarning --import ./scripts/register-typescript-test-loader.mjs --test apps/runtime-node/test/runtime-artifact-builder.test.ts
 
       - name: Test Electron native reuse and packaged tree equivalence
-        run: node --test apps/desktop-electron/test/native-runtime.test.cjs apps/desktop-electron/test/after-pack.test.cjs packages/host/server/test/windows-process-census.test.cjs
+        run: node --test apps/desktop-electron/test/native-runtime.test.cjs apps/desktop-electron/test/after-pack.test.cjs apps/desktop-electron/test/staged-api-only-runtime-smoke.test.cjs packages/host/server/test/windows-process-census.test.cjs
 
       - name: Test release matrix aggregation
         run: node --test scripts/validate-pty-release-matrix.test.mjs scripts/prepare-pty-release-assets.test.mjs scripts/release-update-info.test.mjs
