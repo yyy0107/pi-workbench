@@ -192,10 +192,11 @@ function ConversationMessages({
     });
     const hasAssistantTurn = hasAssistantMessage || showWorkingStatus;
 
+    // ponytail: keep history rows painted; revisit content-visibility after Chromium's
+    // HitTestResult::GetPosition display-lock crash is fixed upstream.
     items.push(
       <MessagePair
         key={conversationPairKey(row)}
-        data-conversation-history-row={showWorkingStatus ? undefined : ""}
         variant="flat"
         className="max-w-none gap-4 px-2 [overflow-anchor:none]"
         userMessage={
