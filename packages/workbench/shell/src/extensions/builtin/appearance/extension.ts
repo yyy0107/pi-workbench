@@ -65,6 +65,8 @@ export const appearanceExtension = defineExtension({
       keywords: [
         defineMessage("extensions.appearance.runningIndicator.title"),
         defineMessage("extensions.appearance.activityAnimation.title"),
+        defineMessage("extensions.appearance.composerAnimation.title"),
+        defineMessage("extensions.appearance.composerAnimation.intensity"),
         defineMessage("extensions.appearance.borders.title"),
         defineMessage("extensions.appearance.corners.title"),
       ],

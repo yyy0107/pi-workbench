@@ -45,6 +45,8 @@ test("parses persisted appearance preferences", () => {
       runningIndicatorId: "spinner",
       runningIndicatorStyleId: "weaving",
       runningIndicatorSize: 26,
+      composerAnimationEnabled: false,
+      composerAnimationIntensity: 75,
       codeFont: "jetBrainsMono",
       codeFontWeight: 600,
       uiFontSize: 18,
@@ -81,6 +83,8 @@ test("parses persisted appearance preferences", () => {
     runningIndicatorId: "spinner",
     runningIndicatorStyleId: "weaving",
     runningIndicatorSize: 26,
+    composerAnimationEnabled: false,
+    composerAnimationIntensity: 75,
     codeFont: "jetBrainsMono",
     codeFontWeight: 600,
     uiFontSize: 18,
@@ -111,6 +115,8 @@ test("falls back field by field when persisted values are invalid", () => {
       runningIndicatorId: "sparkles",
       runningIndicatorStyleId: "",
       runningIndicatorSize: 64,
+      composerAnimationEnabled: "false",
+      composerAnimationIntensity: 101,
       codeFont: "proportional",
       codeFontWeight: 900,
       uiFontSize: 99,
@@ -131,6 +137,21 @@ test("preserves stronger contrast settings for both themes", () => {
 
   assert.equal(preferences.lightContrast, 300);
   assert.equal(preferences.darkContrast, 300);
+});
+
+test("accepts the full Composer intensity range and defaults invalid or missing settings", () => {
+  for (const composerAnimationIntensity of [0, 50, 100]) {
+    const preferences = parseAppearancePreferences(JSON.stringify({ composerAnimationIntensity }));
+    assert.equal(preferences.composerAnimationEnabled, true);
+    assert.equal(preferences.composerAnimationIntensity, composerAnimationIntensity);
+  }
+  for (const composerAnimationIntensity of [undefined, null, -1, 101, 50.5, "50"]) {
+    assert.equal(
+      parseAppearancePreferences(JSON.stringify({ composerAnimationIntensity }))
+        .composerAnimationIntensity,
+      DEFAULT_APPEARANCE_PREFERENCES.composerAnimationIntensity,
+    );
+  }
 });
 
 test("accepts the full blend range and defaults missing or invalid persisted ratios", () => {

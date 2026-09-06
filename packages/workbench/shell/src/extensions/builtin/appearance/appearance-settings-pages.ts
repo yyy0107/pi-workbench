@@ -38,6 +38,8 @@ export const DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE = {
     runningIndicatorId: DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorId,
     runningIndicatorStyleId: DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorStyleId,
     runningIndicatorSize: DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorSize,
+    composerAnimationEnabled: DEFAULT_APPEARANCE_PREFERENCES.composerAnimationEnabled,
+    composerAnimationIntensity: DEFAULT_APPEARANCE_PREFERENCES.composerAnimationIntensity,
   },
   background: {
     customBackground: DEFAULT_APPEARANCE_PREFERENCES.customBackground,

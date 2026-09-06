@@ -1072,6 +1072,37 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
             </SettingGroup>
 
             <SettingGroup
+              title={t("extensions.appearance.composerAnimation.title")}
+              description={t("extensions.appearance.composerAnimation.description")}
+            >
+              <SettingRow label={t("extensions.appearance.composerAnimation.enabled")}>
+                <SwitchControl
+                  checked={preferences.composerAnimationEnabled}
+                  label={t("extensions.appearance.composerAnimation.enabled")}
+                  onChange={(composerAnimationEnabled) =>
+                    appearanceController.update({ composerAnimationEnabled })
+                  }
+                />
+              </SettingRow>
+              <SettingRow
+                label={t("extensions.appearance.composerAnimation.intensity")}
+                description={t("extensions.appearance.composerAnimation.intensityDescription")}
+              >
+                <RangeControl
+                  label={t("extensions.appearance.composerAnimation.intensity")}
+                  value={preferences.composerAnimationIntensity}
+                  formatValue={(value) => number(value / 100, { style: "percent" })}
+                  minimum={0}
+                  maximum={100}
+                  disabled={!preferences.composerAnimationEnabled}
+                  onChange={(composerAnimationIntensity) =>
+                    appearanceController.update({ composerAnimationIntensity })
+                  }
+                />
+              </SettingRow>
+            </SettingGroup>
+
+            <SettingGroup
               title={t("extensions.appearance.activityAnimation.title")}
               description={t("extensions.appearance.activityAnimation.description")}
             >

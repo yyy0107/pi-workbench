@@ -218,6 +218,8 @@ export function AppearanceBackground() {
           : preferences.contentFontWeight,
       ),
       "--workbench-code-font-weight": String(preferences.codeFontWeight),
+      "--composer-flow-display": preferences.composerAnimationEnabled ? "block" : "none",
+      "--composer-flow-intensity": String(preferences.composerAnimationIntensity / 50),
     } as const;
 
     for (const [property, value] of Object.entries(themeProperties)) {

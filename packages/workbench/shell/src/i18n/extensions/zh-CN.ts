@@ -1105,6 +1105,13 @@ export const extensionsZhCN = {
         none: "不显示",
       },
     },
+    composerAnimation: {
+      title: "输入框环绕动画",
+      description: "助手工作时，在输入框边缘显示跟随主题强调色的流光。",
+      enabled: "启用环绕动画",
+      intensity: "效果强度",
+      intensityDescription: "同时调整流动边框的亮度、粗细和柔光。",
+    },
     activityAnimation: {
       title: "助手活动动画",
       description: "选择助手在会话中工作时显示的动画。",

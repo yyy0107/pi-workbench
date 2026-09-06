@@ -218,6 +218,8 @@ export interface AppearancePreferences {
   runningIndicatorId: RunningIndicatorId;
   runningIndicatorStyleId: string;
   runningIndicatorSize: number;
+  composerAnimationEnabled: boolean;
+  composerAnimationIntensity: number;
   codeFont: CodeFontFamily;
   codeFontWeight: FontWeight;
   uiFontSize: UiFontSize;
@@ -253,6 +255,8 @@ export const DEFAULT_APPEARANCE_PREFERENCES = Object.freeze({
   runningIndicatorId: "orb",
   runningIndicatorStyleId: "connecting",
   runningIndicatorSize: 14,
+  composerAnimationEnabled: true,
+  composerAnimationIntensity: 50,
   codeFont: "geistMono",
   codeFontWeight: 400,
   uiFontSize: 16,
@@ -306,6 +310,13 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
   const legacyRunningIndicator = readLegacyRunningIndicatorPreferences(value);
 
   return Object.freeze({
+    composerAnimationEnabled:
+      typeof value.composerAnimationEnabled === "boolean"
+        ? value.composerAnimationEnabled
+        : DEFAULT_APPEARANCE_PREFERENCES.composerAnimationEnabled,
+    composerAnimationIntensity: isIntegerInRange(value.composerAnimationIntensity, 0, 100)
+      ? value.composerAnimationIntensity
+      : DEFAULT_APPEARANCE_PREFERENCES.composerAnimationIntensity,
     colorMode: isOneOf(value.colorMode, COLOR_MODES)
       ? value.colorMode
       : DEFAULT_APPEARANCE_PREFERENCES.colorMode,

@@ -1136,6 +1136,14 @@ export const extensionsEnUS = {
         none: "Hidden",
       },
     },
+    composerAnimation: {
+      title: "Composer border animation",
+      description:
+        "Show a flowing accent-colored border around the composer while the assistant is working.",
+      enabled: "Enable border animation",
+      intensity: "Effect intensity",
+      intensityDescription: "Adjust the border brightness, thickness, and glow.",
+    },
     activityAnimation: {
       title: "Assistant activity",
       description: "Choose the animation shown while the assistant is working in a conversation.",

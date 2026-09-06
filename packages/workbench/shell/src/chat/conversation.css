@@ -91,13 +91,14 @@
   &::before,
   .aui-composer-running-glow::before {
     content: "";
+    display: var(--composer-flow-display, block);
     position: absolute;
     inset: 0;
     z-index: 1;
-    padding: 1.5px;
+    padding: calc(1.5px * var(--composer-flow-intensity, 1));
     border-radius: inherit;
     pointer-events: none;
-    opacity: 0.9;
+    opacity: calc(0.9 * var(--composer-flow-intensity, 1));
     background: conic-gradient(
       from var(--composer-flow-angle),
       transparent 60%,
@@ -112,12 +113,13 @@
   }
 
   .aui-composer-running-glow {
+    display: var(--composer-flow-display, block);
     position: absolute;
     inset: 0;
     z-index: 1;
     border-radius: inherit;
     pointer-events: none;
-    opacity: 0.5;
+    opacity: calc(0.5 * var(--composer-flow-intensity, 1));
     /* Blur the masked ring as a whole so its inner edge fades into the card. */
     filter: blur(var(--composer-flow-blur));
 
