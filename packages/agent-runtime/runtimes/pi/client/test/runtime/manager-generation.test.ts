@@ -865,7 +865,11 @@ test("keeps settled history identities stable across streamed tail updates", (t)
   assert.equal(session.getSnapshot().messageRepository, settled.messageRepository);
 });
 
-test("maps regenerated assistant answers to sibling repository branches", (t) => {
+test("keeps regenerated answer numbering stable across branch switches and reloads", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const session = manager.getSession("remote-session", "remote-session");
@@ -893,57 +897,169 @@ test("maps regenerated assistant answers to sibling repository branches", (t) =>
       },
     },
   });
-  const internals = session as unknown as {
-    messageRepositoryFromHistory(
-      sessionId: string,
-      history: {
-        events: never[];
-        hasMore: false;
-        branches: {
-          headLeafId: string;
-          items: Array<{
-            leafId: string;
-            events: Array<typeof userEvent | ReturnType<typeof assistantEvent>>;
-          }>;
-        };
-      },
-      activeMessages: readonly ThreadMessage[],
-    ): {
-      repository: {
-        headId: string | null;
-        messages: Array<{ message: ThreadMessage; parentId: string | null }>;
-      };
-      leafByHeadMessageId: Map<string, string>;
+  const branches = [
+    {
+      leafId: "leaf-1",
+      events: [userEvent, assistantEvent("journal-assistant-1", "First", 2_000)],
+    },
+    {
+      leafId: "leaf-2",
+      events: [userEvent, assistantEvent("journal-assistant-2", "Second", 3_000)],
+    },
+  ];
+  let activeBranch = branches[1]!;
+  let deferSelection = false;
+  const pendingSelections: Array<() => void> = [];
+  const selectedLeaves: string[] = [];
+  let historyLoads = 0;
+  let historyGate: Promise<void> | undefined;
+  let rejectSelection = false;
+  let rejectHistory = false;
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: { leafId?: string };
     };
+    if (request.method === "session.selectBranch") {
+      const selected = branches.find(({ leafId }) => leafId === request.payload.leafId);
+      assert.ok(selected);
+      selectedLeaves.push(selected.leafId);
+      if (deferSelection) await new Promise<void>((resolve) => pendingSelections.push(resolve));
+      if (rejectSelection) throw new Error("branch selection rejected");
+      activeBranch = selected;
+      return Response.json({
+        type: "server-response",
+        rpcId: request.rpcId,
+        result: { ok: true, value: { selected: true } },
+      });
+    }
+    assert.equal(request.method, "session.history");
+    historyLoads += 1;
+    if (rejectHistory) throw new Error("history unavailable");
+    const response = Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          events: activeBranch.events,
+          hasMore: false,
+          branches: {
+            headLeafId: activeBranch.leafId,
+            // The server returns the active branch first, regardless of creation order.
+            items: [activeBranch, ...branches.filter((branch) => branch !== activeBranch)],
+          },
+        },
+      },
+    });
+    await historyGate;
+    return response;
   };
 
-  const state = internals.messageRepositoryFromHistory(
-    "remote-session",
-    {
-      events: [],
-      hasMore: false,
-      branches: {
-        headLeafId: "leaf-2",
-        items: [
-          {
-            leafId: "leaf-1",
-            events: [userEvent, assistantEvent("journal-assistant-1", "First", 2_000)],
-          },
-          {
-            leafId: "leaf-2",
-            events: [userEvent, assistantEvent("journal-assistant-2", "Second", 3_000)],
-          },
-        ],
-      },
-    },
-    [],
-  );
-  const byId = new Map(state.repository.messages.map((item) => [item.message.id, item]));
+  await session.reload();
+  const repository = session.getSnapshot().messageRepository;
+  const byId = new Map(repository.messages.map((item) => [item.message.id, item]));
   assert.equal(byId.get("journal-assistant-1")?.parentId, "journal-user-1");
   assert.equal(byId.get("journal-assistant-2")?.parentId, "journal-user-1");
-  assert.equal(state.repository.headId, "journal-assistant-2");
-  assert.equal(state.leafByHeadMessageId.get("journal-assistant-1"), "leaf-1");
-  assert.equal(state.leafByHeadMessageId.get("journal-assistant-2"), "leaf-2");
+  assert.equal(repository.headId, "journal-assistant-2");
+
+  for (const time of [3_000, 2_000]) {
+    // Equal timestamps must also retain a deterministic order.
+    branches[1]!.events[1] = assistantEvent("journal-assistant-2", "Second", time);
+    await session.reload();
+    const second = session.node("journal-assistant-2").getSnapshot();
+    assert.deepEqual(second?.presentation?.branch, {
+      index: 1,
+      count: 2,
+      previousKey: "journal-assistant-1",
+    });
+    assert.ok(session.actions.selectBranch);
+    const previousSelection = session.actions.selectBranch(second.presentation.branch.previousKey!);
+    const previousHead = session.getSnapshot().messageRepository.headId;
+    const first = session.node("journal-assistant-1").getSnapshot();
+    await previousSelection;
+    assert.equal(previousHead, "journal-assistant-1");
+    assert.deepEqual(first?.presentation?.branch, {
+      index: 0,
+      count: 2,
+      nextKey: "journal-assistant-2",
+    });
+    const nextSelection = session.actions.selectBranch(first.presentation.branch.nextKey!);
+    const nextHead = session.getSnapshot().messageRepository.headId;
+    const nextBranch = session.node("journal-assistant-2").getSnapshot()?.presentation?.branch;
+    await nextSelection;
+    assert.equal(nextHead, "journal-assistant-2");
+    assert.deepEqual(nextBranch, second.presentation.branch);
+  }
+
+  // An in-flight switch cannot overwrite a newer preview; queued intermediate clicks are skipped.
+  deferSelection = true;
+  selectedLeaves.length = 0;
+  const loadsBeforeSwitches = historyLoads;
+  const firstSelection = session.selectBranch("journal-assistant-1");
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  const intermediateSelection = session.selectBranch("journal-assistant-2");
+  const anotherIntermediateSelection = session.selectBranch("journal-assistant-1");
+  const latestSelection = session.selectBranch("journal-assistant-2");
+  try {
+    assert.equal(session.getSnapshot().messageRepository.headId, "journal-assistant-2");
+    assert.deepEqual(selectedLeaves, ["leaf-1"]);
+    pendingSelections.shift()?.();
+    await firstSelection;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(historyLoads, loadsBeforeSwitches);
+    assert.equal(session.getSnapshot().messageRepository.headId, "journal-assistant-2");
+    assert.deepEqual(selectedLeaves, ["leaf-1", "leaf-2"]);
+  } finally {
+    deferSelection = false;
+    pendingSelections.splice(0).forEach((resolve) => resolve());
+    await Promise.allSettled([
+      firstSelection,
+      intermediateSelection,
+      anotherIntermediateSelection,
+      latestSelection,
+    ]);
+  }
+  assert.equal(historyLoads, loadsBeforeSwitches + 1);
+  assert.equal(activeBranch.leafId, "leaf-2");
+  assert.equal(session.getSnapshot().messageRepository.headId, "journal-assistant-2");
+  await session.selectBranch("journal-assistant-1");
+
+  // A refresh already in flight still contains the old branch and must not win the switch.
+  let releaseHistory!: () => void;
+  historyGate = new Promise<void>((resolve) => {
+    releaseHistory = resolve;
+  });
+  const staleReload = session.reload();
+  const selectionDuringReload = session.selectBranch("journal-assistant-2");
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  const previewDuringReload = session.getSnapshot();
+  releaseHistory();
+  await Promise.all([staleReload, selectionDuringReload]);
+  assert.equal(previewDuringReload.messageRepository.headId, "journal-assistant-2");
+  assert.equal(session.getSnapshot().messageRepository.headId, "journal-assistant-2");
+
+  // A rejected switch restores the last authoritative reply, even if history is also offline.
+  const originalConsoleError = console.error;
+  console.error = () => undefined;
+  try {
+    rejectSelection = true;
+    for (const offline of [false, true]) {
+      rejectHistory = offline;
+      const rejectedSelection = session.selectBranch("journal-assistant-1");
+      const preview = session.getSnapshot();
+      await assert.rejects(rejectedSelection, /branch selection rejected/);
+      assert.equal(preview.messageRepository.headId, "journal-assistant-1");
+      assert.equal(session.getSnapshot().messageRepository.headId, "journal-assistant-2");
+      assert.equal(
+        session.node("journal-assistant-2").getSnapshot()?.presentation?.branch?.index,
+        1,
+      );
+    }
+  } finally {
+    console.error = originalConsoleError;
+  }
 });
 
 test("collapses legacy duplicate Composer users into answer branches", (t) => {

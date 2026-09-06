@@ -434,6 +434,11 @@ export class PiClientSession implements ConversationSession {
   };
   private branchLeafByHeadMessageId = new Map<string, string>();
   private branchSwitchTask?: Promise<void>;
+  private branchPreview?: {
+    messages: readonly ThreadMessage[];
+    repository: PiConversationMessageRepository;
+    leaves: ReadonlyMap<string, string>;
+  };
   private liveMessages: ThreadMessage[] = [];
   private streamingMessage?: ThreadMessage;
   private activeUserMessageId?: string;
@@ -671,21 +676,22 @@ export class PiClientSession implements ConversationSession {
         messages: this.conversationMessages,
         isLoading: this.snapshotValue.isLoading,
         isRunning: this.snapshotValue.isRunning,
-        hasMore: this.historyHasMore,
+        hasMore: !this.branchPreview && this.historyHasMore,
         composer: this.composerValue,
         branches: this.conversationBranches,
         runTiming: this.snapshotValue.runTiming,
         autoRetry: this.snapshotValue.autoRetry,
-        resumeCheckpoint: this.snapshotValue.resumeCheckpoint
-          ? {
-              checkpointId: this.snapshotValue.resumeCheckpoint.checkpointId,
-              terminalMessageId:
-                visibleResumeCheckpointTerminalMessageId(this.snapshotValue) ??
-                this.snapshotValue.resumeCheckpoint.terminalMessageId,
-              expectedStateId: this.snapshotValue.resumeCheckpoint.branchLeafId,
-              capability: this.snapshotValue.resumeCheckpoint.capability,
-            }
-          : undefined,
+        resumeCheckpoint:
+          !this.branchPreview && this.snapshotValue.resumeCheckpoint
+            ? {
+                checkpointId: this.snapshotValue.resumeCheckpoint.checkpointId,
+                terminalMessageId:
+                  visibleResumeCheckpointTerminalMessageId(this.snapshotValue) ??
+                  this.snapshotValue.resumeCheckpoint.terminalMessageId,
+                expectedStateId: this.snapshotValue.resumeCheckpoint.branchLeafId,
+                capability: this.snapshotValue.resumeCheckpoint.capability,
+              }
+            : undefined,
       },
       publication,
     );
@@ -800,6 +806,7 @@ export class PiClientSession implements ConversationSession {
   }
 
   private async fork(nodeKey: string): Promise<string> {
+    while (this.branchSwitchTask) await this.branchSwitchTask;
     if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
     const message = this.conversationMessages.find(({ id }) => id === nodeKey);
     const stateToken = message?.metadata.custom.workbenchStateToken;
@@ -835,6 +842,7 @@ export class PiClientSession implements ConversationSession {
     this.baseMessages = [];
     this.baseMessageRepository = { headId: null, messages: [] };
     this.branchLeafByHeadMessageId.clear();
+    this.branchPreview = undefined;
     this.liveMessages = [];
     this.streamingMessage = undefined;
     this.conversationMessages = [];
@@ -1028,6 +1036,7 @@ export class PiClientSession implements ConversationSession {
 
   private async loadOlder(): Promise<void> {
     if (this.disposed || !this.remoteIdValue) return;
+    while (this.branchSwitchTask) await this.branchSwitchTask;
     if (this.reloadTask) await this.reloadTask;
     if (this.disposed || !this.remoteIdValue) return;
     if (!this.historyHasMore || !this.loadedHistory) return;
@@ -1115,7 +1124,7 @@ export class PiClientSession implements ConversationSession {
       .then(([history]) => {
         // Reapply after prompt summaries are ready so only durable prompt-composition Parts are
         // hydrated into the canonical message projection.
-        this.applyHistory(history, remoteId);
+        if (hydrateContextTracePromptParts) this.applyHistory(history, remoteId);
       })
       .catch((error) => {
         if (error instanceof SessionHistoryPaginationError) {
@@ -1133,7 +1142,7 @@ export class PiClientSession implements ConversationSession {
 
   async send(message: PiComposerMessage): Promise<void> {
     if (this.disposed) return;
-    await this.branchSwitchTask;
+    while (this.branchSwitchTask) await this.branchSwitchTask;
     if (this.disposed) return;
     const optimisticUserId = createClientMessageId("pi-user");
     const optimisticAssistantId = createClientMessageId("pi-assistant");
@@ -1248,7 +1257,7 @@ export class PiClientSession implements ConversationSession {
 
   async retry(parentId: string | null, _runConfig: PiComposerMessage["runConfig"]): Promise<void> {
     if (this.disposed) return;
-    await this.branchSwitchTask;
+    while (this.branchSwitchTask) await this.branchSwitchTask;
     await this.reloadTask;
     if (this.disposed) return;
     const messages = this.snapshotValue.messages;
@@ -1344,7 +1353,7 @@ export class PiClientSession implements ConversationSession {
 
   async resume(checkpointId: string, expectedLeafId: string): Promise<void> {
     if (this.disposed) return;
-    await this.branchSwitchTask;
+    while (this.branchSwitchTask) await this.branchSwitchTask;
     if (this.disposed) return;
     if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
     const checkpoint = this.snapshotValue.resumeCheckpoint;
@@ -1416,20 +1425,59 @@ export class PiClientSession implements ConversationSession {
 
   async selectBranch(headMessageId: string): Promise<void> {
     if (this.disposed) return;
-    const leafId = this.branchLeafByHeadMessageId.get(headMessageId);
+    const leaves = this.branchPreview?.leaves ?? this.branchLeafByHeadMessageId;
+    const leafId = leaves.get(headMessageId);
     if (!leafId || !this.remoteIdValue) return;
     const sessionId = this.remoteIdValue;
-    const task = selectPiRpcSessionBranch({ sessionId, leafId }, this.manager.rpcTransportOptions)
-      .then(() => this.reload())
+    if (!this.snapshotValue.isRunning) {
+      const repository = this.snapshotValue.messageRepository;
+      const byId = new Map(repository.messages.map((item) => [item.message.id, item]));
+      const messages: ThreadMessage[] = [];
+      const seen = new Set<string>();
+      let cursor: string | null = headMessageId;
+      while (cursor && !seen.has(cursor)) {
+        const item = byId.get(cursor);
+        if (!item) break;
+        seen.add(cursor);
+        messages.push(item.message);
+        cursor = item.parentId;
+      }
+      if (cursor === null && messages.length > 0) {
+        // Keep the authoritative history intact so a rejected switch can restore it.
+        this.branchPreview = {
+          messages: messages.reverse(),
+          repository: { ...repository, headId: headMessageId },
+          leaves,
+        };
+      }
+    }
+    const task = Promise.resolve(this.branchSwitchTask)
+      .catch(() => undefined)
+      .then(async () => {
+        if (this.disposed || this.branchSwitchTask !== task) return;
+        await selectPiRpcSessionBranch({ sessionId, leafId }, this.manager.rpcTransportOptions);
+        if (this.branchSwitchTask !== task) return;
+        // A history read started before selection must not satisfy the post-selection refresh.
+        await this.reloadTask?.catch(() => undefined);
+        await this.reload();
+      })
       .catch(async (error) => {
         // Re-publish the authoritative server branch after a rejected switch.
-        await this.reload().catch(() => this.publishMessages());
+        if (this.branchSwitchTask === task) {
+          await this.reloadTask?.catch(() => undefined);
+          await this.reload().catch(() => undefined);
+        }
         throw error;
       })
       .finally(() => {
-        if (this.branchSwitchTask === task) this.branchSwitchTask = undefined;
+        if (this.branchSwitchTask === task) {
+          this.branchSwitchTask = undefined;
+          this.branchPreview = undefined;
+          this.publishMessages();
+        }
       });
     this.branchSwitchTask = task;
+    if (this.branchPreview) this.publishMessages();
     try {
       await task;
     } catch (error) {
@@ -2495,6 +2543,7 @@ export class PiClientSession implements ConversationSession {
   }
 
   private currentMessages(): readonly ThreadMessage[] {
+    if (this.branchPreview) return this.branchPreview.messages;
     const liveMessages = [...this.liveMessages];
     if (this.streamingMessage) {
       const pendingSteerIndex = this.firstPendingSteeringMessageIndex(liveMessages);
@@ -2546,6 +2595,7 @@ export class PiClientSession implements ConversationSession {
   private currentMessageRepository(
     currentMessages: readonly ThreadMessage[],
   ): PiConversationMessageRepository {
+    if (this.branchPreview) return this.branchPreview.repository;
     const baseRepository = this.baseMessageRepository;
     let baseIndex = this.baseMessageRepositoryIndex;
     if (baseIndex?.repository !== baseRepository) {
@@ -2729,15 +2779,21 @@ export class PiClientSession implements ConversationSession {
     repository: PiConversationMessageRepository,
     visibleMessages: readonly ThreadMessage[],
   ): ReadonlyMap<string, ConversationNodeBranch> {
-    if (this.branchLeafByHeadMessageId.size < 2) return new Map();
+    const leaves = this.branchPreview?.leaves ?? this.branchLeafByHeadMessageId;
+    if (leaves.size < 2) return new Map();
     const byId = new Map(repository.messages.map((item) => [item.message.id, item]));
     const children = new Map<string | null, string[]>();
-    for (const item of repository.messages) {
+    // Repository insertion order puts the active branch first; reply numbers must stay stable.
+    const orderedMessages = repository.messages.toSorted(
+      ({ message: left }, { message: right }) =>
+        left.createdAt.getTime() - right.createdAt.getTime() || left.id.localeCompare(right.id),
+    );
+    for (const item of orderedMessages) {
       const siblings = children.get(item.parentId) ?? [];
       siblings.push(item.message.id);
       children.set(item.parentId, siblings);
     }
-    const paths = [...this.branchLeafByHeadMessageId.keys()].map((headKey) => {
+    const paths = [...leaves.keys()].map((headKey) => {
       const path = new Set<string>();
       let cursor: string | null = headKey;
       while (cursor) {
