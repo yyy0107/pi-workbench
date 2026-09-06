@@ -48,15 +48,6 @@ export const desktopRendererEnUS = {
       "git-bash": "Git Bash",
       wsl: "WSL",
     },
-    httpProxy: "HTTP proxy",
-    httpProxyDescription:
-      "One proxy for models, MCP, command tools, and the built-in browser. Leave empty for direct runtime traffic and the browser’s system proxy. Restart required.",
-    httpProxyPlaceholder: "http://127.0.0.1:7890",
-    noProxy: "Addresses that bypass the proxy",
-    noProxyDescription:
-      "Comma-separated host rules; loopback traffic always bypasses the proxy. Restart required.",
-    noProxyPlaceholder: "localhost,127.0.0.1,::1,.example.com,*.corp.com",
-    networkSaveDescription: "Save the proxy and bypass rules together.",
     save: "Save",
     clear: "Clear",
     updates: "Application updates",
@@ -77,11 +68,8 @@ export const desktopRendererEnUS = {
     soundRestartRequired:
       "Fully quit and reopen Pi Workbench to enable built-in notification tones.",
     retry: "Retry",
-    restartRequired:
-      "Quit and reopen the app to apply terminal, hardware acceleration, and network changes.",
+    restartRequired: "Quit and reopen the app to apply settings that require a restart.",
     notificationsUnsupported: "Desktop notifications are unavailable on this system.",
-    invalidProxy: "Enter an HTTP or HTTPS proxy origin without credentials, path, or query.",
-    invalidBypass: "Use comma-separated host rules without spaces, slashes, or semicolons.",
     secureStorageUnavailable:
       "Secure OS storage is unavailable. Set PI_WORKBENCH_UPDATE_TOKEN before launching the app instead.",
     updateInProgress: "Wait for the update operation to finish before changing these settings.",

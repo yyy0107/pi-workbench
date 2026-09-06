@@ -16,7 +16,6 @@ import {
   Button,
   DropdownMenu,
   DropdownMenuRadioGroup,
-  Input,
   SettingsDropdownContent,
   SettingsDropdownItem,
   SettingsDropdownRadioItem,
@@ -36,29 +35,20 @@ function DesktopSettingsItem() {
   const [error, setError] = useState("");
   const [soundError, setSoundError] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
-  const [proxy, setProxy] = useState({ httpProxy: "", noProxy: "" });
-  const [token, setToken] = useState("");
   const port =
     typeof window === "undefined"
       ? undefined
       : readDesktopSettingsPort(window.workbenchDesktop?.settings);
   const errorMessage = (reason: unknown) => {
-    const code = [
-      "invalid-proxy",
-      "invalid-bypass",
-      "secure-storage-unavailable",
-      "update-in-progress",
-    ].find((key) => reason instanceof Error && reason.message.includes(key));
+    const code = ["secure-storage-unavailable", "update-in-progress"].find(
+      (key) => reason instanceof Error && reason.message.includes(key),
+    );
     return t(
-      code === "invalid-proxy"
-        ? "desktopRenderer.settings.invalidProxy"
-        : code === "invalid-bypass"
-          ? "desktopRenderer.settings.invalidBypass"
-          : code === "secure-storage-unavailable"
-            ? "desktopRenderer.settings.secureStorageUnavailable"
-            : code === "update-in-progress"
-              ? "desktopRenderer.settings.updateInProgress"
-              : "desktopRenderer.settings.error",
+      code === "secure-storage-unavailable"
+        ? "desktopRenderer.settings.secureStorageUnavailable"
+        : code === "update-in-progress"
+          ? "desktopRenderer.settings.updateInProgress"
+          : "desktopRenderer.settings.error",
     );
   };
   useEffect(() => {
@@ -72,7 +62,6 @@ function DesktopSettingsItem() {
       (value) => {
         if (active) {
           setSnapshot(value);
-          setProxy(value.preferences);
         }
       },
       () => {
@@ -97,8 +86,6 @@ function DesktopSettingsItem() {
   }
   const toggles = [
     "hardwareAcceleration",
-    "previewUpdates",
-    "automaticUpdates",
     "taskNotifications",
     "notificationSounds",
     "keepAwake",
@@ -115,17 +102,7 @@ function DesktopSettingsItem() {
             : error || t("desktopRenderer.settings.loading")}
         </p>
         {port && error ? (
-          <Button
-            variant="outline"
-            disabled={busy}
-            onClick={() =>
-              void save(async () => {
-                const value = await port.load();
-                setProxy(value.preferences);
-                return value;
-              })
-            }
-          >
+          <Button variant="outline" disabled={busy} onClick={() => void save(() => port.load())}>
             {t("desktopRenderer.settings.retry")}
           </Button>
         ) : null}
@@ -293,137 +270,6 @@ function DesktopSettingsItem() {
           {t("desktopRenderer.settings.soundFailed")}
         </p>
       ) : null}
-      <SettingsGroup>
-        {(["httpProxy", "noProxy"] as const).map((key) => (
-          <SettingsRow
-            key={key}
-            label={<label htmlFor={`${id}-${key}`}>{t(`desktopRenderer.settings.${key}`)}</label>}
-            description={t(`desktopRenderer.settings.${key}Description`)}
-            controlClassName="w-full"
-          >
-            <Input
-              id={`${id}-${key}`}
-              value={proxy[key]}
-              disabled={!snapshot || busy}
-              placeholder={t(`desktopRenderer.settings.${key}Placeholder`)}
-              onChange={(event) => setProxy((value) => ({ ...value, [key]: event.target.value }))}
-            />
-          </SettingsRow>
-        ))}
-        <SettingsRow label={t("desktopRenderer.settings.networkSaveDescription")}>
-          <Button
-            variant="outline"
-            disabled={!snapshot || busy}
-            onClick={() => {
-              if (port) void save(() => port.update(proxy));
-            }}
-          >
-            {t("desktopRenderer.settings.save")}
-          </Button>
-        </SettingsRow>
-      </SettingsGroup>
-      <SettingsGroup
-        title={t("desktopRenderer.settings.updates")}
-        description={t("desktopRenderer.settings.updateSource")}
-      >
-        <SettingsRow
-          label={<label htmlFor={`${id}-token`}>{t("desktopRenderer.settings.updateToken")}</label>}
-          description={t(
-            snapshot?.tokenConfigured
-              ? "desktopRenderer.settings.tokenConfigured"
-              : "desktopRenderer.settings.tokenMissing",
-          )}
-          controlClassName="w-full"
-        >
-          <div className="flex gap-2">
-            <Input
-              id={`${id}-token`}
-              type="password"
-              autoComplete="new-password"
-              value={token}
-              disabled={busy}
-              onChange={(event) => setToken(event.target.value)}
-            />
-            <Button
-              variant="outline"
-              disabled={!snapshot || busy || !token}
-              onClick={() => {
-                if (port)
-                  void save(async () => {
-                    const value = await port.setUpdateToken(token);
-                    setToken("");
-                    return value;
-                  });
-              }}
-            >
-              {t("desktopRenderer.settings.save")}
-            </Button>
-            <Button
-              variant="ghost"
-              disabled={!snapshot?.tokenConfigured || busy}
-              onClick={() => {
-                if (port) void save(() => port.setUpdateToken(""));
-              }}
-            >
-              {t("desktopRenderer.settings.clear")}
-            </Button>
-          </div>
-        </SettingsRow>
-        <SettingsRow
-          label={
-            snapshot
-              ? t("desktopRenderer.settings.version", { version: snapshot.version })
-              : t("desktopRenderer.settings.updates")
-          }
-          description={
-            <span role="status">
-              {snapshot
-                ? t(`desktopRenderer.settings.updateStatus.${snapshot.update.status}`)
-                : t("desktopRenderer.settings.loading")}
-              {snapshot?.update.percent === undefined ? null : (
-                <> {t("desktopRenderer.settings.progress", { percent: snapshot.update.percent })}</>
-              )}
-            </span>
-          }
-        >
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              disabled={
-                !snapshot ||
-                busy ||
-                ["development", "checking", "downloading", "downloaded"].includes(
-                  snapshot.update.status,
-                )
-              }
-              onClick={() => {
-                if (port) void save(() => port.runUpdate("check"));
-              }}
-            >
-              {t("desktopRenderer.settings.checkUpdates")}
-            </Button>
-            {snapshot?.update.status === "available" || snapshot?.update.status === "downloaded" ? (
-              <Button
-                disabled={busy}
-                onClick={() => {
-                  if (port)
-                    void save(() =>
-                      port.runUpdate(
-                        snapshot.update.status === "downloaded" ? "install" : "download",
-                      ),
-                    );
-                }}
-              >
-                {t(
-                  snapshot.update.status === "downloaded"
-                    ? "desktopRenderer.settings.install"
-                    : "desktopRenderer.settings.download",
-                )}
-              </Button>
-            ) : null}
-          </div>
-        </SettingsRow>
-      </SettingsGroup>
       {snapshot?.restartRequired ? (
         <p role="status" className="text-muted-foreground text-sm">
           {t("desktopRenderer.settings.restartRequired")}
@@ -440,12 +286,7 @@ function DesktopSettingsItem() {
           <Button
             variant="ghost"
             onClick={() => {
-              if (port)
-                void save(async () => {
-                  const value = await port.load();
-                  setProxy(value.preferences);
-                  return value;
-                });
+              if (port) void save(() => port.load());
             }}
           >
             {t("desktopRenderer.settings.retry")}
@@ -470,14 +311,10 @@ export const desktopSettingsExtension = defineExtension({
         [
           "hardwareAcceleration",
           "keepAwake",
-          "previewUpdates",
-          "automaticUpdates",
           "taskNotifications",
           "notificationSounds",
           "notificationSound",
           "terminalShell",
-          "httpProxy",
-          "noProxy",
         ] as const
       ).map((key) => message(`desktopRenderer.settings.${key}`)),
       order: 20,
