@@ -987,27 +987,6 @@ export const extensionsEnUS = {
       saveError: "Could not save this change. Your previous preference is still active; try again.",
       retry: "Retry",
     },
-    onboarding: {
-      title: "Setup guide",
-      description: "Open language setup, migration options, and preference import again.",
-      open: "Open setup guide",
-      close: "Close setup guide",
-      steps: {
-        language: "1. Choose your display language.",
-        capabilities:
-          "2. Configure models or migrate history using the installed settings below. Reopen this guide whenever you need it.",
-        import:
-          "3. Import portable Workbench preferences from a JSON settings file. Workspace paths, sessions, credentials, and desktop machine settings are not imported.",
-      },
-      chooseFile: "Choose a Workbench settings JSON file (up to 24 MiB)",
-      review: "Review the preferences to merge. The server validates every value before saving.",
-      apply: "Apply and reload interface",
-      error:
-        "Could not read or apply these preferences. Choose a valid supported JSON file and try again.",
-      back: "Back",
-      next: "Next",
-      done: "Done",
-    },
     general: {
       title: "General",
       description: "Configure the language and other shared Workbench preferences.",

@@ -961,25 +961,6 @@ export const extensionsZhCN = {
       saveError: "保存失败，仍使用原来的设置，请重试。",
       retry: "重试",
     },
-    onboarding: {
-      title: "引导",
-      description: "重新打开引导，设置语言、查看迁移选项并导入偏好。",
-      open: "打开引导",
-      close: "关闭引导",
-      steps: {
-        language: "1. 选择界面语言。",
-        capabilities: "2. 通过下面已安装的设置配置模型或迁移历史。你可以随时重新打开此引导。",
-        import:
-          "3. 从 JSON 设置文件导入 Workbench 通用偏好。不导入工作区路径、会话、凭据和桌面设备设置。",
-      },
-      chooseFile: "选择 Workbench 设置 JSON 文件（最大 24 MiB）",
-      review: "检查即将合并的偏好。服务端会先校验全部值，再保存。",
-      apply: "应用并重新加载界面",
-      error: "无法读取或应用这些偏好，请选择格式受支持的有效 JSON 文件后重试。",
-      back: "上一步",
-      next: "下一步",
-      done: "完成",
-    },
     general: {
       title: "常规",
       description: "配置语言及其他工作台通用偏好。",

@@ -3,7 +3,6 @@ import { MessagesSquareIcon, SettingsIcon } from "lucide-react";
 import { defineMessage } from "../../../i18n";
 
 import { ConversationSettingsItem } from "./conversation-settings-item";
-import { OnboardingSettingsItem } from "./onboarding-settings-item";
 
 import { openSettingsCommand } from "./settings-command";
 import { SETTINGS_MAIN_VIEW_KIND } from "./settings-main-view";
@@ -25,13 +24,6 @@ export const settingsExtension = defineExtension({
       icon: SettingsIcon,
       group: { id: "basics", title: defineMessage("extensions.settings.groups.basics") },
       order: -10,
-    });
-    const onboarding = context.settings.registerItem({
-      sectionId: "general",
-      id: "onboarding",
-      title: defineMessage("extensions.settings.onboarding.title"),
-      order: 100,
-      component: OnboardingSettingsItem,
     });
     const section = context.settings.registerSection({
       id: "conversation",
@@ -69,6 +61,6 @@ export const settingsExtension = defineExtension({
       order: 80,
       component: SidebarSettingsTrigger,
     });
-    return [general, onboarding, section, preferences, mainView, command, sidebar];
+    return [general, section, preferences, mainView, command, sidebar];
   },
 });
