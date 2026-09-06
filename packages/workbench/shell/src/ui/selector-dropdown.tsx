@@ -79,6 +79,9 @@ export function useAnimatedSelectorDropdown({
     }
   }, []);
 
+  // Callback changes must not cancel an opening menu's scheduled reveal.
+  React.useEffect(() => cancelScheduledReveal, [cancelScheduledReveal]);
+
   React.useEffect(() => {
     const handleResize = () => {
       const trigger = triggerRef.current;
@@ -91,9 +94,8 @@ export function useAnimatedSelectorDropdown({
     window.addEventListener("resize", handleResize);
     return () => {
       window.removeEventListener("resize", handleResize);
-      cancelScheduledReveal();
     };
-  }, [cancelScheduledReveal, getOpenWidth]);
+  }, [getOpenWidth]);
 
   const onOpenChange = React.useCallback(
     (open: boolean) => {
