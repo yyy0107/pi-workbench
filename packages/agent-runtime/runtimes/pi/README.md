@@ -897,9 +897,7 @@ Pi `SessionManager` 管理 JSONL session。进程内的 session registry 为正�
 列表摘要、全文搜索文本和 JSONL 的 `size:mtimeMs` fingerprint，并以 mode-0600 原子替换；Pi JSONL
 仍是会话权威数据。服务进程重启后先读取索引并对目录执行轻量 stat，只用 `SessionManager.open()`
 重建新增或变化的文件；索引缺失、损坏或版本不匹配时才回退到 `SessionManager.listAll()`。列表和
-`session.search` 共享这一份目录数据，因此搜索不会再次全量扫描所有 JSONL。每轮冷恢复会输出
-`[workbench-pi] session catalog` 结构化耗时，包含索引命中、文件数、总字节、fingerprint、全量解析
-和索引写入时间。
+`session.search` 共享这一份目录数据，因此搜索不会再次全量扫描所有 JSONL。
 
 Workbench 在 Pi JSONL 中保存 canonical event journal。每个 `SessionEvent` 都包含稳定递增的
 `seq`、epoch-millisecond `time` 和原始 `data`，因此 cold history 和 live mux 使用同一事件

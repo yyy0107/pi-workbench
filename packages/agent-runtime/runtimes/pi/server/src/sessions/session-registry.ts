@@ -4276,19 +4276,14 @@ function ensureSessionCacheScope(registry: RegistryState): string {
   return cacheKey;
 }
 
-interface SessionFingerprintScan {
-  fingerprints: Map<string, string>;
-  totalBytes: number;
-}
-
-async function scanSessionFingerprints(sessionRoot: string): Promise<SessionFingerprintScan> {
+async function scanSessionFingerprints(sessionRoot: string): Promise<Map<string, string>> {
   let directories: string[];
   try {
     directories = (await readdir(sessionRoot, { withFileTypes: true }))
       .filter((entry) => entry.isDirectory() || entry.isSymbolicLink())
       .map((entry) => path.join(sessionRoot, entry.name));
   } catch {
-    return { fingerprints: new Map(), totalBytes: 0 };
+    return new Map();
   }
 
   const fileGroups = await Promise.all(
@@ -4303,19 +4298,17 @@ async function scanSessionFingerprints(sessionRoot: string): Promise<SessionFing
     }),
   );
   const fingerprints = new Map<string, string>();
-  let totalBytes = 0;
   await Promise.all(
     fileGroups.flat().map(async (file) => {
       try {
         const metadata = await stat(file);
         fingerprints.set(file, `${metadata.size}:${metadata.mtimeMs}`);
-        totalBytes += metadata.size;
       } catch {
         // A concurrently removed session is absent from the authoritative scan.
       }
     }),
   );
-  return { fingerprints, totalBytes };
+  return fingerprints;
 }
 
 function fingerprintsMatch(left: ReadonlyMap<string, string>, right: ReadonlyMap<string, string>) {
@@ -4415,20 +4408,15 @@ function removeCachedSessionFile(registry: RegistryState, file: string): void {
 function refreshChangedSessionFiles(
   registry: RegistryState,
   fingerprints: ReadonlyMap<string, string>,
-): { changedFiles: number; removedFiles: number; failedFiles: number } {
-  let changedFiles = 0;
-  let removedFiles = 0;
-  let failedFiles = 0;
+): void {
   for (const file of registry.persistedSessionFingerprints.keys()) {
     if (fingerprints.has(file)) continue;
     removeCachedSessionFile(registry, file);
-    removedFiles += 1;
   }
 
   const running = new Set(runningSessionIds());
   for (const [file, fingerprint] of fingerprints) {
     if (registry.persistedSessionFingerprints.get(file) === fingerprint) continue;
-    changedFiles += 1;
     removeCachedSessionFile(registry, file);
     try {
       const manager = SessionManager.open(file);
@@ -4440,7 +4428,6 @@ function refreshChangedSessionFiles(
       registry.persistedSessions.set(info.id, info);
       registry.persistedSessionSummaries.set(summary.id, summary);
     } catch {
-      failedFiles += 1;
       // A malformed or concurrently removed file is excluded until a later fingerprint change.
     }
   }
@@ -4449,7 +4436,6 @@ function refreshChangedSessionFiles(
   for (const [file, fingerprint] of fingerprints) {
     registry.persistedSessionFingerprints.set(file, fingerprint);
   }
-  return { changedFiles, removedFiles, failedFiles };
 }
 
 function hydratePersistedSessionCache(
@@ -4475,9 +4461,9 @@ function hydratePersistedSessionCache(
 async function persistSessionCatalogIndex(
   registry: RegistryState,
   cacheKey: string,
-): Promise<{ bytes: number; entries: number } | undefined> {
+): Promise<void> {
   try {
-    return await writeSessionCatalogIndex(
+    await writeSessionCatalogIndex(
       cacheKey,
       registry.persistedSessions,
       registry.persistedSessionSummaries,
@@ -4485,7 +4471,6 @@ async function persistSessionCatalogIndex(
     );
   } catch (error) {
     console.error("[workbench-pi] session catalog index write failed", error);
-    return undefined;
   }
 }
 
@@ -4495,72 +4480,35 @@ function startPersistedSessionCacheRefresh(
 ): Promise<void> {
   if (registry.persistedSessionCacheTask) return registry.persistedSessionCacheTask;
   const task = (async () => {
-    const startedAt = Date.now();
     let indexStatus: "memory" | "hit" | "missing" | "invalid" = registry.persistedSessionCacheReady
       ? "memory"
       : "missing";
-    let indexBytes = 0;
-    let indexLoadMs = 0;
     if (!registry.persistedSessionCacheReady) {
-      const indexLoadStartedAt = Date.now();
       const index = await readSessionCatalogIndex(cacheKey);
-      indexLoadMs = Date.now() - indexLoadStartedAt;
       indexStatus = index.status;
-      indexBytes = index.status === "missing" ? 0 : (index.bytes ?? 0);
       if (index.status === "hit") hydratePersistedSessionCache(registry, index.snapshot);
       if (index.status === "invalid") {
         console.warn(
-          `[workbench-pi] session catalog index ignored (${index.reason}, ${indexBytes} bytes)`,
+          `[workbench-pi] session catalog index ignored (${index.reason}, ${index.bytes ?? 0} bytes)`,
         );
       }
     }
 
-    const fingerprintStartedAt = Date.now();
-    const scan = await scanSessionFingerprints(cacheKey);
-    const fingerprintMs = Date.now() - fingerprintStartedAt;
-    const { fingerprints } = scan;
+    const fingerprints = await scanSessionFingerprints(cacheKey);
     if (registry.persistedSessionCacheKey !== cacheKey) return;
     for (const host of registry.sessions.values()) {
       if (host.isAlive) cacheHostedSession(registry, host, fingerprints);
     }
-    let changedFiles = 0;
-    let removedFiles = 0;
-    let failedFiles = 0;
-    let fullScanMs = 0;
-    let indexWriteMs = 0;
-    let indexWriteBytes = 0;
     if (
       registry.persistedSessionCacheReady &&
       fingerprintsMatch(registry.persistedSessionFingerprints, fingerprints)
     ) {
-      console.info(
-        `[workbench-pi] session catalog ${JSON.stringify({
-          indexStatus,
-          indexBytes,
-          indexLoadMs,
-          fingerprintMs,
-          fileCount: fingerprints.size,
-          totalBytes: scan.totalBytes,
-          changedFiles,
-          removedFiles,
-          failedFiles,
-          fullScanMs,
-          indexWriteMs,
-          indexWriteBytes,
-          totalMs: Date.now() - startedAt,
-        })}`,
-      );
       return;
     }
     if (registry.persistedSessionCacheReady) {
-      ({ changedFiles, removedFiles, failedFiles } = refreshChangedSessionFiles(
-        registry,
-        fingerprints,
-      ));
+      refreshChangedSessionFiles(registry, fingerprints);
     } else {
-      const fullScanStartedAt = Date.now();
       const persisted = await SessionManager.listAll();
-      fullScanMs = Date.now() - fullScanStartedAt;
       if (registry.persistedSessionCacheKey !== cacheKey) return;
       const running = new Set(runningSessionIds());
       const nextSessions = new Map(persisted.map((session) => [session.id, session]));
@@ -4590,28 +4538,8 @@ function startPersistedSessionCacheRefresh(
     }
     registry.persistedSessionCacheReady = true;
     if (indexStatus !== "memory") {
-      const indexWriteStartedAt = Date.now();
-      const written = await persistSessionCatalogIndex(registry, cacheKey);
-      indexWriteMs = Date.now() - indexWriteStartedAt;
-      indexWriteBytes = written?.bytes ?? 0;
+      await persistSessionCatalogIndex(registry, cacheKey);
     }
-    console.info(
-      `[workbench-pi] session catalog ${JSON.stringify({
-        indexStatus,
-        indexBytes,
-        indexLoadMs,
-        fingerprintMs,
-        fileCount: fingerprints.size,
-        totalBytes: scan.totalBytes,
-        changedFiles,
-        removedFiles,
-        failedFiles,
-        fullScanMs,
-        indexWriteMs,
-        indexWriteBytes,
-        totalMs: Date.now() - startedAt,
-      })}`,
-    );
   })().finally(() => {
     if (registry.persistedSessionCacheTask === task) {
       registry.persistedSessionCacheTask = undefined;
