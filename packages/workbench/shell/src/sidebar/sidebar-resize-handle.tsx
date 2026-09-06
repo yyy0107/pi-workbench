@@ -26,15 +26,20 @@ export function applySidebarResizePreview(
     "--workbench-sidebar-resize-translate-x",
     `${preview.translateX}px`,
   );
-  shell?.style.setProperty("--sidebar-width", `${preview.layoutWidth}px`);
-  shell?.style.setProperty("--sidebar-content-width", `${preview.contentWidth}px`);
-  shell?.style.setProperty("--sidebar-resize-translate-x", `${preview.translateX}px`);
-  shell?.style.setProperty(
-    "--sidebar-collapse-progress",
-    String(minimumWidth > 0 ? Math.max(0, 1 - preview.layoutWidth / minimumWidth) : 0),
-  );
+  // Shell style mutations invalidate the whole tree and notify appearance observers.
+  shell
+    ?.querySelector<HTMLElement>('[data-workbench-surface="header"]')
+    ?.style.setProperty("--sidebar-width", `${preview.layoutWidth}px`);
+  shell
+    ?.querySelector<HTMLElement>("[data-main-view-sidebar-rail]")
+    ?.style.setProperty(
+      "--sidebar-collapse-progress",
+      String(minimumWidth > 0 ? Math.max(0, 1 - preview.layoutWidth / minimumWidth) : 0),
+    );
   if (preview.layoutWidth < minimumWidth) {
-    shell?.setAttribute("data-sidebar-collapse-preview", "true");
+    if (shell?.getAttribute("data-sidebar-collapse-preview") !== "true") {
+      shell?.setAttribute("data-sidebar-collapse-preview", "true");
+    }
   } else {
     shell?.removeAttribute("data-sidebar-collapse-preview");
   }
