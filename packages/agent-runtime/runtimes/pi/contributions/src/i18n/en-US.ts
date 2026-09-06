@@ -108,6 +108,9 @@ export const piExtensionsEnUS = {
       },
       placeholders: {
         title: "Dynamic placeholders",
+        copy: ({ placeholder }: { placeholder: string }) => `Copy ${placeholder}`,
+        copied: ({ placeholder }: { placeholder: string }) => `Copied ${placeholder}`,
+        copyFailed: ({ placeholder }: { placeholder: string }) => `Couldn't copy ${placeholder}`,
         description:
           "Use these placeholders in the system prompt or append prompt. Workbench expands them from the active session; saved files and previews keep the original placeholders. Unknown placeholders stay unchanged.",
         cwd: "The session's working directory.",

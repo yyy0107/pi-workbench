@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Code2Icon, EyeIcon, InfoIcon } from "lucide-react";
+import { CheckIcon, CircleXIcon, Code2Icon, CopyIcon, EyeIcon, InfoIcon } from "lucide-react";
 
-import { Button } from "@workbench/shell/ui";
+import { useClipboardCopy } from "@workbench/shell/hooks";
+import { Button, TooltipIconButton } from "@workbench/shell/ui";
 import {
   Popover,
   PopoverContent,
@@ -189,6 +190,36 @@ function SystemPromptEditor({ target }: { target: PiResourceCatalogTarget }) {
   );
 }
 
+function PlaceholderCopyButton({ placeholder }: { placeholder: string }) {
+  const { t } = usePiI18n();
+  const { copy, status } = useClipboardCopy();
+  const copyLabel = t(
+    status === "copied"
+      ? "extensions.agentConfiguration.placeholders.copied"
+      : status === "failed"
+        ? "extensions.agentConfiguration.placeholders.copyFailed"
+        : "extensions.agentConfiguration.placeholders.copy",
+    { placeholder },
+  );
+
+  return (
+    <TooltipIconButton
+      type="button"
+      tooltip={copyLabel}
+      className="text-muted-foreground opacity-0 group-hover/placeholder:opacity-100 group-focus-within/placeholder:opacity-100 [@media(hover:none)]:opacity-100"
+      onClick={() => void copy(placeholder)}
+    >
+      {status === "copied" ? (
+        <CheckIcon aria-hidden="true" />
+      ) : status === "failed" ? (
+        <CircleXIcon aria-hidden="true" className="text-destructive" />
+      ) : (
+        <CopyIcon aria-hidden="true" />
+      )}
+    </TooltipIconButton>
+  );
+}
+
 function PromptSettingsEditor({
   field,
   target,
@@ -318,9 +349,10 @@ function PromptSettingsEditor({
                     "examples",
                   ] as const
                 ).map((name) => (
-                  <div key={name} className="py-2.5">
-                    <dt>
+                  <div key={name} className="group/placeholder py-2.5">
+                    <dt className="flex items-center gap-1">
                       <code className="select-text text-sm">{`{{pi.${name}}}`}</code>
+                      <PlaceholderCopyButton placeholder={`{{pi.${name}}}`} />
                     </dt>
                     <dd className="text-muted-foreground mt-1 text-xs leading-5">
                       {t(`extensions.agentConfiguration.placeholders.${name}`)}

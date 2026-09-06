@@ -108,6 +108,9 @@ export const piExtensionsZhCN = {
       },
       placeholders: {
         title: "动态占位符",
+        copy: ({ placeholder }: { placeholder: string }) => `复制 ${placeholder}`,
+        copied: ({ placeholder }: { placeholder: string }) => `已复制 ${placeholder}`,
+        copyFailed: ({ placeholder }: { placeholder: string }) => `无法复制 ${placeholder}`,
         description:
           "可用于系统提示词和追加提示词。Workbench 按实际会话展开，保存的文件和预览保留占位符原文，未知占位符保持不变。",
         cwd: "当前会话的工作目录。",
