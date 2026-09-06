@@ -339,9 +339,9 @@ function ThreadTokenUsage() {
       ? unavailable
       : t("extensions.tokenUsage.currentContextValue", {
           used:
-            contextTokens === null || contextTokens === undefined
+            contextUsedTokens === null || contextUsedTokens === undefined
               ? "—"
-              : compactTokens(contextTokens),
+              : compactTokens(contextUsedTokens),
           budget: compactTokens(contextBudget),
         });
 

@@ -453,6 +453,9 @@ Pi `ModelRuntime` 是 provider、model 和凭证状态的权威来源：
   `ToolInfo` 暂无显式 MCP 类型，因此 MCP 分类只采用保守的 source/name 元数据识别，未确认项归入
   扩展工具 Schema。
 
+状态栏与用量弹窗复用同一总量：压缩后尚无新的 Provider 用量时显示已有的分项估算，下一次响应后再
+对齐 Provider 用量。
+
 LLM transport 分成两个独立 route group。`transport/routes/model-provider-rpc-routes.ts` 拥有
 Provider 目录、非敏感配置、账号登录、配置/移除、模型目录、endpoint discovery 和图片能力测试共
 11 个方法的 validator、8 MiB 配置载体预算、八个 loopback-only 能力、取消映射与 session model
