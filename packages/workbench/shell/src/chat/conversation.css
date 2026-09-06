@@ -6,6 +6,13 @@
   --thread-index-motion-duration: var(--layout-state-motion-duration);
 }
 
+/* Preserve find-in-page, selection and renderer state while skipping off-screen layout/paint. */
+:where([data-slot="workbench-conversation"]) [data-conversation-history-row]:not(:focus-within) {
+  --conversation-row-estimated-size: calc(var(--assistant-turn-min-height) * 6);
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto var(--conversation-row-estimated-size);
+}
+
 /* Define derived radii at their consumption boundary, including detached Composer popups. */
 :where(
   [data-slot="workbench-conversation"],

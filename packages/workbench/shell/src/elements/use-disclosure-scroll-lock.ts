@@ -10,6 +10,15 @@ import {
 } from "./disclosure-scroll-policy";
 
 const DISCLOSURE_ANIMATION_DURATION = 200;
+const disclosureScrollLocks = new WeakMap<
+  HTMLElement,
+  { count: number; restoreStyles: () => void }
+>();
+export const DISCLOSURE_SCROLL_UNLOCK_EVENT = "workbench-disclosure-scroll-unlock";
+
+export function isDisclosureScrollLocked(container: HTMLElement): boolean {
+  return disclosureScrollLocks.has(container);
+}
 
 function findScrollContainer(element: HTMLElement): HTMLElement | null {
   let ancestor = element.parentElement;
@@ -81,6 +90,9 @@ function lockDisclosureTransition(
       scrollContainer.style[paddingSide] = previousPadding;
     }
   };
+  const lock = disclosureScrollLocks.get(scrollContainer) ?? { count: 0, restoreStyles };
+  lock.count++;
+  disclosureScrollLocks.set(scrollContainer, lock);
   const stop = () => {
     if (stopped) return;
     stopped = true;
@@ -88,7 +100,11 @@ function lockDisclosureTransition(
     window.clearTimeout(timeoutId);
     scrollContainer.removeEventListener("scroll", handleScroll);
     applyPosition();
-    restoreStyles();
+    if (--lock.count === 0) {
+      lock.restoreStyles();
+      disclosureScrollLocks.delete(scrollContainer);
+      scrollContainer.dispatchEvent(new Event(DISCLOSURE_SCROLL_UNLOCK_EVENT));
+    }
   };
   const finishTransition = () => {
     if (stopped) return;

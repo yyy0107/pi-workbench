@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 
 import {
   ThreadScrollStateProvider,
+  createThreadScrollState,
   useThreadScrollState,
   type ThreadScrollPersistencePort,
 } from "./thread-scroll-state";
@@ -13,6 +14,39 @@ import {
   flushReactMicrotasks,
   installMinimalReactDomEnvironment,
 } from "../test/react-dom-environment";
+
+test("scroll records preserve valid message anchors and accept old or malformed anchor records", () => {
+  const state = createThreadScrollState({
+    read: () =>
+      JSON.stringify([
+        ["old", { scrollTop: 100, atBottom: false }],
+        [
+          "anchored",
+          { scrollTop: 200, atBottom: false, anchor: { messageId: "message-50", offsetTop: -40 } },
+        ],
+        [
+          "invalid",
+          { scrollTop: 300, atBottom: false, anchor: { messageId: "", offsetTop: "bad" } },
+        ],
+      ]),
+    write: () => {},
+  });
+  assert.deepEqual(state.get("old"), { scrollTop: 100, atBottom: false });
+  assert.deepEqual(state.get("anchored")?.anchor, { messageId: "message-50", offsetTop: -40 });
+  assert.deepEqual(state.get("invalid"), { scrollTop: 300, atBottom: false });
+  state.dispose();
+  const memory = createThreadScrollState();
+  memory.save("new", {
+    scrollTop: 20,
+    atBottom: false,
+    anchor: { messageId: "key", offsetTop: 5 },
+  });
+  assert.deepEqual(memory.get("new")?.anchor, { messageId: "key", offsetTop: 5 });
+  memory.save("new", { scrollTop: 30, atBottom: true, anchor: { messageId: "key", offsetTop: 5 } });
+  assert.equal(memory.get("new")?.anchor, undefined);
+  memory.dispose();
+  assert.equal(memory.get("new"), undefined);
+});
 
 test("Workbench installations isolate same-id scroll state and cancel late persistence", async () => {
   const environment = installMinimalReactDomEnvironment();

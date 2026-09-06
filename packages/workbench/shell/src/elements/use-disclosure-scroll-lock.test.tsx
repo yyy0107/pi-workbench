@@ -5,7 +5,11 @@ import { createRoot } from "react-dom/client";
 
 import { installMinimalReactDomEnvironment } from "../../test/react-dom-environment";
 import { DisclosureScrollDirectionProvider } from "./disclosure-scroll-direction";
-import { useDisclosureScrollLock } from "./use-disclosure-scroll-lock";
+import {
+  DISCLOSURE_SCROLL_UNLOCK_EVENT,
+  isDisclosureScrollLocked,
+  useDisclosureScrollLock,
+} from "./use-disclosure-scroll-lock";
 
 test("disclosure compensation covers delayed layout and the actual animation lifetime", async () => {
   const environment = installMinimalReactDomEnvironment();
@@ -13,6 +17,7 @@ test("disclosure compensation covers delayed layout and the actual animation lif
   const frames = new Map<number, FrameRequestCallback>();
   const timers = new Map<number, () => void>();
   const scrollListeners = new Set<() => void>();
+  let unlocks = 0;
   let id = 0;
   let height = 24;
   let resize = () => {};
@@ -31,6 +36,10 @@ test("disclosure compensation covers delayed layout and the actual animation lif
     style: { paddingRight: "", scrollBehavior: "smooth", scrollbarWidth: "" },
     addEventListener: (_event: string, listener: () => void) => scrollListeners.add(listener),
     removeEventListener: (_event: string, listener: () => void) => scrollListeners.delete(listener),
+    dispatchEvent: (event: Event) => {
+      if (event.type === DISCLOSURE_SCROLL_UNLOCK_EVENT) unlocks++;
+      return true;
+    },
   };
   const disclosure = {
     parentElement: viewport,
@@ -82,10 +91,12 @@ test("disclosure compensation covers delayed layout and the actual animation lif
     },
   });
   let toggle = (_open: boolean) => {};
-  function Probe() {
+  let toggleSecond = (_open: boolean) => {};
+  function Probe({ second = false }: { second?: boolean }) {
     const [ref, onOpenChange] = useDisclosureScrollLock(() => {});
     ref.current = disclosure as unknown as HTMLDivElement;
-    toggle = onOpenChange;
+    if (second) toggleSecond = onOpenChange;
+    else toggle = onOpenChange;
     return null;
   }
 
@@ -98,6 +109,7 @@ test("disclosure compensation covers delayed layout and the actual animation lif
       );
     });
     toggle(true);
+    assert.equal(isDisclosureScrollLocked(viewport as unknown as HTMLElement), true);
     // Base UI starts its height transition after the click's animation-frame callbacks.
     for (const [frame, callback] of [...frames]) {
       frames.delete(frame);
@@ -124,11 +136,37 @@ test("disclosure compensation covers delayed layout and the actual animation lif
     assert.equal(disconnected, true);
     assert.equal(scrollListeners.size, 0);
     assert.equal(frames.size, 0);
+    assert.equal(isDisclosureScrollLocked(viewport as unknown as HTMLElement), false);
+    assert.equal(unlocks, 1);
 
     // Unmount still releases the lock immediately, even with an unfinished transition.
     animation.playState = "running";
+    await act(async () =>
+      reactRoot.render(
+        <DisclosureScrollDirectionProvider preferUpward>
+          <Probe />
+          <Probe second />
+        </DisclosureScrollDirectionProvider>,
+      ),
+    );
     toggle(true);
+    toggleSecond(true);
+    await act(async () =>
+      reactRoot.render(
+        <DisclosureScrollDirectionProvider preferUpward>
+          <Probe />
+        </DisclosureScrollDirectionProvider>,
+      ),
+    );
+    assert.equal(isDisclosureScrollLocked(viewport as unknown as HTMLElement), true);
+    assert.equal(
+      viewport.style.scrollBehavior,
+      "auto",
+      "overlapping disclosures share the style lock",
+    );
+    assert.equal(unlocks, 1, "viewport resumes only after the last disclosure finishes");
     await act(async () => reactRoot.unmount());
+    assert.equal(unlocks, 2);
     assert.equal(viewport.style.scrollBehavior, "smooth");
     assert.equal(scrollListeners.size, 0);
     assert.equal(timers.size, 0);

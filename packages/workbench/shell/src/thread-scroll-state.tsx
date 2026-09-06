@@ -4,9 +4,31 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 
 const MAX_SAVED_THREAD_SCROLL_POSITIONS = 50;
 
+export interface ThreadReadingPosition {
+  readonly messageId: string;
+  readonly offsetTop: number;
+}
+
 interface ThreadScrollPosition {
   readonly scrollTop: number;
   readonly atBottom: boolean;
+  readonly anchor?: ThreadReadingPosition;
+}
+
+function readingPosition(value: unknown): ThreadReadingPosition | undefined {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    !("messageId" in value) ||
+    typeof value.messageId !== "string" ||
+    value.messageId.length === 0 ||
+    !("offsetTop" in value) ||
+    typeof value.offsetTop !== "number" ||
+    !Number.isFinite(value.offsetTop)
+  ) {
+    return undefined;
+  }
+  return Object.freeze({ messageId: value.messageId, offsetTop: value.offsetTop });
 }
 
 /**
@@ -59,11 +81,14 @@ function parseThreadScrollPositions(serialized: string | null): Map<string, Thre
       ) {
         continue;
       }
+      const anchor =
+        !position.atBottom && "anchor" in position ? readingPosition(position.anchor) : undefined;
       positions.set(
         threadId,
         Object.freeze({
           scrollTop: Math.max(0, position.scrollTop),
           atBottom: position.atBottom,
+          ...(anchor ? { anchor } : {}),
         }),
       );
     }
@@ -111,11 +136,13 @@ export function createThreadScrollState(
       if (disposed) return;
       load();
       positions.delete(threadId);
+      const anchor = !position.atBottom ? readingPosition(position.anchor) : undefined;
       positions.set(
         threadId,
         Object.freeze({
           scrollTop: Math.max(0, position.scrollTop),
           atBottom: position.atBottom,
+          ...(anchor ? { anchor } : {}),
         }),
       );
 

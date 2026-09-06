@@ -2,7 +2,11 @@
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
-import { useThreadScrollState } from "../thread-scroll-state";
+import { useThreadScrollState, type ThreadReadingPosition } from "../thread-scroll-state";
+import {
+  DISCLOSURE_SCROLL_UNLOCK_EVENT,
+  isDisclosureScrollLocked,
+} from "../elements/use-disclosure-scroll-lock";
 
 const BOTTOM_DISTANCE_THRESHOLD = 2;
 const TOP_DISTANCE_THRESHOLD = 32;
@@ -44,6 +48,36 @@ function readReadingAnchor(viewport: HTMLElement): ConversationReadingAnchor | u
   const line = range.getBoundingClientRect();
   if (line.height === 0 || line.bottom <= bounds.top || line.top >= bounds.bottom) return undefined;
   return { range, offsetTop: line.top - bounds.top };
+}
+
+function savedReadingAnchor(
+  viewport: HTMLElement,
+  anchor: ConversationReadingAnchor | undefined,
+): ThreadReadingPosition | undefined {
+  const message = anchor?.range.startContainer.parentElement?.closest<HTMLElement>(
+    "[data-conversation-node-key]",
+  );
+  const messageId = message?.dataset.conversationNodeKey;
+  if (!message || !messageId || !viewport.contains(message)) return undefined;
+  return {
+    messageId,
+    offsetTop: message.getBoundingClientRect().top - viewport.getBoundingClientRect().top,
+  };
+}
+
+function restoredAnchorScrollTop(viewport: HTMLElement, anchor: ThreadReadingPosition | undefined) {
+  if (!anchor) return undefined;
+  const message = viewport.querySelector<HTMLElement>(
+    `[data-conversation-node-key="${CSS.escape(anchor.messageId)}"]`,
+  );
+  if (!message) return undefined;
+  return Math.max(
+    0,
+    viewport.scrollTop +
+      message.getBoundingClientRect().top -
+      viewport.getBoundingClientRect().top -
+      anchor.offsetTop,
+  );
 }
 
 export function conversationViewportAtBottom(metrics: ConversationViewportMetrics): boolean {
@@ -144,6 +178,7 @@ export function useWorkbenchConversationViewport({
   const pendingScrollBehavior = useRef<ScrollBehavior | null>(null);
   const restoring = useRef(false);
   const restorationScrollTop = useRef<number | null>(null);
+  const restorationAnchor = useRef<ThreadReadingPosition | undefined>(undefined);
   const restorationTimeout = useRef<number | null>(null);
   const lastMetrics = useRef<ConversationViewportMetrics | undefined>(undefined);
   const lastContentWidth = useRef<number | undefined>(undefined);
@@ -162,6 +197,7 @@ export function useWorkbenchConversationViewport({
     }
     restoring.current = false;
     restorationScrollTop.current = null;
+    restorationAnchor.current = undefined;
   }, []);
 
   const rememberPosition = useCallback(
@@ -170,7 +206,11 @@ export function useWorkbenchConversationViewport({
       lastMetrics.current = metrics;
       setIsAtBottom((current) => (current === atBottom ? current : atBottom));
       if (!restoring.current && pendingScrollBehavior.current === null) {
-        scrollState.save(sessionId, { scrollTop: metrics.scrollTop, atBottom });
+        scrollState.save(sessionId, {
+          scrollTop: metrics.scrollTop,
+          atBottom,
+          anchor: atBottom ? undefined : savedReadingAnchor(viewport, readingAnchor.current),
+        });
       }
       return { atBottom, metrics };
     },
@@ -204,15 +244,22 @@ export function useWorkbenchConversationViewport({
     stopRestoration();
     restoring.current = true;
     restorationScrollTop.current = restoreAtBottom ? null : restoreScrollTop;
+    restorationAnchor.current = restoreAtBottom ? undefined : initialPosition?.anchor;
     followBottom.current = restoreAtBottom;
     pendingScrollBehavior.current = restoreAtBottom ? "instant" : null;
 
     const apply = () => {
       const maxScrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
       viewport.scrollTo({
-        top: restoreAtBottom ? viewport.scrollHeight : Math.min(restoreScrollTop, maxScrollTop),
+        top: restoreAtBottom
+          ? viewport.scrollHeight
+          : Math.min(
+              restoredAnchorScrollTop(viewport, restorationAnchor.current) ?? restoreScrollTop,
+              maxScrollTop,
+            ),
         behavior: "instant",
       });
+      if (!restoreAtBottom) readingAnchor.current = readReadingAnchor(viewport);
       rememberPosition(viewport);
     };
 
@@ -234,6 +281,7 @@ export function useWorkbenchConversationViewport({
         if (restorationTimeout.current === timeout) restorationTimeout.current = null;
         restoring.current = false;
         restorationScrollTop.current = null;
+        restorationAnchor.current = undefined;
         rememberPosition(viewport);
       }, 5_000);
       restorationTimeout.current = timeout;
@@ -299,10 +347,18 @@ export function useWorkbenchConversationViewport({
       const widthChanged =
         lastContentWidth.current !== undefined && lastContentWidth.current !== width;
       if (widthChanged) stopRestoration();
+      if (isDisclosureScrollLocked(viewport)) {
+        stopRestoration();
+        readingAnchor.current = readReadingAnchor(viewport);
+        lastContentWidth.current = width;
+        handleScroll();
+        return;
+      }
       if (restoring.current && restorationScrollTop.current !== null) {
         viewport.scrollTo({
           top: Math.min(
-            restorationScrollTop.current,
+            restoredAnchorScrollTop(viewport, restorationAnchor.current) ??
+              restorationScrollTop.current,
             Math.max(0, current.scrollHeight - current.clientHeight),
           ),
           behavior: "instant",
@@ -315,12 +371,13 @@ export function useWorkbenchConversationViewport({
       const shouldFollow =
         pendingScrollBehavior.current !== null ||
         ((autoScroll ||
+          !isRunning ||
           widthChanged ||
           lastMetrics.current?.clientHeight !== current.clientHeight) &&
           followBottom.current);
       const anchor = readingAnchor.current;
       const anchorLine =
-        widthChanged &&
+        !shouldFollow &&
         anchor?.range.startContainer.nodeType === 3 &&
         viewport.contains(anchor.range.startContainer)
           ? anchor.range.getBoundingClientRect()
@@ -350,6 +407,12 @@ export function useWorkbenchConversationViewport({
       const width = readContentWidth(viewport);
       if (width <= 0) return;
       const metrics = readViewportMetrics(viewport);
+      if (isDisclosureScrollLocked(viewport)) {
+        readingAnchor.current = readReadingAnchor(viewport);
+        lastContentWidth.current = width;
+        handleScroll(metrics);
+        return;
+      }
       const previous = lastMetrics.current;
       const resized =
         previous &&
@@ -367,16 +430,23 @@ export function useWorkbenchConversationViewport({
         return;
       }
       const moved = metrics.scrollTop !== lastMetrics.current?.scrollTop;
+      if (conversationViewportAtBottom(metrics)) readingAnchor.current = undefined;
+      else if (moved || !readingAnchor.current) readingAnchor.current = readReadingAnchor(viewport);
       handleScroll(metrics);
       lastContentWidth.current = width;
-      if (followBottom.current) readingAnchor.current = undefined;
-      else if (moved || !readingAnchor.current) readingAnchor.current = readReadingAnchor(viewport);
       if (conversationViewportAtTop(metrics)) onReachTop?.();
+    };
+
+    const handleDisclosureUnlock = () => {
+      readingAnchor.current = readReadingAnchor(viewport);
+      lastContentWidth.current = readContentWidth(viewport);
+      handleScroll();
     };
 
     viewport.addEventListener("scroll", handleViewportScroll, { passive: true });
     viewport.addEventListener("pointerdown", cancelPendingScroll, { passive: true });
     viewport.addEventListener("wheel", cancelPendingScroll, { passive: true });
+    viewport.addEventListener(DISCLOSURE_SCROLL_UNLOCK_EVENT, handleDisclosureUnlock);
     const disconnectContentObserver = observeViewportContent(viewport, handleContentChange);
     handleViewportScroll();
 
@@ -384,10 +454,15 @@ export function useWorkbenchConversationViewport({
       viewport.removeEventListener("scroll", handleViewportScroll);
       viewport.removeEventListener("pointerdown", cancelPendingScroll);
       viewport.removeEventListener("wheel", cancelPendingScroll);
+      viewport.removeEventListener(DISCLOSURE_SCROLL_UNLOCK_EVENT, handleDisclosureUnlock);
       disconnectContentObserver();
       const restorationTarget = restorationScrollTop.current;
       if (restorationTarget !== null) {
-        scrollState.save(sessionId, { scrollTop: restorationTarget, atBottom: false });
+        scrollState.save(sessionId, {
+          scrollTop: restorationTarget,
+          atBottom: false,
+          anchor: restorationAnchor.current,
+        });
         return;
       }
       const position = readViewportMetrics(viewport);
@@ -396,9 +471,18 @@ export function useWorkbenchConversationViewport({
         atBottom:
           conversationViewportAtBottom(position) ||
           (followBottom.current && pendingScrollBehavior.current !== null),
+        anchor: savedReadingAnchor(viewport, readingAnchor.current),
       });
     };
-  }, [autoScroll, onReachTop, rememberPosition, scrollState, sessionId, stopRestoration]);
+  }, [
+    autoScroll,
+    isRunning,
+    onReachTop,
+    rememberPosition,
+    scrollState,
+    sessionId,
+    stopRestoration,
+  ]);
 
   useLayoutEffect(() => {
     const runStarted = !previousIsRunning.current && isRunning;

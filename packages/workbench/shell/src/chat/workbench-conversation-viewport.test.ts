@@ -66,6 +66,7 @@ async function checkConversationViewport(autoScroll: boolean) {
   const root = createRoot(environment.container);
   const originalResize = Object.getOwnPropertyDescriptor(globalThis, "ResizeObserver");
   const originalMutation = Object.getOwnPropertyDescriptor(globalThis, "MutationObserver");
+  const originalCss = Object.getOwnPropertyDescriptor(globalThis, "CSS");
   const frames = new Map<number, FrameRequestCallback>();
   const timeouts = new Map<number, () => void>();
   const listeners = new Map<string, () => void>();
@@ -86,7 +87,12 @@ async function checkConversationViewport(autoScroll: boolean) {
     scrollHeight: 0,
     scrollTop: 0,
     children: [flow],
-    querySelector: () => (flowAttached ? flow : null),
+    querySelector: (selector: string) =>
+      !flowAttached
+        ? null
+        : selector.includes("data-conversation-node-key")
+          ? { getBoundingClientRect: () => ({ top: lineContentTop - viewport.scrollTop }) }
+          : flow,
     contains: (node: unknown) => node === text && textConnected,
     getBoundingClientRect: () => ({ top: 0, bottom: 300, left: 0, width: 900, height: 300 }),
     ownerDocument: {
@@ -121,6 +127,7 @@ async function checkConversationViewport(autoScroll: boolean) {
     clearTimeout: (timeout: number) => timeouts.delete(timeout),
   });
   Object.defineProperties(globalThis, {
+    CSS: { configurable: true, value: { escape: (value: string) => value } },
     ResizeObserver: {
       configurable: true,
       value: class {
@@ -173,7 +180,17 @@ async function checkConversationViewport(autoScroll: boolean) {
       root.render(
         createElement(ThreadScrollStateProvider, {
           persistence: {
-            read: () => JSON.stringify([["reflow", { scrollTop: 360, atBottom: false }]]),
+            read: () =>
+              JSON.stringify([
+                [
+                  "reflow",
+                  {
+                    scrollTop: autoScroll ? 80 : 360,
+                    atBottom: false,
+                    ...(autoScroll ? { anchor: { messageId: "message", offsetTop: 32 } } : {}),
+                  },
+                ],
+              ]),
             write: () => {},
           },
           children: createElement(Probe),
@@ -198,7 +215,7 @@ async function checkConversationViewport(autoScroll: boolean) {
     assert.equal(
       viewport.scrollTop,
       360,
-      "initial content width must not cancel history restoration",
+      "restoration uses a message anchor when available and accepts legacy pixel records",
     );
     assert.equal(atBottom, false);
     // Only the content gutter changes: viewport.clientWidth stays constant.
@@ -229,6 +246,22 @@ async function checkConversationViewport(autoScroll: boolean) {
       resize();
     });
     assert.equal(viewport.scrollTop, 260, "streaming below the reader must not move them");
+    await act(async () => {
+      viewport.scrollHeight += 100;
+      lineContentTop += 100;
+      resize();
+    });
+    assert.equal(
+      viewport.scrollTop,
+      360,
+      "intrinsic size corrections above the reader preserve the text anchor",
+    );
+    await act(async () => {
+      viewport.scrollHeight -= 100;
+      lineContentTop -= 100;
+      resize();
+    });
+    assert.equal(viewport.scrollTop, 260);
     await act(async () => {
       width = 0;
       resize();
@@ -323,9 +356,13 @@ async function checkConversationViewport(autoScroll: boolean) {
     await act(async () => {
       root.unmount();
     });
+    assert.equal(observed.size, 0);
+    assert.equal(listeners.size, 0);
+    assert.equal(timeouts.size, 0);
     for (const [name, descriptor] of [
       ["ResizeObserver", originalResize],
       ["MutationObserver", originalMutation],
+      ["CSS", originalCss],
     ] as const) {
       if (descriptor) Object.defineProperty(globalThis, name, descriptor);
       else Reflect.deleteProperty(globalThis, name);
