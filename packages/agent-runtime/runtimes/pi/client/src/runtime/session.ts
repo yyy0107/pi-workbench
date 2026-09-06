@@ -113,6 +113,7 @@ import { piHistoryFromSessionEvents, piPromptContent } from "../sessions/session
 import {
   piAutoRetryFromEvent,
   piAutoRetryFromHistory,
+  piAutoRetryRecovered,
   type PiAutoRetrySnapshot,
 } from "./auto-retry";
 import {
@@ -1631,6 +1632,10 @@ export class PiClientSession implements ConversationSession {
       });
     }
 
+    if (this.snapshotValue.autoRetry && piAutoRetryRecovered(event.type, event)) {
+      this.replaceSnapshot({ autoRetry: undefined });
+    }
+
     if (event.type === "connected") {
       this.reconcileQueue(event);
       this.setRunningFromManager(event.isRunning === true);
@@ -1653,11 +1658,6 @@ export class PiClientSession implements ConversationSession {
       this.pendingContextTraceEvents = [];
       this.contextTracePromptPresentations.clear();
       this.publishMessages({ autoRetry });
-      return;
-    }
-    if (event.type === "auto_retry_end") {
-      // Keep the retry presentation mounted until agent_settled closes the complete run. Clearing
-      // it here creates a brief, misleading Pi Working frame after the final retry response.
       return;
     }
 

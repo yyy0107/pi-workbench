@@ -2509,7 +2509,7 @@ test("ends the visible run at a terminal response while host cleanup remains act
   assert.equal(manager.isRunning("remote-session"), false);
 });
 
-test("projects automatic-retry progress until the complete run settles", (t) => {
+test("clears automatic-retry progress as output resumes while the run stays active", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   (manager as unknown as { refreshMetadata(): Promise<void> }).refreshMetadata = async () => {};
@@ -2535,15 +2535,36 @@ test("projects automatic-retry progress until the complete run settles", (t) => 
   assert.equal(session.getSnapshot().isRunning, true);
 
   internals.handleEvent({
-    type: "auto_retry_end",
+    type: "message_start",
     sequence: 1,
-    success: false,
-    attempt: 2,
-    finalError: "fetch failed",
+    message: { role: "assistant", content: [], timestamp: 1 },
   });
   assert.deepEqual(session.getSnapshot().autoRetry, { attempt: 2, maxAttempts: 3 });
 
-  internals.handleEvent({ type: "agent_settled", sequence: 2 });
+  internals.handleEvent({
+    type: "message_update",
+    sequence: 2,
+    message: { role: "assistant", content: [{ type: "text", text: "Recovered" }], timestamp: 1 },
+  });
+  assert.equal(session.getSnapshot().autoRetry, undefined);
+  assert.equal(session.getSnapshot().isRunning, true);
+
+  internals.handleEvent({
+    type: "auto_retry_start",
+    sequence: 3,
+    attempt: 3,
+    maxAttempts: 3,
+  });
+  internals.handleEvent({
+    type: "auto_retry_end",
+    sequence: 4,
+    success: false,
+    attempt: 3,
+    finalError: "fetch failed",
+  });
+  assert.deepEqual(session.getSnapshot().autoRetry, { attempt: 3, maxAttempts: 3 });
+
+  internals.handleEvent({ type: "agent_settled", sequence: 5 });
   assert.equal(session.getSnapshot().autoRetry, undefined);
   assert.equal(session.getSnapshot().isRunning, false);
 });
