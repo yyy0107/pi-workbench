@@ -24,6 +24,8 @@ import { useI18n } from "../../i18n";
 
 import { WorkbenchComposerMessageTextContent } from "../composer-message-text";
 
+const EMPTY_SOURCES: readonly Source[] = Object.freeze([]);
+
 function resolvedMediaType(block: FileBlock): string {
   return block.mediaType ?? /^data:([^;,]+)/i.exec(block.source)?.[1] ?? "application/octet-stream";
 }
@@ -40,7 +42,7 @@ export function WorkbenchMessageTextBlock({
   block,
   composerDocument,
   role,
-  sources = [],
+  sources = EMPTY_SOURCES,
   streaming = false,
 }: Readonly<{
   block: TextBlock;

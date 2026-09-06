@@ -326,10 +326,18 @@ const streamdownLinkSafety = {
   renderModal: (props) => <MarkdownLinkSafetyDialog {...props} />,
 } satisfies LinkSafetyConfig;
 
-const ConfiguredMarkdownText = memo(function ConfiguredMarkdownText({
+function ConfiguredMarkdownText({
+  text,
+  defer = false,
+  ...props
+}: MarkdownTextProps & Readonly<{ text: string; renderDiagrams?: boolean }>) {
+  const deferredText = useDeferredValue(text);
+  return <RenderedMarkdownText {...props} text={defer ? deferredText : text} />;
+}
+
+const RenderedMarkdownText = memo(function RenderedMarkdownText({
   className,
   codeTheme: codeThemeOverride,
-  defer = false,
   inheritLineHeight = false,
   isRunning = false,
   mode = isRunning ? "streaming" : "static",
@@ -349,7 +357,6 @@ const ConfiguredMarkdownText = memo(function ConfiguredMarkdownText({
     const normalized = escapeCurrencyDollars(normalizeMathDelimiters(text));
     return preprocess?.(normalized) ?? normalized;
   }, [preprocess, text]);
-  const deferredText = useDeferredValue(processed);
 
   return (
     <Streamdown
@@ -371,7 +378,7 @@ const ConfiguredMarkdownText = memo(function ConfiguredMarkdownText({
       animated={Boolean(smooth && isRunning)}
       plugins={plugins}
     >
-      {defer ? deferredText : processed}
+      {processed}
     </Streamdown>
   );
 });
@@ -408,6 +415,7 @@ export const MarkdownTextContentWithCitations = memo(function MarkdownTextConten
       <ConfiguredMarkdownText
         text={text}
         isRunning={isRunning}
+        defer={isRunning}
         mode={isRunning ? "streaming" : "static"}
         preprocess={preprocess}
         smooth
