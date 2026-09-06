@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import fs from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -9,7 +11,11 @@ import {
   type FileEntry,
   type SessionMessageEntry,
 } from "@earendil-works/pi-coding-agent";
-import { aggregateUsageStatistics, readUsageStatistics } from "../../src/sessions/usage-statistics";
+import {
+  aggregateUsageStatistics,
+  readUsageStatistics,
+  usageMessages,
+} from "../../src/sessions/usage-statistics";
 import { getLoadedSessions } from "../../src/sessions/session-registry";
 import { createUsageStatisticsRpcRoutes } from "../../src/transport/routes/usage-statistics-rpc-routes";
 
@@ -48,7 +54,7 @@ function message(
 }
 
 async function* sessions(...values: FileEntry[][]) {
-  yield* values;
+  for (const entries of values) yield usageMessages(entries);
 }
 
 test("reads and refreshes native persisted sessions without starting hosts or changing their files", async (t) => {
@@ -75,10 +81,40 @@ test("reads and refreshes native persisted sessions without starting hosts or ch
   assert.equal(first.longestChatMs, 60_000);
   assert.equal(getLoadedSessions().length, 0);
   assert.equal(await readFile(file, "utf8"), before);
+  let reads = 0;
+  const originalReadFile = fs.readFile;
+  const readMock = t.mock.method(fs, "readFile", (...args: Parameters<typeof fs.readFile>) => {
+    if (args[0] === file) reads++;
+    return originalReadFile(...args);
+  });
+  syncBuiltinESMExports();
+  t.after(() => {
+    readMock.mock.restore();
+    syncBuiltinESMExports();
+  });
+  const cached = await readUsageStatistics({ timeZone: "UTC" }, new AbortController().signal);
+  assert.deepEqual(cached.days, first.days);
+  assert.equal(reads, 0, "unchanged session files must not be read again");
+  const localized = await readUsageStatistics(
+    { timeZone: "America/Los_Angeles" },
+    new AbortController().signal,
+  );
+  assert.equal(localized.days[0]!.date, "2025-12-31");
+  assert.equal(reads, 0, "changing timezone reuses message statistics without reading the file");
   manager.appendMessage(message("next", "2026-01-02T00:01:00Z").message);
   const refreshed = await readUsageStatistics({ timeZone: "UTC" }, new AbortController().signal);
   assert.equal(refreshed.totalTokens, 200);
   assert.equal(refreshed.longestStreak, 2);
+  assert.ok(reads > 0, "changed files must be read again");
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(readUsageStatistics({ timeZone: "UTC" }, controller.signal), {
+    name: "AbortError",
+  });
+  await rm(file);
+  const deleted = await readUsageStatistics({ timeZone: "UTC" }, new AbortController().signal);
+  assert.equal(deleted.totalTokens, 0);
+  assert.deepEqual(deleted.days, []);
 });
 
 test("aggregates real messages across branches, local dates and DST without counting copied journals", async () => {

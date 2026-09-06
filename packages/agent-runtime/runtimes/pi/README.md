@@ -186,6 +186,7 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 - Usage statistics：`usage.statistics({ timeZone })` 按指定时区汇总已保存会话（含归档）的每日助手
   Token、分模型用量与聊天连续天数；读取复用会话目录，不启动空闲 AgentSession，不向浏览器返回消息正文。
   分支继承消息只计一次，Token 包含输入、输出及缓存用量；峰值为单日最高值，最长聊天时长为会话首末消息跨度（含空闲）。
+  统计字段按会话文件指纹缓存在内存中，刷新只重读变化的文件，删除的文件同时移出缓存；消息正文和工具结果不进入缓存。
 
 另外还提供：
 

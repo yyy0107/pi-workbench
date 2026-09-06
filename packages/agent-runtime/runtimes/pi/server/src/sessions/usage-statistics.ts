@@ -10,9 +10,45 @@ import { listSessionFiles } from "./session-registry";
 
 const DAY_MS = 86_400_000;
 
+interface UsageMessage {
+  identity: string;
+  timestamp: number;
+  tokens: number;
+  provider: string;
+  model: string;
+}
+
+// Retain only statistics fields, never message bodies, tool results, or event journals.
+const sessionUsageCache = new Map<
+  string,
+  { fingerprint: string | undefined; messages: readonly UsageMessage[] }
+>();
+
+export function usageMessages(entries: readonly FileEntry[]): UsageMessage[] {
+  const messages: UsageMessage[] = [];
+  for (const entry of entries) {
+    if (entry?.type !== "message" || !entry.message) continue;
+    const message = entry.message;
+    if (message.role !== "user" && message.role !== "assistant") continue;
+    if (!Number.isFinite(message.timestamp) || message.timestamp < 0) continue;
+    const usage = message.role === "assistant" && readWorkbenchMessageUsage(message.usage);
+    messages.push({
+      identity: JSON.stringify([entry.id, message.timestamp, message.role]),
+      timestamp: message.timestamp,
+      tokens: usage ? usage.input + usage.output + usage.cacheRead + usage.cacheWrite : 0,
+      provider:
+        message.role === "assistant" && typeof message.provider === "string"
+          ? message.provider
+          : "",
+      model: message.role === "assistant" && typeof message.model === "string" ? message.model : "",
+    });
+  }
+  return messages;
+}
+
 /** Aggregate native messages once; canonical event journals contain copies of the same messages. */
 export async function aggregateUsageStatistics(
-  sessions: AsyncIterable<readonly FileEntry[]>,
+  sessions: AsyncIterable<readonly UsageMessage[]>,
   timeZone: string,
   now = new Date(),
 ): Promise<UsageStatisticsValue> {
@@ -38,31 +74,21 @@ export async function aggregateUsageStatistics(
   for await (const entries of sessions) {
     let first = Infinity;
     let last = -Infinity;
-    for (const entry of entries) {
-      if (entry?.type !== "message" || !entry.message) continue;
-      const message = entry.message;
-      if (message.role !== "user" && message.role !== "assistant") continue;
-      const timestamp = message.timestamp;
-      if (!Number.isFinite(timestamp) || timestamp < 0 || timestamp > now.getTime()) continue;
+    for (const message of entries) {
+      const { timestamp, identity, tokens, provider, model } = message;
+      if (timestamp > now.getTime()) continue;
       first = Math.min(first, timestamp);
       last = Math.max(last, timestamp);
       // Pi forks preserve entry IDs and timestamps. Count inherited messages only once,
       // while retaining all independently generated branches and retries.
-      const identity = JSON.stringify([entry.id, timestamp, message.role]);
       if (seen.has(identity)) continue;
       seen.add(identity);
       const date = dayKey(timestamp);
       const day = days.get(date) ?? { date, tokens: 0, messages: 0, models: [] };
       days.set(date, day);
       day.messages += 1;
-      if (message.role !== "assistant") continue;
-      const usage = readWorkbenchMessageUsage(message.usage);
-      if (!usage) continue;
-      const tokens = usage.input + usage.output + usage.cacheRead + usage.cacheWrite;
       if (tokens === 0) continue;
       day.tokens += tokens;
-      const provider = typeof message.provider === "string" ? message.provider : "";
-      const model = typeof message.model === "string" ? message.model : "";
       const series = day.models.find((item) => item.provider === provider && item.model === model);
       if (series) series.tokens += tokens;
       else day.models.push({ provider, model, tokens });
@@ -99,15 +125,31 @@ export async function readUsageStatistics(
   { timeZone }: UsageStatisticsPayload,
   signal: AbortSignal,
 ): Promise<UsageStatisticsValue> {
+  signal.throwIfAborted();
+  const files = await listSessionFiles();
+  const paths = new Set(files.map((file) => file.path));
+  for (const path of sessionUsageCache.keys()) {
+    if (!paths.has(path)) sessionUsageCache.delete(path);
+  }
   async function* storedSessions() {
-    // ponytail: parse one stored file at a time on demand; add fingerprint caching if scans become slow.
-    for (const path of await listSessionFiles()) {
+    for (const { path, fingerprint } of files) {
       signal.throwIfAborted();
+      const cached = sessionUsageCache.get(path);
+      if (fingerprint !== undefined && cached?.fingerprint === fingerprint) {
+        yield cached.messages;
+        continue;
+      }
       try {
-        yield parseSessionEntries(await readFile(path, { encoding: "utf8", signal }));
+        const messages = usageMessages(
+          parseSessionEntries(await readFile(path, { encoding: "utf8", signal })),
+        );
+        signal.throwIfAborted();
+        sessionUsageCache.set(path, { fingerprint, messages });
+        yield messages;
       } catch (error) {
         // A conversation can be deleted after the catalog snapshot was taken.
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        sessionUsageCache.delete(path);
       }
     }
   }

@@ -397,8 +397,12 @@ function TokenTrend({ snapshot }: { snapshot: UsageStatisticsValue }) {
 export function UsageStatisticsSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
   const client = usePiUsageStatisticsClient();
   const { date, number, locale, t } = usePiI18n();
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [result, setResult] = useState<{ client: typeof client; value: UsageStatisticsValue }>();
-  const snapshot = result?.client === client ? result.value : undefined;
+  const snapshot =
+    result?.client === client && result.value.timeZone === timeZone
+      ? result.value
+      : client.getSnapshot(timeZone);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -407,7 +411,7 @@ export function UsageStatisticsSettingsItem({ sectionId, itemId }: SettingsItemC
     setLoading(true);
     setFailed(false);
     void client
-      .read(Intl.DateTimeFormat().resolvedOptions().timeZone, controller.signal)
+      .read(timeZone, controller.signal)
       .then(
         (value) => {
           if (!controller.signal.aborted) setResult({ client, value });
@@ -420,7 +424,7 @@ export function UsageStatisticsSettingsItem({ sectionId, itemId }: SettingsItemC
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [client, revision]);
+  }, [client, revision, timeZone]);
 
   const metrics = snapshot
     ? ([
