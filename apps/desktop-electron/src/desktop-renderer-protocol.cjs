@@ -133,6 +133,8 @@ function createDesktopRendererProtocolHandler(
         "object-src 'none'",
         "script-src 'self'",
         "style-src 'self'",
+        // xterm's DOM renderer generates styles for fonts, ANSI colors and the cursor.
+        "style-src-elem 'self' 'unsafe-inline'",
         "worker-src 'self' blob:",
       ].join("; "),
     );
