@@ -1,4 +1,4 @@
-import { ScanSearchIcon } from "lucide-react";
+import { LayersIcon, ScanSearchIcon } from "lucide-react";
 
 import {
   createLazyWorkspaceSurface,
@@ -60,7 +60,7 @@ export const contextTraceExtension = defineExtension({
           getKey: (part) => parsePiContextTraceData(part.data)?.event.traceId,
           label: definePiMessage("extensions.contextTrace.messagePart.contextComposed"),
           activeLabel: definePiMessage("extensions.contextTrace.messagePart.composingContext"),
-          icon: ScanSearchIcon,
+          icon: LayersIcon,
         },
         isVisible: (part) => {
           const parsed = parsePiContextTraceData(part.data);

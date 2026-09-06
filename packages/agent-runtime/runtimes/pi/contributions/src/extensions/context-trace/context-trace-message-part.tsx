@@ -194,7 +194,6 @@ export const ContextTraceMessagePart: DataRendererComponent = ({ block }) => {
         requestLabel=""
         resultLabel=""
         icon={ScanSearchIcon}
-        iconClassName="[--chat-icon-size:var(--icon-size-md)]"
         running={false}
         showCompletionIcon={false}
         expandable={rows.length > 0}
