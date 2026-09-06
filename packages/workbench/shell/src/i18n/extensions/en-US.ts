@@ -948,9 +948,6 @@ export const extensionsEnUS = {
         "Queue follow-up messages while a conversation is running, or steer the ongoing run. Press Ctrl/Cmd+Enter to use the opposite action for a single message.",
       queue: "Add to queue",
       steer: "Steer the run",
-      enhancedSearch: "Enhanced Find and Grep",
-      enhancedSearchDescription:
-        "Search up to 8 directories in one call; Grep includes 2 context lines by default. Applies to new sessions and sessions restored after restart. Find on Windows is unchanged.",
       askUserAutoContinue: "Automatically continue unanswered questions",
       askUserAutoContinueDescription:
         "Skip each unanswered question after 5 minutes. Turning this off removes the timer from current and future questions. Approval requests still require your decision.",

@@ -925,9 +925,6 @@ export const extensionsZhCN = {
         "在会话运行时将后续消息加入队列，或调整当前运行的方向。按 Ctrl/Cmd+↵ 可对单条消息执行相反操作。",
       queue: "加入队列",
       steer: "调整方向",
-      enhancedSearch: "增强 Find 和 Grep",
-      enhancedSearchDescription:
-        "一次调用可搜索最多 8 个目录，Grep 默认显示两行上下文。在新会话或重启后恢复的会话中生效；Windows 的 Find 保持不变。",
       askUserAutoContinue: "提问自动继续",
       askUserAutoContinueDescription:
         "每个问题 5 分钟未回答会自动跳过。关闭后，当前和后续问题都会等待你的回答。授权请求仍需你明确决定。",

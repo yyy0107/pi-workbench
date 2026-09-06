@@ -160,3 +160,26 @@ test("native tool preferences preserve explicit choices over enhanced-search def
   assert.equal(grep.getSnapshot().enabled, true);
   grep.dispose();
 });
+
+test("enhanced search restores the existing setting and only persists its own preference", async () => {
+  const patches: unknown[] = [];
+  let fail = false;
+  const search = createToolCapabilityPreferences(
+    {
+      load: async () => ({ enhancedSearch: true, findToolEnabled: false }),
+      update: async (patch) => {
+        if (fail) throw new Error("offline");
+        patches.push(patch);
+      },
+    },
+    "enhancedSearch",
+  );
+  await search.hydrate();
+  assert.equal(search.getSnapshot().enabled, true);
+  await search.setEnabled(false);
+  assert.deepEqual(patches, [{ enhancedSearch: false }]);
+  fail = true;
+  await assert.rejects(search.setEnabled(true), /offline/);
+  assert.deepEqual(search.getSnapshot(), { enabled: false, status: "ready", saveFailed: true });
+  search.dispose();
+});

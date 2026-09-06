@@ -17,11 +17,18 @@ import {
   Trash2Icon,
   UserRoundIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { ToolboxPromptDetails } from "./toolbox-prompt-details";
 
 import { useOpenerService, useWorkspaceContext } from "@workbench/shell/right-workspace/react";
-import { Button, StatusBadge, buttonVariants } from "@workbench/shell/ui";
+import {
+  Button,
+  SettingsGroup,
+  SettingsRow,
+  StatusBadge,
+  Switch,
+  buttonVariants,
+} from "@workbench/shell/ui";
 import {
   Dialog,
   DialogContent,
@@ -131,6 +138,39 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     <ToolboxPromptDetails params={params} />
   ) : (
     <OtherCapabilityDetails params={params} />
+  );
+}
+
+function EnhancedSearchSettings() {
+  const { t } = usePiI18n();
+  const id = useId();
+  const { enabled, status, saveFailed } = useToolCapabilityPreferences("enhancedSearch");
+  const { setEnabled } = useToolCapabilityPreferencesController("enhancedSearch");
+
+  return (
+    <SettingsGroup className="mt-5" aria-busy={status !== "ready"}>
+      <SettingsRow
+        label={<label htmlFor={id}>{t("extensions.toolbox.builtins.enhancedSearch")}</label>}
+        description={
+          <span id={`${id}-description`}>
+            {t("extensions.toolbox.builtins.enhancedSearchDescription")}
+          </span>
+        }
+      >
+        <Switch
+          id={id}
+          checked={enabled}
+          disabled={status !== "ready"}
+          aria-describedby={`${id}-description${saveFailed ? ` ${id}-error` : ""}`}
+          onCheckedChange={(checked) => void setEnabled(checked).catch(() => undefined)}
+        />
+      </SettingsRow>
+      {saveFailed ? (
+        <p id={`${id}-error`} role="alert" className="px-4 py-3 text-sm text-destructive">
+          {t("extensions.toolbox.builtins.enhancedSearchError")}
+        </p>
+      ) : null}
+    </SettingsGroup>
   );
 }
 
@@ -1052,6 +1092,11 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
           <p className="text-muted-foreground mt-2 text-sm">
             {t("extensions.toolbox.builtins.toggleDescription")}
           </p>
+        ) : null}
+
+        {builtinPreferenceKey === "findToolEnabled" ||
+        builtinPreferenceKey === "grepToolEnabled" ? (
+          <EnhancedSearchSettings />
         ) : null}
 
         {isSkill && skillMutationState === "failed" ? (

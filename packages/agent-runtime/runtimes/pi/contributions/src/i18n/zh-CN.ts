@@ -503,6 +503,10 @@ export const piExtensionsZhCN = {
         packageRemoved: "Pi Package 已卸载，相关能力已从会话中移除。",
       },
       builtins: {
+        enhancedSearch: "增强 Find 和 Grep",
+        enhancedSearchDescription:
+          "Find 和 Grep 共用此设置。一次调用可搜索最多 8 个目录，Grep 默认显示两行上下文。在新会话或重启后恢复的会话中生效；Windows 的 Find 保持不变。",
+        enhancedSearchError: "无法读取或保存增强搜索设置，请重试。",
         tools: {
           read: "读取文件和图片。",
           bash: "在工作区执行 Shell 命令。",

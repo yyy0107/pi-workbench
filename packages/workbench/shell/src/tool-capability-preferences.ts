@@ -38,6 +38,7 @@ export interface ToolCapabilityPreferences {
 export type ToolCapabilityPreferenceKey =
   | "askUserEnabled"
   | "todoEnabled"
+  | "enhancedSearch"
   | BuiltinToolPreferenceKey
   | BuiltinResourcePreferenceKey;
 
@@ -59,6 +60,7 @@ const PREFERENCE_RESOURCES: Record<ToolCapabilityPreferenceKey, symbol> = {
 
   askUserEnabled: Symbol("workbench.ask-user-preferences"),
   todoEnabled: Symbol("workbench.todo-preferences"),
+  enhancedSearch: Symbol("workbench.enhanced-search-preferences"),
 };
 
 export function parseAskUserEnabled(serialized: string | null): boolean {
@@ -101,7 +103,7 @@ export function createToolCapabilityPreferences(
   );
   const defaultEnabled = builtinName
     ? builtinToolEnabled(builtinName, {})
-    : key !== "todoEnabled";
+    : key !== "todoEnabled" && key !== "enhancedSearch";
   const serverSnapshot: ToolCapabilityPreferenceSnapshot = Object.freeze({
     enabled: defaultEnabled,
     status: "loading",

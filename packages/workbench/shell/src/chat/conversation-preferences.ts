@@ -16,7 +16,6 @@ type ConversationPreferences = Required<
     | "runningMessageMode"
     | "showReasoning"
     | "groupParallelTools"
-    | "enhancedSearch"
     | "askUserAutoContinue"
     | "retainAllModelIO"
     | "showTodos"
@@ -38,7 +37,6 @@ const DEFAULT_PREFERENCES: ConversationPreferences = {
   runningMessageMode: "queue",
   showReasoning: true,
   groupParallelTools: true,
-  enhancedSearch: false,
   askUserAutoContinue: true,
   retainAllModelIO: false,
   showTodos: true,
@@ -69,7 +67,6 @@ export function createConversationPreferences(settings: WorkbenchSettingsPort) {
               runningMessageMode: stored.runningMessageMode ?? "queue",
               showReasoning: stored.showReasoning ?? true,
               groupParallelTools: stored.groupParallelTools ?? true,
-              enhancedSearch: stored.enhancedSearch ?? false,
               askUserAutoContinue: stored.askUserAutoContinue ?? true,
               retainAllModelIO: stored.retainAllModelIO ?? false,
               showTodos: stored.showTodos ?? true,

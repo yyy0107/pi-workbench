@@ -19,7 +19,6 @@ test("restores conversation preferences, persists edits, and keeps confirmed val
     runningMessageMode: "steer",
     showReasoning: false,
     groupParallelTools: true,
-    enhancedSearch: false,
     askUserAutoContinue: true,
     retainAllModelIO: false,
     showTodos: true,

@@ -58,7 +58,6 @@ export function ConversationSettingsItem() {
           [
             "askUserAutoContinue",
             "retainAllModelIO",
-            "enhancedSearch",
             "showReasoning",
             "showTodos",
             "groupExplorationTools",

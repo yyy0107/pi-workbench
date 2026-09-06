@@ -550,6 +550,10 @@ export const piExtensionsEnUS = {
           "The Pi package was uninstalled and its capabilities were removed from the sessions.",
       },
       builtins: {
+        enhancedSearch: "Enhanced Find and Grep",
+        enhancedSearchDescription:
+          "Find and Grep share this setting. Search up to 8 directories in one call; Grep includes 2 context lines by default. Applies to new sessions and sessions restored after restart. Find on Windows is unchanged.",
+        enhancedSearchError: "Could not load or save enhanced search settings. Try again.",
         tools: {
           read: "Read files and images.",
           bash: "Run shell commands in the workspace.",
