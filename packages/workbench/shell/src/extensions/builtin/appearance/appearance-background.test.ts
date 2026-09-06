@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { applyWorkbenchDarkMode, workbenchAppearanceRoot } from "./appearance-background";
+import {
+  applyWorkbenchDarkMode,
+  snapshotSurfaceColors,
+  workbenchAppearanceRoot,
+} from "./appearance-background";
 
 class FakeClassList {
   readonly #classes = new Set<string>();
@@ -53,4 +57,22 @@ test("appearance production effects and selectors contain no document-root owner
   assert.doesNotMatch(effectSource, /document\.documentElement/u);
   assert.doesNotMatch(selectorSource, /:root/u);
   assert.match(selectorSource, /\[data-workbench-shell\]\[data-workbench-appearance\]/u);
+});
+
+test("captures aliased surface colors before applying opacity to their source token", () => {
+  const written = new Map<string, string>();
+  const style = {
+    getPropertyValue(property: string) {
+      if (property === "--muted" || property === "--accent" || property === "--sidebar-accent") {
+        return written.get("--muted") ?? "#f4f4f5";
+      }
+      return "#fdfdfd";
+    },
+  };
+  for (const [property, base] of snapshotSurfaceColors(style)) {
+    written.set(property, `color-mix(in srgb, ${base} 80%, transparent)`);
+  }
+  assert.equal(written.get("--muted"), "color-mix(in srgb, #f4f4f5 80%, transparent)");
+  assert.equal(written.get("--accent"), written.get("--muted"));
+  assert.equal(written.get("--sidebar-accent"), written.get("--muted"));
 });

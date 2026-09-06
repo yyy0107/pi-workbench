@@ -111,7 +111,7 @@ function SettingsDropdownContent({
     <DropdownMenuContent
       data-slot="settings-dropdown-content"
       className={cn(
-        "w-max min-w-(--anchor-width) max-w-[min(18rem,calc(100vw-2rem))] rounded-xl",
+        "w-max min-w-[max(12rem,var(--anchor-width))] max-w-[min(18rem,calc(100vw-2rem))] rounded-xl",
         className,
       )}
       {...props}

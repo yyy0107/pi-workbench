@@ -38,6 +38,10 @@ export const appearanceExtension = defineExtension({
         defineMessage("extensions.appearance.themeSettings.background"),
         defineMessage("extensions.appearance.themeSettings.foreground"),
         defineMessage("extensions.appearance.themeSettings.contrast"),
+        defineMessage("extensions.appearance.typography.font"),
+        defineMessage("extensions.appearance.typography.contentFont"),
+        defineMessage("extensions.appearance.typography.fontWeight"),
+        defineMessage("extensions.appearance.code.font"),
       ],
       component: AppearanceSettingsItem,
     });
@@ -56,7 +60,7 @@ export const appearanceExtension = defineExtension({
       title: defineMessage("extensions.appearance.interface.sectionTitle"),
       description: defineMessage("extensions.appearance.interface.description"),
       keywords: [
-        defineMessage("extensions.appearance.typography.title"),
+        defineMessage("extensions.appearance.preferences.uiFontSize"),
         defineMessage("extensions.appearance.runningIndicator.title"),
         defineMessage("extensions.appearance.activityAnimation.title"),
         defineMessage("extensions.appearance.surfaces.title"),
@@ -101,7 +105,6 @@ export const appearanceExtension = defineExtension({
       title: defineMessage("extensions.appearance.code.title"),
       description: defineMessage("extensions.appearance.code.description"),
       keywords: [
-        defineMessage("extensions.appearance.code.font"),
         defineMessage("extensions.appearance.preferences.codeFontSize"),
         defineMessage("extensions.appearance.preferences.codeTheme"),
       ],

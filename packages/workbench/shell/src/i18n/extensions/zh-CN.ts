@@ -1032,7 +1032,7 @@ export const extensionsZhCN = {
 
   appearance: {
     title: "主题",
-    description: "选择明暗模式，并分别调整浅色与深色主题配色。",
+    description: "选择明暗模式，调整主题颜色、字体和字重。",
     theme: {
       title: "主题",
       description: "跟随操作系统，或让工作台固定使用一种明暗模式。",
@@ -1044,29 +1044,52 @@ export const extensionsZhCN = {
       dark: "深色",
     },
     palette: {
-      title: "主题颜色",
-      description: "在同一处查看和调整完整的浅色与深色配色。",
+      title: "主题配置",
+      description:
+        "颜色与对比度按明暗主题分别设置，字体在两种主题间共用。对比度为 0 时不作额外调整。",
     },
     themeSettings: {
       accent: "强调色",
-      background: "基础色",
+      background: "背景",
       foreground: "前景",
       contrast: "对比度",
       lightAccent: "浅色主题强调色",
-      lightBackground: "浅色主题基础色",
+      lightBackground: "浅色主题背景色",
       lightForeground: "浅色主题前景色",
       lightContrast: "浅色主题对比度",
       darkAccent: "深色主题强调色",
-      darkBackground: "深色主题基础色",
+      darkBackground: "深色主题背景色",
       darkForeground: "深色主题前景色",
       darkContrast: "深色主题对比度",
+      customAccent: "自定义强调色",
       contrastValue: ({ contrast }: { contrast: number }, { number }: MessageFormatters) =>
-        `${number(contrast)}%`,
+        number(contrast),
+    },
+    accentColors: {
+      neutral: "中性",
+      blue: "蓝色",
+      green: "绿色",
+      orange: "橙色",
+      red: "红色",
+      pink: "粉色",
+      purple: "紫色",
+      custom: "自定义",
     },
     typography: {
       title: "字体",
-      description: "选择界面字体并调整 UI 文字的基准大小。",
+      description: "调整 UI 文字的基准大小；字体和字重可在主题配置中设置。",
       font: "UI 字体",
+      contentFont: "内容字体",
+      inheritUiFont: "与界面字体相同",
+      fontWeight: "字重",
+      fontWeightFor: ({ font }: { font: string }) => `${font}字重`,
+    },
+    fontWeights: {
+      "300": "细体",
+      "400": "常规",
+      "500": "中等",
+      "600": "半粗体",
+      "700": "粗体",
     },
     interface: {
       sectionTitle: "界面",
@@ -1109,6 +1132,7 @@ export const extensionsZhCN = {
         geist: "Geist",
         serif: "衬线字体",
         rounded: "圆体",
+        ubuntuSansMono: "Ubuntu Sans Mono",
       },
       code: {
         geistMono: "Geist Mono",
@@ -1232,7 +1256,7 @@ export const extensionsZhCN = {
     code: {
       sectionTitle: "代码",
       title: "代码显示",
-      description: "集中设置代码字体、字号和语法颜色。",
+      description: "调整代码字号和语法颜色；字体和字重可在主题配置中设置。",
       font: "代码字体",
     },
     preferences: {

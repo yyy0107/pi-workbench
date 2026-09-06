@@ -1,0 +1,25 @@
+[data-slot="color-picker"] .react-colorful {
+  width: 100%;
+  height: calc(var(--form-control-height) * 7);
+  gap: 0.75rem;
+}
+
+[data-slot="color-picker"] .react-colorful__saturation {
+  border: 0;
+  border-radius: var(--input-control-radius);
+}
+
+[data-slot="color-picker"] .react-colorful__hue {
+  height: var(--icon-size-md);
+  border-radius: var(--input-control-radius);
+}
+
+[data-slot="color-picker"] .react-colorful__pointer {
+  width: var(--icon-size-lg);
+  height: var(--icon-size-lg);
+}
+
+[data-slot="color-picker"] .react-colorful__interactive:focus-visible {
+  outline: 2px solid var(--control-focus-ring);
+  outline-offset: 2px;
+}

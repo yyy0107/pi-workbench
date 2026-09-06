@@ -5,6 +5,7 @@
 @import "./shell/shell-layout.css";
 @import "./ui/sidebar-items.css";
 @import "./ui/control-icons.css";
+@import "./ui/color-picker.css";
 @import "./chat/conversation.css";
 @import "./chat/markdown/markdown.css";
 

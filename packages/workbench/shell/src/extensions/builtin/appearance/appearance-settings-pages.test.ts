@@ -54,3 +54,23 @@ test("maps registered section ids to appearance settings pages", () => {
   assert.equal(resolveAppearanceSettingsPage("appearance"), "appearance");
   assert.equal(resolveAppearanceSettingsPage("unknown"), "appearance");
 });
+
+test("theme reset owns all font families and weights without resetting code syntax", () => {
+  const preferences = {
+    ...DEFAULT_APPEARANCE_PREFERENCES,
+    uiFont: "ubuntuSansMono",
+    uiFontWeight: 500,
+    contentFont: "serif",
+    contentFontWeight: 300,
+    codeFont: "systemMono",
+    codeFontWeight: 600,
+    codeTheme: "dracula",
+  } satisfies AppearancePreferences;
+  const reset = { ...preferences, ...DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE.appearance };
+
+  assert.equal(isDefaultAppearanceSettingsPage(preferences, "appearance"), false);
+  assert.equal(isDefaultAppearanceSettingsPage(reset, "appearance"), true);
+  assert.equal(reset.contentFont, "inherit");
+  assert.equal(reset.codeFontWeight, 400);
+  assert.equal(reset.codeTheme, "dracula");
+});

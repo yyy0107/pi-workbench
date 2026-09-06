@@ -31,8 +31,14 @@ export const CORNER_RADIUS_STYLES = [
 ] as const;
 export type CornerRadiusStyle = (typeof CORNER_RADIUS_STYLES)[number];
 
-export const UI_FONT_FAMILIES = ["system", "geist", "serif", "rounded"] as const;
+export const UI_FONT_FAMILIES = ["system", "geist", "serif", "rounded", "ubuntuSansMono"] as const;
 export type UiFontFamily = (typeof UI_FONT_FAMILIES)[number];
+
+export const CONTENT_FONT_FAMILIES = ["inherit", ...UI_FONT_FAMILIES] as const;
+export type ContentFontFamily = (typeof CONTENT_FONT_FAMILIES)[number];
+
+export const FONT_WEIGHTS = [300, 400, 500, 600, 700] as const;
+export type FontWeight = (typeof FONT_WEIGHTS)[number];
 
 export const RUNNING_INDICATOR_IDS = ["orb", "spinner", "pulse", "none"] as const;
 export type RunningIndicatorId = (typeof RUNNING_INDICATOR_IDS)[number];
@@ -205,10 +211,14 @@ export interface AppearancePreferences {
   darkForegroundColor: string;
   darkContrast: ThemeContrast;
   uiFont: UiFontFamily;
+  uiFontWeight: FontWeight;
+  contentFont: ContentFontFamily;
+  contentFontWeight: FontWeight;
   runningIndicatorId: RunningIndicatorId;
   runningIndicatorStyleId: string;
   runningIndicatorSize: number;
   codeFont: CodeFontFamily;
+  codeFontWeight: FontWeight;
   uiFontSize: UiFontSize;
   codeFontSize: CodeFontSize;
   codeTheme: CodeTheme;
@@ -227,18 +237,22 @@ export const DEFAULT_APPEARANCE_PREFERENCES = Object.freeze({
   borderColor: "#d7dce5",
   cornerRadius: "default",
   lightAccentColor: "#18181b",
-  lightBackgroundColor: "#ffffff",
-  lightForegroundColor: "#18181b",
+  lightBackgroundColor: "#fdfdfd",
+  lightForegroundColor: "#27272a",
   lightContrast: 100,
   darkAccentColor: "#f4f4f5",
   darkBackgroundColor: "#18181b",
   darkForegroundColor: "#fafafa",
   darkContrast: 100,
   uiFont: "geist",
+  uiFontWeight: 400,
+  contentFont: "inherit",
+  contentFontWeight: 400,
   runningIndicatorId: "orb",
   runningIndicatorStyleId: "connecting",
   runningIndicatorSize: 14,
   codeFont: "geistMono",
+  codeFontWeight: 400,
   uiFontSize: 16,
   codeFontSize: 13,
   codeTheme: "dark-plus",
@@ -357,6 +371,15 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
         : isOneOf(value.darkUiFont, UI_FONT_FAMILIES)
           ? value.darkUiFont
           : DEFAULT_APPEARANCE_PREFERENCES.uiFont,
+    uiFontWeight: isOneOf(value.uiFontWeight, FONT_WEIGHTS)
+      ? value.uiFontWeight
+      : DEFAULT_APPEARANCE_PREFERENCES.uiFontWeight,
+    contentFont: isOneOf(value.contentFont, CONTENT_FONT_FAMILIES)
+      ? value.contentFont
+      : DEFAULT_APPEARANCE_PREFERENCES.contentFont,
+    contentFontWeight: isOneOf(value.contentFontWeight, FONT_WEIGHTS)
+      ? value.contentFontWeight
+      : DEFAULT_APPEARANCE_PREFERENCES.contentFontWeight,
     runningIndicatorId: isOneOf(value.runningIndicatorId, RUNNING_INDICATOR_IDS)
       ? value.runningIndicatorId
       : DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorId,
@@ -385,6 +408,9 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
         : isOneOf(value.darkCodeFont, CODE_FONT_FAMILIES)
           ? value.darkCodeFont
           : DEFAULT_APPEARANCE_PREFERENCES.codeFont,
+    codeFontWeight: isOneOf(value.codeFontWeight, FONT_WEIGHTS)
+      ? value.codeFontWeight
+      : DEFAULT_APPEARANCE_PREFERENCES.codeFontWeight,
     uiFontSize: isIntegerInRange(value.uiFontSize, MIN_UI_FONT_SIZE, MAX_UI_FONT_SIZE)
       ? value.uiFontSize
       : DEFAULT_APPEARANCE_PREFERENCES.uiFontSize,

@@ -1060,7 +1060,7 @@ export const extensionsEnUS = {
 
   appearance: {
     title: "Theme",
-    description: "Choose a color mode and customize the light and dark theme palettes.",
+    description: "Choose a color mode and customize theme colors, fonts, and font weights.",
     theme: {
       title: "Theme",
       description: "Follow the operating system or keep Workbench in one color mode.",
@@ -1072,29 +1072,52 @@ export const extensionsEnUS = {
       dark: "Dark",
     },
     palette: {
-      title: "Theme colors",
-      description: "View and adjust the complete light and dark color palette together.",
+      title: "Theme configuration",
+      description:
+        "Colors and contrast are saved separately for light and dark themes. Fonts are shared. A contrast of 0 applies no extra adjustment.",
     },
     themeSettings: {
       accent: "Accent color",
-      background: "Base color",
+      background: "Background",
       foreground: "Foreground",
       contrast: "Contrast",
       lightAccent: "Light theme accent color",
-      lightBackground: "Light theme base color",
+      lightBackground: "Light theme background color",
       lightForeground: "Light theme foreground color",
       lightContrast: "Light theme contrast",
       darkAccent: "Dark theme accent color",
-      darkBackground: "Dark theme base color",
+      darkBackground: "Dark theme background color",
       darkForeground: "Dark theme foreground color",
       darkContrast: "Dark theme contrast",
+      customAccent: "Custom accent color",
       contrastValue: ({ contrast }: { contrast: number }, { number }: MessageFormatters) =>
-        `${number(contrast)}%`,
+        number(contrast),
+    },
+    accentColors: {
+      neutral: "Neutral",
+      blue: "Blue",
+      green: "Green",
+      orange: "Orange",
+      red: "Red",
+      pink: "Pink",
+      purple: "Purple",
+      custom: "Custom",
     },
     typography: {
       title: "Typography",
-      description: "Choose interface fonts and adjust the base UI text size.",
+      description: "Adjust the base UI text size. Fonts and weights are in Theme configuration.",
       font: "UI font",
+      contentFont: "Content font",
+      inheritUiFont: "Same as UI font",
+      fontWeight: "Font weight",
+      fontWeightFor: ({ font }: { font: string }) => `${font} weight`,
+    },
+    fontWeights: {
+      "300": "Light",
+      "400": "Regular",
+      "500": "Medium",
+      "600": "Semibold",
+      "700": "Bold",
     },
     interface: {
       sectionTitle: "Interface",
@@ -1138,6 +1161,7 @@ export const extensionsEnUS = {
         geist: "Geist",
         serif: "Serif",
         rounded: "Rounded",
+        ubuntuSansMono: "Ubuntu Sans Mono",
       },
       code: {
         geistMono: "Geist Mono",
@@ -1262,7 +1286,8 @@ export const extensionsEnUS = {
     code: {
       sectionTitle: "Code",
       title: "Code display",
-      description: "Configure code fonts, sizing, and syntax colors.",
+      description:
+        "Adjust code sizing and syntax colors. Fonts and weights are in Theme configuration.",
       font: "Code font",
     },
     preferences: {

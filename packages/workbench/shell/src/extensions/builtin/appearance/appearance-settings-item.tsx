@@ -6,6 +6,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CodeThemePreview } from "../../../code-highlighting/code-theme-preview";
 import { RunningThreadIndicator } from "../../../elements/running-thread-indicator";
 import { Button } from "../../../ui/button";
+import { ColorPicker } from "../../../ui/color-picker";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "../../../ui/popover";
 import { DropdownMenu, DropdownMenuRadioGroup } from "../../../ui/dropdown-menu";
 import {
   SettingsGroup as SharedSettingsGroup,
@@ -18,6 +20,8 @@ import {
   SettingsDropdownTrigger,
 } from "../../../ui/settings-control";
 import { Switch } from "../../../ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../ui/tabs";
+import { useMediaQuery } from "../../../hooks/use-media-query";
 import { useI18n } from "../../../i18n";
 import { RunningIndicator, useRunningIndicatorCatalog } from "../../../running-indicator";
 import { cn } from "../../../utils";
@@ -29,7 +33,9 @@ import {
   CODE_FONT_FAMILIES,
   CODE_THEMES,
   COLOR_MODES,
+  CONTENT_FONT_FAMILIES,
   CORNER_RADIUS_STYLES,
+  FONT_WEIGHTS,
   GLASS_BLURS,
   MAX_CODE_FONT_SIZE,
   MAX_RUNNING_INDICATOR_SIZE,
@@ -48,8 +54,10 @@ import {
   type CodeFontFamily,
   type CodeTheme,
   type ColorMode,
+  type ContentFontFamily,
   type CornerRadiusStyle,
   type GlassBlur,
+  type FontWeight,
   type RunningIndicatorId,
   type UiFontFamily,
 } from "../../../appearance";
@@ -269,31 +277,6 @@ function ColorModePicker({
   );
 }
 
-function ThemeModeControls({
-  lightLabel,
-  darkLabel,
-  lightControl,
-  darkControl,
-}: {
-  lightLabel: string;
-  darkLabel: string;
-  lightControl: ReactNode;
-  darkControl: ReactNode;
-}) {
-  return (
-    <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
-      <div className="min-w-0 space-y-1.5">
-        <div className="text-muted-foreground text-right text-xs">{lightLabel}</div>
-        <div className="flex justify-end">{lightControl}</div>
-      </div>
-      <div className="min-w-0 space-y-1.5">
-        <div className="text-muted-foreground text-right text-xs">{darkLabel}</div>
-        <div className="flex justify-end">{darkControl}</div>
-      </div>
-    </div>
-  );
-}
-
 function BackgroundImagePicker({ image }: { image: BackgroundImageSnapshot }) {
   const { t } = useI18n();
   const backgroundImage = useBackgroundImageController();
@@ -382,7 +365,7 @@ function SelectControl<Value extends string | number>({
   label: string;
   value: Value;
   options: readonly Value[];
-  optionLabel(value: Value): string;
+  optionLabel(value: Value): ReactNode;
   disabled?: boolean;
   onChange(value: Value): void;
 }) {
@@ -401,6 +384,108 @@ function SelectControl<Value extends string | number>({
         ))}
       </SettingsDropdownContent>
     </DropdownMenu>
+  );
+}
+
+function FontControl<Value extends string>({
+  label,
+  value,
+  options,
+  optionLabel,
+  weight,
+  weightDisabled,
+  onChange,
+  onWeightChange,
+}: {
+  label: string;
+  value: Value;
+  options: readonly Value[];
+  optionLabel(value: Value): string;
+  weight: FontWeight;
+  weightDisabled?: boolean;
+  onChange(value: Value): void;
+  onWeightChange(value: FontWeight): void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="flex min-w-0 flex-wrap justify-end gap-2">
+      <SelectControl
+        label={label}
+        value={value}
+        options={options}
+        optionLabel={optionLabel}
+        onChange={onChange}
+      />
+      <SelectControl
+        label={t("extensions.appearance.typography.fontWeightFor", { font: label })}
+        value={weight}
+        options={FONT_WEIGHTS}
+        optionLabel={(value) => t(`extensions.appearance.fontWeights.${value}`)}
+        disabled={weightDisabled}
+        onChange={onWeightChange}
+      />
+    </div>
+  );
+}
+
+const ACCENT_PALETTES = {
+  neutral: { light: "#18181b", dark: "#f4f4f5" },
+  blue: { light: "#2563eb", dark: "#60a5fa" },
+  green: { light: "#15803d", dark: "#4ade80" },
+  orange: { light: "#c2410c", dark: "#fb923c" },
+  red: { light: "#dc2626", dark: "#f87171" },
+  pink: { light: "#be185d", dark: "#f472b6" },
+  purple: { light: "#7e22ce", dark: "#c084fc" },
+} as const;
+type AccentPreset = keyof typeof ACCENT_PALETTES;
+const ACCENT_PRESETS = [...(Object.keys(ACCENT_PALETTES) as AccentPreset[]), "custom"] as const;
+
+function AccentColorControl({
+  mode,
+  color,
+  onChange,
+}: {
+  mode: "light" | "dark";
+  color: string;
+  onChange(color: string): void;
+}) {
+  const { t } = useI18n();
+  const [custom, setCustom] = useState(false);
+  const preset = ACCENT_PRESETS.find(
+    (id) => id !== "custom" && ACCENT_PALETTES[id][mode] === color,
+  );
+  const selection = custom ? "custom" : (preset ?? "custom");
+  return (
+    <div className="flex min-w-0 flex-wrap justify-end gap-2">
+      <SelectControl
+        label={t("extensions.appearance.themeSettings.accent")}
+        value={selection}
+        options={ACCENT_PRESETS}
+        optionLabel={(value) => (
+          <span className="inline-flex items-center gap-2">
+            {value !== "custom" ? (
+              <span
+                aria-hidden="true"
+                className="size-[var(--input-control-icon-size)] shrink-0 rounded-full"
+                style={{ backgroundColor: ACCENT_PALETTES[value][mode] }}
+              />
+            ) : null}
+            {t(`extensions.appearance.accentColors.${value}`)}
+          </span>
+        )}
+        onChange={(value) => {
+          setCustom(value === "custom");
+          if (value !== "custom") onChange(ACCENT_PALETTES[value][mode]);
+        }}
+      />
+      {selection === "custom" ? (
+        <ColorControl
+          color={color}
+          label={t("extensions.appearance.themeSettings.customAccent")}
+          onChange={onChange}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -644,19 +729,7 @@ function SwitchControl({
   );
 }
 
-function getColorControlForeground(color: string): "#18181b" | "#ffffff" {
-  const channels = [1, 3, 5].map((offset) => Number.parseInt(color.slice(offset, offset + 2), 16));
-  if (channels.some(Number.isNaN)) return "#18181b";
-
-  const [red = 0, green = 0, blue = 0] = channels.map((channel) => {
-    const value = channel / 255;
-    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  });
-  const luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722;
-  return luminance > 0.179 ? "#18181b" : "#ffffff";
-}
-
-const COLOR_COMMIT_DELAY_MS = 160;
+const COLOR_COMMIT_DELAY_MS = 50;
 
 function ColorControl({
   color,
@@ -713,24 +786,30 @@ function ColorControl({
   };
 
   return (
-    <label
-      className="flex h-[var(--input-control-height)] w-fit max-w-full items-center gap-2 rounded-[var(--input-control-radius)] px-2.5 text-sm shadow-xs ring-1 ring-black/10 has-disabled:opacity-50"
-      style={{
-        backgroundColor: draftColor,
-        color: getColorControlForeground(draftColor),
+    <Popover
+      onOpenChange={(open) => {
+        if (!open) commitDraftColor();
       }}
     >
-      <input
-        type="color"
-        value={draftColor}
-        disabled={disabled}
-        aria-label={label}
-        className="size-5 shrink-0 cursor-pointer appearance-none overflow-hidden rounded-full border border-current bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed [&::-moz-color-swatch]:border-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-full [&::-webkit-color-swatch]:border-0"
-        onBlur={commitDraftColor}
-        onChange={(event) => updateDraftColor(event.currentTarget.value)}
-      />
-      <span className="font-mono text-xs uppercase opacity-80">{draftColor}</span>
-    </label>
+      <PopoverTrigger
+        render={<Button type="button" variant="outline" disabled={disabled} aria-label={label} />}
+      >
+        <span
+          aria-hidden="true"
+          className="size-[var(--icon-size-lg)] shrink-0 rounded-[var(--input-control-radius)] border border-border"
+          style={{ backgroundColor: draftColor }}
+        />
+        <span className="font-mono text-xs uppercase">{draftColor}</span>
+      </PopoverTrigger>
+      <PopoverContent align="end">
+        <PopoverTitle>{label}</PopoverTitle>
+        <ColorPicker
+          color={draftColor}
+          onChange={updateDraftColor}
+          onChangeEnd={commitDraftColor}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -738,6 +817,13 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
   const { t, text } = useI18n();
   const appearanceController = useAppearanceController();
   const preferences = useAppearancePreferences();
+  const systemDark = useMediaQuery("(prefers-color-scheme: dark)");
+  const [themeOverride, setThemeOverride] = useState<"light" | "dark" | null>(null);
+  const editingTheme =
+    themeOverride ??
+    (preferences.colorMode === "dark" || (preferences.colorMode === "system" && systemDark)
+      ? "dark"
+      : "light");
   const activityIndicators = useRunningIndicatorCatalog();
   const activityIndicatorStyleId = activityIndicators.resolve(
     preferences.runningIndicatorStyleId,
@@ -765,6 +851,8 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
     cornerRadiusLabel(CORNER_RADIUS_STYLES[value] ?? preferences.cornerRadius);
   const uiFontLabel = (value: UiFontFamily): string =>
     t(`extensions.appearance.fontFamilies.ui.${value}`);
+  const contentFontLabel = (value: ContentFontFamily): string =>
+    value === "inherit" ? t("extensions.appearance.typography.inheritUiFont") : uiFontLabel(value);
   const runningIndicatorLabel = (value: RunningIndicatorId): string =>
     t(`extensions.appearance.runningIndicator.styles.${value}`);
   const activityIndicatorLabel = (value: string): string =>
@@ -789,113 +877,114 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                 label={t("extensions.appearance.theme.mode")}
                 value={preferences.colorMode}
                 optionLabel={colorModeLabel}
-                onChange={(colorMode) => appearanceController.update({ colorMode })}
+                onChange={(colorMode) => {
+                  setThemeOverride(null);
+                  appearanceController.update({ colorMode });
+                }}
               />
             </SettingGroup>
 
-            <SettingGroup
-              title={t("extensions.appearance.palette.title")}
-              description={t("extensions.appearance.palette.description")}
+            <Tabs
+              value={editingTheme}
+              onValueChange={(value) => {
+                if (value === "light" || value === "dark") setThemeOverride(value);
+              }}
             >
-              <SettingRow label={t("extensions.appearance.themeSettings.accent")} wideControl>
-                <ThemeModeControls
-                  lightLabel={colorModeLabel("light")}
-                  darkLabel={colorModeLabel("dark")}
-                  lightControl={
-                    <ColorControl
-                      color={preferences.lightAccentColor}
-                      label={t("extensions.appearance.themeSettings.lightAccent")}
-                      onChange={(lightAccentColor) =>
-                        appearanceController.update({ lightAccentColor })
+              <TabsList aria-label={t("extensions.appearance.palette.title")}>
+                <TabsTrigger value="light">{colorModeLabel("light")}</TabsTrigger>
+                <TabsTrigger value="dark">{colorModeLabel("dark")}</TabsTrigger>
+              </TabsList>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t("extensions.appearance.palette.description")}
+              </p>
+              <TabsContent key={editingTheme} value={editingTheme}>
+                <SharedSettingsGroup className="mt-4 rounded-[var(--radius-xl)] border border-border px-4">
+                  <SettingRow label={t("extensions.appearance.themeSettings.accent")} wideControl>
+                    <AccentColorControl
+                      mode={editingTheme}
+                      color={preferences[`${editingTheme}AccentColor`]}
+                      onChange={(color) =>
+                        appearanceController.update({ [`${editingTheme}AccentColor`]: color })
                       }
                     />
-                  }
-                  darkControl={
+                  </SettingRow>
+                  <SettingRow label={t("extensions.appearance.themeSettings.background")}>
                     <ColorControl
-                      color={preferences.darkAccentColor}
-                      label={t("extensions.appearance.themeSettings.darkAccent")}
-                      onChange={(darkAccentColor) =>
-                        appearanceController.update({ darkAccentColor })
+                      color={preferences[`${editingTheme}BackgroundColor`]}
+                      label={t(`extensions.appearance.themeSettings.${editingTheme}Background`)}
+                      onChange={(color) =>
+                        appearanceController.update({ [`${editingTheme}BackgroundColor`]: color })
                       }
                     />
-                  }
-                />
-              </SettingRow>
-              <SettingRow label={t("extensions.appearance.themeSettings.background")} wideControl>
-                <ThemeModeControls
-                  lightLabel={colorModeLabel("light")}
-                  darkLabel={colorModeLabel("dark")}
-                  lightControl={
+                  </SettingRow>
+                  <SettingRow label={t("extensions.appearance.themeSettings.foreground")}>
                     <ColorControl
-                      color={preferences.lightBackgroundColor}
-                      label={t("extensions.appearance.themeSettings.lightBackground")}
-                      onChange={(lightBackgroundColor) =>
-                        appearanceController.update({ lightBackgroundColor })
+                      color={preferences[`${editingTheme}ForegroundColor`]}
+                      label={t(`extensions.appearance.themeSettings.${editingTheme}Foreground`)}
+                      onChange={(color) =>
+                        appearanceController.update({ [`${editingTheme}ForegroundColor`]: color })
                       }
                     />
-                  }
-                  darkControl={
-                    <ColorControl
-                      color={preferences.darkBackgroundColor}
-                      label={t("extensions.appearance.themeSettings.darkBackground")}
-                      onChange={(darkBackgroundColor) =>
-                        appearanceController.update({ darkBackgroundColor })
+                  </SettingRow>
+                  <SettingRow label={t("extensions.appearance.typography.font")} wideControl>
+                    <FontControl
+                      label={t("extensions.appearance.typography.font")}
+                      value={preferences.uiFont}
+                      options={UI_FONT_FAMILIES}
+                      optionLabel={uiFontLabel}
+                      weight={preferences.uiFontWeight}
+                      onChange={(uiFont) => appearanceController.update({ uiFont })}
+                      onWeightChange={(uiFontWeight) =>
+                        appearanceController.update({ uiFontWeight })
                       }
                     />
-                  }
-                />
-              </SettingRow>
-              <SettingRow label={t("extensions.appearance.themeSettings.foreground")} wideControl>
-                <ThemeModeControls
-                  lightLabel={colorModeLabel("light")}
-                  darkLabel={colorModeLabel("dark")}
-                  lightControl={
-                    <ColorControl
-                      color={preferences.lightForegroundColor}
-                      label={t("extensions.appearance.themeSettings.lightForeground")}
-                      onChange={(lightForegroundColor) =>
-                        appearanceController.update({ lightForegroundColor })
+                  </SettingRow>
+                  <SettingRow label={t("extensions.appearance.typography.contentFont")} wideControl>
+                    <FontControl
+                      label={t("extensions.appearance.typography.contentFont")}
+                      value={preferences.contentFont}
+                      options={CONTENT_FONT_FAMILIES}
+                      optionLabel={contentFontLabel}
+                      weight={
+                        preferences.contentFont === "inherit"
+                          ? preferences.uiFontWeight
+                          : preferences.contentFontWeight
+                      }
+                      weightDisabled={preferences.contentFont === "inherit"}
+                      onChange={(contentFont) => appearanceController.update({ contentFont })}
+                      onWeightChange={(contentFontWeight) =>
+                        appearanceController.update({ contentFontWeight })
                       }
                     />
-                  }
-                  darkControl={
-                    <ColorControl
-                      color={preferences.darkForegroundColor}
-                      label={t("extensions.appearance.themeSettings.darkForeground")}
-                      onChange={(darkForegroundColor) =>
-                        appearanceController.update({ darkForegroundColor })
+                  </SettingRow>
+                  <SettingRow label={t("extensions.appearance.code.font")} wideControl>
+                    <FontControl
+                      label={t("extensions.appearance.code.font")}
+                      value={preferences.codeFont}
+                      options={CODE_FONT_FAMILIES}
+                      optionLabel={codeFontLabel}
+                      weight={preferences.codeFontWeight}
+                      onChange={(codeFont) => appearanceController.update({ codeFont })}
+                      onWeightChange={(codeFontWeight) =>
+                        appearanceController.update({ codeFontWeight })
                       }
                     />
-                  }
-                />
-              </SettingRow>
-              <SettingRow label={t("extensions.appearance.themeSettings.contrast")} wideControl>
-                <ThemeModeControls
-                  lightLabel={colorModeLabel("light")}
-                  darkLabel={colorModeLabel("dark")}
-                  lightControl={
+                  </SettingRow>
+                  <SettingRow label={t("extensions.appearance.themeSettings.contrast")}>
                     <RangeControl
-                      label={t("extensions.appearance.themeSettings.lightContrast")}
-                      value={preferences.lightContrast}
+                      label={t(`extensions.appearance.themeSettings.${editingTheme}Contrast`)}
+                      value={preferences[`${editingTheme}Contrast`] - 100}
                       formatValue={contrastLabel}
-                      minimum={MIN_THEME_CONTRAST}
-                      maximum={MAX_THEME_CONTRAST}
-                      onChange={(lightContrast) => appearanceController.update({ lightContrast })}
+                      minimum={MIN_THEME_CONTRAST - 100}
+                      maximum={MAX_THEME_CONTRAST - 100}
+                      onChange={(contrast) =>
+                        appearanceController.update({ [`${editingTheme}Contrast`]: contrast + 100 })
+                      }
                     />
-                  }
-                  darkControl={
-                    <RangeControl
-                      label={t("extensions.appearance.themeSettings.darkContrast")}
-                      value={preferences.darkContrast}
-                      formatValue={contrastLabel}
-                      minimum={MIN_THEME_CONTRAST}
-                      maximum={MAX_THEME_CONTRAST}
-                      onChange={(darkContrast) => appearanceController.update({ darkContrast })}
-                    />
-                  }
-                />
-              </SettingRow>
-            </SettingGroup>
+                  </SettingRow>
+                </SharedSettingsGroup>
+              </TabsContent>
+            </Tabs>
           </>
         ) : null}
 
@@ -905,15 +994,6 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
               title={t("extensions.appearance.typography.title")}
               description={t("extensions.appearance.typography.description")}
             >
-              <SettingRow label={t("extensions.appearance.typography.font")}>
-                <SelectControl
-                  label={t("extensions.appearance.typography.font")}
-                  value={preferences.uiFont}
-                  options={UI_FONT_FAMILIES}
-                  optionLabel={uiFontLabel}
-                  onChange={(uiFont) => appearanceController.update({ uiFont })}
-                />
-              </SettingRow>
               <SettingRow
                 label={t("extensions.appearance.preferences.uiFontSize")}
                 description={t("extensions.appearance.preferences.uiFontSizeDescription")}
@@ -1134,15 +1214,6 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
             description={t("extensions.appearance.code.description")}
             showHeading={false}
           >
-            <SettingRow label={t("extensions.appearance.code.font")}>
-              <SelectControl
-                label={t("extensions.appearance.code.font")}
-                value={preferences.codeFont}
-                options={CODE_FONT_FAMILIES}
-                optionLabel={codeFontLabel}
-                onChange={(codeFont) => appearanceController.update({ codeFont })}
-              />
-            </SettingRow>
             <SettingRow
               label={t("extensions.appearance.preferences.codeFontSize")}
               description={t("extensions.appearance.preferences.codeFontSizeDescription")}

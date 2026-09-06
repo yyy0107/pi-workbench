@@ -10,6 +10,7 @@ import {
   type UiFontFamily,
 } from "../../../appearance";
 import { useAppearancePreferences } from "../../../appearance";
+import { useMediaQuery } from "../../../hooks/use-media-query";
 
 import { useBackgroundImage } from "./background-image-store";
 
@@ -32,6 +33,7 @@ const UI_FONT_STACKS: Record<UiFontFamily, string> = {
   geist: "var(--font-geist-sans), system-ui, sans-serif",
   serif: "ui-serif, Georgia, Cambria, 'Times New Roman', serif",
   rounded: "ui-rounded, 'SF Pro Rounded', system-ui, sans-serif",
+  ubuntuSansMono: "'Ubuntu Sans Mono', 'Ubuntu Mono', ui-monospace, monospace",
 };
 
 const CODE_FONT_STACKS: Record<CodeFontFamily, string> = {
@@ -155,6 +157,13 @@ function blendWithCustomBackground(themeColor: string, backgroundColor: string):
   return `color-mix(in srgb, ${themeColor} ${THEME_SURFACE_COLOR_WEIGHT}%, ${backgroundColor})`;
 }
 
+export function snapshotSurfaceColors(style: Pick<CSSStyleDeclaration, "getPropertyValue">) {
+  // Computed styles are live; capture aliases before any source token is overwritten.
+  return SURFACE_COLOR_PROPERTIES.map(
+    (property) => [property, style.getPropertyValue(property).trim()] as const,
+  );
+}
+
 export function workbenchAppearanceRoot(element: Element | null): HTMLElement | undefined {
   return element?.closest<HTMLElement>("[data-workbench-shell]") ?? undefined;
 }
@@ -169,27 +178,15 @@ export function AppearanceBackground() {
   const preferences = useAppearancePreferences();
   const backgroundImage = useBackgroundImage();
   const appearanceOwnerRef = useRef<HTMLDivElement>(null);
+  const systemDark = useMediaQuery("(prefers-color-scheme: dark)");
+  const dark =
+    preferences.colorMode === "dark" || (preferences.colorMode === "system" && systemDark);
 
   useEffect(() => {
     const root = workbenchAppearanceRoot(appearanceOwnerRef.current);
     if (!root) return;
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const resolveDark = () =>
-      preferences.colorMode === "dark" || (preferences.colorMode === "system" && media.matches);
-    const restoreDark = applyWorkbenchDarkMode(root, resolveDark());
-    const applyColorMode = () => {
-      const dark =
-        preferences.colorMode === "dark" || (preferences.colorMode === "system" && media.matches);
-      root.classList.toggle("dark", dark);
-    };
-
-    if (preferences.colorMode === "system") media.addEventListener("change", applyColorMode);
-
-    return () => {
-      media.removeEventListener("change", applyColorMode);
-      restoreDark();
-    };
-  }, [preferences.colorMode]);
+    return applyWorkbenchDarkMode(root, dark);
+  }, [dark]);
 
   useEffect(() => {
     const root = workbenchAppearanceRoot(appearanceOwnerRef.current);
@@ -215,6 +212,17 @@ export function AppearanceBackground() {
       "--workbench-dark-contrast": `${preferences.darkContrast}%`,
       "--workbench-ui-font-size": `${preferences.uiFontSize}px`,
       "--workbench-code-font-size": `${preferences.codeFontSize}px`,
+      "--workbench-ui-font-weight": String(preferences.uiFontWeight),
+      "--workbench-content-font":
+        preferences.contentFont === "inherit"
+          ? "var(--workbench-theme-ui-font)"
+          : UI_FONT_STACKS[preferences.contentFont],
+      "--workbench-content-font-weight": String(
+        preferences.contentFont === "inherit"
+          ? preferences.uiFontWeight
+          : preferences.contentFontWeight,
+      ),
+      "--workbench-code-font-weight": String(preferences.codeFontWeight),
     } as const;
 
     for (const [property, value] of Object.entries(themeProperties)) {
@@ -264,8 +272,7 @@ export function AppearanceBackground() {
         originals,
       );
 
-      for (const property of SURFACE_COLOR_PROPERTIES) {
-        const themeBase = computedStyle.getPropertyValue(property).trim();
+      for (const [property, themeBase] of snapshotSurfaceColors(computedStyle)) {
         const base = shouldBlendSurfaceColors
           ? blendWithCustomBackground(themeBase, preferences.backgroundColor)
           : themeBase;
@@ -312,7 +319,7 @@ export function AppearanceBackground() {
         else root.style.removeProperty(property);
       }
     };
-  }, [backgroundImage.url, preferences]);
+  }, [backgroundImage.url, preferences, dark]);
 
   const blur = BACKGROUND_BLUR_STYLES[preferences.backgroundBlur];
   const backgroundStyle = {

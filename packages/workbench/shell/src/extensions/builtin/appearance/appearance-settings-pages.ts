@@ -20,6 +20,12 @@ export const DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE = {
     darkBackgroundColor: DEFAULT_APPEARANCE_PREFERENCES.darkBackgroundColor,
     darkForegroundColor: DEFAULT_APPEARANCE_PREFERENCES.darkForegroundColor,
     darkContrast: DEFAULT_APPEARANCE_PREFERENCES.darkContrast,
+    uiFont: DEFAULT_APPEARANCE_PREFERENCES.uiFont,
+    uiFontWeight: DEFAULT_APPEARANCE_PREFERENCES.uiFontWeight,
+    contentFont: DEFAULT_APPEARANCE_PREFERENCES.contentFont,
+    contentFontWeight: DEFAULT_APPEARANCE_PREFERENCES.contentFontWeight,
+    codeFont: DEFAULT_APPEARANCE_PREFERENCES.codeFont,
+    codeFontWeight: DEFAULT_APPEARANCE_PREFERENCES.codeFontWeight,
   },
   interface: {
     surfaceOpacity: DEFAULT_APPEARANCE_PREFERENCES.surfaceOpacity,
@@ -28,7 +34,6 @@ export const DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE = {
     customBorderColor: DEFAULT_APPEARANCE_PREFERENCES.customBorderColor,
     borderColor: DEFAULT_APPEARANCE_PREFERENCES.borderColor,
     cornerRadius: DEFAULT_APPEARANCE_PREFERENCES.cornerRadius,
-    uiFont: DEFAULT_APPEARANCE_PREFERENCES.uiFont,
     uiFontSize: DEFAULT_APPEARANCE_PREFERENCES.uiFontSize,
     runningIndicatorId: DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorId,
     runningIndicatorStyleId: DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorStyleId,
@@ -41,7 +46,6 @@ export const DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE = {
     syncSurfaceColors: DEFAULT_APPEARANCE_PREFERENCES.syncSurfaceColors,
   },
   code: {
-    codeFont: DEFAULT_APPEARANCE_PREFERENCES.codeFont,
     codeFontSize: DEFAULT_APPEARANCE_PREFERENCES.codeFontSize,
     codeTheme: DEFAULT_APPEARANCE_PREFERENCES.codeTheme,
   },

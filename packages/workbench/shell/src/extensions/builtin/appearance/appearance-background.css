@@ -98,6 +98,7 @@
   --text-8xl: calc(var(--workbench-ui-font-size) * 6);
   --text-9xl: calc(var(--workbench-ui-font-size) * 8);
   font-family: var(--workbench-theme-ui-font);
+  font-weight: var(--workbench-ui-font-weight);
   font-size: var(--workbench-ui-font-size);
   filter: contrast(var(--workbench-theme-contrast));
 }
@@ -109,6 +110,18 @@
   --workbench-theme-ui-font: var(--workbench-light-ui-font);
   --workbench-theme-code-font: var(--workbench-light-code-font);
   --workbench-theme-contrast: var(--workbench-light-contrast);
+  --muted: color-mix(
+    in srgb,
+    var(--workbench-theme-background) 96%,
+    var(--workbench-theme-foreground)
+  );
+  --muted-foreground: color-mix(
+    in srgb,
+    var(--workbench-theme-foreground) 68%,
+    var(--workbench-theme-background)
+  );
+  --control-state-background-hover: color-mix(in oklab, var(--foreground) 3%, transparent);
+  --control-state-background-active: color-mix(in oklab, var(--foreground) 6%, transparent);
 }
 
 [data-workbench-shell][data-workbench-appearance].dark {
@@ -123,6 +136,7 @@
 [data-workbench-shell][data-workbench-appearance] :where(code, pre, kbd, samp) {
   font-family: var(--workbench-theme-code-font);
   font-size: var(--workbench-code-font-size);
+  font-weight: var(--workbench-code-font-weight);
 }
 
 @media (prefers-reduced-motion: reduce) {

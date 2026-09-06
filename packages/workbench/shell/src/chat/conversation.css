@@ -6,6 +6,12 @@
   --thread-index-motion-duration: var(--layout-state-motion-duration);
 }
 
+:where([data-slot="workbench-conversation"])
+  :where(.aui-streamdown, [data-slot="user-message-bubble"]) {
+  font-family: var(--workbench-content-font, var(--font-sans));
+  font-weight: var(--workbench-content-font-weight, 400);
+}
+
 /* Preserve find-in-page, selection and renderer state while skipping off-screen layout/paint. */
 :where([data-slot="workbench-conversation"]) [data-conversation-history-row]:not(:focus-within) {
   --conversation-row-estimated-size: calc(var(--assistant-turn-min-height) * 6);
