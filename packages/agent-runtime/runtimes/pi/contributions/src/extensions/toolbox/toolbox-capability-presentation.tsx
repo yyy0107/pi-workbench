@@ -25,6 +25,7 @@ import { Button, StatusBadge, Switch, buttonVariants } from "@workbench/shell/ui
 import { usePiI18n } from "../../i18n";
 import type { PiPackageResourceView } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type { ToolboxCapabilitySurfaceParams } from "./toolbox-capability";
+import { withTooltip } from "@workbench/shell/ui";
 
 type DetailsLoadState = "idle" | "loading" | "ready" | "failed";
 type ResourceMutationState = "idle" | "updating" | "removing" | "failed" | "removed";
@@ -142,17 +143,21 @@ function ResourceRowContent({
         <Icon aria-hidden="true" className="size-(--icon-size-md)" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm leading-5" title={name}>
-          {name}
-        </span>
-        {description ? (
-          <span
-            className="text-muted-foreground line-clamp-2 text-sm leading-5"
-            title={description}
-          >
-            {description}
-          </span>
-        ) : null}
+        {withTooltip(
+          <span className="block truncate text-sm leading-5" title={name}>
+            {name}
+          </span>,
+        )}
+        {description
+          ? withTooltip(
+              <span
+                className="text-muted-foreground line-clamp-2 text-sm leading-5"
+                title={description}
+              >
+                {description}
+              </span>,
+            )
+          : null}
       </span>
     </>
   );

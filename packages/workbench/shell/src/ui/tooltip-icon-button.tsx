@@ -12,19 +12,13 @@ export type TooltipIconButtonProps = ComponentPropsWithRef<typeof Button> & {
 };
 
 export const TooltipIconButton = forwardRef<HTMLButtonElement, TooltipIconButtonProps>(
-  ({ children, tooltip, side = "bottom", className, ...rest }, ref) => {
+  ({ children, tooltip, tooltipDelay = 0, side = "bottom", className, ...rest }, ref) => {
     return (
-      <TooltipProvider delay={0}>
+      <TooltipProvider delay={tooltipDelay}>
         <Tooltip>
           <TooltipTrigger
             render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                {...rest}
-                className={className}
-                ref={ref}
-              />
+              <Button variant="ghost" size="icon-sm" {...rest} className={className} ref={ref} />
             }
           >
             <Slot.Slottable>{children}</Slot.Slottable>

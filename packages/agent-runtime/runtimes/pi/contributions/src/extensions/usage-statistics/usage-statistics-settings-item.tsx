@@ -32,6 +32,7 @@ import {
   type ActivityMode,
 } from "./usage-statistics-data";
 import styles from "./usage-statistics.module.css";
+import { withTooltip } from "@workbench/shell/ui";
 
 const SERIES_COLORS = [
   "var(--info)",
@@ -89,7 +90,7 @@ function TokenActivity({ snapshot }: { snapshot: UsageStatisticsValue }) {
                     day?.value && maximum > 0
                       ? Math.max(1, Math.ceil((day.value / maximum) * 4))
                       : 0;
-                  return (
+                  return withTooltip(
                     <span
                       key={index}
                       className={styles.cell}
@@ -108,7 +109,8 @@ function TokenActivity({ snapshot }: { snapshot: UsageStatisticsValue }) {
                             )
                           : undefined
                       }
-                    />
+                    />,
+                    0,
                   );
                 })}
               </div>
@@ -247,29 +249,31 @@ function TokenTrend({ snapshot }: { snapshot: UsageStatisticsValue }) {
           ) : (
             <>
               <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
-                {series.map((item, index) => (
-                  <li
-                    key={item.id}
-                    className="flex min-w-0 items-center gap-2"
-                    title={item.provider}
-                  >
-                    <svg width="20" height="8" className="shrink-0" aria-hidden="true">
-                      <line
-                        x1="0"
-                        x2="20"
-                        y1="4"
-                        y2="4"
-                        stroke={SERIES_COLORS[index % SERIES_COLORS.length]}
-                        strokeWidth="2"
-                        strokeDasharray={index === 0 ? undefined : `${index + 2} 2`}
-                      />
-                    </svg>
-                    <span className="break-all">{seriesLabel(item)}</span>
-                    <span className="tabular-nums">
-                      {number(item.total, { notation: "compact", maximumFractionDigits: 1 })}
-                    </span>
-                  </li>
-                ))}
+                {series.map((item, index) =>
+                  withTooltip(
+                    <li
+                      key={item.id}
+                      className="flex min-w-0 items-center gap-2"
+                      title={item.provider}
+                    >
+                      <svg width="20" height="8" className="shrink-0" aria-hidden="true">
+                        <line
+                          x1="0"
+                          x2="20"
+                          y1="4"
+                          y2="4"
+                          stroke={SERIES_COLORS[index % SERIES_COLORS.length]}
+                          strokeWidth="2"
+                          strokeDasharray={index === 0 ? undefined : `${index + 2} 2`}
+                        />
+                      </svg>
+                      <span className="break-all">{seriesLabel(item)}</span>
+                      <span className="tabular-nums">
+                        {number(item.total, { notation: "compact", maximumFractionDigits: 1 })}
+                      </span>
+                    </li>,
+                  ),
+                )}
               </ul>
               <div className="mt-3 overflow-x-auto">
                 <svg
@@ -514,18 +518,20 @@ export function UsageStatisticsSettingsItem({ sectionId, itemId }: SettingsItemC
         <>
           <Surface variant="muted" className="rounded-xl p-3 sm:p-4">
             <dl className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-y-5">
-              {metrics.map((metric) => (
-                <div
-                  key={metric.label}
-                  className="flex flex-col-reverse gap-1.5 px-3 text-center"
-                  title={t(`extensions.usageStatistics.${metric.hint}`)}
-                >
-                  <dt className="text-xs text-muted-foreground">
-                    {t(`extensions.usageStatistics.${metric.label}`)}
-                  </dt>
-                  <dd className="text-lg font-medium tabular-nums">{metric.value}</dd>
-                </div>
-              ))}
+              {metrics.map((metric) =>
+                withTooltip(
+                  <div
+                    key={metric.label}
+                    className="flex flex-col-reverse gap-1.5 px-3 text-center"
+                    title={t(`extensions.usageStatistics.${metric.hint}`)}
+                  >
+                    <dt className="text-xs text-muted-foreground">
+                      {t(`extensions.usageStatistics.${metric.label}`)}
+                    </dt>
+                    <dd className="text-lg font-medium tabular-nums">{metric.value}</dd>
+                  </div>,
+                ),
+              )}
             </dl>
           </Surface>
           {snapshot.days.length === 0 && (

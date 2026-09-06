@@ -3,6 +3,7 @@
 import { useSessionState } from "@workbench/agent-runtime-client";
 
 import { usePiI18n } from "../../i18n";
+import { withTooltip } from "@workbench/shell/ui";
 
 const STATUS = {
   loading: {
@@ -26,7 +27,7 @@ export function ConnectionStatus() {
   const status = STATUS[phase];
   const label = t(`extensions.connectionStatus.${phase}`);
 
-  return (
+  return withTooltip(
     <div
       aria-label={t("extensions.connectionStatus.accessibleLabel", { status: label })}
       aria-live="polite"
@@ -34,6 +35,7 @@ export function ConnectionStatus() {
       title={label}
     >
       <span className={`size-1.5 rounded-full ${status.dot}`} />
-    </div>
+    </div>,
+    0,
   );
 }

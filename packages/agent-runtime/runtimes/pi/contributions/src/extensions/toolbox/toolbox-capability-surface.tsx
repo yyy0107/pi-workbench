@@ -84,6 +84,7 @@ import {
   SkillControls,
   SkillDocumentPanel,
 } from "./toolbox-capability-presentation";
+import { withTooltip } from "@workbench/shell/ui";
 
 type PackageInstallChoice =
   | { scope: "user" }
@@ -989,18 +990,20 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
         >
           {displayedDescription}
         </p>
-        {displayedHeaderFilePath ? (
-          <p
-            className={
-              isSkill
-                ? "text-muted-foreground mt-2 truncate font-mono text-xs leading-5"
-                : "text-muted-foreground mt-3 font-mono text-xs leading-5 break-all"
-            }
-            title={headerFilePathTitle}
-          >
-            {displayedHeaderFilePath}
-          </p>
-        ) : null}
+        {displayedHeaderFilePath
+          ? withTooltip(
+              <p
+                className={
+                  isSkill
+                    ? "text-muted-foreground mt-2 truncate font-mono text-xs leading-5"
+                    : "text-muted-foreground mt-3 font-mono text-xs leading-5 break-all"
+                }
+                title={headerFilePathTitle}
+              >
+                {displayedHeaderFilePath}
+              </p>,
+            )
+          : null}
 
         {isInstalledPackage &&
         (updateFeedback.status !== "idle" ||
@@ -1165,12 +1168,14 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
                         <span className="block font-medium">
                           {t("extensions.toolbox.packages.installLocationUser")}
                         </span>
-                        <span
-                          className="text-muted-foreground mt-0.5 block truncate text-xs"
-                          title={userPackageDir}
-                        >
-                          {userPackageDir ?? "…"}
-                        </span>
+                        {withTooltip(
+                          <span
+                            className="text-muted-foreground mt-0.5 block truncate text-xs"
+                            title={userPackageDir}
+                          >
+                            {userPackageDir ?? "…"}
+                          </span>,
+                        )}
                       </span>
                       {installedTargets.has("user") || selectedInstallKey === "user" ? (
                         <CheckIcon
@@ -1226,15 +1231,22 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
                             >
                               <FolderIcon aria-hidden="true" className="mt-0.5" />
                               <span className="min-w-0 flex-1">
-                                <span className="block truncate font-medium" title={workspace.name}>
-                                  {workspace.name}
-                                </span>
-                                <span
-                                  className="text-muted-foreground mt-0.5 block truncate text-xs"
-                                  title={workspace.cwd}
-                                >
-                                  {workspace.cwd}
-                                </span>
+                                {withTooltip(
+                                  <span
+                                    className="block truncate font-medium"
+                                    title={workspace.name}
+                                  >
+                                    {workspace.name}
+                                  </span>,
+                                )}
+                                {withTooltip(
+                                  <span
+                                    className="text-muted-foreground mt-0.5 block truncate text-xs"
+                                    title={workspace.cwd}
+                                  >
+                                    {workspace.cwd}
+                                  </span>,
+                                )}
                               </span>
                               {targetInstalled || selectedInstallKey === targetKey ? (
                                 <CheckIcon
@@ -1253,12 +1265,14 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
                 </DropdownMenuContent>
               </DropdownMenu>
               {selectedInstallTarget ? (
-                <code
-                  className="text-muted-foreground min-w-0 flex-1 truncate text-xs"
-                  title={selectedInstallPath}
-                >
-                  {selectedInstallPath ?? "…"}
-                </code>
+                withTooltip(
+                  <code
+                    className="text-muted-foreground min-w-0 flex-1 truncate text-xs"
+                    title={selectedInstallPath}
+                  >
+                    {selectedInstallPath ?? "…"}
+                  </code>,
+                )
               ) : (
                 <p className="text-muted-foreground text-xs">
                   {t("extensions.toolbox.packages.installChooseLocation")}

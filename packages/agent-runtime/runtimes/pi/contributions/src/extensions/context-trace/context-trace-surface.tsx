@@ -54,6 +54,7 @@ import {
 import { projectContextTraceTurns } from "./context-trace-tree";
 import type { ContextTraceSurfaceParams } from "./context-trace-workspace";
 import { useContextTrace, useContextTraceTarget } from "./use-context-trace";
+import { withTooltip } from "@workbench/shell/ui";
 
 const TRACE_LOAD_FAILED = definePiMessage("extensions.contextTrace.loadFailed");
 const TRACE_PERMISSION_REQUIRED = definePiMessage("extensions.contextTrace.permissionDescription");
@@ -236,7 +237,7 @@ function TraceViewTabs({
               key={view}
               value={view}
               aria-label={label}
-              title={label}
+              title={compact ? label : undefined}
               className="hover:bg-muted/70 h-[var(--button-height-default)] min-h-0 px-2 text-xs"
             >
               <Icon aria-hidden="true" className="size-3.5" />
@@ -360,14 +361,16 @@ function Timeline({
                 •
               </span>
             ) : null}
-            {correlationId ? (
-              <span
-                className="text-muted-foreground mx-2 hidden max-w-28 truncate font-mono text-[10px] sm:block"
-                title={correlationId}
-              >
-                <ContextTraceSearchHighlight text={correlationId} query={query} />
-              </span>
-            ) : null}
+            {correlationId
+              ? withTooltip(
+                  <span
+                    className="text-muted-foreground mx-2 hidden max-w-28 truncate font-mono text-[10px] sm:block"
+                    title={correlationId}
+                  >
+                    <ContextTraceSearchHighlight text={correlationId} query={query} />
+                  </span>,
+                )
+              : null}
             {duration !== undefined ? (
               <span className="text-muted-foreground me-2 hidden shrink-0 font-mono text-[10px] md:block">
                 {t("extensions.contextTrace.duration", { value: duration })}

@@ -14,6 +14,7 @@ import {
   SearchableSelectorTrigger,
 } from "./searchable-selector";
 import { cn } from "../utils";
+import { withTooltip } from "./tooltip";
 
 export interface WorkspaceSelectorOption {
   id: string;
@@ -91,70 +92,73 @@ export function WorkspaceSelector({
         );
       }}
     >
-      <div
-        title={error ? labels.selectError : (selectedWorkspace?.rootPath ?? labels.select)}
-        className={cn(
-          "group/workspace inline-flex h-[var(--dropdown-control-height)] min-w-0 max-w-56 items-center text-base font-normal text-foreground transition-colors",
-          variant === "outline"
-            ? "rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] hover:[background:var(--button-background-hover)] focus-within:[background:var(--button-background-hover)]"
-            : "rounded-full bg-transparent hover:bg-muted focus-within:bg-muted",
-          error &&
-            "bg-destructive/5 text-destructive ring-3 ring-destructive/20 dark:ring-destructive/40",
-          error && variant === "outline" && "border-destructive dark:border-destructive/50",
-        )}
-      >
-        {clearable ? (
-          <SearchableSelectorClear
-            aria-label={labels.clear}
-            title={labels.clear}
-            className={cn(
-              "group/clear relative size-[var(--dropdown-control-height)] shrink-0",
-              variant === "outline" ? "rounded-[var(--input-control-radius)]" : "rounded-full",
-              variant === "ghost" && "hover:bg-transparent",
-            )}
-          >
-            <FolderIcon
-              aria-hidden="true"
-              className="size-[var(--button-icon-size,var(--icon-size-md))] group-hover/workspace:hidden group-focus-visible/clear:hidden"
-            />
-            <XIcon
-              aria-hidden="true"
-              className="absolute hidden size-[var(--button-icon-size,var(--icon-size-md))] group-hover/workspace:block group-focus-visible/clear:block"
-            />
-          </SearchableSelectorClear>
-        ) : null}
-
-        <SearchableSelectorTrigger
-          ref={triggerRef}
-          id={triggerId}
-          type="button"
-          disabled={disabled || picking}
-          aria-label={labels.select}
-          aria-invalid={error || undefined}
+      {withTooltip(
+        <div
+          title={error ? labels.selectError : selectedWorkspace?.rootPath}
           className={cn(
-            "h-[var(--dropdown-control-height)] min-w-0 flex-1 cursor-pointer border-0 text-base font-normal focus-visible:-outline-offset-2 disabled:cursor-default disabled:opacity-100",
-            variant === "outline" ? "rounded-[var(--input-control-radius)]" : "rounded-full",
-            variant === "ghost" &&
-              "[background:transparent] hover:[background:transparent] data-popup-open:[background:transparent]",
-            clearable ? "ps-0" : "ps-2.5",
+            "group/workspace inline-flex h-[var(--dropdown-control-height)] min-w-0 max-w-56 items-center text-base font-normal text-foreground transition-colors",
+            variant === "outline"
+              ? "rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] hover:[background:var(--button-background-hover)] focus-within:[background:var(--button-background-hover)]"
+              : "rounded-full bg-transparent hover:bg-muted focus-within:bg-muted",
+            error &&
+              "bg-destructive/5 text-destructive ring-3 ring-destructive/20 dark:ring-destructive/40",
+            error && variant === "outline" && "border-destructive dark:border-destructive/50",
           )}
         >
-          {!clearable ? (
-            picking ? (
-              <LoaderCircleIcon aria-hidden="true" className="animate-spin" />
-            ) : (
-              (selectedWorkspace?.icon ?? <FolderIcon aria-hidden="true" />)
-            )
+          {clearable ? (
+            <SearchableSelectorClear
+              aria-label={labels.clear}
+              title={labels.clear}
+              className={cn(
+                "group/clear relative size-[var(--dropdown-control-height)] shrink-0",
+                variant === "outline" ? "rounded-[var(--input-control-radius)]" : "rounded-full",
+                variant === "ghost" && "hover:bg-transparent",
+              )}
+            >
+              <FolderIcon
+                aria-hidden="true"
+                className="size-[var(--button-icon-size,var(--icon-size-md))] group-hover/workspace:hidden group-focus-visible/clear:hidden"
+              />
+              <XIcon
+                aria-hidden="true"
+                className="absolute hidden size-[var(--button-icon-size,var(--icon-size-md))] group-hover/workspace:block group-focus-visible/clear:block"
+              />
+            </SearchableSelectorClear>
           ) : null}
-          <span className="min-w-0 flex-1 truncate text-start">
-            {picking
-              ? labels.selecting
-              : error
-                ? labels.selectError
-                : (selectedWorkspace?.name ?? labels.empty)}
-          </span>
-        </SearchableSelectorTrigger>
-      </div>
+
+          <SearchableSelectorTrigger
+            ref={triggerRef}
+            id={triggerId}
+            type="button"
+            disabled={disabled || picking}
+            aria-label={labels.select}
+            aria-invalid={error || undefined}
+            className={cn(
+              "h-[var(--dropdown-control-height)] min-w-0 flex-1 cursor-pointer border-0 text-base font-normal focus-visible:-outline-offset-2 disabled:cursor-default disabled:opacity-100",
+              variant === "outline" ? "rounded-[var(--input-control-radius)]" : "rounded-full",
+              variant === "ghost" &&
+                "[background:transparent] hover:[background:transparent] data-popup-open:[background:transparent]",
+              clearable ? "ps-0" : "ps-2.5",
+            )}
+          >
+            {!clearable ? (
+              picking ? (
+                <LoaderCircleIcon aria-hidden="true" className="animate-spin" />
+              ) : (
+                (selectedWorkspace?.icon ?? <FolderIcon aria-hidden="true" />)
+              )
+            ) : null}
+            <span className="min-w-0 flex-1 truncate text-start">
+              {picking
+                ? labels.selecting
+                : error
+                  ? labels.selectError
+                  : (selectedWorkspace?.name ?? labels.empty)}
+            </span>
+          </SearchableSelectorTrigger>
+        </div>,
+        error ? 0 : undefined,
+      )}
 
       <SearchableSelectorContent
         align="start"

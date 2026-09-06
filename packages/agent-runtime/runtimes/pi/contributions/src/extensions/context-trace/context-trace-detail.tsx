@@ -40,6 +40,7 @@ import {
 } from "./context-trace-messages";
 import { contextTraceSelectedRawValue } from "./context-trace-detail-selection";
 import { contextTraceEventLabel } from "./context-trace-event-label";
+import { withTooltip } from "@workbench/shell/ui";
 
 export { contextTraceEventLabel } from "./context-trace-event-label";
 
@@ -237,15 +238,17 @@ function CaptureMetadata({ capture }: { capture: SessionContextTraceCaptureMetad
           })}
         </span>
       ) : null}
-      {capture.redactedPaths.length > 0 ? (
-        <span
-          className="border-sky-500/25 bg-sky-500/8 text-sky-700 dark:text-sky-300 inline-flex items-center gap-1 rounded-full border px-2 py-0.5"
-          title={capture.redactedPaths.join("\n")}
-        >
-          <LockKeyholeIcon className="size-3" />
-          {t("extensions.contextTrace.redacted", { count: capture.redactedPaths.length })}
-        </span>
-      ) : null}
+      {capture.redactedPaths.length > 0
+        ? withTooltip(
+            <span
+              className="border-sky-500/25 bg-sky-500/8 text-sky-700 dark:text-sky-300 inline-flex items-center gap-1 rounded-full border px-2 py-0.5"
+              title={capture.redactedPaths.join("\n")}
+            >
+              <LockKeyholeIcon className="size-3" />
+              {t("extensions.contextTrace.redacted", { count: capture.redactedPaths.length })}
+            </span>,
+          )
+        : null}
     </div>
   );
 }

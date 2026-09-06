@@ -47,6 +47,7 @@ import {
   type ContextTraceTurn,
 } from "./context-trace-tree";
 import type { ContextTraceTimeRange } from "./context-trace-overview";
+import { withTooltip } from "@workbench/shell/ui";
 
 interface TraceTreeNode {
   id: string;
@@ -255,62 +256,64 @@ function TraceTree({
     const matchesRange = focusRange === null || treeNodeMatchesRange(node, focusRange);
     return (
       <div key={node.id}>
-        <button
-          type="button"
-          className={cn(
-            "hover:bg-muted/45 focus-visible:ring-ring relative flex min-h-7 w-full items-center gap-1.5 px-2 text-start text-xs outline-none transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 motion-reduce:transition-none",
-            node.rowTone,
-            selected && "bg-blue-500/8",
-            !matchesRange && "opacity-20",
-          )}
-          aria-expanded={canExpand ? open : undefined}
-          aria-pressed={node.event ? selected : undefined}
-          title={node.title}
-          onClick={() => {
-            if (canExpand && !forceExpanded) onToggle(node.id);
-            node.loadTraceIds?.forEach(onLoadDetail);
-            if (node.event) onSelect(node.event, node.focus);
-          }}
-        >
-          {selected ? <span className="absolute inset-y-0 start-0 w-0.5 bg-blue-500" /> : null}
-          <span
+        {withTooltip(
+          <button
+            type="button"
             className={cn(
-              "text-muted-foreground flex w-4 shrink-0 items-center justify-center",
-              node.tone,
+              "hover:bg-muted/45 focus-visible:ring-ring relative flex min-h-7 w-full items-center gap-1.5 px-2 text-start text-xs outline-none transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 motion-reduce:transition-none",
+              node.rowTone,
+              selected && "bg-blue-500/8",
+              !matchesRange && "opacity-20",
             )}
+            aria-expanded={canExpand ? open : undefined}
+            aria-pressed={node.event ? selected : undefined}
+            title={node.title}
+            onClick={() => {
+              if (canExpand && !forceExpanded) onToggle(node.id);
+              node.loadTraceIds?.forEach(onLoadDetail);
+              if (node.event) onSelect(node.event, node.focus);
+            }}
           >
-            {canExpand ? (
-              <ChevronRightIcon
-                className={cn(
-                  "size-[var(--icon-size-md)] transition-transform",
-                  open && "rotate-90",
-                )}
-              />
-            ) : null}
-          </span>
-          {Icon ? <Icon className={cn("size-3.5 shrink-0", node.tone)} /> : null}
-          <span
-            className={cn(
-              "shrink-0 font-medium",
-              node.badgeTone ? "rounded px-1.5 py-0.5" : node.tone,
-              node.badgeTone,
-            )}
-          >
-            <ContextTraceSearchHighlight text={node.label} query={query} />
-          </span>
-          {node.meta ? (
+            {selected ? <span className="absolute inset-y-0 start-0 w-0.5 bg-blue-500" /> : null}
             <span
-              className={cn("text-muted-foreground min-w-0 truncate text-[11px]", node.metaTone)}
+              className={cn(
+                "text-muted-foreground flex w-4 shrink-0 items-center justify-center",
+                node.tone,
+              )}
             >
-              <ContextTraceSearchHighlight text={node.meta} query={query} />
+              {canExpand ? (
+                <ChevronRightIcon
+                  className={cn(
+                    "size-[var(--icon-size-md)] transition-transform",
+                    open && "rotate-90",
+                  )}
+                />
+              ) : null}
             </span>
-          ) : null}
-          {node.trailing ? (
-            <span className="text-muted-foreground ms-auto shrink-0 font-mono text-[10px] tabular-nums">
-              <ContextTraceSearchHighlight text={node.trailing} query={query} />
+            {Icon ? <Icon className={cn("size-3.5 shrink-0", node.tone)} /> : null}
+            <span
+              className={cn(
+                "shrink-0 font-medium",
+                node.badgeTone ? "rounded px-1.5 py-0.5" : node.tone,
+                node.badgeTone,
+              )}
+            >
+              <ContextTraceSearchHighlight text={node.label} query={query} />
             </span>
-          ) : null}
-        </button>
+            {node.meta ? (
+              <span
+                className={cn("text-muted-foreground min-w-0 truncate text-[11px]", node.metaTone)}
+              >
+                <ContextTraceSearchHighlight text={node.meta} query={query} />
+              </span>
+            ) : null}
+            {node.trailing ? (
+              <span className="text-muted-foreground ms-auto shrink-0 font-mono text-[10px] tabular-nums">
+                <ContextTraceSearchHighlight text={node.trailing} query={query} />
+              </span>
+            ) : null}
+          </button>,
+        )}
         {open && node.children ? (
           <div className="border-border/60 ms-4 border-s ps-1">
             <TraceTree

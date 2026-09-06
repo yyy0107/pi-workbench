@@ -244,9 +244,7 @@ function QuestionControl({
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-5">
-                <span className="min-w-0 break-words" title={displayLabel}>
-                  {displayLabel}
-                </span>
+                <span className="min-w-0 break-words">{displayLabel}</span>
                 {option.recommended ? <AskUserRecommendedMark /> : null}
               </span>
               {option.description ? (
@@ -564,13 +562,7 @@ export function AskUserPanel({
                   })}
                 </span>
               ) : null}
-              <Button
-                type="button"
-                variant="outline"
-                disabled={disabled}
-                title={t("extensions.interactiveRequests.skip")}
-                onClick={skip}
-              >
+              <Button type="button" variant="outline" disabled={disabled} onClick={skip}>
                 {t("extensions.interactiveRequests.skip")}
                 {expiresAt !== undefined && !disabled ? (
                   <QuestionCountdown key={expiresAt} expiresAt={expiresAt} />

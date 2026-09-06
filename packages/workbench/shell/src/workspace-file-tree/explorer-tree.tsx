@@ -36,6 +36,7 @@ import {
 } from "./explorer-tree-model";
 import { splitFileName } from "./file-name-parts";
 import { FileTypeIcon, FolderTypeIcon } from "./file-type-icon";
+import { withTooltip } from "../ui/tooltip";
 
 export interface ExplorerTreeLabels {
   tree: string;
@@ -303,7 +304,7 @@ function ExplorerRowRenderer({
 }: RowRendererProps<ExplorerTreeItem>) {
   const item = node.data;
   const selectable = item.type === "entry";
-  return (
+  return withTooltip(
     <div
       {...attrs}
       ref={innerRef}
@@ -319,7 +320,7 @@ function ExplorerRowRenderer({
       onClick={selectable ? node.handleClick : undefined}
     >
       {children}
-    </div>
+    </div>,
   );
 }
 

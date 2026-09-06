@@ -5,6 +5,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { cn } from "../utils";
 
 import { field, floating } from "../ui/surface";
+import { withTooltip } from "../ui/tooltip";
 
 export interface ComposerCommand {
   name: string;
@@ -77,41 +78,47 @@ export function ComposerCommandItem({
       {...props}
     >
       <span className="flex min-w-0 items-baseline gap-2 leading-5">
-        <code className="text-primary shrink-0 text-[13px] font-medium">
-          /{command.name}
-        </code>
-        {command.argumentHint ? (
-          <code
-            className="text-muted-foreground min-w-0 truncate text-xs font-normal"
-            title={command.argumentHint}
-          >
-            {command.argumentHint}
-          </code>
-        ) : null}
+        <code className="text-primary shrink-0 text-[13px] font-medium">/{command.name}</code>
+        {command.argumentHint
+          ? withTooltip(
+              <code
+                className="text-muted-foreground min-w-0 truncate text-xs font-normal"
+                title={command.argumentHint}
+              >
+                {command.argumentHint}
+              </code>,
+            )
+          : null}
       </span>
-      {command.meta ? (
-        <span
-          className="text-foreground/40 max-w-48 shrink-0 truncate text-end text-xs! leading-5"
-          title={command.meta}
-        >
-          {command.meta}
-        </span>
-      ) : null}
+      {command.meta
+        ? withTooltip(
+            <span
+              className="text-foreground/40 max-w-48 shrink-0 truncate text-end text-xs! leading-5"
+              title={command.meta}
+            >
+              {command.meta}
+            </span>,
+          )
+        : null}
       <span className="col-span-2 flex min-w-0 items-baseline gap-1.5 leading-5">
-        <span
-          className="shrink-0 truncate text-xs! font-medium"
-          title={command.label ?? `/${command.name}`}
-        >
-          {command.label ?? `/${command.name}`}
-        </span>
-        {command.description !== command.label ? (
+        {withTooltip(
           <span
-            className="text-foreground/45 min-w-0 flex-1 truncate text-xs!"
-            title={command.description}
+            className="shrink-0 truncate text-xs! font-medium"
+            title={command.label ?? `/${command.name}`}
           >
-            {command.description}
-          </span>
-        ) : null}
+            {command.label ?? `/${command.name}`}
+          </span>,
+        )}
+        {command.description !== command.label
+          ? withTooltip(
+              <span
+                className="text-foreground/45 min-w-0 flex-1 truncate text-xs!"
+                title={command.description}
+              >
+                {command.description}
+              </span>,
+            )
+          : null}
       </span>
     </ComposerMenuItem>
   );
@@ -128,7 +135,7 @@ export function ComposerCommandToken({
   label: string;
   hint?: string;
 }) {
-  return (
+  return withTooltip(
     <span
       data-slot="composer-command-token"
       className={cn(
@@ -158,6 +165,6 @@ export function ComposerCommandToken({
           {hint}
         </span>
       ) : null}
-    </span>
+    </span>,
   );
 }

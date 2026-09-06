@@ -225,7 +225,7 @@ export function ToolboxPromptsView({ initialQuery = "" }: { initialQuery?: strin
                     <Button
                       variant="ghost"
                       className="h-auto min-w-0 flex-1 items-start justify-start gap-3 px-3 py-[calc(var(--control-content-padding-block-default)*1.5)] text-left font-normal"
-                      title={t("extensions.toolbox.openDetails", { name: item.name })}
+                      aria-label={t("extensions.toolbox.openDetails", { name: item.name })}
                       onClick={(event) => {
                         previous.current = event.currentTarget;
                         setSelected(item.params);

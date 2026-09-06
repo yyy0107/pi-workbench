@@ -52,6 +52,7 @@ import {
 } from "./token-animation";
 
 import { TokenUsageSection } from "./token-usage-section";
+import { withTooltip } from "../../../ui/tooltip";
 
 const CONTEXT_BREAKDOWN_GROUPS = [
   {
@@ -389,7 +390,7 @@ function ThreadTokenUsage() {
   const contextActionFailure =
     contextActionError ?? (contextPolicy.status === "failed" ? contextPolicy.error : undefined);
 
-  return (
+  return withTooltip(
     <div
       className="flex h-6 min-w-0 items-center overflow-hidden whitespace-nowrap text-[11px] tabular-nums"
       title={description}
@@ -434,12 +435,14 @@ function ThreadTokenUsage() {
               <PopoverTitle className="text-xs font-medium">
                 {t("extensions.tokenUsage.contextUsed")}
               </PopoverTitle>
-              <span
-                className="text-muted-foreground min-w-0 max-w-44 truncate text-xs"
-                title={context?.model?.name}
-              >
-                {context?.model?.name ?? unavailable}
-              </span>
+              {withTooltip(
+                <span
+                  className="text-muted-foreground min-w-0 max-w-44 truncate text-xs"
+                  title={context?.model?.name}
+                >
+                  {context?.model?.name ?? unavailable}
+                </span>,
+              )}
             </div>
           </PopoverHeader>
           <div className="space-y-1.5">
@@ -797,7 +800,8 @@ function ThreadTokenUsage() {
           </span>
         </span>
       </div>
-    </div>
+    </div>,
+    context?.nearingCompaction ? 0 : undefined,
   );
 }
 

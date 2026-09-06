@@ -30,6 +30,7 @@ import {
   COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
 } from "@workbench/contracts/composer";
 import type { ComposerTriggerItem } from "./composer-directive";
+import { withTooltip } from "../ui/tooltip";
 
 const COMPOSER_PRIMARY_ACTION_CLASS_NAME =
   "aui-composer-primary-action rounded-[var(--button-radius)] hover:bg-primary";
@@ -169,14 +170,18 @@ function ScrollingComposerContextItem({
     >
       <Icon aria-hidden="true" className="text-muted-foreground aui-composer-icon-size-default" />
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate" title={item.label}>
-          {item.label}
-        </span>
-        {item.description ? (
-          <span className="text-muted-foreground truncate text-xs" title={item.description}>
-            {item.description}
-          </span>
-        ) : null}
+        {withTooltip(
+          <span className="truncate" title={item.label}>
+            {item.label}
+          </span>,
+        )}
+        {item.description
+          ? withTooltip(
+              <span className="text-muted-foreground truncate text-xs" title={item.description}>
+                {item.description}
+              </span>,
+            )
+          : null}
       </span>
     </button>
   );

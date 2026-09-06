@@ -78,7 +78,7 @@ function HtmlArtifactRenderer({ artifact, mode }: ArtifactRendererProps) {
   return (
     <iframe
       sandbox="allow-forms allow-scripts"
-      title={artifact.title}
+      aria-label={artifact.title}
       srcDoc={artifact.content ?? ""}
       className="size-full bg-white"
     />

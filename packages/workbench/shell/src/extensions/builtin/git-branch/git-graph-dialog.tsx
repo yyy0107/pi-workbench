@@ -41,6 +41,7 @@ import {
   type GitGraphRowLayout,
   type GitGraphSegment,
 } from "./git-graph-layout";
+import { withTooltip } from "../../../ui/tooltip";
 
 const GRAPH_ROW_HEIGHT = 52;
 const GRAPH_LANE_INSET = 12;
@@ -152,7 +153,7 @@ function GitGraphCell({
 
 function GitRefChip({ ref: commitRef }: Readonly<{ ref: WorkbenchWorkspaceGitCommitRef }>) {
   const Icon = commitRef.kind === "tag" ? TagIcon : GitBranchIcon;
-  return (
+  return withTooltip(
     <span
       title={commitRef.name}
       className={cn(
@@ -164,7 +165,7 @@ function GitRefChip({ ref: commitRef }: Readonly<{ ref: WorkbenchWorkspaceGitCom
     >
       <Icon aria-hidden="true" className="size-3" />
       <span className="truncate">{commitRef.name}</span>
-    </span>
+    </span>,
   );
 }
 
@@ -452,7 +453,7 @@ export function GitGraphDialog({
             if (!layout) return null;
             const commit = layout.commit;
             const selected = commit.hash === selectedCommit?.hash;
-            return (
+            return withTooltip(
               <div
                 key={virtualRow.key}
                 data-git-graph-row={virtualRow.index}
@@ -504,7 +505,7 @@ export function GitGraphDialog({
                 <div role="gridcell" className="truncate px-4 font-mono text-muted-foreground">
                   {commit.shortHash}
                 </div>
-              </div>
+              </div>,
             );
           })}
         </div>
@@ -608,9 +609,11 @@ function CommitDetails({ commit }: Readonly<{ commit: WorkbenchWorkspaceGitCommi
         <h3 className="text-xs font-medium text-muted-foreground">
           {t("extensions.gitBranch.graph.details.subject")}
         </h3>
-        <p className="mt-1 truncate text-sm font-medium" title={commit.subject}>
-          {commit.subject || t("extensions.gitBranch.graph.noSubject")}
-        </p>
+        {withTooltip(
+          <p className="mt-1 truncate text-sm font-medium" title={commit.subject}>
+            {commit.subject || t("extensions.gitBranch.graph.noSubject")}
+          </p>,
+        )}
         <div className="mt-2 flex min-w-0 flex-wrap gap-1">
           <CommitRefs refs={commit.refs} />
         </div>
@@ -619,9 +622,11 @@ function CommitDetails({ commit }: Readonly<{ commit: WorkbenchWorkspaceGitCommi
         <h3 className="text-xs font-medium text-muted-foreground">
           {t("extensions.gitBranch.graph.details.commit")}
         </h3>
-        <p className="mt-1 truncate font-mono text-sm" title={commit.hash}>
-          {commit.hash}
-        </p>
+        {withTooltip(
+          <p className="mt-1 truncate font-mono text-sm" title={commit.hash}>
+            {commit.hash}
+          </p>,
+        )}
         <h3 className="mt-3 text-xs font-medium text-muted-foreground">
           {t("extensions.gitBranch.graph.details.date")}
         </h3>
@@ -636,17 +641,21 @@ function CommitDetails({ commit }: Readonly<{ commit: WorkbenchWorkspaceGitCommi
         <h3 className="text-xs font-medium text-muted-foreground">
           {t("extensions.gitBranch.graph.details.author")}
         </h3>
-        <p className="mt-1 truncate text-sm" title={commit.authorName}>
-          {commit.authorName}
-        </p>
+        {withTooltip(
+          <p className="mt-1 truncate text-sm" title={commit.authorName}>
+            {commit.authorName}
+          </p>,
+        )}
         <h3 className="mt-3 text-xs font-medium text-muted-foreground">
           {t("extensions.gitBranch.graph.details.parents")}
         </h3>
-        <p className="mt-1 truncate font-mono text-sm" title={commit.parentHashes.join(", ")}>
-          {commit.parentHashes.length
-            ? commit.parentHashes.map((hash) => hash.slice(0, 8)).join(", ")
-            : t("extensions.gitBranch.graph.details.noParents")}
-        </p>
+        {withTooltip(
+          <p className="mt-1 truncate font-mono text-sm" title={commit.parentHashes.join(", ")}>
+            {commit.parentHashes.length
+              ? commit.parentHashes.map((hash) => hash.slice(0, 8)).join(", ")
+              : t("extensions.gitBranch.graph.details.noParents")}
+          </p>,
+        )}
       </div>
     </section>
   );

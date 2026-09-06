@@ -79,6 +79,7 @@ import {
   toggleFileViewMode,
 } from "./file-view-mode";
 import { isLargeTextFile } from "./progressive-text-document";
+import { withTooltip } from "../../../ui/tooltip";
 
 const LOCAL_APP_ICON_SOURCES: Readonly<Record<string, AssetModule>> = {
   cursor: cursorIcon,
@@ -370,39 +371,42 @@ function AvailableFileSurfaceHeader({
 
       {hostClient && fileSession && openTarget && folderPath ? (
         <div className="flex h-7 w-14 shrink-0 items-stretch overflow-hidden rounded-lg border bg-background shadow-xs">
-          <button
-            type="button"
-            aria-label={
-              primaryApp
-                ? t("extensions.workspaceFile.openWith", { name: localAppName(primaryApp) })
-                : t(
-                    path
-                      ? "extensions.workspaceFile.openFile"
-                      : "extensions.workspaceFile.openFolder",
-                  )
-            }
-            title={
-              primaryApp
-                ? t("extensions.workspaceFile.openWith", { name: localAppName(primaryApp) })
-                : t(
-                    path
-                      ? "extensions.workspaceFile.openFile"
-                      : "extensions.workspaceFile.openFolder",
-                  )
-            }
-            className="hover:bg-muted flex w-7 items-center justify-center transition-colors"
-            onClick={() =>
-              void (primaryApp ? openWithLocalApp(primaryApp, openTarget) : openPath(openTarget))
-            }
-          >
-            {primaryApp ? (
-              <LocalAppIcon app={primaryApp} />
-            ) : path ? (
-              <FileKindIcon kind={fileKind} />
-            ) : (
-              <FolderIcon className="size-4 shrink-0" />
-            )}
-          </button>
+          {withTooltip(
+            <button
+              type="button"
+              aria-label={
+                primaryApp
+                  ? t("extensions.workspaceFile.openWith", { name: localAppName(primaryApp) })
+                  : t(
+                      path
+                        ? "extensions.workspaceFile.openFile"
+                        : "extensions.workspaceFile.openFolder",
+                    )
+              }
+              title={
+                primaryApp
+                  ? t("extensions.workspaceFile.openWith", { name: localAppName(primaryApp) })
+                  : t(
+                      path
+                        ? "extensions.workspaceFile.openFile"
+                        : "extensions.workspaceFile.openFolder",
+                    )
+              }
+              className="hover:bg-muted flex w-7 items-center justify-center transition-colors"
+              onClick={() =>
+                void (primaryApp ? openWithLocalApp(primaryApp, openTarget) : openPath(openTarget))
+              }
+            >
+              {primaryApp ? (
+                <LocalAppIcon app={primaryApp} />
+              ) : path ? (
+                <FileKindIcon kind={fileKind} />
+              ) : (
+                <FolderIcon className="size-4 shrink-0" />
+              )}
+            </button>,
+            0,
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label={t("extensions.workspaceFile.openOptions")}

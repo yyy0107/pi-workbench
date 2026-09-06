@@ -6,6 +6,7 @@ import * as React from "react";
 
 import { cn } from "../utils";
 import { useWorkbenchPortalContainer } from "./workbench-portal-container";
+import { withTooltip } from "./tooltip";
 
 /**
  * Searchable single- or multi-value selector backed by Base UI Combobox.
@@ -23,7 +24,7 @@ function SearchableSelectorTrigger({
   children,
   ...props
 }: ComboboxPrimitive.Trigger.Props) {
-  return (
+  return withTooltip(
     <ComboboxPrimitive.Trigger
       data-slot="searchable-selector-trigger"
       className={cn(
@@ -37,7 +38,7 @@ function SearchableSelectorTrigger({
         aria-hidden="true"
         className="size-[var(--input-control-icon-size)] shrink-0 opacity-50 transition-transform group-data-popup-open/searchable-selector:rotate-180"
       />
-    </ComboboxPrimitive.Trigger>
+    </ComboboxPrimitive.Trigger>,
   );
 }
 
@@ -141,7 +142,7 @@ function SearchableSelectorGroupLabel({ className, ...props }: ComboboxPrimitive
 }
 
 function SearchableSelectorItem({ className, children, ...props }: ComboboxPrimitive.Item.Props) {
-  return (
+  return withTooltip(
     <ComboboxPrimitive.Item
       data-slot="searchable-selector-item"
       className={cn(
@@ -152,7 +153,7 @@ function SearchableSelectorItem({ className, children, ...props }: ComboboxPrimi
     >
       {children}
       <SearchableSelectorItemIndicator />
-    </ComboboxPrimitive.Item>
+    </ComboboxPrimitive.Item>,
   );
 }
 
@@ -186,7 +187,7 @@ function SearchableSelectorStatus({ className, ...props }: ComboboxPrimitive.Sta
 }
 
 function SearchableSelectorClear({ className, ...props }: ComboboxPrimitive.Clear.Props) {
-  return (
+  return withTooltip(
     <ComboboxPrimitive.Clear
       data-slot="searchable-selector-clear"
       className={cn(
@@ -194,7 +195,8 @@ function SearchableSelectorClear({ className, ...props }: ComboboxPrimitive.Clea
         className,
       )}
       {...props}
-    />
+    />,
+    0,
   );
 }
 

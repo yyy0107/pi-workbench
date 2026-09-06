@@ -66,6 +66,7 @@ export function PiSettingsConfigurationMenu() {
               className={documentError ? "text-destructive hover:text-destructive" : undefined}
               disabled={openingDocument !== null}
               aria-label={t("extensions.settings.configurationFiles")}
+              tooltipDelay={0}
               title={
                 documentError ? t("extensions.settings.openConfigurationFileFailed") : undefined
               }

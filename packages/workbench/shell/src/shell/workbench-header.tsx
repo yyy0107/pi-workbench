@@ -13,6 +13,7 @@ import { useCurrentSession, useThreadList } from "@workbench/agent-runtime-clien
 import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 import { truncateConversationTitle } from "../conversation-title";
 import { ConversationActionsMenu } from "./conversation-actions-menu";
+import { withTooltip } from "../ui/tooltip";
 
 interface ResolvedMainViewBreadcrumb {
   label: string;
@@ -28,7 +29,7 @@ function MainViewBreadcrumbs({
   label: string;
   onNavigate(index: number): void;
 }) {
-  return (
+  return withTooltip(
     <nav className="min-w-0" aria-label={label} title={items.map((item) => item.label).join(" / ")}>
       <ol className="flex min-w-0 items-center gap-1 text-sm">
         {items.map((item, index) => {
@@ -67,7 +68,7 @@ function MainViewBreadcrumbs({
           );
         })}
       </ol>
-    </nav>
+    </nav>,
   );
 }
 
@@ -118,27 +119,31 @@ export function WorkbenchHeader() {
             onNavigate={mainViews.openBreadcrumb}
           />
         ) : (
-          <span
-            className="min-w-0 shrink truncate text-sm font-semibold"
-            aria-label={title}
-            title={title}
-          >
-            {visibleTitle}
-          </span>
+          withTooltip(
+            <span
+              className="min-w-0 shrink truncate text-sm font-semibold"
+              aria-label={title}
+              title={title}
+            >
+              {visibleTitle}
+            </span>,
+          )
         )}
-        {!activeMainView && currentWorkspaceName ? (
-          <span
-            data-slot="current-workspace"
-            aria-label={t("workbench.shell.currentWorkspace", { name: currentWorkspaceName })}
-            title={t("workbench.shell.currentWorkspace", {
-              name: currentWorkspace?.rootPath ?? currentWorkspaceName,
-            })}
-            className="border-border/60 bg-muted/70 text-muted-foreground inline-flex h-[var(--button-height-default)] min-w-0 max-w-36 shrink items-center gap-1 overflow-hidden rounded-md border px-2 text-sm font-medium whitespace-nowrap sm:max-w-48"
-          >
-            <FolderIcon aria-hidden="true" className="size-3 shrink-0" />
-            <span className="min-w-0 truncate">{currentWorkspaceName}</span>
-          </span>
-        ) : null}
+        {!activeMainView && currentWorkspaceName
+          ? withTooltip(
+              <span
+                data-slot="current-workspace"
+                aria-label={t("workbench.shell.currentWorkspace", { name: currentWorkspaceName })}
+                title={t("workbench.shell.currentWorkspace", {
+                  name: currentWorkspace?.rootPath ?? currentWorkspaceName,
+                })}
+                className="border-border/60 bg-muted/70 text-muted-foreground inline-flex h-[var(--button-height-default)] min-w-0 max-w-36 shrink items-center gap-1 overflow-hidden rounded-md border px-2 text-sm font-medium whitespace-nowrap sm:max-w-48"
+              >
+                <FolderIcon aria-hidden="true" className="size-3 shrink-0" />
+                <span className="min-w-0 truncate">{currentWorkspaceName}</span>
+              </span>,
+            )
+          : null}
         {activeMainView?.chrome?.headerLeft !== "hidden" ? (
           <SlotHost name="header.left" className="flex shrink-0 items-center gap-1 sm:gap-2" />
         ) : null}

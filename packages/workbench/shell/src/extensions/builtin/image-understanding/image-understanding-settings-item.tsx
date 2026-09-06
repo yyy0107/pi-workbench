@@ -57,6 +57,7 @@ import {
   hasOcrAdapterSettings,
   ocrAdapterSettingsFromValue,
 } from "./image-understanding-settings-compat";
+import { withTooltip } from "../../../ui/tooltip";
 
 type LoadState = "loading" | "ready" | "failed";
 type ModelCatalogLoadState = "loading" | "ready" | "failed";
@@ -197,9 +198,11 @@ function ChoiceControl<TValue extends string>({
                 disabled={option.disabled}
               >
                 <span className="min-w-0">
-                  <span className="block truncate" title={option.label}>
-                    {option.label}
-                  </span>
+                  {withTooltip(
+                    <span className="block truncate" title={option.label}>
+                      {option.label}
+                    </span>,
+                  )}
                   {option.description ? (
                     <span className="text-muted-foreground mt-0.5 block max-w-72 text-xs leading-4 whitespace-normal">
                       {option.description}

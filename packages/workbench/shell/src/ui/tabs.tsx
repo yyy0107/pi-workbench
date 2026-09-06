@@ -3,6 +3,7 @@
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs";
 
 import { cn } from "../utils";
+import { withTooltip } from "./tooltip";
 
 /** Accessible tab set backed by Base UI's roving-focus and activation behavior. */
 function Tabs({ className, ...props }: TabsPrimitive.Root.Props) {
@@ -29,7 +30,7 @@ function TabsList({ className, ...props }: TabsPrimitive.List.Props) {
 }
 
 function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
-  return (
+  return withTooltip(
     <TabsPrimitive.Tab
       data-slot="tabs-trigger"
       className={cn(
@@ -37,7 +38,8 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
         className,
       )}
       {...props}
-    />
+    />,
+    0,
   );
 }
 

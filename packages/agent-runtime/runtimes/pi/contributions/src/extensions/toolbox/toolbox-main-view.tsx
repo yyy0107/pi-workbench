@@ -182,7 +182,7 @@ function MainPackageRow({
     <Button
       variant="ghost"
       type="button"
-      title={t("extensions.toolbox.openDetails", { name: item.name })}
+      aria-label={t("extensions.toolbox.openDetails", { name: item.name })}
       className="h-auto w-full min-w-0 items-start justify-start gap-3 px-3 py-[calc(var(--control-content-padding-block-default)*1.5)] text-left font-normal whitespace-normal"
       onClick={(event) => onOpen(item, event)}
     >
@@ -271,7 +271,7 @@ export function PackageUpdateRow({
         variant="ghost"
         type="button"
         disabled={updating || updated}
-        title={t("extensions.toolbox.openDetails", { name: item.displayName })}
+        aria-label={t("extensions.toolbox.openDetails", { name: item.displayName })}
         className="h-auto min-w-0 flex-1 justify-start gap-3 px-3 py-[calc(var(--control-content-padding-block-default)*1.5)] text-left font-normal whitespace-normal"
         onClick={(event) => onOpen(item, event)}
       >
@@ -290,7 +290,7 @@ export function PackageUpdateRow({
               </span>
             ) : null}
           </span>
-          <span className="text-muted-foreground text-xs leading-5 break-all" title={updateSummary}>
+          <span className="text-muted-foreground text-xs leading-5 break-all">
             {currentReference && targetReference ? (
               <span className="font-mono">
                 {currentReference} →{" "}

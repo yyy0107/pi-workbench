@@ -5,13 +5,14 @@ import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 
 import { cn } from "../utils";
 import { useWorkbenchPortalContainer } from "./workbench-portal-container";
+import { withTooltip } from "./tooltip";
 
 function Popover({ ...props }: PopoverPrimitive.Root.Props) {
   return <PopoverPrimitive.Root data-slot="popover" {...props} />;
 }
 
 function PopoverTrigger({ ...props }: PopoverPrimitive.Trigger.Props) {
-  return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />;
+  return withTooltip(<PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />, 0);
 }
 
 function PopoverContent({

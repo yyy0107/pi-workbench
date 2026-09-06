@@ -15,6 +15,7 @@ import type {
 } from "@workbench/extension-sdk";
 
 import { createSettingsMainViewRequest, type SettingsMainViewParams } from "./settings-main-view";
+import { withTooltip } from "../../../ui/tooltip";
 
 const EMPTY_SECTIONS = Object.freeze([]) as readonly SettingsSectionDefinition[];
 const EMPTY_ITEMS = Object.freeze([]) as readonly SettingsItemDefinition[];
@@ -182,6 +183,7 @@ export function SettingsSidebar({
           size="sm"
           aria-label={t("extensions.settings.backToApp")}
           title={compact ? t("extensions.settings.backToApp") : undefined}
+          tooltipDelay={0}
           className={cn(
             "h-[var(--sidebar-row-height)] min-h-[var(--sidebar-row-height)] w-full shrink-0 gap-2",
             compact ? "justify-center px-0" : "justify-start px-2.5",
@@ -273,7 +275,7 @@ export function SettingsSidebar({
                     const Icon = section.icon ?? SettingsIcon;
                     const active = section.id === activeSection?.id;
 
-                    return (
+                    return withTooltip(
                       <button
                         key={section.id}
                         type="button"
@@ -302,7 +304,8 @@ export function SettingsSidebar({
                         <span className={compact ? "sr-only" : "min-w-0 flex-1 truncate"}>
                           {text(section.title)}
                         </span>
-                      </button>
+                      </button>,
+                      0,
                     );
                   })}
                 </div>

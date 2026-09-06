@@ -1,7 +1,10 @@
+"use client";
+
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "../utils";
+import { withTooltip } from "./tooltip";
 
 const iconButtonInteractionStyles = [
   "[&:not([data-frame=none]):hover:not(:active)]:[background:var(--icon-frame-background-hover)]!",
@@ -90,14 +93,16 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  tooltipDelay = size === "icon" || size === "icon-sm" ? 0 : undefined,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
-  return (
+}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & { tooltipDelay?: number }) {
+  return withTooltip(
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+    />,
+    tooltipDelay,
   );
 }
 

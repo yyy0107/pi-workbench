@@ -54,6 +54,7 @@ import type { WorkbenchWorkspaceGitStatus } from "@workbench/agent-runtime-contr
 import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 
 import { publishGitBranchStatus, subscribeGitBranchStatus } from "./git-branch-status-bus";
+import { withTooltip } from "../../../ui/tooltip";
 
 const GitGraphDialog = lazy(() =>
   import("./git-graph-dialog").then((module) => ({ default: module.GitGraphDialog })),
@@ -245,6 +246,7 @@ function GitBranchSelector({
         variant="ghost"
         aria-label={t("extensions.gitBranch.retry")}
         title={t("extensions.gitBranch.loadError")}
+        tooltipDelay={0}
         className={cn(
           "px-2 text-destructive",
           placement === "header"
@@ -489,9 +491,11 @@ function GitBranchSelector({
                         className="flex min-h-10 items-center gap-2 rounded-md px-2.5 py-1.5 hover:bg-muted"
                       >
                         <FileTypeIcon path={file.path} className="shrink-0" />
-                        <span className="min-w-0 flex-1 truncate" title={file.path}>
-                          {file.path}
-                        </span>
+                        {withTooltip(
+                          <span className="min-w-0 flex-1 truncate" title={file.path}>
+                            {file.path}
+                          </span>,
+                        )}
                         {hasLineStats ? (
                           <span
                             className="flex shrink-0 items-center gap-2 font-mono text-xs"

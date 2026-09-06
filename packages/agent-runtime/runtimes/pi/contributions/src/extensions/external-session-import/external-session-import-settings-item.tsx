@@ -14,6 +14,7 @@ import type {
   ExternalSessionImportView,
   ExternalSessionSource,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
+import { withTooltip } from "@workbench/shell/ui";
 
 const IMPORT_BATCH_SIZE = 200;
 
@@ -84,12 +85,14 @@ function SessionRow({
             </span>
           ) : null}
         </span>
-        <span
-          className="text-muted-foreground mt-1 block truncate font-mono text-xs"
-          title={session.cwd}
-        >
-          {session.cwd || t("extensions.externalSessionImport.states.unknownProject")}
-        </span>
+        {withTooltip(
+          <span
+            className="text-muted-foreground mt-1 block truncate font-mono text-xs"
+            title={session.cwd}
+          >
+            {session.cwd || t("extensions.externalSessionImport.states.unknownProject")}
+          </span>,
+        )}
       </span>
       <span className="text-muted-foreground shrink-0 text-right text-xs">
         <span className="block">

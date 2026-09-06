@@ -29,6 +29,7 @@ import type { ToolboxCapabilitySurfaceParams, ToolboxMainSection } from "./toolb
 import { ToolboxCapabilityDetails } from "./toolbox-capability-surface";
 import { useToolboxCatalogs, type ToolboxCapabilityItem } from "./toolbox-catalog";
 import { useToolboxScope } from "./toolbox-scope-store";
+import { withTooltip } from "@workbench/shell/ui";
 
 type InstalledSection = Exclude<ToolboxMainSection, "packages" | "updates">;
 
@@ -120,7 +121,7 @@ export function ToolboxResourceList({
                 <Button
                   variant="ghost"
                   size="lg"
-                  title={t("extensions.toolbox.openDetails", { name: item.name })}
+                  aria-label={t("extensions.toolbox.openDetails", { name: item.name })}
                   className={cn(
                     "h-auto w-full min-w-0 justify-start gap-3 px-3 py-[calc(var(--control-content-padding-block-default)*1.5)] text-left font-normal whitespace-normal",
                     disabled && "text-muted-foreground",
@@ -149,22 +150,27 @@ export function ToolboxResourceList({
                         </StatusBadge>
                       ) : null}
                     </span>
-                    {description ? (
-                      <span
-                        title={description}
-                        className="text-muted-foreground mt-0.5 block truncate text-sm leading-5"
-                      >
-                        {description}
-                      </span>
-                    ) : null}
+                    {description
+                      ? withTooltip(
+                          <span
+                            title={description}
+                            className="text-muted-foreground mt-0.5 block truncate text-sm leading-5"
+                          >
+                            {description}
+                          </span>,
+                        )
+                      : null}
                   </span>
                   {disabled || item.params.builtin ? (
                     <span className="text-muted-foreground shrink-0 text-xs">{status}</span>
                   ) : (
-                    <span className="text-muted-foreground shrink-0" title={status}>
-                      <CheckIcon aria-hidden="true" className="size-[var(--icon-size-md)]" />
-                      <span className="sr-only">{status}</span>
-                    </span>
+                    withTooltip(
+                      <span className="text-muted-foreground shrink-0" title={status}>
+                        <CheckIcon aria-hidden="true" className="size-[var(--icon-size-md)]" />
+                        <span className="sr-only">{status}</span>
+                      </span>,
+                      0,
+                    )
                   )}
                 </Button>
               </li>

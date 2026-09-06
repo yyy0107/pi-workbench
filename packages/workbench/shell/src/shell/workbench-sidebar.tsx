@@ -23,6 +23,7 @@ import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 import type { SidebarSectionDefinition } from "@workbench/extension-sdk";
 import { SidebarPrimaryNavigation } from "../sidebar/sidebar-primary-navigation";
 import { applySidebarResizePreview, SidebarResizeHandle } from "../sidebar/sidebar-resize-handle";
+import { withTooltip } from "../ui/tooltip";
 
 const EMPTY_SIDEBAR_SECTIONS = Object.freeze([]) as readonly SidebarSectionDefinition[];
 
@@ -138,22 +139,25 @@ export function WorkbenchSidebarContent({
               else setSearchOpen(false);
             }}
           />
-          <button
-            type="button"
-            aria-label={t(
-              searchQuery ? "workbench.sidebar.clearSearch" : "workbench.sidebar.closeSearch",
-            )}
-            title={t(
-              searchQuery ? "workbench.sidebar.clearSearch" : "workbench.sidebar.closeSearch",
-            )}
-            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring absolute end-1 top-1/2 flex size-[var(--icon-frame-size-compact)] -translate-y-1/2 items-center justify-center rounded-[var(--button-radius)] outline-none hover:[background:var(--icon-frame-background-hover)] focus-visible:ring-2"
-            onClick={() => {
-              if (searchQuery) setSearchQuery("");
-              else setSearchOpen(false);
-            }}
-          >
-            <XIcon aria-hidden="true" className="size-[var(--icon-size-md)]" />
-          </button>
+          {withTooltip(
+            <button
+              type="button"
+              aria-label={t(
+                searchQuery ? "workbench.sidebar.clearSearch" : "workbench.sidebar.closeSearch",
+              )}
+              title={t(
+                searchQuery ? "workbench.sidebar.clearSearch" : "workbench.sidebar.closeSearch",
+              )}
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring absolute end-1 top-1/2 flex size-[var(--icon-frame-size-compact)] -translate-y-1/2 items-center justify-center rounded-[var(--button-radius)] outline-none hover:[background:var(--icon-frame-background-hover)] focus-visible:ring-2"
+              onClick={() => {
+                if (searchQuery) setSearchQuery("");
+                else setSearchOpen(false);
+              }}
+            >
+              <XIcon aria-hidden="true" className="size-[var(--icon-size-md)]" />
+            </button>,
+            0,
+          )}
         </div>
       ) : null}
 

@@ -70,6 +70,7 @@ import {
   type BackgroundImageSnapshot,
 } from "./background-image-store";
 import { resolveAppearanceSettingsPage } from "./appearance-settings-pages";
+import { withTooltip } from "../../../ui/tooltip";
 
 const CODE_PREVIEW = [
   "const greet = (name: string) => {",
@@ -340,11 +341,16 @@ function BackgroundImagePicker({ image }: { image: BackgroundImageSnapshot }) {
           </Button>
         ) : null}
       </div>
-      {image.name ? (
-        <p className="text-muted-foreground w-full truncate text-right text-xs" title={image.name}>
-          {image.name}
-        </p>
-      ) : null}
+      {image.name
+        ? withTooltip(
+            <p
+              className="text-muted-foreground w-full truncate text-right text-xs"
+              title={image.name}
+            >
+              {image.name}
+            </p>,
+          )
+        : null}
       {image.error ? (
         <p className="text-destructive w-full text-right text-xs" role="alert">
           {errorLabel(image.error)}

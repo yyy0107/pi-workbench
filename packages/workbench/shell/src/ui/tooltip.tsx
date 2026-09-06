@@ -1,12 +1,14 @@
 "use client";
 
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
+import { cloneElement, type AriaAttributes, type ReactElement } from "react";
 
 import { cn } from "../utils";
 import { useWorkbenchPortalContainer } from "./workbench-portal-container";
 
-function TooltipProvider({ delay = 0, ...props }: TooltipPrimitive.Provider.Props) {
-  return <TooltipPrimitive.Provider data-slot="tooltip-provider" delay={delay} {...props} />;
+function TooltipProvider({ ...props }: TooltipPrimitive.Provider.Props) {
+  // Keep delay groups local; one immediate tooltip otherwise speeds up unrelated hints.
+  return <TooltipPrimitive.Provider data-slot="tooltip-provider" {...props} />;
 }
 
 function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
@@ -15,6 +17,33 @@ function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
 
 function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
   return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
+}
+
+/** Replace a native title; inherit Base UI's 600 ms hover delay, or pass 0 for action hints. */
+function withTooltip(
+  element: ReactElement<AriaAttributes & { title?: string }>,
+  delay?: number,
+): ReactElement {
+  if (!Object.hasOwn(element.props, "title")) return element;
+
+  // An explicit Tooltip already owns this element, including render-prop composition.
+  if (Object.hasOwn(element.props, "data-base-ui-tooltip-trigger")) {
+    return cloneElement(element, { title: undefined });
+  }
+
+  const { title, "aria-label": label, "aria-labelledby": labelledBy } = element.props;
+  const trigger = cloneElement(element, {
+    title: undefined,
+    "aria-label": label ?? (labelledBy ? undefined : title),
+  });
+  return (
+    <Tooltip key={element.key} disabled={!title}>
+      <TooltipPrimitive.Trigger render={trigger} delay={delay} data-popup-open={undefined} />
+      <TooltipContent className="whitespace-pre-line [overflow-wrap:anywhere]">
+        {title}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 function TooltipContent({
@@ -52,4 +81,4 @@ function TooltipContent({
   );
 }
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, withTooltip };

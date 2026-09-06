@@ -1,10 +1,13 @@
+"use client";
+
 import * as React from "react";
 import { Input as InputPrimitive } from "@base-ui/react/input";
 
 import { cn } from "../utils";
+import { withTooltip } from "./tooltip";
 
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
-  return (
+  return withTooltip(
     <InputPrimitive
       type={type}
       data-slot="input"
@@ -13,7 +16,7 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         className,
       )}
       {...props}
-    />
+    />,
   );
 }
 

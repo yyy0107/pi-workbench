@@ -1,7 +1,10 @@
+"use client";
+
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentProps } from "react";
 
 import { cn } from "../utils";
+import { withTooltip } from "./tooltip";
 
 const statusBadgeVariants = cva(
   "inline-flex min-h-5 w-fit items-center gap-1 rounded-full border px-2 py-0.5 text-xs leading-none font-medium",
@@ -27,13 +30,13 @@ function StatusBadge({
   tone = "neutral",
   ...props
 }: ComponentProps<"span"> & VariantProps<typeof statusBadgeVariants>) {
-  return (
+  return withTooltip(
     <span
       data-slot="status-badge"
       data-tone={tone}
       className={cn(statusBadgeVariants({ tone }), className)}
       {...props}
-    />
+    />,
   );
 }
 

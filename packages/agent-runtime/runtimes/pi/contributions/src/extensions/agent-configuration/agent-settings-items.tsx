@@ -402,7 +402,6 @@ function PromptSettingsEditor({
             size="sm"
             aria-controls={`${systemPromptId}-panel`}
             aria-label={viewToggleLabel}
-            title={viewToggleLabel}
             disabled={saving}
             onClick={() => setEditing((current) => !current)}
           >

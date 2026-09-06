@@ -415,7 +415,6 @@ function ModelCatalogRowComponent({
                   value={normalizeContextWindowInput(model.contextWindow)}
                   disabled={busy}
                   aria-label={t("extensions.modelConfig.contextWindow")}
-                  title={t("extensions.modelConfig.contextWindow")}
                   placeholder={t("extensions.modelConfig.contextWindow")}
                   onChange={(event) =>
                     onUpdateModel(model.key, {

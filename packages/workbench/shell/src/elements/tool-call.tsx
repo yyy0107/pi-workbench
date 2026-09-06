@@ -6,6 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/colla
 import { cn } from "../utils";
 import { collapsePanel, field, mono, ShimmerLabel } from "../ui/surface";
 import { useDisclosureScrollLock } from "./use-disclosure-scroll-lock";
+import { withTooltip } from "../ui/tooltip";
 
 export interface ToolCallProps {
   label: string;
@@ -129,16 +130,18 @@ export function ToolCall({
           {elapsed !== undefined && (
             <span className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}>{elapsed}</span>
           )}
-          <span
-            title={query}
-            className={cn(
-              mono,
-              "text-foreground/70 min-w-0 truncate",
-              elapsed === undefined && "ms-1",
-            )}
-          >
-            {query}
-          </span>
+          {withTooltip(
+            <span
+              title={query}
+              className={cn(
+                mono,
+                "text-foreground/70 min-w-0 truncate",
+                elapsed === undefined && "ms-1",
+              )}
+            >
+              {query}
+            </span>,
+          )}
         </span>
       )}
       {!running && terminal ? (

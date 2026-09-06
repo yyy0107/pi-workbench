@@ -21,6 +21,7 @@ import {
   type ModelSelectorEffort,
   type ModelSelectorOption,
 } from "./model-selector-models";
+import { withTooltip } from "./tooltip";
 
 export type { ModelSelectorEffort, ModelSelectorOption } from "./model-selector-models";
 
@@ -66,9 +67,11 @@ function ModelMenuItem({
       disabled={disabled || model.unavailable}
       className="mx-1 h-[var(--dropdown-control-height)] gap-2 px-2 pe-8"
     >
-      <span className="min-w-0 flex-1 truncate" title={model.name}>
-        {model.name}
-      </span>
+      {withTooltip(
+        <span className="min-w-0 flex-1 truncate" title={model.name}>
+          {model.name}
+        </span>,
+      )}
     </DropdownMenuRadioItem>
   );
 }
@@ -128,9 +131,11 @@ function ModelMenuGroup({
                 closeOnClick={false}
                 className="h-[var(--dropdown-control-height)] px-2 pe-8"
               >
-                <span className="min-w-0 flex-1 truncate" title={candidateName}>
-                  {candidateName}
-                </span>
+                {withTooltip(
+                  <span className="min-w-0 flex-1 truncate" title={candidateName}>
+                    {candidateName}
+                  </span>,
+                )}
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>
@@ -236,7 +241,7 @@ export function ModelSelector({
     providerGroupRefs.current.get(providerId)?.scrollIntoView({ block: "start" });
   }, []);
 
-  return (
+  return withTooltip(
     <fieldset
       className="min-w-0 shrink-0 disabled:pointer-events-none disabled:opacity-50"
       disabled={selectionLocked}
@@ -260,12 +265,14 @@ export function ModelSelector({
           )}
           onTransitionEnd={selectorDropdown.onTriggerTransitionEnd}
         >
-          <span
-            className="group-hover:pe-6 group-focus-visible:pe-6 group-data-popup-open:pe-6 block max-w-full min-w-0 truncate text-end font-medium transition-[padding] duration-200 ease-out"
-            title={selectedModel?.name}
-          >
-            {selectedModel?.name ?? labels.select}
-          </span>
+          {withTooltip(
+            <span
+              className="group-hover:pe-6 group-focus-visible:pe-6 group-data-popup-open:pe-6 block max-w-full min-w-0 truncate text-end font-medium transition-[padding] duration-200 ease-out"
+              title={selectedModel?.name}
+            >
+              {selectedModel?.name ?? labels.select}
+            </span>,
+          )}
           <ChevronDownIcon className="absolute end-2 size-3.5 shrink-0 opacity-0 transition-[opacity,transform] group-hover:opacity-50 group-focus-visible:opacity-50 group-data-popup-open:rotate-180 group-data-popup-open:opacity-50" />
         </DropdownMenuTrigger>
 
@@ -372,6 +379,7 @@ export function ModelSelector({
           </DropdownMenuSub>
         </SelectorDropdownContent>
       </DropdownMenu>
-    </fieldset>
+    </fieldset>,
+    0,
   );
 }

@@ -67,10 +67,7 @@ export function ProjectTrustDialog({
             aria-hidden="true"
             className="mt-0.5 size-[var(--icon-size-md)] shrink-0 text-muted-foreground"
           />
-          <code
-            className="min-w-0 max-h-24 overflow-auto font-mono text-sm leading-5 [overflow-wrap:anywhere]"
-            title={path}
-          >
+          <code className="min-w-0 max-h-24 overflow-auto font-mono text-sm leading-5 [overflow-wrap:anywhere]">
             {path}
           </code>
         </div>

@@ -1,6 +1,9 @@
+"use client";
+
 import { Switch as SwitchPrimitive } from "@base-ui/react/switch";
 
 import { cn } from "../utils";
+import { withTooltip } from "./tooltip";
 
 type SwitchSize = "default" | "compact";
 
@@ -11,7 +14,7 @@ function Switch({
 }: SwitchPrimitive.Root.Props & { size?: SwitchSize }) {
   const compact = size === "compact";
 
-  return (
+  return withTooltip(
     <SwitchPrimitive.Root
       data-slot="switch"
       data-size={size}
@@ -33,7 +36,8 @@ function Switch({
             : "size-[var(--switch-thumb-size)] data-checked:translate-x-[var(--switch-thumb-translate)]",
         )}
       />
-    </SwitchPrimitive.Root>
+    </SwitchPrimitive.Root>,
+    0,
   );
 }
 

@@ -7,6 +7,7 @@ import { cn } from "../utils";
 import { collapsePanel, mono, ShimmerLabel, SwapLabel } from "../ui/surface";
 import { take } from "./range";
 import { useDisclosureScrollLock } from "./use-disclosure-scroll-lock";
+import { withTooltip } from "../ui/tooltip";
 
 export interface ReasoningStep {
   title?: ReactNode;
@@ -87,25 +88,27 @@ export function ReasoningPanel({
           {elapsed !== undefined && (
             <span className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}>{elapsed}</span>
           )}
-          {!open && collapsedPreview !== undefined && (
-            <span
-              data-slot="reasoning-panel-preview"
-              title={typeof collapsedPreview === "string" ? collapsedPreview : undefined}
-              className={cn(
-                "text-foreground/45 min-w-0 flex-1 text-start leading-none",
-                collapsedPreviewEdge === "end"
-                  ? "flex flex-row-reverse overflow-hidden whitespace-nowrap"
-                  : "truncate",
-                elapsed === undefined && "ms-1",
-              )}
-            >
-              {collapsedPreviewEdge === "end" ? (
-                <span className="w-max min-w-full shrink-0 text-start">{collapsedPreview}</span>
-              ) : (
-                collapsedPreview
-              )}
-            </span>
-          )}
+          {!open &&
+            collapsedPreview !== undefined &&
+            withTooltip(
+              <span
+                data-slot="reasoning-panel-preview"
+                title={typeof collapsedPreview === "string" ? collapsedPreview : undefined}
+                className={cn(
+                  "text-foreground/45 min-w-0 flex-1 text-start leading-none",
+                  collapsedPreviewEdge === "end"
+                    ? "flex flex-row-reverse overflow-hidden whitespace-nowrap"
+                    : "truncate",
+                  elapsed === undefined && "ms-1",
+                )}
+              >
+                {collapsedPreviewEdge === "end" ? (
+                  <span className="w-max min-w-full shrink-0 text-start">{collapsedPreview}</span>
+                ) : (
+                  collapsedPreview
+                )}
+              </span>,
+            )}
         </span>
         <ChevronRightIcon className="aui-chat-icon-size-default opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/trigger:opacity-60 group-focus-visible/trigger:opacity-60 group-data-open/trigger:rotate-90 group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none" />
       </CollapsibleTrigger>

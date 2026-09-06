@@ -12,13 +12,14 @@ import {
 } from "./menu-styles";
 import { useWorkbenchPortalContainer } from "./workbench-portal-container";
 import { ChevronRightIcon, CheckIcon } from "lucide-react";
+import { withTooltip } from "./tooltip";
 
 function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
   return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
 }
 
 function DropdownMenuTrigger({ ...props }: MenuPrimitive.Trigger.Props) {
-  return <MenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />;
+  return withTooltip(<MenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />, 0);
 }
 
 function DropdownMenuContent({
@@ -83,14 +84,14 @@ function DropdownMenuItem({
   inset?: boolean;
   variant?: "default" | "destructive";
 }) {
-  return (
+  return withTooltip(
     <MenuPrimitive.Item
       data-slot="dropdown-menu-item"
       data-inset={inset}
       data-variant={variant}
       className={cn("group/dropdown-menu-item", menuItemStyles, className)}
       {...props}
-    />
+    />,
   );
 }
 

@@ -50,6 +50,7 @@ import {
   toolTimelineCallState,
   type ToolTimelineStepKind,
 } from "./tool-timeline-model";
+import { withTooltip } from "../../../ui/tooltip";
 
 type TimelineBlock = ReasoningBlock | ToolCallBlock | DataBlock;
 
@@ -312,23 +313,25 @@ function TimelineToolCall({
             ? terminalLabel
             : displayLabel}
       </ShimmerLabel>
-      {fileDiff ? (
-        <button
-          type="button"
-          title={query}
-          className="pointer-events-auto min-w-0 cursor-pointer truncate border-b border-dotted border-foreground/30 bg-transparent text-left leading-tight text-foreground/55 transition-colors group-hover/tool-summary:text-foreground group-focus-within/tool-summary:text-foreground"
-          onClick={openWorkspaceDiff}
-        >
-          {query}
-        </button>
-      ) : (
-        <span
-          title={query}
-          className="min-w-0 truncate border-b border-dotted border-foreground/30 leading-tight"
-        >
-          {query}
-        </span>
-      )}
+      {fileDiff
+        ? withTooltip(
+            <button
+              type="button"
+              title={query}
+              className="pointer-events-auto min-w-0 cursor-pointer truncate border-b border-dotted border-foreground/30 bg-transparent text-left leading-tight text-foreground/55 transition-colors group-hover/tool-summary:text-foreground group-focus-within/tool-summary:text-foreground"
+              onClick={openWorkspaceDiff}
+            >
+              {query}
+            </button>,
+          )
+        : withTooltip(
+            <span
+              title={query}
+              className="min-w-0 truncate border-b border-dotted border-foreground/30 leading-tight"
+            >
+              {query}
+            </span>,
+          )}
       {fileDiff ? (
         <span className="flex shrink-0 items-center gap-1 font-mono text-[11px] tabular-nums">
           <span className="text-[var(--tool-diff-additions)] transition-colors">
