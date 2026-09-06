@@ -590,14 +590,18 @@ function sessionEventFromPayload(payload: ServerRequestFrame["payload"]):
     return undefined;
   }
 
-  const data = event.data;
+  const data: Record<string, unknown> = isRecord(event.data)
+    ? { ...event.data }
+    : { data: event.data };
+  delete data.entryId;
   return {
     sessionId: payload.sessionId,
     event: {
-      ...(isRecord(data) ? data : { data }),
+      ...data,
       type: event.type,
       sequence: event.seq as number,
       eventTime: event.time,
+      ...(isNonEmptyString(event.entryId) ? { entryId: event.entryId } : {}),
       ...(isPiRunTiming(payload.runTiming) ? { runTiming: payload.runTiming } : {}),
     },
   };

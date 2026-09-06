@@ -2181,12 +2181,23 @@ class HostedPiSession {
       if (this.isBusy) throw new PiServerError("pi_session_busy", 409);
       const manager = this.session.sessionManager;
       const selectedEntry = manager.getEntry(messageId);
+      const event = selectedEntry ? storedCanonicalEvent(selectedEntry) : undefined;
+      const eventData = isRecord(event?.data) ? event.data : undefined;
+      const eventMessage = event?.type === "message" ? eventData : eventData?.message;
+      const composerEntry =
+        selectedEntry?.type === "custom_message"
+          ? selectedEntry
+          : isRecord(eventMessage) && eventMessage.role === "custom"
+            ? manager
+                .getBranch(messageId)
+                .findLast((entry) => customMessageMatchesEntry(eventMessage, entry))
+            : undefined;
       const composerDetails =
-        selectedEntry?.type === "custom_message" &&
-        isWorkbenchComposerUserCustomType(selectedEntry.customType)
-          ? parseWorkbenchComposerUserDetails(selectedEntry.details)
+        composerEntry?.type === "custom_message" &&
+        isWorkbenchComposerUserCustomType(composerEntry.customType)
+          ? parseWorkbenchComposerUserDetails(composerEntry.details)
           : undefined;
-      if (composerDetails?.composer) {
+      if (composerDetails?.composer && composerEntry) {
         const attachments = composerDetails.attachments ?? composerDetails.images ?? [];
         const images: PiImageContent[] = attachments.flatMap((attachment) =>
           attachment.mimeType.startsWith("image/")
@@ -2214,7 +2225,7 @@ class HostedPiSession {
         );
         if (images.length + documents.length > 0) {
           await this.retryComposerSubmission(
-            messageId,
+            composerEntry.id,
             composerDetails.submissionId,
             {
               message: composerDetails.composer.text,
@@ -2227,9 +2238,6 @@ class HostedPiSession {
           return;
         }
       }
-      const event = selectedEntry ? storedCanonicalEvent(selectedEntry) : undefined;
-      const eventData = isRecord(event?.data) ? event.data : undefined;
-      const eventMessage = event?.type === "message" ? eventData : eventData?.message;
       let legacySource = false;
       const userEntry = (() => {
         if (

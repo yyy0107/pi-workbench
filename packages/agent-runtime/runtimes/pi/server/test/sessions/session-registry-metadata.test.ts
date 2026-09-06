@@ -2133,6 +2133,14 @@ test("cancels in-flight recognition and retries it with freshly loaded routing",
         entry.type === "custom_message" && entry.customType === "workbench.composer-user.v3",
     );
   assert.ok(cancelledMarker);
+  const cancelledUserEvent = events.find((event) => {
+    const data = event.data as { message?: { customType?: string } };
+    return (
+      event.type === "message_end" && data.message?.customType === "workbench.composer-user.v3"
+    );
+  });
+  assert.ok(cancelledUserEvent?.entryId);
+  assert.notEqual(cancelledUserEvent.entryId, cancelledMarker.id);
   assert.ok(fakeAgent.model);
   const visionModel = { ...fakeAgent.model, input: ["text", "image"] };
   fakeAgent.modelRuntime.getAvailableSnapshot = () => [visionModel];
@@ -2150,7 +2158,7 @@ test("cancels in-flight recognition and retries it with freshly loaded routing",
     throw new Error("native retry must not call the old OCR provider");
   };
 
-  await regenerateSession(host.id, cancelledMarker.id, "attachment-native-retry-rpc");
+  await regenerateSession(host.id, cancelledUserEvent.entryId, "attachment-native-retry-rpc");
   await new Promise<void>((resolve) => setImmediate(resolve));
 
   assert.equal(retriedOcr, false);

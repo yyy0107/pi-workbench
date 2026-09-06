@@ -344,7 +344,7 @@ test("retries a cancelled attachment Composer marker with a fresh correlation id
   t.after(() => manager.dispose());
   const session = manager.getSession("remote-session", "remote-session");
   const user: ThreadMessage = {
-    id: "composer-marker-1",
+    id: "optimistic-composer-user",
     role: "user",
     content: [
       { type: "text", text: "Read this image" },
@@ -354,6 +354,7 @@ test("retries a cancelled attachment Composer marker with a fresh correlation id
     createdAt: new Date(1_000),
     metadata: {
       custom: {
+        piEntryId: "composer-marker-1",
         workbenchAttachmentRecognition: {
           version: 1,
           operationId: "cancelled-operation",
@@ -624,8 +625,13 @@ test("retains a live-only user as the parent when regenerating before history re
     globalThis.fetch = originalFetch;
   });
   globalThis.fetch = async (_input, init) => {
-    const request = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: { messageId: string };
+    };
     assert.equal(request.method, "session.regenerate");
+    assert.equal(request.payload.messageId, "journal-live-user");
     return Response.json({
       type: "server-response",
       rpcId: request.rpcId,
@@ -643,7 +649,7 @@ test("retains a live-only user as the parent when regenerating before history re
     attachments: [],
     createdAt: new Date(1_000),
     metadata: {
-      custom: { piEventSeq: 4, piResolvedEntryId: "journal-live-user" },
+      custom: { piOptimistic: true },
       isOptimistic: true,
     },
   };
@@ -662,11 +668,17 @@ test("retains a live-only user as the parent when regenerating before history re
     },
   };
   const internals = session as unknown as {
+    handleEvent(event: PiEvent): void;
     liveMessages: ThreadMessage[];
     publishMessages(): void;
   };
   internals.liveMessages = [user, completedAssistant];
-  internals.publishMessages();
+  internals.handleEvent({
+    type: "message_end",
+    entryId: "journal-live-user",
+    sequence: 4,
+    message: { role: "user", content: "Retry this answer", timestamp: 1_000 },
+  });
   const connectionInternals = manager.connections as unknown as {
     ensureSessionEvents(): Promise<void>;
   };
@@ -2169,12 +2181,28 @@ test("restores a cold unfinished assistant from durable chunks", (t) => {
 
 test("keeps the optimistic turn ids when history persists the running user message", async (t) => {
   const originalFetch = globalThis.fetch;
+  let historyGate: Promise<void> | undefined;
+  let regenerationCount = 0;
   t.after(() => {
     globalThis.fetch = originalFetch;
   });
   globalThis.fetch = async (_input, init) => {
-    const request = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: { messageId?: string };
+    };
+    if (request.method === "session.regenerate") {
+      regenerationCount += 1;
+      assert.equal(request.payload.messageId, "persisted-user-entry");
+      return Response.json({
+        type: "server-response",
+        rpcId: request.rpcId,
+        result: { ok: true, value: { accepted: true } },
+      });
+    }
     assert.equal(request.method, "session.history");
+    await historyGate;
     return Response.json({
       type: "server-response",
       rpcId: request.rpcId,
@@ -2185,6 +2213,7 @@ test("keeps the optimistic turn ids when history persists the running user messa
             {
               event: {
                 type: "message",
+                entryId: "persisted-user-entry",
                 seq: 7,
                 time: 1_000,
                 data: { role: "user", content: "Hello" },
@@ -2253,6 +2282,19 @@ test("keeps the optimistic turn ids when history persists the running user messa
   assert.ok(
     publishedIds.every((ids) => ids[0] === "optimistic-user" && ids[1] === "optimistic-assistant"),
   );
+  const connections = manager.connections as unknown as { ensureSessionEvents(): Promise<void> };
+  connections.ensureSessionEvents = async () => undefined;
+  let releaseHistory!: () => void;
+  historyGate = new Promise<void>((resolve) => {
+    releaseHistory = resolve;
+  });
+  const reload = session.reload();
+  const retry = session.retry("optimistic-user", undefined);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(regenerationCount, 0, "retry must wait for the pending history baseline");
+  releaseHistory();
+  await Promise.all([reload, retry]);
+  assert.equal(regenerationCount, 1);
 });
 
 test("keeps the optimistic assistant between prompt admission and agent start", (t) => {

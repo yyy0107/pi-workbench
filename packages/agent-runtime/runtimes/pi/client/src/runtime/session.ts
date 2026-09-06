@@ -264,6 +264,7 @@ function livePiUserMessage(
   id: string,
   sequence: number | undefined,
   workbenchComposer: PiUserMessage["workbenchComposer"],
+  entryId?: string,
 ): ThreadUserMessage {
   const queueAppendMessage = queueItemAppendMessage({
     id,
@@ -300,6 +301,7 @@ function livePiUserMessage(
         ...projected.metadata.custom,
         piUserMessageStarted: true,
         piMessageTimestamp: message.timestamp ?? null,
+        ...(entryId === undefined ? {} : { piEntryId: entryId }),
         ...(sequence === undefined ? {} : { piEventSeq: sequence }),
         ...(workbenchComposer?.document === undefined
           ? {}
@@ -1246,6 +1248,7 @@ export class PiClientSession implements ConversationSession {
   async retry(parentId: string | null, _runConfig: PiComposerMessage["runConfig"]): Promise<void> {
     if (this.disposed) return;
     await this.branchSwitchTask;
+    await this.reloadTask;
     if (this.disposed) return;
     const messages = this.snapshotValue.messages;
     const parentIndex =
@@ -1269,8 +1272,10 @@ export class PiClientSession implements ConversationSession {
     const attachmentRetryRpcId = isAttachmentRecognitionRetrySource(source)
       ? createPiRpcId("session.regenerate-attachment")
       : undefined;
-    const resolvedEntryId = source.metadata.custom.piResolvedEntryId;
-    const sourceEntryId = typeof resolvedEntryId === "string" ? resolvedEntryId : source.id;
+    const sourceEntryId =
+      [source.metadata.custom.piResolvedEntryId, source.metadata.custom.piEntryId].find(
+        (id): id is string => typeof id === "string" && id.length > 0,
+      ) ?? source.id;
     const sourceSequence = source.metadata.custom.piEventSeq;
     const optimisticAssistantId = createClientMessageId("pi-assistant");
     const sourceIndex = messages.findIndex((message) => message.id === source.id);
@@ -1853,7 +1858,13 @@ export class PiClientSession implements ConversationSession {
       const message = eventMessage(event);
       if (message?.role === "user") {
         const workbenchComposer = parseWorkbenchComposerUserProjection(event.workbenchComposer);
-        this.publishLiveUserMessage(message, sequence, workbenchComposer, true);
+        this.publishLiveUserMessage(
+          message,
+          sequence,
+          workbenchComposer,
+          true,
+          typeof event.entryId === "string" ? event.entryId : undefined,
+        );
         return;
       }
       if (message?.role === "assistant") {
@@ -1964,6 +1975,7 @@ export class PiClientSession implements ConversationSession {
     sequence: number | undefined,
     workbenchComposer: PiUserMessage["workbenchComposer"],
     completed: boolean,
+    entryId?: string,
   ): void {
     const generatedId =
       sequence === undefined ? createClientMessageId("pi-user") : `pi-event-${sequence}`;
@@ -1976,6 +1988,7 @@ export class PiClientSession implements ConversationSession {
       generatedId,
       sequence,
       workbenchComposer,
+      entryId,
     );
     const optimisticIndex =
       activeIndex >= 0
