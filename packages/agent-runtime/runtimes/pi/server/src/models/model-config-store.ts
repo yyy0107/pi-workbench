@@ -24,8 +24,15 @@ interface ModelsFile extends JsonObject {
   providers?: Record<string, unknown>;
 }
 
+const BUILTIN_PROVIDERS = builtinProviders();
+const BUILTIN_MODELS = new Map(
+  BUILTIN_PROVIDERS.map((provider) => [
+    provider.id,
+    new Map(provider.getModels().map((model) => [model.id, model])),
+  ]),
+);
 const BUILTIN_PROVIDER_BASE_URLS = new Map(
-  builtinProviders().map((provider) => [
+  BUILTIN_PROVIDERS.map((provider) => [
     provider.id,
     new Set(
       [provider.baseUrl, ...provider.getModels().map((model) => model.baseUrl)]
@@ -36,6 +43,17 @@ const BUILTIN_PROVIDER_BASE_URLS = new Map(
 );
 
 const CAPABILITY_SOURCES_KEY = "x-workbench-model-capability-sources";
+// Keep the settings page's explicit model list while Pi reads built-in edits as overrides.
+const CUSTOM_MODEL_IDS_KEY = "x-workbench-custom-model-ids";
+const MODEL_OVERRIDE_FIELDS = new Set([
+  "id",
+  "name",
+  "reasoning",
+  "thinkingLevelMap",
+  "input",
+  "contextWindow",
+  "maxTokens",
+]);
 type CapabilitySources = Record<string, Record<string, ModelCapabilitySource>>;
 const MODEL_THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 
@@ -167,15 +185,13 @@ function safeProvider(
   sources: Readonly<Record<string, ModelCapabilitySource>> = {},
 ): StoredModelProviderConfiguration {
   if (!isObject(value)) return {};
-  const models = Array.isArray(value.models)
-    ? value.models.flatMap((model) => {
-        const parsed = modelConfiguration(
-          model,
-          isObject(model) && typeof model.id === "string" ? sources[model.id] : undefined,
-        );
-        return parsed ? [parsed] : [];
-      })
-    : undefined;
+  const models = configuredModels(value)?.flatMap((model) => {
+    const parsed = modelConfiguration(
+      model,
+      isObject(model) && typeof model.id === "string" ? sources[model.id] : undefined,
+    );
+    return parsed ? [parsed] : [];
+  });
   const modelOverrides = isObject(value.modelOverrides)
     ? Object.fromEntries(
         Object.entries(value.modelOverrides).flatMap(([model, override]) =>
@@ -219,6 +235,68 @@ function storedModel(
   if (model.input) next.input = [...new Set(model.input)];
   else delete next.input;
   return next;
+}
+
+function customModelIds(provider: JsonObject): string[] {
+  const ids = provider[CUSTOM_MODEL_IDS_KEY];
+  return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : [];
+}
+
+function configuredModels(provider: JsonObject): JsonObject[] | undefined {
+  const models = Array.isArray(provider.models) ? provider.models.filter(isObject) : undefined;
+  const ids = customModelIds(provider);
+  if (ids.length === 0) return models;
+  const custom = new Map(models?.map((model) => [model.id, model]));
+  const overrides = isObject(provider.modelOverrides) ? provider.modelOverrides : {};
+  const configured = ids.map(
+    (id) =>
+      custom.get(id) ?? {
+        ...modelConfiguration({ ...(isObject(overrides[id]) ? overrides[id] : {}), id }),
+        id,
+      },
+  );
+  const configuredIds = new Set(ids);
+  return [
+    ...configured,
+    ...(models?.filter((model) => !configuredIds.has(String(model.id))) ?? []),
+  ];
+}
+
+/** Pi's models array replaces built-ins; modelOverrides retains their protocol metadata. */
+function normalizeBuiltinModels(providerId: string, provider: JsonObject): boolean {
+  const builtins = BUILTIN_MODELS.get(providerId);
+  if (!builtins || !Array.isArray(provider.models)) return false;
+  const overrides = isObject(provider.modelOverrides) ? { ...provider.modelOverrides } : {};
+  let changed = false;
+  const ids = configuredModels(provider)?.map((model) => model.id) ?? [];
+  const models = provider.models.filter((model) => {
+    if (!isObject(model) || typeof model.id !== "string") return true;
+    const builtin = builtins.get(model.id);
+    // Only migrate the fields Workbench edits. Hand-written routes/metadata stay intact.
+    if (
+      !builtin ||
+      (provider.api !== undefined && provider.api !== builtin.api) ||
+      !Object.keys(model).every((key) => MODEL_OVERRIDE_FIELDS.has(key))
+    )
+      return true;
+    const { id: _id, ...fields } = model;
+    const currentOverride = overrides[model.id];
+    const existing = isObject(currentOverride) ? currentOverride : {};
+    overrides[model.id] = {
+      ...fields,
+      ...existing,
+      ...(isObject(fields.thinkingLevelMap) && isObject(existing.thinkingLevelMap)
+        ? { thinkingLevelMap: { ...fields.thinkingLevelMap, ...existing.thinkingLevelMap } }
+        : {}),
+    };
+    changed = true;
+    return false;
+  });
+  if (!changed) return false;
+  provider.models = models;
+  provider.modelOverrides = overrides;
+  provider[CUSTOM_MODEL_IDS_KEY] = ids;
+  return true;
 }
 
 export class ModelConfigStore implements ModelConfigStorage {
@@ -318,6 +396,33 @@ export class ModelConfigStore implements ModelConfigStorage {
     );
   }
 
+  async migrateBuiltinModelOverrides(): Promise<boolean> {
+    const migrate = (content: string): ModelsFile | undefined => {
+      let state: ModelsFile;
+      try {
+        state = parseModelsFile(content);
+      } catch {
+        // Leave invalid files to Pi's existing configuration diagnostics.
+        return undefined;
+      }
+      let changed = false;
+      for (const [provider, value] of Object.entries(state.providers ?? {})) {
+        if (isObject(value) && normalizeBuiltinModels(provider, value)) changed = true;
+      }
+      return changed ? state : undefined;
+    };
+    const content = await this.readContent();
+    if (content === undefined || !migrate(content)) return false;
+    return this.withLock(async () => {
+      const previous = await this.readContent();
+      if (previous === undefined) return false;
+      const state = migrate(previous);
+      if (!state) return false;
+      await this.writeMutation(previous, serialized(state));
+      return true;
+    });
+  }
+
   async setProvider(
     provider: string,
     configuration: ModelProviderConfiguration,
@@ -329,9 +434,7 @@ export class ModelConfigStore implements ModelConfigStorage {
       const sources = capabilitySources(state[CAPABILITY_SOURCES_KEY]);
       const current = isObject(providers[provider]) ? providers[provider] : {};
       const existingModels = new Map(
-        (Array.isArray(current.models) ? current.models : [])
-          .filter(isObject)
-          .map((model) => [model.id, model] as const),
+        configuredModels(current)?.map((model) => [model.id, model] as const),
       );
       const nextProvider: JsonObject = {
         ...current,
@@ -339,14 +442,24 @@ export class ModelConfigStore implements ModelConfigStorage {
         baseUrl: configuration.baseURL,
         api: configuration.api,
       };
+      const modelOverrides = isObject(current.modelOverrides) ? { ...current.modelOverrides } : {};
+      for (const id of customModelIds(current)) {
+        if (
+          Array.isArray(current.models) &&
+          current.models.some((model) => isObject(model) && model.id === id)
+        )
+          continue;
+        if (!isObject(modelOverrides[id])) continue;
+        const { id: _id, ...remaining } = storedModel(modelOverrides[id], { id });
+        if (Object.keys(remaining).length > 0) modelOverrides[id] = remaining;
+        else delete modelOverrides[id];
+      }
+      delete nextProvider[CUSTOM_MODEL_IDS_KEY];
       if (configuration.models) {
         nextProvider.models = configuration.models.map((model) =>
           storedModel(existingModels.get(model.id), model),
         );
         // Saving an explicit model capacity supersedes an older per-model capacity override.
-        const modelOverrides = isObject(current.modelOverrides)
-          ? { ...current.modelOverrides }
-          : {};
         for (const model of configuration.models) {
           const override = modelOverrides[model.id];
           if (model.contextWindow === undefined || !isObject(override)) continue;
@@ -354,8 +467,6 @@ export class ModelConfigStore implements ModelConfigStorage {
           if (Object.keys(remaining).length > 0) modelOverrides[model.id] = remaining;
           else delete modelOverrides[model.id];
         }
-        if (Object.keys(modelOverrides).length > 0) nextProvider.modelOverrides = modelOverrides;
-        else delete nextProvider.modelOverrides;
         const providerSources = Object.fromEntries(
           configuration.models.flatMap((model) =>
             model.imageInputSource ? [[model.id, model.imageInputSource] as const] : [],
@@ -367,6 +478,8 @@ export class ModelConfigStore implements ModelConfigStorage {
         delete nextProvider.models;
         delete sources[provider];
       }
+      if (Object.keys(modelOverrides).length > 0) nextProvider.modelOverrides = modelOverrides;
+      else delete nextProvider.modelOverrides;
       const builtinBaseURLs = BUILTIN_PROVIDER_BASE_URLS.get(provider);
       if (builtinBaseURLs) {
         // Built-ins can mix protocols and URL prefixes. Let each adapter model
@@ -376,6 +489,7 @@ export class ModelConfigStore implements ModelConfigStorage {
           delete nextProvider.baseUrl;
         }
       }
+      normalizeBuiltinModels(provider, nextProvider);
       if (builtinBaseURLs && Object.keys(nextProvider).every((key) => key === "name")) {
         delete providers[provider];
       } else {

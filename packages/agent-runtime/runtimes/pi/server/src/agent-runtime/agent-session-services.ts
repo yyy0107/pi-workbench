@@ -1,9 +1,13 @@
+import path from "node:path";
+
 import type { Api, FetchFunction } from "@earendil-works/pi-ai";
 import {
   createAgentSessionServices,
   type CreateAgentSessionServicesOptions,
   type ModelRuntime,
 } from "@earendil-works/pi-coding-agent";
+
+import { ModelConfigStore } from "../models/model-config-store";
 
 // Capture during host module initialization, before any resource loader runs.
 // Capturing per session would inherit global fetch overrides from older sessions.
@@ -33,6 +37,14 @@ export async function createWorkbenchAgentSessionServices(
 ) {
   const services = await createAgentSessionServices(options);
   const runtime = services.modelRuntime;
+  if (
+    !options.modelRuntime &&
+    (await new ModelConfigStore({
+      stateFile: path.join(services.agentDir, "models.json"),
+    }).migrateBuiltinModelOverrides())
+  ) {
+    await runtime.refresh({ allowNetwork: false, signal: options.modelRuntimeSignal });
+  }
   if (protectedRuntimes.has(runtime)) return services;
 
   // Keep the SDK runtime and its auth/provider/reload ownership. Both complete
