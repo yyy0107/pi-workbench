@@ -89,14 +89,15 @@ export function createConversationPreferences(settings: WorkbenchSettingsPort) {
     },
     async update(patch) {
       if (closed || get().status !== "ready") return;
-      set({ status: "saving", saveFailed: false });
+      const previous = get().preferences;
+      set({ preferences: { ...previous, ...patch }, status: "saving", saveFailed: false });
       try {
         await settings.update(patch);
         if (!closed) {
-          set({ preferences: { ...get().preferences, ...patch }, status: "ready" });
+          set({ status: "ready" });
         }
       } catch {
-        if (!closed) set({ status: "ready", saveFailed: true });
+        if (!closed) set({ preferences: previous, status: "ready", saveFailed: true });
       }
     },
   }));

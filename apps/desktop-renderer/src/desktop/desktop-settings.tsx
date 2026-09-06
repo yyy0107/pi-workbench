@@ -267,9 +267,9 @@ function DesktopSettingsItem() {
               checked={snapshot?.preferences[key] ?? false}
               disabled={
                 !snapshot ||
-                busy ||
                 (key === "notificationSounds" && !snapshot.preferences.taskNotifications)
               }
+              readOnly={busy}
               onCheckedChange={(checked) => {
                 if (port)
                   void save(async () => {

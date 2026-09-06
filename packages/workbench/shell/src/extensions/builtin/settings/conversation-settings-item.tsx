@@ -81,7 +81,8 @@ export function ConversationSettingsItem() {
             <Switch
               id={`${id}-${key}`}
               checked={preferences[key]}
-              disabled={disabled}
+              disabled={status === "loading" || status === "error"}
+              readOnly={status === "saving"}
               aria-describedby={`${id}-${key}-description${saveFailed ? ` ${errorId}` : ""}`}
               onCheckedChange={(checked) => void update({ [key]: checked })}
             />

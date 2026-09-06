@@ -54,3 +54,30 @@ test("retries failed hydration and ignores a response after installation disposa
   await task;
   assert.equal(store.getState().preferences.showReasoning, true);
 });
+
+test("shows an edit immediately, preserves sibling preferences, and rolls back failed saves", async () => {
+  let rejectSave!: (reason: Error) => void;
+  let writes = 0;
+  const store = createConversationPreferences({
+    load: async () => ({}),
+    update: () => {
+      writes += 1;
+      return new Promise<void>((_resolve, reject) => {
+        rejectSave = reject;
+      });
+    },
+  });
+  await store.getState().hydrate();
+  const previous = store.getState().preferences;
+  const saving = store.getState().update({ showTodos: false });
+  assert.equal(store.getState().status, "saving");
+  assert.deepEqual(store.getState().preferences, { ...previous, showTodos: false });
+  await store.getState().update({ showReasoning: false });
+  assert.equal(writes, 1);
+  rejectSave(new Error("offline"));
+  await saving;
+  assert.equal(store.getState().preferences, previous);
+  assert.equal(store.getState().saveFailed, true);
+  assert.equal(store.getState().status, "ready");
+  store.dispose();
+});
