@@ -898,7 +898,7 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                 {t("extensions.appearance.palette.description")}
               </p>
               <TabsContent key={editingTheme} value={editingTheme}>
-                <SharedSettingsGroup className="mt-4 rounded-[var(--radius-xl)] border border-border px-4">
+                <SharedSettingsGroup className="mt-4">
                   <SettingRow label={t("extensions.appearance.themeSettings.accent")} wideControl>
                     <AccentColorControl
                       mode={editingTheme}
@@ -939,7 +939,29 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                       }
                     />
                   </SettingRow>
-                  <SettingRow label={t("extensions.appearance.typography.contentFont")} wideControl>
+                  <SettingRow
+                    label={t("extensions.appearance.preferences.uiFontSize")}
+                    description={t("extensions.appearance.preferences.uiFontSizeDescription")}
+                  >
+                    <RangeControl
+                      label={t("extensions.appearance.preferences.uiFontSize")}
+                      value={preferences.uiFontSize}
+                      formatValue={fontSizeLabel}
+                      minimum={MIN_UI_FONT_SIZE}
+                      maximum={MAX_UI_FONT_SIZE}
+                      commitOnInteractionEnd
+                      onChange={(uiFontSize) => appearanceController.update({ uiFontSize })}
+                    />
+                  </SettingRow>
+                  <SettingRow
+                    label={t("extensions.appearance.typography.contentFont")}
+                    description={
+                      preferences.contentFont === "inherit"
+                        ? t("extensions.appearance.typography.inheritedWeightDescription")
+                        : undefined
+                    }
+                    wideControl
+                  >
                     <FontControl
                       label={t("extensions.appearance.typography.contentFont")}
                       value={preferences.contentFont}
@@ -970,6 +992,39 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                       }
                     />
                   </SettingRow>
+                  <SettingRow
+                    label={t("extensions.appearance.preferences.codeFontSize")}
+                    description={t("extensions.appearance.preferences.codeFontSizeDescription")}
+                  >
+                    <RangeControl
+                      label={t("extensions.appearance.preferences.codeFontSize")}
+                      value={preferences.codeFontSize}
+                      formatValue={fontSizeLabel}
+                      minimum={MIN_CODE_FONT_SIZE}
+                      maximum={MAX_CODE_FONT_SIZE}
+                      onChange={(codeFontSize) => appearanceController.update({ codeFontSize })}
+                    />
+                  </SettingRow>
+                  <SettingRow
+                    label={t("extensions.appearance.preferences.codeTheme")}
+                    description={t("extensions.appearance.preferences.codeThemeDescription")}
+                  >
+                    <SelectControl
+                      label={t("extensions.appearance.preferences.codeTheme")}
+                      value={preferences.codeTheme}
+                      options={CODE_THEMES}
+                      optionLabel={codeThemeLabel}
+                      onChange={(codeTheme) => appearanceController.update({ codeTheme })}
+                    />
+                  </SettingRow>
+                  <div className="py-3">
+                    <CodeThemePreview
+                      code={CODE_PREVIEW}
+                      language="tsx"
+                      label={t("extensions.appearance.preferences.codePreview")}
+                      codeTheme={preferences.codeTheme}
+                    />
+                  </div>
                   <SettingRow label={t("extensions.appearance.themeSettings.contrast")}>
                     <RangeControl
                       label={t(`extensions.appearance.themeSettings.${editingTheme}Contrast`)}
@@ -990,26 +1045,6 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
 
         {page === "interface" ? (
           <>
-            <SettingGroup
-              title={t("extensions.appearance.typography.title")}
-              description={t("extensions.appearance.typography.description")}
-            >
-              <SettingRow
-                label={t("extensions.appearance.preferences.uiFontSize")}
-                description={t("extensions.appearance.preferences.uiFontSizeDescription")}
-              >
-                <RangeControl
-                  label={t("extensions.appearance.preferences.uiFontSize")}
-                  value={preferences.uiFontSize}
-                  formatValue={fontSizeLabel}
-                  minimum={MIN_UI_FONT_SIZE}
-                  maximum={MAX_UI_FONT_SIZE}
-                  commitOnInteractionEnd
-                  onChange={(uiFontSize) => appearanceController.update({ uiFontSize })}
-                />
-              </SettingRow>
-            </SettingGroup>
-
             <SettingGroup
               title={t("extensions.appearance.runningIndicator.title")}
               description={t("extensions.appearance.runningIndicator.description")}
@@ -1083,30 +1118,6 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
             </SettingGroup>
 
             <SettingGroup layout="cards" showHeading={false}>
-              <SettingSubgroup title={t("extensions.appearance.surfaces.title")}>
-                <SettingRow label={t("extensions.appearance.surfaces.opacity")}>
-                  <RangeControl
-                    label={t("extensions.appearance.surfaces.opacity")}
-                    value={preferences.surfaceOpacity}
-                    formatValue={surfaceOpacityLabel}
-                    minimum={MIN_SURFACE_OPACITY}
-                    maximum={MAX_SURFACE_OPACITY}
-                    disabled={!preferences.customBackground && !backgroundImage.url}
-                    onChange={(surfaceOpacity) => appearanceController.update({ surfaceOpacity })}
-                  />
-                </SettingRow>
-                <SettingRow label={t("extensions.appearance.surfaces.glassBlur")}>
-                  <SelectControl
-                    label={t("extensions.appearance.surfaces.glassBlur")}
-                    value={preferences.glassBlur}
-                    options={GLASS_BLURS}
-                    optionLabel={glassBlurLabel}
-                    disabled={!preferences.customBackground && !backgroundImage.url}
-                    onChange={(glassBlur) => appearanceController.update({ glassBlur })}
-                  />
-                </SettingRow>
-              </SettingSubgroup>
-
               <SettingSubgroup title={t("extensions.appearance.borders.title")}>
                 <SettingRow label={t("extensions.appearance.borders.style")}>
                   <SelectControl
@@ -1126,7 +1137,14 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                     }
                   />
                 </SettingRow>
-                <SettingRow label={t("extensions.appearance.borders.color")}>
+                <SettingRow
+                  label={t("extensions.appearance.borders.color")}
+                  description={
+                    !preferences.customBorderColor
+                      ? t("extensions.appearance.borders.colorRequiresCustom")
+                      : undefined
+                  }
+                >
                   <ColorControl
                     color={preferences.borderColor}
                     disabled={!preferences.customBorderColor}
@@ -1163,7 +1181,10 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
             showHeading={false}
           >
             <SettingSubgroup title={t("extensions.appearance.background.colorTitle")}>
-              <SettingRow label={t("extensions.appearance.background.custom")}>
+              <SettingRow
+                label={t("extensions.appearance.background.custom")}
+                description={t("extensions.appearance.background.customDescription")}
+              >
                 <SwitchControl
                   checked={preferences.customBackground}
                   label={t("extensions.appearance.background.custom")}
@@ -1194,7 +1215,14 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
               <SettingRow label={t("extensions.appearance.background.image")}>
                 <BackgroundImagePicker image={backgroundImage} />
               </SettingRow>
-              <SettingRow label={t("extensions.appearance.background.blur")}>
+              <SettingRow
+                label={t("extensions.appearance.background.blur")}
+                description={
+                  !backgroundImage.url
+                    ? t("extensions.appearance.background.blurRequiresImage")
+                    : undefined
+                }
+              >
                 <SelectControl
                   label={t("extensions.appearance.background.blur")}
                   value={preferences.backgroundBlur}
@@ -1205,48 +1233,33 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                 />
               </SettingRow>
             </SettingSubgroup>
-          </SettingGroup>
-        ) : null}
 
-        {page === "code" ? (
-          <SettingGroup
-            title={t("extensions.appearance.code.title")}
-            description={t("extensions.appearance.code.description")}
-            showHeading={false}
-          >
-            <SettingRow
-              label={t("extensions.appearance.preferences.codeFontSize")}
-              description={t("extensions.appearance.preferences.codeFontSizeDescription")}
-            >
-              <RangeControl
-                label={t("extensions.appearance.preferences.codeFontSize")}
-                value={preferences.codeFontSize}
-                formatValue={fontSizeLabel}
-                minimum={MIN_CODE_FONT_SIZE}
-                maximum={MAX_CODE_FONT_SIZE}
-                onChange={(codeFontSize) => appearanceController.update({ codeFontSize })}
-              />
-            </SettingRow>
-            <SettingRow
-              label={t("extensions.appearance.preferences.codeTheme")}
-              description={t("extensions.appearance.preferences.codeThemeDescription")}
-            >
-              <SelectControl
-                label={t("extensions.appearance.preferences.codeTheme")}
-                value={preferences.codeTheme}
-                options={CODE_THEMES}
-                optionLabel={codeThemeLabel}
-                onChange={(codeTheme) => appearanceController.update({ codeTheme })}
-              />
-            </SettingRow>
-            <div className="py-3">
-              <CodeThemePreview
-                code={CODE_PREVIEW}
-                language="tsx"
-                label={t("extensions.appearance.preferences.codePreview")}
-                codeTheme={preferences.codeTheme}
-              />
-            </div>
+            <SettingSubgroup title={t("extensions.appearance.surfaces.title")}>
+              <SettingRow
+                label={t("extensions.appearance.surfaces.opacity")}
+                description={t("extensions.appearance.surfaces.requiresBackground")}
+              >
+                <RangeControl
+                  label={t("extensions.appearance.surfaces.opacity")}
+                  value={preferences.surfaceOpacity}
+                  formatValue={surfaceOpacityLabel}
+                  minimum={MIN_SURFACE_OPACITY}
+                  maximum={MAX_SURFACE_OPACITY}
+                  disabled={!preferences.customBackground && !backgroundImage.url}
+                  onChange={(surfaceOpacity) => appearanceController.update({ surfaceOpacity })}
+                />
+              </SettingRow>
+              <SettingRow label={t("extensions.appearance.surfaces.glassBlur")}>
+                <SelectControl
+                  label={t("extensions.appearance.surfaces.glassBlur")}
+                  value={preferences.glassBlur}
+                  options={GLASS_BLURS}
+                  optionLabel={glassBlurLabel}
+                  disabled={!preferences.customBackground && !backgroundImage.url}
+                  onChange={(glassBlur) => appearanceController.update({ glassBlur })}
+                />
+              </SettingRow>
+            </SettingSubgroup>
           </SettingGroup>
         ) : null}
       </div>

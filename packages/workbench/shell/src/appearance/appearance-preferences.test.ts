@@ -100,7 +100,7 @@ test("falls back field by field when persisted values are invalid", () => {
       borderStyle: "double",
       cornerRadius: "pill",
       lightAccentColor: "blue",
-      lightContrast: 200,
+      lightContrast: 301,
       darkContrast: 20,
       uiFont: "comicSans",
       uiFontWeight: "500",
@@ -120,6 +120,15 @@ test("falls back field by field when persisted values are invalid", () => {
   assert.deepEqual(preferences, DEFAULT_APPEARANCE_PREFERENCES);
   assert.equal(isDefaultAppearancePreferences(preferences), true);
   assert.equal(parseAppearancePreferences("{"), DEFAULT_APPEARANCE_PREFERENCES);
+});
+
+test("preserves stronger contrast settings for both themes", () => {
+  const preferences = parseAppearancePreferences(
+    JSON.stringify({ lightContrast: 300, darkContrast: 300 }),
+  );
+
+  assert.equal(preferences.lightContrast, 300);
+  assert.equal(preferences.darkContrast, 300);
 });
 
 test("ignores retired interaction, control-height, and diff-marker preferences", () => {

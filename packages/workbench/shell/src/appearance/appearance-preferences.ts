@@ -179,7 +179,7 @@ const LEGACY_CODE_STYLE_THEMES: Readonly<Record<string, CodeTheme>> = {
 };
 
 export const MIN_THEME_CONTRAST = 75;
-export const MAX_THEME_CONTRAST = 125;
+export const MAX_THEME_CONTRAST = 300;
 export type ThemeContrast = number;
 
 export const MIN_UI_FONT_SIZE = 12;

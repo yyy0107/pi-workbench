@@ -75,7 +75,7 @@ function Citation({ index, source, open, onOpenChange }: CitationProps) {
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 flex items-start gap-1 text-[13px] leading-snug font-medium underline-offset-2 hover:underline"
+                className="text-primary mt-2 flex items-start gap-1 text-[13px] leading-snug font-medium underline-offset-2 hover:underline"
               >
                 <span>{source.title}</span>
                 <ExternalLinkIcon

@@ -1,4 +1,4 @@
-import { Code2Icon, ImageIcon, PaletteIcon, PanelsTopLeftIcon } from "lucide-react";
+import { ImageIcon, PaletteIcon, PanelsTopLeftIcon } from "lucide-react";
 
 import { defineMessage } from "../../../i18n";
 import { defineExtension } from "@workbench/extension-sdk";
@@ -39,9 +39,12 @@ export const appearanceExtension = defineExtension({
         defineMessage("extensions.appearance.themeSettings.foreground"),
         defineMessage("extensions.appearance.themeSettings.contrast"),
         defineMessage("extensions.appearance.typography.font"),
+        defineMessage("extensions.appearance.preferences.uiFontSize"),
         defineMessage("extensions.appearance.typography.contentFont"),
         defineMessage("extensions.appearance.typography.fontWeight"),
         defineMessage("extensions.appearance.code.font"),
+        defineMessage("extensions.appearance.preferences.codeFontSize"),
+        defineMessage("extensions.appearance.preferences.codeTheme"),
       ],
       component: AppearanceSettingsItem,
     });
@@ -60,10 +63,8 @@ export const appearanceExtension = defineExtension({
       title: defineMessage("extensions.appearance.interface.sectionTitle"),
       description: defineMessage("extensions.appearance.interface.description"),
       keywords: [
-        defineMessage("extensions.appearance.preferences.uiFontSize"),
         defineMessage("extensions.appearance.runningIndicator.title"),
         defineMessage("extensions.appearance.activityAnimation.title"),
-        defineMessage("extensions.appearance.surfaces.title"),
         defineMessage("extensions.appearance.borders.title"),
         defineMessage("extensions.appearance.corners.title"),
       ],
@@ -87,26 +88,9 @@ export const appearanceExtension = defineExtension({
         defineMessage("extensions.appearance.background.colorTitle"),
         defineMessage("extensions.appearance.background.imageTitle"),
         defineMessage("extensions.appearance.background.blur"),
-      ],
-      component: AppearanceSettingsItem,
-    });
-    const codeSection = context.settings.registerSection({
-      id: "code",
-      title: defineMessage("extensions.appearance.code.sectionTitle"),
-      description: defineMessage("extensions.appearance.code.description"),
-      headerAction: AppearanceResetAction,
-      icon: Code2Icon,
-      group,
-      order: 40,
-    });
-    const codeSettings = context.settings.registerItem({
-      sectionId: "code",
-      id: "code-style",
-      title: defineMessage("extensions.appearance.code.title"),
-      description: defineMessage("extensions.appearance.code.description"),
-      keywords: [
-        defineMessage("extensions.appearance.preferences.codeFontSize"),
-        defineMessage("extensions.appearance.preferences.codeTheme"),
+        defineMessage("extensions.appearance.surfaces.title"),
+        defineMessage("extensions.appearance.surfaces.opacity"),
+        defineMessage("extensions.appearance.surfaces.glassBlur"),
       ],
       component: AppearanceSettingsItem,
     });
@@ -122,8 +106,6 @@ export const appearanceExtension = defineExtension({
       interfaceSettings,
       backgroundSection,
       backgroundSettings,
-      codeSection,
-      codeSettings,
       background,
     ];
   },

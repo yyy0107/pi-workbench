@@ -22,8 +22,8 @@ export function MessageSource({
   const url = safeExternalUrl(rawUrl);
   const plain = variant === "plain";
   const className = plain
-    ? "inline-flex max-w-full items-center gap-1 text-xs underline"
-    : "bg-muted/60 hover:bg-muted my-1 inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs underline-offset-2 hover:underline";
+    ? "text-primary inline-flex max-w-full items-center gap-1 text-xs underline"
+    : "text-primary bg-muted/60 hover:bg-muted my-1 inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs underline-offset-2 hover:underline";
 
   if (!url) {
     return (

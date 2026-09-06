@@ -65,7 +65,7 @@ const MARKDOWN_COMPOSER_THEME = {
     h5: "mt-2 mb-1 text-base font-semibold leading-6 first:mt-0",
     h6: "mt-2 mb-1 text-base font-semibold leading-6 first:mt-0",
   },
-  link: "text-blue-600 underline underline-offset-2 dark:text-blue-400",
+  link: "text-primary underline underline-offset-2",
   list: {
     listitem: "my-0.5",
     nested: { listitem: "list-none" },

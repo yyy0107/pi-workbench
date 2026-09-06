@@ -397,6 +397,7 @@ export function ComposerPrimaryActionView({
       variant="default"
       className={cn(
         COMPOSER_PRIMARY_ACTION_CLASS_NAME,
+        "bg-primary/10 text-primary hover:bg-primary/20",
         "disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100",
       )}
       onClick={onSend}

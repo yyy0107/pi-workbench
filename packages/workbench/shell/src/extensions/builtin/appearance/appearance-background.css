@@ -16,19 +16,20 @@
   --primary-foreground: var(--workbench-theme-background);
   --sidebar-primary: var(--workbench-theme-accent);
   --sidebar-primary-foreground: var(--workbench-theme-background);
+  /* Increase separation from the background without filtering or clipping rendered content. */
   --ring: color-mix(
     in srgb,
-    var(--workbench-theme-foreground) 40%,
+    var(--workbench-theme-foreground) min(100%, calc(var(--workbench-theme-contrast) * 0.4)),
     var(--workbench-theme-background)
   );
   --muted: color-mix(
     in srgb,
-    var(--workbench-theme-background) 92%,
-    var(--workbench-theme-foreground)
+    var(--workbench-theme-background),
+    var(--workbench-theme-foreground) calc(var(--workbench-theme-contrast) * 0.08)
   );
   --muted-foreground: color-mix(
     in srgb,
-    var(--workbench-theme-foreground) 62%,
+    var(--workbench-theme-foreground) min(100%, calc(var(--workbench-theme-contrast) * 0.62)),
     var(--workbench-theme-background)
   );
   --secondary: var(--muted);
@@ -36,8 +37,16 @@
   --accent: var(--muted);
   --accent-foreground: var(--workbench-theme-foreground);
   /* Re-resolve interaction colors at the Shell's theme boundary. */
-  --control-state-background-hover: color-mix(in oklab, var(--foreground) 6%, transparent);
-  --control-state-background-active: color-mix(in oklab, var(--foreground) 10%, transparent);
+  --control-state-background-hover: color-mix(
+    in oklab,
+    var(--foreground) calc(var(--workbench-theme-contrast) * 0.06),
+    transparent
+  );
+  --control-state-background-active: color-mix(
+    in oklab,
+    var(--foreground) calc(var(--workbench-theme-contrast) * 0.1),
+    transparent
+  );
   --control-state-background-selected: var(--accent);
   --control-state-foreground-selected: var(--accent-foreground);
   --button-background-hover: var(--control-state-background-hover);
@@ -59,13 +68,13 @@
   --sidebar-accent-foreground: var(--workbench-theme-foreground);
   --border: color-mix(
     in srgb,
-    var(--workbench-theme-background) 92%,
-    var(--workbench-theme-foreground)
+    var(--workbench-theme-background),
+    var(--workbench-theme-foreground) calc(var(--workbench-theme-contrast) * 0.08)
   );
   --input: color-mix(
     in srgb,
-    var(--workbench-theme-background) 82%,
-    var(--workbench-theme-foreground)
+    var(--workbench-theme-background),
+    var(--workbench-theme-foreground) calc(var(--workbench-theme-contrast) * 0.18)
   );
   --input-control-border: var(--input);
   --switch-track-background: var(--input);
@@ -78,7 +87,7 @@
   --aui-foreground: var(--workbench-theme-foreground);
   --aui-muted-foreground: var(--muted-foreground);
   --aui-border: var(--border);
-  --aui-user-message: var(--muted);
+  --aui-user-message: color-mix(in srgb, var(--primary) 10%, var(--background));
   --aui-composer: var(--muted);
   --aui-font-family: var(--workbench-theme-ui-font);
   --font-sans: var(--workbench-theme-ui-font);
@@ -100,7 +109,6 @@
   font-family: var(--workbench-theme-ui-font);
   font-weight: var(--workbench-ui-font-weight);
   font-size: var(--workbench-ui-font-size);
-  filter: contrast(var(--workbench-theme-contrast));
 }
 
 [data-workbench-shell][data-workbench-appearance]:not(.dark) {
@@ -112,16 +120,24 @@
   --workbench-theme-contrast: var(--workbench-light-contrast);
   --muted: color-mix(
     in srgb,
-    var(--workbench-theme-background) 96%,
-    var(--workbench-theme-foreground)
+    var(--workbench-theme-background),
+    var(--workbench-theme-foreground) calc(var(--workbench-theme-contrast) * 0.04)
   );
   --muted-foreground: color-mix(
     in srgb,
-    var(--workbench-theme-foreground) 68%,
+    var(--workbench-theme-foreground) min(100%, calc(var(--workbench-theme-contrast) * 0.68)),
     var(--workbench-theme-background)
   );
-  --control-state-background-hover: color-mix(in oklab, var(--foreground) 3%, transparent);
-  --control-state-background-active: color-mix(in oklab, var(--foreground) 6%, transparent);
+  --control-state-background-hover: color-mix(
+    in oklab,
+    var(--foreground) calc(var(--workbench-theme-contrast) * 0.03),
+    transparent
+  );
+  --control-state-background-active: color-mix(
+    in oklab,
+    var(--foreground) calc(var(--workbench-theme-contrast) * 0.06),
+    transparent
+  );
 }
 
 [data-workbench-shell][data-workbench-appearance].dark {

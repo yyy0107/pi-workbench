@@ -1060,7 +1060,8 @@ export const extensionsEnUS = {
 
   appearance: {
     title: "Theme",
-    description: "Choose a color mode and customize theme colors, fonts, and font weights.",
+    description:
+      "Choose a color mode and customize theme colors, fonts, font size, and font weights.",
     theme: {
       title: "Theme",
       description: "Follow the operating system or keep Workbench in one color mode.",
@@ -1074,7 +1075,7 @@ export const extensionsEnUS = {
     palette: {
       title: "Theme configuration",
       description:
-        "Colors and contrast are saved separately for light and dark themes. Fonts are shared. A contrast of 0 applies no extra adjustment.",
+        "Colors and contrast are saved separately for light and dark themes. Fonts, font sizes, weights, and the code theme are shared. A contrast of 0 uses the default appearance. Higher values make borders, secondary text, and control surfaces stand out more against the background.",
     },
     themeSettings: {
       accent: "Accent color",
@@ -1104,11 +1105,11 @@ export const extensionsEnUS = {
       custom: "Custom",
     },
     typography: {
-      title: "Typography",
-      description: "Adjust the base UI text size. Fonts and weights are in Theme configuration.",
       font: "UI font",
       contentFont: "Content font",
       inheritUiFont: "Same as UI font",
+      inheritedWeightDescription:
+        "Currently using the UI font weight. Choose a specific content font to adjust its weight separately.",
       fontWeight: "Font weight",
       fontWeightFor: ({ font }: { font: string }) => `${font} weight`,
     },
@@ -1122,7 +1123,7 @@ export const extensionsEnUS = {
     interface: {
       sectionTitle: "Interface",
       description:
-        "Choose your interface language and adjust typography, control sizing, running indicators, component surfaces, borders, and corners.",
+        "Choose your interface language and adjust control sizing, running indicators, borders, and corners.",
     },
     runningIndicator: {
       title: "Running conversations",
@@ -1227,11 +1228,13 @@ export const extensionsEnUS = {
       sectionTitle: "Background",
       title: "Workbench background",
       description:
-        "Use a custom canvas color or local image to create a Workbench background independent of the theme palette.",
+        "Set a custom canvas color or background image, then adjust component surface opacity and glass blur.",
       colorTitle: "Canvas color",
       imageTitle: "Background image",
       image: "Local image",
       custom: "Use a custom canvas color",
+      customDescription:
+        "Enable to adjust the canvas color and coordinate panel and component colors below.",
       color: "Canvas color",
       syncSurfaces: "Coordinate panel and component colors with the canvas",
       preview: "Background image preview",
@@ -1240,6 +1243,7 @@ export const extensionsEnUS = {
       removeImage: "Remove background image",
       loadingImage: "Loading image…",
       blur: "Image blur",
+      blurRequiresImage: "Choose a background image above to adjust its blur.",
       unsupportedImage: "Choose a supported image file.",
       imageTooLarge: "The image must be 12 MB or smaller.",
       imageStorageError: "The background image could not be saved in Workbench settings.",
@@ -1252,6 +1256,8 @@ export const extensionsEnUS = {
     },
     surfaces: {
       title: "Component surfaces",
+      requiresBackground:
+        "Enable a custom canvas color or choose a background image above to adjust these surface effects.",
       opacity: "Surface opacity",
       opacityValue: ({ opacity }: { opacity: number }, { number }: MessageFormatters) =>
         `${number(opacity)}%`,
@@ -1261,6 +1267,7 @@ export const extensionsEnUS = {
       title: "Borders",
       style: "Border style",
       customColor: "Use a custom border color",
+      colorRequiresCustom: "Enable the custom border color option above to choose a color.",
       color: "Component border color",
     },
     borderStyles: {
@@ -1284,10 +1291,6 @@ export const extensionsEnUS = {
       "extra-rounded": "Extra rounded",
     },
     code: {
-      sectionTitle: "Code",
-      title: "Code display",
-      description:
-        "Adjust code sizing and syntax colors. Fonts and weights are in Theme configuration.",
       font: "Code font",
     },
     preferences: {

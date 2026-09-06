@@ -1,6 +1,6 @@
 import { DEFAULT_APPEARANCE_PREFERENCES, type AppearancePreferences } from "../../../appearance";
 
-export const APPEARANCE_SETTINGS_PAGES = ["appearance", "interface", "background", "code"] as const;
+export const APPEARANCE_SETTINGS_PAGES = ["appearance", "interface", "background"] as const;
 
 export type AppearanceSettingsPage = (typeof APPEARANCE_SETTINGS_PAGES)[number];
 
@@ -22,19 +22,19 @@ export const DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE = {
     darkContrast: DEFAULT_APPEARANCE_PREFERENCES.darkContrast,
     uiFont: DEFAULT_APPEARANCE_PREFERENCES.uiFont,
     uiFontWeight: DEFAULT_APPEARANCE_PREFERENCES.uiFontWeight,
+    uiFontSize: DEFAULT_APPEARANCE_PREFERENCES.uiFontSize,
     contentFont: DEFAULT_APPEARANCE_PREFERENCES.contentFont,
     contentFontWeight: DEFAULT_APPEARANCE_PREFERENCES.contentFontWeight,
     codeFont: DEFAULT_APPEARANCE_PREFERENCES.codeFont,
     codeFontWeight: DEFAULT_APPEARANCE_PREFERENCES.codeFontWeight,
+    codeFontSize: DEFAULT_APPEARANCE_PREFERENCES.codeFontSize,
+    codeTheme: DEFAULT_APPEARANCE_PREFERENCES.codeTheme,
   },
   interface: {
-    surfaceOpacity: DEFAULT_APPEARANCE_PREFERENCES.surfaceOpacity,
-    glassBlur: DEFAULT_APPEARANCE_PREFERENCES.glassBlur,
     borderStyle: DEFAULT_APPEARANCE_PREFERENCES.borderStyle,
     customBorderColor: DEFAULT_APPEARANCE_PREFERENCES.customBorderColor,
     borderColor: DEFAULT_APPEARANCE_PREFERENCES.borderColor,
     cornerRadius: DEFAULT_APPEARANCE_PREFERENCES.cornerRadius,
-    uiFontSize: DEFAULT_APPEARANCE_PREFERENCES.uiFontSize,
     runningIndicatorId: DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorId,
     runningIndicatorStyleId: DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorStyleId,
     runningIndicatorSize: DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorSize,
@@ -44,17 +44,13 @@ export const DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE = {
     backgroundColor: DEFAULT_APPEARANCE_PREFERENCES.backgroundColor,
     backgroundBlur: DEFAULT_APPEARANCE_PREFERENCES.backgroundBlur,
     syncSurfaceColors: DEFAULT_APPEARANCE_PREFERENCES.syncSurfaceColors,
-  },
-  code: {
-    codeFontSize: DEFAULT_APPEARANCE_PREFERENCES.codeFontSize,
-    codeTheme: DEFAULT_APPEARANCE_PREFERENCES.codeTheme,
+    surfaceOpacity: DEFAULT_APPEARANCE_PREFERENCES.surfaceOpacity,
+    glassBlur: DEFAULT_APPEARANCE_PREFERENCES.glassBlur,
   },
 } as const satisfies DefaultPreferencesByPage;
 
 export function resolveAppearanceSettingsPage(sectionId: string): AppearanceSettingsPage {
-  return sectionId === "interface" || sectionId === "background" || sectionId === "code"
-    ? sectionId
-    : "appearance";
+  return sectionId === "interface" || sectionId === "background" ? sectionId : "appearance";
 }
 
 export function isDefaultAppearanceSettingsPage(

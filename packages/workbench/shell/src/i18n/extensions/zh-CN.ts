@@ -1032,7 +1032,7 @@ export const extensionsZhCN = {
 
   appearance: {
     title: "主题",
-    description: "选择明暗模式，调整主题颜色、字体和字重。",
+    description: "选择明暗模式，调整主题颜色、字体、字号和字重。",
     theme: {
       title: "主题",
       description: "跟随操作系统，或让工作台固定使用一种明暗模式。",
@@ -1046,7 +1046,7 @@ export const extensionsZhCN = {
     palette: {
       title: "主题配置",
       description:
-        "颜色与对比度按明暗主题分别设置，字体在两种主题间共用。对比度为 0 时不作额外调整。",
+        "颜色与对比度按明暗主题分别设置，字体、字号、字重和代码主题在两种主题间共用。对比度为 0 时使用默认效果，数值越大，边框、次要文字和控件底色与背景的区分越明显。",
     },
     themeSettings: {
       accent: "强调色",
@@ -1076,11 +1076,10 @@ export const extensionsZhCN = {
       custom: "自定义",
     },
     typography: {
-      title: "字体",
-      description: "调整 UI 文字的基准大小；字体和字重可在主题配置中设置。",
       font: "UI 字体",
       contentFont: "内容字体",
       inheritUiFont: "与界面字体相同",
+      inheritedWeightDescription: "当前沿用 UI 字重；选择具体的内容字体后，可单独调整字重。",
       fontWeight: "字重",
       fontWeightFor: ({ font }: { font: string }) => `${font}字重`,
     },
@@ -1093,7 +1092,7 @@ export const extensionsZhCN = {
     },
     interface: {
       sectionTitle: "界面",
-      description: "选择界面语言，调整字体、控件尺寸、运行状态指示器、组件表面、边框和圆角。",
+      description: "选择界面语言，调整控件尺寸、运行状态指示器、边框和圆角。",
     },
     runningIndicator: {
       title: "运行中的会话",
@@ -1197,11 +1196,12 @@ export const extensionsZhCN = {
     background: {
       sectionTitle: "背景",
       title: "工作台背景",
-      description: "使用自定义画布颜色或本地图片，营造独立于主题配色的工作台背景。",
+      description: "设置自定义画布颜色或背景图片，再调整组件表面不透明度和玻璃模糊。",
       colorTitle: "画布颜色",
       imageTitle: "背景图片",
       image: "本地图片",
       custom: "使用自定义画布颜色",
+      customDescription: "开启后可调整下方的画布颜色，并让面板和组件底色与画布协调。",
       color: "画布颜色",
       syncSurfaces: "让面板和组件底色与画布协调",
       preview: "背景图片预览",
@@ -1210,6 +1210,7 @@ export const extensionsZhCN = {
       removeImage: "移除背景图片",
       loadingImage: "正在加载图片…",
       blur: "图片模糊",
+      blurRequiresImage: "先在上方选择背景图片，即可调整图片模糊。",
       unsupportedImage: "请选择支持的图片文件。",
       imageTooLarge: "图片大小不能超过 12 MB。",
       imageStorageError: "无法将背景图片保存到 Workbench 设置。",
@@ -1222,6 +1223,7 @@ export const extensionsZhCN = {
     },
     surfaces: {
       title: "组件表面",
+      requiresBackground: "先在上方启用自定义画布颜色，或选择背景图片，即可调整这些表面效果。",
       opacity: "表面不透明度",
       opacityValue: ({ opacity }: { opacity: number }, { number }: MessageFormatters) =>
         `${number(opacity)}%`,
@@ -1231,6 +1233,7 @@ export const extensionsZhCN = {
       title: "边框",
       style: "边框样式",
       customColor: "使用自定义边框颜色",
+      colorRequiresCustom: "先开启上方的自定义边框颜色，即可选择颜色。",
       color: "组件边框颜色",
     },
     borderStyles: {
@@ -1254,9 +1257,6 @@ export const extensionsZhCN = {
       "extra-rounded": "大圆角",
     },
     code: {
-      sectionTitle: "代码",
-      title: "代码显示",
-      description: "调整代码字号和语法颜色；字体和字重可在主题配置中设置。",
       font: "代码字体",
     },
     preferences: {

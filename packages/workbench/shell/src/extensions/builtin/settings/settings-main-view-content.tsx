@@ -180,6 +180,7 @@ export function SettingsMainViewContent({ view }: MainViewProps<SettingsMainView
       <div
         ref={rootRef}
         data-settings-main-view=""
+        data-workbench-glass-surface=""
         className="h-full min-h-0 min-w-0 flex-1 overflow-y-auto bg-background px-4 sm:px-8 lg:px-12"
       >
         <div className="mx-auto w-full max-w-4xl py-6 sm:py-10">

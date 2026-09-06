@@ -23,47 +23,62 @@ test("detects defaults only within the requested settings page", () => {
   const preferences = {
     ...DEFAULT_APPEARANCE_PREFERENCES,
     customBackground: true,
+    surfaceOpacity: 50,
+    glassBlur: "strong",
     codeTheme: "dracula",
   } satisfies AppearancePreferences;
 
-  assert.equal(isDefaultAppearanceSettingsPage(preferences, "appearance"), true);
+  assert.equal(isDefaultAppearanceSettingsPage(preferences, "appearance"), false);
   assert.equal(isDefaultAppearanceSettingsPage(preferences, "interface"), true);
   assert.equal(isDefaultAppearanceSettingsPage(preferences, "background"), false);
-  assert.equal(isDefaultAppearanceSettingsPage(preferences, "code"), false);
 });
 
 test("page defaults reset one page without changing another", () => {
   const preferences = {
     ...DEFAULT_APPEARANCE_PREFERENCES,
     customBackground: true,
+    surfaceOpacity: 50,
+    glassBlur: "strong",
     codeTheme: "dracula",
   } satisfies AppearancePreferences;
-  const resetCode = {
+  const resetTheme = {
     ...preferences,
-    ...DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE.code,
+    ...DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE.appearance,
   } satisfies AppearancePreferences;
 
-  assert.equal(resetCode.codeTheme, DEFAULT_APPEARANCE_PREFERENCES.codeTheme);
-  assert.equal(resetCode.customBackground, true);
+  assert.equal(resetTheme.codeTheme, DEFAULT_APPEARANCE_PREFERENCES.codeTheme);
+  assert.equal(resetTheme.customBackground, true);
+  assert.equal(resetTheme.surfaceOpacity, 50);
+  assert.equal(resetTheme.glassBlur, "strong");
+
+  const resetBackground = {
+    ...preferences,
+    ...DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE.background,
+  };
+  assert.equal(resetBackground.surfaceOpacity, DEFAULT_APPEARANCE_PREFERENCES.surfaceOpacity);
+  assert.equal(resetBackground.glassBlur, DEFAULT_APPEARANCE_PREFERENCES.glassBlur);
+  assert.equal(resetBackground.codeTheme, "dracula");
 });
 
 test("maps registered section ids to appearance settings pages", () => {
   assert.equal(resolveAppearanceSettingsPage("interface"), "interface");
   assert.equal(resolveAppearanceSettingsPage("background"), "background");
-  assert.equal(resolveAppearanceSettingsPage("code"), "code");
+  assert.equal(resolveAppearanceSettingsPage("code"), "appearance");
   assert.equal(resolveAppearanceSettingsPage("appearance"), "appearance");
   assert.equal(resolveAppearanceSettingsPage("unknown"), "appearance");
 });
 
-test("theme reset owns all font families and weights without resetting code syntax", () => {
+test("theme reset owns all fonts, sizes, weights and code syntax", () => {
   const preferences = {
     ...DEFAULT_APPEARANCE_PREFERENCES,
     uiFont: "ubuntuSansMono",
     uiFontWeight: 500,
+    uiFontSize: 18,
     contentFont: "serif",
     contentFontWeight: 300,
     codeFont: "systemMono",
     codeFontWeight: 600,
+    codeFontSize: 16,
     codeTheme: "dracula",
   } satisfies AppearancePreferences;
   const reset = { ...preferences, ...DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE.appearance };
@@ -71,6 +86,13 @@ test("theme reset owns all font families and weights without resetting code synt
   assert.equal(isDefaultAppearanceSettingsPage(preferences, "appearance"), false);
   assert.equal(isDefaultAppearanceSettingsPage(reset, "appearance"), true);
   assert.equal(reset.contentFont, "inherit");
+  assert.equal(reset.uiFontSize, DEFAULT_APPEARANCE_PREFERENCES.uiFontSize);
+  assert.equal(isDefaultAppearanceSettingsPage(preferences, "interface"), true);
+  assert.equal(
+    { ...preferences, ...DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE.interface }.uiFontSize,
+    18,
+  );
   assert.equal(reset.codeFontWeight, 400);
-  assert.equal(reset.codeTheme, "dracula");
+  assert.equal(reset.codeFontSize, DEFAULT_APPEARANCE_PREFERENCES.codeFontSize);
+  assert.equal(reset.codeTheme, DEFAULT_APPEARANCE_PREFERENCES.codeTheme);
 });

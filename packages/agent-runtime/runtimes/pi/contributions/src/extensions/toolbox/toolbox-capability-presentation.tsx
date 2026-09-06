@@ -83,7 +83,7 @@ function DetailExternalLink({ href, children }: { href: string; children: ReactN
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs whitespace-nowrap underline underline-offset-4 transition-colors"
+      className="text-primary inline-flex items-center gap-1 text-xs whitespace-nowrap underline underline-offset-4 transition-colors"
     >
       {children}
       <ExternalLinkIcon aria-hidden="true" className="size-(--icon-size-sm)" />

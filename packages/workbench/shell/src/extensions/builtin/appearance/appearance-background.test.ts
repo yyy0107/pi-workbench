@@ -56,6 +56,7 @@ test("appearance production effects and selectors contain no document-root owner
   );
   assert.doesNotMatch(effectSource, /document\.documentElement/u);
   assert.doesNotMatch(selectorSource, /:root/u);
+  assert.doesNotMatch(selectorSource, /filter:\s*contrast\(/u);
   assert.match(selectorSource, /\[data-workbench-shell\]\[data-workbench-appearance\]/u);
 });
 

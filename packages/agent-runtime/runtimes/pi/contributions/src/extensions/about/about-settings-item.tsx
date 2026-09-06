@@ -110,7 +110,7 @@ function AboutLink({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={t("extensions.about.openExternal", { label })}
-      className={buttonVariants({ variant: "link", className: "px-0! text-muted-foreground" })}
+      className={buttonVariants({ variant: "link", className: "px-0!" })}
     >
       {children}
       {label}
@@ -142,7 +142,8 @@ export function AboutSettingsItem() {
         aria-label={t("extensions.about.openExternal", { label: `${name} · ${license}` })}
         className={buttonVariants({
           variant: "ghost",
-          className: "h-auto w-full justify-start rounded-none px-0! py-2 text-foreground",
+          className:
+            "h-auto w-full justify-start rounded-none px-0! py-2 text-primary hover:text-primary",
         })}
       >
         <span className="flex w-[var(--icon-frame-size-default)] shrink-0 items-center justify-center">

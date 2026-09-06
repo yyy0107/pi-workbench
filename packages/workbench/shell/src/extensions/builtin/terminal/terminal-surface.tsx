@@ -84,7 +84,6 @@ const LIGHT_ANSI_THEME = {
   red: "#cf222e",
   green: "#116329",
   yellow: "#9a6700",
-  blue: "#0969da",
   magenta: "#8250df",
   cyan: "#1b7c83",
   white: "#6e7781",
@@ -92,7 +91,6 @@ const LIGHT_ANSI_THEME = {
   brightRed: "#a40e26",
   brightGreen: "#1a7f37",
   brightYellow: "#9a6700",
-  brightBlue: "#218bff",
   brightMagenta: "#a475f9",
   brightCyan: "#3192aa",
   brightWhite: "#24292f",
@@ -103,7 +101,6 @@ const DARK_ANSI_THEME = {
   red: "#ff7b72",
   green: "#3fb950",
   yellow: "#d29922",
-  blue: "#58a6ff",
   magenta: "#bc8cff",
   cyan: "#39c5cf",
   white: "#b1bac4",
@@ -111,7 +108,6 @@ const DARK_ANSI_THEME = {
   brightRed: "#ffa198",
   brightGreen: "#56d364",
   brightYellow: "#e3b341",
-  brightBlue: "#79c0ff",
   brightMagenta: "#d2a8ff",
   brightCyan: "#56d4dd",
   brightWhite: "#f0f6fc",
@@ -151,6 +147,9 @@ function resolveTerminalTheme(container: HTMLElement): ITheme {
 
   return {
     ...(root.classList.contains("dark") ? DARK_ANSI_THEME : LIGHT_ANSI_THEME),
+    // Standard shell prompts use ANSI blue (or bold blue) for the working directory.
+    blue: accent,
+    brightBlue: accent,
     background,
     foreground,
     cursor: accent,
