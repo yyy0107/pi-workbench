@@ -85,6 +85,7 @@ export function RightWorkspace({ isVisible = true }: { isVisible?: boolean }) {
         aria-hidden={!open ? true : undefined}
         inert={!open ? true : undefined}
         data-workbench-surface="right-workspace"
+        data-workbench-glass-surface=""
         data-state={open ? "open" : "closed"}
         data-maximized={maximized ? "true" : undefined}
         className="bg-background absolute inset-y-0 right-0 flex min-h-0 min-w-0 flex-col overflow-hidden border-l transition-[width,transform,border-color] duration-(--layout-motion-duration) ease-(--layout-motion-ease) motion-reduce:transition-none in-data-[resizing=true]:transition-none in-data-[resizing=true]:will-change-[width,transform] data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width,transform] data-[state=closed]:border-transparent"

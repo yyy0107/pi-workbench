@@ -141,7 +141,7 @@ function resolveThemeLength(container: HTMLElement, property: string, fallback: 
 function resolveTerminalTheme(container: HTMLElement): ITheme {
   const root = resolveWorkbenchShellOwner(container);
   const themeBackground = resolveThemeColor(container, "--background", "#ffffff");
-  const background = resolveThemeColor(container, "--workbench-canvas-background", themeBackground);
+  const background = resolveThemeColor(container, "--workbench-surface-base", themeBackground);
   const foreground = resolveThemeColor(container, "--foreground", "#18181b");
   const accent = resolveThemeColor(container, "--primary", foreground);
   const muted = resolveThemeColor(container, "--muted", background);
@@ -544,7 +544,6 @@ function TerminalTranscriptSurface({
   return (
     <section
       className="group/terminal text-foreground relative flex size-full min-h-0 flex-col"
-      style={{ backgroundColor: "var(--workbench-canvas-background, var(--background))" }}
       aria-label={t("extensions.terminal.transcript.output")}
       aria-busy={running || connection.phase === "stopping"}
     >
@@ -842,7 +841,6 @@ function PtyTerminalSurface({
   return (
     <section
       className="text-foreground flex size-full min-h-0 flex-col"
-      style={{ backgroundColor: "var(--workbench-canvas-background, var(--background))" }}
       aria-label={t("extensions.terminal.output")}
     >
       <div ref={containerRef} className={TERMINAL_VIEWPORT_CLASS_NAME} />
