@@ -208,19 +208,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
     if (!toolbar) return;
 
     const updateWorkspaceHeaderTop = () => {
-      let scrollContainer = toolbar.parentElement;
-      while (scrollContainer) {
-        const overflowY = window.getComputedStyle(scrollContainer).overflowY;
-        if (overflowY === "auto" || overflowY === "scroll") break;
-        scrollContainer = scrollContainer.parentElement;
-      }
-
-      const scrollPaddingTop = scrollContainer
-        ? Number.parseFloat(window.getComputedStyle(scrollContainer).paddingTop) || 0
-        : 0;
-      setWorkspaceHeaderTop(
-        Math.max(0, Math.ceil(toolbar.getBoundingClientRect().height - scrollPaddingTop)),
-      );
+      setWorkspaceHeaderTop(toolbar.getBoundingClientRect().height);
     };
 
     updateWorkspaceHeaderTop();
@@ -280,7 +268,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
       <div
         ref={stickyToolbarRef}
         data-archived-chats-sticky-toolbar=""
-        className="bg-background/95 sticky -top-5 z-20 -mx-5 -mt-3 mb-4 px-5 pt-3 backdrop-blur-sm sm:-mx-6 sm:px-6"
+        className="bg-background sticky top-0 z-20"
       >
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <label className="relative min-w-52 flex-1">
@@ -412,7 +400,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
               <section key={group.id} aria-labelledby={headingId}>
                 <div
                   data-archived-chats-workspace-header=""
-                  className="bg-background/95 sticky z-10 -mx-1 mb-2 flex items-center gap-2 border-b px-1 py-2 backdrop-blur-sm"
+                  className="bg-background sticky z-10 flex items-center gap-2 border-b py-2"
                   style={{ top: workspaceHeaderTop }}
                 >
                   <FolderIcon className="text-muted-foreground size-4 shrink-0" />

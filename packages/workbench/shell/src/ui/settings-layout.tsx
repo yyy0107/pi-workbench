@@ -28,16 +28,16 @@ function SettingsGroup({
     <section
       data-slot="settings-group"
       aria-labelledby={titleId ?? ariaLabelledBy}
-      className={cn("overflow-hidden rounded-xl border border-border bg-card", className)}
+      className={cn("min-w-0", className)}
       {...props}
     >
       {title || description ? (
         <div
           data-slot="settings-group-header"
-          className={cn("border-b border-border px-4 py-3", headerClassName)}
+          className={cn("border-b border-border py-3", headerClassName)}
         >
           {title ? (
-            <h3 id={titleId} className="text-sm font-semibold text-card-foreground">
+            <h3 id={titleId} className="text-sm font-semibold text-foreground">
               {title}
             </h3>
           ) : null}
@@ -77,7 +77,7 @@ function SettingsRow({
     <div
       data-slot="settings-row"
       className={cn(
-        "grid min-w-0 gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,auto)] sm:items-center",
+        "grid min-w-0 gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,auto)] sm:items-center",
         className,
       )}
       {...props}

@@ -3,6 +3,7 @@
 import { CheckIcon, ChevronDownIcon, LanguagesIcon } from "lucide-react";
 import { useCallback, useMemo } from "react";
 
+import { SettingsRow } from "../../../ui/settings-layout";
 import { buttonVariants } from "../../../ui/button";
 import {
   DropdownMenu,
@@ -108,18 +109,12 @@ export function LocaleSettingsItem({ sectionId, itemId }: SettingsItemComponentP
   const localeLabel = useMemo(() => createLocaleDisplayName(locale), [locale]);
 
   return (
-    <div
+    <SettingsRow
       data-settings-section={sectionId}
       data-settings-item={itemId}
-      className="flex min-h-20 flex-wrap items-center gap-4 py-4"
+      label={t("extensions.localeSelector.languageTitle")}
+      description={t("extensions.localeSelector.languageDescription")}
     >
-      <div className="min-w-0 flex-1 basis-52">
-        <h3 className="text-sm font-medium">{t("extensions.localeSelector.languageTitle")}</h3>
-        <p className="text-muted-foreground mt-1 text-sm leading-5">
-          {t("extensions.localeSelector.languageDescription")}
-        </p>
-      </div>
-
       <DropdownMenu>
         <SettingsDropdownTrigger aria-label={t("extensions.localeSelector.selectLanguage")}>
           <span>{localeLabel(locale)}</span>
@@ -134,6 +129,6 @@ export function LocaleSettingsItem({ sectionId, itemId }: SettingsItemComponentP
           ))}
         </SettingsDropdownContent>
       </DropdownMenu>
-    </div>
+    </SettingsRow>
   );
 }

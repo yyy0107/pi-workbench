@@ -88,7 +88,7 @@ function SettingGroup({
       title={showHeading ? title : undefined}
       description={showHeading ? description : undefined}
       className="my-5 first:mt-1 last:mb-3"
-      contentClassName={layout === "cards" ? "space-y-6 divide-y-0 p-4" : undefined}
+      contentClassName={layout === "cards" ? "space-y-6 divide-y-0 py-4" : undefined}
     >
       {children}
     </SharedSettingsGroup>
@@ -110,9 +110,7 @@ function SettingSubgroup({
         <h4 className="text-sm font-medium">{title}</h4>
         {action}
       </div>
-      <div className="mt-4 rounded-lg border px-4 py-1">
-        <div className="divide-y">{children}</div>
-      </div>
+      <SharedSettingsGroup className="mt-4">{children}</SharedSettingsGroup>
     </section>
   );
 }
@@ -133,7 +131,7 @@ function SettingRow({
       label={label}
       description={description}
       className={cn(
-        "min-h-14 px-4 sm:gap-8",
+        "min-h-14 sm:gap-8",
         wideControl
           ? "sm:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]"
           : "sm:grid-cols-[minmax(0,1fr)_minmax(12rem,15rem)]",
