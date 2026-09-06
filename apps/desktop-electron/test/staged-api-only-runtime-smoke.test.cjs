@@ -3,6 +3,8 @@ require("tsx/cjs");
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
 const { EventEmitter } = require("node:events");
+const { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } = require("node:fs");
+const { tmpdir } = require("node:os");
 const path = require("node:path");
 const { PassThrough, Writable } = require("node:stream");
 const test = require("node:test");
@@ -18,7 +20,10 @@ const {
   parseRuntimeWebSocketAuthenticateFrame,
 } = require("@workbench/host-contracts/runtime-connection");
 
-const { TERMINAL_MARKER } = require("../scripts/runtime-smoke-support.cjs");
+const {
+  TERMINAL_MARKER,
+  createSmokeStateDirectory,
+} = require("../scripts/runtime-smoke-support.cjs");
 const {
   DEFAULT_ALLOWED_ORIGIN,
   ERROR_TYPE,
@@ -420,6 +425,20 @@ function fixture({
     },
   };
 }
+
+test("smoke state uses a canonical directory when the temporary parent is a symlink", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "workbench-smoke-state-test-"));
+  t.after(() => rmSync(root, { force: true, recursive: true }));
+  const target = path.join(root, "target");
+  const alias = path.join(root, "alias");
+  mkdirSync(target);
+  symlinkSync(target, alias, "junction");
+
+  const stateRoot = createSmokeStateDirectory(path.join(alias, "state-"));
+
+  assert.equal(path.dirname(stateRoot), realpathSync(target));
+  assert.equal(stateRoot, realpathSync(stateRoot));
+});
 
 test("requires an explicit staged runtime CLI argument", () => {
   assert.throws(() => runtimeArgument([]), /Usage: staged-api-only-runtime-smoke/u);

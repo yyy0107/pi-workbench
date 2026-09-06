@@ -140,7 +140,7 @@ function packagedElectronRuntime(targetKey) {
     }))
     .filter(
       ({ manifest }) =>
-        manifest.target.runtimeFlavor === "electron-node" &&
+        manifest.target?.runtimeFlavor === "electron-node" &&
         matchesTarget(manifest.target, targetKey),
     );
   if (candidates.length !== 1) {

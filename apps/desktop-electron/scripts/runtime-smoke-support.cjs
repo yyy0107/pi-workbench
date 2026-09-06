@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { randomUUID } = require("node:crypto");
-const { writeFileSync } = require("node:fs");
+const { mkdtempSync, realpathSync, writeFileSync } = require("node:fs");
 const path = require("node:path");
 
 const { removeRuntimeArtifactOverrides } = require("../src/runtime-artifact-environment.cjs");
@@ -11,6 +11,11 @@ const TERMINAL_MARKER_TAIL_LENGTH = 512;
 const DEFAULT_READY_TIMEOUT_MS = 120_000;
 const DEFAULT_OPERATION_TIMEOUT_MS = 30_000;
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 12_000;
+
+function createSmokeStateDirectory(prefix) {
+  // The Host and Terminal report real paths, including macOS /var -> /private/var.
+  return realpathSync(mkdtempSync(prefix));
+}
 
 function withTimeout(promise, label, timeoutMs, timers) {
   return new Promise((resolve, reject) => {
@@ -428,6 +433,7 @@ module.exports = {
   assertEmptySessionList,
   assertIsolatedHostDescription,
   callRpc,
+  createSmokeStateDirectory,
   createTerminalChallenge,
   requestRuntimeHttp,
   smokePiWebSocketPair,

@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
 const { randomBytes, randomUUID } = require("node:crypto");
 const { EventEmitter } = require("node:events");
-const { mkdtempSync, rmSync, writeFileSync } = require("node:fs");
+const { rmSync, writeFileSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const path = require("node:path");
 
@@ -42,6 +42,7 @@ const {
   assertEmptySessionList,
   assertIsolatedHostDescription,
   callRpc,
+  createSmokeStateDirectory,
   createTerminalChallenge,
   smokePiWebSocketPair,
   smokeTerminalWebSocket,
@@ -432,7 +433,7 @@ async function runStagedApiOnlyRuntimeSmoke({
   spawnChild = spawn,
   createAccessToken = () => randomBytes(32).toString("base64url"),
   createId = randomUUID,
-  mkdtemp = mkdtempSync,
+  mkdtemp = createSmokeStateDirectory,
   platform = process.platform,
   remove = rmSync,
   stopProcess = stopServerProcess,
