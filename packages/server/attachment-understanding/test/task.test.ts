@@ -10,6 +10,10 @@ import {
   type AttachmentUnderstandingTaskOptions,
 } from "../src/task";
 import type { AttachmentUnderstandingObservation } from "../src/contracts";
+import {
+  getOcrAdapterPreset,
+  serializeOcrAdapterSource,
+} from "@workbench/attachment-understanding-contracts/ocr-adapter";
 
 const observation: AttachmentUnderstandingObservation = {
   attachmentId: "image-1",
@@ -103,6 +107,100 @@ test("task rejects malformed, mismatched and oversized callback results", async 
     });
     assert.equal(snapshots.filter(isTerminalAttachmentRecognitionSnapshot).length, 1);
     assert.equal(snapshots.at(-1)?.status, "failed");
+  }
+});
+
+test("OCR polling publishes per-job page progress before attachments complete and retains terminal details", async (t) => {
+  for (const outcome of ["succeeded", "failed", "cancelled"] as const) {
+    const { options, snapshots, controller } = fixture();
+    assert.ok(options.settings.ok);
+    const preset = getOcrAdapterPreset("paddleocr-vl-1.6");
+    const definition = structuredClone(preset.definition);
+    assert.equal(definition.operation.kind, "async-job");
+    if (definition.operation.kind === "async-job") delete definition.operation.progress;
+    options.settings.value.value.engine = "ocr";
+    options.settings.value.value.ocrAdapter = {
+      ...options.settings.value.value.ocrAdapter,
+      source: serializeOcrAdapterSource(definition), // Existing saved adapter, without new paths.
+      endpoint: preset.endpoint,
+      model: preset.model,
+      pollIntervalMs: 1,
+    };
+    options.attachments = [
+      { id: "pdf-1", kind: "pdf", sequence: 1, mimeType: "application/pdf", data: "cGRm" },
+      ...options.attachments,
+    ];
+    let submitted = 0;
+    let polls = 0;
+    const mockedFetch = t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        if (init?.method === "POST") {
+          submitted++;
+          polls = 0;
+          return Response.json({ code: 0, data: { jobId: `private-job-${submitted}` } });
+        }
+        if (String(input).startsWith(preset.endpoint)) {
+          polls++;
+          const state =
+            outcome === "failed" && polls === 3
+              ? "failed"
+              : polls === 1
+                ? "pending"
+                : polls < 4
+                  ? "running"
+                  : "done";
+          return Response.json({
+            code: 0,
+            data: {
+              state,
+              ...(polls === 1
+                ? {}
+                : {
+                    extractProgress: {
+                      extractedPages: polls === 2 ? 2 : polls === 3 ? 7 : 10,
+                      totalPages: 10,
+                    },
+                  }),
+              resultUrl: { markdownUrl: "https://result.bcebos.com/recognized.md" },
+            },
+          });
+        }
+        assert.equal(snapshots.at(-1)?.jobs?.[submitted - 1]?.status, "downloading");
+        return new Response("Recognized text");
+      },
+    );
+    const publish = options.publish;
+    options.publish = async (snapshot) => {
+      await publish(snapshot);
+      if (snapshot.jobs?.[0]?.completedPages === 7 && outcome === "cancelled") controller.abort();
+    };
+    try {
+      await runAttachmentUnderstandingTask(options);
+      const partial = snapshots.find((snapshot) => snapshot.jobs?.[0]?.completedPages === 2);
+      assert.equal(partial?.completedCount, 0);
+      assert.equal(partial?.jobs?.[0]?.totalPages, 10);
+      assert.equal(partial?.jobs?.[1]?.status, "queued");
+      assert.equal(snapshots.at(-1)?.status, outcome);
+      assert.equal(snapshots.at(-1)?.jobs?.[0]?.status, outcome);
+      assert.equal(
+        snapshots.at(-1)?.jobs?.[1]?.status,
+        outcome === "succeeded" ? "succeeded" : "cancelled",
+      );
+      assert.equal(snapshots.filter(isTerminalAttachmentRecognitionSnapshot).length, 1);
+      assert.doesNotMatch(JSON.stringify(snapshots), /private-|bcebos|extractProgress/);
+      if (outcome === "succeeded") {
+        assert.ok(
+          snapshots.some(
+            (snapshot) => snapshot.completedCount === 1 && snapshot.jobs?.[1]?.completedPages === 2,
+          ),
+        );
+        assert.equal(snapshots.at(-1)?.jobs?.[0]?.pollCount, 4);
+      }
+    } finally {
+      mockedFetch.mock.restore();
+    }
   }
 });
 

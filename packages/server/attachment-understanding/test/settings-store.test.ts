@@ -3,6 +3,10 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import {
+  getOcrAdapterPreset,
+  serializeOcrAdapterSource,
+} from "@workbench/attachment-understanding-contracts/ocr-adapter";
 
 const {
   DEFAULT_IMAGE_UNDERSTANDING_SETTINGS,
@@ -36,6 +40,25 @@ test("describes version-one defaults without creating a settings document", asyn
     },
   });
   await assert.rejects(readFile(stateFile, "utf8"), { code: "ENOENT" });
+});
+
+test("saved Paddle presets without progress paths remain readable after upgrading", async (t) => {
+  const { store } = await fixture(t);
+  const preset = getOcrAdapterPreset("paddleocr-vl-1.6");
+  const definition = structuredClone(preset.definition);
+  assert.ok(definition.operation.kind === "async-job");
+  delete definition.operation.progress;
+  await store.update({
+    patch: {
+      ocrAdapter: {
+        preset: preset.id,
+        source: serializeOcrAdapterSource(definition),
+        apiKey: "retained",
+      },
+    },
+  });
+  assert.equal((await store.describe()).value.ocrAdapter.source, preset.source);
+  assert.equal((await store.resolveRuntimeSettings()).credential, "retained");
 });
 
 test("atomically writes mode-0600 settings and never exposes stored credentials", async (t) => {

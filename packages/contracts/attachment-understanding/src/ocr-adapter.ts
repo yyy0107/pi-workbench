@@ -91,6 +91,8 @@ export interface OcrAdapterAsyncOperationV1 {
   jobIdPath: string;
   pollPath: string;
   statePath: string;
+  /** Optional page counters in polling responses. Older Paddle sources use the standard paths. */
+  progress?: { completedPagesPath: string; totalPagesPath: string };
   pendingStates: string[];
   completedStates: string[];
   failedStates: string[];
@@ -389,6 +391,7 @@ function parseDefinition(value: unknown): OcrAdapterDefinitionV1 {
         "jobIdPath",
         "pollPath",
         "statePath",
+        "progress",
         "pendingStates",
         "completedStates",
         "failedStates",
@@ -412,11 +415,28 @@ function parseDefinition(value: unknown): OcrAdapterDefinitionV1 {
     ) {
       throw new TypeError("adapter.operation.resultSources must be a non-empty array.");
     }
+    let progress: OcrAdapterAsyncOperationV1["progress"];
+    if (value.operation.progress !== undefined) {
+      const input = value.operation.progress;
+      if (!isObject(input)) throw new TypeError("adapter.operation.progress must be an object.");
+      exactKeys(input, ["completedPagesPath", "totalPagesPath"], "adapter.operation.progress");
+      progress = {
+        completedPagesPath: pathValue(
+          input.completedPagesPath,
+          "adapter.operation.progress.completedPagesPath",
+        ),
+        totalPagesPath: pathValue(
+          input.totalPagesPath,
+          "adapter.operation.progress.totalPagesPath",
+        ),
+      };
+    }
     operation = {
       kind: "async-job",
       jobIdPath: pathValue(value.operation.jobIdPath, "adapter.operation.jobIdPath"),
       pollPath,
       statePath: pathValue(value.operation.statePath, "adapter.operation.statePath"),
+      ...(progress === undefined ? {} : { progress }),
       pendingStates: stringArray(value.operation.pendingStates, "adapter.operation.pendingStates"),
       completedStates: stringArray(
         value.operation.completedStates,
@@ -645,6 +665,10 @@ function paddleDefinition(
       jobIdPath: "data.jobId",
       pollPath: "/{jobId}",
       statePath: "data.state",
+      progress: {
+        completedPagesPath: "data.extractProgress.extractedPages",
+        totalPagesPath: "data.extractProgress.totalPages",
+      },
       pendingStates: ["pending", "running"],
       completedStates: ["done"],
       failedStates: ["failed"],

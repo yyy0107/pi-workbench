@@ -4,6 +4,7 @@ import test from "node:test";
 import { getOcrAdapterPreset } from "@workbench/attachment-understanding-contracts/ocr-adapter";
 import { ImageUnderstandingProviderError, type RecognizableAttachment } from "../../src/contracts";
 import { OcrAdapterProvider } from "../../src/providers/ocr-adapter";
+import type { AttachmentRecognitionJob } from "@workbench/attachment-understanding-contracts/state-machine";
 
 const attachment: RecognizableAttachment = {
   id: "attachment-1",
@@ -131,6 +132,77 @@ test("executes the PP-StructureV3 adapter and extracts layout markdown", async (
   const result = await provider.recognize({ attachments: [attachment], credential: "secret" });
   assert.equal(result[0]?.text, "# Page 1");
   assert.equal(result[0]?.format, "markdown");
+});
+
+test("poll progress follows adapter paths and ignores unavailable or invalid page counters", async () => {
+  const preset = getOcrAdapterPreset("paddleocr-vl-1.6");
+  const definition = structuredClone(preset.definition);
+  assert.ok(definition.operation.kind === "async-job");
+  definition.operation.progress = {
+    completedPagesPath: "data.pages.done",
+    totalPagesPath: "data.pages.total",
+  };
+  const jobs: AttachmentRecognitionJob[] = [];
+  const pages = [
+    { done: 0, total: 0 },
+    { done: "", total: 10 },
+    { done: null, total: 10 },
+    { done: true, total: 10 },
+    { done: "1 page", total: 10 },
+    { done: "1.5", total: 10 },
+    { done: "9007199254740992", total: "9007199254740993" },
+    { done: 20, total: 10 },
+    { done: "0", total: "10" },
+    { done: "1", total: 10 },
+    { done: 7, total: 10 },
+    {},
+  ];
+  let polls = 0;
+  const provider = new OcrAdapterProvider({
+    definition,
+    endpoint: preset.endpoint,
+    model: preset.model,
+    sleep: async () => undefined,
+    onProgress: (job) => {
+      jobs.push(job);
+    },
+    fetch: async (input, init) => {
+      if (init?.method === "POST") return json({ code: 0, data: { jobId: "job" } });
+      if (String(input).endsWith("/job"))
+        return json({
+          code: 0,
+          data: {
+            state: polls < pages.length - 1 ? "running" : "done",
+            pages: pages[polls++],
+            resultUrl: { markdownUrl: "https://result.bcebos.com/result.md" },
+          },
+        });
+      return new Response("recognized");
+    },
+  });
+  await provider.recognize({ attachments: [attachment], credential: "secret" });
+  assert.deepEqual(
+    jobs.filter((job) => job.status === "running").map((job) => job.completedPages),
+    [
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      0,
+      1,
+      7,
+    ],
+  );
+  assert.equal(
+    jobs.at(-1)?.completedPages,
+    7,
+    "missing telemetry preserves the last reported counters",
+  );
+  assert.equal(jobs.at(-1)?.pollCount, pages.length);
 });
 
 test("uses adapter-declared retry mappings for Paddle service code 10010", async () => {

@@ -1563,17 +1563,10 @@ test("injects image and PDF OCR as isolated context without forwarding attachmen
       ? [data.details]
       : [];
   });
-  assert.deepEqual(
-    recognitionStates.map(({ status, stage }) => ({ status, stage })),
-    [
-      { status: "pending", stage: undefined },
-      { status: "running", stage: "routing" },
-      { status: "running", stage: "submitting" },
-      { status: "running", stage: "recognizing" },
-      { status: "running", stage: "normalizing" },
-      { status: "succeeded", stage: undefined },
-    ],
-  );
+  assert.equal(recognitionStates[0]?.status, "pending");
+  assert.equal(recognitionStates.at(-1)?.status, "succeeded");
+  assert.ok(recognitionStates.some((state) => state.stage === "recognizing"));
+  assert.equal(recognitionStates.at(-2)?.stage, "normalizing");
   assert.equal(recognitionStates.at(-1)?.rpcId, "image-recognition-success-rpc");
   assert.deepEqual(recognitionStates.at(-1)?.results, [
     {
@@ -1680,14 +1673,9 @@ test("routes exported sendPrompt images through recognition before calling a tex
       ? [data.details.status]
       : [];
   });
-  assert.deepEqual(recognitionStates, [
-    "pending",
-    "running",
-    "running",
-    "running",
-    "running",
-    "succeeded",
-  ]);
+  assert.equal(recognitionStates[0], "pending");
+  assert.equal(recognitionStates.at(-1), "succeeded");
+  assert.ok(recognitionStates.slice(1, -1).every((status) => status === "running"));
 
   let queuedPrompt = "";
   let queuedImages: unknown[] | undefined;
@@ -1720,7 +1708,7 @@ test("routes exported sendPrompt images through recognition before calling a tex
       ? [data.details.status]
       : [];
   });
-  assert.deepEqual(queuedRecognitionStates.slice(-6), recognitionStates);
+  assert.deepEqual(queuedRecognitionStates.slice(-recognitionStates.length), recognitionStates);
   releaseRun?.();
 });
 

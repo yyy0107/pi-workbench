@@ -552,6 +552,27 @@ export const extensionsEnUS = {
         { number }: MessageFormatters,
       ) => `${number(completed)} of ${number(total)} attachments`,
       progressLabel: "Attachment recognition progress",
+      jobs: {
+        title: "Recognition task progress",
+        waitingInQueue: "Queued at the OCR service; recognition has not started…",
+        waitingForProgress: "Waiting for the service to report page progress…",
+        pages: (
+          { completed, total }: { completed: number; total: number },
+          { number }: MessageFormatters,
+        ) => `${number(completed)} / ${number(total)} pages recognized`,
+        polls: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `Status checks: ${number(count)}`,
+        status: {
+          queued: "Waiting to submit",
+          submitting: "Submitting",
+          pending: "Queued at OCR service (pending)",
+          running: "Recognizing (running)",
+          downloading: "Retrieving results",
+          succeeded: "Completed",
+          failed: "Failed",
+          cancelled: "Cancelled",
+        },
+      },
       provider: ({ providerId }: { providerId: string }) => `Provider: ${providerId}`,
       results: {
         title: "Recognition result",

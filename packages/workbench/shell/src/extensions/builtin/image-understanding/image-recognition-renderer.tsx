@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ScanTextIcon } from "lucide-react";
 
 import type { DataRendererComponent } from "@workbench/extension-sdk";
-import { field, mono } from "@workbench/shell/ui";
+import { field, mono, Progress } from "@workbench/shell/ui";
 import { ToolCall } from "@workbench/shell/elements";
 import { useI18n } from "@workbench/shell/i18n";
 import type {
@@ -19,12 +19,13 @@ import {
   type ImageRecognitionMethod,
   type ImageRecognitionResultFormat,
   type ImageRecognitionPresentationResult,
+  type ImageRecognitionPresentationJob,
   type ImageRecognitionSkipKind,
   type ImageRecognitionStage,
 } from "./image-recognition-presentation";
 
 function resultReferenceLabel(
-  result: ImageRecognitionPresentationResult,
+  result: Pick<ImageRecognitionPresentationResult, "referenceKind" | "sequence">,
   t: ReturnType<typeof useI18n>["t"],
 ): string {
   switch (result.referenceKind) {
@@ -148,9 +149,11 @@ function skipLabel(kind: ImageRecognitionSkipKind, t: ReturnType<typeof useI18n>
 }
 
 export const AttachmentRecognitionRenderer: DataRendererComponent = ({ block }) => {
-  const { number, t } = useI18n();
-  const [open, setOpen] = useState(false);
+  const { locale, number, t } = useI18n();
   const state = parseAttachmentRecognitionPresentation(block.data);
+  const [open, setOpen] = useState(
+    () => state?.status === "pending" || state?.status === "running",
+  );
   if (!state || (state.status === "skipped" && state.method === "native")) return null;
 
   const failed = state.status === "failed";
@@ -179,24 +182,38 @@ export const AttachmentRecognitionRenderer: DataRendererComponent = ({ block }) 
       : running && state.stage
         ? stageLabel(state.stage, t)
         : undefined;
-  const progress = running
-    ? `${t("extensions.imageUnderstanding.recognition.progress", {
-        completed: state.completedCount,
-        total: state.attachmentCount,
-      })} · ${number(state.progress, { style: "percent" })}`
+  const attachmentProgress = t("extensions.imageUnderstanding.recognition.progress", {
+    completed: state.completedCount,
+    total: state.attachmentCount,
+  });
+  const jobStatus = (job: ImageRecognitionPresentationJob) =>
+    t(`extensions.imageUnderstanding.recognition.jobs.status.${job.status}`);
+  const jobSummary = (job: ImageRecognitionPresentationJob) =>
+    [
+      resultReferenceLabel(job, t),
+      jobStatus(job),
+      job.progress === undefined ? undefined : number(job.progress, { style: "percent" }),
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  const activeJob = running
+    ? state.jobs.find(
+        (job) =>
+          job.status !== "succeeded" && job.status !== "cancelled" && job.status !== "queued",
+      )
     : undefined;
   const query = [
-    detail ?? methodLabel(state.method, t),
+    activeJob ? jobSummary(activeJob) : (detail ?? methodLabel(state.method, t)),
+    running ? attachmentProgress : undefined,
     state.providerId
       ? t("extensions.imageUnderstanding.recognition.provider", {
           providerId: state.providerId,
         })
       : undefined,
-    progress,
   ]
     .filter((value): value is string => Boolean(value))
     .join(" · ");
-  const expandable = failed || state.results.length > 0;
+  const expandable = running || failed || state.jobs.length > 0 || state.results.length > 0;
   const diagnosticRows = failed
     ? [
         {
@@ -255,7 +272,6 @@ export const AttachmentRecognitionRenderer: DataRendererComponent = ({ block }) 
         requestLabel=""
         resultLabel=""
         icon={ScanTextIcon}
-        iconClassName="size-4"
         running={running}
         failed={failed}
         failedLabel={title}
@@ -264,6 +280,80 @@ export const AttachmentRecognitionRenderer: DataRendererComponent = ({ block }) 
         open={expandable && open}
         onOpenChange={setOpen}
       >
+        {running || state.jobs.length > 0 ? (
+          <div data-slot="attachment-recognition-progress" className="mb-3 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>{t("extensions.imageUnderstanding.recognition.jobs.title")}</span>
+              <span>{attachmentProgress}</span>
+            </div>
+            {state.jobs.length > 0 ? (
+              <div className="divide-y divide-border rounded-lg border border-border bg-muted/30 px-3">
+                {state.jobs.map((job) => (
+                  <section
+                    key={job.attachmentId}
+                    aria-label={resultReferenceLabel(job, t)}
+                    className="space-y-2 py-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <span className="text-foreground">{resultReferenceLabel(job, t)}</span>
+                      <span
+                        className={
+                          job.status === "failed" ? "text-destructive" : "text-muted-foreground"
+                        }
+                      >
+                        {jobStatus(job)}
+                        {job.progress !== undefined
+                          ? ` · ${number(job.progress, { style: "percent" })}`
+                          : ""}
+                      </span>
+                    </div>
+                    {job.progress !== undefined ? (
+                      <Progress
+                        locale={locale}
+                        value={job.progress * 100}
+                        aria-label={jobSummary(job)}
+                        getAriaValueText={() => jobSummary(job)}
+                      />
+                    ) : null}
+                    <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground tabular-nums">
+                      <span>
+                        {job.completedPages !== undefined && job.totalPages !== undefined
+                          ? t("extensions.imageUnderstanding.recognition.jobs.pages", {
+                              completed: job.completedPages,
+                              total: job.totalPages,
+                            })
+                          : job.status === "pending"
+                            ? t("extensions.imageUnderstanding.recognition.jobs.waitingInQueue")
+                            : job.status === "running"
+                              ? t(
+                                  "extensions.imageUnderstanding.recognition.jobs.waitingForProgress",
+                                )
+                              : null}
+                      </span>
+                      {job.pollCount > 0 ? (
+                        <span>
+                          {t("extensions.imageUnderstanding.recognition.jobs.polls", {
+                            count: job.pollCount,
+                          })}
+                        </span>
+                      ) : null}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <p>{detail}</p>
+                <Progress
+                  locale={locale}
+                  value={state.method === "ocr" ? null : state.progress * 100}
+                  aria-label={t("extensions.imageUnderstanding.recognition.progressLabel")}
+                  getAriaValueText={() => detail ?? title}
+                />
+              </div>
+            )}
+          </div>
+        ) : null}
         {failed ? (
           <div data-slot="attachment-recognition-diagnostics">
             <p className={`${mono} text-foreground/35 mb-1.5`}>
@@ -283,7 +373,7 @@ export const AttachmentRecognitionRenderer: DataRendererComponent = ({ block }) 
               {t("extensions.imageUnderstanding.recognition.diagnostics.sanitizedNote")}
             </p>
           </div>
-        ) : expandable ? (
+        ) : state.results.length > 0 ? (
           <div data-slot="attachment-recognition-results">
             <p className={`${mono} text-foreground/35 mb-1.5`}>
               {t("extensions.imageUnderstanding.recognition.results.title")}

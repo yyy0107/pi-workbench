@@ -71,6 +71,14 @@ test("the parser rejects unsafe auth headers, unbounded paths, and unknown versi
   badPath.operation.output.rules[0]!.path = "constructor.prototype";
   assert.throws(() => parseOcrAdapterSource(serializeOcrAdapterSource(badPath)), /dot path/);
 
+  const badProgress = structuredClone(getOcrAdapterPreset("paddleocr-vl-1.6").definition);
+  assert.ok(badProgress.operation.kind === "async-job");
+  badProgress.operation.progress = {
+    completedPagesPath: "constructor.prototype",
+    totalPagesPath: "data.total",
+  };
+  assert.throws(() => parseOcrAdapterSource(serializeOcrAdapterSource(badProgress)), /dot path/);
+
   const badVersion = getOcrAdapterPreset("glm-ocr").source.replace('"version": 1', '"version": 2');
   assert.throws(() => parseOcrAdapterSource(badVersion), /version/);
 });

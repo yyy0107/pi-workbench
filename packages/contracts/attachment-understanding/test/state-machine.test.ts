@@ -78,6 +78,39 @@ test("exports stable protocol identifiers", () => {
   assert.equal(WORKBENCH_IMAGE_RECOGNITION_DATA_NAME, "workbench.image-recognition");
 });
 
+test("job progress survives snapshot reduction and rejects malformed or unsafe metadata", () => {
+  const job = {
+    attachmentId: "pdf-1",
+    status: "running",
+    completedPages: 2,
+    totalPages: 10,
+    pollCount: 3,
+  } as const;
+  const snapshot = parseAttachmentRecognitionSnapshot(running(1, "polling", { jobs: [job] }));
+  assert.ok(snapshot);
+  assert.deepEqual(snapshot.jobs, [job]);
+  assert.equal(reduceAttachmentRecognitionSnapshot(snapshot, structuredClone(snapshot)), snapshot);
+  assert.throws(
+    () =>
+      reduceAttachmentRecognitionSnapshot(snapshot, {
+        ...snapshot,
+        jobs: [{ ...job, completedPages: 3 }],
+      }),
+    /revision/,
+  );
+  for (const jobs of [
+    [{ ...job, completedPages: -1 }],
+    [{ ...job, totalPages: 0 }],
+    [{ ...job, completedPages: 11 }],
+    [{ ...job, totalPages: Infinity }],
+    [{ ...job, pollCount: 1.5 }],
+    [{ ...job, status: "unexpected" }],
+    [{ ...job, jobId: "secret" }],
+    [job, job],
+  ])
+    assert.equal(parseAttachmentRecognitionSnapshot({ ...snapshot, jobs }), undefined);
+});
+
 test("round-trips stable one-based image and PDF references", () => {
   assert.equal(attachmentReferenceId({ kind: "image", sequence: 1 }), "image-1");
   assert.equal(attachmentReferenceId({ kind: "pdf", sequence: 2 }), "pdf-2");

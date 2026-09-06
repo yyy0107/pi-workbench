@@ -2,6 +2,7 @@ import {
   parseAttachmentRecognitionSnapshot,
   reduceAttachmentRecognitionSnapshot,
   type AttachmentRecognitionFailureDiagnostic,
+  type AttachmentRecognitionJob,
   type AttachmentRecognitionMethod,
   type AttachmentRecognitionResult,
   type AttachmentRecognitionSnapshot,
@@ -24,6 +25,7 @@ export interface AttachmentRecognitionProgressUpdate {
   providerId?: string;
   completedCount?: number;
   progress?: number;
+  jobs?: readonly AttachmentRecognitionJob[];
 }
 
 export interface AttachmentRecognitionSuccessUpdate extends AttachmentRecognitionProgressUpdate {
@@ -71,6 +73,7 @@ export class AttachmentRecognitionLifecycle {
       providerId: update.providerId ?? this.currentValue.providerId,
       completedCount: update.completedCount ?? this.currentValue.completedCount,
       progress: update.progress ?? this.currentValue.progress,
+      ...(update.jobs === undefined ? {} : { jobs: update.jobs }),
     });
   }
 
@@ -155,6 +158,15 @@ export class AttachmentRecognitionLifecycle {
     const completedAt = this.nextTimestamp();
     return this.transition({
       ...state,
+      ...(this.currentValue.jobs && (state.status === "failed" || state.status === "cancelled")
+        ? {
+            jobs: this.currentValue.jobs.map((job) =>
+              job.status === "succeeded" || job.status === "failed"
+                ? job
+                : { ...job, status: "cancelled" as const },
+            ),
+          }
+        : {}),
       timestamps: {
         createdAt: this.createdAt,
         updatedAt: completedAt,
@@ -172,6 +184,9 @@ export class AttachmentRecognitionLifecycle {
     const updatedAt = this.nextTimestamp();
     const incoming = this.parse({
       ...state,
+      ...((state.jobs ?? this.currentValue.jobs)
+        ? { jobs: state.jobs ?? this.currentValue.jobs }
+        : {}),
       revision: this.currentValue.revision + 1,
       timestamps:
         state.timestamps ??

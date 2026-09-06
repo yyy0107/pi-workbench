@@ -8,6 +8,7 @@ import {
   parseAttachmentReferenceId,
   type AttachmentRecognitionMethod as SharedAttachmentRecognitionMethod,
   type AttachmentRecognitionFailureDiagnostic,
+  type AttachmentRecognitionJob,
   type AttachmentRecognitionResultFormat as SharedAttachmentRecognitionResultFormat,
   type AttachmentRecognitionStage as SharedAttachmentRecognitionStage,
   type AttachmentRecognitionStatus as SharedAttachmentRecognitionStatus,
@@ -58,6 +59,13 @@ export interface ImageRecognitionPresentationResult {
   readonly truncated?: true;
 }
 
+export interface ImageRecognitionPresentationJob extends AttachmentRecognitionJob {
+  readonly referenceKind: AttachmentReferenceKind | "attachment";
+  readonly sequence: number;
+  /** Absent until the service returns usable page counters. */
+  readonly progress?: number;
+}
+
 export interface ImageRecognitionPresentationState {
   readonly status: ImageRecognitionStatus;
   readonly stage?: ImageRecognitionStage;
@@ -67,6 +75,7 @@ export interface ImageRecognitionPresentationState {
   readonly completedCount: number;
   /** Normalized finite progress in the inclusive range 0..1. */
   readonly progress: number;
+  readonly jobs: readonly ImageRecognitionPresentationJob[];
   readonly results: readonly ImageRecognitionPresentationResult[];
   readonly errorCode?: string;
   readonly diagnostic?: AttachmentRecognitionFailureDiagnostic;
@@ -199,6 +208,21 @@ export function parseAttachmentRecognitionPresentation(
     attachmentCount: snapshot.attachmentCount,
     completedCount: snapshot.completedCount,
     progress,
+    jobs:
+      snapshot.jobs?.map((job, index) => {
+        const reference = parseAttachmentReferenceId(job.attachmentId);
+        return {
+          ...job,
+          referenceKind: reference?.kind ?? "attachment",
+          sequence: reference?.sequence ?? index + 1,
+          progress:
+            job.completedPages !== undefined && job.totalPages !== undefined
+              ? job.completedPages / job.totalPages
+              : job.status === "succeeded"
+                ? 1
+                : undefined,
+        };
+      }) ?? [],
     results:
       snapshot.status === "succeeded"
         ? (snapshot.results?.map(({ attachmentId, format, text, truncated }, index) => {

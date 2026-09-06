@@ -8,6 +8,7 @@ import {
 import type {
   AttachmentRecognitionFailureDiagnostic,
   AttachmentRecognitionFailurePhase,
+  AttachmentRecognitionJob,
   AttachmentRecognitionResultSource,
 } from "@workbench/attachment-understanding-contracts/state-machine";
 import {
@@ -47,7 +48,7 @@ export interface OcrAdapterProviderOptions {
   sleep?: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
   now?: () => number;
   onSubmissionRetry?: (update: { attempt: number; delayMs: number }) => void | Promise<void>;
-  onSubmitted?: () => void | Promise<void>;
+  onProgress?: (job: AttachmentRecognitionJob) => void | Promise<void>;
   resultAddressResolver?: PublicAddressResolver;
   resultHttpsTransport?: PublicHttpsTransport;
 }
@@ -112,6 +113,11 @@ function valuesAtPath(root: unknown, path: string): unknown[] {
 
 function scalarAtPath(root: unknown, path: string): unknown {
   return valuesAtPath(root, path)[0];
+}
+
+function pageCount(value: unknown): number | undefined {
+  const count = typeof value === "string" && /^\d+$/.test(value) ? Number(value) : value;
+  return typeof count === "number" && Number.isSafeInteger(count) && count >= 0 ? count : undefined;
 }
 
 function comparable(value: unknown): string | number | undefined {
@@ -326,7 +332,7 @@ export class OcrAdapterProvider implements AttachmentRecognitionProvider {
   private readonly sleep: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
   private readonly now: () => number;
   private readonly onSubmissionRetry?: OcrAdapterProviderOptions["onSubmissionRetry"];
-  private readonly onSubmitted?: OcrAdapterProviderOptions["onSubmitted"];
+  private readonly onProgress?: OcrAdapterProviderOptions["onProgress"];
   private readonly resultAddressResolver?: PublicAddressResolver;
   private readonly resultHttpsTransport?: PublicHttpsTransport;
 
@@ -367,7 +373,7 @@ export class OcrAdapterProvider implements AttachmentRecognitionProvider {
     this.sleep = options.sleep ?? abortableSleep;
     this.now = options.now ?? Date.now;
     this.onSubmissionRetry = options.onSubmissionRetry;
-    this.onSubmitted = options.onSubmitted;
+    this.onProgress = options.onProgress;
     this.resultAddressResolver = options.resultAddressResolver;
     this.resultHttpsTransport = options.resultHttpsTransport;
   }
@@ -546,12 +552,14 @@ export class OcrAdapterProvider implements AttachmentRecognitionProvider {
   private async waitForResult(
     jobId: string,
     credential: string,
+    report: (update: Partial<Omit<AttachmentRecognitionJob, "attachmentId">>) => Promise<void>,
     signal?: AbortSignal,
   ): Promise<{ format: "markdown" | "text"; text: string }> {
     const operation = this.definition.operation;
     if (operation.kind !== "async-job") throw new TypeError("adapter is not asynchronous.");
     const deadline = this.now() + this.pollTimeoutMs;
     let interval = this.pollIntervalMs;
+    let pollCount = 0;
     for (;;) {
       if (signal?.aborted) throw new ImageUnderstandingProviderError("provider-aborted");
       const remaining = deadline - this.now();
@@ -579,18 +587,43 @@ export class OcrAdapterProvider implements AttachmentRecognitionProvider {
           diagnostic: diagnostic("polling", "unexpected-job-state"),
         });
       }
-      if (operation.failedStates.includes(state)) {
+      const failed = operation.failedStates.includes(state);
+      const completed = operation.completedStates.includes(state);
+      if (!failed && !completed && !operation.pendingStates.includes(state)) {
+        throw new ImageUnderstandingProviderError("provider-invalid-response", {
+          diagnostic: diagnostic("polling", "unexpected-job-state"),
+        });
+      }
+      // Keep saved Paddle adapter sources working before they declared progress paths.
+      const paths = operation.progress ?? {
+        completedPagesPath: "data.extractProgress.extractedPages",
+        totalPagesPath: "data.extractProgress.totalPages",
+      };
+      const completedPages = pageCount(scalarAtPath(payload, paths.completedPagesPath));
+      const totalPages = pageCount(scalarAtPath(payload, paths.totalPagesPath));
+      const hasPages =
+        completedPages !== undefined &&
+        totalPages !== undefined &&
+        totalPages > 0 &&
+        completedPages <= totalPages;
+      await report({
+        status: failed
+          ? "failed"
+          : completed
+            ? "downloading"
+            : state === "pending"
+              ? "pending"
+              : "running",
+        pollCount: ++pollCount,
+        ...(hasPages ? { completedPages, totalPages } : {}),
+      });
+      if (failed) {
         throw new ImageUnderstandingProviderError("provider-job-failed", {
           diagnostic: diagnostic("polling", "job-failed"),
         });
       }
-      if (operation.completedStates.includes(state)) {
+      if (completed) {
         return this.downloadResult(payload, signal, deadline);
-      }
-      if (!operation.pendingStates.includes(state)) {
-        throw new ImageUnderstandingProviderError("provider-invalid-response", {
-          diagnostic: diagnostic("polling", "unexpected-job-state"),
-        });
       }
       const sleepMs = Math.min(interval, Math.max(0, deadline - this.now()));
       await this.sleep(sleepMs, signal);
@@ -620,41 +653,66 @@ export class OcrAdapterProvider implements AttachmentRecognitionProvider {
     let observationCharacters = 0;
     for (const [index, attachment] of request.attachments.entries()) {
       if (request.signal?.aborted) throw new ImageUnderstandingProviderError("provider-aborted");
-      const submitted = await this.submitWithRetry(
-        attachment,
-        index,
-        request.credential,
-        request.signal,
-      );
-      let normalized: { format: "markdown" | "text"; text: string };
-      if (this.definition.operation.kind === "sync") {
-        const extracted = extractOutput(submitted, this.definition.operation.output);
-        if (!extracted) throw new ImageUnderstandingProviderError("provider-invalid-response");
-        normalized = extracted;
-      } else {
-        const jobId = scalarAtPath(submitted, this.definition.operation.jobIdPath);
-        if (typeof jobId !== "string" || !jobId) {
-          throw new ImageUnderstandingProviderError("provider-invalid-response", {
-            diagnostic: diagnostic("submission", "missing-job-id"),
+      let job: AttachmentRecognitionJob = {
+        attachmentId: attachment.id,
+        status: "queued",
+        pollCount: 0,
+      };
+      const report = async (update: Partial<Omit<AttachmentRecognitionJob, "attachmentId">>) => {
+        job = { ...job, ...update };
+        await this.onProgress?.(job);
+      };
+      try {
+        await report({
+          status: this.definition.operation.kind === "sync" ? "running" : "submitting",
+        });
+        const submitted = await this.submitWithRetry(
+          attachment,
+          index,
+          request.credential,
+          request.signal,
+        );
+        let normalized: { format: "markdown" | "text"; text: string };
+        if (this.definition.operation.kind === "sync") {
+          const extracted = extractOutput(submitted, this.definition.operation.output);
+          if (!extracted) throw new ImageUnderstandingProviderError("provider-invalid-response");
+          normalized = extracted;
+        } else {
+          const jobId = scalarAtPath(submitted, this.definition.operation.jobIdPath);
+          if (typeof jobId !== "string" || !jobId) {
+            throw new ImageUnderstandingProviderError("provider-invalid-response", {
+              diagnostic: diagnostic("submission", "missing-job-id"),
+            });
+          }
+          await report({ status: "pending" });
+          normalized = await this.waitForResult(jobId, request.credential, report, request.signal);
+        }
+        observationCharacters += normalized.text.length;
+        if (observationCharacters > this.maxObservationCharacters) {
+          throw new ImageUnderstandingProviderError("provider-response-too-large", {
+            diagnostic: diagnostic("normalizing", "output-too-large"),
           });
         }
-        await this.onSubmitted?.();
-        normalized = await this.waitForResult(jobId, request.credential, request.signal);
-      }
-      observationCharacters += normalized.text.length;
-      if (observationCharacters > this.maxObservationCharacters) {
-        throw new ImageUnderstandingProviderError("provider-response-too-large", {
-          diagnostic: diagnostic("normalizing", "output-too-large"),
+        observations.push({
+          attachmentId: attachment.id,
+          kind: attachment.kind,
+          sequence: attachment.sequence,
+          providerId: this.id,
+          method: this.method,
+          ...normalized,
         });
+        request.signal?.throwIfAborted();
+        await report({ status: "succeeded" });
+      } catch (error) {
+        await report({
+          status:
+            request.signal?.aborted ||
+            (error instanceof ImageUnderstandingProviderError && error.code === "provider-aborted")
+              ? "cancelled"
+              : "failed",
+        });
+        throw error;
       }
-      observations.push({
-        attachmentId: attachment.id,
-        kind: attachment.kind,
-        sequence: attachment.sequence,
-        providerId: this.id,
-        method: this.method,
-        ...normalized,
-      });
     }
     return observations;
   }

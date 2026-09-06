@@ -540,6 +540,27 @@ export const extensionsZhCN = {
         { number }: MessageFormatters,
       ) => `已完成 ${number(completed)} / ${number(total)} 个附件`,
       progressLabel: "附件识别进度",
+      jobs: {
+        title: "识别任务进度",
+        waitingInQueue: "OCR 服务排队中，尚未开始识别…",
+        waitingForProgress: "等待服务返回页数进度…",
+        pages: (
+          { completed, total }: { completed: number; total: number },
+          { number }: MessageFormatters,
+        ) => `已识别 ${number(completed)} / ${number(total)} 页`,
+        polls: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `已查询状态 ${number(count)} 次`,
+        status: {
+          queued: "等待提交",
+          submitting: "正在提交",
+          pending: "服务端排队中（pending）",
+          running: "正在识别（running）",
+          downloading: "正在获取结果",
+          succeeded: "已完成",
+          failed: "失败",
+          cancelled: "已取消",
+        },
+      },
       provider: ({ providerId }: { providerId: string }) => `Provider：${providerId}`,
       results: {
         title: "识别结果",

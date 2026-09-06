@@ -1,5 +1,6 @@
 import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
 import type {
   AttachmentUnderstandingDescribeValue as ImageUnderstandingDescribeValue,
@@ -20,7 +21,6 @@ import {
   OCR_ADAPTER_PRESET_IDS,
   OCR_ADAPTER_PRESETS,
   parseOcrAdapterSource,
-  serializeOcrAdapterSource,
   type OcrAdapterPresetId,
 } from "@workbench/attachment-understanding-contracts/ocr-adapter";
 import {
@@ -243,9 +243,17 @@ function parseAdapterSettings(
   const definition = parseOcrAdapterSource(source);
   const preset = value.preset as OcrAdapterPresetId;
   const presetDefinition = preset === "custom" ? undefined : getOcrAdapterPreset(preset);
+  // Saved Paddle presets predate the optional polling progress paths.
+  if (
+    definition.operation.kind === "async-job" &&
+    definition.operation.progress === undefined &&
+    presetDefinition?.definition.operation.kind === "async-job"
+  ) {
+    definition.operation.progress = presetDefinition.definition.operation.progress;
+  }
   if (
     presetDefinition !== undefined &&
-    serializeOcrAdapterSource(definition) !== presetDefinition.source
+    !isDeepStrictEqual(definition, presetDefinition.definition)
   ) {
     throw new TypeError("settings.ocrAdapter.source does not match its preset definition.");
   }

@@ -85,6 +85,26 @@ export interface ImageRecognitionTimestamps {
   completedAt?: number;
 }
 
+export const ATTACHMENT_RECOGNITION_JOB_STATUSES = [
+  "queued",
+  "submitting",
+  "pending",
+  "running",
+  "downloading",
+  "succeeded",
+  "failed",
+  "cancelled",
+] as const;
+
+/** Only normalized progress crosses the wire; remote job IDs and payloads stay server-side. */
+export interface AttachmentRecognitionJob {
+  readonly attachmentId: string;
+  readonly status: (typeof ATTACHMENT_RECOGNITION_JOB_STATUSES)[number];
+  readonly completedPages?: number;
+  readonly totalPages?: number;
+  readonly pollCount: number;
+}
+
 interface ImageRecognitionSnapshotBase {
   version: 1;
   operationId: string;
@@ -96,6 +116,7 @@ interface ImageRecognitionSnapshotBase {
   imageCount: number;
   completedCount: number;
   progress?: number;
+  jobs?: readonly AttachmentRecognitionJob[];
   timestamps?: ImageRecognitionTimestamps;
 }
 
@@ -169,6 +190,7 @@ interface AttachmentRecognitionSnapshotBase {
   attachmentCount: number;
   completedCount: number;
   progress?: number;
+  jobs?: readonly AttachmentRecognitionJob[];
   timestamps?: AttachmentRecognitionTimestamps;
 }
 
@@ -244,6 +266,7 @@ const SNAPSHOT_KEYS = new Set([
   "imageCount",
   "completedCount",
   "progress",
+  "jobs",
   "timestamps",
   "errorCode",
   "diagnostic",
@@ -252,6 +275,7 @@ const SNAPSHOT_KEYS = new Set([
 const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "completedAt"]);
 const DIAGNOSTIC_KEYS = new Set(["phase", "reason", "httpStatus", "providerCode", "resultSource"]);
 const RESULT_KEYS = new Set(["imageId", "format", "text", "truncated"]);
+const JOB_KEYS = new Set(["attachmentId", "status", "completedPages", "totalPages", "pollCount"]);
 const SAFE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/;
 const SAFE_ERROR_CODE_PATTERN = /^[a-z0-9][a-z0-9._-]*$/;
 
@@ -274,6 +298,45 @@ function safeIdentifier(value: unknown, maximumLength = 256): value is string {
 
 function safeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0;
+}
+
+function parseJobs(
+  value: unknown,
+  attachmentCount: number,
+): AttachmentRecognitionJob[] | undefined {
+  if (
+    !Array.isArray(value) ||
+    value.length > Math.min(attachmentCount, MAX_IMAGE_RECOGNITION_RESULTS)
+  ) {
+    return undefined;
+  }
+  const jobs: AttachmentRecognitionJob[] = [];
+  const ids = new Set<string>();
+  for (const job of value) {
+    if (
+      !isRecord(job) ||
+      !hasOnlyKeys(job, JOB_KEYS) ||
+      !safeIdentifier(job.attachmentId) ||
+      ids.has(job.attachmentId) ||
+      !ATTACHMENT_RECOGNITION_JOB_STATUSES.some((status) => status === job.status) ||
+      !safeInteger(job.pollCount) ||
+      (job.completedPages !== undefined && !safeInteger(job.completedPages)) ||
+      (job.totalPages !== undefined && (!safeInteger(job.totalPages) || job.totalPages === 0)) ||
+      (typeof job.completedPages === "number" &&
+        typeof job.totalPages === "number" &&
+        job.completedPages > job.totalPages)
+    )
+      return undefined;
+    ids.add(job.attachmentId);
+    jobs.push({
+      attachmentId: job.attachmentId,
+      status: job.status as AttachmentRecognitionJob["status"],
+      pollCount: job.pollCount,
+      ...(job.completedPages === undefined ? {} : { completedPages: job.completedPages as number }),
+      ...(job.totalPages === undefined ? {} : { totalPages: job.totalPages as number }),
+    });
+  }
+  return jobs;
 }
 
 function parseTimestamps(value: unknown): ImageRecognitionTimestamps | undefined {
@@ -418,6 +481,8 @@ export function parseImageRecognitionSnapshot(
 
   const timestamps = value.timestamps === undefined ? undefined : parseTimestamps(value.timestamps);
   if (value.timestamps !== undefined && timestamps === undefined) return undefined;
+  const jobs = value.jobs === undefined ? undefined : parseJobs(value.jobs, value.imageCount);
+  if (value.jobs !== undefined && jobs === undefined) return undefined;
 
   const common = {
     version: 1 as const,
@@ -430,6 +495,7 @@ export function parseImageRecognitionSnapshot(
     imageCount: value.imageCount,
     completedCount: value.completedCount,
     ...(value.progress === undefined ? {} : { progress: value.progress }),
+    ...(jobs === undefined ? {} : { jobs }),
     ...(timestamps === undefined ? {} : { timestamps }),
   };
 
@@ -573,6 +639,7 @@ function sameSnapshot(left: ImageRecognitionSnapshot, right: ImageRecognitionSna
     left.imageCount === right.imageCount &&
     left.completedCount === right.completedCount &&
     left.progress === right.progress &&
+    JSON.stringify(left.jobs) === JSON.stringify(right.jobs) &&
     left.errorCode === right.errorCode &&
     sameFailureDiagnostic(left.diagnostic, right.diagnostic) &&
     sameResults(left.results, right.results) &&

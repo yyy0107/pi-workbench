@@ -1,4 +1,7 @@
-import { isTerminalAttachmentRecognitionSnapshot } from "@workbench/attachment-understanding-contracts/state-machine";
+import {
+  isTerminalAttachmentRecognitionSnapshot,
+  type AttachmentRecognitionJob,
+} from "@workbench/attachment-understanding-contracts/state-machine";
 import {
   ImageUnderstandingProviderError,
   type RecognizableAttachment,
@@ -165,7 +168,12 @@ export async function runAttachmentUnderstandingTask(
         await lifecycle.failed("preprocessor-not-configured");
         return { kind: "failed", errorCode: "preprocessor-not-configured" };
       }
-      await lifecycle.running("submitting");
+      let jobs: readonly AttachmentRecognitionJob[] = attachments.map((attachment) => ({
+        attachmentId: attachment.id,
+        status: "queued",
+        pollCount: 0,
+      }));
+      await lifecycle.running("submitting", { jobs });
       const provider = new OcrAdapterProvider({
         source: runtimeSettings.value.ocrAdapter.source,
         endpoint: runtimeSettings.value.ocrAdapter.endpoint,
@@ -175,8 +183,19 @@ export async function runAttachmentUnderstandingTask(
         onSubmissionRetry: async () => {
           await lifecycle.running("submitting");
         },
-        onSubmitted: async () => {
-          await lifecycle.running("polling");
+        onProgress: async (job) => {
+          jobs = jobs.map((current) => (current.attachmentId === job.attachmentId ? job : current));
+          const completedCount = jobs.filter((current) => current.status === "succeeded").length;
+          await lifecycle.running(
+            job.status === "submitting"
+              ? "submitting"
+              : job.status === "downloading" || job.status === "succeeded"
+                ? "normalizing"
+                : job.status === "running"
+                  ? "recognizing"
+                  : "polling",
+            { jobs, completedCount, progress: completedCount / attachments.length },
+          );
         },
       });
       if (provider.definition.operation.kind === "sync") {

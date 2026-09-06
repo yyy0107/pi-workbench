@@ -74,6 +74,28 @@ test("normalizes progress from the canonical snapshot or completed attachment co
   );
 });
 
+test("job percentages use service page counters and stay unknown while queued", () => {
+  const state = parseImageRecognitionPresentation(
+    payload({
+      completedCount: 0,
+      progress: 0,
+      jobs: [
+        {
+          attachmentId: "pdf-1",
+          status: "running",
+          completedPages: 7,
+          totalPages: 10,
+          pollCount: 4,
+        },
+        { attachmentId: "image-1", status: "pending", pollCount: 1 },
+      ],
+    }),
+  );
+  assert.equal(state?.jobs[0]?.progress, 0.7);
+  assert.equal(state?.jobs[0]?.referenceKind, "pdf");
+  assert.equal(state?.jobs[1]?.progress, undefined);
+});
+
 test("projects bounded normalized recognition results without exposing operation metadata", () => {
   const parsed = parseImageRecognitionPresentation(
     payload({
