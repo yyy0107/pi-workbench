@@ -91,7 +91,8 @@
       {
         "provider": "github",
         "owner": "yyy0107",
-        "repo": "pi-workbench"
+        "repo": "pi-workbench",
+        "private": true
       }
     ]
   },
