@@ -34,7 +34,7 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
     <TabsPrimitive.Tab
       data-slot="tabs-trigger"
       className={cn(
-        "relative z-10 inline-flex min-h-[var(--button-height-compact)] min-w-[var(--button-height-compact)] items-center justify-center gap-1.5 rounded-[min(var(--radius-md),10px)] px-2.5 text-sm font-medium whitespace-nowrap outline-none transition-colors select-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-active:bg-background data-active:text-foreground data-active:shadow-sm disabled:pointer-events-none disabled:opacity-50",
+        "relative z-10 inline-flex min-h-[var(--button-height-compact)] min-w-[var(--button-height-compact)] items-center justify-center gap-1.5 rounded-[min(var(--radius-md),10px)] px-2.5 text-sm font-medium whitespace-nowrap outline-none transition-colors select-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-active:bg-card data-active:text-foreground data-active:shadow-sm disabled:pointer-events-none disabled:opacity-50",
         className,
       )}
       {...props}
@@ -61,7 +61,7 @@ function TabsIndicator({ className, ...props }: TabsPrimitive.Indicator.Props) {
     <TabsPrimitive.Indicator
       data-slot="tabs-indicator"
       className={cn(
-        "absolute top-0 left-0 h-full w-(--active-tab-width) translate-x-(--active-tab-left) rounded-[min(var(--radius-md),10px)] bg-background shadow-sm transition-[translate,width] duration-150 motion-reduce:transition-none",
+        "absolute top-0 left-0 h-full w-(--active-tab-width) translate-x-(--active-tab-left) rounded-[min(var(--radius-md),10px)] bg-card shadow-sm transition-[translate,width] duration-150 motion-reduce:transition-none",
         className,
       )}
       {...props}
