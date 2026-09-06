@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import nativeArtifact from "../packages/host/artifact-policy/src/runtime-native.cjs";
 import { releaseUpdateInfo } from "./release-update-info.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -84,6 +85,12 @@ function readRuntimeArtifact(directory, targetKey, runtimeFlavor) {
 }
 
 function assertNodePtyMatchesNativeBuild(runtime, nativeManifest) {
+  const expectedModes = new Map(
+    nativeArtifact
+      .expectedNativeRuntimeFiles(nativeManifest.target)
+      .filter(({ packageName }) => packageName === "node-pty")
+      .map(({ relativePath, executable }) => [relativePath, executable ? 0o755 : 0o644]),
+  );
   const entries = new Map(
     runtime.inventory.files
       .map((file) => {
@@ -98,9 +105,12 @@ function assertNodePtyMatchesNativeBuild(runtime, nativeManifest) {
   }
   for (const expected of nativeManifest.files) {
     const actual = entries.get(expected.path);
+    // Runtime inventory normalizes POSIX permissions while preserving the native binary bytes.
+    const expectedMode =
+      nativeManifest.target.platform === "win32" ? expected.mode : expectedModes.get(expected.path);
     if (
       actual.size !== expected.size ||
-      actual.mode !== expected.mode ||
+      actual.mode !== expectedMode ||
       actual.sha256 !== expected.sha256
     ) {
       throw new Error(`Runtime node-pty hash drifted: ${expected.path}.`);

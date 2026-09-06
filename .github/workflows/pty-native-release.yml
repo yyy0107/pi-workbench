@@ -78,7 +78,7 @@ jobs:
         run: node --test apps/desktop-electron/test/native-runtime.test.cjs apps/desktop-electron/test/after-pack.test.cjs
 
       - name: Test release matrix aggregation
-        run: node --test scripts/validate-pty-release-matrix.test.mjs
+        run: node --test scripts/validate-pty-release-matrix.test.mjs scripts/prepare-pty-release-assets.test.mjs scripts/release-update-info.test.mjs
 
       - name: Typecheck native artifact consumers
         run: pnpm --filter @workbench/runtime-node typecheck && pnpm --filter @workbench/desktop-electron typecheck
