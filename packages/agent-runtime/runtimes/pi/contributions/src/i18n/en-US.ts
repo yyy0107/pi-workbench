@@ -135,7 +135,7 @@ export const piExtensionsEnUS = {
         conflict: "These settings changed elsewhere. Reload the page and try again.",
       },
       systemPrompt: {
-        title: "System prompt",
+        title: "System Prompt",
         tabLabel: "SYSTEM",
         sectionTitle: "Base prompt",
         pageDescription:
