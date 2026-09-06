@@ -8,7 +8,7 @@ import {
   useConversationSession,
   useSessionState,
 } from "@workbench/agent-runtime-client";
-import { TooltipIconButton } from "../ui/tooltip-icon-button";
+import { Button } from "../ui/button";
 import { TypingIndicator } from "../elements/typing-indicator";
 import { useI18n } from "../i18n";
 import { formatCompactDuration } from "../format-duration";
@@ -319,9 +319,10 @@ export function WorkbenchConversationContent({
             )}
           >
             {!isEmpty ? (
-              <TooltipIconButton
+              <Button
                 type="button"
-                tooltip={t("workbench.chat.scrollLatest")}
+                aria-label={t("workbench.chat.scrollLatest")}
+                data-frame="none"
                 variant="outline"
                 size="icon"
                 disabled={viewport.isAtBottom}
@@ -338,7 +339,7 @@ export function WorkbenchConversationContent({
                 ) : (
                   <ArrowDownIcon />
                 )}
-              </TooltipIconButton>
+              </Button>
             ) : null}
             {hasDockedComposer ? (
               <div

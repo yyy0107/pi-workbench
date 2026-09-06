@@ -35,8 +35,8 @@
   }
 
   .aui-composer-attachment-remove {
-    --button-icon-frame-size: calc(var(--icon-frame-size-compact) - 4px);
-    --button-icon-size: var(--composer-stop-icon-size, calc(var(--icon-size-sm) - 2px));
+    --button-icon-frame-size: calc(var(--icon-frame-size-compact) - 6px);
+    --button-icon-size: calc(var(--icon-size-sm) - 2px);
   }
 
   [data-slot="workbench-composer-actions"]

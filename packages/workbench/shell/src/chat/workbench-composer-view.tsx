@@ -32,7 +32,7 @@ import {
 import type { ComposerTriggerItem } from "./composer-directive";
 
 const COMPOSER_PRIMARY_ACTION_CLASS_NAME =
-  "aui-composer-primary-action rounded-[var(--button-radius)] [&:hover:not(:active)]:bg-primary! dark:[&:hover:not(:active)]:bg-primary!";
+  "aui-composer-primary-action rounded-[var(--button-radius)] hover:bg-primary";
 export type WorkbenchComposerSuggestionGroup =
   | "builtin"
   | "extension"
@@ -325,7 +325,7 @@ export function ComposerAddMenuView({
         className="w-64 p-1.5"
       >
         <DropdownMenuItem
-          className="min-h-9 gap-2.5 px-2.5"
+          className="h-[var(--dropdown-control-height)] gap-2.5 px-2.5"
           disabled={!attachmentsEnabled}
           onClick={onChooseAttachment}
         >
@@ -335,14 +335,20 @@ export function ComposerAddMenuView({
           />
           <span>{labels.attachment}</span>
         </DropdownMenuItem>
-        <DropdownMenuItem className="min-h-9 gap-2.5 px-2.5" onClick={() => onInsertTrigger("@")}>
+        <DropdownMenuItem
+          className="h-[var(--dropdown-control-height)] gap-2.5 px-2.5"
+          onClick={() => onInsertTrigger("@")}
+        >
           <AtSignIcon
             aria-hidden="true"
             className="text-muted-foreground aui-composer-icon-size-default"
           />
           <span>{labels.context}</span>
         </DropdownMenuItem>
-        <DropdownMenuItem className="min-h-9 gap-2.5 px-2.5" onClick={() => onInsertTrigger("/")}>
+        <DropdownMenuItem
+          className="h-[var(--dropdown-control-height)] gap-2.5 px-2.5"
+          onClick={() => onInsertTrigger("/")}
+        >
           <SquareSlashIcon
             aria-hidden="true"
             className="text-muted-foreground aui-composer-icon-size-default"
@@ -370,20 +376,21 @@ export function ComposerPrimaryActionView({
   onCancel(): void;
 }>) {
   return isRunning ? (
-    <TooltipIconButton
-      tooltip={stopLabel}
+    <Button
+      aria-label={stopLabel}
+      data-frame="none"
       type="button"
       size="icon"
       variant="default"
       className={COMPOSER_PRIMARY_ACTION_CLASS_NAME}
-
       onClick={onCancel}
     >
       <SquareIcon className="aui-composer-stop-icon fill-current" />
-    </TooltipIconButton>
+    </Button>
   ) : (
-    <TooltipIconButton
-      tooltip={sendLabel}
+    <Button
+      aria-label={sendLabel}
+      data-frame="none"
       type="button"
       size="icon"
       disabled={!canSend}
@@ -392,11 +399,10 @@ export function ComposerPrimaryActionView({
         COMPOSER_PRIMARY_ACTION_CLASS_NAME,
         "disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100",
       )}
-
       onClick={onSend}
     >
       <ArrowUpIcon className="aui-composer-primary-icon" />
-    </TooltipIconButton>
+    </Button>
   );
 }
 

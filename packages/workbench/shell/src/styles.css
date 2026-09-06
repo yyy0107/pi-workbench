@@ -129,7 +129,7 @@
 
   /* Buttons */
   --button-height-compact: calc(var(--form-control-height) - 2px);
-  --button-height-default: var(--form-control-height);
+  --button-height-default: var(--input-control-height);
   --button-height-large: calc(var(--form-control-height) + 10px);
   --button-content-padding-block-start: calc(
     var(--control-text-offset-y) + var(--control-text-offset-y)
@@ -146,7 +146,7 @@
   --icon-size-md: 16px;
   --icon-size-lg: 18px;
   --icon-frame-size-compact: var(--control-hit-compact);
-  --icon-frame-size-default: var(--control-hit-default);
+  --icon-frame-size-default: var(--button-height-default);
   --icon-frame-background-hover: var(--control-state-background-hover);
   --icon-frame-background-active: var(--control-state-background-active);
   --icon-frame-background-selected: var(--control-state-background-selected);
@@ -156,8 +156,8 @@
   --icon-md: var(--icon-size-md);
 
   /* Inputs */
-  --input-control-height: var(--form-control-height);
-  --dropdown-control-height: var(--form-control-height);
+  --input-control-height: calc(var(--form-control-height) - 2px);
+  --dropdown-control-height: var(--input-control-height);
   --input-control-padding-block: var(--control-content-padding-block-compact);
   --input-control-padding-block-start: var(--control-content-padding-block-compact-start);
   --input-control-padding-block-end: var(--control-content-padding-block-compact-end);
@@ -169,16 +169,16 @@
   --input-control-icon-size: var(--icon-size-sm);
 
   /* Switches */
-  --switch-track-width: 40px;
-  --switch-track-height: 24px;
+  --switch-track-width: 34px;
+  --switch-track-height: 20px;
   --switch-track-radius: 9999px;
   --switch-track-padding: 2px;
   --switch-track-background: var(--input);
   --switch-track-background-checked: var(--primary);
-  --switch-thumb-size: 20px;
+  --switch-thumb-size: 16px;
   --switch-thumb-radius: 9999px;
   --switch-thumb-background: var(--background);
-  --switch-thumb-translate: 16px;
+  --switch-thumb-translate: 14px;
   --switch-compact-track-width: 28px;
   --switch-compact-track-height: 16px;
   --switch-compact-thumb-size: 12px;

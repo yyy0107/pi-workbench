@@ -68,6 +68,9 @@
     var(--workbench-theme-foreground)
   );
   --input-control-border: var(--input);
+  --switch-track-background: var(--input);
+  --switch-track-background-checked: var(--primary);
+  --switch-thumb-background: var(--background);
   --sidebar-border: var(--border);
   --aui-accent: var(--workbench-theme-accent);
   --aui-accent-foreground: var(--workbench-theme-background);

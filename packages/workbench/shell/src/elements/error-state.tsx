@@ -83,7 +83,7 @@ export function ErrorState({
         </p>
         <p
           className={cn(
-            "mt-0.5 text-[13px] leading-snug break-words whitespace-pre-wrap",
+            "mt-0.5 max-h-24 overflow-y-auto text-[13px] leading-snug break-words whitespace-pre-wrap",
             tone === "error" ? "text-red-600/60 dark:text-red-400/60" : "text-muted-foreground",
           )}
         >
@@ -98,7 +98,7 @@ export function ErrorState({
           disabled={retryDisabled}
           onClick={onRetry}
           className={cn(
-            "ms-auto shrink-0 rounded-full px-3 text-xs",
+            "ms-auto shrink-0 px-3 text-xs",
             tone === "error"
               ? "text-red-600 hover:bg-red-500/10 focus-visible:ring-red-500/30 dark:text-red-400"
               : "text-foreground/70 hover:bg-foreground/5 focus-visible:ring-ring",

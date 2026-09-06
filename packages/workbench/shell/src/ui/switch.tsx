@@ -16,7 +16,7 @@ function Switch({
       data-slot="switch"
       data-size={size}
       className={cn(
-        "relative inline-flex shrink-0 cursor-pointer items-center rounded-[var(--switch-track-radius)] [background:var(--switch-track-background)] p-[var(--switch-track-padding)] transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-checked:[background:var(--switch-track-background-checked)] data-disabled:cursor-not-allowed data-disabled:opacity-50",
+        "relative inline-flex shrink-0 cursor-pointer items-center rounded-[var(--switch-track-radius)] [background:var(--switch-track-background)] p-[var(--switch-track-padding)] transition-colors outline-none dark:inset-ring dark:inset-ring-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-checked:[background:var(--switch-track-background-checked)] data-disabled:cursor-not-allowed data-disabled:opacity-50",
         compact
           ? "h-[var(--switch-compact-track-height)] w-[var(--switch-compact-track-width)]"
           : "h-[var(--switch-track-height)] w-[var(--switch-track-width)]",

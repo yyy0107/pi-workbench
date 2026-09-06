@@ -161,7 +161,7 @@ export function WorkspaceSelector({
         alignOffset={clearable ? -32 : 0}
         side="bottom"
         sideOffset={6}
-        className="grid max-h-[min(336px,var(--available-height))] w-80 max-w-[calc(100vw-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-2xl p-0 shadow-xl ring-1 ring-foreground/15"
+        className="grid max-h-[min(336px,var(--available-height))] w-80 max-w-[calc(100vw-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] rounded-2xl p-0 shadow-xl ring-1 ring-foreground/15"
       >
         <div className="flex h-11 items-center gap-2 border-b px-3">
           <SearchIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />

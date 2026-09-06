@@ -288,7 +288,7 @@ export function ModelSelector({
           >
             <DropdownMenuSubTrigger
               disabled={selectionLocked || !models.length}
-              className="min-h-9 gap-3 px-2 pt-[var(--control-content-padding-block-default-start)] pb-[var(--control-content-padding-block-default-end)] [&>svg]:ml-1.5"
+              className="h-[var(--dropdown-control-height)] gap-3 px-2 [&>svg]:ml-1.5"
             >
               <span>{labels.model}</span>
               <MenuCurrentValue>{selectedModel?.name ?? labels.select}</MenuCurrentValue>
@@ -347,7 +347,7 @@ export function ModelSelector({
           <DropdownMenuSub>
             <DropdownMenuSubTrigger
               disabled={selectionLocked || !reasoningLevels.length}
-              className="min-h-9 gap-3 px-2 pt-[var(--control-content-padding-block-default-start)] pb-[var(--control-content-padding-block-default-end)] [&>svg]:ml-1.5"
+              className="h-[var(--dropdown-control-height)] gap-3 px-2 [&>svg]:ml-1.5"
             >
               <span>{labels.reasoningEffort}</span>
               <MenuCurrentValue>
