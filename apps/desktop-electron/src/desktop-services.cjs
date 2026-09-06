@@ -70,10 +70,9 @@ function readDesktopSettings(app) {
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
   }
-  const { updateToken, ...preferences } = document;
-  if (updateToken !== undefined && typeof updateToken !== "string")
-    throw new Error("invalid-settings");
-  return { file, preferences: { ...DEFAULTS, ...validatePreferences(preferences) }, updateToken };
+  // Ignore credentials saved by builds that used a private update repository.
+  delete document.updateToken;
+  return { file, preferences: { ...DEFAULTS, ...validatePreferences(document) } };
 }
 
 /** Build the explicit environment shared by desktop-owned outbound processes. */
@@ -173,12 +172,11 @@ function createDesktopServices(
     platform = process.platform,
   },
 ) {
-  const { app, ipcMain, session, powerSaveBlocker, Notification, safeStorage, dialog } = electron;
+  const { app, ipcMain, session, powerSaveBlocker, Notification, dialog } = electron;
   const startupPreferences = { ...settings.preferences };
   let preferences = settings.preferences;
   let terminalShellStatus = platform === "win32" ? "applying" : "applied";
   let settingsOperation = Promise.resolve();
-  let encryptedToken = settings.updateToken;
   let updater;
   let update = { status: app.isPackaged ? "idle" : "development" };
   let busy = true;
@@ -196,7 +194,6 @@ function createDesktopServices(
     update: { ...update },
     version: app.getVersion(),
     platform,
-    tokenConfigured: Boolean(encryptedToken || process.env.PI_WORKBENCH_UPDATE_TOKEN),
     terminalShellStatus,
     restartRequired: ["hardwareAcceleration", "httpProxy", "noProxy"].some(
       (key) => startupPreferences[key] !== preferences[key],
@@ -208,22 +205,17 @@ function createDesktopServices(
     update = next;
     publish();
   };
-  function save(next, token = encryptedToken) {
+  function save(next) {
     fs.mkdirSync(path.dirname(settings.file), { recursive: true, mode: 0o700 });
     const temporary = `${settings.file}.${process.pid}.tmp`;
     try {
-      fs.writeFileSync(
-        temporary,
-        JSON.stringify({ ...next, ...(token ? { updateToken: token } : {}) }, null, 2),
-        { mode: 0o600 },
-      );
+      fs.writeFileSync(temporary, JSON.stringify(next, null, 2), { mode: 0o600 });
       fs.chmodSync(temporary, 0o600);
       fs.renameSync(temporary, settings.file);
     } finally {
       fs.rmSync(temporary, { force: true });
     }
     preferences = next;
-    encryptedToken = token;
   }
   function applyPower() {
     if (preferences.keepAwake && blocker === undefined)
@@ -233,21 +225,10 @@ function createDesktopServices(
       blocker = undefined;
     }
   }
-  function token() {
-    if (encryptedToken) return safeStorage.decryptString(Buffer.from(encryptedToken, "base64"));
-    return process.env.PI_WORKBENCH_UPDATE_TOKEN;
-  }
   function configureUpdater() {
     if (!updater) return;
-    // Credentials are supplied on this machine, never embedded in release artifacts.
-    const accessToken = token();
-    const {
-      PrivateGitHubProvider,
-    } = require("electron-updater/out/providers/PrivateGitHubProvider");
-    class WorkbenchGitHubProvider extends PrivateGitHubProvider {
-      constructor(options, owner, runtimeOptions) {
-        super(options, owner, options.token, runtimeOptions);
-      }
+    const { GitHubProvider } = require("electron-updater/out/providers/GitHubProvider");
+    class WorkbenchGitHubProvider extends GitHubProvider {
       getChannelFilePrefix() {
         return `-${process.platform}-${process.arch}${process.platform === "linux" ? "-glibc" : ""}`;
       }
@@ -257,8 +238,6 @@ function createDesktopServices(
       updateProvider: WorkbenchGitHubProvider,
       owner: "yyy0107",
       repo: "pi-workbench",
-      private: true,
-      ...(accessToken ? { token: accessToken } : {}),
     });
     updater.allowPrerelease = preferences.previewUpdates;
     updater.allowDowngrade = false;
@@ -308,10 +287,6 @@ function createDesktopServices(
     operation = (async () => {
       if (action === "check") {
         configureUpdater();
-        if (!token()) {
-          setUpdate({ status: "error", error: "update-token-required" });
-          return;
-        }
         setUpdate({ status: "checking" });
         await updater.checkForUpdates();
       } else if (action === "download" && update.status === "available") {
@@ -374,22 +349,6 @@ function createDesktopServices(
       if (validated.terminalShell !== undefined) await synchronizeTerminalShell();
       return snapshot();
     });
-  });
-  handle("workbench:desktop-update-token", (value) => {
-    if (typeof value !== "string" || value.length > 4096 || /\s/u.test(value))
-      throw new Error("invalid-token");
-    if (operation || installing || update.status === "downloading")
-      throw new Error("update-in-progress");
-    if (
-      value &&
-      (!safeStorage.isEncryptionAvailable() ||
-        safeStorage.getSelectedStorageBackend?.() === "basic_text")
-    )
-      throw new Error("secure-storage-unavailable");
-    save(preferences, value ? safeStorage.encryptString(value).toString("base64") : null);
-    configureUpdater();
-    publish();
-    return snapshot();
   });
   handle("workbench:desktop-update", async (action) => {
     if (!["check", "download", "install"].includes(action))

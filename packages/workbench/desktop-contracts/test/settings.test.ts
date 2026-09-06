@@ -13,7 +13,7 @@ test("an older desktop bridge keeps core settings available without the new soun
     onOpenTask() {},
   };
   assert.equal(readDesktopSettingsPort(legacyPort), legacyPort);
-  const currentPort = { ...legacyPort, onNotificationSound() {} };
+  const currentPort = { ...legacyPort, setUpdateToken: undefined, onNotificationSound() {} };
   assert.equal(readDesktopSettingsPort(currentPort), currentPort);
   assert.equal(readDesktopSettingsPort(undefined), undefined);
   assert.equal(readDesktopSettingsPort({}), undefined);

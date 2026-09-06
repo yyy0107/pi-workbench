@@ -140,7 +140,7 @@ test("shell settings serialize live application, retain failures for retry, and 
   assert.ok(events.some((event) => event.terminalShellStatus === "failed"));
 });
 
-test("desktop settings apply power, secure credentials, activity notifications and guarded update installation", async (t) => {
+test("desktop settings use public updates without credentials and guard installation during activity", async (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-settings-"));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const handlers = new Map();
@@ -149,11 +149,14 @@ test("desktop settings apply power, secure credentials, activity notifications a
   const power = [];
   let installed = 0;
   let stopped = 0;
+  let checked = 0;
   const updater = Object.assign(new EventEmitter(), {
     setFeedURL(value) {
       this.feed = value;
     },
-    async checkForUpdates() {},
+    async checkForUpdates() {
+      checked++;
+    },
     quitAndInstall() {
       installed++;
     },
@@ -193,11 +196,6 @@ test("desktop settings apply power, secure credentials, activity notifications a
         stop: (id) => power.push(id),
       },
       Notification,
-      safeStorage: {
-        isEncryptionAvailable: () => true,
-        encryptString: (value) => Buffer.from(`encrypted:${value}`),
-        decryptString: (value) => value.toString().slice(10),
-      },
       dialog: { showMessageBox: async () => ({ response: 0 }) },
     },
     {
@@ -215,21 +213,20 @@ test("desktop settings apply power, secure credentials, activity notifications a
   const call = (channel, payload) =>
     handlers.get(`workbench:desktop-${channel}`)({ trusted: true }, payload);
   assert.throws(() => handlers.get("workbench:desktop-settings")({}, {}), /untrusted/);
-  call("update-token", "example-test-token");
-  assert.equal(call("settings").tokenConfigured, true);
+  assert.equal(handlers.has("workbench:desktop-update-token"), false);
   assert.equal(call("settings").platform, process.platform);
   assert.equal(
     (await call("settings", { terminalShell: "command-prompt" })).restartRequired,
     false,
   );
   assert.equal(readDesktopSettings(app).preferences.terminalShell, "command-prompt");
-  assert.ok(
-    !fs
-      .readFileSync(path.join(directory, "desktop-settings.json"), "utf8")
-      .includes("example-test-token"),
-  );
   await service.start();
   await new Promise(setImmediate);
+  assert.equal(checked, 1);
+  assert.equal(updater.feed.token, undefined);
+  assert.equal(updater.feed.private, undefined);
+  const { GitHubProvider } = require("electron-updater/out/providers/GitHubProvider");
+  assert.ok(updater.feed.updateProvider.prototype instanceof GitHubProvider);
   assert.deepEqual(proxy, { mode: "system" });
   await call("settings", { keepAwake: true, notificationSounds: false });
   assert.deepEqual(power, ["prevent-app-suspension"]);
@@ -304,6 +301,22 @@ test("desktop settings apply power, secure credentials, activity notifications a
   await call("update", "install");
   assert.equal(stopped, 1);
   assert.equal(installed, 1);
+});
+
+test("public update settings accept legacy credentials without exposing or retaining them", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-legacy-settings-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  fs.writeFileSync(
+    path.join(directory, "desktop-settings.json"),
+    JSON.stringify({
+      keepAwake: true,
+      updateToken: "encrypted-test-fixture",
+    }),
+  );
+  const settings = readDesktopSettings({ getPath: () => directory });
+  assert.equal(settings.preferences.keepAwake, true);
+  assert.equal(settings.updateToken, undefined);
+  assert.equal(Object.hasOwn(settings.preferences, "updateToken"), false);
 });
 
 test("the actual Electron Node child applies the shared proxy to fetch and HTTP requests", async (t) => {

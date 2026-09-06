@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   copyFileSync,
   existsSync,
@@ -284,9 +284,14 @@ const webRuntimeArchive = Object.freeze({
 });
 const metadata = {
   schemaVersion: 1,
-  kind: "workbench-pty-release-assets",
+  kind: "workbench-release-assets",
   targetKey,
   version: rootManifest.version,
+  commit: execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+    windowsHide: true,
+  }).trim(),
   nodePtyVersion: nativeManifest.package.version,
   nativeBuild,
   runtimeInventories: { node: nodeInventory, electron: electronInventory },

@@ -18,7 +18,6 @@ contextBridge.exposeInMainWorld(
     settings: Object.freeze({
       load: () => ipcRenderer.invoke("workbench:desktop-settings"),
       update: (patch) => ipcRenderer.invoke("workbench:desktop-settings", patch),
-      setUpdateToken: (token) => ipcRenderer.invoke("workbench:desktop-update-token", token),
       runUpdate: (action) => ipcRenderer.invoke("workbench:desktop-update", action),
       syncTasks: (state) => ipcRenderer.invoke("workbench:desktop-task-state", state),
       subscribe: (listener) => {

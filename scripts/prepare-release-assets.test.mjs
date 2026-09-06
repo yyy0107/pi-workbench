@@ -28,7 +28,8 @@ test("prepares renderer/runtime packages with normalized native permissions and 
     return filename;
   };
   for (const relativePath of [
-    "scripts/prepare-pty-release-assets.mjs",
+    "scripts/prepare-release-assets.mjs",
+    "scripts/validate-release-assets.mjs",
     "scripts/release-update-info.mjs",
     "packages/host/artifact-policy/src/runtime-native.cjs",
   ]) {
@@ -84,6 +85,22 @@ test("prepares renderer/runtime packages with normalized native permissions and 
   });
   write("apps/web/.next/standalone/server.js", "web fixture\n");
   write("package.json", { version: "0.2.0" });
+  for (const args of [
+    ["init"],
+    [
+      "-c",
+      "user.name=Test",
+      "-c",
+      "user.email=test@example.com",
+      "commit",
+      "--allow-empty",
+      "-m",
+      "fixture",
+    ],
+  ]) {
+    const result = spawnSync("git", args, { cwd: root, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+  }
   const extension =
     target.platform === "win32" ? "exe" : target.platform === "darwin" ? "zip" : "deb";
   write(`dist-electron/Pi-Workbench-0.2.0.${extension}`, "package fixture\n");
@@ -92,7 +109,7 @@ test("prepares renderer/runtime packages with normalized native permissions and 
     spawnSync(
       process.execPath,
       [
-        path.join(root, "scripts/prepare-pty-release-assets.mjs"),
+        path.join(root, "scripts/prepare-release-assets.mjs"),
         "--target",
         targetKey,
         "--output",
@@ -108,6 +125,18 @@ test("prepares renderer/runtime packages with normalized native permissions and 
   const result = run();
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).version, "0.2.0");
+  assert.match(JSON.parse(result.stdout).commit, /^[0-9a-f]{40}$/u);
+  const verified = spawnSync(
+    process.execPath,
+    [
+      path.join(root, "scripts/validate-release-assets.mjs"),
+      path.join(root, "release-assets", targetKey),
+      "v0.2.0",
+      JSON.parse(result.stdout).commit,
+    ],
+    { cwd: root, encoding: "utf8" },
+  );
+  assert.equal(verified.status, 0, verified.stderr);
   assert.match(
     readFileSync(
       path.join(root, "release-assets", targetKey, `SHA256SUMS-${targetKey}.txt`),

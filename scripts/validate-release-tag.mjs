@@ -19,6 +19,7 @@ for (const relativePath of [
   "apps/web/package.json",
   "apps/runtime-node/package.json",
   "apps/desktop-electron/package.json",
+  "apps/desktop-renderer/package.json",
 ]) {
   const manifest = JSON.parse(readFileSync(path.join(repositoryRoot, relativePath), "utf8"));
   if (manifest.version !== rootManifest.version) {
@@ -36,9 +37,18 @@ function gitRevision(revision) {
 }
 
 const head = gitRevision("HEAD");
-const main = gitRevision("origin/main");
-if (head !== main) {
-  throw new Error(`Release tag commit ${head} is not the current origin/main commit ${main}.`);
+const tagged = gitRevision(`refs/tags/${tag}^{commit}`);
+if (head !== tagged) {
+  throw new Error(`Release tag ${tag} points to ${tagged}, but HEAD is ${head}.`);
+}
+execFileSync("git", ["merge-base", "--is-ancestor", head, "origin/main"], { cwd: repositoryRoot });
+if (
+  execFileSync("git", ["status", "--porcelain", "--untracked-files=normal"], {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+  }).trim()
+) {
+  throw new Error("Release builds require a clean checkout of the tagged commit.");
 }
 
 process.stdout.write(

@@ -51,12 +51,7 @@ export const desktopRendererEnUS = {
     save: "Save",
     clear: "Clear",
     updates: "Application updates",
-    updateSource: "Release source: yyy0107/pi-workbench (private GitHub repository).",
-    updateToken: "GitHub update token",
-    tokenConfigured:
-      "A token is configured on this machine. Saved tokens use the operating system’s secure storage.",
-    tokenMissing:
-      "Provide a token with read access to this repository’s Releases, or set PI_WORKBENCH_UPDATE_TOKEN before launching the app.",
+    updateSource: "Release source: yyy0107/pi-workbench (public GitHub repository).",
     checkUpdates: "Check for updates",
     install: "Restart and install",
     download: "Download update",
@@ -70,8 +65,6 @@ export const desktopRendererEnUS = {
     retry: "Retry",
     restartRequired: "Quit and reopen the app to apply settings that require a restart.",
     notificationsUnsupported: "Desktop notifications are unavailable on this system.",
-    secureStorageUnavailable:
-      "Secure OS storage is unavailable. Set PI_WORKBENCH_UPDATE_TOKEN before launching the app instead.",
     updateInProgress: "Wait for the update operation to finish before changing these settings.",
     error: "The desktop operation failed. Retry to reload the saved settings.",
     updateStatus: {
@@ -82,8 +75,7 @@ export const desktopRendererEnUS = {
       available: "An update is available.",
       downloading: "Downloading…",
       downloaded: "Downloaded and ready to install.",
-      error:
-        "Update failed. Check your token, network connection, and the repository’s update assets.",
+      error: "Update failed. Check your network connection and the repository’s update assets.",
     },
     version: ({ version }: { version: string }) => `Version ${version}`,
     progress: ({ percent }: { percent: number }, { number }: MessageFormatters) =>
