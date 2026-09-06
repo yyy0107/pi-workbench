@@ -662,6 +662,7 @@ function ThreadTokenUsage() {
                       type="button"
                       size="sm"
                       variant="ghost"
+                      className="-me-2 ms-auto"
                       disabled={!remoteId}
                       onClick={() => {
                         if (!traceRequest) return;
