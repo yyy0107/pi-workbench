@@ -105,6 +105,7 @@ test("resolves the settings store per call and sanitizes Image Understanding upd
     rpcRequest("imageUnderstanding.update", {
       expectedRevision: 3,
       patch: {
+        resultCacheDirectory: "/custom/attachment results",
         routing: "always-preprocess",
         engine: "ocr",
         ocrProvider: "glm-ocr",
@@ -139,6 +140,7 @@ test("resolves the settings store per call and sanitizes Image Understanding upd
     {
       expectedRevision: 3,
       patch: {
+        resultCacheDirectory: "/custom/attachment results",
         routing: "always-preprocess",
         engine: "ocr",
         ocrProvider: "glm-ocr",
@@ -180,6 +182,8 @@ test("validates Image Understanding patches before resolving a store", async () 
     { patch: { paddle: { pollTimeoutMs: 3_600_001 } } },
     { patch: { ocrAdapter: { preset: "unknown" } } },
     { patch: { glm: { apiKey: 1 } } },
+    { patch: { resultCacheDirectory: 123 } },
+    { patch: { resultCacheDirectory: "x".repeat(4_097) } },
   ]) {
     const response = routes.handle(
       rpcRequest("imageUnderstanding.update", payload),

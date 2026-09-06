@@ -169,7 +169,7 @@ import {
   type AttachmentRecognitionSnapshot,
 } from "@workbench/attachment-understanding-contracts/state-machine";
 import {
-  type AttachmentUnderstandingObservation,
+  type CachedAttachmentUnderstandingObservation,
   type RecognizableAttachment,
 } from "@workbench/attachment-understanding-server/contracts";
 import { runAttachmentUnderstandingTask } from "@workbench/attachment-understanding-server/task";
@@ -895,7 +895,7 @@ export class SerializedSessionMutations {
 
 type AttachmentUnderstandingRunResult =
   | { kind: "native"; images: PiImageContent[] }
-  | { kind: "preprocessed"; observations: AttachmentUnderstandingObservation[] }
+  | { kind: "preprocessed"; observations: CachedAttachmentUnderstandingObservation[] }
   | { kind: "failed"; errorCode: string }
   | { kind: "cancelled" };
 
@@ -2599,6 +2599,7 @@ class HostedPiSession {
     let resolvedImages = prompt.images;
     let attachmentUnderstandingFatalError: string | undefined;
     let usedAttachmentPreprocessing = false;
+    let attachmentResultFiles: readonly CachedAttachmentUnderstandingObservation[] = [];
     let usedAttachmentReferences = false;
     if (
       (prompt.images?.length || prompt.documents?.length) &&
@@ -2636,23 +2637,7 @@ class HostedPiSession {
       } else if (attachmentUnderstanding.kind === "preprocessed") {
         resolvedImages = undefined;
         usedAttachmentPreprocessing = true;
-        resolution.request.untrustedContext.push({
-          source: "workbench.attachment-understanding",
-          trust: "untrusted-context",
-          value: {
-            version: 1,
-            kind: "attachment-understanding",
-            observations: attachmentUnderstanding.observations.map((observation) => ({
-              attachmentId: observation.attachmentId,
-              kind: observation.kind,
-              sequence: observation.sequence,
-              providerId: observation.providerId,
-              method: observation.method,
-              format: observation.format,
-              text: observation.text,
-            })),
-          },
-        });
+        attachmentResultFiles = attachmentUnderstanding.observations;
       } else if (attachmentUnderstanding.kind === "cancelled") {
         resolvedImages = undefined;
         attachmentUnderstandingFatalError = "attachment-recognition-cancelled";
@@ -2738,7 +2723,7 @@ class HostedPiSession {
       hasWorkbenchComposerSemantics(submission) ||
       usedAttachmentPreprocessing ||
       usedAttachmentReferences
-        ? compilePiComposerPrompt(resolution.request)
+        ? compilePiComposerPrompt(resolution.request, attachmentResultFiles)
         : undefined;
     if (modelInput) {
       this.session.sessionManager.appendCustomEntry(

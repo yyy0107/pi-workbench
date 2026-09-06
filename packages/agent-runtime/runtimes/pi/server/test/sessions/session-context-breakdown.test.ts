@@ -48,7 +48,7 @@ test("breaks the current model input into instructions, tools, and conversation"
     {
       role: "user",
       content:
-        '<workbench-untrusted-context>\n[{"file":"notes.md"}]\n</workbench-untrusted-context>\n\n<user-request>\nExplain this\n</user-request>',
+        '<workbench-untrusted-context>\n[{"file":"notes.md"}]\n</workbench-untrusted-context>\n\n<workbench-attachment-results><attachment path="/cache/pdf-1.md" /></workbench-attachment-results>\n\n<user-request>\nExplain this\n</user-request>',
       timestamp: 1,
     },
     {

@@ -65,6 +65,10 @@ const TAGGED_USER_SECTIONS: ReadonlyArray<{
     pattern: /<workbench-untrusted-context>[\s\S]*?<\/workbench-untrusted-context>/gu,
   },
   {
+    category: "context-files",
+    pattern: /<workbench-attachment-results>[\s\S]*?<\/workbench-attachment-results>/gu,
+  },
+  {
     category: "user-input",
     pattern: /<user-request>[\s\S]*?<\/user-request>/gu,
   },

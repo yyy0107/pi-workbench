@@ -114,6 +114,8 @@ function resultSourceLabel(
 
 function errorLabel(kind: ImageRecognitionErrorKind, t: ReturnType<typeof useI18n>["t"]): string {
   switch (kind) {
+    case "storage":
+      return t("extensions.imageUnderstanding.recognition.errors.storage");
     case "authentication":
       return t("extensions.imageUnderstanding.recognition.errors.authentication");
     case "configuration":

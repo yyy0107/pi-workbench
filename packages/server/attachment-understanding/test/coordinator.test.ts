@@ -8,6 +8,7 @@ import { decideAttachmentUnderstandingRoute } from "../src/coordinator";
 const glmAdapterPreset = getOcrAdapterPreset("glm-ocr");
 
 const settings = {
+  resultCacheDirectory: "/attachment-results",
   routing: "auto",
   engine: "ocr",
   ocrProvider: "glm-ocr",

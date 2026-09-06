@@ -6,6 +6,7 @@ import {
   ImageUnderstandingProviderError,
   type RecognizableAttachment,
   type AttachmentUnderstandingObservation,
+  type CachedAttachmentUnderstandingObservation,
 } from "./contracts";
 import { decideAttachmentUnderstandingRoute } from "./coordinator";
 import { projectAttachmentRecognitionResults } from "./display-results";
@@ -14,11 +15,12 @@ import {
   type AttachmentRecognitionLifecycleOptions,
 } from "./lifecycle";
 import { OcrAdapterProvider } from "./providers/ocr-adapter";
+import { cacheAttachmentRecognitionResults } from "./result-cache";
 import type { ImageUnderstandingRuntimeSettings } from "./settings-store";
 
 export type AttachmentUnderstandingResult =
   | { kind: "native" }
-  | { kind: "preprocessed"; observations: AttachmentUnderstandingObservation[] }
+  | { kind: "preprocessed"; observations: CachedAttachmentUnderstandingObservation[] }
   | { kind: "failed"; errorCode: string }
   | { kind: "cancelled" };
 
@@ -228,10 +230,15 @@ export async function runAttachmentUnderstandingTask(
       completedCount: observations.length,
       progress: observations.length / attachments.length,
     });
+    const cached = await cacheAttachmentRecognitionResults(
+      runtimeSettings.value.resultCacheDirectory,
+      observations,
+      signal,
+    );
     await lifecycle.succeeded({
-      results: projectAttachmentRecognitionResults(observations),
+      results: projectAttachmentRecognitionResults(cached),
     });
-    return { kind: "preprocessed", observations };
+    return { kind: "preprocessed", observations: cached };
   } catch (error) {
     if (signal.aborted || stableImageUnderstandingErrorCode(error) === "provider-aborted") {
       if (!isTerminalAttachmentRecognitionSnapshot(lifecycle.current)) {

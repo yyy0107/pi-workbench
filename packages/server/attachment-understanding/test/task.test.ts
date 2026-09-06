@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { randomUUID } from "node:crypto";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import {
   isTerminalAttachmentRecognitionSnapshot,
   type AttachmentRecognitionSnapshot,
@@ -25,7 +29,9 @@ const observation: AttachmentUnderstandingObservation = {
   text: "Recognized text",
 };
 
-function fixture() {
+function fixture(t: test.TestContext) {
+  const resultCacheDirectory = path.join(tmpdir(), `workbench-ocr-task-${randomUUID()}`);
+  t.after(() => rm(resultCacheDirectory, { recursive: true, force: true }));
   const controller = new AbortController();
   const snapshots: AttachmentRecognitionSnapshot[] = [];
   const defaults = DEFAULT_IMAGE_UNDERSTANDING_SETTINGS;
@@ -43,6 +49,7 @@ function fixture() {
         credential: "private-credential",
         value: {
           ...defaults,
+          resultCacheDirectory,
           routing: "always-preprocess",
           engine: "multimodal",
           glm: { ...defaults.glm, credentialConfigured: true },
@@ -68,7 +75,7 @@ function fixture() {
 
 test("task publishes one bounded terminal result for OCR and multimodal without credentials", async (t) => {
   for (const engine of ["ocr", "multimodal"] as const) {
-    const { options, snapshots } = fixture();
+    const { options, snapshots } = fixture(t);
     assert.ok(options.settings.ok);
     options.settings.value.value.engine = engine;
     let requests = 0;
@@ -83,6 +90,9 @@ test("task publishes one bounded terminal result for OCR and multimodal without 
     );
     const result = await runAttachmentUnderstandingTask(options);
     assert.equal(result.kind, "preprocessed");
+    if (result.kind === "preprocessed") {
+      assert.equal(await readFile(result.observations[0]!.resultPath, "utf8"), "Recognized text");
+    }
     assert.equal(requests, engine === "ocr" ? 1 : 0);
     assert.equal(snapshots.filter(isTerminalAttachmentRecognitionSnapshot).length, 1);
     assert.equal(snapshots.at(-1)?.status, "succeeded");
@@ -91,14 +101,14 @@ test("task publishes one bounded terminal result for OCR and multimodal without 
   }
 });
 
-test("task rejects malformed, mismatched and oversized callback results", async () => {
+test("task rejects malformed, mismatched and oversized callback results", async (t) => {
   for (const [value, code] of [
     [null, "provider-invalid-response"],
     [[{ ...observation, attachmentId: "other" }], "provider-invalid-response"],
     [[{ ...observation, text: null }], "provider-invalid-response"],
     [[{ ...observation, text: "x".repeat(250_001) }], "provider-response-too-large"],
   ] as const) {
-    const { options, snapshots } = fixture();
+    const { options, snapshots } = fixture(t);
     options.recognizeMultimodal = async () =>
       value as unknown as AttachmentUnderstandingObservation[];
     assert.deepEqual(await runAttachmentUnderstandingTask(options), {
@@ -112,7 +122,7 @@ test("task rejects malformed, mismatched and oversized callback results", async 
 
 test("OCR polling publishes per-job page progress before attachments complete and retains terminal details", async (t) => {
   for (const outcome of ["succeeded", "failed", "cancelled"] as const) {
-    const { options, snapshots, controller } = fixture();
+    const { options, snapshots, controller } = fixture(t);
     assert.ok(options.settings.ok);
     const preset = getOcrAdapterPreset("paddleocr-vl-1.6");
     const definition = structuredClone(preset.definition);
@@ -204,8 +214,8 @@ test("OCR polling publishes per-job page progress before attachments complete an
   }
 });
 
-test("cancellation wins over a late provider result; settings failures use the same lifecycle", async () => {
-  const { options, snapshots, controller } = fixture();
+test("cancellation wins over a late provider result; settings failures use the same lifecycle", async (t) => {
+  const { options, snapshots, controller } = fixture(t);
   options.recognizeMultimodal = async () => {
     controller.abort();
     return [observation];
@@ -214,7 +224,7 @@ test("cancellation wins over a late provider result; settings failures use the s
   assert.equal(snapshots.filter(isTerminalAttachmentRecognitionSnapshot).length, 1);
   assert.equal(snapshots.at(-1)?.status, "cancelled");
 
-  const failed = fixture();
+  const failed = fixture(t);
   failed.options.settings = {
     ok: false,
     error: Object.assign(new Error("private-credential"), { code: "image-settings-invalid" }),
@@ -231,4 +241,24 @@ test("cancellation wins over a late provider result; settings failures use the s
     ["pending", "running", "failed"],
   );
   assert.equal(JSON.stringify(failed.snapshots).includes("private-credential"), false);
+});
+
+test("cache write failures publish a failure instead of returning nonexistent result paths", async (t) => {
+  const { options, snapshots } = fixture(t);
+  assert.ok(options.settings.ok);
+  const directory = options.settings.value.value.resultCacheDirectory;
+  await mkdir(directory);
+  const blocked = path.join(directory, "file-not-directory");
+  await writeFile(blocked, "existing content");
+  options.settings.value.value.resultCacheDirectory = blocked;
+  assert.deepEqual(await runAttachmentUnderstandingTask(options), {
+    kind: "failed",
+    errorCode: "result-cache-write-failed",
+  });
+  assert.equal(snapshots.at(-1)?.status, "failed");
+  assert.equal(
+    snapshots.some((snapshot) => snapshot.status === "succeeded"),
+    false,
+  );
+  assert.equal(await readFile(blocked, "utf8"), "existing content");
 });

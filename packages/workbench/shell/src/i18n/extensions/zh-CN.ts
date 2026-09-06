@@ -399,6 +399,14 @@ export const extensionsZhCN = {
     title: "附件理解",
     description: "将图片直接发送给所选模型，或开启 OCR/多模态预处理以理解图片和 PDF 附件。",
     settings: {
+      resultCache: {
+        label: "附件结果缓存目录",
+        browse: "选择目录",
+        browseError: "无法打开系统目录选择器，请手动填写目录路径。",
+        description:
+          "完整识别结果保存在运行服务所在机器的此目录，默认为 ~/.pi/workbench/attachment-results/。可选择目录或输入绝对路径、~/，留空恢复默认。修改仅影响后续结果，已有文件会保留。",
+        placeholder: "留空使用默认目录",
+      },
       loading: "正在加载附件理解设置…",
       retry: "重试",
       save: "保存",
@@ -574,9 +582,10 @@ export const extensionsZhCN = {
           markdown: "Markdown",
           text: "纯文本",
         },
-        truncated: "界面仅展示截断内容；模型上下文仍保留完整文本。",
+        truncated: "界面仅展示识别内容的截断预览。",
       },
       errors: {
+        storage: "无法保存识别结果，请检查附件结果缓存目录、写入权限和剩余磁盘空间。",
         authentication: "识别服务拒绝了当前凭据。",
         configuration: "识别 Provider 配置不正确。",
         rateLimited: "已达到识别服务的请求频率限制。",

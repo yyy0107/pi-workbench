@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
@@ -32,6 +32,7 @@ test("describes version-one defaults without creating a settings document", asyn
   assert.equal(DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.paddle.model, "PaddleOCR-VL-1.6");
   assert.deepEqual(described.value, {
     ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS,
+    resultCacheDirectory: path.join(homedir(), ".pi", "workbench", "attachment-results"),
     glm: { ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.glm, credentialConfigured: false },
     paddle: { ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.paddle, credentialConfigured: false },
     ocrAdapter: {
@@ -40,6 +41,36 @@ test("describes version-one defaults without creating a settings document", asyn
     },
   });
   await assert.rejects(readFile(stateFile, "utf8"), { code: "ENOENT" });
+});
+
+test("cache directory defaults, overrides, and resets persist without moving old results", async (t) => {
+  const { stateFile, store } = await fixture(t);
+  const defaultDirectory = path.join(homedir(), ".pi", "workbench", "attachment-results");
+  assert.equal((await store.resolveRuntimeSettings()).value.resultCacheDirectory, defaultDirectory);
+  const custom = path.join(path.dirname(stateFile), "custom results");
+  await mkdir(custom, { recursive: true });
+  await writeFile(path.join(custom, "existing.txt"), "kept");
+  await store.update({ patch: { resultCacheDirectory: custom } });
+  assert.equal(
+    (await new ImageUnderstandingSettingsStore({ stateFile }).describe()).value
+      .resultCacheDirectory,
+    custom,
+  );
+  assert.equal(
+    (await store.update({ patch: { resultCacheDirectory: "~/ocr-results" } })).value
+      .resultCacheDirectory,
+    path.join(homedir(), "ocr-results"),
+  );
+  assert.equal(
+    (await store.update({ patch: { resultCacheDirectory: "" } })).value.resultCacheDirectory,
+    defaultDirectory,
+  );
+  assert.equal(await readFile(path.join(custom, "existing.txt"), "utf8"), "kept");
+  for (const invalid of ["relative/path", "/tmp/invalid\0path", 42, null]) {
+    await assert.rejects(store.update({ patch: { resultCacheDirectory: invalid } } as never), {
+      code: "image-settings-invalid",
+    });
+  }
 });
 
 test("saved Paddle presets without progress paths remain readable after upgrading", async (t) => {

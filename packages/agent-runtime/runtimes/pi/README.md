@@ -1535,9 +1535,13 @@ output rule 使用受限 dot path，并以 `[]` 展平数组，例如
   请求、同步/异步作业、错误码、轮询状态、结果 URL 和文本提取路径；服务端只把源码解析为受限
   数据，不执行 import、函数或任意 JavaScript。多模态预处理仍使用固定的 Pi ModelRuntime 实现。
 - 内置 OCR 适配器接收图片与 PDF。PDF 不会作为 Pi 原生模型内容发送，也不会走当前仅支持图片的
-  多模态预处理；只要请求包含 PDF，路由就要求已配置且声明支持 PDF 的 OCR 适配器。识别文本以
-  隔离的 `workbench-untrusted-context` 注入文本模型，原始 Provider 响应、凭据与附件字节不会进入
-  状态消息。旧版 GLM/Paddle 配置在读取时映射为对应适配器，原凭据保持 write-only 且不会被覆盖。
+  多模态预处理；只要请求包含 PDF，路由就要求已配置且声明支持 PDF 的 OCR 适配器。完整识别结果以
+  Markdown/文本文件保存在附件结果缓存目录的独立 `recognition-*` 子目录中；目录默认为
+  `~/.pi/workbench/attachment-results/`，可在附件理解设置中输入或选择目录，留空恢复默认。模型通过
+  `workbench-attachment-results` XML 接收结果绝对路径及读取说明，文件内容仍是不可信参考数据。
+  缓存写入成功后才发布识别成功并注入路径；修改目录不会移动或删除旧结果，以保留历史引用。
+  原始 Provider 响应、凭据与附件字节不会进入状态消息。旧版 GLM/Paddle 配置在读取时映射为对应
+  适配器，原凭据保持 write-only 且不会被覆盖。
 - 当前 queue edit 只接受 text content；附件 queue item 可以保留、删除或 steer，但不能通过该
   RPC 改写为新的附件内容。
 - Skills 当前实现与会话解耦的用户/项目 target 目录与详情、官方资源过滤规则的启停、身份授权的目录浏览和只读

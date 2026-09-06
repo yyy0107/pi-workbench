@@ -21,6 +21,8 @@ export interface AttachmentUnderstandingOcrAdapterSettingsValue {
 }
 
 export interface AttachmentUnderstandingSettingsValue {
+  /** Absolute directory on the runtime host where recognized attachment results are stored. */
+  resultCacheDirectory: string;
   routing: AttachmentUnderstandingRouting;
   engine: AttachmentUnderstandingEngine;
   ocrProvider: AttachmentUnderstandingOcrProvider;
@@ -49,6 +51,8 @@ export interface AttachmentUnderstandingDescribeValue {
 }
 
 export interface AttachmentUnderstandingSettingsPatch {
+  /** An absolute path or ~/ path. Empty resets to the host's default directory. */
+  resultCacheDirectory?: string;
   routing?: AttachmentUnderstandingRouting;
   engine?: AttachmentUnderstandingEngine;
   ocrProvider?: AttachmentUnderstandingOcrProvider;

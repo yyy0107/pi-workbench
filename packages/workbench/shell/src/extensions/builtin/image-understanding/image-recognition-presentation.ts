@@ -46,6 +46,7 @@ export type ImageRecognitionErrorKind =
   | "serviceUnavailable"
   | "unsupportedImage"
   | "invalidResponse"
+  | "storage"
   | "generic";
 
 export type ImageRecognitionSkipKind = "native" | "disabled" | "notNeeded" | "generic";
@@ -105,6 +106,8 @@ export function imageRecognitionLiveRegion(
 export function imageRecognitionErrorKind(errorCode: unknown): ImageRecognitionErrorKind {
   const normalized = safeIdentifier(errorCode)?.toLowerCase();
   switch (normalized) {
+    case "result-cache-write-failed":
+      return "storage";
     case "auth":
     case "auth-failed":
     case "authentication-failed":

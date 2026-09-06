@@ -25,6 +25,7 @@ const imageUnderstandingCredential = rpcOptional(
 const imageUnderstandingUpdatePayload = rpcObject({
   expectedRevision: rpcOptional(rpcInteger({ minimum: 0 })),
   patch: rpcObject({
+    resultCacheDirectory: rpcOptional(rpcString({ maxLength: 4_096 })),
     routing: rpcOptional(rpcEnum(["auto", "always-preprocess", "native-only", "disabled"])),
     engine: rpcOptional(rpcEnum(["ocr", "multimodal"])),
     ocrProvider: rpcOptional(rpcEnum(["glm-ocr", "paddleocr"])),

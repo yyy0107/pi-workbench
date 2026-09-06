@@ -1,5 +1,6 @@
 import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
+import { homedir } from "node:os";
 import { isDeepStrictEqual } from "node:util";
 
 import type {
@@ -36,6 +37,7 @@ import {
 type JsonObject = Record<string, unknown>;
 
 interface StoredSettingsValue {
+  resultCacheDirectory: string;
   routing: ImageUnderstandingRouting;
   engine: ImageUnderstandingEngine;
   ocrProvider: ImageUnderstandingOcrProvider;
@@ -133,6 +135,7 @@ export class ImageUnderstandingSettingsStoreError extends RpcDomainError<
 }
 
 export const DEFAULT_IMAGE_UNDERSTANDING_SETTINGS = Object.freeze({
+  resultCacheDirectory: "",
   routing: "native-only",
   engine: "ocr",
   ocrProvider: "glm-ocr",
@@ -183,6 +186,21 @@ function optionalString(value: unknown, field: string, maximumLength = 256): str
     throw new TypeError(`${field} must be a string.`);
   }
   return value.trim();
+}
+
+function resultCacheDirectory(value: unknown): string {
+  const configured = optionalString(value, "settings.resultCacheDirectory", 4_096);
+  if (!configured) return "";
+  const expanded =
+    configured === "~"
+      ? homedir()
+      : /^~[\\/]/u.test(configured)
+        ? path.join(homedir(), configured.slice(2))
+        : configured;
+  if (!path.isAbsolute(expanded) || /\p{Cc}/u.test(expanded)) {
+    throw new TypeError("settings.resultCacheDirectory must be an absolute directory path.");
+  }
+  return path.normalize(expanded);
 }
 
 function endpoint(value: unknown, field: string): string {
@@ -293,6 +311,9 @@ function parseSettings(value: unknown): StoredSettingsValue {
   };
   const ocrProvider = value.ocrProvider as ImageUnderstandingOcrProvider;
   return {
+    resultCacheDirectory: resultCacheDirectory(
+      value.resultCacheDirectory === undefined ? "" : value.resultCacheDirectory,
+    ),
     routing: value.routing as ImageUnderstandingRouting,
     engine: value.engine as ImageUnderstandingEngine,
     ocrProvider,
@@ -370,11 +391,15 @@ function credentialSlotForAdapter(adapter: StoredSettingsValue["ocrAdapter"]): O
   return "custom";
 }
 
-function describeDocument(document: StoredDocumentV1): ImageUnderstandingDescribeValue {
+function describeDocument(
+  document: StoredDocumentV1,
+  defaultCacheDirectory: string,
+): ImageUnderstandingDescribeValue {
   return {
     revision: document.revision,
     value: {
       ...document.settings,
+      resultCacheDirectory: document.settings.resultCacheDirectory || defaultCacheDirectory,
       glm: {
         ...document.settings.glm,
         credentialConfigured: document.secrets["glm-ocr"] !== undefined,
@@ -397,6 +422,10 @@ function mergeSettings(
   patch: ImageUnderstandingSettingsPatch,
 ): StoredSettingsValue {
   const legacy: Omit<StoredSettingsValue, "ocrAdapter"> = {
+    resultCacheDirectory:
+      patch.resultCacheDirectory === undefined
+        ? current.resultCacheDirectory
+        : patch.resultCacheDirectory,
     routing: patch.routing ?? current.routing,
     engine: patch.engine ?? current.engine,
     ocrProvider: patch.ocrProvider ?? current.ocrProvider,
@@ -461,11 +490,18 @@ function applySecretPatch(
 
 export class ImageUnderstandingSettingsStore implements ImageUnderstandingSettingsProtocol {
   readonly stateFile: string;
+  readonly defaultResultCacheDirectory: string;
   private readonly documentSection?: "imageUnderstanding";
   private readonly legacyStateFile?: string;
 
   constructor(options: ImageUnderstandingSettingsStoreOptions) {
     this.stateFile = options.stateFile;
+    this.defaultResultCacheDirectory = path.join(
+      homedir(),
+      ".pi",
+      "workbench",
+      "attachment-results",
+    );
     this.documentSection = options.documentSection;
     this.legacyStateFile = options.legacyStateFile
       ? path.resolve(options.legacyStateFile)
@@ -538,7 +574,9 @@ export class ImageUnderstandingSettingsStore implements ImageUnderstandingSettin
 
   async describe(): Promise<ImageUnderstandingDescribeValue> {
     try {
-      return await this.withLock(async () => describeDocument((await this.snapshot()).document));
+      return await this.withLock(async () =>
+        describeDocument((await this.snapshot()).document, this.defaultResultCacheDirectory),
+      );
     } catch (error) {
       throw new ImageUnderstandingSettingsStoreError(
         error instanceof TypeError || error instanceof SyntaxError
@@ -567,7 +605,7 @@ export class ImageUnderstandingSettingsStore implements ImageUnderstandingSettin
     try {
       return await this.withLock(async () => {
         const { document } = await this.snapshot();
-        const described = describeDocument(document);
+        const described = describeDocument(document, this.defaultResultCacheDirectory);
         const credential = document.secrets[credentialSlotForAdapter(document.settings.ocrAdapter)];
         return {
           ...described,
@@ -609,7 +647,7 @@ export class ImageUnderstandingSettingsStore implements ImageUnderstandingSettin
         const unchanged =
           JSON.stringify(settings) === JSON.stringify(current.settings) &&
           JSON.stringify(secrets) === JSON.stringify(current.secrets);
-        if (unchanged) return describeDocument(current);
+        if (unchanged) return describeDocument(current, this.defaultResultCacheDirectory);
         if (current.revision === Number.MAX_SAFE_INTEGER) {
           throw new TypeError("revision is exhausted");
         }
@@ -620,7 +658,7 @@ export class ImageUnderstandingSettingsStore implements ImageUnderstandingSettin
           secrets,
         };
         await this.writeDocument(next);
-        return describeDocument(next);
+        return describeDocument(next, this.defaultResultCacheDirectory);
       });
     } catch (error) {
       if (error instanceof ImageUnderstandingSettingsStoreError) throw error;

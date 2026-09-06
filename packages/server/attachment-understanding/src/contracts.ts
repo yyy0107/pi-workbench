@@ -30,6 +30,11 @@ export interface AttachmentUnderstandingObservation {
   text: string;
 }
 
+export interface CachedAttachmentUnderstandingObservation extends AttachmentUnderstandingObservation {
+  /** Absolute path to the complete normalized result, written before publishing success. */
+  resultPath: string;
+}
+
 export type AttachmentRecognitionObserver = (
   snapshot: AttachmentRecognitionSnapshot,
 ) => void | Promise<void>;
@@ -50,6 +55,7 @@ export interface AttachmentRecognitionProvider {
 }
 
 export type ImageUnderstandingProviderErrorCode =
+  | "result-cache-write-failed"
   | "provider-aborted"
   | "provider-timeout"
   | "provider-poll-timeout"
@@ -64,6 +70,8 @@ export type ImageUnderstandingProviderErrorCode =
   | "provider-invalid-input";
 
 const PROVIDER_ERROR_MESSAGES = Object.freeze({
+  "result-cache-write-failed":
+    "The attachment recognition result could not be saved to the cache directory.",
   "provider-aborted": "Attachment recognition was cancelled.",
   "provider-timeout": "The attachment recognition provider timed out.",
   "provider-poll-timeout": "The attachment recognition job did not finish in time.",

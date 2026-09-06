@@ -406,6 +406,15 @@ export const extensionsEnUS = {
     description:
       "Send images directly to the selected model, or enable OCR or multimodal preprocessing for image and PDF attachments.",
     settings: {
+      resultCache: {
+        label: "Attachment result cache directory",
+        browse: "Select directory",
+        browseError:
+          "Unable to open the system directory picker. Enter the directory path manually.",
+        description:
+          "Complete recognition results are saved here on the runtime host. The default is ~/.pi/workbench/attachment-results/. Choose a directory or enter an absolute path or ~/. Leave blank to restore the default. Changes apply to future results; existing files remain available.",
+        placeholder: "Leave blank to use the default directory",
+      },
       loading: "Loading attachment understanding settings…",
       retry: "Retry",
       save: "Save",
@@ -586,9 +595,11 @@ export const extensionsEnUS = {
           markdown: "Markdown",
           text: "Plain text",
         },
-        truncated: "The display is truncated; the model context retains the complete text.",
+        truncated: "Only a truncated preview of the recognized content is shown.",
       },
       errors: {
+        storage:
+          "Could not save the recognition results. Check the attachment result cache directory, permissions, and available disk space.",
         authentication: "The recognition service rejected its credential.",
         configuration: "The recognition provider is not configured correctly.",
         rateLimited: "The recognition service rate limit was reached.",

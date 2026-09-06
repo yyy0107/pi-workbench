@@ -1431,8 +1431,10 @@ test("injects image and PDF OCR as isolated context without forwarding attachmen
   });
 
   const credential = "private-glm-credential";
+  const resultCacheDirectory = path.join(root, "ocr cache");
   await getImageUnderstandingSettingsStore().update({
     patch: {
+      resultCacheDirectory,
       routing: "always-preprocess",
       engine: "ocr",
       ocrProvider: "glm-ocr",
@@ -1537,8 +1539,17 @@ test("injects image and PDF OCR as isolated context without forwarding attachmen
   assert.match(forwardedPrompt, /"source":"workbench\.attachment-references"/);
   assert.match(forwardedPrompt, /"attachmentId":"image-1","kind":"image","sequence":1/);
   assert.match(forwardedPrompt, /"attachmentId":"pdf-1","kind":"pdf","sequence":1/);
-  assert.match(forwardedPrompt, /Image total: 42/);
-  assert.match(forwardedPrompt, /PDF reference: A-17/);
+  assert.match(forwardedPrompt, /<workbench-attachment-results>/);
+  assert.doesNotMatch(forwardedPrompt, /Image total: 42|PDF reference: A-17/);
+  const resultPaths = [...forwardedPrompt.matchAll(/<attachment [^>]*path="([^"]+)"/gu)].map(
+    (match) => match[1]!,
+  );
+  assert.equal(resultPaths.length, 2);
+  assert.ok(resultPaths.every((file) => file.startsWith(`${resultCacheDirectory}${path.sep}`)));
+  assert.deepEqual(await Promise.all(resultPaths.map((file) => readFile(file, "utf8"))), [
+    "Image total: 42",
+    "PDF reference: A-17",
+  ]);
   assert.match(forwardedPrompt, /Read the invoice/);
   assert.equal(forwardedPrompt.includes(credential), false);
   assert.deepEqual(
@@ -1660,7 +1671,11 @@ test("routes exported sendPrompt images through recognition before calling a tex
   await new Promise<void>((resolve) => setImmediate(resolve));
 
   assert.equal(forwardedImages, undefined, "the text-only agent must never receive image parts");
-  assert.match(forwardedPrompt, /Recognized by the legacy direct path/);
+  assert.match(forwardedPrompt, /<workbench-attachment-results>/);
+  assert.doesNotMatch(forwardedPrompt, /Recognized by the legacy direct path/);
+  const resultPath = forwardedPrompt.match(/<attachment [^>]*path="([^"]+)"/u)?.[1];
+  assert.ok(resultPath);
+  assert.equal(await readFile(resultPath, "utf8"), "Recognized by the legacy direct path");
   assert.match(forwardedPrompt, /Read this legacy image/);
   const recognitionStates = (await getSessionEvents(host.id)).flatMap((event) => {
     const data = event.data as {
@@ -1695,7 +1710,12 @@ test("routes exported sendPrompt images through recognition before calling a tex
     images: [{ type: "image", mimeType: "image/png", data: "iVBORw0KGgo=" }],
   });
   assert.equal(queuedImages, undefined, "a queued text-only turn must not receive image parts");
-  assert.match(queuedPrompt, /Recognized by the legacy direct path/);
+  assert.match(queuedPrompt, /<workbench-attachment-results>/);
+  assert.doesNotMatch(queuedPrompt, /Recognized by the legacy direct path/);
+  const queuedResultPath = queuedPrompt.match(/<attachment [^>]*path="([^"]+)"/u)?.[1];
+  assert.ok(queuedResultPath);
+  assert.notEqual(queuedResultPath, resultPath);
+  assert.equal(await readFile(queuedResultPath, "utf8"), "Recognized by the legacy direct path");
   assert.match(queuedPrompt, /Read this queued legacy image/);
   const queuedRecognitionStates = (await getSessionEvents(host.id)).flatMap((event) => {
     const data = event.data as {

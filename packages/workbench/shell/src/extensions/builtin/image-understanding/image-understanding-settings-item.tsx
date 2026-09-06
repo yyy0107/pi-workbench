@@ -10,7 +10,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { ChevronDownIcon, ExternalLinkIcon } from "lucide-react";
+import { ChevronDownIcon, ExternalLinkIcon, FolderOpenIcon } from "lucide-react";
 
 import { WorkbenchCodeEditor } from "@workbench/shell/code-highlighting";
 import { Button } from "@workbench/shell/ui";
@@ -27,6 +27,7 @@ import type { SettingsItemComponentProps } from "@workbench/extension-sdk";
 import {
   useWorkbenchAttachmentUnderstandingCapability,
   useWorkbenchModelSelectionCapability,
+  useWorkbenchRuntimeHostCapability,
 } from "@workbench/agent-runtime-client/context";
 import type {
   WorkbenchAttachmentUnderstandingCapability,
@@ -62,6 +63,7 @@ type ModelCatalogLoadState = "loading" | "ready" | "failed";
 type AttachmentUnderstandingRoutingChoice = Exclude<AttachmentUnderstandingRouting, "auto">;
 
 interface SettingsDraft {
+  resultCacheDirectory: string;
   routing: AttachmentUnderstandingRoutingChoice;
   engine: AttachmentUnderstandingEngine;
   ocrAdapterPreset: OcrAdapterPresetId;
@@ -86,6 +88,7 @@ interface ChoiceOption<TValue extends string> {
 function draftFromValue(value: AttachmentUnderstandingSettingsValue): SettingsDraft {
   const adapter = ocrAdapterSettingsFromValue(value);
   return {
+    resultCacheDirectory: value.resultCacheDirectory ?? "",
     // Treat the historical `auto` default as the current model-native default in settings.
     routing: value.routing === "auto" ? "native-only" : value.routing,
     engine: value.engine,
@@ -106,6 +109,7 @@ function settingsDirty(view: AttachmentUnderstandingDescribeValue, draft: Settin
   const value = view.value;
   const adapter = ocrAdapterSettingsFromValue(value);
   return (
+    draft.resultCacheDirectory !== (value.resultCacheDirectory ?? "") ||
     draft.routing !== value.routing ||
     draft.engine !== value.engine ||
     draft.ocrAdapterPreset !== adapter.preset ||
@@ -260,6 +264,9 @@ function AvailableAttachmentUnderstandingSettingsItem({
 }) {
   const { t } = useI18n();
   const domScopeId = useId();
+  const hostClient = useWorkbenchRuntimeHostCapability();
+  const [pickingDirectory, setPickingDirectory] = useState(false);
+  const resultCacheDirectoryId = `${domScopeId}-attachment-result-cache-directory`;
   const ocrEndpointId = `${domScopeId}-attachment-ocr-adapter-endpoint`;
   const ocrModelId = `${domScopeId}-attachment-ocr-adapter-model`;
   const ocrApiKeyId = `${domScopeId}-attachment-ocr-adapter-api-key`;
@@ -338,6 +345,20 @@ function AvailableAttachmentUnderstandingSettingsItem({
     setSaved(false);
     setSaveError(undefined);
   }, []);
+
+  const pickResultCacheDirectory = async () => {
+    if (!hostClient || pickingDirectory) return;
+    setPickingDirectory(true);
+    setSaveError(undefined);
+    try {
+      const resultCacheDirectory = await hostClient.pickDirectory();
+      if (resultCacheDirectory) updateDraft({ resultCacheDirectory });
+    } catch {
+      setSaveError(t("extensions.imageUnderstanding.settings.resultCache.browseError"));
+    } finally {
+      setPickingDirectory(false);
+    }
+  };
 
   const saveRouting = useCallback(
     async (routing: AttachmentUnderstandingRoutingChoice) => {
@@ -503,6 +524,7 @@ function AvailableAttachmentUnderstandingSettingsItem({
       const updated = await attachments.update({
         expectedRevision: view.revision,
         patch: {
+          resultCacheDirectory: draft.resultCacheDirectory.trim(),
           routing: draft.routing,
           engine: draft.engine,
           ocrAdapter: {
@@ -641,8 +663,42 @@ function AvailableAttachmentUnderstandingSettingsItem({
         ) : null}
       </SettingsGroup>
 
+      <div className="mt-5">
+        <SettingsFieldWithLabelAction
+          id={resultCacheDirectoryId}
+          label={t("extensions.imageUnderstanding.settings.resultCache.label")}
+          description={t("extensions.imageUnderstanding.settings.resultCache.description")}
+        >
+          <div className="flex items-center gap-2">
+            <Input
+              id={resultCacheDirectoryId}
+              aria-describedby={`${resultCacheDirectoryId}-description`}
+              value={draft.resultCacheDirectory}
+              disabled={saving}
+              spellCheck={false}
+              autoComplete="off"
+              placeholder={t("extensions.imageUnderstanding.settings.resultCache.placeholder")}
+              onChange={(event) => updateDraft({ resultCacheDirectory: event.currentTarget.value })}
+            />
+            {hostClient ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0"
+                disabled={saving || pickingDirectory}
+                aria-busy={pickingDirectory}
+                onClick={() => void pickResultCacheDirectory()}
+              >
+                <FolderOpenIcon aria-hidden="true" />
+                {t("extensions.imageUnderstanding.settings.resultCache.browse")}
+              </Button>
+            ) : null}
+          </div>
+        </SettingsFieldWithLabelAction>
+      </div>
+
       {draft.engine === "ocr" ? (
-        <section className="mt-5 rounded-xl border p-4">
+        <section className="mt-5 border-t border-border pt-4">
           <div>
             <h3 className="text-sm font-medium">
               {t("extensions.imageUnderstanding.settings.ocrAdapter.title")}
@@ -814,7 +870,7 @@ function AvailableAttachmentUnderstandingSettingsItem({
           </div>
         </section>
       ) : (
-        <section className="mt-5 rounded-xl border p-4">
+        <section className="mt-5 border-t border-border pt-4">
           <h3 className="text-sm font-medium">
             {t("extensions.imageUnderstanding.settings.multimodal.title")}
           </h3>
@@ -916,6 +972,7 @@ function AvailableAttachmentUnderstandingSettingsItem({
           className="ms-auto"
           disabled={
             saving ||
+            pickingDirectory ||
             !dirty ||
             Boolean(validationError) ||
             (draft.routing !== "disabled" &&
