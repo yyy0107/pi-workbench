@@ -87,6 +87,12 @@
         "deb"
       ]
     },
+    "deb": {
+      "fpm": [
+        "--replaces=workbench-ui",
+        "--conflicts=workbench-ui"
+      ]
+    },
     "publish": [
       {
         "provider": "github",
@@ -97,6 +103,6 @@
     ]
   },
   "desktopName": "com.piworkbench.PiWorkbench.desktop",
-  "desktopPackageName": "workbench-ui",
+  "desktopPackageName": "pi-workbench",
   "productName": "Pi Workbench"
 }
