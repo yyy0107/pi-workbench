@@ -22,7 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { SidebarActions, SidebarGroup, SidebarRow } from "../ui/sidebar-items";
+import { SidebarActions, SidebarGroup, SidebarRow, SidebarStatus } from "../ui/sidebar-items";
 import { Skeleton } from "../ui/skeleton";
 import { useI18n } from "../i18n";
 import { useAppearancePreferences } from "../appearance";
@@ -222,14 +222,15 @@ const WorkspaceDirectorySection = memo(function WorkspaceDirectorySection({
               {running ? <span> {t("workbench.sidebar.generating")}</span> : null}
             </>
           }
-          icon={
-            running && runningIndicatorId !== "none" ? (
-              <RunningThreadIndicator id={runningIndicatorId} />
-            ) : (
-              <FolderStateIcon className={active ? "text-primary" : undefined} />
-            )
-          }
+          icon={<FolderStateIcon className={active ? "text-primary" : undefined} />}
           hoverIcon={<ChevronRightIcon className={expanded ? "rotate-90" : undefined} />}
+          status={
+            running && runningIndicatorId !== "none" ? (
+              <SidebarStatus>
+                <RunningThreadIndicator id={runningIndicatorId} />
+              </SidebarStatus>
+            ) : undefined
+          }
           actions={
             <SidebarActions
               desktop={
