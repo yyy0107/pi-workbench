@@ -43,7 +43,12 @@ export function TodoPanelContent({ snapshots }: { snapshots: readonly TodoSnapsh
     total: items.length,
   });
   return (
-    <Collapsible defaultOpen data-slot="todo-panel" className={composerPanel}>
+    <Collapsible
+      defaultOpen
+      data-slot="todo-panel"
+      data-workbench-glass-surface=""
+      className={composerPanel}
+    >
       <CollapsibleTrigger
         render={
           <Button

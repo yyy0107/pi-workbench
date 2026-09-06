@@ -77,6 +77,10 @@ function ComposerQueueItem({
   return (
     <li
       data-slot="composer-queue-item"
+      onAnimationEnd={(event) => {
+        // Moving an existing DOM row can restart keyframes; retire its entry animation once played.
+        if (event.target === event.currentTarget) event.currentTarget.style.animation = "none";
+      }}
       onDragOver={(event) => onDragOver(event, queueItem.key)}
       onDrop={(event) => {
         event.preventDefault();
@@ -84,7 +88,7 @@ function ComposerQueueItem({
       }}
       className={cn(
         composerPanelRow,
-        "group relative transition-colors hover:[background:var(--control-state-background-hover)] motion-reduce:transition-none",
+        "group relative transition-colors motion-reduce:transition-none",
         dragging && "bg-muted/50 opacity-40",
       )}
     >
@@ -213,7 +217,11 @@ export function ComposerMessageQueue() {
   };
 
   return (
-    <div data-slot="composer-message-queue" className={composerPanel}>
+    <div
+      data-slot="composer-message-queue"
+      data-workbench-glass-surface=""
+      className={composerPanel}
+    >
       <ul>
         {visibleQueue.map((queueItem) => (
           <ComposerQueueItem

@@ -64,7 +64,6 @@ const SURFACE_COLOR_PROPERTIES = [
   "--aui-user-message",
 ] as const;
 
-const THEME_SURFACE_COLOR_WEIGHT = 75;
 const MIN_FLOATING_SURFACE_OPACITY = 88;
 
 const BORDER_COLOR_PROPERTIES = [
@@ -153,10 +152,6 @@ function setProperty(
   root.style.setProperty(property, value);
 }
 
-function blendWithCustomBackground(themeColor: string, backgroundColor: string): string {
-  return `color-mix(in srgb, ${themeColor} ${THEME_SURFACE_COLOR_WEIGHT}%, ${backgroundColor})`;
-}
-
 export function snapshotSurfaceColors(style: Pick<CSSStyleDeclaration, "getPropertyValue">) {
   // Computed styles are live; capture aliases before any source token is overwritten.
   return SURFACE_COLOR_PROPERTIES.map(
@@ -243,17 +238,14 @@ export function AppearanceBackground() {
       const cardBase = computedStyle.getPropertyValue("--card").trim() || backgroundBase;
       const popoverBase = computedStyle.getPropertyValue("--popover").trim() || cardBase;
       const themeSidebarBase = computedStyle.getPropertyValue("--sidebar").trim() || cardBase;
-      const shouldBlendSurfaceColors =
-        preferences.customBackground && preferences.syncSurfaceColors;
-      const surfaceBase = shouldBlendSurfaceColors
-        ? blendWithCustomBackground(cardBase, preferences.backgroundColor)
-        : cardBase;
-      const sidebarBase = shouldBlendSurfaceColors
-        ? blendWithCustomBackground(themeSidebarBase, preferences.backgroundColor)
-        : themeSidebarBase;
-      const floatingSurfaceBase = shouldBlendSurfaceColors
-        ? blendWithCustomBackground(popoverBase, preferences.backgroundColor)
-        : popoverBase;
+      const shouldSyncSurfaceColors = preferences.customBackground && preferences.syncSurfaceColors;
+      const resolveSurfaceColor = (themeColor: string) =>
+        shouldSyncSurfaceColors
+          ? `color-mix(in srgb, ${preferences.backgroundColor} ${preferences.surfaceColorBlend}%, ${themeColor})`
+          : themeColor;
+      const surfaceBase = resolveSurfaceColor(cardBase);
+      const sidebarBase = resolveSurfaceColor(themeSidebarBase);
+      const floatingSurfaceBase = resolveSurfaceColor(popoverBase);
 
       setProperty(root, "--workbench-surface-base", surfaceBase, originals);
       setProperty(root, "--workbench-sidebar-surface-base", sidebarBase, originals);
@@ -273,9 +265,7 @@ export function AppearanceBackground() {
       );
 
       for (const [property, themeBase] of snapshotSurfaceColors(computedStyle)) {
-        const base = shouldBlendSurfaceColors
-          ? blendWithCustomBackground(themeBase, preferences.backgroundColor)
-          : themeBase;
+        const base = resolveSurfaceColor(themeBase);
         if (base) {
           setProperty(
             root,

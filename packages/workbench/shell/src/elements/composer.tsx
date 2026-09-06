@@ -77,7 +77,7 @@ export function ComposerCommandItem({
       {...props}
     >
       <span className="flex min-w-0 items-baseline gap-2 leading-5">
-        <code className="text-blue-600 dark:text-blue-400 shrink-0 text-[13px] font-medium">
+        <code className="text-primary shrink-0 text-[13px] font-medium">
           /{command.name}
         </code>
         {command.argumentHint ? (
@@ -132,7 +132,7 @@ export function ComposerCommandToken({
     <span
       data-slot="composer-command-token"
       className={cn(
-        "relative inline-block min-w-0 whitespace-nowrap align-baseline text-blue-500 dark:text-blue-400",
+        "relative inline-block min-w-0 whitespace-nowrap align-baseline text-primary",
         className,
       )}
       {...props}

@@ -1228,15 +1228,18 @@ export const extensionsEnUS = {
       sectionTitle: "Background",
       title: "Workbench background",
       description:
-        "Set a custom canvas color or background image, then adjust component surface opacity and glass blur.",
-      colorTitle: "Canvas color",
+        "Set a workbench base color or background image, then adjust component surface opacity and glass blur.",
+      colorTitle: "Workbench base color",
       imageTitle: "Background image",
       image: "Local image",
-      custom: "Use a custom canvas color",
+      custom: "Customize workbench base color",
       customDescription:
-        "Enable to adjust the canvas color and coordinate panel and component colors below.",
-      color: "Canvas color",
-      syncSurfaces: "Coordinate panel and component colors with the canvas",
+        "Set the background color beneath the entire workbench, visible in the conversation area and gaps between panels. A background image covers this base color.",
+      color: "Base color",
+      syncSurfaces: "Blend the workbench base color into sidebars, panels, and popups",
+      surfaceColorBlend: "Base color blend",
+      surfaceColorBlendDescription:
+        "Set the share of the selected base color in the mix; the rest uses the theme background. Higher values look closer to the selected color. Opacity is controlled separately.",
       preview: "Background image preview",
       chooseImage: "Choose image",
       replaceImage: "Replace image",
@@ -1257,7 +1260,7 @@ export const extensionsEnUS = {
     surfaces: {
       title: "Component surfaces",
       requiresBackground:
-        "Enable a custom canvas color or choose a background image above to adjust these surface effects.",
+        "Enable a custom workbench base color or choose a background image above to adjust these surface effects.",
       opacity: "Surface opacity",
       opacityValue: ({ opacity }: { opacity: number }, { number }: MessageFormatters) =>
         `${number(opacity)}%`,

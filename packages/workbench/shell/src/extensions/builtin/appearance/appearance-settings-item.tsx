@@ -814,7 +814,7 @@ function ColorControl({
 }
 
 export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
-  const { t, text } = useI18n();
+  const { t, text, number } = useI18n();
   const appearanceController = useAppearanceController();
   const preferences = useAppearancePreferences();
   const systemDark = useMediaQuery("(prefers-color-scheme: dark)");
@@ -1206,6 +1206,22 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                   label={t("extensions.appearance.background.syncSurfaces")}
                   onChange={(syncSurfaceColors) =>
                     appearanceController.update({ syncSurfaceColors })
+                  }
+                />
+              </SettingRow>
+              <SettingRow
+                label={t("extensions.appearance.background.surfaceColorBlend")}
+                description={t("extensions.appearance.background.surfaceColorBlendDescription")}
+              >
+                <RangeControl
+                  label={t("extensions.appearance.background.surfaceColorBlend")}
+                  value={preferences.surfaceColorBlend}
+                  formatValue={(value) => number(value / 100, { style: "percent" })}
+                  minimum={0}
+                  maximum={100}
+                  disabled={!preferences.customBackground || !preferences.syncSurfaceColors}
+                  onChange={(surfaceColorBlend) =>
+                    appearanceController.update({ surfaceColorBlend })
                   }
                 />
               </SettingRow>

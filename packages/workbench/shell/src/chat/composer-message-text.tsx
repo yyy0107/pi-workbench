@@ -84,7 +84,7 @@ export function WorkbenchComposerMessageTextContent({
                   <span
                     key={node.id}
                     data-slot="composer-command-argument"
-                    className="text-blue-500 dark:text-blue-400"
+                    className="text-primary"
                   >
                     {node.text}
                   </span>
@@ -169,7 +169,7 @@ export function WorkbenchComposerMessageTextContent({
           />
           <span
             data-slot={commandOwnsArguments ? "composer-command-argument" : undefined}
-            className={commandOwnsArguments ? "text-blue-500 dark:text-blue-400" : undefined}
+            className={commandOwnsArguments ? "text-primary" : undefined}
           >
             {argumentsText}
           </span>

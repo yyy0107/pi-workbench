@@ -23,6 +23,7 @@ test("parses persisted appearance preferences", () => {
       backgroundColor: "#AABBCC",
       backgroundBlur: "strong",
       syncSurfaceColors: false,
+      surfaceColorBlend: 65,
       surfaceOpacity: 73,
       glassBlur: "medium",
       borderStyle: "dashed",
@@ -58,6 +59,7 @@ test("parses persisted appearance preferences", () => {
     backgroundColor: "#aabbcc",
     backgroundBlur: "strong",
     syncSurfaceColors: false,
+    surfaceColorBlend: 65,
     surfaceOpacity: 73,
     glassBlur: "medium",
     borderStyle: "dashed",
@@ -129,6 +131,21 @@ test("preserves stronger contrast settings for both themes", () => {
 
   assert.equal(preferences.lightContrast, 300);
   assert.equal(preferences.darkContrast, 300);
+});
+
+test("accepts the full blend range and defaults missing or invalid persisted ratios", () => {
+  for (const surfaceColorBlend of [0, 50, 100]) {
+    assert.equal(
+      parseAppearancePreferences(JSON.stringify({ surfaceColorBlend })).surfaceColorBlend,
+      surfaceColorBlend,
+    );
+  }
+  for (const surfaceColorBlend of [undefined, null, -1, 101, 50.5, "50"]) {
+    assert.equal(
+      parseAppearancePreferences(JSON.stringify({ surfaceColorBlend })).surfaceColorBlend,
+      DEFAULT_APPEARANCE_PREFERENCES.surfaceColorBlend,
+    );
+  }
 });
 
 test("ignores retired interaction, control-height, and diff-marker preferences", () => {

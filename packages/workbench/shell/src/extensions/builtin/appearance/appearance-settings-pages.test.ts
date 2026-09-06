@@ -37,6 +37,7 @@ test("page defaults reset one page without changing another", () => {
   const preferences = {
     ...DEFAULT_APPEARANCE_PREFERENCES,
     customBackground: true,
+    surfaceColorBlend: 65,
     surfaceOpacity: 50,
     glassBlur: "strong",
     codeTheme: "dracula",
@@ -48,6 +49,7 @@ test("page defaults reset one page without changing another", () => {
 
   assert.equal(resetTheme.codeTheme, DEFAULT_APPEARANCE_PREFERENCES.codeTheme);
   assert.equal(resetTheme.customBackground, true);
+  assert.equal(resetTheme.surfaceColorBlend, 65);
   assert.equal(resetTheme.surfaceOpacity, 50);
   assert.equal(resetTheme.glassBlur, "strong");
 
@@ -55,6 +57,7 @@ test("page defaults reset one page without changing another", () => {
     ...preferences,
     ...DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE.background,
   };
+  assert.equal(resetBackground.surfaceColorBlend, DEFAULT_APPEARANCE_PREFERENCES.surfaceColorBlend);
   assert.equal(resetBackground.surfaceOpacity, DEFAULT_APPEARANCE_PREFERENCES.surfaceOpacity);
   assert.equal(resetBackground.glassBlur, DEFAULT_APPEARANCE_PREFERENCES.glassBlur);
   assert.equal(resetBackground.codeTheme, "dracula");

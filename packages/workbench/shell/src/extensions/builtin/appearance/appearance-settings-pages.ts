@@ -44,6 +44,7 @@ export const DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE = {
     backgroundColor: DEFAULT_APPEARANCE_PREFERENCES.backgroundColor,
     backgroundBlur: DEFAULT_APPEARANCE_PREFERENCES.backgroundBlur,
     syncSurfaceColors: DEFAULT_APPEARANCE_PREFERENCES.syncSurfaceColors,
+    surfaceColorBlend: DEFAULT_APPEARANCE_PREFERENCES.surfaceColorBlend,
     surfaceOpacity: DEFAULT_APPEARANCE_PREFERENCES.surfaceOpacity,
     glassBlur: DEFAULT_APPEARANCE_PREFERENCES.glassBlur,
   },

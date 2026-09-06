@@ -56,12 +56,15 @@ test("hydrates legacy browser preferences without writing new browser state", ()
     assert.equal(appearanceStore.getSnapshot().colorMode, "dark");
     assert.equal(notificationCount, 1);
 
-    appearanceStore.update({ codeTheme: "dracula" });
+    appearanceStore.update({ codeTheme: "dracula", surfaceColorBlend: 65 });
     assert.equal(appearanceStore.getSnapshot().codeTheme, "dracula");
+    assert.equal(appearanceStore.getSnapshot().surfaceColorBlend, 65);
+    assert.equal(updates.at(-1)?.appearance?.surfaceColorBlend, 65);
     assert.equal(writes.length, 0);
 
-    appearanceStore.sync(JSON.stringify({ codeTheme: "nord" }));
+    appearanceStore.sync(JSON.stringify({ codeTheme: "nord", surfaceColorBlend: 35 }));
     assert.equal(appearanceStore.getSnapshot().codeTheme, "nord");
+    assert.equal(appearanceStore.getSnapshot().surfaceColorBlend, 35);
     assert.equal(writes.length, 0);
 
     appearanceStore.reset();

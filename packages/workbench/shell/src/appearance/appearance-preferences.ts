@@ -196,6 +196,7 @@ export interface AppearancePreferences {
   backgroundColor: string;
   backgroundBlur: BackgroundBlur;
   syncSurfaceColors: boolean;
+  surfaceColorBlend: number;
   surfaceOpacity: SurfaceOpacity;
   glassBlur: GlassBlur;
   borderStyle: BorderStyle;
@@ -230,6 +231,7 @@ export const DEFAULT_APPEARANCE_PREFERENCES = Object.freeze({
   backgroundColor: "#f4f6fa",
   backgroundBlur: "none",
   syncSurfaceColors: true,
+  surfaceColorBlend: 95,
   surfaceOpacity: 80,
   glassBlur: "none",
   borderStyle: "default",
@@ -321,6 +323,9 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
       typeof value.syncSurfaceColors === "boolean"
         ? value.syncSurfaceColors
         : DEFAULT_APPEARANCE_PREFERENCES.syncSurfaceColors,
+    surfaceColorBlend: isIntegerInRange(value.surfaceColorBlend, 0, 100)
+      ? value.surfaceColorBlend
+      : DEFAULT_APPEARANCE_PREFERENCES.surfaceColorBlend,
     surfaceOpacity: isSurfaceOpacity(value.surfaceOpacity)
       ? value.surfaceOpacity
       : DEFAULT_APPEARANCE_PREFERENCES.surfaceOpacity,

@@ -1196,14 +1196,18 @@ export const extensionsZhCN = {
     background: {
       sectionTitle: "背景",
       title: "工作台背景",
-      description: "设置自定义画布颜色或背景图片，再调整组件表面不透明度和玻璃模糊。",
-      colorTitle: "画布颜色",
+      description: "设置工作台底色或背景图片，再调整组件表面不透明度和玻璃模糊。",
+      colorTitle: "工作台底色",
       imageTitle: "背景图片",
       image: "本地图片",
-      custom: "使用自定义画布颜色",
-      customDescription: "开启后可调整下方的画布颜色，并让面板和组件底色与画布协调。",
-      color: "画布颜色",
-      syncSurfaces: "让面板和组件底色与画布协调",
+      custom: "自定义工作台底色",
+      customDescription:
+        "设置整个工作台最底层的背景颜色，在对话区域和面板间隙中可见。背景图片会覆盖这层底色。",
+      color: "底色",
+      syncSurfaces: "将工作台底色混入侧栏、面板和弹窗",
+      surfaceColorBlend: "底色混合比例",
+      surfaceColorBlendDescription:
+        "控制所选底色在混色中的占比，其余部分使用主题底色。比例越高，颜色越接近所选底色；不透明度另行控制。",
       preview: "背景图片预览",
       chooseImage: "选择图片",
       replaceImage: "更换图片",
@@ -1223,7 +1227,7 @@ export const extensionsZhCN = {
     },
     surfaces: {
       title: "组件表面",
-      requiresBackground: "先在上方启用自定义画布颜色，或选择背景图片，即可调整这些表面效果。",
+      requiresBackground: "先在上方启用自定义工作台底色，或选择背景图片，即可调整这些表面效果。",
       opacity: "表面不透明度",
       opacityValue: ({ opacity }: { opacity: number }, { number }: MessageFormatters) =>
         `${number(opacity)}%`,
