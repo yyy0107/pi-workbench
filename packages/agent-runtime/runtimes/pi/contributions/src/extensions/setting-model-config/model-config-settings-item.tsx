@@ -1659,14 +1659,14 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     <div data-settings-section={sectionId} data-settings-item={itemId} className="@container pb-2">
       <div className="grid min-w-0 grid-cols-[var(--icon-frame-size-default)_minmax(0,1fr)] gap-3 @3xl:grid-cols-[12rem_minmax(0,1fr)] @3xl:gap-4">
         <aside
-          className="sticky top-0 min-w-0 self-start"
+          className="sticky top-0 min-w-0 self-start [--button-icon-size:var(--icon-size-lg)]"
           aria-label={t("extensions.modelConfig.provider")}
         >
           <div className="mb-3 hidden items-center justify-between px-2 text-xs font-medium text-muted-foreground @3xl:flex">
             <span className="sr-only @3xl:not-sr-only">{t("extensions.modelConfig.provider")}</span>
             <span className="tabular-nums">{number(configured.length)}</span>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             {configured.map((provider) => (
               <Button
                 key={provider.provider}
@@ -1683,7 +1683,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                 }}
                 className="relative h-[var(--icon-frame-size-default)] w-full justify-center gap-0 px-0 py-0 text-start aria-pressed:border-border @3xl:justify-start @3xl:gap-2 @3xl:px-3"
               >
-                <PackageIcon aria-hidden="true" className="size-[var(--icon-size-lg)] shrink-0" />
+                <PackageIcon aria-hidden="true" />
                 <span className="sr-only min-w-0 @3xl:not-sr-only @3xl:flex-1">
                   <span className="block truncate">{provider.displayName}</span>
                 </span>
@@ -1716,7 +1716,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                   disabled={navigationBusy}
                   aria-label={t("extensions.modelConfig.addProvider")}
                   title={t("extensions.modelConfig.addProvider")}
-                  className="mt-1 h-[var(--icon-frame-size-default)] w-full justify-center px-0 @3xl:justify-start @3xl:px-3"
+                  className="mt-2 h-[var(--icon-frame-size-default)] w-full justify-center px-0 @3xl:justify-start @3xl:px-3"
                 />
               }
             >
