@@ -403,6 +403,7 @@ export function ComposerPrimaryActionView({
 /** Presentation-only card; all runtime-aware content is supplied by the container. */
 export function WorkbenchComposerSurfaceView({
   isNewThread,
+  isRunning,
   headerLeft,
   headerRight,
   feedback,
@@ -414,6 +415,7 @@ export function WorkbenchComposerSurfaceView({
   onDropFiles,
 }: Readonly<{
   isNewThread: boolean;
+  isRunning: boolean;
   headerLeft: ReactNode;
   headerRight: ReactNode;
   feedback: ReactNode;
@@ -450,6 +452,7 @@ export function WorkbenchComposerSurfaceView({
 
       <div
         data-slot="workbench-composer-card"
+        data-running={isRunning || undefined}
         data-dragging={dragging || undefined}
         onDragEnter={(event) => {
           if (!acceptsFiles(event)) return;
@@ -475,10 +478,11 @@ export function WorkbenchComposerSurfaceView({
           onDropFiles([...event.dataTransfer.files]);
         }}
         className={cn(
-          "bg-background data-[dragging=true]:bg-accent/50 flex min-h-[var(--composer-height)] flex-col overflow-hidden rounded-[var(--composer-inner-radius,1.375rem)] border shadow-[0_1px_3px_rgba(0,0,0,0.08)] outline-none transition-[border-color,box-shadow,background-color] data-[dragging=true]:border-dashed",
-          isNewThread && "relative z-10 -mt-px",
+          "bg-background data-[dragging=true]:bg-accent/50 relative flex min-h-[var(--composer-height)] flex-col overflow-hidden rounded-[var(--composer-inner-radius,1.375rem)] border shadow-[0_1px_3px_rgba(0,0,0,0.08)] outline-none transition-[border-color,box-shadow,background-color] data-[dragging=true]:border-dashed",
+          isNewThread && "z-10 -mt-px",
         )}
       >
+        {isRunning ? <span aria-hidden="true" className="aui-composer-running-glow" /> : null}
         <div className="flex min-h-[var(--composer-height)] flex-1 flex-col gap-2 pt-2 [--composer-action-inset:0.5rem] [padding-bottom:var(--composer-action-inset)] transition-opacity max-[360px]:[--composer-action-inset:0.375rem] [&_.aui-composer-attachments]:px-3">
           {feedback}
           {attachments}

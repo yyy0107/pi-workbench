@@ -38,3 +38,65 @@
 :where([data-slot="workbench-composer-shell"], [data-workbench-composer-popup]) {
   --composer-action-row-size: var(--control-hit-default);
 }
+
+@property --composer-flow-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+[data-slot="workbench-composer-card"][data-running] {
+  --composer-flow-band: calc(var(--composer-action-row-size) / 4);
+  --composer-flow-blur: calc(var(--composer-action-row-size) / 5);
+
+  &::before,
+  .aui-composer-running-glow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    padding: 1px;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.35;
+    background: conic-gradient(
+      from var(--composer-flow-angle),
+      transparent 60%,
+      var(--foreground) 80%,
+      transparent
+    );
+    mask:
+      linear-gradient(white 0 0) content-box,
+      linear-gradient(white 0 0);
+    mask-composite: exclude;
+    animation: composer-flow 4s linear infinite;
+  }
+
+  .aui-composer-running-glow {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.2;
+    /* Blur the masked ring as a whole so its inner edge fades into the card. */
+    filter: blur(var(--composer-flow-blur));
+
+    &::before {
+      padding: var(--composer-flow-band);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::before,
+    .aui-composer-running-glow::before {
+      animation: none;
+    }
+  }
+}
+
+@keyframes composer-flow {
+  to {
+    --composer-flow-angle: 360deg;
+  }
+}

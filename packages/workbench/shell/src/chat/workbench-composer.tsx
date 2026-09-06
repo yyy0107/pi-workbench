@@ -1160,6 +1160,7 @@ export function WorkbenchComposer({
 
         <WorkbenchComposerSurfaceView
           isNewThread={isNewThread}
+          isRunning={isRunning}
           headerLeft={
             <SlotHost
               name="composer.header.left"
