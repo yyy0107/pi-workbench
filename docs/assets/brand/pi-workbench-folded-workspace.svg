@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Pi Workbench</title>
+  <path d="M8 8 24 18v38L8 46Z" fill="#243c94"/>
+  <path d="M24 18 40 8v38L24 56Z" fill="#6583ff"/>
+  <path d="M40 8 56 18v38L40 46Z" fill="#4162ef"/>
+</svg>

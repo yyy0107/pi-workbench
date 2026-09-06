@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Pi Workbench</title>
+  <defs>
+    <clipPath id="pi-workbench-bench-light">
+      <path d="M30.8 8.7Q32 8 33.2 8.7L54.8 21.3Q56 22 56 23.4V40.6Q56 42 54.8 42.7L33.2 55.3Q32 56 32 54.6V36L20 29V47.6Q20 49 18.8 48.3L9.2 42.7Q8 42 8 40.6V23.4Q8 22 9.2 21.3Z"/>
+    </clipPath>
+  </defs>
+  <g transform="translate(4 0) scale(0.875 1)" clip-path="url(#pi-workbench-bench-light)">
+    <path d="M8 22 32 8 56 22v20L32 56V36L20 29v20L8 42Z" fill="#171717"/>
+    <path d="M8 22 32 8 56 22 32 36Z" fill="#a3a3a3"/>
+    <path d="M32 36 56 22v20L32 56Z" fill="#525252"/>
+  </g>
+</svg>
