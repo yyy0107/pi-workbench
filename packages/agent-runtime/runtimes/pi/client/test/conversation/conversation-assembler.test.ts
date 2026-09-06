@@ -21,6 +21,7 @@ import {
 import { PiSessionManager } from "../../src/runtime/manager";
 import { piHistoryFromSessionEvents } from "../../src/sessions/session-rpc-projection";
 import { SessionMessageAccumulator } from "../../src/transport/session-message-accumulator";
+import { longConversation, appendConversationDelta } from "../fixtures/long-conversation";
 
 function user(id: string, text: string): ThreadMessage {
   return {
@@ -66,6 +67,70 @@ function projectedAssistant(event: Record<string, unknown>): ThreadAssistantMess
     rawToolArgsText: event.rawToolArgsText as Readonly<Record<string, string>> | undefined,
   });
 }
+
+test("long history bypasses unchanged message projection for composer and streaming updates", () => {
+  const assembler = new PiConversationAssembler("long-history");
+  const messages = longConversation(1_000);
+  let reads = 0;
+  for (const message of messages) {
+    const content = message.content;
+    Object.defineProperty(message, "content", {
+      get() {
+        reads++;
+        return content;
+      },
+    });
+  }
+  const branch = { index: 0, count: 2, nextKey: "other" };
+  const initial = {
+    messages,
+    isLoading: false,
+    isRunning: true,
+    branches: new Map([[messages[0]!.id, branch]]),
+  };
+  assembler.update(initial);
+  const oldUser = assembler.node(messages[0]!.id).getSnapshot();
+  const oldAssistant = assembler.node(messages.at(-1)!.id).getSnapshot();
+  reads = 0;
+  assembler.update({
+    ...initial,
+    composer: { text: "typing", attachments: [], mode: "send", phase: "idle" },
+  });
+  assert.equal(reads, 0, "composer changes must not even read historical content");
+  assembler.update({
+    ...initial,
+    messages: [...messages],
+    branches: new Map([[messages[0]!.id, { ...branch }]]),
+  });
+  assert.equal(reads, 0, "equal branch values must not invalidate unchanged messages");
+
+  const updated = appendConversationDelta(messages, "partial");
+  reads = 0;
+  assembler.update({ ...initial, messages: updated });
+  assert.equal(reads, 0, "streaming must not read content from any original message");
+  assert.equal(assembler.node(messages[0]!.id).getSnapshot(), oldUser);
+  assert.notEqual(assembler.node(messages.at(-1)!.id).getSnapshot(), oldAssistant);
+  assembler.update({ ...initial, messages: updated, isRunning: false });
+  const final = assembler.node(messages.at(-1)!.id).getSnapshot();
+  assert.equal(final?.kind === "assistant" && final.status, "complete");
+
+  assembler.update({
+    ...initial,
+    messages: updated,
+    branches: new Map([[messages[0]!.id, { ...branch, index: 1 }]]),
+  });
+  assert.equal(assembler.node(messages[0]!.id).getSnapshot()?.presentation?.branch?.index, 1);
+  assembler.update({ ...initial, messages: [] });
+  assert.equal(assembler.node(messages[0]!.id).getSnapshot(), undefined);
+  assembler.update(initial);
+  assert.notEqual(
+    assembler.node(messages[0]!.id).getSnapshot(),
+    oldUser,
+    "removed nodes must release their cached projection",
+  );
+  assembler.dispose();
+  assert.equal(assembler.node(messages[0]!.id).getSnapshot(), undefined);
+});
 
 test("projects Workbench message chrome metadata and branch navigation", () => {
   const message = assistant("Answer");

@@ -277,7 +277,10 @@ function presentation(
   };
 }
 
-function node(message: ThreadMessage, branch?: ConversationNodeBranch): ConversationNode {
+export function conversationNodeFromPiMessage(
+  message: ThreadMessage,
+  branch?: ConversationNodeBranch,
+): ConversationNode {
   const timestamp = createdAt(message);
   const nodePresentation = presentation(message, branch);
   const base = {
@@ -346,5 +349,7 @@ export function conversationNodesFromPiConversation(
   messages: readonly ThreadMessage[],
   branches?: ReadonlyMap<string, ConversationNodeBranch>,
 ): readonly ConversationNode[] {
-  return messages.map((message) => node(message, branches?.get(message.id)));
+  return messages.map((message) =>
+    conversationNodeFromPiMessage(message, branches?.get(message.id)),
+  );
 }

@@ -9,7 +9,7 @@ import type {
   MessageBlock,
 } from "@workbench/agent-runtime-contracts/conversation";
 import { Notifier, type HostObservable } from "@workbench/agent-runtime-core";
-import { conversationNodesFromPiConversation } from "./conversation-node-projection";
+import { conversationNodeFromPiMessage } from "./conversation-node-projection";
 import type { PiConversationMessage } from "./pi-conversation-message";
 
 export type ConversationPublication = "microtask" | "animation-frame" | "immediate";
@@ -27,7 +27,9 @@ export interface PiConversationProjection {
 }
 
 interface CachedNode {
-  readonly source: ConversationNode;
+  readonly source: PiConversationMessage;
+  readonly branch: ConversationNodeBranch | undefined;
+  readonly forceRunning: boolean;
   readonly value: ConversationNode;
   readonly signature: string;
 }
@@ -85,6 +87,19 @@ function sameKeys(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((key, index) => key === right[index]);
 }
 
+function sameBranch(
+  left: ConversationNodeBranch | undefined,
+  right: ConversationNodeBranch | undefined,
+) {
+  return (
+    left === right ||
+    (left?.index === right?.index &&
+      left?.count === right?.count &&
+      left?.previousKey === right?.previousKey &&
+      left?.nextKey === right?.nextKey)
+  );
+}
+
 function sameResumeCheckpoint(
   left: ConversationResumeCheckpoint | undefined,
   right: ConversationResumeCheckpoint | undefined,
@@ -110,6 +125,8 @@ export class PiConversationAssembler {
   readonly #nodeValues = new Map<string, PublishedValue<ConversationNode | undefined>>();
   #nodes = new Map<string, CachedNode>();
   #blocks = new Map<string, CachedBlock>();
+  #messages?: readonly PiConversationMessage[];
+  #branches?: ReadonlyMap<string, ConversationNodeBranch>;
 
   constructor(sessionId: string) {
     this.#sessionId = sessionId;
@@ -139,24 +156,39 @@ export class PiConversationAssembler {
     source: PiConversationProjection,
     publication: ConversationPublication = "immediate",
   ): void {
-    const nodes = conversationNodesFromPiConversation(source.messages, source.branches);
-    const activeNode = source.isRunning
-      ? nodes.findLast((node) => node.kind === "user" || node.kind === "assistant")
-      : undefined;
-    // ponytail: this identity scan is O(n); pass changed node keys when long-session profiling
-    // shows the scan matters.
-    const nextNodes = new Map<string, CachedNode>();
-    for (let node of nodes) {
-      // Internal model/tool cycles can finish while the assistant turn is still running.
-      if (node === activeNode && node.kind === "assistant" && node.status === "complete") {
-        node = { ...node, status: "running" };
-      }
-      const previous = this.#nodes.get(node.key);
-      let value: ConversationNode;
-      let signature: string;
-      if (previous?.source === node) {
-        ({ value, signature } = previous);
-      } else {
+    const previousSnapshot = this.#snapshotValue.getSnapshot();
+    let nodeKeys = previousSnapshot.nodeKeys;
+    if (
+      source.messages !== this.#messages ||
+      source.branches !== this.#branches ||
+      source.isRunning !== previousSnapshot.isRunning
+    ) {
+      const activeMessage = source.isRunning
+        ? source.messages.findLast(
+            (message) => message.role === "user" || message.role === "assistant",
+          )
+        : undefined;
+      // ponytail: retain a cheap O(n) identity scan; changed-key propagation belongs here only
+      // if profiling shows the scan matters after skipping unchanged message conversion.
+      const nextNodes = new Map<string, CachedNode>();
+      for (const message of source.messages) {
+        const branch = source.branches?.get(message.id);
+        const forceRunning =
+          message === activeMessage &&
+          message.role === "assistant" &&
+          message.status.type === "complete";
+        const previous = this.#nodes.get(message.id);
+        if (
+          previous?.source === message &&
+          previous.forceRunning === forceRunning &&
+          sameBranch(previous.branch, branch)
+        ) {
+          nextNodes.set(message.id, previous);
+          continue;
+        }
+        let node = conversationNodeFromPiMessage(message, branch);
+        // A completed internal model/tool cycle can still belong to the running assistant turn.
+        if (forceRunning && node.kind === "assistant") node = { ...node, status: "running" };
         const candidate = Object.freeze(
           "blocks" in node
             ? {
@@ -174,23 +206,29 @@ export class PiConversationAssembler {
               }
             : { ...node },
         ) as ConversationNode;
-        signature = JSON.stringify(candidate);
-        value = previous?.signature === signature ? previous.value : candidate;
+        const signature = JSON.stringify(candidate);
+        const value = previous?.signature === signature ? previous.value : candidate;
+        if (previous && "blocks" in previous.value) {
+          const keys = new Set("blocks" in value ? value.blocks.map((block) => block.key) : []);
+          for (const block of previous.value.blocks)
+            if (!keys.has(block.key)) this.#blocks.delete(block.key);
+        }
+        nextNodes.set(message.id, { source: message, branch, forceRunning, value, signature });
+        this.#nodeValues.get(message.id)?.set(value, publication);
       }
-      nextNodes.set(node.key, { source: node, value, signature });
-      this.#nodeValues.get(node.key)?.set(value, publication);
+      for (const [key, previous] of this.#nodes) {
+        if (nextNodes.has(key)) continue;
+        this.#nodeValues.get(key)?.set(undefined, publication);
+        if ("blocks" in previous.value) {
+          for (const block of previous.value.blocks) this.#blocks.delete(block.key);
+        }
+      }
+      this.#nodes = nextNodes;
+      this.#messages = source.messages;
+      this.#branches = source.branches;
+      const candidateKeys = source.messages.map((message) => message.id);
+      if (!sameKeys(nodeKeys, candidateKeys)) nodeKeys = Object.freeze(candidateKeys);
     }
-
-    for (const [key, value] of this.#nodeValues) {
-      if (!nextNodes.has(key)) value.set(undefined, publication);
-    }
-    this.#nodes = nextNodes;
-
-    const previousSnapshot = this.#snapshotValue.getSnapshot();
-    const candidateKeys = nodes.map((node) => node.key);
-    const nodeKeys = sameKeys(previousSnapshot.nodeKeys, candidateKeys)
-      ? previousSnapshot.nodeKeys
-      : Object.freeze(candidateKeys);
     const composer = source.composer ?? EMPTY_COMPOSER;
     const hasMore = source.hasMore ?? false;
     const resumeCheckpoint = sameResumeCheckpoint(
@@ -231,6 +269,9 @@ export class PiConversationAssembler {
     for (const value of this.#nodeValues.values()) value.set(undefined, "immediate");
     this.#nodes.clear();
     this.#blocks.clear();
+    this.#nodeValues.clear();
+    this.#messages = undefined;
+    this.#branches = undefined;
     this.#snapshotValue.set(
       Object.freeze({
         sessionId: this.#sessionId,
