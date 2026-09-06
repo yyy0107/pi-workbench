@@ -48,6 +48,7 @@ const discoverModelsPayload = rpcObject({
 const testModelImageInputPayload = rpcObject({
   provider: nonEmptyString,
   model: nonEmptyString,
+  testTextInput: rpcOptional(rpcBoolean),
 }) as RpcValidator<TestModelImageInputPayload>;
 const thinkingLevelValue = rpcNullable(rpcString());
 const thinkingLevelMap = rpcObject({
@@ -72,12 +73,7 @@ const providerModelConfiguration = rpcObject({
 const providerConfiguration = rpcObject({
   displayName: rpcOptional(rpcString()),
   baseURL: nonEmptyString,
-  api: rpcEnum([
-    "anthropic-messages",
-    "openai-completions",
-    "openai-responses",
-    "google-generative-ai",
-  ]),
+  api: nonEmptyString,
   models: rpcOptional(rpcArray(providerModelConfiguration)),
 });
 const configureProviderPayload = rpcObject({
@@ -154,7 +150,11 @@ export function createModelProviderRpcRoutes({
           return handleRpcPost(request, {
             method,
             payload: providerPayload,
-            handler: (payload) => service.providerConfig(payload),
+            handler: async (payload) => {
+              const value = await service.providerConfig(payload);
+              if (!value.catalogRefreshFailed) notifyProviderConfigurationChanged(payload.provider);
+              return value;
+            },
           });
         case "llm.startProviderLogin":
           return handleRpcPost(request, {
@@ -241,7 +241,11 @@ export function createModelProviderRpcRoutes({
           return handleRpcPost(request, {
             method,
             payload: emptyPayload,
-            handler: () => service.models(),
+            handler: async () => {
+              const value = await service.models();
+              for (const provider of value.groups) notifyProviderConfigurationChanged(provider.id);
+              return value;
+            },
           });
         case "llm.discoverModels":
           return handleRpcPost(request, {
@@ -250,7 +254,14 @@ export function createModelProviderRpcRoutes({
             loopbackOnly: true,
             handler: (payload, context) =>
               invokeCancellable(
-                () => service.discoverModels(payload, { signal: context.signal }),
+                async () => {
+                  const value = await service.discoverModels(payload, { signal: context.signal });
+                  context.signal.throwIfAborted();
+                  if (payload.provider && payload.source !== "endpoint") {
+                    notifyProviderConfigurationChanged(payload.provider);
+                  }
+                  return value;
+                },
                 context.signal,
                 "Model discovery was cancelled.",
                 projectDomainError,

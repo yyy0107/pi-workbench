@@ -255,6 +255,8 @@ test("keeps image input inconclusive for authentication and unexpected model res
 test("classifies non-capability failures without exposing provider error text", async () => {
   const cases = [
     ["402 Insufficient credits", "quota-exceeded"],
+    ["429 insufficient_quota", "quota-exceeded"],
+    ["余额不足", "quota-exceeded"],
     ["429 Too many requests", "rate-limited"],
     ["Request timed out", "timeout"],
     ["fetch failed: ECONNREFUSED", "network"],
@@ -297,6 +299,67 @@ test("asks the user to save before testing a model missing from the runtime", as
     outcome: "inconclusive",
     reason: "model-not-found",
   });
+});
+
+test("connection checks require text generation before probing images", async () => {
+  for (const scenario of [
+    "images",
+    "text-only",
+    "image-network",
+    "auth",
+    "empty",
+    "aborted",
+    "text-network",
+  ] as const) {
+    const requests: import("@earendil-works/pi-ai").Context[] = [];
+    const textSupported = ["images", "text-only", "image-network"].includes(scenario);
+    const service = modelService({
+      runtime: runtime({
+        getModel: () => imageTestModel,
+        complete: async (model, context) => {
+          requests.push(context);
+          if (requests.length === 1) {
+            assert.deepEqual(model.input, ["text"]);
+            assert.equal(typeof context.messages[0]?.content, "string");
+            if (scenario === "text-network") throw new Error("fetch failed");
+            if (scenario === "auth")
+              return imageTestAssistantMessage("", {
+                stopReason: "error",
+                errorMessage: "401 Unauthorized",
+              });
+            if (scenario === "aborted")
+              return imageTestAssistantMessage("", { stopReason: "aborted" });
+            return imageTestAssistantMessage(scenario === "empty" ? "" : "OK");
+          }
+          assert.deepEqual(model.input, ["text", "image"]);
+          if (scenario === "image-network") throw new Error("fetch failed");
+          return scenario === "text-only"
+            ? imageTestAssistantMessage("", {
+                stopReason: "error",
+                errorMessage: "This model does not support image input.",
+              })
+            : imageTestAssistantMessage("K7P3");
+        },
+      }),
+    });
+    const result = await service.testModelImageInput({
+      provider: "openai",
+      model: imageTestModel.id,
+      testTextInput: true,
+    });
+    assert.equal(result.textSupported, textSupported, scenario);
+    assert.equal(requests.length, textSupported ? 2 : 1, scenario);
+    assert.equal(
+      result.outcome,
+      scenario === "images"
+        ? "supported"
+        : scenario === "text-only"
+          ? "unsupported"
+          : "inconclusive",
+      scenario,
+    );
+    assert.deepEqual(imageTestModel.input, ["text"]);
+  }
 });
 
 test("reads and updates a model context-window override", async () => {
@@ -514,7 +577,6 @@ test("maps provider auth status without reading credential values", async () => 
       { id: "low", name: "Low" },
       { id: "medium", name: "Medium" },
       { id: "high", name: "High" },
-      { id: "xhigh", name: "Extra high" },
     ],
     defaultEffort: "medium",
   });
@@ -1024,7 +1086,7 @@ test("returns adapter defaults without turning them into a custom override", asy
   });
 });
 
-test("keeps built-in adapter window defaults separate from custom model values", async () => {
+test("uses the current Pi catalog even when built-in models have custom values", async () => {
   const store = memoryModelConfigStore({
     "opencode-go": {
       baseURL: "https://opencode.ai/zen/go/v1",
@@ -1057,7 +1119,7 @@ test("keeps built-in adapter window defaults separate from custom model values",
   assert.equal(configuration.models[0]?.contextWindow, 131_072);
   assert.equal(
     configuration.adapterModels.find(({ id }) => id === "deepseek-v4-flash")?.contextWindow,
-    1_000_000,
+    131_072,
   );
   assert.equal(
     configuration.adapterModels.find(({ id }) => id === "deepseek-v4-flash")?.contextWindowSource,
@@ -1296,6 +1358,13 @@ test("rejects multi-step API-key setup and externally managed credential removal
 
 test("maps PI reasoning effort fallbacks", () => {
   assert.deepEqual(
+    toModelCatalogModel({
+      ...models[0],
+      thinkingLevelMap: { xhigh: "extra_high", max: "max", off: null },
+    }).reasoning?.efforts.map(({ id }) => id),
+    ["minimal", "low", "medium", "high", "xhigh", "max"],
+  );
+  assert.deepEqual(
     toModelCatalogModel({ ...models[0], thinkingLevelMap: { medium: null } }).reasoning
       ?.defaultEffort,
     "low",
@@ -1430,7 +1499,7 @@ test("keeps project extensions untrusted unless the workbench trust flag is exac
   assert.equal(await resolveProjectTrust(), true);
 });
 
-test("answers a known provider from the installed catalog without using the endpoint or key", async () => {
+test("refreshes a known provider through Pi without calling a generic endpoint", async () => {
   const runtimeCalls: string[] = [];
   const discoveryRuntime = runtime({
     getModels: (provider) => {
@@ -1480,7 +1549,7 @@ test("answers a known provider from the installed catalog without using the endp
       },
     ],
   });
-  assert.deepEqual(runtimeCalls, ["models:openai"]);
+  assert.deepEqual(runtimeCalls, ["refresh", "models:openai"]);
 });
 
 test("refreshes an account provider through provider-owned auth without an API-key endpoint", async () => {
@@ -1547,6 +1616,7 @@ test("refreshes an account provider through provider-owned auth without an API-k
   assert.equal(JSON.stringify(result).includes("private-account-access-token"), false);
   assert.equal(refreshOptions?.allowNetwork, true);
   assert.deepEqual(refreshOptions?.providers, ["openai-codex"]);
+  assert.equal(refreshOptions?.force, true);
   assert.equal(refreshOptions?.signal, controller.signal);
   assert.deepEqual(authSignals, [controller.signal]);
   assert.deepEqual(availableProviders, ["openai-codex"]);
@@ -2138,4 +2208,74 @@ test("rejects malformed, oversized, and unusably authenticated listings", async 
       return true;
     },
   );
+});
+
+test("accepts a provider's native protocol without opening arbitrary custom APIs", async () => {
+  const store = memoryModelConfigStore();
+  const service = modelService({
+    modelConfigStore: store,
+    runtime: runtime({ getProviders: () => [{ id: "openai-codex", name: "OpenAI Codex" }] }),
+  });
+  await service.configureProvider({
+    provider: "openai-codex",
+    configuration: {
+      baseURL: "https://chatgpt.com/backend-api",
+      api: "openai-codex-responses",
+      models: [{ id: "gpt-5.5" }],
+    },
+  });
+  assert.equal((await store.providers())["openai-codex"]?.api, "openai-codex-responses");
+  await assert.rejects(
+    service.configureProvider({
+      provider: "custom",
+      configuration: { baseURL: "https://custom.test/v1", api: "unknown-protocol" },
+    }),
+    /protocol is not supported/,
+  );
+});
+
+test("catalog reads refresh Pi dynamically and retain the last models on refresh failure", async () => {
+  let revision = 0;
+  let fail = false;
+  let catalog: ModelRuntimeModel[] = [];
+  const requests: Array<Parameters<ModelRuntimeLike["refresh"]>[0]> = [];
+  const service = modelService({
+    runtime: runtime({
+      getProviders: () => [{ id: "openai", name: "OpenAI" }],
+      refresh: async (options) => {
+        requests.push(options);
+        if (fail)
+          return {
+            aborted: false,
+            errors: new Map([["openai", new Error("404 <!DOCTYPE html>private page")]]),
+          };
+        catalog = [
+          { ...models[0]!, id: `dynamic-${++revision}`, contextWindow: revision * 100000 },
+        ];
+        return { aborted: false, errors: new Map() };
+      },
+      getModels: () => catalog,
+      getAvailable: async () => catalog,
+    }),
+  });
+  const first = await service.providerConfig({ provider: "openai" });
+  assert.equal(first.models[0]?.id, "dynamic-1");
+  assert.equal(first.adapterModels[0]?.id, "dynamic-1");
+  assert.equal(first.catalogRefreshFailed, undefined);
+  const second = await service.providerConfig({ provider: "openai" });
+  assert.equal(second.models[0]?.id, "dynamic-2");
+  assert.equal(requests[0]?.allowNetwork, true);
+  assert.equal(requests[0]?.force, true);
+  assert.deepEqual(requests[0]?.providers, ["openai"]);
+  const available = await service.models();
+  assert.equal(available.groups[0]?.models[0]?.id, "dynamic-3");
+  assert.equal(requests[2]?.force, false);
+  fail = true;
+  const cached = await service.providerConfig({ provider: "openai" });
+  assert.equal(cached.catalogRefreshFailed, true);
+  assert.equal(cached.models[0]?.id, "dynamic-3");
+  const failed = await service.models();
+  assert.equal(failed.groups[0]?.models[0]?.id, "dynamic-3");
+  assert.equal(failed.failures[0]?.id, "openai");
+  assert.doesNotMatch(JSON.stringify(failed), /DOCTYPE|private page/);
 });

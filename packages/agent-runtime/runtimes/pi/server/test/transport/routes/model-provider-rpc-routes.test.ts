@@ -171,6 +171,7 @@ test("maps provider operations to sanitized inputs, preserves signals, and publi
     rpcRequest("llm.testModelImageInput", {
       provider: "openai",
       model: "gpt-test",
+      testTextInput: true,
       ignored: true,
     }),
   ];
@@ -227,14 +228,14 @@ test("maps provider operations to sanitized inputs, preserves signals, and publi
       },
       {
         operation: "testModelImageInput",
-        payload: { provider: "openai", model: "gpt-test" },
+        payload: { provider: "openai", model: "gpt-test", testTextInput: true },
       },
     ],
   );
   assert.equal(calls[2]?.signal, requests[2]?.signal);
   assert.equal(calls[3]?.signal, requests[3]?.signal);
   assert.equal(calls[4]?.signal, requests[4]?.signal);
-  assert.deepEqual(notifications, ["openai", "openai"]);
+  assert.deepEqual(notifications, ["openai", "openai", "openai", "openai"]);
 });
 
 test("keeps provider-login refresh notifications tied to completed snapshots", async () => {
@@ -308,6 +309,7 @@ test("validates provider payloads before invoking the protocol", async () => {
     ],
     ["llm.discoverModels", { settingsNs: "custom", source: "remote" }],
     ["llm.testModelImageInput", { provider: "openai", model: "" }],
+    ["llm.testModelImageInput", { provider: "openai", model: "gpt-test", testTextInput: "yes" }],
   ] as const) {
     const response = routes.handle(rpcRequest(method, payload), method);
     assert.ok(response);
@@ -466,4 +468,22 @@ test("delegates provider failures to the shared error projector", async () => {
   if (body.result.ok) assert.fail("Expected a projected provider failure");
   assert.equal(body.result.error.code, "provider-failed");
   assert.deepEqual(body.result.error.details, { provider: "openai" });
+});
+
+test("catalog reads notify existing sessions after Pi model refresh", async () => {
+  const notifications: string[] = [];
+  const routes = createModelProviderRpcRoutes({
+    service: protocol({
+      models: async () => ({
+        groups: [{ id: "openai", name: "OpenAI", models: [] }],
+        failures: [],
+      }),
+    }),
+    notifyProviderConfigurationChanged: (provider) => notifications.push(provider),
+    projectDomainError: unexpectedDomainError,
+  });
+  const response = routes.handle(rpcRequest("llm.models", {}), "llm.models");
+  assert.ok(response);
+  await successValue(await response);
+  assert.deepEqual(notifications, ["openai"]);
 });

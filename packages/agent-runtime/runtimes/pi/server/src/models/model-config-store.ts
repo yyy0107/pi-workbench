@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
 
+import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 
 import type {
@@ -22,6 +23,17 @@ interface JsonObject {
 interface ModelsFile extends JsonObject {
   providers?: Record<string, unknown>;
 }
+
+const BUILTIN_PROVIDER_BASE_URLS = new Map(
+  builtinProviders().map((provider) => [
+    provider.id,
+    new Set(
+      [provider.baseUrl, ...provider.getModels().map((model) => model.baseUrl)]
+        .filter((url): url is string => !!url)
+        .map((url) => url.replace(/\/+$/u, "")),
+    ),
+  ]),
+);
 
 const CAPABILITY_SOURCES_KEY = "x-workbench-model-capability-sources";
 type CapabilitySources = Record<string, Record<string, ModelCapabilitySource>>;
@@ -355,7 +367,20 @@ export class ModelConfigStore implements ModelConfigStorage {
         delete nextProvider.models;
         delete sources[provider];
       }
-      providers[provider] = nextProvider;
+      const builtinBaseURLs = BUILTIN_PROVIDER_BASE_URLS.get(provider);
+      if (builtinBaseURLs) {
+        // Built-ins can mix protocols and URL prefixes. Let each adapter model
+        // inherit its own route instead of applying the first model's defaults to all.
+        delete nextProvider.api;
+        if (builtinBaseURLs.has(configuration.baseURL.replace(/\/+$/u, ""))) {
+          delete nextProvider.baseUrl;
+        }
+      }
+      if (builtinBaseURLs && Object.keys(nextProvider).every((key) => key === "name")) {
+        delete providers[provider];
+      } else {
+        providers[provider] = nextProvider;
+      }
       return this.writeMutation(
         previous,
         serialized(stateWithCapabilitySources(state, providers, sources)),

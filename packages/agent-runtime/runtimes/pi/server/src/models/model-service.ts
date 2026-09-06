@@ -3,19 +3,16 @@ import type {
   AssistantMessage,
   AuthEvent,
   Context,
-  KnownProvider,
   Model,
   ModelsApiStreamOptions,
 } from "@earendil-works/pi-ai";
 import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
 import { createWorkbenchAgentSessionServices } from "../agent-runtime/agent-session-services";
 
-import {
-  PI_THINKING_LEVELS,
-  type PiThinkingLevel,
-} from "@workbench/agent-runtime-pi-protocol/messages";
+import type { PiThinkingLevel } from "@workbench/agent-runtime-pi-protocol/messages";
 import {
   imageInputCapability,
+  supportedModelThinkingLevels,
   type ModelInputModality,
 } from "@workbench/agent-runtime-pi-shared/models";
 import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
@@ -348,58 +345,13 @@ const CONFIGURABLE_MODEL_APIS = new Set([
   "google-generative-ai",
 ]);
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9._-]*$/u;
-const BUILTIN_PROVIDER_MAP = {
-  "amazon-bedrock": true,
-  "ant-ling": true,
-  anthropic: true,
-  "azure-openai-responses": true,
-  baseten: true,
-  cerebras: true,
-  "cloudflare-ai-gateway": true,
-  "cloudflare-workers-ai": true,
-  deepseek: true,
-  fireworks: true,
-  "github-copilot": true,
-  google: true,
-  "google-vertex": true,
-  groq: true,
-  huggingface: true,
-  "kimi-coding": true,
-  minimax: true,
-  "minimax-cn": true,
-  mistral: true,
-  moonshotai: true,
-  "moonshotai-cn": true,
-  nvidia: true,
-  openai: true,
-  "openai-codex": true,
-  opencode: true,
-  "opencode-go": true,
-  openrouter: true,
-  "qwen-token-plan": true,
-  "qwen-token-plan-cn": true,
-  "qwen-token-plan-individual": true,
-  radius: true,
-  together: true,
-  "vercel-ai-gateway": true,
-  xai: true,
-  xiaomi: true,
-  "xiaomi-token-plan-ams": true,
-  "xiaomi-token-plan-cn": true,
-  "xiaomi-token-plan-sgp": true,
-  zai: true,
-  "zai-coding-cn": true,
-} satisfies Record<KnownProvider, true>;
-const BUILTIN_PROVIDER_IDS = new Set(Object.keys(BUILTIN_PROVIDER_MAP));
 const BUILTIN_PROVIDERS = builtinProviders();
+const BUILTIN_PROVIDER_IDS = new Set(BUILTIN_PROVIDERS.map((provider) => provider.id));
 const BUILTIN_PROVIDER_DEFAULT_BASE_URLS = new Map(
   BUILTIN_PROVIDERS.flatMap((provider) => {
     const baseURL = provider.baseUrl || provider.getModels()[0]?.baseUrl;
     return baseURL ? [[provider.id, baseURL] as const] : [];
   }),
-);
-const BUILTIN_PROVIDER_DEFAULT_MODELS = new Map(
-  BUILTIN_PROVIDERS.map((provider) => [provider.id, provider.getModels()] as const),
 );
 
 const EFFORT_NAMES: Record<PiThinkingLevel, string> = {
@@ -476,7 +428,7 @@ function modelImageInputFailure(message: string): TestModelImageInputValue {
     return { outcome: "inconclusive", reason: "authentication" };
   }
   if (
-    /(?:\b402\b|insufficient (?:credits?|balance|funds)|credit balance|quota (?:exceeded|exhausted)|额度不足|余额不足|配额(?:不足|已用尽))/u.test(
+    /(?:\b402\b|insufficient[_ -](?:credits?|balance|funds|quota)|credit balance|quota[_ -](?:exceeded|exhausted)|额度不足|余额不足|配额(?:不足|已用尽))/u.test(
       normalized,
     )
   ) {
@@ -644,9 +596,10 @@ function internalProviderIds(
 function modelReasoning(model: ModelRuntimeModel): ModelCatalogModel["reasoning"] {
   if (!model.reasoning) return undefined;
 
-  const efforts = PI_THINKING_LEVELS.filter(
-    (level) => model.thinkingLevelMap?.[level] !== null,
-  ).map((level) => ({ id: level, name: EFFORT_NAMES[level] }));
+  const efforts = supportedModelThinkingLevels(model).map((level) => ({
+    id: level,
+    name: EFFORT_NAMES[level],
+  }));
   if (efforts.length === 0) return undefined;
 
   const supported = new Set(efforts.map(({ id }) => id));
@@ -822,6 +775,7 @@ function configuredModel(
 function providerConfiguration(
   provider: string,
   input: NonNullable<ConfigureModelProviderPayload["configuration"]>,
+  nativeApis: readonly (string | undefined)[] = [],
 ): NonNullable<ConfigureModelProviderPayload["configuration"]> {
   if (!PROVIDER_ID_PATTERN.test(provider)) {
     providerConfigurationFailure(
@@ -838,7 +792,7 @@ function providerConfiguration(
   if (baseURL.protocol !== "http:" && baseURL.protocol !== "https:") {
     providerConfigurationFailure(provider, "The provider API address must use HTTP or HTTPS.");
   }
-  if (!CONFIGURABLE_MODEL_APIS.has(input.api)) {
+  if (!CONFIGURABLE_MODEL_APIS.has(input.api) && !nativeApis.includes(input.api)) {
     providerConfigurationFailure(provider, "The provider API protocol is not supported.");
   }
   if (input.models?.length === 0) {
@@ -1193,6 +1147,31 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
     return this.loaded;
   }
 
+  private async refreshCatalog(
+    runtime: ModelRuntimeLike,
+    providers?: readonly string[],
+    force = false,
+  ): Promise<ModelRuntimeRefreshResult> {
+    try {
+      return await runtime.refresh({
+        allowNetwork: process.env.PI_OFFLINE === undefined,
+        ...(providers ? { providers } : {}),
+        force,
+        signal: AbortSignal.timeout(MODEL_PROVIDER_CATALOG_REFRESH_TIMEOUT_MS),
+      });
+    } catch (error) {
+      return {
+        aborted: false,
+        errors: new Map([
+          [
+            providers?.[0] ?? RUNTIME_FAILURE_ID,
+            error instanceof Error ? error : new Error(errorMessage(error)),
+          ],
+        ]),
+      };
+    }
+  }
+
   async providers(): Promise<ModelProvidersResult> {
     const { runtime } = await this.load();
     // AuthStorage notices external auth.json revisions when it is read. Refresh
@@ -1271,6 +1250,13 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
 
   async providerConfig(input: { provider: string }): Promise<ModelProviderConfigValue> {
     const { runtime } = await this.load();
+    const internal = internalProviderIds(
+      runtime,
+      configurableProviderDirectory(runtime.getProviders(), this.settingsOverrides),
+    ).has(input.provider);
+    const refresh = internal
+      ? await this.refreshCatalog(runtime, [input.provider], true)
+      : { aborted: false, errors: new Map<string, Error>() };
     const stored = (await this.modelConfigStore.providers())[input.provider];
     const route = runtime.getProviders().find(({ id }) => id === input.provider);
     if (!route && !stored) {
@@ -1281,17 +1267,6 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
       );
     }
     const runtimeModels = runtime.getModels(input.provider);
-    const hasModelCustomizations =
-      stored?.models !== undefined ||
-      (stored?.modelOverrides !== undefined && Object.keys(stored.modelOverrides).length > 0);
-    const builtinDefaultModels = BUILTIN_PROVIDER_DEFAULT_MODELS.get(input.provider);
-    // The live runtime catalog is composed with stored model values. Once it is customized,
-    // use the generated built-in catalog as the restore baseline. Purely dynamic built-ins
-    // have no generated models, so their provider-owned runtime catalog remains authoritative.
-    const adapterRuntimeModels =
-      !hasModelCustomizations || builtinDefaultModels?.length === 0
-        ? runtimeModels
-        : (builtinDefaultModels ?? []);
     const firstModel = runtimeModels[0];
     const defaultBaseURL =
       BUILTIN_PROVIDER_DEFAULT_BASE_URLS.get(input.provider) ||
@@ -1306,7 +1281,8 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
       ...(stored?.api || firstModel?.api ? { api: stored?.api || firstModel?.api } : {}),
       configurationDefined: stored !== undefined,
       modelsSource: stored?.models ? "custom" : "adapter",
-      adapterModels: adapterRuntimeModels.map((model) =>
+      ...(refresh.aborted || refresh.errors.size ? { catalogRefreshFailed: true } : {}),
+      adapterModels: (internal ? runtimeModels : []).map((model) =>
         runtimeModelConfiguration(model, "provider"),
       ),
       models:
@@ -1618,7 +1594,16 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
       if (input.configuration) {
         mutation = await this.modelConfigStore.setProvider(
           input.provider,
-          providerConfiguration(input.provider, input.configuration),
+          providerConfiguration(
+            input.provider,
+            input.configuration,
+            [
+              ...(BUILTIN_PROVIDERS.find(
+                (provider) => provider.id === input.provider,
+              )?.getModels() ?? []),
+              ...runtime.getModels(input.provider),
+            ].map((model) => model.api),
+          ),
         );
         await this.refreshProvider(runtime, input.provider, signal);
       }
@@ -1845,7 +1830,36 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
     );
     timeout.unref?.();
 
+    let textSupported = false;
     try {
+      if (input.testTextInput) {
+        const textResponse = await runtime.complete(
+          { ...testModel, input: ["text"] },
+          { messages: [{ role: "user", content: "Reply with OK.", timestamp: Date.now() }] },
+          {
+            signal: controller.signal,
+            maxRetries: 0,
+            timeoutMs: MODEL_IMAGE_INPUT_TEST_TIMEOUT_MS,
+          },
+        );
+        signal?.throwIfAborted();
+        if (textResponse.stopReason === "error") {
+          return {
+            ...modelImageInputFailure(textResponse.errorMessage ?? ""),
+            outcome: "inconclusive",
+            textSupported: false,
+          };
+        }
+        if (textResponse.stopReason === "aborted" || controller.signal.aborted) {
+          return { outcome: "inconclusive", reason: "timeout", textSupported: false };
+        }
+        textSupported = textResponse.content.some(
+          (part) => part.type === "text" && part.text.trim(),
+        );
+        if (!textSupported) {
+          return { outcome: "inconclusive", reason: "unexpected-response", textSupported: false };
+        }
+      }
       const response = await runtime.complete(
         testModel,
         {
@@ -1874,11 +1888,21 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
         },
       );
       signal?.throwIfAborted();
-      return modelImageInputTestResponse(response);
+      return {
+        ...modelImageInputTestResponse(response),
+        ...(input.testTextInput ? { textSupported } : {}),
+      };
     } catch (error) {
       if (signal?.aborted) throw error;
-      if (controller.signal.aborted) return { outcome: "inconclusive", reason: "timeout" };
-      return modelImageInputFailure(errorMessage(error));
+      const failure = controller.signal.aborted
+        ? { outcome: "inconclusive" as const, reason: "timeout" as const }
+        : modelImageInputFailure(errorMessage(error));
+      return {
+        ...failure,
+        ...(input.testTextInput
+          ? { textSupported, ...(!textSupported ? { outcome: "inconclusive" as const } : {}) }
+          : {}),
+      };
     } finally {
       clearTimeout(timeout);
       signal?.removeEventListener("abort", forwardAbort);
@@ -1897,6 +1921,7 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
     }
 
     const { runtime, diagnostics } = loaded;
+    const refresh = await this.refreshCatalog(runtime);
     const providers = runtime.getProviders();
     const storedProviders: Record<string, StoredModelProviderConfiguration> =
       await this.modelConfigStore.providers().catch(() => ({}));
@@ -1950,6 +1975,15 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
       .flatMap((entry) => (entry.group && entry.group.models.length > 0 ? [entry.group] : []))
       .sort((left, right) => compareText(left.id, right.id));
     const failures = entries.flatMap((entry) => (entry.failure ? [entry.failure] : []));
+    for (const id of refresh.errors.keys()) {
+      failures.push(
+        failure(
+          id,
+          providers.find((provider) => provider.id === id)?.name ?? id,
+          "The Pi model catalog could not be refreshed; the last available models are shown.",
+        ),
+      );
+    }
     for (const diagnostic of diagnostics) {
       if (diagnostic.type === "error") {
         failures.push(failure(RUNTIME_FAILURE_ID, RUNTIME_FAILURE_NAME, diagnostic.message));
@@ -2023,6 +2057,7 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
         signal?.throwIfAborted();
         const refresh = await runtime.refresh({
           allowNetwork: true,
+          force: true,
           providers: [provider],
           ...(signal ? { signal } : {}),
         });
@@ -2060,8 +2095,20 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
       }
     }
 
-    if (provider && input.source !== "endpoint") {
-      const catalog = runtime?.getModels(provider) ?? [];
+    if (runtime && provider && input.source !== "endpoint") {
+      const refresh = await this.refreshCatalog(runtime, [provider]);
+      signal?.throwIfAborted();
+      const refreshError = refresh.errors.get(provider);
+      if (refreshError)
+        throw discoveryError(
+          input,
+          new EndpointDiscoveryError(
+            providerCatalogFailureReason(refreshError),
+            "The provider model catalog could not be refreshed.",
+            { cause: refreshError },
+          ),
+        );
+      const catalog = runtime.getModels(provider);
       if (catalog.length > 0) {
         return {
           models: [...catalog]

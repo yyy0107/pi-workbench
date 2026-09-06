@@ -422,7 +422,8 @@ export interface ModelProviderConfigValue {
   api?: string;
   configurationDefined: boolean;
   modelsSource: "adapter" | "custom";
-  /** Provider-owned baseline used when discarding model catalog customizations. */
+  catalogRefreshFailed?: boolean;
+  /** Current Pi runtime catalog. Reload after clearing customizations to obtain provider defaults. */
   adapterModels: ModelProviderModelConfiguration[];
   models: ModelProviderModelConfiguration[];
 }
@@ -504,6 +505,7 @@ export interface DiscoverModelsValue {
 export interface TestModelImageInputPayload {
   provider: string;
   model: string;
+  testTextInput?: boolean;
 }
 
 export type ModelImageInputTestOutcome = "supported" | "unsupported" | "inconclusive";
@@ -528,6 +530,7 @@ export type ModelImageInputTestReason =
   | "request-failed";
 
 export interface TestModelImageInputValue {
+  textSupported?: boolean;
   outcome: ModelImageInputTestOutcome;
   reason: ModelImageInputTestReason;
 }

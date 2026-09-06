@@ -387,3 +387,39 @@ test("restores adapter models while preserving provider metadata and credentials
   assert.equal(saved.providers.openai.apiKey, "keep-secret");
   assert.deepEqual(saved.providers.openai.headers, { "X-Private": "keep-me" });
 });
+
+test("built-in edits preserve per-model protocols and URL prefixes in the actual Pi runtime", async (t) => {
+  const { ModelRuntime } = await import("@earendil-works/pi-coding-agent");
+  const directory = await mkdtemp(path.join(tmpdir(), "workbench-native-routing-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const stateFile = path.join(directory, "models.json");
+  const store = new ModelConfigStore({ stateFile });
+  const goConfiguration = { baseURL: "https://opencode.ai/zen/go/v1", api: "openai-completions" };
+  await store.setProvider("opencode-go", goConfiguration);
+  assert.equal((await store.providers())["opencode-go"], undefined);
+  await store.setProvider("opencode-go", {
+    ...goConfiguration,
+    models: [{ id: "minimax-m3", contextWindow: 900000 }, { id: "deepseek-v4-pro" }],
+  });
+  await store.setProvider("openai-codex", {
+    baseURL: "https://chatgpt.com/backend-api",
+    api: "openai-codex-responses",
+    models: [{ id: "gpt-5.5", contextWindow: 200000 }],
+  });
+  const runtime = await ModelRuntime.create({
+    modelsPath: stateFile,
+    authPath: path.join(directory, "auth.json"),
+    allowModelNetwork: false,
+  });
+  const mini = runtime.getModel("opencode-go", "minimax-m3");
+  assert.equal(mini?.api, "anthropic-messages");
+  assert.equal(mini?.baseUrl, "https://opencode.ai/zen/go");
+  assert.equal(mini?.contextWindow, 900000);
+  assert.equal(
+    runtime.getModel("opencode-go", "deepseek-v4-pro")?.baseUrl,
+    "https://opencode.ai/zen/go/v1",
+  );
+  assert.equal(runtime.getModel("opencode-go", "deepseek-v4-pro")?.api, "openai-completions");
+  assert.equal(runtime.getModel("openai-codex", "gpt-5.5")?.api, "openai-codex-responses");
+  assert.equal(runtime.getModel("openai-codex", "gpt-5.5")?.contextWindow, 200000);
+});
