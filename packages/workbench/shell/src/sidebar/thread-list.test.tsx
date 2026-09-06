@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { act, Children, isValidElement, type ComponentProps } from "react";
+import { act, Children, isValidElement, memo, type ComponentProps } from "react";
 import { createRoot } from "react-dom/client";
-import { RuntimeProvider, type ThreadListItem } from "@workbench/agent-runtime-client";
+import {
+  RuntimeProvider,
+  type CurrentSessionSnapshot,
+  type ThreadListItem,
+} from "@workbench/agent-runtime-client";
 import {
   WorkspaceSelectionProvider,
   type WorkspaceCapabilities,
@@ -11,13 +15,19 @@ import { installMinimalReactDomEnvironment } from "../../test/react-dom-environm
 import { SidebarDragSessionProvider } from "../hooks/use-sidebar-pointer-reorder";
 import { I18nProvider } from "../i18n";
 import { WorkbenchSettingsProvider, type WorkbenchSettingsPort } from "../settings";
+import { WorkbenchNavigationProvider, type WorkbenchNavigationPort } from "../navigation";
 import { SidebarRow } from "../ui/sidebar-items";
 import { DraftThreadListItem } from "./draft-thread-list-item";
 import { WorkbenchThreadList } from "./thread-list";
 import { WorkbenchThreadListItem } from "./thread-list-item";
-import { WorkspaceSidebarProvider } from "./workspace-sidebar-context";
+import {
+  WorkspaceSidebarProvider,
+  useWorkspaceSidebar,
+  useWorkspaceSidebarItem,
+  sidebarThreadKey,
+} from "./workspace-sidebar-context";
 
-test("workspace conversations reveal five rows at a time and reset independently on collapse", async () => {
+test("workspace conversations isolate selection updates and paginate independently on collapse", async () => {
   const environment = installMinimalReactDomEnvironment();
   Object.assign(window, { addEventListener() {}, removeEventListener() {} });
   const root = createRoot(environment.container);
@@ -48,10 +58,19 @@ test("workspace conversations reveal five rows at a time and reset independently
     })),
   ];
   const snapshot = { threads, isLoading: false };
-  const current = { sessionId: undefined, isNewThread: false };
+  let current: CurrentSessionSnapshot = { sessionId: undefined, isNewThread: false };
+  const currentListeners = new Set<() => void>();
   const runtime: ComponentProps<typeof RuntimeProvider>["runtime"] = {
     threads: { getSnapshot: () => snapshot, subscribe: () => () => {} },
-    current: { getSnapshot: () => current, subscribe: () => () => {} },
+    current: {
+      getSnapshot: () => current,
+      subscribe: (listener) => {
+        currentListeners.add(listener);
+        return () => {
+          currentListeners.delete(listener);
+        };
+      },
+    },
     threadActions: {},
     session: () => undefined,
     async createThread() {
@@ -84,13 +103,45 @@ test("workspace conversations reveal five rows at a time and reset independently
     async moveWorkspaceBefore() {},
     async setWorkspacePinned() {},
   };
+  let navigation: WorkbenchNavigationPort = {
+    currentConversationId: undefined,
+    isHome: true,
+    openHome() {},
+    openConversation() {},
+    refresh() {},
+  };
+  let draftWorkspaceId: string | undefined;
   let collapsedWorkspaceIds: string[] = [];
   let searchQuery = "";
   let showNewThread = false;
   const lists = new Map<string, ReturnType<typeof WorkbenchThreadList>>();
 
+  const rowRenders = new Map<string, number>();
+  const activeRows = new Map<string, boolean>();
+  const routedRows = new Map<string, boolean>();
+  let model: unknown;
+  let fallbackWorkspaceId: string | undefined;
+  // Exercise the shared subscriptions without mounting unrelated DOM controls.
+  const RowProbe = memo(function RowProbe({ id }: { id: string }) {
+    activeRows.set(
+      id,
+      useWorkspaceSidebar((state) => state.current.threadId === id),
+    );
+    routedRows.set(
+      id,
+      useWorkspaceSidebar((state) => state.navigation.currentConversationId === id),
+    );
+    useWorkspaceSidebarItem(sidebarThreadKey(id));
+    rowRenders.set(id, (rowRenders.get(id) ?? 0) + 1);
+    return null;
+  });
+
   // Capture the rendered list and its button callbacks without mounting unrelated row controls.
   function Probe(props: ComponentProps<typeof WorkbenchThreadList>) {
+    const sidebar = useWorkspaceSidebar();
+    model = sidebar.model;
+    const item = sidebar.model.items.get(sidebarThreadKey("pinned-0"));
+    fallbackWorkspaceId = item?.kind === "thread" ? item.workspaceId : undefined;
     lists.set(props.workspaceId ?? "pinned", WorkbenchThreadList(props));
     return null;
   }
@@ -102,15 +153,20 @@ test("workspace conversations reveal five rows at a time and reset independently
             <I18nProvider initialLocale="zh-CN">
               <WorkspaceSelectionProvider
                 capabilities={capabilities}
-                selection={{ workspaces, collapsedWorkspaceIds }}
+                selection={{ workspaces, collapsedWorkspaceIds, draftWorkspaceId }}
               >
-                <SidebarDragSessionProvider>
-                  <WorkspaceSidebarProvider searchQuery={searchQuery}>
-                    <Probe workspaceId="project" showNewThread={showNewThread} />
-                    <Probe workspaceId="pinned-project" />
-                    <Probe pinnedOnly />
-                  </WorkspaceSidebarProvider>
-                </SidebarDragSessionProvider>
+                <WorkbenchNavigationProvider navigation={navigation}>
+                  <SidebarDragSessionProvider>
+                    <WorkspaceSidebarProvider searchQuery={searchQuery}>
+                      <Probe workspaceId="project" showNewThread={showNewThread} />
+                      <Probe workspaceId="pinned-project" />
+                      <Probe pinnedOnly />
+                      <RowProbe id="pinned-0" />
+                      <RowProbe id="pinned-1" />
+                      <RowProbe id="pinned-2" />
+                    </WorkspaceSidebarProvider>
+                  </SidebarDragSessionProvider>
+                </WorkbenchNavigationProvider>
               </WorkspaceSelectionProvider>
             </I18nProvider>
           </WorkbenchSettingsProvider>
@@ -142,6 +198,41 @@ test("workspace conversations reveal five rows at a time and reset independently
     assert.equal(rowCount("pinned-project"), 5);
     assert.equal(rowCount("pinned"), 7);
     assert.equal(more("pinned"), undefined);
+
+    const originalModel = model;
+    const untouchedRowRenders = rowRenders.get("pinned-2");
+    for (const id of ["pinned-0", "pinned-1"]) {
+      navigation = { ...navigation, currentConversationId: id, isHome: false };
+      await render();
+      assert.equal(routedRows.get(id), true);
+      await act(async () => {
+        current = { sessionId: id, threadId: id, isNewThread: false };
+        currentListeners.forEach((listener) => listener());
+      });
+      assert.equal(activeRows.get(id), true);
+      assert.equal(model, originalModel, "selection must not rebuild the catalog or drag model");
+      assert.equal(
+        rowRenders.get("pinned-2"),
+        untouchedRowRenders,
+        "unrelated rows must skip both route and runtime updates",
+      );
+    }
+    assert.equal(activeRows.get("pinned-0"), false);
+    assert.equal(routedRows.get("pinned-0"), false);
+    draftWorkspaceId = "project";
+    await render();
+    await act(async () => {
+      current = { sessionId: "pinned-0", threadId: "pinned-0", isNewThread: false };
+      currentListeners.forEach((listener) => listener());
+    });
+    assert.equal(
+      fallbackWorkspaceId,
+      "project",
+      "draft workspace fallback still follows the current thread",
+    );
+    draftWorkspaceId = undefined;
+    await render();
+    assert.equal(fallbackWorkspaceId, undefined);
 
     await showMore();
     assert.equal(rowCount(), 10);

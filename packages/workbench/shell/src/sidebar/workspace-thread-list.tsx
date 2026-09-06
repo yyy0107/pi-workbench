@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   ChevronRightIcon,
   FolderIcon,
@@ -10,6 +10,7 @@ import {
   PinIcon,
   PinOffIcon,
 } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import type { WorkspaceSummary } from "@workbench/agent-runtime-client/workspaces";
 
 import { Button } from "../ui/button";
@@ -25,7 +26,6 @@ import { SidebarActions, SidebarGroup, SidebarRow } from "../ui/sidebar-items";
 import { Skeleton } from "../ui/skeleton";
 import { useI18n } from "../i18n";
 import { useAppearancePreferences } from "../appearance";
-import { useWorkbenchNavigation } from "../navigation";
 import { NewThreadButton } from "./new-thread-button";
 import { RunningThreadIndicator } from "./running-thread-indicator";
 import { WorkbenchThreadList } from "./thread-list";
@@ -56,8 +56,8 @@ export function WorkbenchPinnedThreadList({ onNavigate }: { onNavigate?: () => v
 
 export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useI18n();
-  const { isHome } = useWorkbenchNavigation();
   const sidebar = useWorkspaceSidebar();
+  const { isHome } = sidebar.navigation;
   const {
     directories,
     selection,
@@ -146,7 +146,7 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
   );
 }
 
-function WorkspaceDirectorySection({
+const WorkspaceDirectorySection = memo(function WorkspaceDirectorySection({
   directory,
   onNavigate,
 }: {
@@ -155,28 +155,39 @@ function WorkspaceDirectorySection({
 }) {
   const { t } = useI18n();
   const { runningIndicatorId } = useAppearancePreferences();
-  const navigation = useWorkbenchNavigation();
-  const sidebar = useWorkspaceSidebar();
+  const sidebar = useWorkspaceSidebar(
+    useShallow((state) => ({
+      active: state.selection.activeWorkspaceId === directory.id,
+      expanded: !state.selection.collapsedWorkspaceIds.includes(directory.id),
+      running: state.groups.runningWorkspaceIds.has(directory.id),
+      isDraft:
+        state.current.isNewThread &&
+        state.navigation.isHome &&
+        state.selection.draftWorkspaceId === directory.id,
+      searchQuery: state.searchQuery,
+      capabilities: state.capabilities,
+      runtime: state.runtime,
+      pending: state.dragState.pending,
+      openHome: state.navigation.openHome,
+    })),
+  );
   const controls = useWorkspaceSidebarItem(sidebarWorkspaceKey(directory.id));
   const { drag } = controls;
   const [menuOpen, setMenuOpen] = useState(false);
-  const active = sidebar.selection.activeWorkspaceId === directory.id;
-  const expanded = !sidebar.selection.collapsedWorkspaceIds.includes(directory.id);
+  const { active, expanded } = sidebar;
   const FolderStateIcon = expanded ? FolderOpenIcon : FolderIcon;
-  const running = !expanded && sidebar.groups.runningWorkspaceIds.has(directory.id);
+  const running = !expanded && sidebar.running;
   const pinned = directory.pinned === true;
   const query = sidebar.searchQuery.trim().toLocaleLowerCase();
   const showNewThread =
-    sidebar.current.isNewThread &&
-    navigation.isHome &&
-    sidebar.selection.draftWorkspaceId === directory.id &&
+    sidebar.isDraft &&
     (!query || t("workbench.sidebar.newThread").toLocaleLowerCase().includes(query));
   const remove = async () => {
     try {
       await sidebar.capabilities.removeWorkspace(directory.id);
       if (active) {
         sidebar.runtime.switchToNewThread();
-        navigation.openHome();
+        sidebar.openHome();
         onNavigate?.();
       }
     } catch (error) {
@@ -235,7 +246,7 @@ function WorkspaceDirectorySection({
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      disabled={sidebar.dragState.pending}
+                      disabled={sidebar.pending}
                       aria-label={t("workbench.sidebar.workspaceOptions")}
                     />
                   }
@@ -290,4 +301,4 @@ function WorkspaceDirectorySection({
       />
     </SidebarGroup>
   );
-}
+});

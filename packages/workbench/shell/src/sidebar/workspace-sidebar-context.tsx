@@ -2,13 +2,17 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
+import { createStore, useStore, type StoreApi } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { useAgentRuntime, useCurrentSession, useThreadList } from "@workbench/agent-runtime-client";
 import {
@@ -23,6 +27,7 @@ import {
   type SidebarDropPosition,
 } from "../hooks/use-sidebar-pointer-reorder";
 import { useI18n } from "../i18n";
+import { useWorkbenchNavigation } from "../navigation";
 import { resolveSidebarThreadWorkspaceId } from "../new-thread-policy";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { groupSidebarThreads } from "./thread-list-groups";
@@ -44,6 +49,7 @@ import {
 function useWorkspaceSidebarController(searchQuery: string) {
   const { t } = useI18n();
   const runtime = useAgentRuntime();
+  const navigation = useWorkbenchNavigation();
   const current = useCurrentSession();
   const threadList = useThreadList();
   const selection = useWorkspaceSelection();
@@ -57,13 +63,15 @@ function useWorkspaceSidebarController(searchQuery: string) {
   const [error, setError] = useState<string>();
   const [revealedWorkspaceId, setRevealedWorkspaceId] = useState<string>();
   const searchActive = searchQuery.trim().length > 0;
+  // Current selection only affects grouping while a draft workspace needs a fallback.
+  const mainThreadId = selection.draftWorkspaceId ? current.threadId : undefined;
 
   const data = useMemo(() => {
     const threads = threadList.threads.filter((thread) => !thread.isArchived);
     const threadsById = new Map(threads.map((thread) => [thread.threadId, thread]));
     const groups = groupSidebarThreads({
       threads,
-      mainThreadId: current.threadId,
+      mainThreadId,
       draftWorkspaceId: selection.draftWorkspaceId,
     });
     const workspaceById = new Map(
@@ -95,7 +103,7 @@ function useWorkspaceSidebarController(searchQuery: string) {
         canPin: Boolean(runtime.threadActions.setPinned),
         workspaceId: resolveSidebarThreadWorkspaceId({
           managedWorkspaceId: thread.workspace?.id,
-          isMainThread: thread.threadId === current.threadId,
+          isMainThread: thread.threadId === mainThreadId,
           draftWorkspaceId: selection.draftWorkspaceId,
         }),
       });
@@ -136,7 +144,7 @@ function useWorkspaceSidebarController(searchQuery: string) {
       directories,
     };
   }, [
-    current.threadId,
+    mainThreadId,
     manualOrders,
     runtime.threadActions,
     selection.draftWorkspaceId,
@@ -149,75 +157,79 @@ function useWorkspaceSidebarController(searchQuery: string) {
   useEffect(() => {
     if (searchActive) session.cancel();
   }, [searchActive, session]);
-  const setGroupExpanded = (group: "pinned" | "projects", expanded: boolean) => {
+  const setGroupExpanded = useCallback((group: "pinned" | "projects", expanded: boolean) => {
     setExpandedGroups((state) => ({ ...state, [group]: expanded }));
-  };
-  const move = async (
-    sourceKey: string,
-    targetKey: string,
-    position: SidebarDropPosition,
-    pinMenu = false,
-  ) => {
-    const { data: currentData, searchActive: searching } = latest.current;
-    const operation = resolveSidebarMove(currentData.model, sourceKey, targetKey, position);
-    if (!operation || (searching && !(pinMenu && operation.pinChanged))) return;
-    setError(undefined);
-    const { source } = operation;
-    const result = await commitSidebarMove(operation, {
-      setPinned: async () => {
-        if (source.kind === "workspace")
-          await capabilities.setWorkspacePinned(source.id, operation.pinned);
-        else await runtime.threadActions.setPinned?.(source.id, operation.pinned);
-      },
-      saveOrder: async () => {
-        if (source.kind === "workspace") {
-          await capabilities.moveWorkspaceBefore(source.id, operation.beforeId);
-        } else if (
-          !operation.pinned &&
-          source.workspaceId &&
-          runtime.threadActions.moveWithinWorkspace
-        ) {
-          await runtime.threadActions.moveWithinWorkspace({
-            workspaceId: source.workspaceId,
-            threadId: source.id,
-            beforeThreadId: operation.beforeId,
-          });
-        } else {
-          const ids = operation.order!.map((key) => currentData.model.items.get(key)!.id);
-          await setManualOrder(operation.scope.slice("threads:".length), ids);
-        }
-      },
-    });
-    if (!result.ok) {
-      console.error("[workbench] failed to save sidebar move", result.error);
-      setError(
-        t(
-          result.phase === "pin"
-            ? "workbench.sidebar.movePinFailed"
-            : operation.pinChanged
-              ? "workbench.sidebar.moveOrderFailedAfterPin"
-              : "workbench.sidebar.moveOrderFailed",
-        ),
-      );
-      if (result.phase === "pin") return;
-    }
-    if (source.kind === "workspace" || operation.pinned) {
-      setGroupExpanded(operation.pinned ? "pinned" : "projects", true);
-      if (source.kind === "workspace") setRevealedWorkspaceId(source.id);
-    } else {
-      const workspace = source.workspaceId
-        ? currentData.workspaceById.get(source.workspaceId)
-        : undefined;
-      setGroupExpanded(workspace?.pinned ? "pinned" : "projects", true);
-      if (workspace) {
-        capabilities.setWorkspaceCollapsed(workspace.id, false);
-        setRevealedWorkspaceId(workspace.id);
+  }, []);
+  const move = useCallback(
+    async (
+      sourceKey: string,
+      targetKey: string,
+      position: SidebarDropPosition,
+      pinMenu = false,
+    ) => {
+      const { data: currentData, searchActive: searching } = latest.current;
+      const operation = resolveSidebarMove(currentData.model, sourceKey, targetKey, position);
+      if (!operation || (searching && !(pinMenu && operation.pinChanged))) return;
+      setError(undefined);
+      const { source } = operation;
+      const result = await commitSidebarMove(operation, {
+        setPinned: async () => {
+          if (source.kind === "workspace")
+            await capabilities.setWorkspacePinned(source.id, operation.pinned);
+          else await runtime.threadActions.setPinned?.(source.id, operation.pinned);
+        },
+        saveOrder: async () => {
+          if (source.kind === "workspace") {
+            await capabilities.moveWorkspaceBefore(source.id, operation.beforeId);
+          } else if (
+            !operation.pinned &&
+            source.workspaceId &&
+            runtime.threadActions.moveWithinWorkspace
+          ) {
+            await runtime.threadActions.moveWithinWorkspace({
+              workspaceId: source.workspaceId,
+              threadId: source.id,
+              beforeThreadId: operation.beforeId,
+            });
+          } else {
+            const ids = operation.order!.map((key) => currentData.model.items.get(key)!.id);
+            await setManualOrder(operation.scope.slice("threads:".length), ids);
+          }
+        },
+      });
+      if (!result.ok) {
+        console.error("[workbench] failed to save sidebar move", result.error);
+        setError(
+          t(
+            result.phase === "pin"
+              ? "workbench.sidebar.movePinFailed"
+              : operation.pinChanged
+                ? "workbench.sidebar.moveOrderFailedAfterPin"
+                : "workbench.sidebar.moveOrderFailed",
+          ),
+        );
+        if (result.phase === "pin") return;
       }
-    }
-  };
+      if (source.kind === "workspace" || operation.pinned) {
+        setGroupExpanded(operation.pinned ? "pinned" : "projects", true);
+        if (source.kind === "workspace") setRevealedWorkspaceId(source.id);
+      } else {
+        const workspace = source.workspaceId
+          ? currentData.workspaceById.get(source.workspaceId)
+          : undefined;
+        setGroupExpanded(workspace?.pinned ? "pinned" : "projects", true);
+        if (workspace) {
+          capabilities.setWorkspaceCollapsed(workspace.id, false);
+          setRevealedWorkspaceId(workspace.id);
+        }
+      }
+    },
+    [capabilities, runtime, setGroupExpanded, setManualOrder, t],
+  );
 
   return {
     ...data,
+    navigation,
     current,
     selection,
     capabilities,
@@ -235,9 +247,9 @@ function useWorkspaceSidebarController(searchQuery: string) {
   };
 }
 
-const WorkspaceSidebarContext = createContext<ReturnType<
-  typeof useWorkspaceSidebarController
-> | null>(null);
+type WorkspaceSidebarState = ReturnType<typeof useWorkspaceSidebarController>;
+const WorkspaceSidebarContext = createContext<StoreApi<WorkspaceSidebarState> | null>(null);
+const identity = (state: WorkspaceSidebarState) => state;
 
 export function WorkspaceSidebarProvider({
   searchQuery,
@@ -247,19 +259,34 @@ export function WorkspaceSidebarProvider({
   children: ReactNode;
 }) {
   const value = useWorkspaceSidebarController(searchQuery);
+  const [store] = useState(() => createStore(() => value));
+  useLayoutEffect(() => store.setState(value, true), [store, value]);
   return (
-    <WorkspaceSidebarContext.Provider value={value}>{children}</WorkspaceSidebarContext.Provider>
+    <WorkspaceSidebarContext.Provider value={store}>{children}</WorkspaceSidebarContext.Provider>
   );
 }
 
-export function useWorkspaceSidebar() {
+export function useWorkspaceSidebar(): WorkspaceSidebarState;
+export function useWorkspaceSidebar<T>(selector: (state: WorkspaceSidebarState) => T): T;
+export function useWorkspaceSidebar<T>(
+  selector: (state: WorkspaceSidebarState) => T = identity as (state: WorkspaceSidebarState) => T,
+): T {
   const context = useContext(WorkspaceSidebarContext);
   if (!context) throw new Error("Workspace sidebar rows require WorkspaceSidebarProvider");
-  return context;
+  return useStore(context, selector);
 }
 
 export function useWorkspaceSidebarItem(key: string) {
-  const context = useWorkspaceSidebar();
+  const context = useWorkspaceSidebar(
+    useShallow((state) => ({
+      model: state.model,
+      searchActive: state.searchActive,
+      searchQuery: state.searchQuery,
+      dragState: state.dragState,
+      session: state.session,
+      move: state.move,
+    })),
+  );
   const item = context.model.items.get(key);
   const order =
     item && item.kind !== "group" ? (context.model.orders.get(sidebarItemScope(item)) ?? []) : [];

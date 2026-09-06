@@ -7,7 +7,7 @@ import { Button } from "../ui/button";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { SidebarRow } from "../ui/sidebar-items";
 import { useI18n } from "../i18n";
-import { useWorkbenchNavigation } from "../navigation";
+import { useWorkspaceSidebar } from "./workspace-sidebar-context";
 
 export function NewThreadButton({
   className,
@@ -24,12 +24,12 @@ export function NewThreadButton({
 }) {
   const { t } = useI18n();
   const runtime = useAgentRuntime();
-  const navigation = useWorkbenchNavigation();
+  const openHome = useWorkspaceSidebar((state) => state.navigation.openHome);
   const { beginNewThread } = useWorkspaceCapabilities();
   const prepareNewThread = () => {
     beginNewThread(workspaceId);
     runtime.createDraft({ workspaceId });
-    navigation.openHome();
+    openHome();
     onNavigate?.();
   };
   if (variant === "menu")

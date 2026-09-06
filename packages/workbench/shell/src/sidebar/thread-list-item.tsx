@@ -1,12 +1,13 @@
 "use client";
 
+import { memo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { ArchiveIcon, Clock3Icon, PinIcon, PinOffIcon } from "lucide-react";
 import type { ThreadListItem } from "@workbench/agent-runtime-client";
 import { Button } from "../ui/button";
 import { SidebarActions, SidebarRow, SidebarStatus } from "../ui/sidebar-items";
 import { useI18n } from "../i18n";
 import { useAppearancePreferences } from "../appearance";
-import { useWorkbenchNavigation } from "../navigation";
 import { RunningThreadIndicator } from "./running-thread-indicator";
 import {
   sidebarThreadKey,
@@ -14,7 +15,7 @@ import {
   useWorkspaceSidebarItem,
 } from "./workspace-sidebar-context";
 
-export function WorkbenchThreadListItem({
+export const WorkbenchThreadListItem = memo(function WorkbenchThreadListItem({
   thread,
   workspaceId,
   onNavigate,
@@ -25,11 +26,20 @@ export function WorkbenchThreadListItem({
 }) {
   const { date: formatDate, relativeTime, t } = useI18n();
   const { runningIndicatorId } = useAppearancePreferences();
-  const sidebar = useWorkspaceSidebar();
+  const sidebar = useWorkspaceSidebar(
+    useShallow((state) => ({
+      runtime: state.runtime,
+      capabilities: state.capabilities,
+      pending: state.dragState.pending,
+      isActive: state.current.threadId === thread.threadId,
+      isRouteActive: state.navigation.currentConversationId === thread.threadId,
+      openHome: state.navigation.openHome,
+      openConversation: state.navigation.openConversation,
+    })),
+  );
   const controls = useWorkspaceSidebarItem(sidebarThreadKey(thread.threadId));
-  const navigation = useWorkbenchNavigation();
   const threadActions = sidebar.runtime.threadActions;
-  const isActive = sidebar.current.threadId === thread.threadId;
+  const { isActive } = sidebar;
   const waiting = !isActive && thread.isWaitingForInput;
   const automation = thread.origin?.kind === "automation";
   const lastMessageAt = thread.updatedAt ? new Date(thread.updatedAt) : undefined;
@@ -45,8 +55,8 @@ export function WorkbenchThreadListItem({
     return formatDate(lastMessageAt, { month: "numeric", day: "numeric" });
   })();
   const archive = () => {
-    if (isActive || navigation.currentConversationId === thread.threadId) {
-      navigation.openHome({ replace: true });
+    if (isActive || sidebar.isRouteActive) {
+      sidebar.openHome({ replace: true });
       onNavigate?.();
     }
     void threadActions
@@ -94,8 +104,7 @@ export function WorkbenchThreadListItem({
           if (workspaceId) sidebar.capabilities.activateWorkspace(workspaceId);
           else sidebar.capabilities.deactivateWorkspace();
         }
-        if (navigation.currentConversationId !== thread.threadId)
-          navigation.openConversation(thread.threadId);
+        if (!sidebar.isRouteActive) sidebar.openConversation(thread.threadId);
         onNavigate?.();
       }}
       actions={
@@ -105,7 +114,7 @@ export function WorkbenchThreadListItem({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                disabled={sidebar.dragState.pending}
+                disabled={sidebar.pending}
                 aria-label={pinLabel}
                 title={pinLabel}
                 aria-pressed={thread.isPinned}
@@ -118,7 +127,7 @@ export function WorkbenchThreadListItem({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                disabled={sidebar.dragState.pending}
+                disabled={sidebar.pending}
                 aria-label={t("workbench.sidebar.archive")}
                 title={t("workbench.sidebar.archive")}
                 onClick={archive}
@@ -131,4 +140,4 @@ export function WorkbenchThreadListItem({
       }
     />
   );
-}
+});
