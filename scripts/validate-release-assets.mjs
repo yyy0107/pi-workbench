@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
-const expectedTargets = [
+const supportedTargets = [
   "darwin-arm64",
   "darwin-x64",
   "linux-arm64-glibc",
@@ -10,8 +10,9 @@ const expectedTargets = [
   "win32-arm64",
   "win32-x64",
 ];
-const rootDirectory = path.resolve(process.argv[2] || "release-downloads");
+const rootDirectory = path.resolve(process.argv[2] || "release-assets");
 const tag = process.argv[3];
+const commit = process.argv[4];
 if (!tag?.startsWith("v")) throw new Error("A release tag is required.");
 
 function filesBelow(directory) {
@@ -37,16 +38,22 @@ const metadata = metadataFiles.map((filePath) => ({
   value: JSON.parse(readFileSync(filePath, "utf8")),
 }));
 const actualTargets = metadata.map(({ value }) => value.targetKey).sort();
-if (JSON.stringify(actualTargets) !== JSON.stringify(expectedTargets)) {
-  throw new Error(`Release matrix mismatch: ${actualTargets.join(", ")}.`);
+if (
+  actualTargets.length === 0 ||
+  new Set(actualTargets).size !== actualTargets.length ||
+  actualTargets.some((target) => !supportedTargets.includes(target))
+) {
+  throw new Error(`Invalid release targets: ${actualTargets.join(", ")}.`);
 }
 
 const assetNames = new Set();
 for (const { directory, value } of metadata) {
   if (
     value.schemaVersion !== 1 ||
-    value.kind !== "workbench-pty-release-assets" ||
+    value.kind !== "workbench-release-assets" ||
     value.version !== tag.slice(1) ||
+    !/^[0-9a-f]{40}$/u.test(value.commit) ||
+    (commit && value.commit !== commit) ||
     value.nodePtyVersion !== "1.1.0"
   ) {
     throw new Error(`Invalid release metadata for ${value.targetKey}.`);
@@ -60,12 +67,16 @@ for (const { directory, value } of metadata) {
     ...(value.updateAssets ?? []),
   ];
   for (const asset of declared) {
+    if (typeof asset.filename !== "string" || !/^[\w.-]+$/u.test(asset.filename)) {
+      throw new Error(`Invalid release asset filename: ${asset.filename}.`);
+    }
     if (assetNames.has(asset.filename))
       throw new Error(`Duplicate release asset ${asset.filename}.`);
     assetNames.add(asset.filename);
     const filePath = path.join(directory, asset.filename);
     if (
       !existsSync(filePath) ||
+      !lstatSync(filePath).isFile() ||
       readFileSync(filePath).length !== asset.size ||
       sha256(filePath) !== asset.sha256
     ) {
@@ -73,12 +84,27 @@ for (const { directory, value } of metadata) {
     }
   }
   const checksumPath = path.join(directory, `SHA256SUMS-${value.targetKey}.txt`);
+  const expectedFiles = [
+    ...declared.map(({ filename }) => filename),
+    `release-metadata-${value.targetKey}.json`,
+    path.basename(checksumPath),
+  ].sort();
+  if (
+    JSON.stringify(readdirSync(directory).sort()) !== JSON.stringify(expectedFiles) ||
+    expectedFiles.some((filename) => !lstatSync(path.join(directory, filename)).isFile())
+  ) {
+    throw new Error(`Unexpected release files for ${value.targetKey}.`);
+  }
   if (!existsSync(checksumPath)) throw new Error(`Missing checksum list for ${value.targetKey}.`);
   const checksumEntries = readFileSync(checksumPath, "utf8").trim().split("\n");
   const checksummedNames = [];
   for (const line of checksumEntries) {
     const match = /^([0-9a-f]{64})  (.+)$/u.exec(line.trimEnd());
-    if (!match || sha256(path.join(directory, match[2])) !== match[1]) {
+    if (
+      !match ||
+      !/^[\w.-]+$/u.test(match[2]) ||
+      sha256(path.join(directory, match[2])) !== match[1]
+    ) {
       throw new Error(`Invalid checksum entry for ${value.targetKey}: ${line}.`);
     }
     checksummedNames.push(match[2]);

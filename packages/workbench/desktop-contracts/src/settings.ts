@@ -42,7 +42,6 @@ export interface DesktopSettingsSnapshot {
   };
   version: string;
   platform: string;
-  tokenConfigured: boolean;
   restartRequired: boolean;
   terminalShellStatus: "applying" | "applied" | "failed";
   notificationsSupported: boolean;
@@ -50,7 +49,6 @@ export interface DesktopSettingsSnapshot {
 export interface DesktopSettingsPort {
   load(): Promise<DesktopSettingsSnapshot>;
   update(patch: Partial<DesktopPreferences>): Promise<DesktopSettingsSnapshot>;
-  setUpdateToken(token: string): Promise<DesktopSettingsSnapshot>;
   runUpdate(action: "check" | "download" | "install"): Promise<DesktopSettingsSnapshot>;
   subscribe(listener: (snapshot: DesktopSettingsSnapshot) => void): () => void;
   syncTasks(state: {
@@ -73,7 +71,6 @@ export function readDesktopSettingsPort(value: unknown): DesktopSettingsPort | u
   const hasRequiredMethods = [
     "load",
     "update",
-    "setUpdateToken",
     "runUpdate",
     "subscribe",
     "syncTasks",

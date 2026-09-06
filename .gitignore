@@ -28,6 +28,7 @@
 /.desktop-build
 /.electron-build
 /dist-electron
+/release-assets
 
 # misc
 .DS_Store

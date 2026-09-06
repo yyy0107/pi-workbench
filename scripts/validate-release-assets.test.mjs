@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-const validator = fileURLToPath(new URL("./validate-pty-release-matrix.mjs", import.meta.url));
+const validator = fileURLToPath(new URL("./validate-release-assets.mjs", import.meta.url));
 const targets = [
   "darwin-arm64",
   "darwin-x64",
@@ -22,7 +22,7 @@ function sha256(filePath) {
 }
 
 function fixture(t) {
-  const root = mkdtempSync(path.join(os.tmpdir(), "workbench-pty-release-matrix-"));
+  const root = mkdtempSync(path.join(os.tmpdir(), "workbench-release-assets-"));
   t.after(() => rmSync(root, { force: true, recursive: true }));
   for (const targetKey of targets) {
     const directory = path.join(root, `release-${targetKey}`);
@@ -35,9 +35,10 @@ function fixture(t) {
     };
     const metadata = {
       schemaVersion: 1,
-      kind: "workbench-pty-release-assets",
+      kind: "workbench-release-assets",
       targetKey,
       version: "1.2.3",
+      commit: "a".repeat(40),
       nodePtyVersion: "1.1.0",
       nativeBuild: asset("native"),
       runtimeInventories: {
@@ -80,4 +81,32 @@ test("rejects release asset checksum drift", (t) => {
   const result = spawnSync(process.execPath, [validator, root, "v1.2.3"], { encoding: "utf8" });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /checksum mismatch/u);
+});
+
+test("accepts one native target and rejects assets built from another commit", (t) => {
+  const root = path.join(fixture(t), "release-linux-x64-glibc");
+  const run = (commit) =>
+    spawnSync(process.execPath, [validator, root, "v1.2.3", commit], { encoding: "utf8" });
+  const result = run("a".repeat(40));
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout).targets, ["linux-x64-glibc"]);
+  const stale = run("b".repeat(40));
+  assert.notEqual(stale.status, 0);
+  assert.match(stale.stderr, /Invalid release metadata/u);
+});
+
+test("rejects an empty release directory", (t) => {
+  const root = fixture(t);
+  for (const target of targets) rmSync(path.join(root, `release-${target}`), { recursive: true });
+  const result = spawnSync(process.execPath, [validator, root, "v1.2.3"], { encoding: "utf8" });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Invalid release targets/u);
+});
+
+test("rejects unrelated files alongside installers before upload", (t) => {
+  const root = path.join(fixture(t), "release-linux-x64-glibc");
+  writeFileSync(path.join(root, "accidental-upload.txt"), "unrelated");
+  const result = spawnSync(process.execPath, [validator, root, "v1.2.3"], { encoding: "utf8" });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Unexpected release files/u);
 });

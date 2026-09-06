@@ -16,6 +16,8 @@
     "electron:dist": "pnpm build && pnpm --filter @workbench/desktop-electron run dist",
     "electron:dist:artifact": "pnpm build && pnpm --filter @workbench/desktop-electron run dist:artifact",
     "electron:budget": "pnpm --filter @workbench/desktop-electron run budget",
+    "release:build": "node scripts/local-release.mjs build",
+    "release:upload": "node scripts/local-release.mjs upload",
     "bench:pi-history": "pnpm --filter @workbench/agent-runtime-pi-server run bench:history",
     "prebuild": "node scripts/prepare-workbench-build.cjs",
     "build": "pnpm --filter @workbench/runtime-node build && pnpm --filter @workbench/web build && pnpm --filter @workbench/desktop-electron run build",

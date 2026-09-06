@@ -39,18 +39,12 @@ function DesktopSettingsItem() {
     typeof window === "undefined"
       ? undefined
       : readDesktopSettingsPort(window.workbenchDesktop?.settings);
-  const errorMessage = (reason: unknown) => {
-    const code = ["secure-storage-unavailable", "update-in-progress"].find(
-      (key) => reason instanceof Error && reason.message.includes(key),
+  const errorMessage = (reason: unknown) =>
+    t(
+      reason instanceof Error && reason.message.includes("update-in-progress")
+        ? "desktopRenderer.settings.updateInProgress"
+        : "desktopRenderer.settings.error",
     );
-    return t(
-      code === "secure-storage-unavailable"
-        ? "desktopRenderer.settings.secureStorageUnavailable"
-        : code === "update-in-progress"
-          ? "desktopRenderer.settings.updateInProgress"
-          : "desktopRenderer.settings.error",
-    );
-  };
   useEffect(() => {
     setUnavailable(!port);
     if (!port) return;

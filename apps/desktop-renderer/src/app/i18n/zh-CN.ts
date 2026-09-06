@@ -45,10 +45,7 @@ export const desktopRendererZhCN = {
     save: "保存",
     clear: "清除",
     updates: "应用更新",
-    updateSource: "发布源：yyy0107/pi-workbench（GitHub 私有仓库）。",
-    updateToken: "GitHub 更新令牌",
-    tokenConfigured: "本机已配置令牌；保存的令牌使用操作系统安全存储加密。",
-    tokenMissing: "填写可读取此仓库 Release 的令牌，或在启动应用前设置 PI_WORKBENCH_UPDATE_TOKEN。",
+    updateSource: "发布源：yyy0107/pi-workbench（GitHub 公开仓库）。",
     checkUpdates: "检查更新",
     install: "重启并安装",
     download: "下载更新",
@@ -60,8 +57,6 @@ export const desktopRendererZhCN = {
     retry: "重试",
     restartRequired: "请退出并重新打开应用，使需要重启的设置生效。",
     notificationsUnsupported: "此系统暂不支持桌面通知。",
-    secureStorageUnavailable:
-      "系统安全存储不可用，请改为在启动应用前设置 PI_WORKBENCH_UPDATE_TOKEN。",
     updateInProgress: "更新操作正在进行，请完成后再修改设置。",
     error: "桌面操作失败，请重试以重新加载已保存的设置。",
     updateStatus: {
@@ -72,7 +67,7 @@ export const desktopRendererZhCN = {
       available: "有新版本可用。",
       downloading: "正在下载…",
       downloaded: "下载完成，可以安装。",
-      error: "更新失败，请检查令牌、网络连接和仓库的更新文件。",
+      error: "更新失败，请检查网络连接和仓库的更新文件。",
     },
     version: ({ version }: { version: string }) => `当前版本 ${version}`,
     progress: ({ percent }: { percent: number }, { number }: MessageFormatters) =>
