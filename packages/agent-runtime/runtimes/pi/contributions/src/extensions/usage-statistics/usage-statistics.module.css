@@ -1,0 +1,69 @@
+.calendar {
+  min-width: 36rem;
+}
+
+.cells {
+  display: grid;
+  grid-template-rows: repeat(7, auto);
+  grid-auto-flow: column;
+  gap: 0.2rem;
+}
+
+.cell {
+  display: block;
+  aspect-ratio: 1;
+  border-radius: min(var(--radius-sm), 0.25rem);
+  background: color-mix(in oklab, var(--foreground) 7%, var(--muted));
+}
+
+.cell[data-level="1"] {
+  background: color-mix(in oklab, var(--info) 25%, var(--muted));
+}
+.cell[data-level="2"] {
+  background: color-mix(in oklab, var(--info) 45%, var(--muted));
+}
+.cell[data-level="3"] {
+  background: color-mix(in oklab, var(--info) 70%, var(--muted));
+}
+.cell[data-level="4"] {
+  background: var(--info);
+}
+
+.legendCell {
+  width: 0.75rem;
+}
+
+.trend {
+  width: 100%;
+  min-width: 30rem;
+}
+
+.trendDrawing {
+  animation: draw-trend 800ms ease-out;
+}
+
+.trendPoint {
+  stroke: transparent;
+  stroke-width: 16;
+  pointer-events: all;
+}
+
+.trendPoint[data-popup-open],
+.trendPoint:focus-visible {
+  r: 4;
+}
+
+@keyframes draw-trend {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trendDrawing {
+    animation: none;
+  }
+}

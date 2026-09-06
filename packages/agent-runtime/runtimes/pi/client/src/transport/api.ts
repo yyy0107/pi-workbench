@@ -99,6 +99,8 @@ import type {
   SessionHistoryValue,
   SessionListPayload,
   SessionListValue,
+  UsageStatisticsPayload,
+  UsageStatisticsValue,
   SessionModelsPayload,
   SessionModelsValue,
   SessionPromptPayload,
@@ -700,6 +702,13 @@ export function listPiRpcSessions(
   options?: PiRpcCallOptions,
 ): Promise<SessionListValue> {
   return callPiRpc("session.list", payload, options);
+}
+
+export function fetchUsageStatistics(
+  payload: UsageStatisticsPayload,
+  options?: PiRpcCallOptions,
+): Promise<UsageStatisticsValue> {
+  return callPiRpc("usage.statistics", payload, options);
 }
 
 export function searchPiRpcSessions(

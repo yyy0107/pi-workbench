@@ -4677,6 +4677,15 @@ export async function listSessionSearchText(): Promise<
   }));
 }
 
+/** Stored conversations, including archives, without activating idle AgentSessions. */
+export async function listSessionFiles(): Promise<string[]> {
+  const registry = await ensurePersistedSessionCache();
+  await registry.persistedSessionCacheTask;
+  return [...registry.persistedSessions.values()]
+    .filter((session) => !registry.scratchSessions.has(session.id))
+    .map((session) => session.path);
+}
+
 export async function listModels(cwd: string): Promise<PiModelListResponse> {
   const services = await modelServices(cwd);
   const available = services.modelRuntime.getAvailableSnapshot();

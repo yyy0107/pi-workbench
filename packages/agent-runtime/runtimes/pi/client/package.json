@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./usage-statistics": {
+      "types": "./src/public/usage-statistics.ts",
+      "import": "./src/public/usage-statistics.ts",
+      "default": "./src/public/usage-statistics.ts"
+    },
     "./installation": {
       "types": "./src/public/installation.tsx",
       "import": "./src/public/installation.tsx",

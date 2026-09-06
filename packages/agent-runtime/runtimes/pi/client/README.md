@@ -40,6 +40,7 @@ Workbench settings port。Pi Contributions 只消费以下专属入口：
 - `./resources`：Toolbox 的 Skill、Extension、Prompt、Package 及资源文件；
 - `./context-trace`：Pi trace 查询、事件订阅和 Data Block 投影；
 - `./external-import`：外部会话扫描与导入；
+- `./usage-statistics`：按本地日期读取已保存会话的 Token 与聊天活动汇总；
 - `./host`、`./workspace`：Pi Version/Toolbox 所需的只读订阅；
 - `./errors`：Pi 专属错误及资源文件边界的 Workbench 错误映射。
 

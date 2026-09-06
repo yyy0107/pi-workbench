@@ -30,6 +30,30 @@ export type {
 import type { InlineDocumentMediaType, InlineImageMediaType } from "./attachments";
 import type { PiRunTiming } from "./messages";
 
+export interface UsageStatisticsPayload {
+  timeZone: string;
+}
+
+export interface UsageStatisticsDay {
+  /** Gregorian calendar date in the requested time zone (YYYY-MM-DD). */
+  date: string;
+  tokens: number;
+  messages: number;
+  models: Array<{ provider: string; model: string; tokens: number }>;
+}
+
+export interface UsageStatisticsValue {
+  generatedAt: string;
+  today: string;
+  timeZone: string;
+  totalTokens: number;
+  peakDailyTokens: number;
+  longestChatMs: number;
+  currentStreak: number;
+  longestStreak: number;
+  days: UsageStatisticsDay[];
+}
+
 import type { RpcSuccess } from "@workbench/host-contracts/rpc";
 export type {
   RpcIssuePathSegment,

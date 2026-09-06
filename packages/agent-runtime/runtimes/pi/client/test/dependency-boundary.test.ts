@@ -29,6 +29,7 @@ test("publishes only Pi contribution facades and application installation entrie
     "./workspace",
     "./external-import",
     "./context-trace",
+    "./usage-statistics",
   ];
 
   assert.deepEqual(Object.keys(manifest.exports).sort(), required.sort());

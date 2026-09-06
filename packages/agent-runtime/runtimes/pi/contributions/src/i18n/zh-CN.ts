@@ -5,6 +5,54 @@ import { piBuiltinPromptsZhCN } from "@workbench/agent-runtime-pi-shared/builtin
 
 export const piExtensionsZhCN = {
   extensions: {
+    usageStatistics: {
+      title: "使用统计",
+      description: "查看 Token 用量与聊天活动记录。",
+      allConversations: "全部已保存会话，包含归档",
+      totalTokens: "累计 Token 数",
+      peakTokens: "峰值 Token 数",
+      longestChat: "最长聊天时长",
+      currentStreak: "当前连续天数",
+      longestStreak: "最长连续天数",
+      tokenDefinition: "助手消息报告的输入、输出、缓存读取和缓存写入 Token 总量。",
+      peakDefinition: "单个自然日内的最高 Token 总用量。",
+      durationDefinition: "单次已保存会话首条至末条消息的时间跨度，包含空闲时间。",
+      streakDefinition: "有用户或助手消息的连续日期；当前连续记录可延续至今天或昨天。",
+      activity: "Token 活动",
+      activityMode: "Token 活动汇总方式",
+      modes: { daily: "每日", weekly: "每周", cumulative: "累计" },
+      modeDescriptions: {
+        daily: "过去一年的每日 Token 用量",
+        weekly: "按周汇总，每周从周日开始",
+        cumulative: "截至每天的历史累计 Token 用量",
+      },
+      activitySummary: ({ start, end }: { start: string; end: string }) =>
+        `${start} 至 ${end} 的 Token 活动。`,
+      dayValue: ({ date, count }: { date: string; count: string }) => `${date}：${count} Token`,
+      weekValue: ({ date, count }: { date: string; count: string }) =>
+        `${date} 起的一周：${count} Token`,
+      modelDayValue: ({ date, model, count }: { date: string; model: string; count: string }) =>
+        `${date} · ${model}：${count} Token`,
+      tokenValue: ({ count }: { count: string }) => `${count} Token`,
+      timeRange: "时间范围",
+      recentDays: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `近 ${number(count)} 日`,
+      trend: "每日 Token 趋势图",
+      providerGroup: "提供方分组",
+      allProviders: "全部提供方",
+      providerGroupingHint: "按提供方汇总，选择一个提供方可查看旗下模型。",
+      modelGroupingHint: "按模型显示当前提供方的 Token 用量。",
+      unknownProvider: "未知提供方",
+      unknownModel: "未知模型",
+      refresh: "刷新",
+      updatedAt: ({ time }: { time: string }) => `更新于 ${time}`,
+      loading: "正在加载使用统计…",
+      loadFailed: "无法加载使用统计，请检查运行时连接后点击刷新重试。",
+      empty: "暂无聊天活动，开始聊天后即可查看统计。",
+      noRangeUsage: "此时间范围内暂无 Token 用量记录。",
+      scope: ({ timeZone }: { timeZone: string }) =>
+        `统计基于已保存的用户和助手消息，包含归档会话；已删除会话不计入，分支继承的消息只计一次。Token 包含助手消息报告的输入、输出、缓存读取和缓存写入用量，峰值为单日最高用量。聊天时长为会话首条至末条消息的跨度，包含空闲时间。活动按 ${timeZone} 划分日期，当前连续记录可延续至今天或昨天。`,
+    },
     about: {
       title: "关于",
       productDescription: "一个为 Pi 深度适配的本地优先开发工作台",

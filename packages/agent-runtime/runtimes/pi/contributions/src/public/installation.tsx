@@ -13,6 +13,7 @@ import { contextTraceExtension } from "../extensions/context-trace";
 import { settingModelConfigExtension } from "../extensions/setting-model-config";
 import { piSettingsActionExtension } from "../extensions/settings";
 import { toolboxExtension } from "../extensions/toolbox";
+import { usageStatisticsExtension } from "../extensions/usage-statistics/extension";
 import { createPiResourceFileBackend } from "../services/pi-resource-file-backend";
 
 /**
@@ -21,7 +22,11 @@ import { createPiResourceFileBackend } from "../services/pi-resource-file-backen
  */
 export const piAgentRuntimeExtensionGroups = Object.freeze({
   agentConfiguration: Object.freeze([agentConfigurationExtension]),
-  configuration: Object.freeze([settingModelConfigExtension, piSettingsActionExtension]),
+  configuration: Object.freeze([
+    settingModelConfigExtension,
+    piSettingsActionExtension,
+    usageStatisticsExtension,
+  ]),
   toolbox: Object.freeze([toolboxExtension]),
   diagnostics: Object.freeze([connectionStatusExtension, contextTraceExtension, aboutExtension]),
 });

@@ -19,6 +19,7 @@ test("keeps Pi extension groups deeply frozen with their app-composition orderin
     "workbench.agent-configuration",
     "workbench.setting-model-config",
     "workbench.pi.settings-action",
+    "workbench.usage-statistics",
     "workbench.toolbox",
     "workbench.connection-status",
     "workbench.context-trace",
@@ -57,4 +58,19 @@ test("installs the localized About settings page with the import entry removed",
   activation.dispose();
   assert.equal(manager.settings.getSections().length, 0);
   assert.equal(manager.settings.getItems().length, 0);
+});
+
+test("registers usage statistics in the Data settings group in both base languages", () => {
+  const manager = new ExtensionManager();
+  const extension = piAgentRuntimeExtensions.find(({ id }) => id === "workbench.usage-statistics");
+  assert.ok(extension);
+  const activation = manager.activate(extension);
+  const section = manager.settings.getSections().find(({ id }) => id === "usage-statistics");
+  assert.ok(section);
+  assert.equal(section.group?.id, "data");
+  assert.equal(createPiI18n("en-US").text(section.title), "Usage statistics");
+  assert.equal(createPiI18n("zh-CN").text(section.title), "使用统计");
+  assert.ok(manager.settings.getItems().some(({ sectionId }) => sectionId === section.id));
+  activation.dispose();
+  assert.equal(manager.settings.getSections().length, 0);
 });

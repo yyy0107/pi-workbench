@@ -5,6 +5,8 @@ import type { CommandCatalogProtocol } from "../commands/command-service";
 import { ExtensionService } from "../extensions/extension-service";
 import { HostService } from "../host/host-service";
 import { getExternalSessionImportService } from "../imports/external-session-import-service";
+import { readUsageStatistics } from "../sessions/usage-statistics";
+import { createUsageStatisticsRpcRoutes } from "./routes/usage-statistics-rpc-routes";
 import { ModelService } from "../models/model-service";
 import { getPiPackageCatalogService } from "../packages/package-catalog-service";
 import { InstalledPackageService } from "../packages/installed-package-service";
@@ -73,6 +75,7 @@ import { projectRpcDomainError } from "@workbench/host-server/rpc";
 
 /** Injectable dependencies for the ordered Pi RPC route-group composition. */
 export interface PiRpcRouteGroupsDependencies {
+  readonly usageStatistics: Parameters<typeof createUsageStatisticsRpcRoutes>[0];
   readonly session: SessionRpcRoutesDependencies;
   readonly sessionContextTrace: SessionContextTraceRpcRoutesDependencies;
   readonly externalSessionImport: ExternalSessionImportRpcRoutesDependencies;
@@ -94,6 +97,7 @@ export function createPiRpcRouteGroups(
   dependencies: PiRpcRouteGroupsDependencies,
 ): readonly RpcRouteGroup[] {
   return [
+    createUsageStatisticsRpcRoutes(dependencies.usageStatistics),
     createSessionRpcRoutes(dependencies.session),
     createSessionContextTraceRpcRoutes(dependencies.sessionContextTrace),
     createExternalSessionImportRpcRoutes(dependencies.externalSessionImport),
@@ -143,6 +147,7 @@ export function createDefaultPiRpcRouteGroups({
   const domainErrors = { projectDomainError: projectRpcDomainError } as const;
 
   return createPiRpcRouteGroups({
+    usageStatistics: { readUsage: readUsageStatistics },
     session: { protocol: sessionProtocolFacade, ...domainErrors },
     sessionContextTrace: { service: sessionContextTraceService, ...domainErrors },
     externalSessionImport: { service: externalSessionImportService },

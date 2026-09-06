@@ -3,6 +3,58 @@ import { piBuiltinPromptsEnUS } from "@workbench/agent-runtime-pi-shared/builtin
 
 export const piExtensionsEnUS = {
   extensions: {
+    usageStatistics: {
+      title: "Usage statistics",
+      description: "Explore your token usage and conversation activity.",
+      allConversations: "All saved conversations, including archives",
+      totalTokens: "Total tokens",
+      peakTokens: "Peak tokens",
+      longestChat: "Longest conversation",
+      currentStreak: "Current streak",
+      longestStreak: "Longest streak",
+      tokenDefinition:
+        "Input, output, cache read, and cache write tokens reported by assistant messages.",
+      peakDefinition: "The highest total token usage in a single calendar day.",
+      durationDefinition:
+        "Time between the first and last messages of a saved conversation, including idle time.",
+      streakDefinition:
+        "Consecutive days with user or assistant messages. The current streak may end today or yesterday.",
+      activity: "Token activity",
+      activityMode: "Token activity aggregation",
+      modes: { daily: "Daily", weekly: "Weekly", cumulative: "Cumulative" },
+      modeDescriptions: {
+        daily: "Daily token usage over the past year",
+        weekly: "Weekly totals, with weeks starting on Sunday",
+        cumulative: "All-time tokens accumulated through each day",
+      },
+      activitySummary: ({ start, end }: { start: string; end: string }) =>
+        `Token activity from ${start} to ${end}.`,
+      dayValue: ({ date, count }: { date: string; count: string }) => `${date}: ${count} tokens`,
+      weekValue: ({ date, count }: { date: string; count: string }) =>
+        `Week of ${date}: ${count} tokens`,
+      modelDayValue: ({ date, model, count }: { date: string; model: string; count: string }) =>
+        `${date} · ${model}: ${count} tokens`,
+      tokenValue: ({ count }: { count: string }) => `${count} tokens`,
+      timeRange: "Time range",
+      recentDays: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `Last ${number(count)} days`,
+      trend: "Daily token trend",
+      providerGroup: "Provider group",
+      allProviders: "All providers",
+      providerGroupingHint: "Grouped by provider. Select a provider to see its models.",
+      modelGroupingHint: "Token usage by model for the selected provider.",
+      unknownProvider: "Unknown provider",
+      unknownModel: "Unknown model",
+      refresh: "Refresh",
+      updatedAt: ({ time }: { time: string }) => `Updated ${time}`,
+      loading: "Loading usage statistics…",
+      loadFailed:
+        "Could not load usage statistics. Check the runtime connection and try refreshing.",
+      empty: "No conversation activity yet. Statistics will appear after you start chatting.",
+      noRangeUsage: "No recorded token usage in this period.",
+      scope: ({ timeZone }: { timeZone: string }) =>
+        `Based on saved user and assistant messages, including archived conversations; deleted conversations are excluded and inherited fork messages are counted once. Tokens include input, output, cache reads, and cache writes reported by assistant messages. Peak is the daily maximum. Conversation duration spans the first to last message, including idle time. Activity uses ${timeZone}; the current streak may end today or yesterday.`,
+    },
     about: {
       title: "About",
       productDescription: "A local-first development workspace purpose-built for Pi.",
