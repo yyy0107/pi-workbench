@@ -29,6 +29,10 @@ export function applySidebarResizePreview(
   shell?.style.setProperty("--sidebar-width", `${preview.layoutWidth}px`);
   shell?.style.setProperty("--sidebar-content-width", `${preview.contentWidth}px`);
   shell?.style.setProperty("--sidebar-resize-translate-x", `${preview.translateX}px`);
+  shell?.style.setProperty(
+    "--sidebar-collapse-progress",
+    String(minimumWidth > 0 ? Math.max(0, 1 - preview.layoutWidth / minimumWidth) : 0),
+  );
   if (preview.layoutWidth < minimumWidth) {
     shell?.setAttribute("data-sidebar-collapse-preview", "true");
   } else {
@@ -54,7 +58,7 @@ export function SidebarResizeHandle({
   onResize,
 }: SidebarResizeHandleProps) {
   const { t } = useI18n();
-  const { setOpen } = useSidebar();
+  const { setOpen, setCollapsePreview } = useSidebar();
 
   return (
     <CollapsibleResizeHandle
@@ -69,10 +73,17 @@ export function SidebarResizeHandle({
       getSnapPoints={() => [NORMAL_SIDEBAR_WIDTH, WIDE_SIDEBAR_WIDTH]}
       onPreview={(nextWidth) => {
         applySidebarResizePreview(sidebarLayoutRef.current, shellRef.current, nextWidth, minWidth);
+        setCollapsePreview(nextWidth < minWidth);
       }}
       onCommit={onResize}
       onOpenChange={setOpen}
       onResizingChange={(resizing) => {
+        if (!resizing) {
+          setCollapsePreview(false);
+          shellRef.current?.removeAttribute("data-sidebar-collapse-preview");
+        }
+        if (resizing) shellRef.current?.setAttribute("data-sidebar-resizing", "true");
+        else shellRef.current?.removeAttribute("data-sidebar-resizing");
         for (const element of [sidebarLayoutRef.current, shellRef.current]) {
           if (resizing) element?.setAttribute("data-resizing", "true");
           else element?.removeAttribute("data-resizing");

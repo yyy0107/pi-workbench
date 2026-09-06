@@ -176,35 +176,37 @@ export function SettingsMainViewContent({ view }: MainViewProps<SettingsMainView
   }, [allItems]);
 
   return (
-    <div
-      ref={rootRef}
-      data-settings-main-view=""
-      className="h-full min-h-0 overflow-y-auto bg-background px-4 py-6 sm:px-8 sm:py-10 lg:px-12"
-    >
-      <div className="mx-auto w-full max-w-4xl">
-        {activeSection ? (
-          sections
-            .filter(
-              (section) => section.id === activeSection.id || activatedSectionIds.has(section.id),
-            )
-            .map((section) => {
-              const items = itemsBySection.get(section.id) ?? EMPTY_ITEMS;
-              const active = section.id === activeSection.id;
-              return (
-                <SettingsSectionPanel
-                  key={section.id}
-                  active={active}
-                  domScopeId={domScopeId}
-                  items={items}
-                  section={section}
-                />
-              );
-            })
-        ) : (
-          <div className="text-muted-foreground flex size-full items-center justify-center text-sm">
-            {t("extensions.settings.empty")}
-          </div>
-        )}
+    <div className="flex h-full min-h-0 min-w-0">
+      <div
+        ref={rootRef}
+        data-settings-main-view=""
+        className="h-full min-h-0 min-w-0 flex-1 overflow-y-auto bg-background px-4 py-6 sm:px-8 sm:py-10 lg:px-12"
+      >
+        <div className="mx-auto w-full max-w-4xl">
+          {activeSection ? (
+            sections
+              .filter(
+                (section) => section.id === activeSection.id || activatedSectionIds.has(section.id),
+              )
+              .map((section) => {
+                const items = itemsBySection.get(section.id) ?? EMPTY_ITEMS;
+                const active = section.id === activeSection.id;
+                return (
+                  <SettingsSectionPanel
+                    key={section.id}
+                    active={active}
+                    domScopeId={domScopeId}
+                    items={items}
+                    section={section}
+                  />
+                );
+              })
+          ) : (
+            <div className="text-muted-foreground flex size-full items-center justify-center text-sm">
+              {t("extensions.settings.empty")}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

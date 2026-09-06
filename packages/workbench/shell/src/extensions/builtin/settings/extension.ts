@@ -8,6 +8,7 @@ import { OnboardingSettingsItem } from "./onboarding-settings-item";
 import { openSettingsCommand } from "./settings-command";
 import { SETTINGS_MAIN_VIEW_KIND } from "./settings-main-view";
 import { SettingsMainViewContent } from "./settings-main-view-content";
+import { SettingsSidebarRail } from "./settings-sidebar-rail";
 import { SettingsSidebar } from "./settings-sidebar";
 import { SidebarSettingsTrigger } from "./settings-trigger";
 
@@ -55,6 +56,7 @@ export const settingsExtension = defineExtension({
       kind: SETTINGS_MAIN_VIEW_KIND,
       component: SettingsMainViewContent,
       sidebar: SettingsSidebar,
+      sidebarRail: SettingsSidebarRail,
       chrome: {
         productIcon: "hidden",
         headerLeft: "hidden",

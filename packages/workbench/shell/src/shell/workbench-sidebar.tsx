@@ -241,6 +241,9 @@ export function WorkbenchSidebar({
   }, [maxWidth, minWidth, shellRef]);
 
   useLayoutEffect(() => {
+    // Preserve the drag's final zero width when committing a collapse. Restoring the
+    // expanded width here would replay the collapse transition after pointer release.
+    if (state !== "expanded") return;
     applySidebarResizePreview(sidebarLayoutRef.current, shellRef.current, renderedWidth, minWidth);
   }, [minWidth, renderedWidth, shellRef, state]);
 
@@ -309,6 +312,9 @@ export function WorkbenchSidebar({
           ) : null}
         </aside>
       </div>
+      <MainViewSidebarHost rail mobile={isMobile}>
+        {null}
+      </MainViewSidebarHost>
       {isMobile ? (
         <Sidebar
           data-workbench-surface="sidebar"

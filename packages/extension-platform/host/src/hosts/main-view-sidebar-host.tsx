@@ -10,10 +10,12 @@ const NO_MAIN_VIEW = undefined;
 export function MainViewSidebarHost({
   children,
   mobile,
+  rail = false,
   onNavigate,
 }: Readonly<{
   children: ReactNode;
   mobile: boolean;
+  rail?: boolean;
   onNavigate?: () => void;
 }>) {
   const { mainViews, manager, reportError } = useExtensionEnvironment();
@@ -32,15 +34,18 @@ export function MainViewSidebarHost({
     () => NO_MAIN_VIEW,
   );
 
-  if (!activeView || !definition?.sidebar) return children;
-
-  const MainViewSidebar = definition.sidebar;
+  const MainViewSidebar = rail ? definition?.sidebarRail : definition?.sidebar;
+  if (!activeView || !MainViewSidebar) return children;
 
   return (
-    <div className="h-full min-h-0" data-main-view-sidebar-host={definition.kind}>
+    <div
+      className="h-full min-h-0 shrink-0"
+      data-main-view-sidebar-host={activeView.kind}
+      data-main-view-sidebar-rail={rail ? "" : undefined}
+    >
       <ExtensionErrorBoundary
-        key={definition.kind}
-        contributionId={`${definition.kind}.sidebar`}
+        key={activeView.kind}
+        contributionId={`${activeView.kind}.sidebar`}
         source="main-view"
         resetKey={activeView.revision}
         fallback={children}

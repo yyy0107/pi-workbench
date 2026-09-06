@@ -23,7 +23,6 @@ export function WorkbenchBrandToggle() {
 
   const expanded = isMobile ? openMobile : state === "expanded";
   const productIconHidden = activeMainView?.chrome?.productIcon === "hidden";
-  if (productIconHidden && !isMobile && expanded) return null;
 
   const label = t(
     isMobile

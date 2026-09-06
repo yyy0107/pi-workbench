@@ -911,6 +911,7 @@ export const extensionsZhCN = {
     emptySection: "此分区暂时没有可用的设置项。",
     groups: {
       basics: "基础",
+      other: "其它",
       appearance: "外观",
       intelligence: "智能",
       capabilities: "能力",

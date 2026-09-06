@@ -47,3 +47,10 @@
 [data-workbench-shell][data-window-resizing="true"] {
   --layout-motion-duration: 0ms;
 }
+
+/* A full-height navigation rail already reserves the shared toggle's column. */
+[data-workbench-shell]:has([data-main-view-sidebar-rail])
+  [data-workbench-surface="header"]
+  > :first-child {
+  padding-inline-start: 0;
+}

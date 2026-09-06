@@ -81,6 +81,8 @@ export interface MainViewDefinition<P extends Record<string, unknown> = Record<s
   component: MainViewRenderer<P>;
   /** Optional feature navigation rendered inside the existing Workbench Sidebar frame. */
   sidebar?: MainViewSidebarRenderer<P>;
+  /** Optional full-height compact navigation beside the workspace, including its header. */
+  sidebarRail?: MainViewSidebarRenderer<P>;
   /** Optional visibility choices for shared Workbench chrome while this view is active. */
   chrome?: MainViewChromeOptions;
 }

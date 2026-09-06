@@ -3,6 +3,21 @@ import { piBuiltinPromptsEnUS } from "@workbench/agent-runtime-pi-shared/builtin
 
 export const piExtensionsEnUS = {
   extensions: {
+    about: {
+      title: "About",
+      tagline: "Open-source AI agent workspace.",
+      productDescription:
+        "A local-first development tool for projects and persistent agent sessions, with workspace files, model configuration, and real terminals on Web and desktop.",
+      version: "Version",
+      license: "License",
+      source: "Source",
+      builtWith: "Built with",
+      contribute: "Contribute",
+      issues: "Issues",
+      pullRequests: "Pull Requests",
+      openExternal: ({ label }: { label: string }) => `${label} (opens externally)`,
+      unavailable: "Unavailable",
+    },
     externalSessionImport: {
       title: "Import",
       description:

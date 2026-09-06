@@ -933,6 +933,7 @@ export const extensionsEnUS = {
     emptySection: "No settings are available in this section yet.",
     groups: {
       basics: "Basics",
+      other: "Other",
       appearance: "Appearance",
       intelligence: "AI",
       capabilities: "Capabilities",

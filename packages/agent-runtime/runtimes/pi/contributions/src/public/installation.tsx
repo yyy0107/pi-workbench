@@ -6,6 +6,7 @@ import { usePiResourceClient } from "@workbench/agent-runtime-pi-client/resource
 import type { WorkbenchExtension } from "@workbench/extension-sdk";
 import { WorkbenchWorkspaceFileRuntimeProvider } from "@workbench/shell/workspace-files";
 
+import { aboutExtension } from "../extensions/about";
 import { agentConfigurationExtension } from "../extensions/agent-configuration";
 import { connectionStatusExtension } from "../extensions/connection-status";
 import { contextTraceExtension } from "../extensions/context-trace";
@@ -27,6 +28,7 @@ export const piAgentRuntimeExtensionGroups = Object.freeze({
     connectionStatusExtension,
     contextTraceExtension,
     externalSessionImportExtension,
+    aboutExtension,
   ]),
 });
 

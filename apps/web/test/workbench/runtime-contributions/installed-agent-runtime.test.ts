@@ -259,6 +259,7 @@ test("preserves the product-owned cross-package extension activation order", () 
     "workbench.connection-status",
     "workbench.context-trace",
     "workbench.external-session-import",
+    "workbench.about",
     "workbench.token-usage",
     "workbench.workspace-file",
   ]);
