@@ -482,7 +482,7 @@ async function preparePackage({
     paths,
     outfile: path.join(paths.electronAppStagingRoot, "electron", "server-process-lifecycle.cjs"),
   });
-  const iconRelativePath = "app-icon.svg";
+  const iconRelativePath = "app-icon.png";
   if (!stagedRendererArtifact.manifest.files.some((file) => file.path === iconRelativePath)) {
     throw new Error("The Desktop renderer artifact does not own the Electron icon resource.");
   }

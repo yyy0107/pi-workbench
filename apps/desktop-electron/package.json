@@ -60,12 +60,12 @@
       "electron/runtime-artifact-environment.cjs",
       "electron/server-process-lifecycle.cjs",
       "electron/title-bar-overlay.cjs",
-      "public/app-icon.svg",
+      "public/app-icon.png",
       "!node_modules/**/*"
     ],
     "afterPack": "scripts/after-pack.cjs",
     "artifactName": "Pi-Workbench-${version}-${os}-${arch}.${ext}",
-    "icon": "../../.electron-build/app/public/app-icon.svg",
+    "icon": "../../.electron-build/app/public/app-icon.png",
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": [

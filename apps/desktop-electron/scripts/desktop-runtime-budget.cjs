@@ -422,7 +422,7 @@ async function assertDesktopRuntimeBudget(
   }
   if (
     publicEntries.length !== 1 ||
-    publicEntries[0]?.name !== "app-icon.svg" ||
+    publicEntries[0]?.name !== "app-icon.png" ||
     !publicEntries[0].isFile() ||
     publicEntries[0].isSymbolicLink()
   ) {

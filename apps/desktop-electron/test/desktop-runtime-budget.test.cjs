@@ -46,7 +46,7 @@ function fixture(t) {
   for (const filename of ELECTRON_RUNTIME_FILES) {
     writeFile(path.join(appRoot, "electron", filename), "module.exports = {};\n");
   }
-  writeFile(path.join(appRoot, "public", "app-icon.svg"), "<svg/>\n");
+  writeFile(path.join(appRoot, "public", "app-icon.png"), "icon-fixture\n");
   writeFile(path.join(runtimeRoot, "desktop-artifacts.json"), "{}\n");
   writeFile(path.join(runtimeRoot, "desktop-artifact-support.cjs"), "module.exports = {};\n");
   writeFile(path.join(rendererRoot, "artifact-manifest.json"), "{}\n");
@@ -160,7 +160,7 @@ test("rejects source and test payloads in the static renderer", async (t) => {
 
 test("does not classify an ordinary hyphenated asset directory as test code", (t) => {
   const value = fixture(t);
-  writeFile(path.join(value.rendererRoot, "assets", "folder-test.svg"), "<svg/>\n");
+  writeFile(path.join(value.rendererRoot, "assets", "folder-test.svg"), "icon-fixture\n");
   const report = inspectTree(value.rendererRoot);
   assert.equal(report.testFiles.includes("assets/folder-test.svg"), false);
 });

@@ -28,25 +28,6 @@ export function isPiRunningIndicatorWordmarkStyle(
   return styleId === "pi-wordmark-on-light" || styleId === "pi-wordmark-on-dark";
 }
 
-const PI_LOGO_PRIMARY_PATH = `
-  M165.29 165.29
-  H517.36
-  V400
-  H400
-  V517.36
-  H282.65
-  V634.72
-  H165.29
-  Z
-  M282.65 282.65
-  V400
-  H400
-  V282.65
-  Z
-`;
-
-const PI_LOGO_SECONDARY_PATH = "M517.36 400 H634.72 V634.72 H517.36 Z";
-
 const PI_WORKING_WORDMARK_PIXELS = [
   [0, 0],
   [16, 0],
@@ -223,7 +204,7 @@ function PiLogoShine({
   paused,
   className,
 }: Readonly<{ inverted: boolean } & RunningIndicatorRenderProps>) {
-  const clipPathId = useId();
+  const maskId = useId();
   const gradientId = useId();
   const { productLogoUrl } = useWorkbenchBranding();
   const shineColor = inverted ? "#09090b" : "#ffffff";
@@ -238,10 +219,17 @@ function PiLogoShine({
       className={className}
     >
       <defs>
-        <clipPath id={clipPathId}>
-          <path d={PI_LOGO_PRIMARY_PATH} fillRule="evenodd" clipRule="evenodd" />
-          <path d={PI_LOGO_SECONDARY_PATH} />
-        </clipPath>
+        <mask
+          id={maskId}
+          maskUnits="userSpaceOnUse"
+          x="0"
+          y="0"
+          width="800"
+          height="800"
+          style={{ maskType: "alpha" }}
+        >
+          <image href={productLogoUrl} x="0" y="0" width="800" height="800" />
+        </mask>
         <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor={shineColor} stopOpacity="0" />
           <stop offset="38%" stopColor={shineColor} stopOpacity="0" />
@@ -259,7 +247,7 @@ function PiLogoShine({
         preserveAspectRatio="xMidYMid meet"
         style={inverted ? { filter: "invert(1)" } : undefined}
       />
-      <g clipPath={`url(#${clipPathId})`}>
+      <g mask={`url(#${maskId})`}>
         <g transform="rotate(-22 400 400)">
           <rect x="-500" y="0" width="240" height="800" fill={`url(#${gradientId})`} opacity="0.9">
             {paused ? null : (

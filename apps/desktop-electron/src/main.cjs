@@ -214,13 +214,17 @@ function openExternalUrl(rawUrl, workbenchOrigin) {
 
 function createMainWindow(workbenchUrl) {
   const workbenchOrigin = navigationOrigin(workbenchUrl);
+  const iconPath = app.isPackaged
+    ? path.join(app.getAppPath(), "public", "app-icon.png")
+    : path.resolve(app.getAppPath(), "..", "desktop-renderer", "public", "app-icon.png");
+  if (process.platform === "darwin") app.dock.setIcon(iconPath);
   rendererTitleBarOverlayOptions = undefined;
   const window = new BrowserWindow({
     width: 1440,
     height: 960,
     minWidth: 480,
     minHeight: 640,
-    icon: app.isPackaged ? path.join(app.getAppPath(), "public", "app-icon.svg") : undefined,
+    icon: iconPath,
     show: false,
     backgroundColor: "#09090b",
     autoHideMenuBar: process.platform !== "darwin",

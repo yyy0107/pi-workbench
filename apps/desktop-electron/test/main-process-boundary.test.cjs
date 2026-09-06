@@ -104,3 +104,12 @@ test("Electron packages the curated renderer/runtime tree as an opaque resource"
   );
   assert.equal(projectPackage.build.afterPack, "scripts/after-pack.cjs");
 });
+
+test("Electron packages a high-resolution native PNG icon", () => {
+  assert.equal(projectPackage.build.icon, "../../.electron-build/app/public/app-icon.png");
+  assert.ok(projectPackage.build.files.includes("public/app-icon.png"));
+  const icon = readFileSync(path.join(__dirname, "../../desktop-renderer/public/app-icon.png"));
+  assert.equal(icon.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  assert.equal(icon.readUInt32BE(16), 1024);
+  assert.equal(icon.readUInt32BE(20), 1024);
+});

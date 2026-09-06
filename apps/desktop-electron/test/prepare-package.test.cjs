@@ -107,7 +107,7 @@ test("stages only admitted renderer and Runtime artifacts", async (t) => {
   const sourceRenderer = {
     artifactRoot: paths.desktopRendererArtifactRoot,
     manifestPath: paths.desktopRendererArtifactManifestPath,
-    manifest: { buildId: "renderer-build", files: [{ path: "app-icon.svg" }] },
+    manifest: { buildId: "renderer-build", files: [{ path: "app-icon.png" }] },
   };
   const sourceRuntime = {
     artifactRoot: path.join(paths.runtimeArtifactRoot, "electron-target"),
@@ -128,7 +128,7 @@ test("stages only admitted renderer and Runtime artifacts", async (t) => {
     async stageRenderer({ destinationRoot }) {
       assert.equal(destinationRoot, paths.desktopRendererArtifactStagingRoot);
       writeFile(path.join(destinationRoot, "artifact-manifest.json"), "{}\n");
-      writeFile(path.join(destinationRoot, "app-icon.svg"), "<svg/>\n");
+      writeFile(path.join(destinationRoot, "app-icon.png"), "icon-fixture\n");
       stagedRenderer = {
         artifactRoot: destinationRoot,
         manifestPath: path.join(destinationRoot, "artifact-manifest.json"),
@@ -183,8 +183,8 @@ test("stages only admitted renderer and Runtime artifacts", async (t) => {
     runtimeArtifactManifest: "runtime-node/electron-target/artifact-manifest.json",
   });
   assert.equal(
-    readFileSync(path.join(paths.electronAppStagingRoot, "public", "app-icon.svg"), "utf8"),
-    "<svg/>\n",
+    readFileSync(path.join(paths.electronAppStagingRoot, "public", "app-icon.png"), "utf8"),
+    "icon-fixture\n",
   );
   assert.equal(existsSync(path.join(paths.desktopRuntimeStagingRoot, "web")), false);
 });

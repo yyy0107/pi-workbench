@@ -327,7 +327,7 @@ function assertProjectElectronBuilderConfig(
       `Project electron-builder output directory ${configuredOutputDirectory} does not match budget output ${path.resolve(expectedOutputDirectory)}.`,
     );
   }
-  const expectedIcon = path.join(path.resolve(expectedAppDirectory), "public", "app-icon.svg");
+  const expectedIcon = path.join(path.resolve(expectedAppDirectory), "public", "app-icon.png");
   if (configuredIcon !== expectedIcon) {
     throw new Error(
       `Project Electron icon ${configuredIcon} does not match the staged manifest-owned icon ${expectedIcon}.`,
