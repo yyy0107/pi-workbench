@@ -1,5 +1,16 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, readdir, rm, stat, utimes, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  stat,
+  symlink,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { hostname, tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
@@ -129,6 +140,48 @@ test("creates, idempotently canonicalizes, renames, and metadata-deletes workspa
       "host/workspace-order-changed",
     ],
   );
+});
+
+test("reuses persisted workspace identities after their paths become symlink aliases", async (t) => {
+  for (const operation of ["create", "reconcile", "unarchive"] as const) {
+    const files = await fixture(t);
+    const originalPath = await files.workspace("project");
+    const store = new WorkspaceStore({ stateFile: files.stateFile });
+    const { workspace } = await store.create(originalPath);
+    await store.attachSession(workspace.workspaceId, "existing-session");
+    await store.setPinned(workspace.workspaceId, true);
+
+    const relocatedPath = path.join(files.root, "relocated-project");
+    await rename(originalPath, relocatedPath);
+    await symlink(relocatedPath, originalPath, "junction");
+    const reopened = new WorkspaceStore({ stateFile: files.stateFile });
+    const events: WorkspaceStoreEvent[] = [];
+    reopened.subscribe((event) => events.push(event));
+
+    if (operation === "create") {
+      for (const requestedPath of [originalPath, relocatedPath]) {
+        const result = await reopened.create(requestedPath);
+        assert.equal(result.created, false);
+        assert.equal(result.workspace.workspaceId, workspace.workspaceId);
+      }
+    } else if (operation === "reconcile") {
+      await reopened.reconcile([{ id: "new-session", cwd: relocatedPath }]);
+    } else {
+      await reopened.archiveSession({ sessionId: "new-session" });
+      await reopened.unarchiveSession({ id: "new-session", cwd: relocatedPath });
+    }
+
+    const state = await reopened.list();
+    assert.equal(state.items.length, 1);
+    assert.equal(state.items[0].workspaceId, workspace.workspaceId);
+    assert.equal(state.items[0].title, workspace.title);
+    assert.deepEqual(state.pinnedWorkspaceIds, [workspace.workspaceId]);
+    assert.deepEqual(
+      [...state.items[0].sessionIds].sort(),
+      operation === "create" ? ["existing-session"] : ["existing-session", "new-session"],
+    );
+    assert.ok(!events.some((event) => event.type === "host/workspace-order-changed"));
+  }
 });
 
 test("allows equal default titles for different paths but keeps rename titles unique", async (t) => {

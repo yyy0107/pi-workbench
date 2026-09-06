@@ -378,7 +378,7 @@ export class WorkspaceStore {
     const requestedPath = typeof input === "string" ? input : input.path;
     return this.exclusive(async () => {
       const canonicalPath = await this.canonicalPath(requestedPath);
-      const existing = this.state.workspaces.find((workspace) => workspace.path === canonicalPath);
+      const existing = await this.findWorkspaceByPath(this.state.workspaces, canonicalPath);
       if (existing) {
         if (this.state.ignoredWorkspacePaths.includes(canonicalPath)) {
           const next = cloneState(this.state);
@@ -727,7 +727,7 @@ export class WorkspaceStore {
       if (!workspace) {
         const canonicalPath = await this.tryCanonicalPath(session.cwd);
         if (canonicalPath) {
-          workspace = next.workspaces.find((candidate) => candidate.path === canonicalPath);
+          workspace = await this.findWorkspaceByPath(next.workspaces, canonicalPath);
           const timestamp = this.timestamp();
           if (!workspace) {
             workspace = {
@@ -848,7 +848,7 @@ export class WorkspaceStore {
 
         const canonicalPath = await this.tryCanonicalPath(session.cwd);
         if (!canonicalPath) continue;
-        let workspace = next.workspaces.find((item) => item.path === canonicalPath);
+        let workspace = await this.findWorkspaceByPath(next.workspaces, canonicalPath);
         if (
           !workspace &&
           shouldImportUnknown &&
@@ -993,6 +993,20 @@ export class WorkspaceStore {
         { path: requestedPath },
       );
     }
+  }
+
+  private async findWorkspaceByPath(
+    workspaces: readonly WorkspaceView[],
+    canonicalPath: string,
+  ): Promise<WorkspaceView | undefined> {
+    const existing = workspaces.find((workspace) => workspace.path === canonicalPath);
+    if (existing) return existing;
+
+    // A persisted path can become an alias after a directory is moved behind a symlink.
+    for (const workspace of workspaces) {
+      if ((await this.tryCanonicalPath(workspace.path)) === canonicalPath) return workspace;
+    }
+    return undefined;
   }
 
   private async tryCanonicalPath(requestedPath: string): Promise<string | undefined> {

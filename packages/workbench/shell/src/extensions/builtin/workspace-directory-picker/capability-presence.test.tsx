@@ -114,8 +114,8 @@ test("the workspace picker footer renders inside a combobox without a menu conte
   assert.doesNotMatch(markup, /role="menuitem"/u);
 });
 
-test("selecting a listed project checks current trust before selecting it", async () => {
-  const workspace = { id: "project", name: "Project", rootPath: "/work/project" };
+test("selecting a listed project preserves its identity after checking current trust", async () => {
+  const workspace = { id: "project", name: "Project", rootPath: "/work/project-link" };
   for (const trusted of [null, false, true, "read-error"] as const) {
     const calls: string[] = [];
     let selector!: ComponentProps<typeof WorkspaceSelector>;
@@ -129,7 +129,12 @@ test("selecting a listed project checks current trust before selecting it", asyn
           describeProjectTrust: async (path: string) => {
             calls.push(`describe:${path}`);
             if (trusted === "read-error") throw new Error("Trust could not be read");
-            return { path, trusted, requiresTrust: false, promptRequired: trusted === null };
+            return {
+              path: "/work/project",
+              trusted,
+              requiresTrust: false,
+              promptRequired: trusted === null,
+            };
           },
         },
         workspace: {
@@ -152,8 +157,8 @@ test("selecting a listed project checks current trust before selecting it", asyn
     assert.deepEqual(
       calls,
       trusted === true
-        ? ["describe:/work/project", "create:/work/project", "select:project"]
-        : ["describe:/work/project"],
+        ? ["describe:/work/project-link", "select:project"]
+        : ["describe:/work/project-link"],
     );
   }
 });

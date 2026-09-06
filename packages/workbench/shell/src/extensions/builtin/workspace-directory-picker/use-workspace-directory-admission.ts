@@ -16,26 +16,35 @@ export function useWorkspaceDirectoryAdmission(
   hostClient: WorkbenchRuntimeHostCapability,
   workspaceClient: WorkbenchWorkspaceCapability,
 ) {
-  const [pendingPath, setPendingPath] = useState<string>();
+  const [pendingSelection, setPendingSelection] = useState<{
+    path: string;
+    workspace?: WorkbenchWorkspaceSummary;
+  }>();
+  const pendingPath = pendingSelection?.path;
   const [savingDecision, setSavingDecision] = useState<"trust" | "decline">();
   const [dialogError, setDialogError] = useState<ProjectTrustDialogError>();
 
-  const createAndSelect = useCallback(
-    async (path: string) => {
-      const { workspace } = await workspaceClient.createWorkspace(path);
+  const selectWorkspace = useCallback(
+    async (path: string, existingWorkspace?: WorkbenchWorkspaceSummary) => {
+      const workspace =
+        existingWorkspace ?? (await workspaceClient.createWorkspace(path)).workspace;
       await onSelect(workspace);
     },
     [onSelect, workspaceClient],
   );
 
   const selectPath = useCallback(
-    async (path: string) => {
+    async (path: string, workspace?: WorkbenchWorkspaceSummary) => {
       setDialogError(undefined);
       const trust = await hostClient.describeProjectTrust(path);
-      const pathAwaitingConfirmation = await admitTrustedWorkspace(trust, createAndSelect);
-      setPendingPath(pathAwaitingConfirmation);
+      const pathAwaitingConfirmation = await admitTrustedWorkspace(trust, (canonicalPath) =>
+        selectWorkspace(canonicalPath, workspace),
+      );
+      setPendingSelection(
+        pathAwaitingConfirmation ? { path: pathAwaitingConfirmation, workspace } : undefined,
+      );
     },
-    [createAndSelect, hostClient],
+    [selectWorkspace, hostClient],
   );
 
   const confirmTrust = useCallback(async () => {
@@ -51,14 +60,14 @@ export function useWorkspaceDirectoryAdmission(
     }
 
     try {
-      await createAndSelect(pendingPath);
-      setPendingPath(undefined);
+      await selectWorkspace(pendingPath, pendingSelection?.workspace);
+      setPendingSelection(undefined);
     } catch {
       setDialogError("select");
     } finally {
       setSavingDecision(undefined);
     }
-  }, [createAndSelect, hostClient, pendingPath, savingDecision]);
+  }, [selectWorkspace, hostClient, pendingPath, pendingSelection, savingDecision]);
 
   const declineTrust = useCallback(async () => {
     if (!pendingPath || savingDecision) return;
@@ -66,7 +75,7 @@ export function useWorkspaceDirectoryAdmission(
     setDialogError(undefined);
     try {
       await hostClient.updateProjectTrust(pendingPath, false);
-      setPendingPath(undefined);
+      setPendingSelection(undefined);
     } catch {
       setDialogError("save");
     } finally {
@@ -76,7 +85,7 @@ export function useWorkspaceDirectoryAdmission(
 
   const cancelTrust = useCallback(() => {
     if (savingDecision) return;
-    setPendingPath(undefined);
+    setPendingSelection(undefined);
     setDialogError(undefined);
   }, [savingDecision]);
 

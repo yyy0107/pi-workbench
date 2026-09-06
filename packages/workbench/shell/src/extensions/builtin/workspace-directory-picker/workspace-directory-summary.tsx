@@ -132,7 +132,7 @@ function WorkspaceDirectorySummaryContent({
           setPicking(true);
           setError(false);
           try {
-            await admission.selectPath(workspace.rootPath);
+            await admission.selectPath(workspace.rootPath, workspace);
           } catch {
             setError(true);
           } finally {
