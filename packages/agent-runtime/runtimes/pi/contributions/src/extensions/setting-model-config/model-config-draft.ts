@@ -13,8 +13,6 @@ export const MODEL_PROVIDER_APIS = [
   "google-generative-ai",
 ] as const;
 
-export type ModelProviderApi = (typeof MODEL_PROVIDER_APIS)[number];
-
 /** Pi's fallback for custom model definitions without an explicit context window. */
 export const DEFAULT_MODEL_CONTEXT_WINDOW = 128_000;
 
@@ -39,12 +37,42 @@ export interface ProviderDraft {
   apiKey: string;
   baseURL: string;
   defaultBaseURL: string;
-  api: ModelProviderApi;
-  customOpen: boolean;
+  api: string;
   modelsSource: "adapter" | "custom";
   models: ModelDraft[];
   adapterModels: ModelProviderModelConfiguration[];
   availableModels: ModelProviderModelConfiguration[];
+}
+
+export function filterModelDrafts(models: readonly ModelDraft[], query: string) {
+  const search = query.trim().toLowerCase();
+  return models
+    .map((model, index) => ({ model, index }))
+    .filter(({ model }) => !model.id.trim() || model.id.toLowerCase().includes(search));
+}
+
+/** Only editable configuration; discovery results and expanded rows are UI state. */
+export function providerConfigurationSignature(draft: ProviderDraft): string {
+  return JSON.stringify({
+    provider: draft.provider,
+    displayName: draft.displayName,
+    baseURL: draft.baseURL,
+    api: draft.api,
+    modelsSource: draft.modelsSource,
+    models: draft.models.map(({ key: _key, expanded: _expanded, ...model }) => model),
+  });
+}
+
+/** Includes credentials for dirty checks without persisting them in configuration metadata. */
+export function providerDraftSaveSignature(draft: ProviderDraft): string {
+  return JSON.stringify([providerConfigurationSignature(draft), draft.apiKey, draft.authType]);
+}
+
+export function reconcileSavedProviderDraft(
+  current: ProviderDraft,
+  saved: ProviderDraft,
+): ProviderDraft {
+  return { ...current, apiKey: current.apiKey === saved.apiKey ? "" : current.apiKey };
 }
 
 export interface ProviderModelAvailability {
@@ -144,7 +172,6 @@ export function emptyDraft(
     baseURL: "",
     defaultBaseURL: "",
     api: "openai-completions",
-    customOpen: false,
     modelsSource: "adapter",
     models: [],
     adapterModels: [],
@@ -176,8 +203,9 @@ export function evaluateProviderModelAvailability(
 
 export function providerTestDiscoverySource(
   authType: ProviderDraft["authType"],
+  useProviderCatalog = false,
 ): ProviderTestDiscoverySource {
-  return authType === "oauth" ? "provider" : "endpoint";
+  return authType === "oauth" || useProviderCatalog ? "provider" : "endpoint";
 }
 
 export function providerModelsForTest(
@@ -213,8 +241,7 @@ export function toProviderDraft(
     apiKey: "",
     baseURL: configuration.baseURL ?? "",
     defaultBaseURL: configuration.defaultBaseURL ?? "",
-    api: MODEL_PROVIDER_APIS.find((api) => api === configuration.api) ?? "openai-completions",
-    customOpen: false,
+    api: configuration.api || "openai-completions",
     modelsSource: configuration.modelsSource,
     models: configuration.models.map((model) => toModelDraft(model)),
     adapterModels: configuration.adapterModels,

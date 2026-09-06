@@ -10,12 +10,14 @@ import {
   emptyModel,
   evaluateProviderModelAvailability,
   formatCapacity,
+  filterModelDrafts,
   modelNameAfterIdChange,
   normalizeContextWindowInput,
   parseCapacity,
   prepareProviderConfiguration,
   preferredAuthType,
   providerModelsForTest,
+  providerConfigurationSignature,
   providerTestDiscoverySource,
   restoreAdapterModelDrafts,
   toModelDraft,
@@ -241,6 +243,7 @@ test("prefers a supported current auth type and otherwise falls back determinist
 test("routes account tests through provider-owned auth and validates adapter models", () => {
   assert.equal(providerTestDiscoverySource("oauth"), "provider");
   assert.equal(providerTestDiscoverySource("api_key"), "endpoint");
+  assert.equal(providerTestDiscoverySource("api_key", true), "provider");
 
   const draft = {
     ...emptyDraft("openai-codex", "oauth"),
@@ -470,4 +473,65 @@ test("reports the same validation boundaries before a provider request is built"
     }),
     { ok: false, error: "duplicateModel" },
   );
+});
+
+test("provider change detection ignores UI and discovery state but retains edited model fields", () => {
+  const draft = validCustomDraft();
+  const signature = providerConfigurationSignature(draft);
+  assert.equal(
+    providerConfigurationSignature({
+      ...draft,
+      availableModels: [{ id: "discovered" }],
+      models: draft.models.map((model) => ({
+        ...model,
+        key: model.key + 10,
+        expanded: !model.expanded,
+      })),
+    }),
+    signature,
+  );
+  for (const patch of [
+    { baseURL: "https://other.example/v1" },
+    { displayName: "Renamed" },
+    { models: [] },
+    { models: draft.models.map((model) => ({ ...model, maxTokens: "8K" })) },
+  ]) {
+    assert.notEqual(providerConfigurationSignature({ ...draft, ...patch }), signature);
+  }
+});
+
+test("model search matches IDs only, retains original indices, and keeps new drafts editable", () => {
+  const models = [
+    toModelDraft({ id: "acme-fast", name: "Fast model" }),
+    toModelDraft({ id: "acme-reason", name: "Reasoning" }),
+    emptyModel(),
+  ];
+  assert.deepEqual(
+    filterModelDrafts(models, " ACME-REASON ").map(({ index }) => index),
+    [1, 2],
+  );
+  assert.deepEqual(
+    filterModelDrafts(models, "FAST MODEL").map(({ model }) => model),
+    [models[2]],
+  );
+  assert.equal(filterModelDrafts(models, " ").length, 3);
+  assert.deepEqual(filterModelDrafts(models.slice(0, 2), "missing"), []);
+  assert.equal(models[0].id, "acme-fast");
+});
+
+test("native account protocols survive draft editing and saving", () => {
+  const draft = toProviderDraft(provider, {
+    provider: "openai-codex",
+    displayName: "OpenAI Codex",
+    defaultBaseURL: "https://chatgpt.com/backend-api",
+    api: "openai-codex-responses",
+    configurationDefined: false,
+    modelsSource: "custom",
+    models: [{ id: "gpt-5.5" }],
+    adapterModels: [{ id: "gpt-5.5" }],
+  });
+  assert.equal(draft.api, "openai-codex-responses");
+  const prepared = prepareProviderConfiguration(draft);
+  assert.ok(prepared.ok);
+  assert.equal(prepared.configuration.api, "openai-codex-responses");
 });

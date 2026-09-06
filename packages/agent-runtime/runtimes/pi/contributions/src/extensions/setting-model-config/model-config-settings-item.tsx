@@ -1,27 +1,16 @@
 "use client";
 
-import {
-  startTransition,
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { startTransition, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   ChevronDownIcon,
-  ChevronRightIcon,
+  MoreHorizontalIcon,
   ExternalLinkIcon,
-  LoaderCircleIcon,
+  PackageIcon,
   PlusIcon,
 } from "lucide-react";
 
-import { collapsePanel } from "@workbench/shell/ui";
-import { Button } from "@workbench/shell/ui";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@workbench/shell/ui";
+import { useModelTestFeedback } from "./use-model-test-feedback";
+import { Button, StatusBadge } from "@workbench/shell/ui";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +20,9 @@ import {
 } from "@workbench/shell/ui";
 import {
   DropdownMenu,
+  DropdownMenuContent,
   DropdownMenuLabel,
+  DropdownMenuTrigger,
   DropdownMenuRadioGroup,
   DropdownMenuSeparator,
 } from "@workbench/shell/ui";
@@ -39,6 +30,7 @@ import { Input } from "@workbench/shell/ui";
 import { Skeleton } from "@workbench/shell/ui";
 import {
   SettingsDropdownContent,
+  SettingsDropdownItem,
   SettingsDropdownRadioItem,
   SettingsDropdownTrigger,
 } from "@workbench/shell/ui";
@@ -57,13 +49,17 @@ import type {
 
 import {
   MODEL_PROVIDER_APIS,
-  discoveredImageInputConfiguration,
   emptyDraft,
   emptyModel,
   evaluateProviderModelAvailability,
   prepareProviderConfiguration,
+  parseCapacity,
   preferredAuthType,
   providerModelsForTest,
+  providerConfigurationSignature,
+  providerDraftSaveSignature,
+  reconcileSavedProviderDraft,
+  filterModelDrafts,
   providerTestDiscoverySource,
   restoreAdapterModelDrafts,
   toModelDraft,
@@ -72,11 +68,16 @@ import {
   type ProviderDraft,
   type ProviderDraftError,
 } from "./model-config-draft";
-import { ModelCatalogRow, modelTypeMessageKey } from "./model-config-model-row";
+import {
+  ModelCatalogRow,
+  modelTypeMessageKey,
+  type ModelCatalogRowTestResult,
+} from "./model-config-model-row";
+import { useModelConfigAutosave } from "./use-model-config-autosave";
 import { modelProviderCredentialWebsite } from "./model-provider-credential-links";
 
 type LoadState = "loading" | "ready" | "failed";
-type ProviderTestResult = { kind: "success" | "warning" | "error"; message: string };
+type ProviderTestResult = ModelCatalogRowTestResult;
 type Editor =
   | { mode: "add-provider" }
   | { mode: "add-custom" }
@@ -90,44 +91,6 @@ const PROVIDER_DRAFT_ERROR_KEYS = {
   invalidModel: "extensions.modelConfig.errors.invalidModel",
   duplicateModel: "extensions.modelConfig.errors.duplicateModel",
 } as const satisfies Record<ProviderDraftError, PiStaticMessageKey>;
-
-function ProviderEditorSection({
-  open,
-  summary,
-  children,
-}: {
-  open: boolean;
-  summary: ReactNode;
-  children: ReactNode;
-}) {
-  const retainedChildren = useRef<ReactNode>(null);
-
-  useLayoutEffect(() => {
-    if (open) retainedChildren.current = children;
-  }, [children, open]);
-
-  useEffect(() => {
-    if (!open && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-      retainedChildren.current = null;
-    }
-  }, [open]);
-
-  return (
-    <Collapsible open={open}>
-      {summary}
-      <CollapsibleContent
-        className={`${collapsePanel} outline-none`}
-        onTransitionEnd={(event) => {
-          if (!open && event.target === event.currentTarget && event.propertyName === "height") {
-            retainedChildren.current = null;
-          }
-        }}
-      >
-        <div className="pt-1.5">{open ? children : retainedChildren.current}</div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
 
 function visibleProviders(value?: ModelProvidersValue): ConfigurableProviderView[] {
   return (
@@ -146,23 +109,33 @@ function safeExternalUrl(raw: string): string | undefined {
 }
 
 export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
-  const { t } = usePiI18n();
+  const { number, t } = usePiI18n();
   const domScopeId = useId();
   const configurationClient = usePiConfigurationClient();
   const [value, setValue] = useState<ModelProvidersValue>();
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [editor, setEditor] = useState<Editor>();
   const [draft, setDraft] = useState<ProviderDraft>(() => emptyDraft());
+  const [initialDraft, setInitialDraft] = useState<ProviderDraft>();
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const initialDraftRef = useRef(initialDraft);
+  initialDraftRef.current = initialDraft;
+  const [pendingChange, setPendingChange] = useState<() => void>();
+  const preferredProviderId = useRef<string | undefined>(undefined);
   const [configLoading, setConfigLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [testingProvider, setTestingProvider] = useState(false);
-  const [providerTestResult, setProviderTestResult] = useState<ProviderTestResult>();
+  const [storedProviderTestResult, setProviderTestResult] = useState<ProviderTestResult>();
+  const providerTestResult = useModelTestFeedback(storedProviderTestResult);
   const [testingModelKey, setTestingModelKey] = useState<number>();
   const [modelImageTestResults, setModelImageTestResults] = useState<
     Record<number, ProviderTestResult>
   >({});
   const [removingProviderId, setRemovingProviderId] = useState<string>();
   const [error, setError] = useState<string>();
+  const [modelQuery, setModelQuery] = useState("");
+  const [newModel, setNewModel] = useState<ModelDraft>();
+  const [newModelError, setNewModelError] = useState<string>();
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [modelPickerLoading, setModelPickerLoading] = useState(false);
   const [modelPickerError, setModelPickerError] = useState<string>();
@@ -213,7 +186,31 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
       ),
     [configured, providers],
   );
-  const busy = saving || removingProviderId !== undefined;
+  const getChangeKey = () => {
+    const baseline = initialDraftRef.current;
+    const signature = providerDraftSaveSignature(draftRef.current);
+    return baseline && signature !== providerDraftSaveSignature(baseline) ? signature : undefined;
+  };
+  const changeKey = getChangeKey();
+  const dirty = changeKey !== undefined;
+  const { saving, flushSave } = useModelConfigAutosave({
+    changeKey,
+    getChangeKey,
+    enabled:
+      !configLoading && !loginStarting && providerLogin?.status !== "running" && !pendingChange,
+    save: () => save(),
+  });
+  const busy = removingProviderId !== undefined;
+  const navigationBusy = busy || saving || loginStarting || providerLogin?.status === "running";
+  const requestEditorChange = (action: () => void) => {
+    if (navigationBusy) return;
+    if (!dirty) action();
+    else
+      void flushSave().then((saved) => {
+        if (saved) action();
+        else setPendingChange(() => action);
+      });
+  };
 
   const modelDiscoveryPayload = useMemo(() => {
     const baseURL = draft.baseURL.trim() || draft.defaultBaseURL.trim();
@@ -249,7 +246,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     setProviderTestResult(undefined);
   }, [
     draft.api,
-    draft.apiKey,
+    draft.authType,
     draft.baseURL,
     draft.defaultBaseURL,
     draft.models,
@@ -264,7 +261,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     setModelImageTestResults({});
   }, [
     draft.api,
-    draft.apiKey,
+    draft.authType,
     draft.baseURL,
     draft.defaultBaseURL,
     draft.provider,
@@ -277,7 +274,10 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     modelCatalogRequest.current += 1;
     providerTestRequest.current += 1;
     modelImageTestRequest.current += 1;
+    setNewModel(undefined);
+    setNewModelError(undefined);
     setEditor(undefined);
+    setInitialDraft(undefined);
     setDraft(emptyDraft());
     setConfigLoading(false);
     setModelPickerOpen(false);
@@ -298,13 +298,22 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     setLoginPromptValue("");
     setLoginError(undefined);
     setSelectedModelIds(new Set());
+    setModelQuery("");
     setError(undefined);
   }, [configurationClient, providerLogin]);
 
   const loadProviderConfig = useCallback(
     async (provider: ConfigurableProviderView) => {
       const request = ++configRequest.current;
+      setNewModel(undefined);
+      setNewModelError(undefined);
+      modelCatalogRequest.current += 1;
+      setModelQuery("");
+      setModelPickerOpen(false);
+      setModelPickerLoading(false);
+      setModelPickerError(undefined);
       setConfigLoading(true);
+      setInitialDraft(undefined);
       setError(undefined);
       setDraft({
         ...emptyDraft(provider.provider, preferredAuthType(provider)),
@@ -317,7 +326,14 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
         });
         if (request !== configRequest.current) return;
         startTransition(() => {
-          setDraft(toProviderDraft(provider, configuration));
+          const nextDraft = toProviderDraft(provider, configuration);
+          setDraft(nextDraft);
+          setInitialDraft(nextDraft);
+          setError(
+            configuration.catalogRefreshFailed
+              ? t("extensions.modelConfig.errors.catalogRefreshFailed")
+              : undefined,
+          );
           setConfigLoading(false);
         });
       } catch {
@@ -333,9 +349,10 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   const editProvider = useCallback(
     (provider: ConfigurableProviderView) => {
       if (editor?.mode === "edit" && editor.provider === provider.provider) {
-        closeEditor();
         return;
       }
+      closeEditor();
+      preferredProviderId.current = provider.provider;
       setEditor({ mode: "edit", provider: provider.provider });
       void loadProviderConfig(provider);
     },
@@ -343,6 +360,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   );
 
   const addProvider = useCallback(() => {
+    closeEditor();
     const first =
       addableProviders.find((provider) =>
         provider.authMethods?.some(({ type }) => type === "oauth"),
@@ -351,22 +369,30 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     setError(undefined);
     if (first) void loadProviderConfig(first);
     else setDraft(emptyDraft());
-  }, [addableProviders, loadProviderConfig]);
+  }, [addableProviders, closeEditor, loadProviderConfig]);
 
   const addCustomProvider = useCallback(() => {
-    configRequest.current += 1;
+    closeEditor();
     setEditor({ mode: "add-custom" });
-    setDraft({
+    const nextDraft: ProviderDraft = {
       ...emptyDraft(),
-      customOpen: false,
       modelsSource: "adapter",
       models: [],
       adapterModels: [],
       availableModels: [],
-    });
+    };
+    setDraft(nextDraft);
+    setInitialDraft(nextDraft);
     setConfigLoading(false);
     setError(undefined);
-  }, []);
+  }, [closeEditor]);
+
+  useEffect(() => {
+    if (loadState !== "ready" || editor || configured.length === 0) return;
+    const provider =
+      configured.find(({ provider }) => provider === preferredProviderId.current) ?? configured[0];
+    editProvider(provider);
+  }, [configured, editProvider, editor, loadState]);
 
   const errorLabel = useCallback(
     (failure: unknown) => {
@@ -567,15 +593,21 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   }, [closeEditor, configurationClient, providerLogin]);
 
   const save = useCallback(async () => {
-    if (!editor || saving || configLoading) return;
+    if (!editor || configLoading) return false;
+    const request = configRequest.current;
+    const draft = draftRef.current;
+    const configurationChanged =
+      initialDraftRef.current !== undefined &&
+      providerConfigurationSignature(draft) !==
+        providerConfigurationSignature(initialDraftRef.current);
     const providerId = draft.provider.trim();
     if (!providerId) {
       setError(t("extensions.modelConfig.errors.providerRequired"));
-      return;
+      return false;
     }
     if (editor.mode === "add-custom" && providers.some(({ provider }) => provider === providerId)) {
       setError(t("extensions.modelConfig.errors.providerExists"));
-      return;
+      return false;
     }
 
     const selectedProvider = providers.find(({ provider }) => provider === providerId);
@@ -584,15 +616,15 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
       (editor.mode === "edit" && selectedProvider?.kind === "custom");
     if (customProviderMode && !PROVIDER_ID_PATTERN.test(providerId)) {
       setError(t("extensions.modelConfig.errors.invalidProviderId"));
-      return;
+      return false;
     }
 
     let configuration: ModelProviderConfiguration | undefined;
-    if (customProviderMode || draft.customOpen) {
+    if (customProviderMode || configurationChanged) {
       const prepared = prepareProviderConfiguration(draft);
       if (!prepared.ok) {
         setError(t(PROVIDER_DRAFT_ERROR_KEYS[prepared.error]));
-        return;
+        return false;
       }
       configuration = prepared.configuration;
     }
@@ -606,13 +638,14 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
             ? t("extensions.modelConfig.errors.loginRequired")
             : t("extensions.modelConfig.errors.environmentMissing"),
         );
-        return;
+        return false;
       }
-      closeEditor();
-      return;
+      setError(undefined);
+      initialDraftRef.current = draft;
+      setInitialDraft(draft);
+      return true;
     }
 
-    setSaving(true);
     setError(undefined);
     try {
       const next = await configurationClient.configureModelProvider({
@@ -620,25 +653,22 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
         ...(apiKey ? { apiKey } : {}),
         ...(configuration ? { configuration } : {}),
       });
+      preferredProviderId.current = providerId;
       applyProviders(next);
-      closeEditor();
+      if (request === configRequest.current) {
+        const savedDraft = { ...draft, apiKey: "" };
+        initialDraftRef.current = savedDraft;
+        draftRef.current = reconcileSavedProviderDraft(draftRef.current, draft);
+        setInitialDraft(savedDraft);
+        setDraft(draftRef.current);
+        setEditor({ mode: "edit", provider: providerId });
+      }
+      return true;
     } catch (failure) {
-      setError(errorLabel(failure));
-    } finally {
-      setSaving(false);
+      if (request === configRequest.current) setError(errorLabel(failure));
+      return false;
     }
-  }, [
-    applyProviders,
-    closeEditor,
-    configLoading,
-    configurationClient,
-    draft,
-    editor,
-    errorLabel,
-    providers,
-    saving,
-    t,
-  ]);
+  }, [applyProviders, configLoading, configurationClient, editor, errorLabel, providers, t]);
 
   const remove = useCallback(
     async (providerId: string) => {
@@ -658,6 +688,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   );
 
   const updateModel = useCallback((key: number, patch: Partial<ModelDraft>) => {
+    setModelQuery("");
     if (
       patch.id !== undefined ||
       patch.input !== undefined ||
@@ -689,6 +720,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
 
   const selectAvailableModel = useCallback(
     (key: number, configuration: ModelProviderModelConfiguration) => {
+      setModelQuery("");
       setModelImageTestResults((current) => {
         const next = { ...current };
         delete next[key];
@@ -816,38 +848,10 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
         return next;
       });
       try {
-        try {
-          const discovery = await configurationClient.discoverModels({
-            ...modelDiscoveryPayload,
-            source: "endpoint",
-          });
-          if (request !== modelImageTestRequest.current) return;
-          const discoveredConfiguration = discoveredImageInputConfiguration(
-            modelId,
-            discovery.models,
-          );
-          if (discoveredConfiguration) {
-            updateModel(model.key, discoveredConfiguration);
-            setModelImageTestResults((current) => ({
-              ...current,
-              [model.key]: {
-                kind: discoveredConfiguration.input.includes("image") ? "success" : "warning",
-                message: t(
-                  discoveredConfiguration.input.includes("image")
-                    ? "extensions.modelConfig.multimodalMetadataSupported"
-                    : "extensions.modelConfig.multimodalMetadataUnsupported",
-                ),
-              },
-            }));
-            return;
-          }
-        } catch {
-          // Model-list metadata is an optimization. Fall back to the inference test below.
-        }
-
         const result = await configurationClient.testModelImageInput({
           provider,
           model: modelId,
+          testTextInput: true,
         });
         if (request !== modelImageTestRequest.current) return;
         if (result.outcome === "supported") {
@@ -861,9 +865,25 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
             imageInputSource: "test",
           });
         }
+        const connectionWarning =
+          result.reason === "quota-exceeded" || result.reason === "rate-limited";
         setModelImageTestResults((current) => ({
           ...current,
-          [model.key]: modelImageTestResult(result),
+          [model.key]: {
+            ...modelImageTestResult(result),
+            showConnectionWarning: connectionWarning,
+            ...(result.textSupported || connectionWarning
+              ? {
+                  connection:
+                    result.outcome === "supported"
+                      ? ("image-supported" as const)
+                      : ("connected" as const),
+                }
+              : {
+                  kind: "error" as const,
+                  message: t("extensions.modelConfig.textConnectionFailed"),
+                }),
+          },
         }));
       } catch {
         if (request !== modelImageTestRequest.current) return;
@@ -878,15 +898,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
         if (request === modelImageTestRequest.current) setTestingModelKey(undefined);
       }
     },
-    [
-      configurationClient,
-      draft.provider,
-      modelDiscoveryPayload,
-      modelImageTestResult,
-      t,
-      testingModelKey,
-      updateModel,
-    ],
+    [configurationClient, draft.provider, modelImageTestResult, t, testingModelKey, updateModel],
   );
 
   const updateSelectedModelIds = useCallback(
@@ -949,17 +961,40 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     updateSelectedModelIds(availableModels);
   }, [draft.availableModels, refreshAvailableModels, updateSelectedModelIds]);
 
-  const restoreDefaultModels = useCallback(() => {
+  const restoreDefaultModels = async () => {
+    const provider = selectedProvider;
+    if (!provider) return;
     setError(undefined);
-    setDraft((current) => restoreAdapterModelDrafts(current));
-  }, []);
+    const restored = restoreAdapterModelDrafts(draftRef.current);
+    draftRef.current = restored;
+    setDraft(restored);
+    if (
+      (await flushSave()) &&
+      !getChangeKey() &&
+      draftRef.current.provider === provider.provider &&
+      draftRef.current.modelsSource === "adapter"
+    ) {
+      await loadProviderConfig(provider);
+    }
+  };
 
   const refreshLatestAvailableModels = useCallback(async () => {
     const availableModels = await refreshAvailableModels(
-      accountAuthentication ? "provider" : "endpoint",
+      providerTestDiscoverySource(
+        draft.authType,
+        !customProviderMode &&
+          (!draft.baseURL.trim() || draft.baseURL.trim() === draft.defaultBaseURL.trim()),
+      ),
     );
     if (availableModels) updateSelectedModelIds(availableModels);
-  }, [accountAuthentication, refreshAvailableModels, updateSelectedModelIds]);
+  }, [
+    draft.authType,
+    draft.baseURL,
+    draft.defaultBaseURL,
+    customProviderMode,
+    refreshAvailableModels,
+    updateSelectedModelIds,
+  ]);
 
   const testCurrentProvider = useCallback(async () => {
     if (busy || configLoading || testingProvider) return;
@@ -1119,12 +1154,13 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
         providers: apiKeyOnlyProviders,
       },
     ].filter(({ providers: groupProviders }) => groupProviders.length > 0);
+    const visibleModels = filterModelDrafts(draft.models, modelQuery);
     const selectProvider = (providerId: string) => {
       const provider = providers.find(({ provider: id }) => id === providerId);
-      if (provider) void loadProviderConfig(provider);
+      if (provider) requestEditorChange(() => void loadProviderConfig(provider));
     };
     return (
-      <div className="rounded-xl border p-3 sm:p-4">
+      <div className="min-w-0">
         {addMode ? (
           <div className="space-y-1.5">
             <label className="text-muted-foreground block text-sm">
@@ -1132,7 +1168,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
             </label>
             <DropdownMenu>
               <SettingsDropdownTrigger
-                disabled={busy || addableProviders.length === 0}
+                disabled={busy || saving || addableProviders.length === 0}
                 aria-label={t("extensions.modelConfig.selectProvider")}
               >
                 <span className="min-w-0 truncate text-start">
@@ -1184,7 +1220,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
               <Input
                 id={customProviderIdentifierId}
                 value={draft.provider}
-                disabled={busy || mode === "edit"}
+                disabled={busy || saving || mode === "edit"}
                 placeholder={t("extensions.modelConfig.providerIdPlaceholder")}
                 onChange={(event) => {
                   const provider = event.currentTarget.value;
@@ -1310,7 +1346,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
             <Button
               type="button"
               variant="outline"
-              disabled={busy || configLoading || loginStarting}
+              disabled={busy || saving || configLoading || loginStarting}
               onClick={() => void startAccountLogin()}
             >
               <ExternalLinkIcon />
@@ -1360,154 +1396,194 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
               }
               onChange={(event) => {
                 const apiKey = event.currentTarget.value;
+                providerTestRequest.current += 1;
+                modelImageTestRequest.current += 1;
+                setTestingProvider(false);
+                setProviderTestResult(undefined);
+                setTestingModelKey(undefined);
+                setModelImageTestResults({});
                 setDraft((current) => ({ ...current, apiKey }));
               }}
             />
           </div>
         )}
 
-        <Collapsible
-          open={customProviderMode || draft.customOpen}
-          onOpenChange={(open) => {
-            if (!customProviderMode) {
-              setDraft((current) => ({ ...current, customOpen: open }));
-            }
-          }}
-          className={customProviderMode ? "mt-3 border-t pt-3" : "mt-3 border-t pt-2.5"}
-        >
-          {!customProviderMode ? (
-            <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
-              <ChevronRightIcon
-                className={`size-4 transition-transform ${draft.customOpen ? "rotate-90" : ""}`}
-              />
-              {t("extensions.modelConfig.customSettings")}
-            </CollapsibleTrigger>
-          ) : null}
-          <CollapsibleContent className={customProviderMode ? "pt-0" : "pt-3"}>
-            {configLoading ? (
-              <p className="text-muted-foreground text-sm" role="status">
-                {t("extensions.modelConfig.loadingDetails")}
-              </p>
-            ) : (
-              <div>
-                {!customProviderMode ? (
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor={providerBaseUrlId}
-                      className="text-muted-foreground block text-sm"
-                    >
-                      {t("extensions.modelConfig.apiAddress")}
-                    </label>
-                    <Input
-                      id={providerBaseUrlId}
-                      type="url"
-                      value={draft.baseURL}
-                      disabled={busy}
-                      placeholder={
-                        draft.defaultBaseURL || t("extensions.modelConfig.apiAddressPlaceholder")
-                      }
-                      onChange={(event) => {
-                        const baseURL = event.currentTarget.value;
-                        setDraft((current) => ({ ...current, baseURL }));
-                      }}
-                    />
-                  </div>
-                ) : null}
+        <div className="mt-4">
+          <div>
+            {!customProviderMode ? (
+              <div className="space-y-1.5">
+                <label htmlFor={providerBaseUrlId} className="text-muted-foreground block text-sm">
+                  {t("extensions.modelConfig.apiAddress")}
+                </label>
+                <Input
+                  id={providerBaseUrlId}
+                  type="url"
+                  value={draft.baseURL}
+                  disabled={busy}
+                  placeholder={
+                    draft.defaultBaseURL || t("extensions.modelConfig.apiAddressPlaceholder")
+                  }
+                  onChange={(event) => {
+                    const baseURL = event.currentTarget.value;
+                    setDraft((current) => ({ ...current, baseURL }));
+                  }}
+                />
+              </div>
+            ) : null}
 
-                <div className={customProviderMode ? "" : "mt-3 border-t pt-3"}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-muted-foreground text-sm">
-                        {t("extensions.modelConfig.modelCatalog")}
-                      </p>
-                      {!customProviderMode || draft.modelsSource === "custom" ? (
-                        <p className="text-muted-foreground mt-1 text-sm">
-                          {draft.modelsSource === "adapter"
-                            ? t("extensions.modelConfig.adapterDefaultModels")
-                            : t("extensions.modelConfig.customModels")}
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      {!customProviderMode ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          disabled={busy || modelPickerLoading}
-                          onClick={restoreDefaultModels}
-                        >
-                          {t("extensions.modelConfig.restoreDefaultModels")}
-                        </Button>
-                      ) : null}
+            <div className={customProviderMode ? "" : "mt-3 border-t pt-3"}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="flex items-center gap-2 text-sm font-medium">
+                    {t("extensions.modelConfig.modelCatalog")}
+                    <span className="text-muted-foreground font-normal tabular-nums">
+                      {number(draft.models.length)}
+                    </span>
+                  </h3>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
                       <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         disabled={busy || modelPickerLoading}
-                        onClick={() => void openModelPicker()}
-                      >
-                        {modelPickerLoading
-                          ? t("extensions.modelConfig.fetchingAvailableModels")
-                          : t("extensions.modelConfig.customizeModels")}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {draft.models.length === 0 ? (
-                    <div className="text-muted-foreground mt-3 rounded-lg border border-dashed px-3 py-3 text-center text-sm">
-                      {t("extensions.modelConfig.availableModelsEmpty")}
-                    </div>
-                  ) : (
-                    <div
-                      role="region"
-                      aria-label={t("extensions.modelConfig.modelCatalog")}
-                      tabIndex={0}
-                      className="bg-muted/20 focus-visible:ring-ring/50 mt-3 max-h-[min(34rem,60dvh)] space-y-2 overflow-y-auto overscroll-contain rounded-xl border p-1.5 outline-none focus-visible:ring-3 [scrollbar-gutter:stable]"
-                    >
-                      {draft.models.map((model, index) => (
-                        <ModelCatalogRow
-                          key={model.key}
-                          model={model}
-                          index={index}
-                          configuredModels={draft.models}
-                          availableModels={draft.availableModels}
-                          busy={busy}
-                          modelPickerLoading={modelPickerLoading}
-                          modelPickerError={modelPickerError}
-                          providerReadyForTest={Boolean(draft.provider.trim())}
-                          testingDisabled={testingModelKey !== undefined}
-                          testing={testingModelKey === model.key}
-                          testResult={modelImageTestResults[model.key]}
-                          onUpdateModel={updateModel}
-                          onSelectAvailableModel={selectAvailableModel}
-                          onRefreshAvailableModels={refreshAvailableModels}
-                          onTestModelImageInput={testModelImageInput}
-                          onRemoveModel={removeModel}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-3"
-                    disabled={busy}
-                    onClick={() =>
-                      setDraft((current) => ({
-                        ...current,
-                        modelsSource: "custom",
-                        models: [...current.models, emptyModel()],
-                      }))
+                      />
                     }
                   >
                     <PlusIcon />
                     {t("extensions.modelConfig.addModel")}
-                  </Button>
-                </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-max">
+                    <SettingsDropdownItem onClick={() => void openModelPicker()}>
+                      {t("extensions.modelConfig.customizeModels")}
+                    </SettingsDropdownItem>
+                    <SettingsDropdownItem
+                      onClick={() => {
+                        setModelQuery("");
+                        setNewModelError(undefined);
+                        setNewModel(emptyModel());
+                      }}
+                    >
+                      {t("extensions.modelConfig.manualModel")}
+                    </SettingsDropdownItem>
+                    {!customProviderMode ? (
+                      <>
+                        <DropdownMenuSeparator />
+                        <SettingsDropdownItem onClick={() => void restoreDefaultModels()}>
+                          {t("extensions.modelConfig.restoreDefaultModels")}
+                        </SettingsDropdownItem>
+                      </>
+                    ) : null}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-            )}
-          </CollapsibleContent>
-        </Collapsible>
+              {draft.models.length > 0 ? (
+                <Input
+                  type="search"
+                  value={modelQuery}
+                  aria-label={t("extensions.modelConfig.searchModels")}
+                  placeholder={t("extensions.modelConfig.searchModels")}
+                  onChange={(event) => setModelQuery(event.currentTarget.value)}
+                  className="mt-3"
+                />
+              ) : null}
+
+              {newModel ? (
+                <ModelCatalogRow
+                  key={newModel.key}
+                  model={newModel}
+                  index={draft.models.length}
+                  configuredModels={draft.models}
+                  availableModels={draft.availableModels}
+                  busy={busy}
+                  modelPickerLoading={modelPickerLoading}
+                  modelPickerError={modelPickerError}
+                  providerReadyForTest={false}
+                  testingDisabled
+                  testing={false}
+                  onUpdateModel={(_key, patch) => {
+                    setNewModelError(undefined);
+                    setNewModel((current) => (current ? { ...current, ...patch } : current));
+                  }}
+                  onSelectAvailableModel={(_key, configuration) => {
+                    setNewModelError(undefined);
+                    setNewModel((current) =>
+                      current
+                        ? { ...toModelDraft(configuration, true), key: current.key }
+                        : current,
+                    );
+                  }}
+                  onRefreshAvailableModels={refreshAvailableModels}
+                  onTestModelImageInput={testModelImageInput}
+                  onRemoveModel={() => setNewModel(undefined)}
+                  completionError={newModelError}
+                  onComplete={() => {
+                    if (
+                      !newModel.id.trim() ||
+                      (newModel.contextWindow.trim() && !parseCapacity(newModel.contextWindow)) ||
+                      (newModel.maxTokens.trim() && !parseCapacity(newModel.maxTokens))
+                    ) {
+                      setNewModelError(t("extensions.modelConfig.errors.invalidModel"));
+                      return;
+                    }
+                    if (draft.models.some((model) => model.id.trim() === newModel.id.trim())) {
+                      setNewModelError(t("extensions.modelConfig.errors.duplicateModel"));
+                      return;
+                    }
+                    setDraft((current) => ({
+                      ...current,
+                      modelsSource: "custom",
+                      models: [
+                        ...current.models,
+                        { ...newModel, id: newModel.id.trim(), expanded: false },
+                      ],
+                    }));
+                    setNewModel(undefined);
+                  }}
+                />
+              ) : null}
+
+              {draft.models.length === 0 ? (
+                <div className="text-muted-foreground mt-3 rounded-lg border border-dashed px-3 py-3 text-center text-sm">
+                  {t("extensions.modelConfig.availableModelsEmpty")}
+                </div>
+              ) : visibleModels.length === 0 ? (
+                <p role="status" className="text-muted-foreground py-6 text-center text-sm">
+                  {t("extensions.modelConfig.noMatchingModels")}
+                </p>
+              ) : (
+                <div
+                  role="region"
+                  aria-label={t("extensions.modelConfig.modelCatalog")}
+                  className="mt-3 min-w-0 space-y-2"
+                >
+                  {visibleModels.map(({ model, index }) => (
+                    <ModelCatalogRow
+                      key={model.key}
+                      model={model}
+                      index={index}
+                      configuredModels={draft.models}
+                      availableModels={draft.availableModels}
+                      busy={busy}
+                      modelPickerLoading={modelPickerLoading}
+                      modelPickerError={modelPickerError}
+                      providerReadyForTest={Boolean(draft.provider.trim())}
+                      testingDisabled={testingModelKey !== undefined}
+                      testing={testingModelKey === model.key}
+                      testResult={modelImageTestResults[model.key]}
+                      onUpdateModel={updateModel}
+                      onSelectAvailableModel={selectAvailableModel}
+                      onRefreshAvailableModels={refreshAvailableModels}
+                      onTestModelImageInput={testModelImageInput}
+                      onRemoveModel={removeModel}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         {error ? (
           <p className="text-destructive mt-3 text-sm" role="alert">
@@ -1515,62 +1591,45 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
           </p>
         ) : null}
 
-        <p className="text-muted-foreground mt-3 text-xs">
-          {t(
-            accountAuthentication
-              ? "extensions.modelConfig.testAccountProviderHint"
-              : "extensions.modelConfig.testProviderHint",
-          )}
-        </p>
-
-        {providerTestResult ? (
-          <p
-            className={
-              providerTestResult.kind === "error"
-                ? "text-destructive mt-3 text-sm"
-                : providerTestResult.kind === "warning"
-                  ? "mt-3 text-sm text-amber-700 dark:text-amber-300"
-                  : "mt-3 text-sm text-emerald-700 dark:text-emerald-300"
-            }
-            role={providerTestResult.kind === "error" ? "alert" : "status"}
+        {testingProvider || providerTestResult ? (
+          <div
+            className="mt-3 border-t border-border pt-3"
+            role={providerTestResult?.kind === "error" ? "alert" : "status"}
           >
-            {providerTestResult.message}
-          </p>
+            <StatusBadge
+              tone={
+                testingProvider
+                  ? "info"
+                  : providerTestResult?.kind === "error"
+                    ? "danger"
+                    : providerTestResult?.kind
+              }
+              title={providerTestResult?.message}
+              className="rounded-[var(--button-radius)] px-2 py-1 text-sm leading-5"
+            >
+              {testingProvider
+                ? t("extensions.modelConfig.testingProvider")
+                : providerTestResult?.kind === "success"
+                  ? t("extensions.modelConfig.connectionSucceeded")
+                  : providerTestResult?.message}
+            </StatusBadge>
+          </div>
         ) : null}
 
-        <div className="mt-4 flex justify-end gap-2">
-          <Button type="button" variant="outline" disabled={busy} onClick={closeEditor}>
-            {t("extensions.modelConfig.cancel")}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy || configLoading || testingProvider || testingModelKey !== undefined}
-            onClick={() => void testCurrentProvider()}
-          >
-            {testingProvider
-              ? t("extensions.modelConfig.testingProvider")
-              : t("extensions.modelConfig.testProvider")}
-          </Button>
-          <Button
-            type="button"
-            disabled={
-              busy ||
-              configLoading ||
-              testingProvider ||
-              testingModelKey !== undefined ||
-              !draft.provider ||
-              (customProviderMode && !draft.baseURL.trim())
-            }
-            onClick={() => void save()}
-          >
-            {saving
-              ? t("extensions.modelConfig.saving")
-              : mode === "add-custom"
-                ? t("extensions.modelConfig.createProvider")
-                : t("extensions.modelConfig.save")}
-          </Button>
-        </div>
+        {saving || dirty ? (
+          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+            <span role="status" aria-live="polite">
+              {t(
+                saving ? "extensions.modelConfig.saving" : "extensions.modelConfig.autoSavePending",
+              )}
+            </span>
+            {dirty && error && !saving ? (
+              <Button type="button" variant="ghost" size="xs" onClick={() => void flushSave()}>
+                {t("extensions.modelConfig.retry")}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     );
   };
@@ -1597,116 +1656,205 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   }
 
   return (
-    <div data-settings-section={sectionId} data-settings-item={itemId} className="space-y-3 pb-2">
-      <div className="space-y-1.5">
-        {configured.length === 0 && !editor ? (
-          <div className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-sm">
-            {t("extensions.modelConfig.empty")}
+    <div data-settings-section={sectionId} data-settings-item={itemId} className="@container pb-2">
+      <div className="grid min-w-0 grid-cols-[var(--icon-frame-size-default)_minmax(0,1fr)] gap-3 @3xl:grid-cols-[12rem_minmax(0,1fr)] @3xl:gap-4">
+        <aside
+          className="sticky top-0 min-w-0 self-start"
+          aria-label={t("extensions.modelConfig.provider")}
+        >
+          <div className="mb-3 hidden items-center justify-between px-2 text-xs font-medium text-muted-foreground @3xl:flex">
+            <span className="sr-only @3xl:not-sr-only">{t("extensions.modelConfig.provider")}</span>
+            <span className="tabular-nums">{number(configured.length)}</span>
           </div>
-        ) : null}
-        {configured.map((provider) => {
-          const editing = editor?.mode === "edit" && editor.provider === provider.provider;
-          const open = editing && !configLoading;
-          return (
-            <ProviderEditorSection
-              key={provider.provider}
-              open={open}
-              summary={
-                <div className="flex min-h-12 items-center gap-2 rounded-lg border px-3 py-1.5">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="truncate text-sm font-medium" title={provider.displayName}>
-                        {provider.displayName}
-                      </span>
-                      <span
-                        className="inline-block size-2.5 shrink-0 rounded-full bg-emerald-500"
-                        aria-hidden="true"
-                      />
-                      <span className="text-muted-foreground shrink-0 text-xs">
-                        {t(
-                          provider.authType === "oauth"
-                            ? "extensions.modelConfig.accountConfigured"
-                            : "extensions.modelConfig.configured",
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    aria-expanded={open}
-                    aria-busy={editing && configLoading}
-                    disabled={busy}
-                    onClick={() => editProvider(provider)}
-                  >
-                    {editing && configLoading ? (
-                      <LoaderCircleIcon
-                        aria-hidden="true"
-                        className="animate-spin motion-reduce:animate-none"
-                      />
-                    ) : null}
-                    {t("extensions.modelConfig.edit")}
-                  </Button>
-                  {provider.removable ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive"
-                      disabled={busy}
-                      onClick={() => void remove(provider.provider)}
+          <div className="space-y-1">
+            {configured.map((provider) => (
+              <Button
+                key={provider.provider}
+                type="button"
+                variant="ghost"
+                disabled={navigationBusy}
+                data-selection="none"
+                title={provider.displayName}
+                aria-pressed={editor?.mode === "edit" && editor.provider === provider.provider}
+                onClick={() => {
+                  if (editor?.mode !== "edit" || editor.provider !== provider.provider) {
+                    requestEditorChange(() => editProvider(provider));
+                  }
+                }}
+                className="relative h-[var(--icon-frame-size-default)] w-full justify-center gap-0 px-0 py-0 text-start aria-pressed:border-border @3xl:justify-start @3xl:gap-2 @3xl:px-3"
+              >
+                <PackageIcon aria-hidden="true" className="size-[var(--icon-size-lg)] shrink-0" />
+                <span className="sr-only min-w-0 @3xl:not-sr-only @3xl:flex-1">
+                  <span className="block truncate">{provider.displayName}</span>
+                </span>
+                <span
+                  aria-hidden="true"
+                  className={
+                    provider.configured
+                      ? "absolute end-1 bottom-1 size-[calc(var(--icon-size-md)/2)] shrink-0 rounded-full bg-success ring-2 ring-background @3xl:static @3xl:ms-auto @3xl:ring-0"
+                      : "absolute end-1 bottom-1 size-[calc(var(--icon-size-md)/2)] shrink-0 rounded-full bg-muted-foreground ring-2 ring-background @3xl:static @3xl:ms-auto @3xl:ring-0"
+                  }
+                />
+                <span className="sr-only">
+                  {t(
+                    !provider.configured
+                      ? "extensions.modelConfig.authenticationRequired"
+                      : provider.authType === "oauth"
+                        ? "extensions.modelConfig.accountConfigured"
+                        : "extensions.modelConfig.configured",
+                  )}
+                </span>
+              </Button>
+            ))}
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={navigationBusy}
+                  aria-label={t("extensions.modelConfig.addProvider")}
+                  title={t("extensions.modelConfig.addProvider")}
+                  className="mt-1 h-[var(--icon-frame-size-default)] w-full justify-center px-0 @3xl:justify-start @3xl:px-3"
+                />
+              }
+            >
+              <PlusIcon aria-hidden="true" />
+              <span className="sr-only @3xl:not-sr-only">
+                {t("extensions.modelConfig.addProvider")}
+              </span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-max">
+              <SettingsDropdownItem
+                disabled={addableProviders.length === 0}
+                onClick={() => requestEditorChange(addProvider)}
+              >
+                {t("extensions.modelConfig.addProvider")}
+              </SettingsDropdownItem>
+              <SettingsDropdownItem onClick={() => requestEditorChange(addCustomProvider)}>
+                {t("extensions.modelConfig.addCustomProvider")}
+              </SettingsDropdownItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </aside>
+        <div className="min-w-0 border-l border-border pl-3 @3xl:pl-4">
+          {editor ? (
+            <>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="min-w-0 truncate text-base font-semibold">
+                  {editor.mode === "edit"
+                    ? selectedProvider?.displayName
+                    : t(
+                        editor.mode === "add-custom"
+                          ? "extensions.modelConfig.addCustomProvider"
+                          : "extensions.modelConfig.addProvider",
+                      )}
+                </h2>
+                {editor.mode === "edit" && selectedProvider ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          disabled={navigationBusy}
+                          aria-label={t("extensions.modelConfig.providerActions")}
+                        />
+                      }
                     >
-                      {removingProviderId === provider.provider
-                        ? t(
-                            provider.kind === "custom"
-                              ? "extensions.modelConfig.deleting"
-                              : "extensions.modelConfig.removing",
-                          )
-                        : t(
-                            provider.kind === "custom"
+                      <MoreHorizontalIcon />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <SettingsDropdownItem
+                        disabled={
+                          busy || configLoading || testingProvider || testingModelKey !== undefined
+                        }
+                        onClick={() => void testCurrentProvider()}
+                      >
+                        {t("extensions.modelConfig.testProvider")}
+                      </SettingsDropdownItem>
+                      {selectedProvider.removable && (
+                        <SettingsDropdownItem
+                          onClick={() =>
+                            requestEditorChange(() => void remove(selectedProvider.provider))
+                          }
+                        >
+                          {t(
+                            selectedProvider.kind === "custom"
                               ? "extensions.modelConfig.delete"
                               : "extensions.modelConfig.remove",
                           )}
-                    </Button>
-                  ) : null}
+                        </SettingsDropdownItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
+              </div>
+              {configLoading ? (
+                <p role="status" className="text-muted-foreground py-6 text-sm">
+                  {t("extensions.modelConfig.loadingDetails")}
+                </p>
+              ) : initialDraft ? (
+                providerEditor(editor.mode)
+              ) : (
+                <div className="space-y-3">
+                  <p role="alert" className="text-destructive text-sm">
+                    {error}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      if (selectedProvider) void loadProviderConfig(selectedProvider);
+                    }}
+                  >
+                    {t("extensions.modelConfig.retry")}
+                  </Button>
                 </div>
-              }
+              )}
+            </>
+          ) : (
+            <p className="text-muted-foreground rounded-[var(--button-radius)] border border-dashed p-6 text-sm">
+              {t("extensions.modelConfig.empty")}
+            </p>
+          )}
+          {!editor && error ? (
+            <p className="text-destructive mt-3 text-sm" role="alert">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <Dialog
+        open={pendingChange !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setPendingChange(undefined);
+        }}
+      >
+        <DialogContent closeLabel={t("extensions.modelConfig.cancel")}>
+          <DialogHeader>
+            <DialogTitle>{t("extensions.modelConfig.discardTitle")}</DialogTitle>
+            <DialogDescription>{t("extensions.modelConfig.discardDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setPendingChange(undefined)}>
+              {t("extensions.modelConfig.keepEditing")}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                const action = pendingChange;
+                setPendingChange(undefined);
+                action?.();
+              }}
             >
-              {open ? providerEditor("edit") : null}
-            </ProviderEditorSection>
-          );
-        })}
-        {editor?.mode === "add-provider" ? providerEditor("add-provider") : null}
-        {editor?.mode === "add-custom" ? providerEditor("add-custom") : null}
-      </div>
-
-      {!editor && error ? (
-        <p className="text-destructive text-sm" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 border-dashed text-sm font-normal"
-          disabled={busy || addableProviders.length === 0}
-          onClick={addProvider}
-        >
-          <PlusIcon />
-          {t("extensions.modelConfig.addProvider")}
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          className="h-11 border border-dashed text-sm font-normal"
-          disabled={busy}
-          onClick={addCustomProvider}
-        >
-          <PlusIcon />
-          {t("extensions.modelConfig.addCustomProvider")}
-        </Button>
-      </div>
+              {t("extensions.modelConfig.discard")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={providerLogin !== undefined}
@@ -1927,7 +2075,9 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
             <Button
               type="button"
               variant="outline"
-              disabled={modelPickerLoading || !modelDiscoveryPayload.baseURL}
+              disabled={
+                modelPickerLoading || (customProviderMode && !modelDiscoveryPayload.baseURL)
+              }
               onClick={() => void refreshLatestAvailableModels()}
             >
               {t(

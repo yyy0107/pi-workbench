@@ -187,6 +187,22 @@ export const piExtensionsEnUS = {
         `Loading the ${productName} version`,
     },
     modelConfig: {
+      reasoningOff: "Off",
+      editModel: ({ name }: { name: string }) => `Edit ${name}`,
+      autoSavePending: "Changes not yet saved",
+      manualModel: "Add manually",
+      searchModels: "Search model ID…",
+      noMatchingModels: "No matching models.",
+      newModel: "New model",
+      contextSummary: ({ capacity }: { capacity: string }) => `Context ${capacity}`,
+
+      authenticationRequired: "Authentication required",
+      providerActions: "Provider actions",
+      discardTitle: "Discard unsaved changes?",
+      discardDescription: "Continuing will discard changes to the current provider.",
+      keepEditing: "Keep editing",
+      discard: "Discard changes",
+
       title: "Model",
       description: "Use Pi account sign-ins, API keys, and custom provider connections.",
       loading: "Loading model configurations…",
@@ -216,8 +232,7 @@ export const piExtensionsEnUS = {
       apiKey: "API key",
       openApiKeyPage: ({ provider }: { provider: string }) => `Get a ${provider} API key`,
       apiKeyPlaceholder: "Enter an API key, or leave blank to use environment authentication",
-      apiKeyEditPlaceholder:
-        "Enter a new API key, or leave blank to keep the current configuration",
+      apiKeyEditPlaceholder: "Leave blank to keep the current key",
       environmentOnly: "This provider uses environment authentication",
       accountLogin: "Account login",
       accountLoginDescription: ({ provider }: { provider: string }) =>
@@ -243,8 +258,6 @@ export const piExtensionsEnUS = {
       apiAddress: "API address",
       apiAddressPlaceholder: "https://gateway.example/v1",
       modelCatalog: "Model catalog",
-      adapterDefaultModels: "Using the adapter's default models",
-      customModels: "Custom model catalog",
       customizeModels: "Customize models",
       fetchingAvailableModels: "Getting available models…",
       fetchLatestProviderModels: "Fetch latest from provider",
@@ -263,11 +276,11 @@ export const piExtensionsEnUS = {
       maxOutputTokensUnset: "Not set",
       editMaxOutputTokens: "Edit maximum output tokens",
       modelType: "Model type",
-      thinkingModel: "Thinking model",
-      reasoningLevels: "Reasoning levels",
+      thinkingModel: "Supports reasoning",
+      reasoningLevels: "Reasoning effort",
       reasoningLevelsSelected: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} levels enabled`,
-      reasoningLevelsDisabled: "Enable thinking model first",
+        `${number(count)} selected`,
+      reasoningLevelsDisabled: "Enable reasoning first",
       reasoningLevelMinimal: "Minimal",
       reasoningLevelLow: "Low",
       reasoningLevelMedium: "Medium",
@@ -282,46 +295,41 @@ export const piExtensionsEnUS = {
       testMultimodalShort: "Test",
       testingMultimodal: "Testing…",
       multimodalTestHint:
-        "Checks provider model metadata first. Only when metadata is unknown does it send a small image using the saved configuration, which may incur a small charge.",
-      multimodalMetadataSupported:
-        "Provider model metadata confirms image input support. Save to keep this result.",
+        "Tests text generation first, then image understanding using the saved configuration. This may incur a small charge.",
+      multimodalMetadataSupported: "Provider model metadata confirms image input support.",
       multimodalMetadataUnsupported:
-        "Provider model metadata confirms image input is not supported. Save to keep this result.",
-      multimodalTestSupported: "Image input verified. Save to keep this result.",
-      multimodalTestUnsupported:
-        "The provider explicitly rejected image input. Save to keep this result.",
+        "Provider model metadata confirms image input is not supported.",
+      multimodalTestSupported: "Image input verified.",
+      multimodalTestUnsupported: "The provider explicitly rejected image input.",
       multimodalTestSaveFirst:
-        "This model is not in the saved runtime configuration. Save it, reopen the provider, and test again.",
+        "This model is not in the saved runtime configuration. Wait for automatic saving to finish, then test again.",
       multimodalTestRuntimeUnavailable:
         "The current model runtime cannot run an image-input capability test.",
       multimodalTestUnexpectedResponse:
-        "The model responded but did not read the test image reliably. The current setting was not changed.",
+        "The model responded but did not read the test image reliably.",
       multimodalTestAuthentication:
-        "Authentication failed. Save a valid API key or sign in to this provider, then try again; the current setting was not changed.",
-      multimodalTestQuotaExceeded:
-        "The provider reports insufficient credits, balance, or quota. The current setting was not changed.",
+        "Authentication failed. Save a valid API key or sign in to this provider, then try again.",
+      multimodalTestQuotaExceeded: "The provider reports insufficient credits, balance, or quota.",
       multimodalTestRateLimited:
-        "The provider rate-limited the image test. Wait a moment and try again; the current setting was not changed.",
+        "The provider rate-limited the request. Wait a moment and try again.",
       multimodalTestTimeout:
-        "The image test timed out before the model returned a result. Try again; the current setting was not changed.",
+        "The image test timed out before the model returned a result. Try again.",
       multimodalTestNetwork:
-        "The image test could not connect to the provider. Check the API address and network; the current setting was not changed.",
+        "The image test could not connect to the provider. Check the API address and network.",
       multimodalTestProviderUnavailable:
-        "The provider is temporarily unavailable or overloaded. Try again later; the current setting was not changed.",
+        "The provider is temporarily unavailable or overloaded. Try again later.",
       multimodalTestProtocolMismatch:
-        "The provider does not recognize the standard image request fields for the selected protocol. Choose the API protocol that matches this endpoint; the current setting was not changed.",
+        "The provider does not recognize the standard image request fields for the selected protocol. Choose the API protocol that matches this endpoint.",
       multimodalTestModelUnavailable:
-        "The provider could not find or route this model ID. Refresh the model list or check the model ID; the current setting was not changed.",
-      multimodalTestInvalidImage:
-        "The provider could not decode the built-in RGB PNG test image. The current setting was not changed.",
-      multimodalTestSafety:
-        "The provider blocked the image test with a safety or content filter. The current setting was not changed.",
+        "The provider could not find or route this model ID. Refresh the model list or check the model ID.",
+      multimodalTestInvalidImage: "The provider could not decode the built-in RGB PNG test image.",
+      multimodalTestSafety: "The provider blocked the image test with a safety or content filter.",
       multimodalTestProviderError:
-        "The provider rejected the image test without explicitly reporting that image input is unsupported. Check the selected protocol and model ID; the current setting was not changed.",
+        "The provider rejected the image test without explicitly reporting that image input is unsupported. Check the selected protocol and model ID.",
       multimodalTestInconclusive:
-        "The test could not confirm image support. Check authentication, network access, or rate limits and try again; the current setting was not changed.",
+        "The test could not confirm image support. Check authentication, network access, or rate limits and try again.",
       multimodalTestServiceUnavailable:
-        "The image-input test could not reach the local model service. The current setting was not changed.",
+        "The image-input test could not reach the local model service.",
       modelTypeMultimodal: "Multimodal",
       modelTypeText: "Text",
       modelTypeUnknown: "Unknown",
@@ -332,6 +340,10 @@ export const piExtensionsEnUS = {
       modelIdRequired: ({ index }: { index: number }) => `Model ${index}: Model ID is required.`,
       cancel: "Cancel",
       testProvider: "Test",
+      textConnectionFailed:
+        "Text connection test failed. Check the model, authentication, and network, then try again.",
+      connectionSucceeded: "Connection successful",
+      connectionSucceededWithImages: "Connection successful (supports images)",
       testingProvider: "Testing…",
       testAccountProviderHint:
         "This test reuses the signed-in account to refresh and verify the runtime model catalog. It does not require an API key or send an inference request.",
@@ -366,6 +378,8 @@ export const piExtensionsEnUS = {
           "No environment authentication was found for this provider. Enter an API key or configure the runtime environment first.",
         loadDetailsFailed: "Could not load this provider's settings.",
         fetchModelsFailed: "Could not get the available models from this provider.",
+        catalogRefreshFailed:
+          "Model catalog refresh failed. Showing the catalog already available in Pi.",
         fetchLatestModelsFailed:
           "Could not fetch the latest model list directly from the provider.",
         testAccountProviderAuthenticationFailed:
