@@ -947,6 +947,7 @@ export function WorkbenchComposer({
           throw new Error("Exclusive Composer commands must be submitted separately");
         }
         const request = compileComposerDocument(document, composerCommandRegistry, agentCommands);
+        lexicalEditorRef.current?.focus();
         void submitWorkbenchComposer(session, request, { steer }).then(
           (dispatched) => {
             if (!dispatched) return;
@@ -1184,6 +1185,7 @@ export function WorkbenchComposer({
           }
           input={
             <MarkdownComposerInput
+              autoFocus={composer.phase === "submitting"}
               formatter={workbenchComposerDirectiveFormatter}
               value={composerValue}
               onChange={updateComposerMarkdown}
