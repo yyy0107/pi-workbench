@@ -94,14 +94,14 @@
     position: absolute;
     inset: 0;
     z-index: 1;
-    padding: 1px;
+    padding: 1.5px;
     border-radius: inherit;
     pointer-events: none;
-    opacity: 0.35;
+    opacity: 0.9;
     background: conic-gradient(
       from var(--composer-flow-angle),
       transparent 60%,
-      var(--foreground) 80%,
+      var(--primary) 80%,
       transparent
     );
     mask:
@@ -117,7 +117,7 @@
     z-index: 1;
     border-radius: inherit;
     pointer-events: none;
-    opacity: 0.2;
+    opacity: 0.5;
     /* Blur the masked ring as a whole so its inner edge fades into the card. */
     filter: blur(var(--composer-flow-blur));
 
