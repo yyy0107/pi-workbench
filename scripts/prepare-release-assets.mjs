@@ -172,19 +172,13 @@ function copyReleaseFile(sourcePath, outputDirectory, filename) {
   });
 }
 
-function packageFiles(sourceDirectory, product, targetKey, outputDirectory) {
+function packageFiles(sourceDirectory, outputDirectory) {
   // Only distributables belong in Releases; unpacked application executables are not installers.
   return readdirSync(sourceDirectory, { withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map((entry) => path.join(sourceDirectory, entry.name))
     .filter((filePath) => distributionExtensions.some((extension) => filePath.endsWith(extension)))
-    .map((filePath) =>
-      copyReleaseFile(
-        filePath,
-        outputDirectory,
-        `${targetKey}-${product}-${path.basename(filePath)}`,
-      ),
-    );
+    .map((filePath) => copyReleaseFile(filePath, outputDirectory, path.basename(filePath)));
 }
 
 const targetKey = argument("--target");
@@ -252,12 +246,7 @@ const electronInventory = copyReleaseFile(
   outputDirectory,
   `runtime-native-inventory-electron-${targetKey}.json`,
 );
-const electronPackages = packageFiles(
-  path.join(repositoryRoot, "dist-electron"),
-  "electron",
-  targetKey,
-  outputDirectory,
-);
+const electronPackages = packageFiles(path.join(repositoryRoot, "dist-electron"), outputDirectory);
 if (electronPackages.length === 0) {
   throw new Error(`Electron must produce a package for ${targetKey}.`);
 }

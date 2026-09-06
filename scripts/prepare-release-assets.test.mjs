@@ -126,6 +126,10 @@ test("prepares renderer/runtime packages with normalized native permissions and 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).version, "0.2.0");
   assert.match(JSON.parse(result.stdout).commit, /^[0-9a-f]{40}$/u);
+  assert.deepEqual(
+    JSON.parse(result.stdout).electronPackages.map(({ filename }) => filename),
+    [`Pi-Workbench-0.2.0.${extension}`],
+  );
   const verified = spawnSync(
     process.execPath,
     [
