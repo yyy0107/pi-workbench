@@ -63,7 +63,14 @@ const RUNTIME_NODE_PI_IMPORTS = new Map<string, readonly string[]>([
   ],
   [
     "apps/runtime-node/src/installed-api-only-runtime-host.ts",
-    ["@workbench/agent-runtime-pi-server/legacy"],
+    [
+      "@workbench/agent-runtime-pi-server/installation",
+      "@workbench/agent-runtime-pi-server/legacy",
+    ],
+  ],
+  [
+    "apps/runtime-node/test/installed-api-only-runtime-host.test.ts",
+    ["@workbench/agent-runtime-pi-server/installation"],
   ],
   [
     "apps/runtime-node/src/installed-runtime-service.ts",
