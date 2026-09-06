@@ -104,7 +104,6 @@ export const appearanceExtension = defineExtension({
         defineMessage("extensions.appearance.code.font"),
         defineMessage("extensions.appearance.preferences.codeFontSize"),
         defineMessage("extensions.appearance.preferences.codeTheme"),
-        defineMessage("extensions.appearance.preferences.diffMarkers"),
       ],
       component: AppearanceSettingsItem,
     });

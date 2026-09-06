@@ -199,7 +199,6 @@ export function AppearanceBackground() {
     const originalCornerRadius = root.getAttribute("data-workbench-corner-radius");
     const originalBorderStyle = root.getAttribute("data-workbench-border-style");
     const originalBackdrop = root.getAttribute("data-workbench-backdrop");
-    const originalHideDiffMarkers = root.getAttribute("data-workbench-hide-diff-markers");
 
     const themeProperties = {
       "--workbench-light-accent": preferences.lightAccentColor,
@@ -227,7 +226,6 @@ export function AppearanceBackground() {
     if (preferences.customBackground) {
       setProperty(root, "--workbench-canvas-background", preferences.backgroundColor, originals);
     }
-    root.toggleAttribute("data-workbench-hide-diff-markers", !preferences.showDiffMarkers);
     const computedStyle = getComputedStyle(root);
 
     const hasBackdrop = preferences.customBackground || backgroundImage.url !== null;
@@ -308,9 +306,6 @@ export function AppearanceBackground() {
       else root.setAttribute("data-workbench-border-style", originalBorderStyle);
       if (originalBackdrop === null) root.removeAttribute("data-workbench-backdrop");
       else root.setAttribute("data-workbench-backdrop", originalBackdrop);
-      if (originalHideDiffMarkers === null)
-        root.removeAttribute("data-workbench-hide-diff-markers");
-      else root.setAttribute("data-workbench-hide-diff-markers", originalHideDiffMarkers);
 
       for (const [property, value] of originals) {
         if (value) root.style.setProperty(property, value);

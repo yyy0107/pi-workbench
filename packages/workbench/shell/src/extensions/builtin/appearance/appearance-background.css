@@ -135,10 +135,6 @@
   }
 }
 
-[data-workbench-shell][data-workbench-hide-diff-markers] [data-diff-marker] {
-  display: none;
-}
-
 [data-workbench-shell][data-workbench-backdrop],
 [data-workbench-shell][data-workbench-backdrop] [data-workbench-surface="main"],
 [data-workbench-shell][data-workbench-backdrop] [data-workbench-surface="thread"],

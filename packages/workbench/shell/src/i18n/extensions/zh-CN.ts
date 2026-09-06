@@ -1205,7 +1205,7 @@ export const extensionsZhCN = {
     code: {
       sectionTitle: "代码",
       title: "代码显示",
-      description: "集中设置代码字体、字号、语法颜色和差异标记。",
+      description: "集中设置代码字体、字号和语法颜色。",
       font: "代码字体",
     },
     preferences: {
@@ -1216,8 +1216,6 @@ export const extensionsZhCN = {
       codeTheme: "代码主题",
       codeThemeDescription: "选择随工作台浅色或深色外观自动切换的 Shiki 配色。",
       codePreview: "代码预览",
-      diffMarkers: "差异标记",
-      diffMarkersDescription: "除颜色外，同时使用 +/- 标记显示更改。",
       fontSizeValue: ({ size }: { size: number }, { number }: MessageFormatters) =>
         `${number(size)} 像素`,
     },

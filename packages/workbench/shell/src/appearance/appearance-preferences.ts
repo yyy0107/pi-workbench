@@ -212,7 +212,6 @@ export interface AppearancePreferences {
   uiFontSize: UiFontSize;
   codeFontSize: CodeFontSize;
   codeTheme: CodeTheme;
-  showDiffMarkers: boolean;
 }
 
 export const DEFAULT_APPEARANCE_PREFERENCES = Object.freeze({
@@ -243,7 +242,6 @@ export const DEFAULT_APPEARANCE_PREFERENCES = Object.freeze({
   uiFontSize: 16,
   codeFontSize: 13,
   codeTheme: "dark-plus",
-  showDiffMarkers: true,
 } satisfies AppearancePreferences);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -400,10 +398,6 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
         : typeof value.codeStyle === "string" && LEGACY_CODE_STYLE_THEMES[value.codeStyle]
           ? LEGACY_CODE_STYLE_THEMES[value.codeStyle]
           : DEFAULT_APPEARANCE_PREFERENCES.codeTheme,
-    showDiffMarkers:
-      typeof value.showDiffMarkers === "boolean"
-        ? value.showDiffMarkers
-        : DEFAULT_APPEARANCE_PREFERENCES.showDiffMarkers,
   });
 }
 

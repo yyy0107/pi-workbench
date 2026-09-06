@@ -1178,16 +1178,6 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                 codeTheme={preferences.codeTheme}
               />
             </div>
-            <SettingRow
-              label={t("extensions.appearance.preferences.diffMarkers")}
-              description={t("extensions.appearance.preferences.diffMarkersDescription")}
-            >
-              <SwitchControl
-                checked={preferences.showDiffMarkers}
-                label={t("extensions.appearance.preferences.diffMarkers")}
-                onChange={(showDiffMarkers) => appearanceController.update({ showDiffMarkers })}
-              />
-            </SettingRow>
           </SettingGroup>
         ) : null}
       </div>

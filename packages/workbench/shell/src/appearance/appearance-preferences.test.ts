@@ -45,7 +45,6 @@ test("parses persisted appearance preferences", () => {
       uiFontSize: 18,
       codeFontSize: 15,
       codeTheme: "dracula",
-      showDiffMarkers: false,
     }),
   );
 
@@ -77,7 +76,6 @@ test("parses persisted appearance preferences", () => {
     uiFontSize: 18,
     codeFontSize: 15,
     codeTheme: "dracula",
-    showDiffMarkers: false,
   });
   assert.equal(isDefaultAppearancePreferences(preferences), false);
 });
@@ -104,7 +102,6 @@ test("falls back field by field when persisted values are invalid", () => {
       uiFontSize: 99,
       codeFontSize: 1,
       codeTheme: "rainbow",
-      showDiffMarkers: "symbols",
     }),
   );
 
@@ -113,7 +110,7 @@ test("falls back field by field when persisted values are invalid", () => {
   assert.equal(parseAppearancePreferences("{"), DEFAULT_APPEARANCE_PREFERENCES);
 });
 
-test("ignores retired interaction and control-height preferences", () => {
+test("ignores retired interaction, control-height, and diff-marker preferences", () => {
   const preferences = parseAppearancePreferences(
     JSON.stringify({
       usePointerCursor: true,
@@ -123,6 +120,7 @@ test("ignores retired interaction and control-height preferences", () => {
       buttonControlHeight: 40,
       inputControlHeight: 34,
       dropdownControlHeight: 36,
+      showDiffMarkers: false,
     }),
   );
 
@@ -130,6 +128,7 @@ test("ignores retired interaction and control-height preferences", () => {
   assert.equal("reduceMotion" in preferences, false);
   assert.equal("controlHeight" in preferences, false);
   assert.equal("switchControlHeight" in preferences, false);
+  assert.equal("showDiffMarkers" in preferences, false);
   assert.equal(isDefaultAppearancePreferences(preferences), true);
 });
 

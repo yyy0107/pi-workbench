@@ -44,7 +44,6 @@ export const DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE = {
     codeFont: DEFAULT_APPEARANCE_PREFERENCES.codeFont,
     codeFontSize: DEFAULT_APPEARANCE_PREFERENCES.codeFontSize,
     codeTheme: DEFAULT_APPEARANCE_PREFERENCES.codeTheme,
-    showDiffMarkers: DEFAULT_APPEARANCE_PREFERENCES.showDiffMarkers,
   },
 } as const satisfies DefaultPreferencesByPage;
 

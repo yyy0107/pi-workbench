@@ -1233,7 +1233,7 @@ export const extensionsEnUS = {
     code: {
       sectionTitle: "Code",
       title: "Code display",
-      description: "Configure code fonts, sizing, syntax colors, and change markers.",
+      description: "Configure code fonts, sizing, and syntax colors.",
       font: "Code font",
     },
     preferences: {
@@ -1245,8 +1245,6 @@ export const extensionsEnUS = {
       codeThemeDescription:
         "Choose a Shiki palette that follows the Workbench light or dark appearance.",
       codePreview: "Code preview",
-      diffMarkers: "Diff markers",
-      diffMarkersDescription: "Use +/- markers as well as color to identify changes.",
       fontSizeValue: ({ size }: { size: number }, { number }: MessageFormatters) =>
         `${number(size)} px`,
     },
