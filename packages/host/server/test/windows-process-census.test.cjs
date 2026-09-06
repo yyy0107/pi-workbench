@@ -1,4 +1,6 @@
 const assert = require("node:assert/strict");
+const { spawn } = require("node:child_process");
+const { once } = require("node:events");
 const test = require("node:test");
 
 const {
@@ -49,11 +51,27 @@ test("shared Windows census cleans only a reverified registered descendant after
 });
 
 test(
-  "real Windows census emits a flat argv string array",
+  "real Windows census preserves exact Unicode, quoted, and multiline argv",
   { skip: process.platform !== "win32" },
-  () => {
+  async (t) => {
+    const args = [
+      "-e",
+      "setInterval(() => {}, 1000)",
+      "--",
+      "中文 with spaces",
+      'quoted "value"',
+      "first\r\nsecond",
+      "trailing\\",
+    ];
+    const child = spawn(process.execPath, args, { stdio: "ignore", windowsHide: true });
+    t.after(() => child.kill());
+    await once(child, "spawn");
     const records = readWindowsProcessCensus();
 
+    assert.deepEqual(records.find(({ pid }) => pid === child.pid)?.argv, [
+      process.execPath,
+      ...args,
+    ]);
     assert.ok(records.length > 0);
     for (const record of records) {
       assert.ok(Array.isArray(record.argv));

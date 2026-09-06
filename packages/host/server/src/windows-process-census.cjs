@@ -11,11 +11,12 @@ function windowsCensusCommand() {
   // and CreationDate prevents PID reuse and substring/quoted-argument decoys from being killed.
   return String.raw`
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 public static class WorkbenchCommandLine {
-  [DllImport("shell32.dll", SetLastError = true)]
+  [DllImport("shell32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
   public static extern IntPtr CommandLineToArgvW(string commandLine, out int argumentCount);
   [DllImport("kernel32.dll")]
   public static extern IntPtr LocalFree(IntPtr memory);
@@ -53,7 +54,7 @@ $records = @(
     }
   }
 )
-$records | ConvertTo-Json -Compress -Depth 4
+[Console]::WriteLine((ConvertTo-Json -InputObject $records -Compress -Depth 4))
 `;
 }
 
