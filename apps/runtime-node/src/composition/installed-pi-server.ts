@@ -1,4 +1,5 @@
 import { builtinToolEnabled } from "@workbench/agent-runtime-contracts/settings";
+import applicationPackage from "../../package.json" with { type: "json" };
 
 import { getImageUnderstandingSettingsStore } from "./installed-attachment-understanding";
 import { createImageUnderstandingSettingsRpcRoutes } from "@workbench/attachment-understanding-server/rpc";
@@ -294,7 +295,12 @@ function createInstalledPiServer(
     }),
     createLocalHostRpcRoutes({ service: localHostService, ...domainErrors }),
     createLocalAppRpcRoutes({ service: new LocalAppService(), ...domainErrors }),
-    ...createDefaultPiRpcRouteGroups({ agent, commands, openDocument: localHostService.openPath }),
+    ...createDefaultPiRpcRouteGroups({
+      agent,
+      commands,
+      applicationVersion: applicationPackage.version,
+      openDocument: localHostService.openPath,
+    }),
   ];
   const handleWorkspaceFileContentRequest = createWorkspaceFileContentHandler(workspaceFiles);
   const handleRpcPost = createPiRpcRouter({

@@ -14,6 +14,7 @@ import type {
   WorkspaceView,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 import { DEFAULT_MAX_RPC_REQUEST_BODY_BYTES } from "@workbench/host-server/rpc";
+import applicationPackage from "../package.json" with { type: "json" };
 
 const { getInstalledPiServer, handlePiRpcPost } = (await import(
   new URL("../src/composition/installed-pi-server.ts", import.meta.url).href
@@ -56,12 +57,13 @@ test("retains one installed RPC and Runtime HTTP router facade", () => {
   assert.equal(second.dispose, first.dispose);
 });
 
-test("host.describe reports the embedded Pi version", async () => {
+test("host.describe reports the application and embedded Pi versions", async () => {
   const description = await rpcValue<HostDescription>(
     await handlePiRpcPost(rpcRequest("host.describe", {}), "host.describe"),
   );
 
   assert.equal(description.product, "pi-workbench");
+  assert.equal(description.version, applicationPackage.version);
   assert.equal(description.piVersion, PI_VERSION);
   assert.equal(description.userPackageDir, path.join(getAgentDir(), "npm"));
 });

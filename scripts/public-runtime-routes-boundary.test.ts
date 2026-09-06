@@ -174,7 +174,7 @@ test("route composition owns the injectable domain graph while the Router remain
   assert.doesNotMatch(compositionSource, /createLocalAppRpcRoutes|createLocalHostRpcRoutes/);
   assert.match(compositionSource, /export function createPiRpcRouteGroups/);
   assert.match(compositionSource, /export function createDefaultPiRpcRouteGroups/);
-  assert.match(compositionSource, /const hostService = new HostService\(\)/);
+  assert.match(compositionSource, /const hostService = new HostService\(/);
   assert.doesNotMatch(compositionSource, /new CommandService\(\)/);
   assert.match(routerSource, /export function createPiRpcRouter/);
   assert.doesNotMatch(routerSource, /createDefaultPiRpcRouteGroups|handleInteractiveResponsePost/);

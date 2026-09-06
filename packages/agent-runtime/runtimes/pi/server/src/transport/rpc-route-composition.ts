@@ -118,6 +118,7 @@ export function createPiRpcRouteGroups(
 export interface DefaultPiRpcRouteGroupsDependencies {
   readonly agent: WorkbenchAgentServerAdapter;
   readonly commands: AgentCommandCatalogPort & CommandCatalogProtocol;
+  readonly applicationVersion: string;
   readonly openDocument: (path: string, signal: AbortSignal) => Promise<{ opened: true }>;
 }
 
@@ -125,6 +126,7 @@ export interface DefaultPiRpcRouteGroupsDependencies {
 export function createDefaultPiRpcRouteGroups({
   agent,
   commands,
+  applicationVersion,
   openDocument,
 }: DefaultPiRpcRouteGroupsDependencies): readonly RpcRouteGroup[] {
   const resourceMutationCoordinator = getPiResourceMutationCoordinator();
@@ -143,7 +145,7 @@ export function createDefaultPiRpcRouteGroups({
   });
   const packageCatalogService = getPiPackageCatalogService();
   const agentSettingsService = new AgentSettingsService();
-  const hostService = new HostService();
+  const hostService = new HostService(applicationVersion);
   const domainErrors = { projectDomainError: projectRpcDomainError } as const;
 
   return createPiRpcRouteGroups({

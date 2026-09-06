@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const { randomUUID } = require("node:crypto");
 const { mkdtempSync, realpathSync, writeFileSync } = require("node:fs");
 const path = require("node:path");
+const { version: APPLICATION_VERSION } = require("../package.json");
 
 const { removeRuntimeArtifactOverrides } = require("../src/runtime-artifact-environment.cjs");
 
@@ -78,6 +79,7 @@ function terminalShellEnvironment(
 
 function stagedHostEnvironment(environment, stateRoot, terminalEnvironment) {
   const inheritedEnvironment = { ...environment };
+  delete inheritedEnvironment.npm_package_version;
   for (const name of Object.keys(inheritedEnvironment)) {
     if (name.startsWith("NODE_")) delete inheritedEnvironment[name];
   }
@@ -147,10 +149,13 @@ async function callRpc(fetchImpl, baseUrl, method, { headers = {}, signal, timeo
 }
 
 function assertIsolatedHostDescription(hostDescription, runtimeDirectory, stateRoot) {
+  assert.equal(
+    hostDescription?.version,
+    APPLICATION_VERSION,
+    "host.describe version must match the application package",
+  );
   if (
     hostDescription?.product !== "pi-workbench" ||
-    typeof hostDescription.version !== "string" ||
-    hostDescription.version.length === 0 ||
     typeof hostDescription.piVersion !== "string" ||
     hostDescription.piVersion.length === 0 ||
     hostDescription.piVersion.length === 0 ||

@@ -9,6 +9,7 @@ const { tmpdir } = require("node:os");
 const path = require("node:path");
 const { PassThrough, Writable } = require("node:stream");
 const test = require("node:test");
+const { version: APPLICATION_VERSION } = require("../package.json");
 
 const {
   createRuntimeHostHealth,
@@ -185,7 +186,7 @@ function createFakeRuntimeFetch({
       request.method === "host.describe"
         ? {
             product: "pi-workbench",
-            version: "1.0.0",
+            version: APPLICATION_VERSION,
             piVersion: "0.84.2",
             cwd: runtimeDirectory,
             userPackageDir: path.join(stateRoot, "agent", "npm"),
@@ -385,6 +386,7 @@ function fixture({
         CODEX_HOME: "/preserved/codex-home",
         HOME: "/preserved/home",
         NODE_OPTIONS: "--require /must-not-load.cjs",
+        npm_package_version: "99.0.0",
         WORKBENCH_RUNTIME_ARTIFACT_MANIFEST: "/malicious/outside/artifact-manifest.json",
         WORKBENCH_RUNTIME_ARTIFACT_TARGET_JSON: '{"runtimeFlavor":"node"}',
       },
@@ -518,6 +520,7 @@ test("smokes the staged API-only Host through control, auth, RPC, WebSockets, PT
   assert.equal(spawnOptions.env.HOME, "/preserved/home");
   assert.equal(spawnOptions.env.CODEX_HOME, "/preserved/codex-home");
   assert.equal(spawnOptions.env.NODE_OPTIONS, "");
+  assert.equal(spawnOptions.env.npm_package_version, undefined);
   assert.equal(spawnOptions.env.WORKBENCH_RUNTIME_ARTIFACT_MANIFEST, undefined);
   assert.equal(spawnOptions.env.WORKBENCH_RUNTIME_ARTIFACT_TARGET_JSON, undefined);
   assert.equal(spawnOptions.cwd, setup.stateRoot);
@@ -639,6 +642,20 @@ test("rejects and redacts credentials leaked by child control or diagnostics", a
     assert.deepEqual(setup.stopped, [setup.child]);
     assert.deepEqual(setup.removed, [[setup.stateRoot, { force: true, recursive: true }]]);
   }
+});
+
+test("rejects a staged Host reporting a different application version", async () => {
+  const setup = fixture();
+  const fetchImpl = setup.options.fetchImpl;
+  setup.options.fetchImpl = async (...args) => {
+    const response = await fetchImpl(...args);
+    if (new URL(args[0]).pathname !== "/api/host.describe") return response;
+    const body = await response.json();
+    body.result.value.version = "0.0.0";
+    return Response.json(body);
+  };
+  await assert.rejects(runStagedApiOnlyRuntimeSmoke(setup.options), /host.describe version/u);
+  assert.deepEqual(setup.removed, [[setup.stateRoot, { force: true, recursive: true }]]);
 });
 
 test("fails closed when authenticated HTTP admission is missing and cleans only its temp root", async () => {

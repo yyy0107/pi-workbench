@@ -7,14 +7,18 @@ import { getAttachedSessionCount, listModels } from "../sessions/session-registr
 import { canOpenHostPath } from "@workbench/local-host-server/directories";
 import { ensureWorkbenchBuiltinResources } from "../builtin-resources";
 
-const WORKBENCH_VERSION = process.env.npm_package_version ?? "0.1.0";
-
 /** Stable Host capabilities exposed to transport without leaking process or Pi SDK state. */
 export interface HostProtocol {
   describe(): Promise<HostDescription>;
 }
 
 export class HostService implements HostProtocol {
+  private readonly applicationVersion: string;
+
+  constructor(applicationVersion: string) {
+    this.applicationVersion = applicationVersion;
+  }
+
   async describe(): Promise<HostDescription> {
     const cwd = process.cwd();
     const userResourceDir = getAgentDir();
@@ -22,7 +26,7 @@ export class HostService implements HostProtocol {
     const models = await listModels(cwd).catch(() => undefined);
     return {
       product: "pi-workbench",
-      version: WORKBENCH_VERSION,
+      version: this.applicationVersion,
       piVersion: PI_VERSION,
       cwd,
       userResourceDir,
