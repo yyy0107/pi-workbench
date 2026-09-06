@@ -57,7 +57,10 @@ function ArchivedChatRowsSkeleton({ label, count }: { label: string; count: numb
     <div role="status" aria-label={label} className="space-y-2">
       <span className="sr-only">{label}</span>
       <div className="bg-muted h-5 w-36 animate-pulse rounded-md" />
-      <div className="divide-y overflow-hidden rounded-2xl border bg-background/50">
+      <div
+        data-workbench-glass-surface=""
+        className="divide-y overflow-hidden rounded-2xl border bg-background/50"
+      >
         {Array.from({ length: count }, (_, index) => (
           <div key={index} className="flex min-h-18 animate-pulse items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1 space-y-2">
@@ -268,6 +271,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
       <div
         ref={stickyToolbarRef}
         data-archived-chats-sticky-toolbar=""
+        data-workbench-glass-surface=""
         className="bg-background sticky top-0 z-20"
       >
         <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -400,6 +404,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
               <section key={group.id} aria-labelledby={headingId}>
                 <div
                   data-archived-chats-workspace-header=""
+                  data-workbench-glass-surface=""
                   className="bg-background sticky z-10 flex items-center gap-2 border-b py-2"
                   style={{ top: workspaceHeaderTop }}
                 >
@@ -412,7 +417,10 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
                   </span>
                 </div>
 
-                <div className="divide-y overflow-hidden rounded-2xl border bg-background/50">
+                <div
+                  data-workbench-glass-surface=""
+                  className="divide-y overflow-hidden rounded-2xl border bg-background/50"
+                >
                   {group.chats.map((chat) => {
                     const busy = busyThreadIds.has(chat.id);
                     return (
