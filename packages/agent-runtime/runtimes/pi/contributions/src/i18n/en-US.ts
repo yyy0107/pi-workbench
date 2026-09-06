@@ -5,13 +5,11 @@ export const piExtensionsEnUS = {
   extensions: {
     about: {
       title: "About",
-      tagline: "Open-source AI agent workspace.",
-      productDescription:
-        "A local-first development tool for projects and persistent agent sessions, with workspace files, model configuration, and real terminals on Web and desktop.",
+      productDescription: "A local-first development workspace purpose-built for Pi.",
       version: "Version",
       license: "License",
       source: "Source",
-      builtWith: "Built with",
+      openSourceSoftware: "Key open-source software",
       contribute: "Contribute",
       issues: "Issues",
       pullRequests: "Pull Requests",

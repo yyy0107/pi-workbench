@@ -74,7 +74,7 @@ test("preserves the Desktop extension ID and activation-order baseline", async (
   assert.ok(body, "Desktop extension composition must remain statically inspectable");
   assert.deepEqual(
     [...body.matchAll(/(?:\.\.\.)?([A-Za-z][A-Za-z0-9_.]+),?/gu)].map((match) => match[1]),
-    ["DESKTOP_RUNTIME_LIFECYCLE_EXTENSION"],
+    ["DESKTOP_RUNTIME_LIFECYCLE_EXTENSION", "desktopSettingsExtension"],
   );
 
   const ids = [...piWorkbenchExtensions, { id: "workbench.desktop-runtime-lifecycle" }].map(
@@ -90,6 +90,7 @@ test("preserves the Desktop extension ID and activation-order baseline", async (
     "workbench.message-actions",
     "workbench.user-message-index",
     "workbench.message-queue",
+    "workbench.todo-panel",
     "workbench.archived-chats",
     "workbench.workspace-explorer",
     "workbench.workspace-review",
@@ -110,7 +111,7 @@ test("preserves the Desktop extension ID and activation-order baseline", async (
     "workbench.model-selector",
     "workbench.connection-status",
     "workbench.context-trace",
-    "workbench.external-session-import",
+    "workbench.about",
     "workbench.token-usage",
     "workbench.workspace-file",
     "workbench.desktop-runtime-lifecycle",

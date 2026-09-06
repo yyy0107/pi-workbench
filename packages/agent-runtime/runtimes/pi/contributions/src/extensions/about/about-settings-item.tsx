@@ -3,14 +3,106 @@
 import { usePiHostDescription } from "@workbench/agent-runtime-pi-client/host";
 import { useWorkbenchBranding } from "@workbench/shell/presentation";
 import { buttonVariants, SettingsRow } from "@workbench/shell/ui";
-import { ArrowUpRightIcon } from "lucide-react";
+import { ArrowUpRightIcon, MessagesSquareIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import {
+  siBaseui,
+  siElectron,
+  siElectronbuilder,
+  siLucide,
+  siNextdotjs,
+  siNodedotjs,
+  siRadixui,
+  siReact,
+  siSimpleicons,
+  siTanstack,
+  siTailwindcss,
+  siTypescript,
+} from "simple-icons";
 
 import { usePiI18n } from "../../i18n";
 
 const REPOSITORY_URL = "https://github.com/yyy0107/pi-workbench";
+// Source: https://pi.dev/logo-auto.svg
+const PI_ICON_PATH =
+  "M4.959 4.959h10.562V12H12v3.521H8.48v3.521H4.959ZM8.48 8.48V12H12V8.48ZM15.521 12h3.521v7.042h-3.521Z";
+const OPEN_SOURCE_PROJECTS = [
+  {
+    name: "Pi Coding Agent",
+    license: "MIT",
+    href: "https://github.com/earendil-works/pi",
+    icon: PI_ICON_PATH,
+  },
+  { name: "React", license: "MIT", href: "https://react.dev", icon: siReact.path },
+  {
+    name: "TypeScript",
+    license: "Apache-2.0",
+    href: "https://www.typescriptlang.org",
+    icon: siTypescript.path,
+  },
+  { name: "Next.js", license: "MIT", href: "https://nextjs.org", icon: siNextdotjs.path },
+  {
+    name: "Electron",
+    license: "MIT",
+    href: "https://www.electronjs.org",
+    icon: siElectron.path,
+  },
+  {
+    name: "Electron Builder",
+    license: "MIT",
+    href: "https://www.electron.build",
+    icon: siElectronbuilder.path,
+  },
+  { name: "Node.js", license: "MIT", href: "https://nodejs.org", icon: siNodedotjs.path },
+  {
+    name: "Tailwind CSS",
+    license: "MIT",
+    href: "https://tailwindcss.com",
+    icon: siTailwindcss.path,
+  },
+  {
+    name: "assistant-ui",
+    license: "MIT",
+    href: "https://www.assistant-ui.com",
+    icon: null,
+  },
+  {
+    name: "thinking-orbs",
+    license: "MIT",
+    href: "https://libraries.dev/orbs",
+    icon: null,
+  },
+  { name: "Base UI", license: "MIT", href: "https://base-ui.com", icon: siBaseui.path },
+  {
+    name: "Radix UI",
+    license: "MIT",
+    href: "https://www.radix-ui.com",
+    icon: siRadixui.path,
+  },
+  {
+    name: "TanStack Virtual",
+    license: "MIT",
+    href: "https://tanstack.com/virtual",
+    icon: siTanstack.path,
+  },
+  { name: "Lucide", license: "ISC", href: "https://lucide.dev", icon: siLucide.path },
+  {
+    name: "Simple Icons",
+    license: "CC0-1.0",
+    href: "https://simpleicons.org",
+    icon: siSimpleicons.path,
+  },
+] as const;
 
-function AboutLink({ href, label, children }: { href: string; label: string; children?: ReactNode }) {
+function AboutLink({
+  href,
+  label,
+  children,
+}: {
+  href: string;
+  label: string;
+  children?: ReactNode;
+}) {
   const { t } = usePiI18n();
   return (
     <a
@@ -18,7 +110,7 @@ function AboutLink({ href, label, children }: { href: string; label: string; chi
       target="_blank"
       rel="noopener noreferrer"
       aria-label={t("extensions.about.openExternal", { label })}
-      className={buttonVariants({ variant: "link", className: "px-0 text-muted-foreground" })}
+      className={buttonVariants({ variant: "link", className: "px-0! text-muted-foreground" })}
     >
       {children}
       {label}
@@ -27,7 +119,7 @@ function AboutLink({ href, label, children }: { href: string; label: string; chi
   );
 }
 
-export function AboutGitHubLink() {
+function AboutGitHubLink() {
   return (
     <AboutLink href={REPOSITORY_URL} label="GitHub">
       <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">
@@ -41,6 +133,56 @@ export function AboutSettingsItem() {
   const { t } = usePiI18n();
   const { productName, productLogoUrl } = useWorkbenchBranding();
   const host = usePiHostDescription();
+  const projectRows = OPEN_SOURCE_PROJECTS.map(({ name, license, href, icon }) => (
+    <li key={name}>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={t("extensions.about.openExternal", { label: `${name} · ${license}` })}
+        className={buttonVariants({
+          variant: "ghost",
+          className: "h-auto w-full justify-start rounded-none px-0! py-2 text-foreground",
+        })}
+      >
+        <span className="flex w-[var(--icon-frame-size-default)] shrink-0 items-center justify-center">
+          {icon ? (
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              className="size-[var(--icon-size-md)] fill-current"
+            >
+              <path d={icon} />
+            </svg>
+          ) : name === "thinking-orbs" ? (
+            <svg
+              viewBox="0 0 32 32"
+              aria-hidden="true"
+              className="size-[var(--icon-size-md)] fill-none"
+            >
+              <path
+                d="M21.3352 10.3354 6.89079 13.3354 18.0019 7.33536 1.33524 9.33536 19.3352 1.33536 1.33524 4.33536 9.33524 1.33536"
+                transform="translate(4.7 8.7)"
+                stroke="currentColor"
+                strokeWidth="2.67"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          ) : (
+            <MessagesSquareIcon
+              aria-hidden="true"
+              className="size-[var(--icon-size-md)]"
+              strokeWidth={3}
+            />
+          )}
+        </span>
+        <span className="min-w-0 flex-1 text-left">{name}</span>
+        <span className="text-xs font-normal text-muted-foreground">{license}</span>
+        <ArrowUpRightIcon aria-hidden="true" className="text-muted-foreground" />
+      </a>
+    </li>
+  ));
 
   return (
     <div className="divide-y divide-border border-t border-border">
@@ -54,7 +196,6 @@ export function AboutSettingsItem() {
           />
         ) : null}
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">{productName}</h2>
-        <p className="mt-2 text-sm text-muted-foreground">{t("extensions.about.tagline")}</p>
         <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
           {t("extensions.about.productDescription")}
         </p>
@@ -75,13 +216,6 @@ export function AboutSettingsItem() {
       </div>
 
       <section className="py-6">
-        <h2 className="text-sm font-semibold text-foreground">{t("extensions.about.builtWith")}</h2>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          React · TypeScript · Next.js · Electron · Node.js · Pi Coding Agent
-        </p>
-      </section>
-
-      <section className="py-6">
         <h2 className="text-sm font-semibold text-foreground">
           {t("extensions.about.contribute")}
         </h2>
@@ -92,6 +226,13 @@ export function AboutSettingsItem() {
           </span>
           <AboutLink href={`${REPOSITORY_URL}/pulls`} label={t("extensions.about.pullRequests")} />
         </div>
+      </section>
+
+      <section className="py-6">
+        <h2 className="text-sm font-semibold text-foreground">
+          {t("extensions.about.openSourceSoftware")}
+        </h2>
+        <ul className="mt-3 divide-y divide-border">{projectRows}</ul>
       </section>
     </div>
   );

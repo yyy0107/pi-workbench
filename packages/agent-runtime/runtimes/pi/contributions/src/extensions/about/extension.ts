@@ -3,7 +3,7 @@ import { defineExtension } from "@workbench/extension-sdk";
 import { defineMessage } from "@workbench/shell/i18n";
 
 import { definePiMessage } from "../../i18n";
-import { AboutGitHubLink, AboutSettingsItem } from "./about-settings-item";
+import { AboutSettingsItem } from "./about-settings-item";
 
 export const aboutExtension = defineExtension({
   id: "workbench.about",
@@ -16,7 +16,6 @@ export const aboutExtension = defineExtension({
       title: definePiMessage("extensions.about.title"),
       group: { id: "other", title: defineMessage("extensions.settings.groups.other") },
       icon: InfoIcon,
-      headerAction: AboutGitHubLink,
       order: 100,
     });
     const item = context.settings.registerItem({

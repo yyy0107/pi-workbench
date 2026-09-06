@@ -7,13 +7,11 @@ export const piExtensionsZhCN = {
   extensions: {
     about: {
       title: "关于",
-      tagline: "开源 AI Agent 工作台。",
-      productDescription:
-        "一个以项目和持久 Agent 会话为核心的本地优先开发工具，在 Web 与桌面端集成工作区文件、模型配置和真实终端。",
+      productDescription: "一个为 Pi 深度适配的本地优先开发工作台",
       version: "版本",
       license: "许可证",
       source: "源代码",
-      builtWith: "技术栈",
+      openSourceSoftware: "主要开源软件",
       contribute: "参与贡献",
       issues: "问题反馈",
       pullRequests: "贡献代码",

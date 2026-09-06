@@ -26,7 +26,8 @@
     "@workbench/extension-host": "workspace:*",
     "@workbench/extension-sdk": "workspace:*",
     "@workbench/shell": "workspace:*",
-    "lucide-react": "^1.29.0"
+    "lucide-react": "^1.29.0",
+    "simple-icons": "^16.29.0"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

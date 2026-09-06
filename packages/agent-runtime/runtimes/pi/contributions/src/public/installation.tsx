@@ -10,7 +10,6 @@ import { aboutExtension } from "../extensions/about";
 import { agentConfigurationExtension } from "../extensions/agent-configuration";
 import { connectionStatusExtension } from "../extensions/connection-status";
 import { contextTraceExtension } from "../extensions/context-trace";
-import { externalSessionImportExtension } from "../extensions/external-session-import";
 import { settingModelConfigExtension } from "../extensions/setting-model-config";
 import { piSettingsActionExtension } from "../extensions/settings";
 import { toolboxExtension } from "../extensions/toolbox";
@@ -24,12 +23,7 @@ export const piAgentRuntimeExtensionGroups = Object.freeze({
   agentConfiguration: Object.freeze([agentConfigurationExtension]),
   configuration: Object.freeze([settingModelConfigExtension, piSettingsActionExtension]),
   toolbox: Object.freeze([toolboxExtension]),
-  diagnostics: Object.freeze([
-    connectionStatusExtension,
-    contextTraceExtension,
-    externalSessionImportExtension,
-    aboutExtension,
-  ]),
+  diagnostics: Object.freeze([connectionStatusExtension, contextTraceExtension, aboutExtension]),
 });
 
 /** All Pi UI contributions for consumers that do not need cross-owner ordering. */
