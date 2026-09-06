@@ -140,6 +140,9 @@ export const piExtensionsEnUS = {
         sectionTitle: "Base prompt",
         pageDescription:
           "Shape your agent's behavior with a base prompt and additional instructions.",
+        compositionLabel: "Pi system prompt composition order",
+        compositionTip:
+          "Pi builds the system prompt in this order: base prompt (SYSTEM.md or the built-in default) → additional instructions (APPEND_SYSTEM.md) → project instructions (AGENTS.md and similar files) → available skills catalog (when read is enabled) → current working directory. For both prompt files, trusted project settings take precedence over user settings. Extensions may adjust the prompt before it is sent. Saving applies changes to new sessions without interrupting an ongoing response. Loaded sessions keep their current prompt; run /reload after the current turn finishes to apply changes to future requests. Sessions restored after a Runtime restart also load the latest settings. Existing chat history is preserved.",
         description: "Set the global system prompt Pi uses across all workspaces.",
         projectDescription: "Set the system prompt Pi uses in the selected project.",
         inheritedLabel: "Inherited user system prompt (read-only)",

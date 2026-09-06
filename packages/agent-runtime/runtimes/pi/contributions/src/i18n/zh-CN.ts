@@ -136,6 +136,9 @@ export const piExtensionsZhCN = {
         tabLabel: "SYSTEM",
         sectionTitle: "基础提示词",
         pageDescription: "通过基础提示词和补充指令，调整智能体的行为与回应方式。",
+        compositionLabel: "Pi 系统提示词组成顺序",
+        compositionTip:
+          "Pi 按以下顺序组成系统提示词：基础提示词（SYSTEM.md 或内置默认）→ 补充指令（APPEND_SYSTEM.md）→ 项目指令（AGENTS.md 等）→ 可用技能目录（启用 read 时）→ 当前工作目录。两种提示词文件均优先使用受信任项目的配置，否则使用用户配置。扩展可在发送前进一步调整提示词。保存后新会话使用新配置，不会中途影响正在生成的回复。已加载会话继续使用旧提示词；待本轮结束后执行 /reload，后续请求才会应用修改。Runtime 重启后恢复的会话也会加载最新配置，已有聊天记录不会被改写。",
         description: "设置 Pi 在所有工作区中使用的全局系统提示词。",
         projectDescription: "设置 Pi 在所选项目中使用的系统提示词。",
         inheritedLabel: "继承的用户系统提示词（只读）",

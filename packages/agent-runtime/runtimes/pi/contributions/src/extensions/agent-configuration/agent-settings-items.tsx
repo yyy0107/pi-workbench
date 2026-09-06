@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { CheckIcon, CircleXIcon, Code2Icon, CopyIcon, EyeIcon, InfoIcon } from "lucide-react";
+import {
+  CheckIcon,
+  CircleHelpIcon,
+  CircleXIcon,
+  Code2Icon,
+  CopyIcon,
+  EyeIcon,
+  InfoIcon,
+} from "lucide-react";
 
 import { useClipboardCopy } from "@workbench/shell/hooks";
 import { Button, TooltipIconButton } from "@workbench/shell/ui";
@@ -131,9 +139,19 @@ export function SystemPromptMainView({ view }: MainViewProps<{ target: PiResourc
         className="mx-auto w-full max-w-5xl px-5 py-8 @2xl:px-10 @2xl:py-10"
       >
         <header className="mb-8">
-          <h1 className="text-foreground text-3xl font-medium tracking-tight">
-            {t("extensions.agentConfiguration.systemPrompt.title")}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-foreground text-3xl font-medium tracking-tight">
+              {t("extensions.agentConfiguration.systemPrompt.title")}
+            </h1>
+            <TooltipIconButton
+              type="button"
+              aria-label={t("extensions.agentConfiguration.systemPrompt.compositionLabel")}
+              tooltip={t("extensions.agentConfiguration.systemPrompt.compositionTip")}
+              className="text-muted-foreground"
+            >
+              <CircleHelpIcon aria-hidden="true" />
+            </TooltipIconButton>
+          </div>
           <p className="text-muted-foreground mt-3 text-base leading-6">
             {t("extensions.agentConfiguration.systemPrompt.pageDescription")}
           </p>
