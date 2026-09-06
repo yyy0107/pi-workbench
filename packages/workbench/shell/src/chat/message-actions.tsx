@@ -4,7 +4,6 @@ import { CheckIcon, CircleXIcon, CopyIcon } from "lucide-react";
 
 import {
   useConversationNode,
-  useConversationNodes,
   useConversationSession,
   useSessionState,
 } from "@workbench/agent-runtime-client";
@@ -20,9 +19,13 @@ import {
   shouldHideMessageActionBar,
   shouldShowMessageActions,
   shouldShowMessageNavigation,
+  isLastAssistantInTurn,
   type MessageActionVisibilityMessage,
 } from "./message-action-visibility";
-import { useConversationMessageContext } from "./conversation-message-context";
+import {
+  useConversationMessageContext,
+  useConversationStructure,
+} from "./conversation-message-context";
 import { useSteeredTurn } from "./steered-turn";
 
 function CopyAction({ role, text }: Readonly<{ role: "user" | "assistant"; text: string }>) {
@@ -82,21 +85,20 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
   const { messageId, role, isLast, index } = useConversationMessageContext();
   const session = useConversationSession();
   const node = useConversationNode(messageId);
-  const nodes = useConversationNodes();
+  const messages = useConversationStructure();
   const isRunning = useSessionState((snapshot) => snapshot.isRunning);
-  const messages = nodes.map((item, nodeIndex) =>
-    visibilityMessage(item, nodeIndex === nodes.length - 1),
-  );
   if (!node) return null;
   if (role === "assistant" && steeredTurn && steeredTurn.finalMessageId !== messageId) return null;
   const message = visibilityMessage(node, isLast);
   const hideActionBar =
     shouldHideMessageActionBar(message, isRunning) ||
     (role === "assistant" && steeredTurn?.running === true);
-  const actionsVisible = shouldShowMessageActions(messages, index);
+  const actionsVisible =
+    shouldShowMessageActions([message], 0) &&
+    (role !== "assistant" || isLastAssistantInTurn(messages, index));
   const navigationVisible = shouldShowMessageNavigation(
-    messages,
-    index,
+    [message],
+    0,
     session.actions.selectBranch !== undefined,
   );
   const context = { messageId, role, isLast };

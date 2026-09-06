@@ -26,6 +26,7 @@ export {
   type WorkbenchWorkspaceFileStreamOptions,
 } from "./capabilities";
 export {
+  type ConversationNodeSelectionOptions,
   useAgentRuntime,
   useConversationSession,
   useConversationNode,

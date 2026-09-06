@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import type { ConversationNode } from "@workbench/agent-runtime-contracts/conversation";
+import { useConversationNodes } from "@workbench/agent-runtime-client";
 import {
   parseWorkbenchMessageTermination,
   readWorkbenchTurnTiming,
@@ -31,6 +32,34 @@ interface SteeredTurnState {
 const SteeredTurnContext = createContext<SteeredTurnState | undefined>(undefined);
 export const useSteeredTurn = () => useContext(SteeredTurnContext);
 
+function selectTurnNode(node: ConversationNode) {
+  return {
+    key: node.key,
+    kind: node.kind,
+    createdAt: node.createdAt,
+    timing:
+      node.kind === "assistant"
+        ? readWorkbenchTurnTiming(node.presentation?.custom?.workbenchTurnTiming)
+        : undefined,
+    termination: parseWorkbenchMessageTermination(node.presentation?.custom?.workbenchTermination)
+      ?.kind,
+  };
+}
+
+function sameTurnNode(
+  left: ReturnType<typeof selectTurnNode>,
+  right: ReturnType<typeof selectTurnNode>,
+) {
+  return (
+    left.key === right.key &&
+    left.kind === right.kind &&
+    left.createdAt === right.createdAt &&
+    left.termination === right.termination &&
+    left.timing?.startedAt === right.timing?.startedAt &&
+    left.timing?.completedAt === right.timing?.completedAt
+  );
+}
+
 export function SteeredTurnWork({ children }: PropsWithChildren) {
   const turn = useSteeredTurn();
   return (
@@ -41,14 +70,15 @@ export function SteeredTurnWork({ children }: PropsWithChildren) {
 }
 
 export function SteeredTurn({
-  nodes,
+  nodeKeys,
   running,
   children,
 }: Readonly<{
-  nodes: readonly ConversationNode[];
+  nodeKeys: readonly string[];
   running: boolean;
   children: (state: SteeredTurnState) => ReactNode;
 }>) {
+  const nodes = useConversationNodes({ nodeKeys, select: selectTurnNode, isEqual: sameTurnNode });
   const { t, locale, date, relativeTime } = useI18n();
   const contentId = useId();
   // An override belongs to one lifecycle phase; completion defaults to collapsed.
@@ -60,17 +90,11 @@ export function SteeredTurn({
   );
   const lastMessage = nodes.findLast((node) => node.kind === "assistant" || node.kind === "user");
   const finalMessageId = lastMessage?.kind === "assistant" ? lastMessage.key : undefined;
-  const timings = nodes.flatMap((node) => {
-    const timing = readWorkbenchTurnTiming(node.presentation?.custom?.workbenchTurnTiming);
-    return node.kind === "assistant" && timing ? [timing] : [];
-  });
+  const timings = nodes.flatMap((node) => (node.timing ? [node.timing] : []));
   const now = Date.now();
   const completedAt = timings.length
     ? Math.max(...timings.map((timing) => timing.completedAt))
     : (lastMessage?.createdAt ?? now);
-  const termination = parseWorkbenchMessageTermination(
-    lastMessage?.presentation?.custom?.workbenchTermination,
-  );
   const label = t("extensions.messagePresentation.completedTurn", {
     completedAt: formatCompletedAt(completedAt, now, { date, relativeTime }),
     duration: formatCompletedDuration(
@@ -79,7 +103,7 @@ export function SteeredTurn({
         : undefined,
       locale,
     ),
-    kind: termination?.kind ?? "completed",
+    kind: lastMessage?.termination ?? "completed",
   });
   const state = { open, running, finalMessageId };
 

@@ -27,7 +27,10 @@ import {
   WorkbenchSystemMessage,
   WorkbenchUserMessage,
 } from "./workbench-message";
-import { ConversationMessageProvider } from "./conversation-message-context";
+import {
+  ConversationMessageProvider,
+  ConversationStructureProvider,
+} from "./conversation-message-context";
 import { WorkbenchConversationError } from "./renderers/message-blocks";
 
 interface ConversationRow {
@@ -36,6 +39,30 @@ interface ConversationRow {
   readonly index: number;
   readonly role: "user" | "assistant" | "system";
   readonly steering: boolean;
+  readonly steerInterrupted: boolean;
+  readonly kind: ConversationNode["kind"];
+}
+
+function selectRow(node: ConversationNode) {
+  return {
+    id: node.key,
+    kind: node.kind,
+    role: nodeRole(node),
+    createdAt: node.createdAt,
+    steering: node.presentation?.custom?.workbenchSteering === true,
+    steerInterrupted: node.presentation?.custom?.workbenchSteerInterrupted === true,
+  };
+}
+
+function sameRow(left: ReturnType<typeof selectRow>, right: ReturnType<typeof selectRow>) {
+  return (
+    left.id === right.id &&
+    left.kind === right.kind &&
+    left.role === right.role &&
+    left.createdAt === right.createdAt &&
+    left.steering === right.steering &&
+    left.steerInterrupted === right.steerInterrupted
+  );
 }
 
 const messageComponents = {
@@ -99,15 +126,13 @@ function ConversationMessages({
   renderWorkingStatus,
 }: Readonly<{ isRunning: boolean; renderWorkingStatus: () => ReactNode }>) {
   const { date } = useI18n();
-  const nodes = useConversationNodes();
+  const nodes = useConversationNodes({ select: selectRow, isEqual: sameRow });
   const rows = useMemo<readonly ConversationRow[]>(
     () =>
       nodes.map((node, index) => ({
-        id: node.key,
+        ...node,
         index,
-        role: nodeRole(node),
         createdAt: node.createdAt ?? index,
-        steering: node.presentation?.custom?.workbenchSteering === true,
       })),
     [nodes],
   );
@@ -170,6 +195,7 @@ function ConversationMessages({
     items.push(
       <MessagePair
         key={conversationPairKey(row)}
+        data-conversation-history-row={showWorkingStatus ? undefined : ""}
         variant="flat"
         className="max-w-none gap-4 px-2 [overflow-anchor:none]"
         userMessage={
@@ -188,7 +214,7 @@ function ConversationMessages({
             >
               {grouped ? (
                 <SteeredTurn
-                  nodes={nodes.slice(turnStart, turnEnd + 1)}
+                  nodeKeys={rows.slice(turnStart, turnEnd + 1).map((entry) => entry.id)}
                   running={showWorkingStatus}
                 >
                   {({ finalMessageId }) =>
@@ -196,7 +222,7 @@ function ConversationMessages({
                       const seat = <ConversationNodeSeat index={entry.index} nodeKey={entry.id} />;
                       return entry.role !== "user" &&
                         entry.id !== finalMessageId &&
-                        nodes[entry.index]?.kind !== "error" ? (
+                        entry.kind !== "error" ? (
                         <SteeredTurnWork key={entry.id}>
                           <div className="pb-4">{seat}</div>
                         </SteeredTurnWork>
@@ -227,15 +253,17 @@ function ConversationMessages({
   if (items.length === 0) return null;
 
   return (
-    <div
-      data-slot="conversation-flow"
-      className={cn(
-        THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
-        "flex shrink-0 flex-col gap-4 pb-4 [overflow-anchor:none]",
-      )}
-    >
-      {items}
-    </div>
+    <ConversationStructureProvider value={rows}>
+      <div
+        data-slot="conversation-flow"
+        className={cn(
+          THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
+          "flex shrink-0 flex-col gap-4 pb-4 [overflow-anchor:none]",
+        )}
+      >
+        {items}
+      </div>
+    </ConversationStructureProvider>
   );
 }
 

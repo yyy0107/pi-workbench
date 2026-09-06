@@ -1,6 +1,13 @@
 "use client";
 
 import { createContext, useContext, type PropsWithChildren } from "react";
+import type { MessageActionVisibilityMessage } from "./message-action-visibility";
+
+const ConversationStructureContext = createContext<
+  readonly Pick<MessageActionVisibilityMessage, "role" | "steering" | "steerInterrupted">[]
+>([]);
+export const ConversationStructureProvider = ConversationStructureContext.Provider;
+export const useConversationStructure = () => useContext(ConversationStructureContext);
 
 export interface ConversationMessageContextValue {
   readonly messageId: string;

@@ -28,7 +28,10 @@ import { WorkbenchComposerCommandResponse } from "./composer-command-response";
 import { WorkbenchMessageActions } from "./message-actions";
 import { useSteeredTurn } from "./steered-turn";
 import { WorkbenchMessageParts } from "./message-parts";
-import { useConversationMessageContext } from "./conversation-message-context";
+import {
+  useConversationMessageContext,
+  useConversationStructure,
+} from "./conversation-message-context";
 import { isLastAssistantInTurn } from "./message-action-visibility";
 import { isMessageInLatestTurn, shouldShowMessageError } from "./workbench-message-error";
 
@@ -57,16 +60,8 @@ function WorkbenchMessageError() {
     return node.blocks.find((block) => block.kind === "error")?.error;
   });
   const isRunning = useSessionState((snapshot) => snapshot.isRunning);
-  const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
   const resumeCheckpoint = useSessionState((snapshot) => snapshot.resumeCheckpoint);
-  const messages = nodeKeys.map((key) => {
-    const node = session.node(key).getSnapshot();
-    return {
-      role: node?.kind === "user" || node?.kind === "assistant" ? node.kind : ("system" as const),
-      steering: node?.presentation?.custom?.workbenchSteering === true,
-      steerInterrupted: node?.presentation?.custom?.workbenchSteerInterrupted === true,
-    };
-  });
+  const messages = useConversationStructure();
   const isInLatestTurn = isMessageInLatestTurn(messages, index);
   const isLastAssistant = isLastAssistantInTurn(messages, index);
   const termination = parseWorkbenchMessageTermination(custom?.workbenchTermination);
