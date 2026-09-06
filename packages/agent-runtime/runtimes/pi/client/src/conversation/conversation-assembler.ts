@@ -186,9 +186,14 @@ export class PiConversationAssembler {
           nextNodes.set(message.id, previous);
           continue;
         }
-        let node = conversationNodeFromPiMessage(message, branch);
         // A completed internal model/tool cycle can still belong to the running assistant turn.
-        if (forceRunning && node.kind === "assistant") node = { ...node, status: "running" };
+        // Apply that state before projecting blocks so pending tools also remain running.
+        const node = conversationNodeFromPiMessage(
+          forceRunning && message.role === "assistant"
+            ? { ...message, status: { type: "running" } }
+            : message,
+          branch,
+        );
         const candidate = Object.freeze(
           "blocks" in node
             ? {

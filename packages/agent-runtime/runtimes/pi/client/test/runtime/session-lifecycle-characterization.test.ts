@@ -34,14 +34,22 @@ test("keeps the assistant turn running between model output and tool execution",
     if (node?.kind !== "assistant") throw new Error("Missing assistant turn");
     return node;
   };
+  const currentToolStatus = () => {
+    const tool = currentAssistant().blocks.find((block) => block.kind === "tool-call");
+    assert.ok(tool?.kind === "tool-call");
+    return tool.status;
+  };
   assert.equal(currentAssistant().status, "running");
+  assert.equal(currentToolStatus(), "running");
 
   await emit({ type: "message_end", message: toolMessage });
   assert.equal(session.snapshot.getSnapshot().isRunning, true);
   assert.equal(currentAssistant().status, "running");
+  assert.equal(currentToolStatus(), "running");
 
   await emit({ type: "tool_execution_start", toolCallId: "read-1" });
   assert.equal(currentAssistant().status, "running");
+  assert.equal(currentToolStatus(), "running");
   await emit({
     type: "tool_execution_end",
     toolCallId: "read-1",

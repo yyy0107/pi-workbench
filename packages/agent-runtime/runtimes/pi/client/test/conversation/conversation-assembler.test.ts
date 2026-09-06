@@ -132,6 +132,39 @@ test("long history bypasses unchanged message projection for composer and stream
   assert.equal(assembler.node(messages[0]!.id).getSnapshot(), undefined);
 });
 
+test("keeps pending tools running only during the active turn and preserves tool results", () => {
+  const assembler = new PiConversationAssembler("session-1");
+  const message = assistant("Searching");
+  const tool = message.content.find((part) => part.type === "tool-call");
+  assert.ok(tool?.type === "tool-call");
+  const source = {
+    messages: [
+      {
+        ...message,
+        status: { type: "complete", reason: "unknown" } as const,
+        content: [
+          tool,
+          { ...tool, toolCallId: "success", result: "Found" },
+          { ...tool, toolCallId: "failure", result: "Permission denied", isError: true },
+        ],
+      },
+    ],
+    isLoading: false,
+  };
+
+  for (const isRunning of [true, false, true]) {
+    assembler.update({ ...source, isRunning });
+    const node = assembler.node(message.id).getSnapshot();
+    assert.ok(node?.kind === "assistant");
+    assert.equal(node.status, isRunning ? "running" : "complete");
+    assert.deepEqual(
+      node.blocks.map((block) => block.kind === "tool-call" && block.status),
+      [isRunning ? "running" : "incomplete", "complete", "error"],
+    );
+    assert.equal(source.messages[0]!.status.type, "complete");
+  }
+});
+
 test("projects Workbench message chrome metadata and branch navigation", () => {
   const message = assistant("Answer");
   const [node] = conversationNodesFromPiConversation(
