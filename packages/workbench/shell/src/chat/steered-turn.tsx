@@ -79,7 +79,7 @@ export function SteeredTurn({
   children: (state: SteeredTurnState) => ReactNode;
 }>) {
   const nodes = useConversationNodes({ nodeKeys, select: selectTurnNode, isEqual: sameTurnNode });
-  const { t, locale, date, relativeTime } = useI18n();
+  const { t, locale, date } = useI18n();
   const contentId = useId();
   // An override belongs to one lifecycle phase; completion defaults to collapsed.
   const [override, setOverride] = useState<{ running: boolean; open: boolean }>();
@@ -96,7 +96,7 @@ export function SteeredTurn({
     ? Math.max(...timings.map((timing) => timing.completedAt))
     : (lastMessage?.createdAt ?? now);
   const label = t("extensions.messagePresentation.completedTurn", {
-    completedAt: formatCompletedAt(completedAt, now, { date, relativeTime }),
+    completedAt: formatCompletedAt(completedAt, now, { date }),
     duration: formatCompletedDuration(
       timings.length
         ? completedAt - Math.min(...timings.map((timing) => timing.startedAt))

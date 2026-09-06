@@ -13,8 +13,6 @@ const {
 const zhCNFormatters = {
   date: (value: Date | number, options?: Intl.DateTimeFormatOptions) =>
     new Intl.DateTimeFormat("zh-CN", options).format(value),
-  relativeTime: (value: number, unit: Intl.RelativeTimeFormatUnit) =>
-    new Intl.RelativeTimeFormat("zh-CN", { numeric: "auto" }).format(value, unit),
 };
 
 test("keeps only the last text block outside completed work", () => {
@@ -54,7 +52,7 @@ test("formats a completed duration without leading zeroes", () => {
   assert.equal(formatCompletedDuration(-1_000, "en-US"), "");
 });
 
-test("formats a completion timestamp by its local calendar day", () => {
+test("keeps the exact completion time for both today and historical dates", () => {
   const now = new Date(2026, 7, 27, 12).getTime();
 
   assert.equal(
@@ -63,14 +61,20 @@ test("formats a completion timestamp by its local calendar day", () => {
   );
   assert.equal(
     formatCompletedAt(new Date(2026, 7, 26, 17, 18, 14).getTime(), now, zhCNFormatters),
-    "昨天",
+    "8月26日 17:18:14",
   );
   assert.equal(
     formatCompletedAt(new Date(2026, 7, 25, 17, 18, 14).getTime(), now, zhCNFormatters),
-    "前天",
+    "8月25日 17:18:14",
   );
   assert.equal(
     formatCompletedAt(new Date(2026, 7, 24, 17, 18, 14).getTime(), now, zhCNFormatters),
-    "8月24日",
+    "8月24日 17:18:14",
+  );
+  assert.equal(
+    formatCompletedAt(new Date(2026, 7, 24, 17, 18, 14), now, {
+      date: (value, options) => new Intl.DateTimeFormat("en-US", options).format(value),
+    }),
+    "August 24 at 05:18:14 PM",
   );
 });

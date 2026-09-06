@@ -257,7 +257,7 @@ function MessageBlockRange({
 
 export function WorkbenchMessagePresentation({ node: sourceNode }: MessageRendererProps) {
   const steeredTurn = useSteeredTurn();
-  const { t, date, locale, relativeTime } = useI18n();
+  const { t, date, locale } = useI18n();
   const { showReasoning, showTodos, groupParallelTools } = useConversationPreferences(
     (state) => state.preferences,
   );
@@ -280,7 +280,7 @@ export function WorkbenchMessagePresentation({ node: sourceNode }: MessageRender
   const completionTimestamp =
     turnTiming?.completedAt ?? node.createdAt ?? turnTiming?.startedAt ?? now;
   const completedLabel = t("extensions.messagePresentation.completedTurn", {
-    completedAt: formatCompletedAt(completionTimestamp, now, { date, relativeTime }),
+    completedAt: formatCompletedAt(completionTimestamp, now, { date }),
     duration: formatCompletedDuration(
       resolveWorkbenchTurnDuration(storedTurnTiming, undefined),
       locale,

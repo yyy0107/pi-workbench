@@ -44,22 +44,15 @@ function localCalendarDay(date: Date): number {
 export function formatCompletedAt(
   timestamp: Date | number,
   now: number,
-  { date, relativeTime }: Pick<MessageFormatters, "date" | "relativeTime">,
+  { date }: Pick<MessageFormatters, "date">,
 ): string {
   const completedAt = timestamp instanceof Date ? timestamp : new Date(timestamp);
   const dayOffset = localCalendarDay(completedAt) - localCalendarDay(new Date(now));
 
-  if (dayOffset === 0) {
-    return date(completedAt, {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  }
-
-  if (dayOffset === -1 || dayOffset === -2) {
-    return relativeTime(dayOffset, "day");
-  }
-
-  return date(completedAt, { month: "long", day: "numeric" });
+  return date(completedAt, {
+    ...(dayOffset === 0 ? {} : { month: "long", day: "numeric" }),
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
