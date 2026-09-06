@@ -147,7 +147,7 @@ export function ComposerCommandToken({
             {icon}
           </span>
         ) : null}
-        <span>{label}</span>
+        <span className="self-baseline">{label}</span>
       </span>
       {hint ? (
         <span

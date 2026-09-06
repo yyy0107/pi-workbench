@@ -18,7 +18,7 @@ test("distinguishes skill and extension command tokens by icon", () => {
   const extensionMarkup = renderToken("extension");
 
   assert.match(skillMarkup, /data-slot="composer-command-token-icon"/);
-  assert.match(skillMarkup, /lucide-sparkles/);
+  assert.match(skillMarkup, /lucide-box/);
   assert.match(extensionMarkup, /lucide-puzzle/);
   assert.notEqual(skillMarkup, extensionMarkup);
 });
