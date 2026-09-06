@@ -1,12 +1,28 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ReactElement } from "react";
+import { Children, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { Button } from "./button";
 import { Input } from "./input";
 import { TooltipIconButton } from "./tooltip-icon-button";
 import { withTooltip } from "./tooltip";
+
+test("unkeyed tooltip siblings keep distinct identities and explicit keys survive", () => {
+  const elements = [
+    <span title="Thread" />,
+    <span title="Workspace" />,
+    <span key="named" title="Named" />,
+    <span key={0} title="First" />,
+  ];
+  const wrapped = elements.map((element) => withTooltip(element));
+  assert.deepEqual(
+    wrapped.map((element) => element.key),
+    elements.map((element) => element.key),
+  );
+  const keys = Children.toArray(wrapped).map((child) => (child as ReactElement).key);
+  assert.equal(new Set(keys).size, keys.length);
+});
 
 test("native titles become tooltips on the original element with accessible labels", () => {
   const html = renderToStaticMarkup(

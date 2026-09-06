@@ -37,7 +37,7 @@ function withTooltip(
     "aria-label": label ?? (labelledBy ? undefined : title),
   });
   return (
-    <Tooltip key={element.key} disabled={!title}>
+    <Tooltip key={element.key ?? undefined} disabled={!title}>
       <TooltipPrimitive.Trigger render={trigger} delay={delay} data-popup-open={undefined} />
       <TooltipContent className="whitespace-pre-line [overflow-wrap:anywhere]">
         {title}

@@ -104,7 +104,7 @@ export function WorkbenchHeader() {
   return (
     <header
       data-workbench-surface="header"
-      className="bg-background grid h-(--workbench-header-height) shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1 border-b ps-2 [padding-inline-end:calc(var(--right-workspace-toggle-inset-end)_+_var(--right-workspace-toggle-reserved-width))] [app-region:drag] select-none sm:grid-cols-[1fr_auto_1fr] sm:gap-0 sm:ps-3 [&_a]:[app-region:no-drag] [&_button]:[app-region:no-drag]"
+      className="bg-background grid h-(--workbench-header-height) shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1 border-b ps-2 [padding-inline-end:calc(var(--right-workspace-toggle-inset-end)_+_var(--right-workspace-toggle-reserved-width))] [app-region:drag] select-none sm:gap-0 sm:ps-3 sm:has-[[data-slot-host='header.center']:not(:empty)]:grid-cols-[1fr_auto_1fr] [&_a]:[app-region:no-drag] [&_button]:[app-region:no-drag]"
     >
       <div
         className={cn(
@@ -137,7 +137,7 @@ export function WorkbenchHeader() {
                 title={t("workbench.shell.currentWorkspace", {
                   name: currentWorkspace?.rootPath ?? currentWorkspaceName,
                 })}
-                className="border-border/60 bg-muted/70 text-muted-foreground inline-flex h-[var(--button-height-default)] min-w-0 max-w-36 shrink items-center gap-1 overflow-hidden rounded-md border px-2 text-sm font-medium whitespace-nowrap sm:max-w-48"
+                className="border-border/60 bg-muted/70 text-muted-foreground inline-flex h-[var(--button-height-default)] min-w-0 shrink items-center gap-1 overflow-hidden rounded-md border px-2 text-sm font-medium whitespace-nowrap"
               >
                 <FolderIcon aria-hidden="true" className="size-3 shrink-0" />
                 <span className="min-w-0 truncate">{currentWorkspaceName}</span>
