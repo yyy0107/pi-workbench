@@ -6,10 +6,12 @@ import {
   resolveCollapsibleResizeThreshold,
 } from "../../src/resize/use-collapsible-resize";
 
-test("derives the collapse threshold from the fixed minimum width", () => {
+test("caps the default collapse distance at the sidebar distance for wider panels", () => {
   assert.equal(resolveCollapsibleResizeThreshold(240), 120);
   assert.equal(resolveCollapsibleResizeThreshold(220), 110);
-  assert.equal(resolveCollapsibleResizeThreshold(360), 180);
+  assert.equal(resolveCollapsibleResizeThreshold(360), 240);
+  assert.equal(resolveCollapsibleResizeThreshold(720), 600);
+  assert.equal(resolveCollapsibleResizeThreshold(0), 0);
 });
 
 test("bounds custom collapse ratios", () => {

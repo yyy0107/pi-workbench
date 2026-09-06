@@ -11,6 +11,7 @@ import {
 import { animateSpring, applyMagneticSnap, type SpringAnimation } from "./resize-spring";
 
 const DEFAULT_COLLAPSE_RATIO = 0.5;
+const MAX_COLLAPSE_DISTANCE = 120;
 const DEFAULT_KEYBOARD_STEP = 16;
 const DEFAULT_RELEASE_DISTANCE = 24;
 const MAX_SPRING_VELOCITY = 2400;
@@ -57,13 +58,14 @@ export interface UseCollapsibleResizeOptions {
 
 export function resolveCollapsibleResizeThreshold(
   minimumWidth: number,
-  collapseRatio = DEFAULT_COLLAPSE_RATIO,
+  // Wider panels should not need a longer push past their minimum than the sidebar.
+  collapseRatio = Math.min(DEFAULT_COLLAPSE_RATIO, MAX_COLLAPSE_DISTANCE / minimumWidth),
 ): number {
   const minimum = Number.isFinite(minimumWidth) ? Math.max(0, minimumWidth) : 0;
   const ratio = Number.isFinite(collapseRatio)
     ? Math.min(1, Math.max(0, collapseRatio))
     : DEFAULT_COLLAPSE_RATIO;
-  return minimum * (1 - ratio);
+  return minimum - minimum * ratio;
 }
 
 export function resolveCollapsibleResizePreview(

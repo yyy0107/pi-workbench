@@ -346,7 +346,7 @@ export function SurfaceHost({ isVisible = true }: { isVisible?: boolean }) {
               inert={!auxiliaryVisible ? true : undefined}
               data-state={auxiliaryVisible ? "open" : "closed"}
               className={cn(
-                "relative min-w-0 overflow-hidden transition-[width,flex-basis,min-height,opacity,transform] duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none data-[state=closed]:pointer-events-none data-[state=closed]:opacity-0",
+                "relative min-w-0 overflow-hidden transition-[width,flex-basis,min-height,opacity,transform] duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none in-data-[resizing=true]:transition-none data-[state=closed]:pointer-events-none data-[state=closed]:opacity-0",
                 split.mode === "stacked"
                   ? "min-h-48 basis-[42%] data-[state=closed]:min-h-0 data-[state=closed]:basis-0 data-[state=closed]:translate-y-2"
                   : "min-h-0 shrink data-[state=closed]:shrink-0 data-[state=closed]:translate-x-2",
