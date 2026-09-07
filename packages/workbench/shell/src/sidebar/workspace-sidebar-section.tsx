@@ -45,7 +45,7 @@ function WorkspaceSidebarContent({
       role="region"
       aria-label={t("workbench.shell.workspace")}
       data-workspace-scroll-container
-      className="min-h-0 flex-1 overflow-y-auto ps-3 pe-[2px] [scrollbar-gutter:stable]"
+      className="min-h-0 flex-1 overflow-y-auto ps-3 pe-[2px] [overflow-anchor:none] [scrollbar-gutter:stable]"
     >
       <div
         className="sticky top-0 z-10 min-w-0 bg-linear-to-b from-sidebar from-[calc(100%-var(--spacing)*2)] to-transparent pb-2"
