@@ -130,6 +130,48 @@ test("renders structured citations with stable accessible labels", () => {
   assert.match(markup, /aria-label="Example guide"/);
 });
 
+test("decorates assistant links by destination while retaining Streamdown link safety", () => {
+  const links = [
+    ["/workspace/notes.md:12", "file-text"],
+    ["../src/main.ts#L12", "file-text"],
+    ["https://example.com/guide", "earth"],
+    ["//example.com/guide", "earth"],
+    ["/images/screen.PNG", "image"],
+    ["https://example.com/screen%2Ewebp?size=large#preview", "image"],
+    ["/workspace/docs/", "folder"],
+    ["#details", "hash"],
+    ["mailto:hello@example.com", "mail"],
+    ["https://example.com/%ZZ", "earth"],
+  ];
+  for (const isRunning of [false, true]) {
+    for (const [href, icon] of links) {
+      const markup = render(
+        createElement(MarkdownTextContentWithCitations, {
+          text: `Before [\`reference\`](${href}) after.`,
+          sources: [],
+          isRunning,
+        }),
+      );
+      assert.match(markup, /<button[^>]+data-streamdown="link"/, href);
+      assert.ok(markup.includes(`lucide-${icon}`), `${href}\n${markup}`);
+      assert.match(markup, /<svg[^>]+aria-hidden="true"[^>]*>.*<\/svg><code/, href);
+      assert.equal(markup.replace(/<[^>]+>/g, ""), "Before reference after.", href);
+    }
+  }
+
+  for (const text of [
+    "[![preview](https://example.com/image.png)](https://example.com)",
+    "[unsafe](javascript:alert%281%29)",
+    "An unfinished [reference](https://",
+  ]) {
+    const markup = render(
+      createElement(MarkdownTextContentWithCitations, { text, sources: [], isRunning: true }),
+    );
+    assert.doesNotMatch(markup, /aui-markdown-link-icon/);
+    assert.doesNotMatch(markup, /href="javascript:/);
+  }
+});
+
 test("code header exposes expand and collapse controls before copy", () => {
   const fittedMarkup = render(
     createElement(CodexCodeHeader, { code: "const answer = 42;", expanded: false }),

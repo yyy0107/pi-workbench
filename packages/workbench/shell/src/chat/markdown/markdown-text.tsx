@@ -42,6 +42,7 @@ import {
 import { cn } from "../../utils";
 import { CodexCodeHeader } from "./codex-code-header";
 import { MermaidCode } from "./mermaid-code";
+import { MarkdownLinkIcon, markdownLinkIconPlugins } from "./markdown-link-icons";
 import {
   INLINE_CITATION_GROUP_SENTINEL,
   parseInlineCitationUrlSentinel,
@@ -249,6 +250,7 @@ function MarkdownCode({
 
 const sourceCodeComponents = {
   code: MarkdownCode,
+  span: MarkdownLinkIcon,
   sup: MarkdownSuperscript,
 } as Components;
 
@@ -418,6 +420,7 @@ export const MarkdownTextContentWithCitations = memo(function MarkdownTextConten
         defer={isRunning}
         mode={isRunning ? "streaming" : "static"}
         preprocess={preprocess}
+        rehypePlugins={markdownLinkIconPlugins}
         smooth
       />
     </InlineCitationContext.Provider>
