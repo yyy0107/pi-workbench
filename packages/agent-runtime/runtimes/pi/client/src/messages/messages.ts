@@ -1709,9 +1709,8 @@ export function reconcileLiveMessagesAfterHistory(
     preserveUnpersistedOptimisticUsers: boolean;
   }>,
 ): ThreadMessage[] {
-  const newAuthoritativeUsers = authoritativeMessages.filter(
-    (message): message is ThreadUserMessage =>
-      message.role === "user" && !options.baseMessageIdsAtStart.has(message.id),
+  const authoritativeUsers = authoritativeMessages.filter(
+    (message): message is ThreadUserMessage => message.role === "user",
   );
   const authoritativeEventSequences = new Set(
     authoritativeMessages.flatMap((message) => {
@@ -1738,11 +1737,34 @@ export function reconcileLiveMessagesAfterHistory(
       return false;
     }
 
-    const replacementIndex = newAuthoritativeUsers.findIndex((candidate) =>
-      sameUserPrompt(message, candidate),
-    );
+    const replacementIndex = authoritativeUsers.findIndex((candidate) => {
+      if (candidate.id === message.id) return true;
+      const submissionId = message.metadata.custom.workbenchComposerSubmissionId;
+      const resolvedSubmissionId = candidate.metadata.custom.workbenchComposerSubmissionId;
+      if (typeof submissionId === "string" && typeof resolvedSubmissionId === "string") {
+        return submissionId === resolvedSubmissionId;
+      }
+      // History can overtake the live user-end after the Composer marker is already in base.
+      // Match its native start timestamp (not the marker's) across the two event sequences.
+      const timestamp = message.metadata.custom.piMessageTimestamp;
+      const resolvedTimestamp =
+        candidate.metadata.custom.piResolvedMessageTimestamp ??
+        candidate.metadata.custom.piMessageTimestamp;
+      const resolvedSequence = candidate.metadata.custom.piEventSeq;
+      if (
+        typeof timestamp === "number" &&
+        Number.isFinite(timestamp) &&
+        timestamp === resolvedTimestamp &&
+        typeof eventSequence === "number" &&
+        typeof resolvedSequence === "number" &&
+        eventSequence < resolvedSequence
+      ) {
+        return true;
+      }
+      return !options.baseMessageIdsAtStart.has(candidate.id) && sameUserPrompt(message, candidate);
+    });
     if (replacementIndex < 0) return true;
-    newAuthoritativeUsers.splice(replacementIndex, 1);
+    authoritativeUsers.splice(replacementIndex, 1);
     return false;
   });
 }

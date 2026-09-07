@@ -2140,6 +2140,121 @@ test("does not collapse identical follow-up turns or duplicate an unclaimed opti
   );
 });
 
+for (const compiled of [false, true]) {
+  test(`reconciles a live user start when history overtakes its end (compiled=${compiled})`, (t) => {
+    const manager = new PiSessionManager();
+    t.after(() => manager.dispose());
+    const session = manager.getSession("local-session", "remote-session");
+    const internals = session as unknown as {
+      applyHistory(value: SessionHistoryValue, remoteId: string): void;
+      handleEvent(event: PiEvent): void;
+    };
+    const composer = {
+      version: 2 as const,
+      submissionId: "submission-1",
+      sourceText: "Hello",
+      hidden: true,
+    };
+    const marker: SessionHistoryValue["events"][number] = {
+      event: {
+        type: "message",
+        seq: 0,
+        time: 1_000,
+        entryId: "composer-user",
+        data: {
+          role: "custom",
+          customType: "workbench.composer-user.v3",
+          content: "",
+          display: false,
+          timestamp: 1_000,
+          details: {
+            version: 3,
+            submissionId: composer.submissionId,
+            sourceText: composer.sourceText,
+            text: composer.sourceText,
+            document: [{ type: "text", text: composer.sourceText }],
+            status: "accepted",
+          },
+        },
+      },
+    };
+    const user = {
+      role: "user" as const,
+      content: compiled ? "Compiled model input" : "Hello",
+      timestamp: 2_000,
+    };
+    internals.applyHistory({ events: [marker], hasMore: false }, "remote-session");
+    assert.deepEqual(
+      session.getSnapshot().messages.map((message) => message.id),
+      ["composer-user"],
+    );
+    internals.handleEvent({ type: "agent_start" });
+    internals.handleEvent({ type: "message_start", sequence: 1, message: user });
+    const history: SessionHistoryValue = {
+      events: [
+        marker,
+        { event: { type: "message_start", seq: 1, time: 2_000, data: { message: user } } },
+        {
+          event: {
+            type: "message_end",
+            seq: 2,
+            time: 2_001,
+            entryId: "resolved-user",
+            data: { message: user, workbenchComposer: composer },
+          },
+        },
+        {
+          event: {
+            type: "message_end",
+            seq: 3,
+            time: 3_000,
+            entryId: "assistant-response",
+            data: {
+              message: {
+                role: "assistant",
+                content: [{ type: "text", text: "Hello back" }],
+                timestamp: 2_500,
+                stopReason: "toolUse",
+              },
+            },
+          },
+        },
+      ],
+      hasMore: false,
+    };
+    internals.applyHistory(history, "remote-session");
+    // Its live end is now below the history watermark, so it will never repair the start row.
+    internals.handleEvent({
+      type: "message_end",
+      sequence: 2,
+      message: user,
+      workbenchComposer: composer,
+    });
+    assert.deepEqual(
+      session.getSnapshot().messages.map((message) => [message.id, message.role]),
+      [
+        ["composer-user", "user"],
+        ["assistant-response", "assistant"],
+      ],
+    );
+    assert.deepEqual(
+      repositoryMessages(session.getSnapshot().messageRepository).map((message) => message.id),
+      ["composer-user", "assistant-response"],
+    );
+    // Even equal text and native timestamps can belong to a genuinely newer queued turn.
+    internals.handleEvent({ type: "message_start", sequence: 4, message: user });
+    internals.applyHistory(history, "remote-session");
+    assert.deepEqual(
+      session.getSnapshot().messages.map((message) => [message.id, message.role]),
+      [
+        ["composer-user", "user"],
+        ["assistant-response", "assistant"],
+        ["pi-event-4", "user"],
+      ],
+    );
+  });
+}
+
 test("publishes a complete optimistic turn and running state in one session snapshot", async (t) => {
   const originalFetch = globalThis.fetch;
   let promptRpcId: string | undefined;
@@ -2275,6 +2390,122 @@ test("loads one older history page only after the Headless Session action is req
   assert.equal(session.getSnapshot().messages.length, 12);
   assert.equal(session.snapshot.getSnapshot().hasMore, false);
 });
+
+for (const hasLoadedHistory of [false, true]) {
+  test(`keeps the user before a completed answer when the history tail starts inside its tool cycles (loaded=${hasLoadedHistory})`, async (t) => {
+    const originalFetch = globalThis.fetch;
+    t.after(() => {
+      globalThis.fetch = originalFetch;
+    });
+    const manager = new PiSessionManager();
+    t.after(() => manager.dispose());
+    const session = manager.getSession("local-session", "remote-session");
+    const internals = session as unknown as {
+      applyHistory(value: SessionHistoryValue, remoteId: string): void;
+      handleEvent(event: PiEvent): void;
+      localRunLeaseActive: boolean;
+    };
+    const events: SessionHistoryValue["events"] = [];
+    if (hasLoadedHistory) {
+      events.push(
+        {
+          event: {
+            type: "message",
+            seq: 0,
+            time: 0,
+            data: { role: "user", content: "Hello", timestamp: 0 },
+          },
+        },
+        {
+          event: {
+            type: "message",
+            seq: 1,
+            time: 1,
+            data: {
+              role: "assistant",
+              content: [{ type: "text", text: "Previous answer" }],
+              stopReason: "stop",
+              timestamp: 1,
+            },
+          },
+        },
+      );
+      internals.applyHistory({ events: [...events], hasMore: false }, "remote-session");
+    }
+    internals.localRunLeaseActive = true;
+    internals.handleEvent({ type: "agent_start" });
+    const appendMessage = (message: PiEvent["message"]) => {
+      for (const type of ["message_start", "message_end"]) {
+        const seq = events.length;
+        events.push({ event: { type, seq, time: 1_000 + seq, data: { message } } });
+        internals.handleEvent({ type, sequence: seq, message });
+      }
+    };
+    appendMessage({ role: "user", content: "Hello", timestamp: 1_000 });
+    for (let index = 0; index < 5; index += 1) {
+      appendMessage({
+        role: "assistant",
+        content: [{ type: "text", text: `Step ${index}` }],
+        stopReason: "toolUse",
+        timestamp: 1_001 + index * 2,
+      });
+      appendMessage({
+        role: "toolResult",
+        toolCallId: `tool-${index}`,
+        toolName: "read",
+        content: [{ type: "text", text: "Result" }],
+        isError: false,
+        timestamp: 1_002 + index * 2,
+      });
+    }
+    appendMessage({
+      role: "assistant",
+      content: [{ type: "text", text: "Done" }],
+      stopReason: "stop",
+      timestamp: 2_000,
+    });
+    const expectedIds = session.getSnapshot().messages.map((message) => message.id);
+    assert.equal(session.getSnapshot().isRunning, false);
+    const requests: Array<{ beforeSeq?: number; maxMessages: number }> = [];
+    globalThis.fetch = async (_input, init) => {
+      const request = JSON.parse(String(init?.body)) as {
+        rpcId: string;
+        method: string;
+        payload: { beforeSeq?: number; maxMessages: number };
+      };
+      assert.equal(request.method, "session.history");
+      requests.push(request.payload);
+      const end = request.payload.beforeSeq ?? events.length;
+      const start = Math.max(0, end - request.payload.maxMessages * 2);
+      return Response.json({
+        type: "server-response",
+        rpcId: request.rpcId,
+        result: {
+          ok: true,
+          value: { events: events.slice(start, end), hasMore: start > 0 },
+        },
+      });
+    };
+    await session.reload();
+    assert.deepEqual(
+      session.getSnapshot().messages.map((message) => message.id),
+      expectedIds,
+    );
+    assert.deepEqual(
+      repositoryMessages(session.getSnapshot().messageRepository).map((message) => message.id),
+      expectedIds,
+    );
+    assert.equal(requests[0]?.maxMessages, 8);
+    assert.ok(requests.some((request) => request.beforeSeq !== undefined));
+    // The settled refresh must retain both real sends, including identical prompt text.
+    internals.localRunLeaseActive = false;
+    await session.reload();
+    assert.deepEqual(
+      session.getSnapshot().messages.map((message) => message.id),
+      expectedIds,
+    );
+  });
+}
 
 test("keeps the optimistic assistant placeholder through a running history rebaseline", async (t) => {
   const originalFetch = globalThis.fetch;

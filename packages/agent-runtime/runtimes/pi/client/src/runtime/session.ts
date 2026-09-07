@@ -1018,8 +1018,10 @@ export class PiClientSession implements ConversationSession {
     }
   }
 
-  private mergeOlderHistory(page: SessionHistoryValue): SessionHistoryValue {
-    const current = this.loadedHistory;
+  private mergeOlderHistory(
+    page: SessionHistoryValue,
+    current = this.loadedHistory,
+  ): SessionHistoryValue {
     if (!current) return page;
     const knownEntryIds = new Set(
       current.events.flatMap(({ event }) => (event.entryId ? [event.entryId] : [])),
@@ -1117,7 +1119,32 @@ export class PiClientSession implements ConversationSession {
         ),
       },
       this.manager.rpcTransportOptions,
-    ).then((history) => {
+    ).then(async (history) => {
+      if (this.disposed || this.remoteIdValue !== remoteId) return history;
+      // The tail page can start inside a long tool turn. Cover the already-visible range
+      // before replacing it, or its live user would be appended after the history answer.
+      const firstVisibleSequence = Math.min(
+        this.loadedHistory?.events[0]?.event.seq ?? Infinity,
+        ...this.liveMessages.flatMap((message) => {
+          const sequence = message.metadata.custom.piEventSeq;
+          return typeof sequence === "number" && Number.isFinite(sequence) ? [sequence] : [];
+        }),
+      );
+      while (history.hasMore) {
+        const beforeSeq = history.events[0]?.event.seq;
+        if (beforeSeq === undefined) throw new SessionHistoryPaginationError();
+        if (beforeSeq <= firstVisibleSequence) break;
+        const page = await fetchPiRpcSessionHistory(
+          { sessionId: remoteId, beforeSeq, maxMessages: BACKFILL_SESSION_HISTORY_MESSAGES },
+          this.manager.rpcTransportOptions,
+        );
+        if (this.disposed || this.remoteIdValue !== remoteId) return history;
+        const nextBeforeSeq = page.events[0]?.event.seq;
+        if (page.hasMore && (nextBeforeSeq === undefined || nextBeforeSeq >= beforeSeq)) {
+          throw new SessionHistoryPaginationError();
+        }
+        history = this.mergeOlderHistory(page, history);
+      }
       this.applyHistory(history, remoteId);
       if (this.snapshotValue.isLoading) this.replaceSnapshot({ isLoading: false });
       return history;
