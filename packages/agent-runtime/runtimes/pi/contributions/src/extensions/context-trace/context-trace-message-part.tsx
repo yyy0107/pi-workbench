@@ -97,7 +97,7 @@ export const ContextTraceMessagePart: DataRendererComponent = ({ block }) => {
   const section = parsed.promptInjection;
   const presentation = {
     "system-prompt": {
-      query: t("extensions.contextTrace.messagePart.systemPromptInjected"),
+      query: event.model ? `· ${event.model.provider}/${event.model.model}` : "",
       rows: resources
         ? [
             ...(systemPromptSources
@@ -146,6 +146,11 @@ export const ContextTraceMessagePart: DataRendererComponent = ({ block }) => {
         : [],
     },
   }[section ?? "system-prompt"];
+  const label = t(
+    section === "system-prompt" || section === undefined
+      ? "extensions.contextTrace.messagePart.systemPromptInjected"
+      : "extensions.contextTrace.messagePart.composeContext",
+  );
   const rows = presentation.rows;
   if (rows.length === 0) return null;
   const currentSystemPromptContent =
@@ -186,8 +191,8 @@ export const ContextTraceMessagePart: DataRendererComponent = ({ block }) => {
   return (
     <div data-slot="pi-context-trace-timeline-step" className="w-full">
       <ToolCall
-        label={t("extensions.contextTrace.messagePart.composeContext")}
-        activeLabel={t("extensions.contextTrace.messagePart.composeContext")}
+        label={label}
+        activeLabel={label}
         query={presentation.query}
         request=""
         result=""

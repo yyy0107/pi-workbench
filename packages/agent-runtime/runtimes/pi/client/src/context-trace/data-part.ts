@@ -32,6 +32,7 @@ export function recordPiContextTracePromptPresentation(
   const presentation = JSON.stringify([
     piContextTracePromptInjections(event),
     event.promptResources,
+    event.model,
   ]);
   const changed = lastPresentationByRound.get(event.roundId) !== presentation;
   lastPresentationByRound.set(event.roundId, presentation);

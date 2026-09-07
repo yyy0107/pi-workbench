@@ -1523,7 +1523,7 @@ export interface SessionContextTraceEventSummary extends SessionContextTraceCoor
   redacted: boolean;
   /** Present on completed model turns so list/live consumers need not load the full detail. */
   usage?: SessionContextTraceTokenUsage;
-  /** Present on finalized model output summaries. */
+  /** Present on prompt composition, context snapshots, and finalized model output summaries. */
   model?: SessionContextTraceModel;
   thinkingLevel?: string;
   /** Pi assistant-message timestamp used only to correlate durable trace summaries with history. */

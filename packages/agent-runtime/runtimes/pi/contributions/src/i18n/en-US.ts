@@ -1010,7 +1010,7 @@ export const piExtensionsEnUS = {
         composeContext: "Prepare context",
         composingContext: "Preparing context",
         contextComposed: "Context ready",
-        systemPromptInjected: "· System prompt added",
+        systemPromptInjected: "System prompt injected",
         toolsInjected: ({ count }: { count: number }, { number }: MessageFormatters) =>
           `· Tools added (${number(count)})`,
         extensionsLoaded: ({ count }: { count: number }, { number }: MessageFormatters) =>

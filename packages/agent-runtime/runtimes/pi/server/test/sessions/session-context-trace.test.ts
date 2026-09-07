@@ -121,6 +121,7 @@ test("copies the final prompt resource inventory onto the live event summary", (
   const trace = new SessionContextTrace("session-resources");
   trace.observePromptComposition({
     type: "prompt-composition",
+    model: { provider: "opencode-go", model: "deepseek-v4-flash" },
     prompt: captureSessionContextTraceText("hello"),
     systemPrompt: captureSessionContextTraceText("system prompt"),
     systemPromptSources: [
@@ -194,6 +195,7 @@ test("copies the final prompt resource inventory onto the live event summary", (
   });
 
   const summary = trace.list(-1, 10).events.find((event) => event.kind === "prompt-composition");
+  assert.deepEqual(summary?.model, { provider: "opencode-go", model: "deepseek-v4-flash" });
   assert.deepEqual(summary?.promptResources, {
     cwd: "/workspace",
     systemPromptCharacters: 13,

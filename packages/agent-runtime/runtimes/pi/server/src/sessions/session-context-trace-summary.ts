@@ -100,6 +100,7 @@ export function summarizeSessionContextTraceEvent(
     ...summary,
     ...(messageTimestamp === undefined ? {} : { messageTimestamp }),
     ...(promptPreview ? { promptPreview } : {}),
+    ...(detail.type === "prompt-composition" && detail.model ? { model: detail.model } : {}),
     ...(promptResources ? { promptResources } : {}),
     ...(promptInjections ? { promptInjections } : {}),
     ...(contextUsage ? { contextUsage } : {}),

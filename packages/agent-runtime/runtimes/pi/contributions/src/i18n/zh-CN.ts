@@ -931,7 +931,7 @@ export const piExtensionsZhCN = {
         composeContext: "准备上下文",
         composingContext: "正在准备上下文",
         contextComposed: "上下文已就绪",
-        systemPromptInjected: "· 已添加系统提示词",
+        systemPromptInjected: "已注入系统提示词",
         toolsInjected: ({ count }: { count: number }, { number }: MessageFormatters) =>
           `· 已添加 ${number(count)} 个工具`,
         extensionsLoaded: ({ count }: { count: number }, { number }: MessageFormatters) =>
