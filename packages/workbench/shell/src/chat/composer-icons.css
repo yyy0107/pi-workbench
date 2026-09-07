@@ -1,7 +1,7 @@
 /* Composer controls and detached menus have their own icon scale. */
 :where([data-slot="workbench-composer-shell"], [data-workbench-composer-popup]) {
   --composer-icon-size: var(--icon-size-lg);
-  --composer-stop-icon-size: calc(var(--icon-size-sm) * 0.65);
+  --composer-stop-icon-size: calc(var(--icon-size-sm) * 0.7071);
   --composer-attachment-action-size: var(--control-hit-default);
   --composer-primary-action-size: var(--control-hit-default);
 }
