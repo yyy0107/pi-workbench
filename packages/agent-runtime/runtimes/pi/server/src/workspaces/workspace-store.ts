@@ -26,7 +26,6 @@ export type { WorkspaceView } from "@workbench/agent-runtime-pi-protocol/rpc";
 export interface WorkspaceState {
   schemaVersion: 1;
   legacyReconciled: boolean;
-  projectTrustMigrationCompleted: boolean;
   workspaces: WorkspaceView[];
   archivedSessionIds: string[];
   pinnedWorkspaceIds: string[];
@@ -148,7 +147,6 @@ type WorkspaceStoreListener = (event: WorkspaceStoreEvent) => void;
 const EMPTY_STATE = (): WorkspaceState => ({
   schemaVersion: 1,
   legacyReconciled: false,
-  projectTrustMigrationCompleted: false,
   workspaces: [],
   archivedSessionIds: [],
   pinnedWorkspaceIds: [],
@@ -167,7 +165,6 @@ function cloneState(state: WorkspaceState): WorkspaceState {
   return {
     schemaVersion: 1,
     legacyReconciled: state.legacyReconciled,
-    projectTrustMigrationCompleted: state.projectTrustMigrationCompleted,
     workspaces: state.workspaces.map(cloneWorkspace),
     archivedSessionIds: [...state.archivedSessionIds],
     pinnedWorkspaceIds: [...state.pinnedWorkspaceIds],
@@ -275,7 +272,6 @@ function parseState(value: unknown): WorkspaceState {
   return {
     schemaVersion: 1,
     legacyReconciled: value.legacyReconciled === true,
-    projectTrustMigrationCompleted: value.projectTrustMigrationCompleted === true,
     workspaces,
     archivedSessionIds: stringArray(value.archivedSessionIds, "archivedSessionIds"),
     pinnedWorkspaceIds: stringArray(value.pinnedWorkspaceIds, "pinnedWorkspaceIds").filter(
@@ -356,20 +352,6 @@ export class WorkspaceStore {
 
   getState(): Promise<WorkspaceState> {
     return this.exclusive(async () => cloneState(this.state));
-  }
-
-  migrateExistingProjectTrust(
-    migrate: (workspacePaths: readonly string[]) => void | Promise<void>,
-  ): Promise<WorkspaceListResult> {
-    return this.exclusive(async () => {
-      if (this.state.projectTrustMigrationCompleted) return listResult(this.state);
-
-      await migrate(this.state.workspaces.map((workspace) => workspace.path));
-      const next = cloneState(this.state);
-      next.projectTrustMigrationCompleted = true;
-      await this.commit(next, []);
-      return listResult(next);
-    });
   }
 
   create(workspacePath: string): Promise<WorkspaceCreateResult>;

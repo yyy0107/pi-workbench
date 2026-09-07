@@ -9,7 +9,6 @@ import type {
 import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
 import { getScopedResourceContextService } from "../resources/scoped-resource-context";
 import { listSessions as listPiSessions } from "../sessions/session-registry";
-import { getProjectTrustService } from "../trust/project-trust-service";
 import { getWorkspaceStore } from "./workspace-registry";
 import type {
   WorkspaceArchiveSessionInput,
@@ -28,9 +27,6 @@ import type {
 export interface WorkspaceProtocolStore {
   list(): Promise<WorkspaceListResult>;
   reconcileSessions(sessions: readonly WorkspaceSessionSnapshot[]): Promise<WorkspaceListResult>;
-  migrateExistingProjectTrust(
-    migrate: (workspacePaths: readonly string[]) => void | Promise<void>,
-  ): Promise<WorkspaceListResult>;
   create(input: WorkspaceCreateInput): Promise<WorkspaceCreateResult>;
   rename(input: WorkspaceRenameInput): Promise<{ workspace: WorkspaceView }>;
   delete(input: WorkspaceDeleteInput): Promise<{ deleted: true }>;
@@ -48,10 +44,6 @@ export interface WorkspaceSessionCatalogPort {
   list(): Promise<readonly WorkspaceSessionSnapshot[]>;
 }
 
-export interface ExistingWorkspaceTrustMigrationPort {
-  trustExistingProjects(workspacePaths: readonly string[]): void | Promise<void>;
-}
-
 export interface WorkspaceResourceContextPort {
   invalidateProject(workspaceId: string): void;
 }
@@ -59,7 +51,6 @@ export interface WorkspaceResourceContextPort {
 export interface WorkspaceProtocolServiceDependencies {
   readonly resolveWorkspaceStore: () => WorkspaceProtocolStore;
   readonly sessions: WorkspaceSessionCatalogPort;
-  readonly projectTrust: ExistingWorkspaceTrustMigrationPort;
   readonly resourceContexts: WorkspaceResourceContextPort;
 }
 
@@ -108,11 +99,6 @@ function defaultDependencies(): WorkspaceProtocolServiceDependencies {
         return sessions.map(({ id, cwd }) => ({ id, cwd }));
       },
     },
-    projectTrust: {
-      async trustExistingProjects(workspacePaths) {
-        await getProjectTrustService().trustExistingProjects(workspacePaths);
-      },
-    },
     resourceContexts: {
       invalidateProject(workspaceId) {
         getScopedResourceContextService().invalidate({ scope: "project", workspaceId });
@@ -131,9 +117,8 @@ class DefaultWorkspaceProtocolService implements WorkspaceProtocolService {
   async list(): Promise<WorkspaceListValue> {
     const sessions = await this.dependencies.sessions.list();
     const workspaceStore = this.dependencies.resolveWorkspaceStore();
-    await workspaceStore.reconcileSessions(sessions);
     const { items, pinnedWorkspaceIds, pinnedSessionIds } =
-      await this.migrateExistingProjectTrust(workspaceStore);
+      await workspaceStore.reconcileSessions(sessions);
     return { items, pinnedWorkspaceIds, pinnedSessionIds };
   }
 
@@ -142,10 +127,8 @@ class DefaultWorkspaceProtocolService implements WorkspaceProtocolService {
     return { sessionIds: archivedSessionIds };
   }
 
-  async create(input: WorkspaceCreateInput): Promise<WorkspaceCreateResult> {
-    const workspaceStore = this.dependencies.resolveWorkspaceStore();
-    await this.migrateExistingProjectTrust(workspaceStore);
-    return workspaceStore.create(input);
+  create(input: WorkspaceCreateInput): Promise<WorkspaceCreateResult> {
+    return this.dependencies.resolveWorkspaceStore().create(input);
   }
 
   rename(input: WorkspaceRenameInput): Promise<{ workspace: WorkspaceView }> {
@@ -186,17 +169,7 @@ class DefaultWorkspaceProtocolService implements WorkspaceProtocolService {
     input: WorkspaceArchiveSessionInput,
   ): Promise<WorkspaceSessionArchiveValue> {
     const session = await this.requireSession(input.sessionId);
-    const workspaceStore = this.dependencies.resolveWorkspaceStore();
-    await this.migrateExistingProjectTrust(workspaceStore);
-    return workspaceStore.unarchiveSession(session);
-  }
-
-  private async migrateExistingProjectTrust(
-    workspaceStore: WorkspaceProtocolStore,
-  ): Promise<WorkspaceListResult> {
-    return workspaceStore.migrateExistingProjectTrust((workspacePaths) =>
-      this.dependencies.projectTrust.trustExistingProjects(workspacePaths),
-    );
+    return this.dependencies.resolveWorkspaceStore().unarchiveSession(session);
   }
 
   private async requireSession(sessionId: string): Promise<WorkspaceSessionSnapshot> {

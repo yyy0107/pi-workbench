@@ -81,7 +81,7 @@ export class ProjectTrustService implements ProjectTrustProtocol {
 
     try {
       const requiresTrust = hasTrustRequiringProjectResources(canonicalPath);
-      if (this.trustOverride()) {
+      if (this.trustOverride() || !requiresTrust) {
         return {
           path: canonicalPath,
           requiresTrust,
@@ -136,56 +136,6 @@ export class ProjectTrustService implements ProjectTrustProtocol {
       );
     }
     return this.describe({ path: canonicalPath });
-  }
-
-  trustExistingProjects(paths: readonly string[]): string[] {
-    const unresolvedPaths: string[] = [];
-    const seenPaths = new Set<string>();
-
-    for (const requestedPath of paths) {
-      let canonicalPath: string;
-      try {
-        canonicalPath = this.canonicalPath(requestedPath);
-      } catch (error) {
-        if (
-          error instanceof ProjectTrustServiceError &&
-          error.code === "project-trust-invalid-path"
-        ) {
-          continue;
-        }
-        throw error;
-      }
-      if (seenPaths.has(canonicalPath)) continue;
-      seenPaths.add(canonicalPath);
-
-      try {
-        if (this.trustStore.getEntry(canonicalPath) === null) {
-          unresolvedPaths.push(canonicalPath);
-        }
-      } catch (error) {
-        throw new ProjectTrustServiceError(
-          "project-trust-read-failed",
-          "The project trust decision could not be read.",
-          { path: canonicalPath },
-          { cause: error },
-        );
-      }
-    }
-
-    if (unresolvedPaths.length === 0) return [];
-    try {
-      this.trustStore.setMany(
-        unresolvedPaths.map((projectPath) => ({ path: projectPath, decision: true })),
-      );
-    } catch (error) {
-      throw new ProjectTrustServiceError(
-        "project-trust-write-failed",
-        "The project trust decision could not be saved.",
-        { path: unresolvedPaths[0] },
-        { cause: error },
-      );
-    }
-    return unresolvedPaths;
   }
 
   isTrusted(path: string): boolean {

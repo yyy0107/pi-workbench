@@ -120,7 +120,7 @@ test("routes project trust decisions through Pi trust.json", async (t) => {
   });
 });
 
-test("backfills trust for preexisting workspaces without trusting later imports", async (t) => {
+test("does not grant trust when listing existing workspaces or importing new ones", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-rpc-trust-migration-"));
   const agentDir = path.join(root, "agent");
   const stateFile = path.join(root, "state", "workspaces.json");
@@ -165,14 +165,7 @@ test("backfills trust for preexisting workspaces without trusting later imports"
   });
 
   await rpcValue(await handlePiRpcPost(rpcRequest("workspace.list", {}), "workspace.list"));
-  assert.deepEqual(JSON.parse(await readFile(path.join(agentDir, "trust.json"), "utf8")), {
-    [existingPath]: true,
-  });
-  assert.equal(
-    (JSON.parse(await readFile(stateFile, "utf8")) as Record<string, unknown>)
-      .projectTrustMigrationCompleted,
-    true,
-  );
+  await assert.rejects(readFile(path.join(agentDir, "trust.json")), { code: "ENOENT" });
 
   await rpcValue(
     await handlePiRpcPost(
@@ -183,9 +176,7 @@ test("backfills trust for preexisting workspaces without trusting later imports"
   await rpcValue(
     await handlePiRpcPost(rpcRequest("workspace.list", {}, "rpc-list-later"), "workspace.list"),
   );
-  assert.deepEqual(JSON.parse(await readFile(path.join(agentDir, "trust.json"), "utf8")), {
-    [existingPath]: true,
-  });
+  await assert.rejects(readFile(path.join(agentDir, "trust.json")), { code: "ENOENT" });
 });
 
 test("routes workspace CRUD through the shared RPC transport", async (t) => {

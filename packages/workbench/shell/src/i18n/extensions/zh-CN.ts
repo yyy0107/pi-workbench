@@ -863,7 +863,7 @@ export const extensionsZhCN = {
     selectError: "无法选择此工作区。",
     trustQuestion: "是否信任此项目文件夹？",
     trustDescription:
-      "信任后，运行时可加载项目设置和资源、安装缺失的项目包并执行扩展代码。请仅打开来源可靠的文件夹；选择不信任将取消本次打开。",
+      "信任后，运行时可加载项目设置和资源、安装缺失的项目包并执行扩展代码。选择不信任仍会打开文件夹，但会禁用这些项目资源。",
     trustSecurityDecision: "项目信任",
     trustAccept: "信任并打开",
     trustDecline: "不信任",

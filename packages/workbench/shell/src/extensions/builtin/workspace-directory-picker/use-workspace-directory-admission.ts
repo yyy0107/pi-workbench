@@ -9,7 +9,7 @@ import type {
 import type { WorkbenchWorkspaceSummary } from "@workbench/agent-runtime-client/workspaces";
 import type { ProjectTrustDialogError } from "@workbench/shell/ui";
 
-import { admitTrustedWorkspace } from "./workspace-admission";
+import { admitWorkspace } from "./workspace-admission";
 
 export function useWorkspaceDirectoryAdmission(
   onSelect: (workspace: WorkbenchWorkspaceSummary) => void | Promise<void>,
@@ -37,7 +37,7 @@ export function useWorkspaceDirectoryAdmission(
     async (path: string, workspace?: WorkbenchWorkspaceSummary) => {
       setDialogError(undefined);
       const trust = await hostClient.describeProjectTrust(path);
-      const pathAwaitingConfirmation = await admitTrustedWorkspace(trust, (canonicalPath) =>
+      const pathAwaitingConfirmation = await admitWorkspace(trust, (canonicalPath) =>
         selectWorkspace(canonicalPath, workspace),
       );
       setPendingSelection(
@@ -47,41 +47,30 @@ export function useWorkspaceDirectoryAdmission(
     [selectWorkspace, hostClient],
   );
 
-  const confirmTrust = useCallback(async () => {
-    if (!pendingPath || savingDecision) return;
-    setSavingDecision("trust");
-    setDialogError(undefined);
-    try {
-      await hostClient.updateProjectTrust(pendingPath, true);
-    } catch {
-      setDialogError("save");
-      setSavingDecision(undefined);
-      return;
-    }
+  const saveDecision = useCallback(
+    async (trusted: boolean) => {
+      if (!pendingPath || savingDecision) return;
+      setSavingDecision(trusted ? "trust" : "decline");
+      setDialogError(undefined);
+      try {
+        await hostClient.updateProjectTrust(pendingPath, trusted);
+      } catch {
+        setDialogError("save");
+        setSavingDecision(undefined);
+        return;
+      }
 
-    try {
-      await selectWorkspace(pendingPath, pendingSelection?.workspace);
-      setPendingSelection(undefined);
-    } catch {
-      setDialogError("select");
-    } finally {
-      setSavingDecision(undefined);
-    }
-  }, [selectWorkspace, hostClient, pendingPath, pendingSelection, savingDecision]);
-
-  const declineTrust = useCallback(async () => {
-    if (!pendingPath || savingDecision) return;
-    setSavingDecision("decline");
-    setDialogError(undefined);
-    try {
-      await hostClient.updateProjectTrust(pendingPath, false);
-      setPendingSelection(undefined);
-    } catch {
-      setDialogError("save");
-    } finally {
-      setSavingDecision(undefined);
-    }
-  }, [hostClient, pendingPath, savingDecision]);
+      try {
+        await selectWorkspace(pendingPath, pendingSelection?.workspace);
+        setPendingSelection(undefined);
+      } catch {
+        setDialogError("select");
+      } finally {
+        setSavingDecision(undefined);
+      }
+    },
+    [selectWorkspace, hostClient, pendingPath, pendingSelection, savingDecision],
+  );
 
   const cancelTrust = useCallback(() => {
     if (savingDecision) return;
@@ -91,8 +80,8 @@ export function useWorkspaceDirectoryAdmission(
 
   return {
     cancelTrust,
-    confirmTrust,
-    declineTrust,
+    confirmTrust: () => saveDecision(true),
+    declineTrust: () => saveDecision(false),
     dialogError,
     pendingPath,
     savingDecision,

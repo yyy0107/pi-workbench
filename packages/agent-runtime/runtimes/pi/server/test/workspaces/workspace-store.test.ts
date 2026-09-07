@@ -540,53 +540,6 @@ test("reloads state and only imports unknown legacy workspaces once", async (t) 
   assert.deepEqual(await third.list(), await second.list());
 });
 
-test("migrates trust for only the workspaces that existed before the durable marker", async (t) => {
-  const files = await fixture(t);
-  const [alpha, beta, gamma] = await Promise.all([
-    files.workspace("alpha"),
-    files.workspace("beta"),
-    files.workspace("gamma"),
-  ]);
-  const first = new WorkspaceStore({ stateFile: files.stateFile, now: tickingClock() });
-  await first.create(alpha);
-  await first.create(beta);
-  const migratedPaths: string[][] = [];
-
-  await first.migrateExistingProjectTrust((workspacePaths) => {
-    migratedPaths.push([...workspacePaths]);
-  });
-  await first.create(gamma);
-
-  const reloaded = new WorkspaceStore(files.stateFile);
-  await reloaded.migrateExistingProjectTrust((workspacePaths) => {
-    migratedPaths.push([...workspacePaths]);
-  });
-  assert.deepEqual(migratedPaths, [[beta, alpha]]);
-  assert.equal((await reloaded.getState()).projectTrustMigrationCompleted, true);
-});
-
-test("retries the project trust migration when writing trust fails", async (t) => {
-  const files = await fixture(t);
-  const alpha = await files.workspace("alpha");
-  const store = new WorkspaceStore({ stateFile: files.stateFile, now: tickingClock() });
-  await store.create(alpha);
-
-  await assert.rejects(
-    store.migrateExistingProjectTrust(() => {
-      throw new Error("trust write failed");
-    }),
-    /trust write failed/,
-  );
-  assert.equal((await store.getState()).projectTrustMigrationCompleted, false);
-
-  let retries = 0;
-  await store.migrateExistingProjectTrust(() => {
-    retries += 1;
-  });
-  assert.equal(retries, 1);
-  assert.equal((await store.getState()).projectTrustMigrationCompleted, true);
-});
-
 test("persists workspace and session pins and publishes authoritative changes", async (t) => {
   const files = await fixture(t);
   const alpha = await files.workspace("alpha");

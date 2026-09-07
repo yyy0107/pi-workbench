@@ -92,7 +92,6 @@ flowchart TD
   WORKSPACE_ROUTES --> WORKSPACE_PROTOCOL["WorkspaceProtocolService"]
   WORKSPACE_PROTOCOL --> WORKSPACE["WorkspaceStore"]
   WORKSPACE_PROTOCOL -->|"session catalog"| REGISTRY
-  WORKSPACE_PROTOCOL --> TRUST["Project Trust service"]
   WORKSPACE_GIT_ROUTES --> WORKSPACE_GIT["Workspace Git service"]
   WORKSPACE_GIT --> WORKSPACE
   WORKSPACE_FILE_ROUTES --> WORKSPACE_FILES["WorkspaceFileProtocol / Service"]
@@ -350,8 +349,8 @@ Cookie session 或 Bearer Token；如需跨机器暴露，必须在外层增加�
 11 个 Workspace 组织与归档方法的 payload validator 和 transport 映射由独立的
 `transport/routes/workspace-rpc-routes.ts` 拥有；route 只依赖 `WorkspaceProtocolService`，不直接读取
 Session Registry、WorkspaceStore、Project Trust 或资源目录缓存。服务通过窄的 Session catalog 端口只接收
-`{ id, cwd }` 快照，在 `workspace.list` 前完成会话对账，在 create/list/unarchive 的兼容路径中协调历史
-Project Trust 迁移，并在删除 Workspace 后失效对应的 project resource context。可热更新的
+`{ id, cwd }` 快照，在 `workspace.list` 前完成会话对账，并在删除 Workspace 后失效对应的
+project resource context。工作区导入、列举与取消归档不会写入项目信任决定。可热更新的
 WorkspaceStore 仍按调用延迟解析；Store 自己继续拥有持久化和 `events.host` 发布。四个
 `workspace.files.*` unary 方法不属于这个 route group；它们的 validator、写入载体预算、取消错误映射和
 handler 由 `transport/routes/workspace-file-rpc-routes.ts` 独立拥有。该 route 只依赖窄的
@@ -504,16 +503,15 @@ provider、凭据和模型配置发送一张内置的小型 PNG，要求模型
 安全过滤和提供方不可用归一化为稳定 reason，并识别 OpenRouter 的“没有支持图片输入的 endpoint”等
 明确拒绝；它属于可能计费的推理请求，因此 UI 必须在按钮附近明确提示。
 
-Project-local settings、extensions 和 resources 默认不可信。Workbench 在首次导入没有当前目录或
-父目录决策的新工作区时询问用户，即使目录尚未包含受信任边界保护的资源也会先保存决定，避免之后
-新增 `.pi` 配置、Skill 或 Extension 时静默改变有效信任状态。决定通过 Pi 官方
-`ProjectTrustStore` 写入 `~/.pi/agent/trust.json`；已有决定优先，否则遵循全局
-`defaultProjectTrust`。`projectTrust.describe.requiresTrust` 只表示目录当前是否已包含受保护资源，
-不控制是否需要首次导入确认。只有有效决定为信任时，session 和模型服务才允许 Pi 加载这些项目资源。
-`PI_WORKBENCH_TRUST_PROJECT=1` 保留为本次
-Workbench 进程全部信任的显式覆盖。升级到 Project Trust 的首次工作区对账会为此前已经导入、
-且没有当前目录或父目录保存决定的有效项目补写 `true`；显式 `false` 不会被覆盖。迁移完成标记
-保存在 Workspace 状态中，因此之后新导入的项目不会被兼容迁移自动信任。
+Project Trust 遵循 Pi 的资源判定与持久化规则：没有受保护的项目资源时直接放行，不弹窗、
+不保存信任决定，也不初始化 `.pi`。资源检测复用 Pi 官方 `hasTrustRequiringProjectResources()`，
+涵盖当前目录的 `.pi` 设置与资源，以及当前目录或祖先目录中的 `.agents/skills`。
+存在受保护资源时，已有当前目录或最近父目录的决定优先，否则遵循全局 `defaultProjectTrust`；
+仅 `ask` 且无已有决定时返回 `promptRequired: true`。前端按此字段询问用户，选择不信任仍可打开
+工作区，但 session、模型服务和资源目录通过 Pi 的 `projectTrusted` 禁用项目资源。
+决定通过 Pi 官方 `ProjectTrustStore` 写入 `~/.pi/agent/trust.json`，遵循 `PI_CODING_AGENT_DIR`；
+信任操作不创建项目 `.pi`，项目配置在实际写入时按需创建。工作区对账不会自动授予信任。
+`PI_WORKBENCH_TRUST_PROJECT=1` 保留为本次 Workbench 进程全部信任的显式覆盖。
 
 ## Skills
 
@@ -1378,7 +1376,7 @@ packages/agent-runtime/runtimes/pi/
   Host、解析当前 trace，并把 journal 失败归一化为稳定领域错误；`promptParts` 保持直接重放当前 trace
   或磁盘 journal，不会为了聊天历史水合启动空闲 Host。全局设置和 session context policy 共用
   `compaction-rpc-validator.ts`，避免两套 compaction patch 边界漂移；
-- `server/src/workspaces/workspace-protocol-service.ts` 通过窄 Session catalog、Trust migration、resource
+- `server/src/workspaces/workspace-protocol-service.ts` 通过窄 Session catalog、resource
   context 和延迟 Store 端口编排 Workspace 组织协议；`WorkspaceStore` 继续独占状态持久化与 Host stream
   事件。`workspace-service-bindings.ts` 向公共文件/Git 服务注入根目录解析和 Pi mutation coordinator，
   将会话忙碌错误转为公共 Git 领域错误，并保留检查、修改、重载的顺序；未改变资源的操作不触发重载。

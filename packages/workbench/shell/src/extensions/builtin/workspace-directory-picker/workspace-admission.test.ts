@@ -1,25 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { admitTrustedWorkspace } from "./workspace-admission";
+import type { WorkbenchProjectTrust } from "@workbench/host-contracts/runtime-capabilities";
+import { admitWorkspace } from "./workspace-admission";
 
-test("only admits a workspace with an affirmative trust decision", async () => {
+test("only asks when the runtime requires a trust decision", async () => {
   const admitted: string[] = [];
-  const admit = (path: string) => {
-    admitted.push(path);
-  };
-
-  assert.equal(
-    await admitTrustedWorkspace({ path: "/work/unresolved", trusted: null }, admit),
-    "/work/unresolved",
-  );
-  assert.equal(
-    await admitTrustedWorkspace({ path: "/work/untrusted", trusted: false }, admit),
-    "/work/untrusted",
-  );
-  assert.equal(
-    await admitTrustedWorkspace({ path: "/work/trusted", trusted: true }, admit),
-    undefined,
-  );
-  assert.deepEqual(admitted, ["/work/trusted"]);
+  for (const trust of [
+    { path: "/work/unresolved", requiresTrust: true, trusted: null, promptRequired: true },
+    { path: "/work/untrusted", requiresTrust: true, trusted: false, promptRequired: false },
+    { path: "/work/trusted", requiresTrust: true, trusted: true, promptRequired: false },
+    { path: "/work/empty", requiresTrust: false, trusted: true, promptRequired: false },
+  ] satisfies WorkbenchProjectTrust[]) {
+    assert.equal(
+      await admitWorkspace(trust, (path) => {
+        admitted.push(path);
+      }),
+      trust.promptRequired ? trust.path : undefined,
+    );
+  }
+  assert.deepEqual(admitted, ["/work/untrusted", "/work/trusted", "/work/empty"]);
 });

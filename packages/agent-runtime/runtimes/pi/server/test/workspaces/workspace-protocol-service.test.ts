@@ -47,22 +47,16 @@ function dependencies(
   return {
     resolveWorkspaceStore: () => protocolStore({}),
     sessions: { list: async () => [] },
-    projectTrust: { trustExistingProjects: () => undefined },
     resourceContexts: { invalidateProject: () => undefined },
     ...overrides,
   };
 }
 
-test("lists Workspaces after reconciling the authoritative Session catalog and migrating trust", async () => {
+test("lists Workspaces after reconciling the authoritative Session catalog", async () => {
   const calls: Array<{ operation: string; value?: unknown }> = [];
   const store = protocolStore({
     async reconcileSessions(sessions) {
       calls.push({ operation: "reconcile", value: sessions });
-      return workspaceListResult();
-    },
-    async migrateExistingProjectTrust(migrate) {
-      calls.push({ operation: "migrate" });
-      await migrate(["/projects/one"]);
       return workspaceListResult();
     },
   });
@@ -73,11 +67,6 @@ test("lists Workspaces after reconciling the authoritative Session catalog and m
         async list() {
           calls.push({ operation: "catalog" });
           return [{ id: "session-1", cwd: "/projects/one" }];
-        },
-      },
-      projectTrust: {
-        trustExistingProjects(paths) {
-          calls.push({ operation: "trust", value: paths });
         },
       },
     }),
@@ -94,19 +83,12 @@ test("lists Workspaces after reconciling the authoritative Session catalog and m
       operation: "reconcile",
       value: [{ id: "session-1", cwd: "/projects/one" }],
     },
-    { operation: "migrate" },
-    { operation: "trust", value: ["/projects/one"] },
   ]);
 });
 
-test("runs the compatibility Trust migration before create and authoritative unarchive mutations", async () => {
+test("creates and unarchives Workspaces without a trust migration", async () => {
   const calls: Array<{ operation: string; value?: unknown }> = [];
   const store = protocolStore({
-    async migrateExistingProjectTrust(migrate) {
-      calls.push({ operation: "migrate" });
-      await migrate(["/projects/existing"]);
-      return workspaceListResult();
-    },
     async create(input) {
       calls.push({ operation: "create", value: input });
       return { workspace, created: true };
@@ -125,11 +107,6 @@ test("runs the compatibility Trust migration before create and authoritative una
           return [{ id: "session-1", cwd: "/authoritative/project" }];
         },
       },
-      projectTrust: {
-        trustExistingProjects(paths) {
-          calls.push({ operation: "trust", value: paths });
-        },
-      },
     }),
   );
 
@@ -142,12 +119,8 @@ test("runs the compatibility Trust migration before create and authoritative una
     archived: false,
   });
   assert.deepEqual(calls, [
-    { operation: "migrate" },
-    { operation: "trust", value: ["/projects/existing"] },
     { operation: "create", value: { path: "/projects/new" } },
     { operation: "catalog" },
-    { operation: "migrate" },
-    { operation: "trust", value: ["/projects/existing"] },
     {
       operation: "unarchive",
       value: { id: "session-1", cwd: "/authoritative/project" },
