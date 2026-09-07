@@ -7,8 +7,15 @@ import type { PastedTextAttachment } from "@workbench/agent-runtime-contracts/co
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { useI18n } from "../i18n";
+import { cn } from "../utils";
 
-export function PastedTextAttachmentPreview({ attachment }: { attachment: PastedTextAttachment }) {
+export function PastedTextAttachmentPreview({
+  attachment,
+  compact = false,
+}: {
+  attachment: PastedTextAttachment;
+  compact?: boolean;
+}) {
   const { t } = useI18n();
   const session = useConversationSession();
   const [open, setOpen] = useState(false);
@@ -52,17 +59,20 @@ export function PastedTextAttachmentPreview({ attachment }: { attachment: Pasted
         render={
           <Button
             variant="ghost"
-            className="h-auto max-w-full justify-start text-start"
+            className={cn(
+              "h-auto min-w-0 max-w-full justify-start text-start",
+              compact && "min-h-0 w-full p-0 font-mono",
+            )}
             aria-label={t("chatContent.textAttachment.preview")}
           />
         }
       >
-        <FileTextIcon />
+        {!compact && <FileTextIcon />}
         <span className="min-w-0">
           <span className="block truncate">
             {attachment.preview || t("chatContent.textAttachment.title")}
           </span>
-          <span className="text-muted-foreground block text-xs">
+          <span className={compact ? "sr-only" : "text-muted-foreground block text-xs"}>
             {t("chatContent.textAttachment.characters", { count: attachment.characterCount })}
           </span>
         </span>

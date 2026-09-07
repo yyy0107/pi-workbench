@@ -1056,14 +1056,19 @@ export function WorkbenchComposer({
                 inserted = true;
               }
             },
-            { discrete: true, tag: "history-push" },
+            {
+              discrete: true,
+              tag: "history-push",
+              onUpdate: () => {
+                if (!inserted) {
+                  reject(new Error("Editor selection unavailable"));
+                  return;
+                }
+                session.actions.removeComposerAttachment?.(key);
+                resolve();
+              },
+            },
           );
-          if (!inserted) {
-            reject(new Error("Editor selection unavailable"));
-            return;
-          }
-          session.actions.removeComposerAttachment?.(key);
-          resolve();
         }),
       );
     },

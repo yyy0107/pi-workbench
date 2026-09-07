@@ -101,6 +101,9 @@ export function UserMessageTextBubble({ children }: { children: ReactNode }) {
           type="button"
           variant="ghost"
           size="sm"
+          data-frame="none"
+          data-selection="none"
+          className="text-muted-foreground hover:text-foreground"
           aria-expanded={expanded}
           aria-controls={id}
           onClick={() => {

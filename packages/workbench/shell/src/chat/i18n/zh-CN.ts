@@ -10,7 +10,7 @@ export const chatContentZhCN = {
     retry: "重试",
     remove: "移除粘贴文本",
     preview: "预览粘贴文本",
-    restore: "恢复到输入框",
+    restore: "在文本框显示",
     restoring: "正在恢复…",
     restoreFailed: "无法恢复粘贴文本，附件已保留。",
     unavailable: "此文本附件不可用。",

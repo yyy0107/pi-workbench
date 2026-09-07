@@ -10,7 +10,7 @@ export const chatContentEnUS = {
     retry: "Retry",
     remove: "Remove pasted text",
     preview: "Preview pasted text",
-    restore: "Restore to input",
+    restore: "Show in text box",
     restoring: "Restoring…",
     restoreFailed: "Could not restore pasted text. The attachment has been kept.",
     unavailable: "This text attachment is unavailable.",

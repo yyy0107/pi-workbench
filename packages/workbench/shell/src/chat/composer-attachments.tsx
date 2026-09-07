@@ -1,6 +1,6 @@
 "use client";
 
-import { FileTextIcon, XIcon } from "lucide-react";
+import { ChevronRightIcon, FileTextIcon, ScanTextIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 import type {
@@ -49,7 +49,7 @@ function AttachmentTile({
   const tile = (
     <div
       className={cn(
-        "bg-muted relative size-14 overflow-hidden rounded-[max(0px,calc(var(--composer-radius,1.5rem)-var(--composer-padding,8px)))] outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:ring-inset dark:after:ring-white/10",
+        "aui-composer-attachment-image bg-muted relative overflow-hidden rounded-[var(--composer-attachment-radius)] outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-border after:ring-inset",
         isImage &&
           "hover:after:bg-foreground/10 focus-visible:ring-ring/50 cursor-zoom-in after:transition-colors focus-visible:ring-3 motion-reduce:transition-none",
       )}
@@ -73,7 +73,7 @@ function AttachmentTile({
   return (
     <TooltipProvider>
       <Tooltip>
-        <div className="animate-in fade-in-0 zoom-in-95 relative duration-200 motion-reduce:animate-none">
+        <div className="animate-in fade-in-0 zoom-in-95 relative shrink-0 duration-200 motion-reduce:animate-none">
           {isImage ? (
             <Dialog>
               <DialogTrigger nativeButton={false} render={<TooltipTrigger render={tile} />} />
@@ -96,8 +96,9 @@ function AttachmentTile({
           <TooltipIconButton
             tooltip={t("assistant.composer.removeFile")}
             type="button"
+            variant="default"
             data-frame="none"
-            className="aui-composer-attachment-remove absolute end-0.5 top-0.5 rounded-full bg-black/50! p-1! text-white backdrop-blur-sm after:absolute after:-inset-1 hover:bg-black/70! hover:text-white! motion-reduce:transition-none"
+            className="aui-composer-attachment-remove absolute end-0.5 top-0.5 rounded-full after:absolute after:-inset-1 motion-reduce:transition-none"
             side="top"
             onClick={() => onRemove(attachment.key)}
           >
@@ -162,75 +163,86 @@ function PastedTextTile({
         ? "tooMany"
         : "failed";
   return (
-    <div className="bg-muted border-border flex max-w-full shrink-0 flex-col gap-1 rounded-[var(--radius-md)] border p-2">
-      <div className="flex min-w-0 items-center gap-2">
-        {ready ? (
-          <PastedTextAttachmentPreview attachment={attachment.attachment} />
+    <div className="aui-composer-attachment-text bg-background border-border relative flex items-center gap-3 rounded-[var(--composer-attachment-radius)] border py-1 ps-3 pe-[var(--control-hit-compact)]">
+      <ScanTextIcon className="aui-composer-icon-size-attachment text-muted-foreground" />
+      <div className="flex min-w-0 flex-1 flex-col justify-center">
+        {restoreFailed ? (
+          <p
+            role="alert"
+            className="text-destructive truncate text-xs"
+            title={t("chatContent.textAttachment.restoreFailed")}
+          >
+            {t("chatContent.textAttachment.restoreFailed")}
+          </p>
+        ) : ready ? (
+          <PastedTextAttachmentPreview attachment={attachment.attachment} compact />
         ) : (
-          <div className="flex min-w-0 items-center gap-2">
-            <FileTextIcon className="aui-composer-icon-size-attachment text-muted-foreground" />
-            <span className="min-w-0">
-              <span className="block max-w-xs truncate">
-                {attachment.text.slice(0, 80) || t("chatContent.textAttachment.title")}
-              </span>
-              <span className="text-muted-foreground block text-xs">
-                {t("chatContent.textAttachment.characters", { count: attachment.text.length })}
-              </span>
-            </span>
-          </div>
+          <span className="block truncate font-mono text-sm">
+            {attachment.text.slice(0, 80) || t("chatContent.textAttachment.title")}
+          </span>
         )}
-        <TooltipIconButton
-          tooltip={t("chatContent.textAttachment.remove")}
-          onClick={() => onRemove(attachment.key)}
-          disabled={restoring}
-        >
-          <XIcon />
-        </TooltipIconButton>
-      </div>
-      <div className="flex items-center gap-2">
-        <span
-          role={attachment.status === "error" ? "alert" : "status"}
-          className="text-muted-foreground text-xs"
-        >
-          {t(
-            `chatContent.textAttachment.${ready ? "ready" : attachment.status === "saving" ? "saving" : errorKey}`,
-          )}
-        </span>
-        {attachment.status === "error" && (
-          <Button variant="ghost" size="sm" onClick={() => onRetry(attachment.key)}>
-            {t("chatContent.textAttachment.retry")}
-          </Button>
-        )}
-        {ready && canRestorePastedText(attachment.attachment.characterCount) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={restoring}
-            onClick={async () => {
-              setRestoring(true);
-              setRestoreFailed(false);
-              try {
-                await onRestore(attachment.key);
-              } catch {
-                setRestoreFailed(true);
-              } finally {
-                setRestoring(false);
-              }
-            }}
+        <div className="flex min-w-0 items-center gap-1">
+          <span
+            role={attachment.status === "error" ? "alert" : "status"}
+            className={cn("text-muted-foreground min-w-0 truncate text-xs", ready && "sr-only")}
+            title={t(
+              `chatContent.textAttachment.${ready ? "ready" : attachment.status === "saving" ? "saving" : errorKey}`,
+            )}
           >
             {t(
-              restoring
-                ? "chatContent.textAttachment.restoring"
-                : "chatContent.textAttachment.restore",
+              `chatContent.textAttachment.${ready ? "ready" : attachment.status === "saving" ? "saving" : errorKey}`,
             )}
-          </Button>
-        )}
+          </span>
+          {attachment.status === "error" && (
+            <Button
+              variant="link"
+              size="xs"
+              className="h-auto min-h-0 px-0 py-0"
+              onClick={() => onRetry(attachment.key)}
+            >
+              {t("chatContent.textAttachment.retry")}
+            </Button>
+          )}
+          {ready && canRestorePastedText(attachment.attachment.characterCount) && (
+            <Button
+              variant="link"
+              size="xs"
+              className="text-muted-foreground h-auto min-h-0 min-w-0 max-w-full justify-start px-0 py-0 underline"
+              disabled={restoring}
+              onClick={async () => {
+                setRestoring(true);
+                setRestoreFailed(false);
+                try {
+                  await onRestore(attachment.key);
+                } catch {
+                  setRestoreFailed(true);
+                } finally {
+                  setRestoring(false);
+                }
+              }}
+            >
+              <span className="truncate">
+                {t(
+                  restoring
+                    ? "chatContent.textAttachment.restoring"
+                    : "chatContent.textAttachment.restore",
+                )}
+              </span>
+              <ChevronRightIcon />
+            </Button>
+          )}
+        </div>
       </div>
-      {restoreFailed && (
-        <p role="alert" className="text-destructive text-xs">
-          {t("chatContent.textAttachment.restoreFailed")}
-        </p>
-      )}
+      <TooltipIconButton
+        tooltip={t("chatContent.textAttachment.remove")}
+        variant="default"
+        data-frame="none"
+        className="aui-composer-attachment-remove absolute end-1 top-1 rounded-full"
+        onClick={() => onRemove(attachment.key)}
+        disabled={restoring}
+      >
+        <XIcon />
+      </TooltipIconButton>
     </div>
   );
 }
