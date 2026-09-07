@@ -87,6 +87,7 @@
       "include": "resources/installer/installer.nsh"
     },
     "linux": {
+      "icon": "resources/icon.png",
       "category": "Development",
       "description": "Pi Workbench",
       "maintainer": "wy <3169760286@qq.com>",
