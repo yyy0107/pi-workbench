@@ -1,7 +1,6 @@
 import type { CatalogShape, MessageFormatters } from "@workbench/shell/i18n";
 
 import { piExtensionsEnUS } from "./en-US";
-import { piBuiltinPromptsZhCN } from "@workbench/agent-runtime-pi-shared/builtin-prompts";
 
 export const piExtensionsZhCN = {
   extensions: {
@@ -636,20 +635,15 @@ export const piExtensionsZhCN = {
           `${number(count)} 个扩展加载失败`,
       },
       prompts: {
-        builtinTitle: "内置模板",
-        builtinDescription: "通过 /prompts-name 命令使用模板，也可创建副本，修改后保存到当前范围。",
         savedTitle: "已保存模板",
         savedCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
           `已保存 ${number(count)} 个模板`,
-        builtins: piBuiltinPromptsZhCN,
         viewMode: "模板查看模式",
         existingDraft: "当前有未发送的草稿，请使用当前草稿，或先处理草稿后再切换对话。",
         create: "新建模板",
         edit: "编辑模板",
         copy: "复制为我的模板",
         use: "使用",
-        useNow: "立即使用",
-        useNowNamed: ({ name }: { name: string }) => `立即使用${name}`,
         useNamed: ({ name }: { name: string }) => `使用 ${name}`,
         delete: "删除模板",
         deleteDescription: ({ name }: { name: string }) =>
@@ -683,7 +677,6 @@ export const piExtensionsZhCN = {
         insert: "填入输入框",
         useHint: "模板将展开后追加到输入框，保留已有草稿；由你确认后发送。",
         enabled: "启用模板",
-        enabledNamed: ({ name }: { name: string }) => `启用模板 ${name}`,
         independent: "独立模板",
         packageSource: ({ source }: { source: string }) => `来自 ${source}`,
         untrusted: "请先在项目设置中信任此项目，再管理它的模板。",

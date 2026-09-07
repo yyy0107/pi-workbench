@@ -1,5 +1,4 @@
 import type { MessageFormatters } from "@workbench/shell/i18n";
-import { piBuiltinPromptsEnUS } from "@workbench/agent-runtime-pi-shared/builtin-prompts";
 
 export const piExtensionsEnUS = {
   extensions: {
@@ -690,13 +689,9 @@ export const piExtensionsEnUS = {
           `${number(count)} ${count === 1 ? "extension failed" : "extensions failed"} to load`,
       },
       prompts: {
-        builtinTitle: "Built-in templates",
-        builtinDescription:
-          "Use a template as a /prompts-name command, or create a copy to edit and save in the selected scope.",
         savedTitle: "Saved templates",
         savedCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
           count === 1 ? "1 saved template" : `${number(count)} saved templates`,
-        builtins: piBuiltinPromptsEnUS,
         viewMode: "Template view mode",
         existingDraft:
           "You have an unsent draft. Use the current draft, or finish it before switching conversations.",
@@ -704,8 +699,6 @@ export const piExtensionsEnUS = {
         edit: "Edit template",
         copy: "Copy to my templates",
         use: "Use",
-        useNow: "Use now",
-        useNowNamed: ({ name }: { name: string }) => `Use now: ${name}`,
         useNamed: ({ name }: { name: string }) => `Use ${name}`,
         delete: "Delete template",
         deleteDescription: ({ name }: { name: string }) =>
@@ -742,7 +735,6 @@ export const piExtensionsEnUS = {
         useHint:
           "The expanded template is appended to the composer, preserving your draft. Review it before sending.",
         enabled: "Enable template",
-        enabledNamed: ({ name }: { name: string }) => `Enable template ${name}`,
         independent: "Independent template",
         packageSource: ({ source }: { source: string }) => `From ${source}`,
         untrusted: "Trust this project in project settings before managing its templates.",

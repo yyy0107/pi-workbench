@@ -16,33 +16,15 @@ import {
   Switch,
   TooltipIconButton,
 } from "@workbench/shell/ui";
-import { BUILTIN_PROMPT_PREFERENCE_KEYS } from "@workbench/agent-runtime-contracts/settings";
-import {
-  useToolCapabilityPreferences,
-  useToolCapabilityPreferencesController,
-} from "@workbench/shell/tool-capability-preferences";
 import { definePiMessage, usePiI18n } from "../../i18n";
 import type { ToolboxCapabilitySurfaceParams } from "./toolbox-capability";
 import { SkillDocumentPanel } from "./toolbox-capability-presentation";
 import { PromptEditorDialog, PromptUseDialog, promptErrorKey } from "./toolbox-prompt-dialogs";
-import { builtinPromptCommandName, getBuiltinPromptTemplates } from "./builtin-prompt-templates";
 import { toolboxScopeTarget } from "./toolbox-scope";
 import { useToolboxScope } from "./toolbox-scope-store";
 
 export function ToolboxPromptDetails({ params }: { params: ToolboxCapabilitySurfaceParams }) {
   const { t } = usePiI18n();
-  const builtin = useMemo(
-    () =>
-      params.builtin
-        ? getBuiltinPromptTemplates(t).find((template) => template.name === params.name)
-        : undefined,
-    [params.builtin, params.name, t],
-  );
-  const builtinKey = builtin ? BUILTIN_PROMPT_PREFERENCE_KEYS[builtin.name] : undefined;
-  const builtinPreference = useToolCapabilityPreferences(builtinKey ?? "piExtensionPromptEnabled");
-  const builtinController = useToolCapabilityPreferencesController(
-    builtinKey ?? "piExtensionPromptEnabled",
-  );
   const client = usePiResourceClient();
   const mainViews = useMainViewService();
   const scope = useToolboxScope();
@@ -64,7 +46,6 @@ export function ToolboxPromptDetails({ params }: { params: ToolboxCapabilitySurf
   const [dialog, setDialog] = useState<"edit" | "copy" | "use" | "delete">();
   const inFlight = useRef(false);
   useEffect(() => {
-    if (params.builtin) return;
     let active = true;
     setLoadState("loading");
     setError(undefined);
@@ -93,17 +74,7 @@ export function ToolboxPromptDetails({ params }: { params: ToolboxCapabilitySurf
     return () => {
       active = false;
     };
-  }, [
-    client,
-    target,
-    params.builtin,
-    params.name,
-    params.promptId,
-    params.source,
-    revision,
-    catalogRevision,
-    t,
-  ]);
+  }, [client, target, params.name, params.promptId, params.source, revision, catalogRevision, t]);
   const returnToList = () =>
     mainViews.open({
       kind: "toolbox",
@@ -111,11 +82,7 @@ export function ToolboxPromptDetails({ params }: { params: ToolboxCapabilitySurf
       params: { section: "prompts" },
     });
   const mutate = async (action: "toggle" | "delete") => {
-    if (builtinKey && action === "toggle") {
-      await builtinController.setEnabled(!builtinPreference.enabled).catch(() => undefined);
-      return;
-    }
-    if (params.builtin || !value || inFlight.current) return;
+    if (!value || inFlight.current) return;
     inFlight.current = true;
     setBusy(true);
     setError(undefined);
@@ -138,19 +105,9 @@ export function ToolboxPromptDetails({ params }: { params: ToolboxCapabilitySurf
       setBusy(false);
     }
   };
-  const prompt = params.builtin ? builtin : value;
-  const documentLoadState = params.builtin ? (builtin ? "ready" : "failed") : loadState;
-  const ready = documentLoadState === "ready" && prompt;
-  const enabled = params.builtin
-    ? Boolean(builtin) && builtinPreference.enabled && builtinPreference.status === "ready"
-    : value?.enabled === true;
-  const editable = !params.builtin && value?.editable === true;
-  const displayedError =
-    params.builtin && !builtin
-      ? t("extensions.toolbox.prompts.notFound")
-      : builtinKey && builtinPreference.saveFailed
-        ? t("extensions.toolbox.prompts.failed")
-        : error;
+  const ready = loadState === "ready" && value;
+  const enabled = value?.enabled === true;
+  const editable = value?.editable === true;
   return (
     <div className="h-full min-h-0 overflow-y-auto [scrollbar-gutter:stable]">
       <div className="mx-auto w-full max-w-5xl px-5 py-7 @2xl:px-10">
@@ -160,22 +117,20 @@ export function ToolboxPromptDetails({ params }: { params: ToolboxCapabilitySurf
               <FileTextIcon aria-hidden="true" className="size-[calc(var(--icon-size-md)*1.75)]" />
             </span>
             <h1 className="min-w-0 break-words text-2xl font-semibold tracking-tight">
-              {builtin?.title ?? value?.name ?? params.name}
+              {value?.name ?? params.name}
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {builtinKey || value ? (
+            {value ? (
               <label className="text-muted-foreground mr-2 flex items-center gap-2 text-xs">
                 <Switch
-                  checked={builtinKey ? builtinPreference.enabled : value?.enabled === true}
-                  disabled={
-                    !ready || busy || Boolean(builtinKey && builtinPreference.status !== "ready")
-                  }
+                  checked={enabled}
+                  disabled={!ready || busy}
                   aria-label={t("extensions.toolbox.prompts.enabled")}
                   onCheckedChange={() => void mutate("toggle")}
                 />
                 {t(
-                  (builtinKey ? builtinPreference.enabled : value?.enabled)
+                  enabled
                     ? "extensions.toolbox.skills.enabledStatus"
                     : "extensions.toolbox.skills.disabledStatus",
                 )}
@@ -211,59 +166,48 @@ export function ToolboxPromptDetails({ params }: { params: ToolboxCapabilitySurf
             ) : null}
           </div>
         </header>
-        {(prompt?.description ?? params.description) ? (
+        {(value?.description ?? params.description) ? (
           <p className="text-muted-foreground mt-5 text-sm leading-6">
-            {prompt?.description ?? params.description}
+            {value?.description ?? params.description}
           </p>
         ) : null}
         <div className="text-muted-foreground mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
           <code className="text-foreground">
-            /
-            {builtin
-              ? builtinPromptCommandName(builtin.name)
-              : (value?.invocationName ?? params.invocationName ?? params.name)}
-            {!params.builtin && value?.argumentHint ? ` ${value.argumentHint}` : ""}
+            /{value?.invocationName ?? params.invocationName ?? params.name}
+            {value?.argumentHint ? ` ${value.argumentHint}` : ""}
           </code>
           <span>
-            {params.builtin
-              ? t("extensions.toolbox.status.builtin")
-              : (value?.origin ?? params.origin) === "package"
-                ? t("extensions.toolbox.prompts.packageSource", {
-                    source: value?.source ?? params.source ?? "",
-                  })
-                : t("extensions.toolbox.prompts.independent")}
+            {(value?.origin ?? params.origin) === "package"
+              ? t("extensions.toolbox.prompts.packageSource", {
+                  source: value?.source ?? params.source ?? "",
+                })
+              : t("extensions.toolbox.prompts.independent")}
           </span>
         </div>
-        {!params.builtin && value ? (
+        {value ? (
           <p className="text-muted-foreground mt-3 break-all font-mono text-xs leading-5">
             {value.filePath}
           </p>
         ) : null}
-        {params.builtin ? (
-          <p className="text-muted-foreground mt-3 text-sm">
-            {t("extensions.toolbox.prompts.readOnly")}
-          </p>
-        ) : null}
-        {displayedError ? (
+        {error ? (
           <p role="alert" className="text-destructive mt-4 text-sm">
-            {displayedError}
+            {error}
           </p>
         ) : null}
         <SkillDocumentPanel
           kind="prompt"
-          content={prompt?.content}
+          content={value?.content}
           documentMode={mode}
-          loadState={documentLoadState}
+          loadState={loadState}
           scopeAvailable
           onDocumentModeChange={setMode}
           onRefresh={() => setRevision((n) => n + 1)}
         />
       </div>
-      {prompt && (dialog === "edit" || dialog === "copy") ? (
+      {value && (dialog === "edit" || dialog === "copy") ? (
         <PromptEditorDialog
           target={target}
-          template={params.builtin ? undefined : value}
-          initialValue={builtin ? { name: builtin.name, content: builtin.content } : undefined}
+          template={value}
           copy={dialog === "copy"}
           onClose={() => setDialog(undefined)}
           onSaved={(next) => {
@@ -273,14 +217,8 @@ export function ToolboxPromptDetails({ params }: { params: ToolboxCapabilitySurf
           }}
         />
       ) : null}
-      {enabled && prompt && dialog === "use" ? (
-        <PromptUseDialog
-          target={target}
-          template={
-            builtin ? { name: builtin.title, content: builtin.content, builtin: true } : value!
-          }
-          onClose={() => setDialog(undefined)}
-        />
+      {enabled && value && dialog === "use" ? (
+        <PromptUseDialog target={target} template={value} onClose={() => setDialog(undefined)} />
       ) : null}
       <Dialog
         open={dialog === "delete"}

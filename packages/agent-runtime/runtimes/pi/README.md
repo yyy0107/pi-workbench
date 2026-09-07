@@ -522,15 +522,13 @@ Workbench 随 Runtime 内置 `skill-creator`，用于创建和更新技能。会
 技能不再进入模型提示词和命令列表；所有受影响会话按现有资源变更流程重载，重启后保持设置。
 Runtime 会将内置资源同步到 Pi 用户目录（默认 `~/.pi/agent`，遵循 `PI_CODING_AGENT_DIR`）：
 所有内置资源按“一项一个目录”组织：技能位于 `skills/.builtin/skill-creator/`；扩展位于
-`extensions/.builtin/<扩展名>/`，入口为 `index.ts`，专用辅助文件与入口共置，公共能力放在 `_shared/`；
-每个提示词位于 `prompts/.builtin/<提示词名>/`，包含 `en-US.md`、`zh-CN.md` 和 `LICENSE.pi`。
-同步会清理旧版已知的散落文件与空语言目录，保留未知文件。同步复用进程间锁与原子文件替换，
+`extensions/.builtin/<扩展名>/`，入口为 `index.ts`，专用辅助文件与入口共置，公共能力放在 `_shared/`。
+同步会清理旧版已知的散落文件、已移除的内置提示词模板及其空目录，保留未知文件。同步复用进程间锁与原子文件替换，
 内容相同时不重写，也不修改 `.builtin` 外的自定义资源。校验脚本通过随安装生成的 `runtime.json` 定位
 当前 Runtime 的公开 Pi SDK，不依赖 Python 或 Codex 配置。
 
 `.builtin` 不参与 Pi 的常规自动发现，内置技能由 Workbench 显式加载；扩展保持宿主内联注册，磁盘保存
-其源码快照，不会再加载一份。提示词文件与 Composer 的双语模板共享同一份数据源，现有 `/prompts-*`
-命令保持不变。Runtime artifact 同时携带这些资源，其中扩展源码作为明确登记的模型可读资源保留。
+其源码快照，不会再加载一份。Runtime artifact 同时携带这些资源，其中扩展源码作为明确登记的模型可读资源保留。
 
 Skills、Extensions 与已安装 Package 的兼容 RPC 接受两种互斥资源身份：会话内设置界面可继续提交
 `{ sessionId }`；Toolbox 必须提交 `{ target: { scope: "user" } }` 或
@@ -695,9 +693,6 @@ id、命令原有的安全结构化参数，以及失败时由服务端归一化
 Pi TUI 中仅对终端有意义的命令（例如 `/quit`、`/copy`）不会出现在 Workbench catalog；只有具备
 Workbench 等价语义的内置命令才会被暴露，避免把 UI action 错当成普通 prompt。Pi 包源码与
 `registerCommand()` 契约保持不变。
-
-内置提示词同样通过共享 Workbench 设置启停；停用后仍可查看和复制，但不会注册对应的
-`/prompts-*` 命令，列表和详情中的使用入口会停用。切换语言不会重置开关。
 
 ## Extensions
 

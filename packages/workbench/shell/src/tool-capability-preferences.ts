@@ -43,10 +43,6 @@ export type ToolCapabilityPreferenceKey =
   | BuiltinResourcePreferenceKey;
 
 const PREFERENCE_RESOURCES: Record<ToolCapabilityPreferenceKey, symbol> = {
-  piExtensionPromptEnabled: Symbol("workbench.piExtensionPromptEnabled"),
-  piHookPromptEnabled: Symbol("workbench.piHookPromptEnabled"),
-  piToolPromptEnabled: Symbol("workbench.piToolPromptEnabled"),
-  piSkillPromptEnabled: Symbol("workbench.piSkillPromptEnabled"),
   messageTerminationExtensionEnabled: Symbol("workbench.messageTerminationExtensionEnabled"),
   composerContextExtensionEnabled: Symbol("workbench.composerContextExtensionEnabled"),
   contextTraceExtensionEnabled: Symbol("workbench.contextTraceExtensionEnabled"),

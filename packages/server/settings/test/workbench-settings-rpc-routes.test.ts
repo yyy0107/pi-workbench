@@ -4,7 +4,6 @@ import test from "node:test";
 import { SUPPORTED_LOCALES, type Locale } from "@workbench/contracts/locale";
 import {
   BUILTIN_EXTENSION_PREFERENCE_KEYS,
-  BUILTIN_PROMPT_PREFERENCE_KEYS,
 } from "@workbench/agent-runtime-contracts/settings";
 import type { WorkbenchSettingsProtocol } from "@workbench/agent-runtime-contracts/settings";
 import { type ServerResponse } from "@workbench/host-contracts/rpc";
@@ -56,7 +55,6 @@ async function successValue<Value>(response: Response): Promise<Value> {
 const builtinSwitches = Object.fromEntries(
   [
     ...Object.values(BUILTIN_EXTENSION_PREFERENCE_KEYS),
-    ...Object.values(BUILTIN_PROMPT_PREFERENCE_KEYS),
   ].map((key) => [key, false]),
 );
 

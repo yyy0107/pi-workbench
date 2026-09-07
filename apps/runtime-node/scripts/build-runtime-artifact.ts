@@ -3199,11 +3199,7 @@ export async function copyRuntimeBuiltinResources(
   outputDirectory: string,
 ): Promise<void> {
   // Workbench modules are bundled into server.mjs, so import.meta.url resolves at the artifact root.
-  for (const relative of [
-    "skills/builtin-skills",
-    "internal-extensions",
-    "builtin-prompt-license.txt",
-  ]) {
+  for (const relative of ["skills/builtin-skills", "internal-extensions"]) {
     await cp(
       path.join(repositoryRoot, "packages/agent-runtime/runtimes/pi/server/src", relative),
       path.join(outputDirectory, relative),

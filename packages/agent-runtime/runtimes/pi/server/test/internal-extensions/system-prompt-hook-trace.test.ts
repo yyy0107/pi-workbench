@@ -5,7 +5,6 @@ import path from "node:path";
 import test from "node:test";
 import {
   BUILTIN_EXTENSION_PREFERENCE_KEYS,
-  BUILTIN_PROMPT_PREFERENCE_KEYS,
 } from "@workbench/agent-runtime-contracts/settings";
 import { WorkbenchSettingsService } from "@workbench/settings-server/service";
 import {
@@ -211,7 +210,6 @@ test("all builtin lifecycle extensions switch live without losing their catalog 
   }
   for (const key of [
     ...Object.values(BUILTIN_EXTENSION_PREFERENCE_KEYS),
-    ...Object.values(BUILTIN_PROMPT_PREFERENCE_KEYS),
   ]) {
     await settings.update({ patch: { [key]: false } });
     assert.equal(

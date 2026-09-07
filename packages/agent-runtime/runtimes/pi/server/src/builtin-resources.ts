@@ -11,7 +11,6 @@ import {
   SettingsManager,
   VERSION,
 } from "@earendil-works/pi-coding-agent";
-import { piBuiltinPromptCatalogs } from "@workbench/agent-runtime-pi-shared/builtin-prompts";
 import {
   atomicReplaceFile,
   withCrossProcessFileLock,
@@ -121,18 +120,6 @@ export async function ensureWorkbenchBuiltinResources(agentDir = getAgentDir()) 
         if (failure) throw failure.error;
       }
       await rm(path.join(directories.skills, "skills-creator"), { recursive: true, force: true });
-      const promptLicense = await readFile(
-        new URL("./builtin-prompt-license.txt", import.meta.url),
-        "utf8",
-      );
-      for (const [locale, templates] of Object.entries(piBuiltinPromptCatalogs)) {
-        for (const [name, template] of Object.entries(templates)) {
-          const directory = path.join(directories.prompts, name);
-          await ensureBuiltinDirectory(directory);
-          await writeBuiltinFile(path.join(directory, `${locale}.md`), template.content + "\n");
-          await writeBuiltinFile(path.join(directory, "LICENSE.pi"), promptLicense);
-        }
-      }
       // Remove only previously shipped flat paths after their replacements have been written.
       for (const name of [
         "ask-user",
@@ -150,14 +137,24 @@ export async function ensureWorkbenchBuiltinResources(agentDir = getAgentDir()) 
       ]) {
         await rm(path.join(directories.extensions, `${name}.ts`), { force: true });
       }
-      for (const [locale, templates] of Object.entries(piBuiltinPromptCatalogs)) {
-        const legacyDirectory = path.join(directories.prompts, locale);
+      // Remove only shipped prompt files, preserving any custom files in these directories.
+      const retiredPrompts = ["pi-extension", "pi-hook", "pi-tool", "pi-skill"];
+      const retiredLocales = ["en-US", "zh-CN"];
+      for (const [name, files] of [
+        ...retiredPrompts.map(
+          (name) =>
+            [name, [...retiredLocales.map((locale) => `${locale}.md`), "LICENSE.pi"]] as const,
+        ),
+        ...retiredLocales.map(
+          (locale) => [locale, retiredPrompts.map((name) => `prompts-${name}.md`)] as const,
+        ),
+      ]) {
+        const directory = path.join(directories.prompts, name);
         try {
-          if ((await lstat(legacyDirectory)).isSymbolicLink())
+          if ((await lstat(directory)).isSymbolicLink())
             throw new Error("A built-in resource directory cannot be a symbolic link.");
-          for (const name of Object.keys(templates))
-            await rm(path.join(legacyDirectory, `prompts-${name}.md`), { force: true });
-          await rmdir(legacyDirectory);
+          for (const file of files) await rm(path.join(directory, file), { force: true });
+          await rmdir(directory);
         } catch (error) {
           const code = (error as NodeJS.ErrnoException).code;
           if (code !== "ENOENT" && code !== "ENOTEMPTY") throw error;

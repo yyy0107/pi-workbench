@@ -23,7 +23,6 @@ import { usePiPackageUpdates } from "./use-pi-package-updates";
 import { toolboxScopeTarget } from "./toolbox-scope";
 import { ToolboxScopeSelect } from "./toolbox-scope-select";
 import { useToolboxScope } from "./toolbox-scope-store";
-import { BUILTIN_PROMPT_NAMES } from "./builtin-prompt-templates";
 
 export function formatToolboxCount(
   loadState: string,
@@ -144,11 +143,7 @@ export function ToolboxSidebar({ onNavigate }: SidebarSectionComponentProps) {
               active={activeView?.kind === "toolbox" && activeView.params.section === section}
               status={
                 <SidebarStatus aria-live="polite" aria-busy={catalog.loadState === "loading"}>
-                  {formatToolboxCount(
-                    catalog.loadState,
-                    items.length + (section === "prompts" ? BUILTIN_PROMPT_NAMES.length : 0),
-                    number,
-                  )}
+                  {formatToolboxCount(catalog.loadState, items.length, number)}
                 </SidebarStatus>
               }
               onActivate={() => openSection(section)}

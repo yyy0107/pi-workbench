@@ -16,7 +16,6 @@ import { SkillService, SkillServiceError } from "../../src/skills/skill-service"
 import { CommandService } from "../../src/commands/command-service";
 import { createSession, getOrStartSession } from "../../src/sessions/session-registry";
 import { ensureWorkbenchBuiltinResources } from "../../src/builtin-resources";
-import { piBuiltinPromptCatalogs } from "@workbench/agent-runtime-pi-shared/builtin-prompts";
 
 test("sessions persist bundled skill switches through reload and cold reopen", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-session-skills-"));
@@ -269,7 +268,7 @@ test("bundled validator accepts a real skill and rejects missing descriptions an
   assert.equal(created.status, 0, created.stderr);
 });
 
-test("installs all built-in resource kinds without touching custom files or duplicate discovery", async (t) => {
+test("installs built-in skills and extensions and removes retired prompts without touching custom files", async (t) => {
   const agentDir = await mkdtemp(path.join(tmpdir(), "workbench-builtin-resources-"));
   t.after(() => rm(agentDir, { recursive: true, force: true }));
   await mkdir(path.join(agentDir, "prompts"));
@@ -292,11 +291,17 @@ test("installs all built-in resource kinds without touching custom files or dupl
     "tool-availability",
   ])
     await writeFile(path.join(legacyExtensions, `${name}.ts`), "Old source snapshot\n");
-  for (const [locale, templates] of Object.entries(piBuiltinPromptCatalogs)) {
+  const retiredPrompts = ["pi-extension", "pi-hook", "pi-tool", "pi-skill"];
+  for (const locale of ["en-US", "zh-CN"]) {
     const directory = path.join(agentDir, "prompts", ".builtin", locale);
     await mkdir(directory, { recursive: true });
-    for (const name of Object.keys(templates))
+    for (const name of retiredPrompts) {
       await writeFile(path.join(directory, `prompts-${name}.md`), "Old prompt\n");
+      const installed = path.join(agentDir, "prompts", ".builtin", name);
+      await mkdir(installed, { recursive: true });
+      await writeFile(path.join(installed, `${locale}.md`), "Installed prompt\n");
+      await writeFile(path.join(installed, "LICENSE.pi"), "Old license\n");
+    }
   }
   await writeFile(path.join(agentDir, "prompts", ".builtin", "LICENSE.pi"), "Old license\n");
   const legacySkill = path.join(agentDir, "skills", ".builtin", "skills-creator");
@@ -365,28 +370,16 @@ test("installs all built-in resource kinds without touching custom files or dupl
       )
     ).isFile(),
   );
-  assert.deepEqual(
-    (await readdir(directories.prompts)).sort(),
-    Object.keys(piBuiltinPromptCatalogs["en-US"]).sort(),
-  );
-  for (const [locale, templates] of Object.entries(piBuiltinPromptCatalogs)) {
-    for (const [name, template] of Object.entries(templates)) {
-      assert.equal(
-        await readFile(path.join(directories.prompts, name, `${locale}.md`), "utf8"),
-        template.content + "\n",
-      );
-      assert.ok(
-        (await readFile(path.join(directories.prompts, name, "LICENSE.pi"), "utf8")).includes(
-          "MIT License",
-        ),
-      );
-    }
-  }
+  assert.deepEqual(await readdir(directories.prompts), []);
   // Unknown files in a legacy directory must survive cleanup as well.
   const legacyLocale = path.join(directories.prompts, "en-US");
   await mkdir(legacyLocale);
   const unknown = path.join(legacyLocale, "custom.md");
   await writeFile(unknown, "Keep this file\n");
+  const retiredDirectory = path.join(directories.prompts, "pi-skill");
+  await mkdir(retiredDirectory);
+  const customCopy = path.join(retiredDirectory, "custom.md");
+  await writeFile(customCopy, "Keep my copy\n");
   const skill = path.join(directories.skills, "skill-creator", "SKILL.md");
   const before = await stat(skill);
   await Promise.all([
@@ -396,6 +389,7 @@ test("installs all built-in resource kinds without touching custom files or dupl
   assert.equal((await stat(skill)).mtimeMs, before.mtimeMs);
   assert.equal(await readFile(custom, "utf8"), "Custom instructions\n");
   assert.equal(await readFile(unknown, "utf8"), "Keep this file\n");
+  assert.equal(await readFile(customCopy, "utf8"), "Keep my copy\n");
   const loader = new DefaultResourceLoader({
     cwd: agentDir,
     agentDir,
@@ -424,7 +418,11 @@ test("built-in migration does not follow legacy prompt directory links", async (
   await writeFile(custom, "User content\n");
   const prompts = path.join(agentDir, "prompts", ".builtin");
   await mkdir(prompts, { recursive: true });
-  await symlink(outside, path.join(prompts, "en-US"), "dir");
-  await assert.rejects(ensureWorkbenchBuiltinResources(agentDir), /symbolic link/);
-  assert.equal(await readFile(custom, "utf8"), "User content\n");
+  for (const name of ["en-US", "pi-skill"]) {
+    const link = path.join(prompts, name);
+    await symlink(outside, link, "dir");
+    await assert.rejects(ensureWorkbenchBuiltinResources(agentDir), /symbolic link/);
+    assert.equal(await readFile(custom, "utf8"), "User content\n");
+    await rm(link);
+  }
 });

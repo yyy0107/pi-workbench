@@ -133,10 +133,6 @@ function parsePreferences(value: unknown): WorkbenchSettingsPreferences {
     preferences.runningMessageMode = value.runningMessageMode;
   }
   for (const key of [
-    "piExtensionPromptEnabled",
-    "piHookPromptEnabled",
-    "piToolPromptEnabled",
-    "piSkillPromptEnabled",
     "messageTerminationExtensionEnabled",
     "composerContextExtensionEnabled",
     "contextTraceExtensionEnabled",

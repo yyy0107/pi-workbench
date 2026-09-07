@@ -31,7 +31,6 @@ import {
 } from "@workbench/shell/ui";
 import { usePiI18n } from "../../i18n";
 import { insertPromptDraft } from "./prompt-composer-draft";
-import { expandBuiltinPromptTemplate, type PromptTemplateDraft } from "./builtin-prompt-templates";
 
 export function promptErrorKey(error: unknown) {
   if (error instanceof Error && error.message === "prompt-existing-draft")
@@ -61,14 +60,12 @@ export function promptErrorKey(error: unknown) {
 export function PromptEditorDialog({
   target,
   template,
-  initialValue,
   copy = false,
   onClose,
   onSaved,
 }: {
   target: PiResourceCatalogTarget;
   template?: PromptDescribeValue;
-  initialValue?: PromptTemplateDraft;
   copy?: boolean;
   onClose(): void;
   onSaved(value: PromptDescribeValue): void;
@@ -76,10 +73,8 @@ export function PromptEditorDialog({
   const { t } = usePiI18n();
   const client = usePiResourceClient();
   const id = useId();
-  const initialName = template
-    ? `${template.name}${copy ? "-copy" : ""}`
-    : (initialValue?.name ?? "");
-  const initialContent = template?.content ?? initialValue?.content ?? "";
+  const initialName = template ? `${template.name}${copy ? "-copy" : ""}` : "";
+  const initialContent = template?.content ?? "";
   const [name, setName] = useState(initialName);
   const [content, setContent] = useState(initialContent);
   const [saving, setSaving] = useState(false);
@@ -241,7 +236,7 @@ export function PromptUseDialog({
   onClose,
 }: {
   target: PiResourceCatalogTarget;
-  template: PromptDescribeValue | (PromptTemplateDraft & { builtin: true; argumentHint?: string });
+  template: PromptDescribeValue;
   onClose(): void;
 }) {
   const { t } = usePiI18n();
@@ -293,10 +288,11 @@ export function PromptUseDialog({
     setBusy(true);
     setError(undefined);
     try {
-      const content =
-        "builtin" in template
-          ? expandBuiltinPromptTemplate(template, arguments_)
-          : (await client.expandPrompt({ target, id: template.id, arguments: arguments_ })).content;
+      const { content } = await client.expandPrompt({
+        target,
+        id: template.id,
+        arguments: arguments_,
+      });
       if (!content.trim()) throw new Error("empty-template");
       insertPromptDraft(runtime, destination, content, workspaceId);
       mainViews.close();

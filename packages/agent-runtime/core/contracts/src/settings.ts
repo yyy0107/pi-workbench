@@ -36,13 +36,6 @@ export const BUILTIN_TOOL_PREFERENCE_KEYS = {
   ls: "lsToolEnabled",
 } as const;
 
-export const BUILTIN_PROMPT_PREFERENCE_KEYS = {
-  "pi-extension": "piExtensionPromptEnabled",
-  "pi-hook": "piHookPromptEnabled",
-  "pi-tool": "piToolPromptEnabled",
-  "pi-skill": "piSkillPromptEnabled",
-} as const;
-
 export const BUILTIN_EXTENSION_PREFERENCE_KEYS = {
   "workbench.message-termination": "messageTerminationExtensionEnabled",
   "workbench.composer-context": "composerContextExtensionEnabled",
@@ -50,8 +43,7 @@ export const BUILTIN_EXTENSION_PREFERENCE_KEYS = {
 } as const;
 
 export type BuiltinResourcePreferenceKey =
-  | (typeof BUILTIN_PROMPT_PREFERENCE_KEYS)[keyof typeof BUILTIN_PROMPT_PREFERENCE_KEYS]
-  | (typeof BUILTIN_EXTENSION_PREFERENCE_KEYS)[keyof typeof BUILTIN_EXTENSION_PREFERENCE_KEYS];
+  (typeof BUILTIN_EXTENSION_PREFERENCE_KEYS)[keyof typeof BUILTIN_EXTENSION_PREFERENCE_KEYS];
 
 export type BuiltinToolName = keyof typeof BUILTIN_TOOL_PREFERENCE_KEYS;
 export type BuiltinToolPreferenceKey = (typeof BUILTIN_TOOL_PREFERENCE_KEYS)[BuiltinToolName];
