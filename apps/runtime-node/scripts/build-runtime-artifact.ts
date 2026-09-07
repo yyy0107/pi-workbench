@@ -1056,10 +1056,6 @@ export async function createRuntimeArtifactTraceResolver({
     if (specifier === "@earendil-works/pi-ai") return piAiEntry;
     if (specifier === "@earendil-works/pi-coding-agent")
       return path.join(piCodingAgentDirectory, "dist", "index.js");
-    if (specifier === "@earendil-works/pi-coding-agent/rpc-entry")
-      return path.join(piCodingAgentDirectory, "dist", "rpc-entry.js");
-    if (specifier === "@earendil-works/pi-coding-agent/client")
-      return path.join(piCodingAgentDirectory, "dist", "client", "index.js");
     return resolveDependency(specifier, parent, job, cjsResolve);
   };
 }
@@ -3272,13 +3268,15 @@ export async function buildRuntimeArtifact({
       ];
       // Both branches are needed: Pi's published tree is ESM-first while several of its runtime
       // dependencies select CJS exports through require(). Their union remains an NFT exact closure.
+      // Resolve runtime-relative user data (for example Anthropic skill downloads) from the isolated
+      // candidate. Bundled resources are copied explicitly after dependency tracing.
       const traces = await Promise.all([
         trace(traceEntries, {
           base: repositoryRoot,
           conditions: ["node", "production", "import"],
           exportsOnly: true,
           ignore: path.isAbsolute,
-          processCwd: repositoryRoot,
+          processCwd: temporaryDirectory,
           resolve,
         }),
         trace(traceEntries, {
@@ -3286,7 +3284,7 @@ export async function buildRuntimeArtifact({
           conditions: ["node", "production", "require"],
           exportsOnly: true,
           ignore: path.isAbsolute,
-          processCwd: repositoryRoot,
+          processCwd: temporaryDirectory,
           resolve,
         }),
       ]);

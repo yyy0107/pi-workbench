@@ -80,7 +80,11 @@ Replace `<Name>` with the actual symbol or event. Prefer `rg` over directory-wid
 
 ## Public import rule
 
-The package export map exposes the root, `./rpc-entry`, and `./client`. Declarations below `dist/core/**` are useful for inspection but are not supported import paths.
+In Pi 0.85.1, the published SDK uses the modular root; `./rpc-entry` resolves to
+`dist/bundle/rpc-entry.js`. The `./client` and `./experimental/plugin` entries have only a
+`source` condition for upstream development, not a published runtime import. Workbench embeds
+the root SDK and provides its own HTTP/WebSocket host. Declarations below `dist/core/**` are
+useful for inspection but are not supported import paths.
 
 Use:
 

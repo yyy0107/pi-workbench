@@ -116,6 +116,7 @@ export interface PiAssistantMessage {
   content: PiAssistantContent[];
   model?: string;
   provider?: string;
+  providerThinkingLevel?: string;
   usage?: PiUsage;
   stopReason?: string;
   rawStopReason?: string;

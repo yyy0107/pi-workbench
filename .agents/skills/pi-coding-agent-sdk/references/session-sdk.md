@@ -49,6 +49,11 @@ Use the returned `services.settingsManager`, `services.modelRuntime`, `services.
 
 The returned `extensionsResult` is the loader result used by the session. Inspect its errors when the host needs diagnostics; do not replace it with a second discovery pass.
 
+In Pi 0.85.1, model and thinking mutations are session-only unless passed `{ persist: true }`.
+Workbench intentionally keeps ordinary selections session-only and remembers UI choices in its
+own settings. Do not add `persist: true` to session selection calls to restore the old implicit
+Pi global-default writes; unspecified backend/automation models continue to use Pi's saved defaults.
+
 ## Bind extensions
 
 After the session exists, bind the mode-specific UI context through the session:

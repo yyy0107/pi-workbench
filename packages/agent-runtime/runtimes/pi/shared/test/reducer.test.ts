@@ -6,6 +6,7 @@ import { applySessionMessageDelta, copyPiAssistantMessage } from "../src/message
 test("applies interleaved text and thinking deltas immutably by content index", () => {
   const initial = {
     role: "assistant" as const,
+    providerThinkingLevel: "high",
     content: [
       { type: "text" as const, text: "A" },
       { type: "thinking" as const, thinking: "B" },
@@ -21,6 +22,7 @@ test("applies interleaved text and thinking deltas immutably by content index", 
     { type: "text", text: "A" },
     { type: "thinking", thinking: "BC" },
   ]);
+  assert.equal(updated?.providerThinkingLevel, "high");
   assert.deepEqual(initial.content, [
     { type: "text", text: "A" },
     { type: "thinking", thinking: "B" },
@@ -66,12 +68,24 @@ test("retains raw partial tool JSON until the completed tool call arrives", () =
 test("copies mutable nested message fields", () => {
   const source = {
     role: "assistant" as const,
-    content: [{ type: "toolCall" as const, id: "tool-1", name: "search", arguments: { q: 1 } }],
+    providerThinkingLevel: "high",
+    content: [
+      {
+        type: "toolCall" as const,
+        id: "tool-1",
+        name: "search",
+        arguments: { q: 1 },
+        thoughtSignature: "tool-signature",
+      },
+      { type: "thinking" as const, thinking: "reasoning", thinkingSignature: "thinking-signature" },
+      { type: "text" as const, text: "answer", textSignature: "text-signature" },
+    ],
     usage: { input: 1, output: 2, cacheRead: 3, cacheWrite: 4, totalTokens: 10 },
     diagnostics: [{ type: "example", timestamp: 1, details: { stable: true } }],
   };
   const copy = copyPiAssistantMessage(source);
 
+  assert.deepEqual(copy, source);
   assert.notStrictEqual(copy, source);
   assert.notStrictEqual(copy.content, source.content);
   assert.notStrictEqual(copy.content[0], source.content[0]);

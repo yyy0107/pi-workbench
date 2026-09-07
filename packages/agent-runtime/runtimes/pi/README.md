@@ -417,7 +417,7 @@ Workspace Git 同样只接受 `workspaceId`，并从 `WorkspaceStore` 解析权�
 该入口在扩展加载前保存宿主 `fetch`，并通过 Pi 的请求级 `fetch` 参数保护支持注入的 HTTP
 适配器；普通回答、压缩、图片理解及 deferred 请求共用这条边界。调用方显式传入的 `fetch`、
 认证、代理环境参数和 WebSocket transport 选择继续由 SDK 处理，不改写扩展使用的全局 `fetch`。
-Pi 0.84.2 的 Google 适配器不支持注入，Bedrock 使用自己的 HTTP handler，未知扩展 API 也保留
+Pi 0.85.1 的 Google 适配器不支持注入，Bedrock 使用自己的 HTTP handler，未知扩展 API 也保留
 原有传输。这是对全局 `fetch` 被意外替换的定向防护，不是同进程扩展的安全沙箱，也不覆盖认证
 刷新和模型目录请求；升级 SDK 时需复核支持注入的 API 列表。
 
@@ -446,6 +446,9 @@ Pi `ModelRuntime` 是 provider、model 和凭证状态的权威来源：
   及其他模型配置；`llm.resetModelContextWindow` 只删除该覆盖字段，恢复 Provider 目录值。这个值只供 Pi 做 token 容量统计、溢出判断和自动压缩，不会作为 API 的
   `max_tokens` 发送；`maxTokens` 是独立的最大输出元数据，由 provider 适配器映射到对应的输出参数；
 - `session.models` 在 catalog 之外还返回 session 当前选择和 `routable` 状态；
+- Pi 0.85.1 的模型与推理等级切换仅保存到当前会话，不隐式改写 Pi 全局默认值。Workbench
+  继续通过自身 `modelSelector` 设置记住 UI 选择，并在新会话提交时显式传入；未指定模型的
+  自动化或后端会话仍使用 Pi 已保存的默认值。
 - `session.selectModel` 与 prompt/queue mutation 串行执行，避免与正在提交的图片 prompt
   发生竞态；session context policy 也使用同一 mutation 队列，按 `inherit`、`auto`、`maximum`
   或 `custom` 计算当前模型的有效预算。策略作为 branch-local custom entry 持久化，fork 会复制

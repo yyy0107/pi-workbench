@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json"
   },
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "0.84.2",
+    "@earendil-works/pi-coding-agent": "0.85.1",
     "@workbench/agent-runtime-pi-protocol": "workspace:*",
     "@workbench/agent-runtime-pi-server": "workspace:*",
     "@workbench/agent-runtime-server": "workspace:*",

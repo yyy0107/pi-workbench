@@ -310,6 +310,42 @@ test("reanchors exact Runtime app external package specifiers and subpaths for N
   ]);
 });
 
+test("runtime-relative skill assets do not pull build-checkout files into either trace", async (t) => {
+  const repositoryRoot = path.resolve(".");
+  const outputDirectory = await mkdtemp(path.join(repositoryRoot, ".runtime-trace-cwd-"));
+  t.after(() => rm(outputDirectory, { force: true, recursive: true }));
+  const requireFromApp = createRequire(path.join(repositoryRoot, "apps/runtime-node/package.json"));
+  const { nodeFileTrace } = requireFromApp("@vercel/nft") as typeof import("@vercel/nft");
+  const tracedConditions: string[] = [];
+
+  await assert.rejects(
+    buildRuntimeArtifact({
+      outputDirectory,
+      testOnlyOutputPolicy: TEST_ONLY_ALLOW_NONSTANDARD_RUNTIME_ARTIFACT_OUTPUT,
+      nodeFileTraceImpl: async (entries, options) => {
+        assert.ok(Array.isArray(options.conditions));
+        const condition = options.conditions.includes("require") ? "require" : "import";
+        const probe = path.join(path.dirname(entries[0]!), `trace-skills-${condition}.mjs`);
+        await writeFile(
+          probe,
+          `import { readFile } from "node:fs/promises";
+import path from "node:path";
+export const readSkill = (context) => readFile(path.resolve(context.workdir, "skills", context.name));
+`,
+        );
+        const result = await nodeFileTrace([probe], options);
+        assert.deepEqual([...result.fileList], [path.relative(repositoryRoot, probe)]);
+        assert.equal(result.warnings.size, 0);
+        tracedConditions.push(condition);
+        // Stop before materializing an artifact: this probe replaces the real dependency graph.
+        return { ...result, warnings: new Set([new Error("skill trace probe complete")]) };
+      },
+    }),
+    /skill trace probe complete/u,
+  );
+  assert.deepEqual(tracedConditions.sort(), ["import", "require"]);
+});
+
 test("accepts only app/package source inputs in the Runtime bundle closure", () => {
   const repositoryRoot = path.resolve("artifact-closure-fixture");
   const appRoot = path.join(repositoryRoot, "apps", "runtime-node");
