@@ -50,15 +50,6 @@ export function ToolboxSidebar({ onNavigate }: SidebarSectionComponentProps) {
     mainViews.getSnapshot,
     mainViews.getSnapshot,
   );
-  useEffect(() => {
-    const kind = mainViews.getSnapshot()?.kind;
-    if (kind === "toolbox" || kind === "system-prompts") return;
-    mainViews.open({
-      kind: "toolbox",
-      title: TOOLBOX_SECTION_TITLES.skills,
-      params: { section: "skills" },
-    });
-  }, [mainViews]);
   const scope = useToolboxScope();
   const openSystemPrompts = useCallback(() => {
     const active = mainViews.getSnapshot();
@@ -78,7 +69,7 @@ export function ToolboxSidebar({ onNavigate }: SidebarSectionComponentProps) {
     });
   }, [mainViews, scope]);
   useEffect(() => {
-    if (mainViews.getSnapshot()?.kind === "system-prompts") openSystemPrompts();
+    if (mainViews.getSnapshot()?.kind !== "toolbox") openSystemPrompts();
   }, [mainViews, openSystemPrompts]);
   const catalogs = useToolboxCatalogs(scope);
   const updateTarget = useMemo(

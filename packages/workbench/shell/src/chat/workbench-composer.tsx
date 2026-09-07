@@ -728,6 +728,7 @@ export function WorkbenchComposer({
     setCommandParametersByKey(commandParametersByThreadRef.current.get(mainThreadId) ?? {});
     setActiveCommandParameterKey(undefined);
     setCommandParameterValidationKey(undefined);
+    lexicalEditorRef.current?.focus();
   }, [mainThreadId]);
 
   useEffect(() => {
