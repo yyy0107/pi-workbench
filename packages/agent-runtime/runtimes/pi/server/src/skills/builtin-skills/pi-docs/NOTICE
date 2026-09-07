@@ -1,0 +1,11 @@
+Extension references are reproduced from @earendil-works/pi-coding-agent 0.84.2,
+packages/coding-agent/docs/extensions.md at https://github.com/earendil-works/pi/tree/v0.84.2.
+Source SHA-256: d55deaabe3aea1be050b9f3fda6b63e1d1fd96e384e7a7cf46136dc51f3c1c9d
+
+Copyright (c) 2025 Mario Zechner. Distributed under the MIT License; see LICENSE.pi.
+
+Modifications: split into topic references, replace the whole-document table of contents
+with routing in SKILL.md, add provenance headings, relocate internal links, and pin
+upstream documentation/example/source links to the matching release. API descriptions
+and code examples are preserved. When refreshing, re-split the installed version
+and update every reference, its source ranges, this notice, and the SKILL.md version.

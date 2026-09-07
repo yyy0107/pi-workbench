@@ -2,7 +2,15 @@ import { lstat, mkdir, readFile, readdir, realpath, rm, rmdir } from "node:fs/pr
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { getAgentDir, SettingsManager } from "@earendil-works/pi-coding-agent";
+import {
+  getAgentDir,
+  getDocsPath,
+  getExamplesPath,
+  getPackageDir,
+  getReadmePath,
+  SettingsManager,
+  VERSION,
+} from "@earendil-works/pi-coding-agent";
 import { piBuiltinPromptCatalogs } from "@workbench/agent-runtime-pi-shared/builtin-prompts";
 import {
   atomicReplaceFile,
@@ -73,6 +81,28 @@ export async function ensureWorkbenchBuiltinResources(agentDir = getAgentDir()) 
         path.join(directories.skills, "skill-creator", "runtime.json"),
         JSON.stringify({
           piCodingAgentModule: import.meta.resolve("@earendil-works/pi-coding-agent"),
+        }) + "\n",
+      );
+      await writeBuiltinFile(
+        path.join(directories.skills, "pi-docs", "runtime.json"),
+        JSON.stringify({
+          version: VERSION,
+          packageDir: getPackageDir(),
+          readme: getReadmePath(),
+          docs: getDocsPath(),
+          examples: getExamplesPath(),
+        }) + "\n",
+      );
+      await writeBuiltinFile(
+        path.join(directories.skills, "skill-installer", "runtime.json"),
+        JSON.stringify({ userResourceDir: path.resolve(agentDir) }) + "\n",
+      );
+      await writeBuiltinFile(
+        path.join(directories.skills, "extension-creator", "runtime.json"),
+        JSON.stringify({
+          userResourceDir: path.resolve(agentDir),
+          piCodingAgentModule: import.meta.resolve("@earendil-works/pi-coding-agent"),
+          nodeExecutable: process.execPath,
         }) + "\n",
       );
       // Rename the previously shipped skill without resetting its persisted switch.

@@ -71,91 +71,110 @@ test("sessions persist bundled skill switches through reload and cold reopen", a
   check(reopened);
 });
 
-test("bundled skills can toggle while files remain read-only", async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), "workbench-builtin-skills-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const settingsManager = SettingsManager.inMemory({}, { projectTrusted: false });
-  const agentDir = path.join(root, "agent");
-  await ensureWorkbenchBuiltinResources(agentDir);
-  const loader = new DefaultResourceLoader({
-    cwd: root,
-    agentDir,
-    settingsManager,
-    noExtensions: true,
-    noSkills: true,
-    noThemes: true,
-    noContextFiles: true,
-    skillsOverride: (base) =>
-      withWorkbenchBuiltinSkills(base, agentDir, settingsManager.getGlobalSettings().skills ?? []),
+for (const name of ["skill-creator", "pi-docs", "skill-installer", "extension-creator"]) {
+  test(`bundled ${name} can toggle while files remain read-only`, async (t) => {
+    const root = await mkdtemp(path.join(tmpdir(), "workbench-builtin-skills-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const settingsManager = SettingsManager.inMemory({}, { projectTrusted: false });
+    const agentDir = path.join(root, "agent");
+    await ensureWorkbenchBuiltinResources(agentDir);
+    const loader = new DefaultResourceLoader({
+      cwd: root,
+      agentDir,
+      settingsManager,
+      noExtensions: true,
+      noSkills: true,
+      noThemes: true,
+      noContextFiles: true,
+      skillsOverride: (base) =>
+        withWorkbenchBuiltinSkills(
+          base,
+          agentDir,
+          settingsManager.getGlobalSettings().skills ?? [],
+        ),
+    });
+    await loader.reload();
+    const { skills, diagnostics } = loader.getSkills();
+    assert.deepEqual(diagnostics, []);
+    assert.deepEqual(skills.map(({ name }) => name).sort(), [
+      "extension-creator",
+      "pi-docs",
+      "skill-creator",
+      "skill-installer",
+    ]);
+    const skill = skills.find((entry) => entry.name === name)!;
+    assert.equal(skill.sourceInfo.source, "builtin");
+    assert.equal(skill.sourceInfo.scope, "user");
+    assert.equal(skill.disableModelInvocation, false);
+    assert.ok(formatSkillsForPrompt(skills).includes(skill.filePath));
+    const host = {
+      session: { resourceLoader: loader, settingsManager, sessionManager: { getCwd: () => root } },
+    };
+    const service = new SkillService({
+      agentDir: () => agentDir,
+      getSession: async () => host,
+      getScopedResourceHost: async () => host,
+    });
+    const request = { target: { scope: "user" as const }, name: skill.name };
+    assert.ok(
+      (await service.list(request)).skills.some(
+        (entry) => entry.name === skill.name && entry.enabled,
+      ),
+    );
+    assert.equal((await service.describe(request)).content, await readFile(skill.filePath, "utf8"));
+    assert.ok(
+      (await service.listFiles(request)).entries.some((entry) => entry.name === "SKILL.md"),
+    );
+    assert.equal(
+      (await service.readFile({ ...request, relativePath: "SKILL.md" })).content,
+      await readFile(skill.filePath, "utf8"),
+    );
+    const commands = new CommandService({
+      getSession: async () => host,
+      getScopedResourceHost: async () => host,
+    });
+    assert.ok(
+      (await commands.list({ target: request.target })).commands.some(
+        (entry) => entry.invocationName === `skill:${skill.name}`,
+      ),
+    );
+    await service.setEnabled({ ...request, enabled: false });
+    await loader.reload();
+    assert.deepEqual(
+      loader.getSkills().skills,
+      skills.filter((entry) => entry.name !== name),
+    );
+    assert.equal(
+      (await service.list(request)).skills.find((entry) => entry.name === name)?.enabled,
+      false,
+    );
+    assert.equal(
+      (await commands.list({ target: request.target })).commands.some(
+        (entry) => entry.invocationName === `skill:${skill.name}`,
+      ),
+      false,
+    );
+    assert.ok((await service.describe(request)).content);
+    await assert.rejects(
+      service.remove(request),
+      (error: unknown) => error instanceof SkillServiceError && error.code === "skill-read-only",
+    );
+    await service.setEnabled({ ...request, enabled: true });
+    assert.deepEqual(settingsManager.getGlobalSettings().skills, []);
+    await loader.reload();
+    assert.deepEqual(
+      loader.getSkills().skills.map(({ name }) => name),
+      skills.map(({ name }) => name),
+    );
   });
-  await loader.reload();
-  const { skills, diagnostics } = loader.getSkills();
-  assert.deepEqual(diagnostics, []);
-  assert.equal(skills.length, 1);
-  const skill = skills[0];
-  assert.equal(skill.name, "skill-creator");
-  assert.equal(skill.sourceInfo.source, "builtin");
-  assert.equal(skill.sourceInfo.scope, "user");
-  assert.equal(skill.disableModelInvocation, false);
-  assert.ok(formatSkillsForPrompt(skills).includes(skill.filePath));
-  const host = {
-    session: { resourceLoader: loader, settingsManager, sessionManager: { getCwd: () => root } },
-  };
-  const service = new SkillService({
-    agentDir: () => agentDir,
-    getSession: async () => host,
-    getScopedResourceHost: async () => host,
-  });
-  const request = { target: { scope: "user" as const }, name: skill.name };
-  assert.ok(
-    (await service.list(request)).skills.some(
-      (entry) => entry.name === skill.name && entry.enabled,
-    ),
-  );
-  assert.equal((await service.describe(request)).content, await readFile(skill.filePath, "utf8"));
-  assert.ok((await service.listFiles(request)).entries.some((entry) => entry.name === "SKILL.md"));
-  assert.equal(
-    (await service.readFile({ ...request, relativePath: "SKILL.md" })).content,
-    await readFile(skill.filePath, "utf8"),
-  );
-  const commands = new CommandService({
-    getSession: async () => host,
-    getScopedResourceHost: async () => host,
-  });
-  assert.ok(
-    (await commands.list({ target: request.target })).commands.some(
-      (entry) => entry.invocationName === `skill:${skill.name}`,
-    ),
-  );
-  await service.setEnabled({ ...request, enabled: false });
-  await loader.reload();
-  assert.equal(loader.getSkills().skills.length, 0);
-  assert.equal((await service.list(request)).skills[0]?.enabled, false);
-  assert.equal(
-    (await commands.list({ target: request.target })).commands.some(
-      (entry) => entry.invocationName === `skill:${skill.name}`,
-    ),
-    false,
-  );
-  assert.ok((await service.describe(request)).content);
-  await assert.rejects(
-    service.remove(request),
-    (error: unknown) => error instanceof SkillServiceError && error.code === "skill-read-only",
-  );
-  await service.setEnabled({ ...request, enabled: true });
-  assert.deepEqual(settingsManager.getGlobalSettings().skills, []);
-  await loader.reload();
-  assert.deepEqual(
-    loader.getSkills().skills.map(({ name }) => name),
-    [skill.name],
-  );
-});
+}
 
 test("keeps an existing same-name skill and its diagnostics", async (t) => {
   const agentDir = await mkdtemp(path.join(tmpdir(), "workbench-skill-override-"));
   t.after(() => rm(agentDir, { recursive: true, force: true }));
   await ensureWorkbenchBuiltinResources(agentDir);
-  const original = withWorkbenchBuiltinSkills({ skills: [], diagnostics: [] }, agentDir).skills[0];
+  const builtins = withWorkbenchBuiltinSkills({ skills: [], diagnostics: [] }, agentDir).skills;
+  const original = builtins[0];
   const custom = {
     ...original,
     filePath: "/custom/SKILL.md",
@@ -171,7 +190,7 @@ test("keeps an existing same-name skill and its diagnostics", async (t) => {
     { skills: [custom], diagnostics: [diagnostic] },
     agentDir,
   );
-  assert.deepEqual(result.skills, [custom]);
+  assert.deepEqual(result.skills, [custom, ...builtins.slice(1)]);
   assert.deepEqual(result.diagnostics, [diagnostic]);
 });
 
@@ -179,12 +198,50 @@ test("bundled validator accepts a real skill and rejects missing descriptions an
   const root = await mkdtemp(path.join(tmpdir(), "workbench-skill-validator-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await ensureWorkbenchBuiltinResources(root);
-  const builtin = withWorkbenchBuiltinSkills({ skills: [], diagnostics: [] }, root).skills[0];
+  const skills = withWorkbenchBuiltinSkills({ skills: [], diagnostics: [] }, root).skills;
+  const builtin = skills.find(({ name }) => name === "skill-creator")!;
   const validator = path.join(builtin.baseDir, "scripts", "validate-skill.mjs");
   const run = (directory: string) =>
     spawnSync(process.execPath, [validator, directory], { encoding: "utf8" });
   const valid = run(builtin.baseDir);
   assert.equal(valid.status, 0, valid.stderr);
+  const piDocs = skills.find(({ name }) => name === "pi-docs")!;
+  const docsValidation = run(piDocs.baseDir);
+  assert.equal(docsValidation.status, 0, docsValidation.stderr);
+  const installer = skills.find(({ name }) => name === "skill-installer")!;
+  const installerValidation = run(installer.baseDir);
+  assert.equal(installerValidation.status, 0, installerValidation.stderr);
+  const extensionCreator = skills.find(({ name }) => name === "extension-creator")!;
+  const extensionCreatorValidation = run(extensionCreator.baseDir);
+  assert.equal(extensionCreatorValidation.status, 0, extensionCreatorValidation.stderr);
+  const extensionRuntime = JSON.parse(
+    await readFile(path.join(extensionCreator.baseDir, "runtime.json"), "utf8"),
+  );
+  assert.equal(extensionRuntime.userResourceDir, root);
+  assert.equal(extensionRuntime.nodeExecutable, process.execPath);
+  assert.equal(
+    typeof (await import(extensionRuntime.piCodingAgentModule)).discoverAndLoadExtensions,
+    "function",
+  );
+  assert.deepEqual(
+    JSON.parse(await readFile(path.join(installer.baseDir, "runtime.json"), "utf8")),
+    { userResourceDir: root },
+  );
+  const runtime = JSON.parse(await readFile(path.join(piDocs.baseDir, "runtime.json"), "utf8"));
+  const manifest = JSON.parse(
+    await readFile(path.join(runtime.packageDir, "package.json"), "utf8"),
+  );
+  assert.equal(manifest.name, "@earendil-works/pi-coding-agent");
+  assert.equal(runtime.version, manifest.version);
+  for (const file of [
+    runtime.readme,
+    path.join(runtime.docs, "extensions.md"),
+    path.join(runtime.packageDir, "dist", "index.d.ts"),
+  ]) {
+    assert.ok(path.isAbsolute(file));
+    assert.ok((await readFile(file, "utf8")).length > 0);
+  }
+  assert.ok((await readdir(path.join(runtime.examples, "extensions"))).length > 0);
   const directory = path.join(root, "example");
   await mkdir(directory);
   await writeFile(path.join(directory, "SKILL.md"), "---\nname: example\n---\n\n# Example\n");
@@ -257,8 +314,10 @@ test("installs all built-in resource kinds without touching custom files or dupl
     "custom-skill",
   ]);
   assert.equal(
-    withWorkbenchBuiltinSkills({ skills: [], diagnostics: [] }, agentDir).skills.length,
-    0,
+    withWorkbenchBuiltinSkills({ skills: [], diagnostics: [] }, agentDir).skills.some(
+      ({ name }) => name === "skill-creator",
+    ),
+    false,
   );
   for (const [kind, directory] of Object.entries(directories)) {
     assert.equal(directory, path.join(agentDir, kind, ".builtin"));

@@ -1,0 +1,10 @@
+Skill Installer instructions and GitHub helper scripts are adapted from OpenAI's
+skill-installer skill, provided under the Apache License, Version 2.0.
+See LICENSE.txt.
+
+Modified for Pi Workbench: Pi resource destinations and runtime metadata,
+Pi Skills as the default collection, nested installed-skill annotations,
+project scope, protected built-in resources, bounded network/Git operations,
+encoded GitHub paths/refs, temporary-checkout retries, partial-success reporting,
+Pi package routing, validation, and session refresh instructions.
+Codex-specific UI metadata and image assets are not included.
