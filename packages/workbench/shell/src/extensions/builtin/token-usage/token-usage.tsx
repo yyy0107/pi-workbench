@@ -364,7 +364,18 @@ function ThreadTokenUsage() {
   ]);
 
   useEffect(() => {
-    if (remoteId) void contextPolicy.refresh().catch(() => undefined);
+    if (!remoteId) return;
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = async () => {
+      await contextPolicy.refresh().catch(() => undefined);
+      if (!disposed && isRunning) timer = setTimeout(() => void refresh(), 1_000);
+    };
+    void refresh();
+    return () => {
+      disposed = true;
+      clearTimeout(timer);
+    };
   }, [contextPolicy.refresh, isRunning, nodes.length, currentStatistics.steps, remoteId]);
 
   const updateContextPolicy = (policy: WorkbenchContextPolicy) => {

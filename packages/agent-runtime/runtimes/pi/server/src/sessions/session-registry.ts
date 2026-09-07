@@ -1752,7 +1752,8 @@ class HostedPiSession {
       effectiveBudget === undefined
         ? undefined
         : Math.max(0, effectiveBudget - compaction.reserveTokens);
-    const contextTokens = usage?.tokens ?? null;
+    const breakdown = estimateSessionContextBreakdown(this.session, usage?.tokens ?? null);
+    const contextTokens = breakdown.totalTokens;
     return {
       policy: structuredClone(this.contextPolicy),
       overridden: this.contextPolicy.mode !== "inherit",
@@ -1773,15 +1774,11 @@ class HostedPiSession {
       },
       usage: {
         tokens: contextTokens,
-        percent:
-          contextTokens === null || !effectiveBudget
-            ? null
-            : (contextTokens / effectiveBudget) * 100,
+        percent: !effectiveBudget ? null : (contextTokens / effectiveBudget) * 100,
       },
-      breakdown: estimateSessionContextBreakdown(this.session, contextTokens),
+      breakdown,
       nearingCompaction:
         compaction.enabled &&
-        contextTokens !== null &&
         thresholdTokens !== undefined &&
         contextTokens >= thresholdTokens * 0.9,
     };

@@ -1,5 +1,7 @@
 import {
+  calculateContextTokens,
   convertToLlm,
+  estimateTokens,
   formatSkillsForPrompt,
   type AgentSession,
   type Skill,
@@ -311,17 +313,31 @@ export function estimateContextBreakdown(input: ContextBreakdownInput): SessionC
 export function estimateSessionContextBreakdown(
   session: Pick<
     AgentSession,
-    "systemPrompt" | "messages" | "resourceLoader" | "getActiveToolNames" | "getAllTools"
+    "systemPrompt" | "messages" | "resourceLoader" | "getActiveToolNames" | "getAllTools" | "agent"
   >,
   contextTokens: number | null,
 ): SessionContextBreakdown {
+  const messages = session.messages;
+  const streaming = session.agent.state.streamingMessage;
+  const streamingAssistant = streaming?.role === "assistant" ? streaming : undefined;
+  // getContextUsage also returns a messages-only heuristic before the first provider usage.
+  const hasProviderUsage = messages.some(
+    (message) =>
+      message.role === "assistant" &&
+      message.stopReason !== "aborted" &&
+      message.stopReason !== "error" &&
+      calculateContextTokens(message.usage) > 0,
+  );
   return estimateContextBreakdown({
     systemPrompt: session.systemPrompt,
     skills: session.resourceLoader.getSkills().skills,
     contextFiles: session.resourceLoader.getAgentsFiles().agentsFiles,
     tools: session.getAllTools(),
     activeToolNames: session.getActiveToolNames(),
-    messages: session.messages,
-    contextTokens,
+    messages: streamingAssistant ? [...messages, streamingAssistant] : messages,
+    contextTokens:
+      hasProviderUsage && contextTokens !== null
+        ? contextTokens + (streamingAssistant ? estimateTokens(streamingAssistant) : 0)
+        : null,
   });
 }

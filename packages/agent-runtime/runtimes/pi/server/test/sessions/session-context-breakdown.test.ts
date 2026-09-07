@@ -7,10 +7,13 @@ import {
   type Skill,
   type ToolInfo,
 } from "@earendil-works/pi-coding-agent";
-import { Type } from "@earendil-works/pi-ai";
+import { Type, type AssistantMessage } from "@earendil-works/pi-ai";
 
 import type { SessionContextBreakdownCategory } from "@workbench/agent-runtime-pi-protocol/rpc";
-import { estimateContextBreakdown } from "../../src/sessions/session-context-breakdown";
+import {
+  estimateContextBreakdown,
+  estimateSessionContextBreakdown,
+} from "../../src/sessions/session-context-breakdown";
 
 function item(
   breakdown: ReturnType<typeof estimateContextBreakdown>,
@@ -133,4 +136,68 @@ test("keeps an authoritative total visible even when no category can be inspecte
     breakdown.items.reduce((sum, candidate) => sum + candidate.tokens, 0),
     breakdown.totalTokens,
   );
+});
+
+test("includes prompt, schemas, and live thinking before usage, then reconciles without double counting", () => {
+  const assistant: AssistantMessage = {
+    role: "assistant",
+    content: [{ type: "thinking", thinking: "thinking ".repeat(100) }],
+    timestamp: 2,
+    api: "openai-completions",
+    provider: "test",
+    model: "test-model",
+    usage: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    },
+    stopReason: "stop",
+  };
+  const state: { streamingMessage?: AssistantMessage } = {};
+  const messages: AgentSession["messages"] = [{ role: "user", content: "Hi", timestamp: 1 }];
+  const session = {
+    systemPrompt: "System instructions. ".repeat(100),
+    messages,
+    agent: { state },
+    resourceLoader: {
+      getSkills: () => ({ skills: [] }),
+      getAgentsFiles: () => ({ agentsFiles: [] }),
+    },
+    getAllTools: () => [tool("read", "builtin")],
+    getActiveToolNames: () => ["read"],
+  } as unknown as Parameters<typeof estimateSessionContextBreakdown>[0];
+  const before = estimateSessionContextBreakdown(session, 8);
+  assert.equal(before.basis, "heuristic");
+  assert.ok(before.totalTokens > 500);
+  assert.ok(item(before, "system-prompt").tokens > 0);
+  assert.ok(item(before, "builtin-tools").tokens > 0);
+
+  state.streamingMessage = assistant;
+  const thinking = estimateSessionContextBreakdown(session, 8);
+  assert.ok(thinking.totalTokens > before.totalTokens);
+  assert.ok(item(thinking, "assistant-history").tokens > 0);
+  assistant.content.push({ type: "text", text: "answer ".repeat(100) });
+  assert.ok(estimateSessionContextBreakdown(session, 8).totalTokens > thinking.totalTokens);
+
+  assistant.usage = { ...assistant.usage, input: 900, output: 100, totalTokens: 1_000 };
+  messages.push(assistant);
+  state.streamingMessage = undefined;
+  const completed = estimateSessionContextBreakdown(session, 1_000);
+  assert.equal(completed.basis, "provider-reconciled");
+  assert.equal(completed.totalTokens, 1_000);
+
+  state.streamingMessage = {
+    ...assistant,
+    content: [{ type: "thinking", thinking: "x".repeat(400) }],
+  };
+  assert.equal(estimateSessionContextBreakdown(session, 1_000).totalTokens, 1_100);
+  assert.equal(estimateSessionContextBreakdown(session, null).basis, "heuristic");
+  state.streamingMessage = undefined;
+  assistant.stopReason = "aborted";
+  assert.equal(estimateSessionContextBreakdown(session, 8).basis, "heuristic");
+  assistant.stopReason = "error";
+  assert.equal(estimateSessionContextBreakdown(session, 8).basis, "heuristic");
 });
