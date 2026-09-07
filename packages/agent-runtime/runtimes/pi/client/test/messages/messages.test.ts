@@ -2563,3 +2563,79 @@ test("keeps a message running while another parallel tool has no result", () => 
   if (message?.role !== "assistant") return;
   assert.equal(message.status.type, "running");
 });
+
+test("reopens text attachment cards and applies edited canonical metadata without duplicating the user bubble", () => {
+  const attachment = {
+    id: "8b95d58b-3189-45f0-9be6-f7a9e4de7248",
+    name: "pasted-text.txt",
+    mediaType: "text/plain" as const,
+    path: "/runtime/pasted-text.txt",
+    bytes: 5000,
+    characterCount: 5000,
+    preview: "sample",
+  };
+  const marker = (sourceText: string) => ({
+    role: "custom" as const,
+    customType: WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+    content: "",
+    display: false,
+    details: {
+      version: 3,
+      submissionId: "text-submission",
+      sourceText,
+      text: sourceText,
+      document: [{ type: "text", text: sourceText }],
+      commands: [],
+      status: "accepted",
+      textAttachments: [attachment],
+    },
+    timestamp: 1,
+  });
+  const history: PiSessionHistory = {
+    sessionId: "session",
+    context: {
+      entryIds: ["original", "edited", "raw"],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        marker("initial"),
+        marker("edited"),
+        {
+          role: "user",
+          content: "compiled path context",
+          timestamp: 2,
+          workbenchComposer: {
+            version: 2,
+            submissionId: "text-submission",
+            sourceText: "edited",
+            hidden: true,
+          },
+        },
+      ],
+    },
+  };
+  const messages = piHistoryToThreadMessages(JSON.parse(JSON.stringify(history)));
+  assert.equal(messages.length, 1);
+  const message = messages[0]!;
+  assert.equal(message.role, "user");
+  assert.deepEqual(message.content, [
+    { type: "text", text: "edited" },
+    {
+      type: "file",
+      data: attachment.id,
+      mimeType: "text/plain",
+      sourceType: "id",
+      filename: attachment.name,
+      textAttachment: attachment,
+    },
+  ]);
+  const prompt = appendMessageToPiPrompt({
+    content: message.content,
+    attachments: [],
+    runConfig: undefined,
+  });
+  assert.equal(prompt.text, "edited");
+  assert.deepEqual(prompt.textAttachments, [attachment]);
+  assert.deepEqual(prompt.images, []);
+  assert.deepEqual(prompt.documents, []);
+});

@@ -3,7 +3,15 @@
 import { FileTextIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
-import type { ComposerAttachment } from "@workbench/agent-runtime-contracts/conversation";
+import type {
+  ComposerAttachment,
+  InlineComposerAttachment,
+  PastedTextComposerAttachment,
+} from "@workbench/agent-runtime-contracts/conversation";
+
+import { canRestorePastedText } from "@workbench/agent-runtime-contracts/composer-attachments";
+import { Button } from "../ui/button";
+import { PastedTextAttachmentPreview } from "./pasted-text-attachment-preview";
 
 import { TooltipIconButton } from "../ui/tooltip-icon-button";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -32,7 +40,7 @@ function AttachmentTile({
   attachment,
   onRemove,
 }: Readonly<{
-  attachment: ComposerAttachment;
+  attachment: InlineComposerAttachment;
   onRemove(key: string): void;
 }>) {
   const { t } = useI18n();
@@ -105,15 +113,124 @@ function AttachmentTile({
 export function ComposerAttachments({
   attachments,
   onRemove,
+  onRetry,
+  onRestore,
 }: Readonly<{
   attachments: readonly ComposerAttachment[];
   onRemove(key: string): void;
+  onRetry(key: string): void;
+  onRestore(key: string): Promise<void>;
 }>) {
   return (
     <div className="aui-composer-attachments flex w-full flex-row items-center gap-2 overflow-x-auto empty:hidden">
-      {attachments.map((attachment) => (
-        <AttachmentTile key={attachment.key} attachment={attachment} onRemove={onRemove} />
-      ))}
+      {attachments.map((attachment) =>
+        attachment.kind === "pasted-text" ? (
+          <PastedTextTile
+            key={attachment.key}
+            attachment={attachment}
+            onRemove={onRemove}
+            onRetry={onRetry}
+            onRestore={onRestore}
+          />
+        ) : (
+          <AttachmentTile key={attachment.key} attachment={attachment} onRemove={onRemove} />
+        ),
+      )}
+    </div>
+  );
+}
+
+function PastedTextTile({
+  attachment,
+  onRemove,
+  onRetry,
+  onRestore,
+}: {
+  attachment: PastedTextComposerAttachment;
+  onRemove(key: string): void;
+  onRetry(key: string): void;
+  onRestore(key: string): Promise<void>;
+}) {
+  const { t } = useI18n();
+  const [restoring, setRestoring] = useState(false);
+  const [restoreFailed, setRestoreFailed] = useState(false);
+  const ready = attachment.status === "ready";
+  const errorKey =
+    attachment.status === "error" && attachment.error === "attachment-too-large"
+      ? "tooLarge"
+      : attachment.status === "error" && attachment.error === "too-many-attachments"
+        ? "tooMany"
+        : "failed";
+  return (
+    <div className="bg-muted border-border flex max-w-full shrink-0 flex-col gap-1 rounded-[var(--radius-md)] border p-2">
+      <div className="flex min-w-0 items-center gap-2">
+        {ready ? (
+          <PastedTextAttachmentPreview attachment={attachment.attachment} />
+        ) : (
+          <div className="flex min-w-0 items-center gap-2">
+            <FileTextIcon className="aui-composer-icon-size-attachment text-muted-foreground" />
+            <span className="min-w-0">
+              <span className="block max-w-xs truncate">
+                {attachment.text.slice(0, 80) || t("chatContent.textAttachment.title")}
+              </span>
+              <span className="text-muted-foreground block text-xs">
+                {t("chatContent.textAttachment.characters", { count: attachment.text.length })}
+              </span>
+            </span>
+          </div>
+        )}
+        <TooltipIconButton
+          tooltip={t("chatContent.textAttachment.remove")}
+          onClick={() => onRemove(attachment.key)}
+          disabled={restoring}
+        >
+          <XIcon />
+        </TooltipIconButton>
+      </div>
+      <div className="flex items-center gap-2">
+        <span
+          role={attachment.status === "error" ? "alert" : "status"}
+          className="text-muted-foreground text-xs"
+        >
+          {t(
+            `chatContent.textAttachment.${ready ? "ready" : attachment.status === "saving" ? "saving" : errorKey}`,
+          )}
+        </span>
+        {attachment.status === "error" && (
+          <Button variant="ghost" size="sm" onClick={() => onRetry(attachment.key)}>
+            {t("chatContent.textAttachment.retry")}
+          </Button>
+        )}
+        {ready && canRestorePastedText(attachment.attachment.characterCount) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={restoring}
+            onClick={async () => {
+              setRestoring(true);
+              setRestoreFailed(false);
+              try {
+                await onRestore(attachment.key);
+              } catch {
+                setRestoreFailed(true);
+              } finally {
+                setRestoring(false);
+              }
+            }}
+          >
+            {t(
+              restoring
+                ? "chatContent.textAttachment.restoring"
+                : "chatContent.textAttachment.restore",
+            )}
+          </Button>
+        )}
+      </div>
+      {restoreFailed && (
+        <p role="alert" className="text-destructive text-xs">
+          {t("chatContent.textAttachment.restoreFailed")}
+        </p>
+      )}
     </div>
   );
 }

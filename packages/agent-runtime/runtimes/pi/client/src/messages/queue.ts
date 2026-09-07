@@ -1,3 +1,4 @@
+import { parsePastedTextAttachment } from "@workbench/contracts/composer";
 import type {
   ComposerAttachment,
   ComposerQueueItem,
@@ -43,7 +44,16 @@ function appendContent(
   const text = workspaceFeedbackSuffix
     ? `${prompt.text.trimEnd()}${workspaceFeedbackSuffix}`
     : prompt.text;
-  return { kind: "edit", content: [{ type: "text", text }] };
+  return {
+    kind: "edit",
+    content: [
+      { type: "text", text },
+      ...prompt.textAttachments.map((attachment) => ({
+        type: "attachment",
+        attachmentId: attachment.id,
+      })),
+    ],
+  };
 }
 
 function queueItemRawText(item: QueueItem): string {
@@ -63,6 +73,18 @@ function extractWorkspaceFeedbackSuffix(item: QueueItem | undefined): string | u
 
 function queueItemParts(item: QueueItem): readonly (PiFileMessagePart | PiTextMessagePart)[] {
   return item.message.content.map((part): PiFileMessagePart | PiTextMessagePart => {
+    if (part.type === "attachment") {
+      const attachment = parsePastedTextAttachment(part.attachment);
+      if (attachment)
+        return {
+          type: "file",
+          data: attachment.id,
+          mimeType: "text/plain",
+          sourceType: "id",
+          filename: attachment.name,
+          textAttachment: attachment,
+        };
+    }
     if (part.type === "text" && typeof part.text === "string") {
       return { type: "text", text: stripWorkspaceFeedbackContext(part.text) };
     }
@@ -99,6 +121,15 @@ function composerAttachment(
   part: Extract<ReturnType<typeof queueItemParts>[number], { type: "file" }>,
   index: number,
 ): ComposerAttachment {
+  if (part.textAttachment)
+    return {
+      kind: "pasted-text",
+      key: part.textAttachment.id,
+      name: part.textAttachment.name,
+      mediaType: "text/plain",
+      status: "ready",
+      attachment: part.textAttachment,
+    };
   const mediaType = part.mimeType === "image/*" ? "image/png" : part.mimeType;
   return {
     key: `${index}:${part.filename ?? "attachment"}`,
@@ -152,7 +183,8 @@ function promptFromQueueItem(item: QueueItem): PiQueuedPrompt {
       : [],
   );
   return {
-    message,
+    message:
+      typeof item.message.source.modelText === "string" ? item.message.source.modelText : message,
     ...(images.length ? { images } : {}),
     ...(documents.length ? { documents } : {}),
   };
@@ -167,6 +199,11 @@ function optimisticQueueItem(id: string, mode: PiQueueMode, prompt: PiQueuedProm
       role: "user",
       content: [
         ...(prompt.message ? [{ type: "text", text: prompt.message }] : []),
+        ...(prompt.textAttachments ?? []).map((attachment) => ({
+          type: "attachment",
+          attachmentId: attachment.id,
+          attachment,
+        })),
         ...(prompt.images ?? []).map((image) => ({
           type: "image",
           mediaType: image.mimeType,
@@ -343,8 +380,23 @@ export class PiMessageQueue {
       this.editingId = undefined;
       this.editingWorkspaceFeedbackSuffix = undefined;
       this.publish();
-      this.mutate(itemId, appendContent(message, feedbackSuffix));
-      return Promise.resolve();
+      const task = this.syncTask
+        .catch(() => undefined)
+        .then(async () => {
+          if (this.disposed) return;
+          try {
+            await this.options.update(itemId, appendContent(message, feedbackSuffix));
+          } catch (error) {
+            if (!this.editingId) {
+              this.editingId = itemId;
+              this.editingWorkspaceFeedbackSuffix = feedbackSuffix;
+              this.publish();
+            }
+            throw error;
+          }
+        });
+      this.syncTask = task.catch(() => undefined);
+      return task;
     }
     if (!this.options.isRunning()) {
       return this.options.run(message);
@@ -352,6 +404,12 @@ export class PiMessageQueue {
     const prompt = appendMessageToPiPrompt(message);
     const queued: PiQueuedPrompt = {
       message: prompt.text,
+      ...(prompt.textAttachments.length
+        ? {
+            textAttachments: prompt.textAttachments,
+            textAttachmentIds: prompt.textAttachments.map((attachment) => attachment.id),
+          }
+        : {}),
       ...(prompt.images.length ? { images: prompt.images } : {}),
       ...(prompt.documents.length ? { documents: prompt.documents } : {}),
       ...(prompt.composer === undefined ? {} : { composer: prompt.composer }),

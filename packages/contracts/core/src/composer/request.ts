@@ -1,5 +1,7 @@
 import {
   COMPOSER_COMMAND_EFFECTS,
+  parsePastedTextAttachment,
+  type PastedTextAttachment,
   isComposerJsonValue,
   type ComposerCommandArgsBinding,
   type ComposerCommandArgsSchema,
@@ -95,6 +97,7 @@ export interface WorkbenchComposerUserDetails {
   commands?: readonly WorkbenchComposerCommandSubmission[];
   composer?: WorkbenchComposerSubmission;
   attachments?: WorkbenchComposerAttachmentProjection[];
+  textAttachments?: PastedTextAttachment[];
   /** @deprecated Read-only compatibility for persisted v2 image markers. */
   images?: WorkbenchComposerImageProjection[];
   status?: "accepted";
@@ -487,6 +490,9 @@ export function parseWorkbenchComposerUserDetails(
   const attachments = Array.isArray(value.attachments)
     ? value.attachments.map(composerAttachmentProjection)
     : [];
+  const textAttachments = Array.isArray(value.textAttachments)
+    ? value.textAttachments.map(parsePastedTextAttachment)
+    : [];
   const images = Array.isArray(value.images) ? value.images.map(composerAttachmentProjection) : [];
   if (
     typeof value.text !== "string" ||
@@ -494,7 +500,8 @@ export function parseWorkbenchComposerUserDetails(
     document === undefined ||
     commands.some((command) => command === undefined) ||
     attachments.some((attachment) => attachment === undefined) ||
-    images.some((image) => image === undefined)
+    images.some((image) => image === undefined) ||
+    textAttachments.some((attachment) => attachment === undefined)
   ) {
     return undefined;
   }
@@ -510,6 +517,9 @@ export function parseWorkbenchComposerUserDetails(
       ? {}
       : { attachments: attachments as WorkbenchComposerAttachmentProjection[] }),
     ...(value.images === undefined ? {} : { images: images as WorkbenchComposerImageProjection[] }),
+    ...(value.textAttachments === undefined
+      ? {}
+      : { textAttachments: textAttachments as PastedTextAttachment[] }),
     status: "accepted",
   };
 }

@@ -5,6 +5,7 @@ import type { AgentBranchToken, AgentStateToken } from "./tokens";
 export type AgentExecutionMode = "steer" | "follow-up";
 
 export type AgentExecutionAttachment =
+  | { readonly kind: "text-reference"; readonly attachmentId: string }
   | {
       readonly kind: "image";
       readonly data: string;
@@ -41,7 +42,7 @@ export type AgentPromptAdmission =
   | { readonly kind: "queued"; readonly queueItemId?: string };
 
 export type AgentQueueMutation =
-  | { readonly kind: "edit"; readonly text: string }
+  | { readonly kind: "edit"; readonly text: string; readonly textAttachmentIds?: readonly string[] }
   | { readonly kind: "remove" }
   | { readonly kind: "steer" };
 

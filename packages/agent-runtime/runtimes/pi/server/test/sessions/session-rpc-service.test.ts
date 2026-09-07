@@ -1361,7 +1361,7 @@ test("edits, removes, and steers stable queue ids and translates queue races", a
     value: {
       threadId: "session-1",
       itemId: "queue-1",
-      mutation: { kind: "edit", text: "edited" },
+      mutation: { kind: "edit", text: "edited", textAttachmentIds: [] },
     },
   });
   await service.updateQueue({
@@ -1419,4 +1419,42 @@ test("edits, removes, and steers stable queue ids and translates queue races", a
     }),
     { code: "steer-unavailable", details: { itemId: "queue-settled" } },
   );
+});
+
+test("admits text references independently of inline image and PDF inputs", async () => {
+  const { service, calls } = harness();
+  const attachmentId = "8b95d58b-3189-45f0-9be6-f7a9e4de7248";
+  await service.prompt({
+    sessionId: "session-1",
+    mode: "queue",
+    content: [{ type: "attachment", attachmentId }],
+  });
+  assert.deepEqual(calls.at(-1), {
+    name: "submit-prompt",
+    value: {
+      threadId: "session-1",
+      mode: "follow-up",
+      prompt: { text: "", attachments: [{ kind: "text-reference", attachmentId }] },
+      provenance: {},
+    },
+  });
+  await service.updateQueue({
+    sessionId: "session-1",
+    itemId: "text-queue",
+    action: {
+      kind: "edit",
+      content: [
+        { type: "text", text: "new text" },
+        { type: "attachment", attachmentId },
+      ],
+    },
+  });
+  assert.deepEqual(calls.at(-1), {
+    name: "update-queue",
+    value: {
+      threadId: "session-1",
+      itemId: "text-queue",
+      mutation: { kind: "edit", text: "new text", textAttachmentIds: [attachmentId] },
+    },
+  });
 });

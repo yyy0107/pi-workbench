@@ -1,3 +1,4 @@
+import type { PastedTextAttachment } from "@workbench/contracts/composer";
 import type {
   ComposerSubmission as WorkbenchComposerSubmission,
   ComposerUserProjection as WorkbenchComposerUserProjection,
@@ -288,6 +289,10 @@ export interface PiPromptCommand {
 export type PiQueueMode = "steer" | "followUp";
 
 export interface PiQueuedPrompt {
+  textAttachmentIds?: string[];
+  /** Display metadata retained beside the compiled queue text. */
+  textAttachments?: PastedTextAttachment[];
+  sourceText?: string;
   message: string;
   images?: PiImageContent[];
   documents?: PiDocumentContent[];

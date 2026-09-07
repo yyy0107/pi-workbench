@@ -1,3 +1,4 @@
+import type { PastedTextAttachment } from "@workbench/contracts/composer";
 /** JSON-compatible provider metadata carried by a canonical Pi conversation part. */
 export type PiConversationJsonValue =
   | null
@@ -90,6 +91,7 @@ export interface PiImageMessagePart {
 }
 
 export interface PiFileMessagePart {
+  readonly textAttachment?: PastedTextAttachment;
   readonly type: "file";
   readonly filename?: string;
   readonly data: string;

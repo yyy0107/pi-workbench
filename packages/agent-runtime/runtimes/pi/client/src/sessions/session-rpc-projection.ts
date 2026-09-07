@@ -480,8 +480,10 @@ export function piPromptContent(
   text: string,
   images: readonly PiImageContent[] = [],
   documents: readonly PiDocumentContent[] = [],
+  textAttachmentIds: readonly string[] = [],
 ): SessionPromptContent[] {
   return [
+    ...textAttachmentIds.map((attachmentId) => ({ type: "attachment" as const, attachmentId })),
     ...(text ? [{ type: "text" as const, text }] : []),
     ...images.map((image) => ({
       type: "image" as const,

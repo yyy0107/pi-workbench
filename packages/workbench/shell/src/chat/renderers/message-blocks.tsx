@@ -1,5 +1,7 @@
 "use client";
 
+import { PastedTextAttachmentPreview } from "../pasted-text-attachment-preview";
+
 import { useState } from "react";
 
 import type {
@@ -127,6 +129,8 @@ export function WorkbenchMessageFileBlock({
   block,
   referenceLabel,
 }: Readonly<{ block: FileBlock; referenceLabel?: string }>) {
+  if (block.textAttachment)
+    return <PastedTextAttachmentPreview attachment={block.textAttachment} />;
   const mediaType = resolvedMediaType(block);
   const source = playableFileSource(block, mediaType);
   const image = mediaType.startsWith("image/");

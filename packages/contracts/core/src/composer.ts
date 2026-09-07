@@ -11,6 +11,46 @@ export type ComposerJsonValue =
   | readonly ComposerJsonValue[]
   | { readonly [key: string]: ComposerJsonValue };
 
+/** A Runtime-owned text file. The model receives its path, never an inline copy. */
+export interface PastedTextAttachment {
+  readonly id: string;
+  readonly name: string;
+  readonly mediaType: "text/plain";
+  readonly path: string;
+  readonly bytes: number;
+  readonly characterCount: number;
+  readonly preview: string;
+}
+
+export function parsePastedTextAttachment(value: unknown): PastedTextAttachment | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const item = value as Partial<PastedTextAttachment>;
+  if (
+    typeof item.id !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(item.id) ||
+    item.mediaType !== "text/plain" ||
+    typeof item.name !== "string" ||
+    typeof item.path !== "string" ||
+    typeof item.preview !== "string" ||
+    typeof item.bytes !== "number" ||
+    !Number.isSafeInteger(item.bytes) ||
+    item.bytes < 0 ||
+    typeof item.characterCount !== "number" ||
+    !Number.isSafeInteger(item.characterCount) ||
+    item.characterCount < 0
+  )
+    return undefined;
+  return {
+    id: item.id,
+    name: item.name,
+    mediaType: item.mediaType,
+    path: item.path,
+    bytes: item.bytes,
+    characterCount: item.characterCount,
+    preview: item.preview,
+  };
+}
+
 /** Validates values crossing the serializable Composer boundary. */
 export function isComposerJsonValue(value: unknown, depth = 0): value is ComposerJsonValue {
   if (depth > 32) return false;

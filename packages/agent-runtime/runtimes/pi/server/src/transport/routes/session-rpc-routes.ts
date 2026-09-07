@@ -98,6 +98,10 @@ const sessionScratchPromotePayload = rpcObject({
   title: rpcOptional(rpcString()),
 });
 
+const promptAttachmentContent = rpcObject({
+  type: rpcLiteral("attachment"),
+  attachmentId: rpcString({ minLength: 36, maxLength: 36 }),
+});
 const promptTextContent = rpcObject({ type: rpcLiteral("text"), text: rpcString() });
 const promptImageContent = rpcObject({
   type: rpcLiteral("image"),
@@ -229,7 +233,14 @@ const composerSubmission: RpcValidator<WorkbenchComposerSubmission> = (value, pa
 const sessionPromptPayload = rpcObject({
   sessionId: nonEmptyString,
   mode: rpcEnum(["queue", "steer"]),
-  content: rpcArray(rpcUnion([promptTextContent, promptImageContent, promptDocumentContent])),
+  content: rpcArray(
+    rpcUnion([
+      promptTextContent,
+      promptImageContent,
+      promptDocumentContent,
+      promptAttachmentContent,
+    ]),
+  ),
   clientTimeZone: rpcOptional(rpcString()),
   composer: rpcOptional(composerSubmission),
 });

@@ -71,6 +71,9 @@ const PI_EXECUTION_ERROR_CODE_MAP: Readonly<Record<string, AgentExecutionErrorCo
   pi_composer_command_conflict: "prompt-rejected",
   pi_composer_command_args_invalid: "prompt-rejected",
   pi_skill_read_tool_unavailable: "prompt-rejected",
+  "text-attachment-unavailable": "prompt-rejected",
+  "text-attachment-invalid": "prompt-rejected",
+  "text-attachment-discarded": "prompt-rejected",
 };
 
 function translatePiExecutionError(error: unknown): never {
@@ -85,10 +88,15 @@ function translatePiExecutionError(error: unknown): never {
 }
 
 function piPrompt(prompt: AgentExecutionPrompt): PiQueuedPrompt {
+  const textAttachmentIds: string[] = [];
   const images: PiImageContent[] = [];
   const documents: PiDocumentContent[] = [];
 
   for (const attachment of prompt.attachments) {
+    if (attachment.kind === "text-reference") {
+      textAttachmentIds.push(attachment.attachmentId);
+      continue;
+    }
     if (attachment.kind === "image") {
       images.push({
         type: "image",
@@ -114,13 +122,24 @@ function piPrompt(prompt: AgentExecutionPrompt): PiQueuedPrompt {
 
   return {
     message: prompt.text,
+    ...(textAttachmentIds.length ? { textAttachmentIds } : {}),
     ...(images.length ? { images } : {}),
     ...(documents.length ? { documents } : {}),
   };
 }
 
 function piQueueMutation(mutation: AgentQueueMutation): PromptQueueMutation {
-  return mutation.kind === "edit" ? { kind: "edit", prompt: { message: mutation.text } } : mutation;
+  return mutation.kind === "edit"
+    ? {
+        kind: "edit",
+        prompt: {
+          message: mutation.text,
+          ...(mutation.textAttachmentIds === undefined
+            ? {}
+            : { textAttachmentIds: [...mutation.textAttachmentIds] }),
+        },
+      }
+    : mutation;
 }
 
 export function createPiAgentExecution(

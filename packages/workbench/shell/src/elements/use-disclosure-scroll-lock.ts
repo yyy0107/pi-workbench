@@ -36,6 +36,7 @@ function lockDisclosureTransition(
   root: HTMLElement,
   opening: boolean,
   duration: number,
+  keepVisible?: HTMLElement,
 ): () => void {
   const scrollContainer = findScrollContainer(root);
   if (!scrollContainer) return () => undefined;
@@ -74,6 +75,22 @@ function lockDisclosureTransition(
     if (opening) {
       const heightIncrease = root.getBoundingClientRect().height - initialRootHeight;
       targetScrollTop = initialScrollTop + upwardDisclosureScrollDelta(heightIncrease);
+    }
+
+    if (!opening && keepVisible) {
+      const anchor = keepVisible.getBoundingClientRect();
+      const viewport = scrollContainer.getBoundingClientRect();
+      // Keep the control inside the scrollport border despite fractional scroll rounding.
+      const top = viewport.top + scrollContainer.clientTop + 1;
+      const bottom = viewport.top + scrollContainer.clientTop + scrollContainer.clientHeight - 1;
+      targetScrollTop = Math.max(
+        0,
+        Math.min(initialScrollTop, scrollContainer.scrollTop + anchor.top - top),
+      );
+      targetScrollTop = Math.max(
+        targetScrollTop,
+        scrollContainer.scrollTop + anchor.bottom - bottom,
+      );
     }
 
     if (Math.abs(scrollContainer.scrollTop - targetScrollTop) > 0.5) {
@@ -140,7 +157,7 @@ export function useDisclosureScrollLock<T extends HTMLElement = HTMLDivElement>(
   useEffect(() => () => cleanupRef.current?.(), []);
 
   const prepareDisclosureTransition = useCallback(
-    (opening: boolean, duration = DISCLOSURE_ANIMATION_DURATION) => {
+    (opening: boolean, duration = DISCLOSURE_ANIMATION_DURATION, keepVisible?: HTMLElement) => {
       cleanupRef.current?.();
       cleanupRef.current = null;
 
@@ -150,6 +167,7 @@ export function useDisclosureScrollLock<T extends HTMLElement = HTMLDivElement>(
         root,
         shouldCompensateDisclosureOpening(opening, preferUpward),
         duration,
+        keepVisible,
       );
     },
     [preferUpward],

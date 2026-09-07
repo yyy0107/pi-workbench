@@ -1,3 +1,4 @@
+import { getComposerTextAttachmentStore } from "../attachments/composer-text-attachments";
 import { existsSync, mkdtempSync, rmdirSync, statSync, unlinkSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { open, readdir, readFile, stat } from "node:fs/promises";
@@ -754,6 +755,11 @@ export type PromptQueueMutation =
 function copyQueuedPrompts(prompts: readonly PiQueuedPrompt[]): PiQueuedPrompt[] {
   return prompts.map((prompt) => ({
     message: prompt.message,
+    ...(prompt.textAttachmentIds?.length
+      ? { textAttachmentIds: [...prompt.textAttachmentIds] }
+      : {}),
+    ...(prompt.textAttachments?.length ? { textAttachments: prompt.textAttachments } : {}),
+    ...(prompt.sourceText === undefined ? {} : { sourceText: prompt.sourceText }),
     ...(prompt.images?.length ? { images: prompt.images.map((image) => ({ ...image })) } : {}),
     ...(prompt.documents?.length
       ? { documents: prompt.documents.map((document) => ({ ...document })) }
@@ -2221,12 +2227,19 @@ class HostedPiSession {
               ]
             : [],
         );
-        if (images.length + documents.length > 0) {
+        if (images.length + documents.length > 0 || composerDetails.textAttachments?.length) {
           await this.retryComposerSubmission(
             composerEntry.id,
             composerDetails.submissionId,
             {
               message: composerDetails.composer.text,
+              ...(composerDetails.textAttachments?.length
+                ? {
+                    textAttachmentIds: composerDetails.textAttachments.map(
+                      (attachment) => attachment.id,
+                    ),
+                  }
+                : {}),
               ...(images.length === 0 ? {} : { images }),
               ...(documents.length === 0 ? {} : { documents }),
             },
@@ -2492,6 +2505,9 @@ class HostedPiSession {
     rpcId?: string,
     replay?: ComposerSubmissionReplay,
   ): Promise<PiQueuedPrompt | undefined> {
+    const textAttachments = await getComposerTextAttachmentStore().retain(
+      prompt.textAttachmentIds ?? [],
+    );
     const plannedCommands = preflightPlanWorkbenchComposerCommands(this.session, submission);
     const submissionId = replay?.submissionId ?? randomUUID();
     const canonicalDetails = submission.document
@@ -2503,6 +2519,7 @@ class HostedPiSession {
           document: submission.document,
           commands: submission.commands,
           composer: submission,
+          ...(textAttachments.length ? { textAttachments } : {}),
           ...(prompt.images?.length || prompt.documents?.length
             ? {
                 attachments: [...(prompt.images ?? []), ...(prompt.documents ?? [])].map(
@@ -2666,7 +2683,8 @@ class HostedPiSession {
       !commandOwnsAgentTurn &&
       !commandFailed &&
       attachmentUnderstandingFatalError === undefined &&
-      (Boolean(resolvedImages?.length) ||
+      (textAttachments.length > 0 ||
+        Boolean(resolvedImages?.length) ||
         Boolean(resolution.request.userText.trim()) ||
         resolution.request.selectedSkills.length > 0 ||
         resolution.request.instructions.length > 0 ||
@@ -2720,8 +2738,9 @@ class HostedPiSession {
     const modelInput =
       hasWorkbenchComposerSemantics(submission) ||
       usedAttachmentPreprocessing ||
-      usedAttachmentReferences
-        ? compilePiComposerPrompt(resolution.request, attachmentResultFiles)
+      usedAttachmentReferences ||
+      textAttachments.length > 0
+        ? compilePiComposerPrompt(resolution.request, attachmentResultFiles, textAttachments)
         : undefined;
     if (modelInput) {
       this.session.sessionManager.appendCustomEntry(
@@ -2733,6 +2752,13 @@ class HostedPiSession {
     this.queueComposerUserProjection(projection, resolvedPrompt);
     return {
       message: resolvedPrompt,
+      ...(textAttachments.length
+        ? {
+            textAttachments,
+            textAttachmentIds: textAttachments.map((attachment) => attachment.id),
+            sourceText: submission.sourceText,
+          }
+        : {}),
       ...(resolvedImages?.length ? { images: resolvedImages } : {}),
     };
   }
@@ -2766,7 +2792,7 @@ class HostedPiSession {
         let admission: PromptSubmissionResult = { queued: false };
         const submittedComposer = provenance?.composer;
         const hasRecognizableAttachments = Boolean(
-          prompt.images?.length || prompt.documents?.length,
+          prompt.images?.length || prompt.documents?.length || prompt.textAttachmentIds?.length,
         );
         const composer = submittedComposer
           ? hasRecognizableAttachments &&
@@ -3204,6 +3230,104 @@ class HostedPiSession {
       throw new PiServerError("pi_steer_unavailable", 409);
     }
 
+    if (
+      mutation.kind === "edit" &&
+      (item.prompt.textAttachments?.length || mutation.prompt.textAttachmentIds?.length)
+    ) {
+      const textAttachments = await getComposerTextAttachmentStore().retain(
+        mutation.prompt.textAttachmentIds ?? item.prompt.textAttachmentIds ?? [],
+      );
+      const sourceText = mutation.prompt.message;
+      const compiled = compilePiComposerPrompt(
+        {
+          version: 1,
+          userText: sourceText,
+          config: { metadata: {} },
+          selectedSkills: [],
+          instructions: [],
+          trustedContext: [],
+          untrustedContext: [],
+          commandTrace: [],
+        },
+        [],
+        textAttachments,
+      );
+      const branch = this.session.sessionManager.getBranch();
+      const previousInput = branch.findLast(
+        (entry) =>
+          entry.type === "custom" &&
+          entry.customType === PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE &&
+          isRecord(entry.data) &&
+          entry.data.prompt === item.prompt.message,
+      );
+      if (
+        previousInput?.type === "custom" &&
+        isRecord(previousInput.data) &&
+        Array.isArray(previousInput.data.context)
+      ) {
+        compiled.context.unshift(
+          ...previousInput.data.context.filter(
+            (value): value is string =>
+              typeof value === "string" && !value.startsWith("<workbench-pasted-text-files>"),
+          ),
+        );
+        compiled.prompt = [
+          ...compiled.context,
+          `<user-request>\n${sourceText}\n</user-request>`,
+        ].join("\n\n");
+      }
+      this.session.sessionManager.appendCustomEntry(PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE, compiled);
+      const pending = this.pendingComposerUserProjections.find(
+        (entry) => entry.promptText === item.prompt.message,
+      );
+      const priorUser =
+        pending &&
+        branch.findLast(
+          (entry) =>
+            entry.type === "custom_message" &&
+            isWorkbenchComposerUserCustomType(entry.customType) &&
+            parseWorkbenchComposerUserDetails(entry.details)?.submissionId ===
+              pending.projection.submissionId,
+        );
+      const details =
+        priorUser?.type === "custom_message"
+          ? parseWorkbenchComposerUserDetails(priorUser.details)
+          : undefined;
+      const document = [{ type: "text" as const, text: sourceText }];
+      if (pending && details) {
+        await this.session.sendCustomMessage(
+          {
+            customType: WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+            content: "",
+            display: false,
+            details: {
+              ...details,
+              sourceText,
+              text: sourceText,
+              document,
+              textAttachments,
+              ...(details.composer
+                ? { composer: { ...details.composer, sourceText, text: sourceText, document } }
+                : {}),
+            },
+          },
+          { triggerTurn: false },
+        );
+        pending.promptText = compiled.prompt;
+        pending.projection = { ...pending.projection, sourceText, document };
+      }
+      mutation = {
+        kind: "edit",
+        prompt: {
+          ...mutation.prompt,
+          message: compiled.prompt,
+          sourceText,
+          textAttachments,
+          textAttachmentIds: textAttachments.map((attachment) => attachment.id),
+          ...(item.prompt.images?.length ? { images: item.prompt.images } : {}),
+        },
+      };
+    }
     const previousQueue = this.queueProjection.prompts();
     if (mutation.kind === "edit") this.queueProjection.edit(itemId, mutation.prompt);
     else if (mutation.kind === "steer") this.queueProjection.moveToSteering(itemId);
@@ -5088,7 +5212,12 @@ export async function queuePrompt(
   mode: PiQueueMode,
   prompt: PiQueuedPrompt,
 ): Promise<void> {
-  if (!prompt.message.trim() && !prompt.images?.length && !prompt.documents?.length) {
+  if (
+    !prompt.message.trim() &&
+    !prompt.images?.length &&
+    !prompt.documents?.length &&
+    !prompt.textAttachmentIds?.length
+  ) {
     throw new PiServerError("pi_empty_prompt", 400);
   }
   const host = await getOrStartSession(id);
@@ -5107,6 +5236,7 @@ export async function submitPrompt(
     !prompt.message.trim() &&
     !prompt.images?.length &&
     !prompt.documents?.length &&
+    !prompt.textAttachmentIds?.length &&
     !(composer && hasWorkbenchComposerSemantics(composer))
   ) {
     throw new PiServerError("pi_empty_prompt", 400);
@@ -5140,7 +5270,12 @@ export async function steerQueuedPrompt(
   steering: readonly PiQueuedPrompt[],
   followUp: readonly PiQueuedPrompt[],
 ): Promise<void> {
-  if (!prompt.message.trim() && !prompt.images?.length && !prompt.documents?.length) {
+  if (
+    !prompt.message.trim() &&
+    !prompt.images?.length &&
+    !prompt.documents?.length &&
+    !prompt.textAttachmentIds?.length
+  ) {
     throw new PiServerError("pi_empty_prompt", 400);
   }
   const host = await getOrStartSession(id);

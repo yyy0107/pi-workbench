@@ -1,3 +1,4 @@
+import type { PastedTextAttachment } from "@workbench/contracts/composer";
 import {
   parseAttachmentRecognitionSnapshot,
   reconcileAttachmentRecognitionSnapshot,
@@ -1456,10 +1457,20 @@ export function piHistoryToThreadMessages(
         if (isWorkbenchComposerUserCustomType(message.customType)) {
           const details = parseWorkbenchComposerUserDetails(message.details);
           if (details) {
-            const messageIndex = messages.length;
-            const displayAttachments = (details.attachments ?? details.images ?? []).map(
-              threadRecognizableAttachmentPart,
-            );
+            const messageIndex = composerUserIndexes.get(details.submissionId) ?? messages.length;
+            const displayAttachments = [
+              ...(details.attachments ?? details.images ?? []).map(
+                threadRecognizableAttachmentPart,
+              ),
+              ...(details.textAttachments ?? []).map((attachment) => ({
+                type: "file" as const,
+                data: attachment.id,
+                mimeType: "text/plain",
+                sourceType: "id" as const,
+                filename: attachment.name,
+                textAttachment: attachment,
+              })),
+            ];
             const projectedMessage: ThreadUserMessage = {
               id,
               role: "user",
@@ -1494,7 +1505,14 @@ export function piHistoryToThreadMessages(
                     }),
               }),
             };
-            messages.push(projectedMessage);
+            if (messageIndex < messages.length) {
+              const prior = messages[messageIndex]!;
+              messages[messageIndex] = {
+                ...projectedMessage,
+                id: prior.id,
+                createdAt: prior.createdAt,
+              };
+            } else messages.push(projectedMessage);
             composerUserIndexes.set(details.submissionId, messageIndex);
           }
         } else if (
@@ -1682,7 +1700,9 @@ export function sameUserPrompt(left: ThreadUserMessage, right: ThreadUserMessage
     stripWorkspaceFeedbackContext(leftPrompt.text) !==
       stripWorkspaceFeedbackContext(rightPrompt.text) ||
     leftPrompt.images.length !== rightPrompt.images.length ||
-    leftPrompt.documents.length !== rightPrompt.documents.length
+    leftPrompt.documents.length !== rightPrompt.documents.length ||
+    leftPrompt.textAttachments.map((attachment) => attachment.id).join() !==
+      rightPrompt.textAttachments.map((attachment) => attachment.id).join()
   ) {
     return false;
   }
@@ -1799,6 +1819,7 @@ export function appendMessageToPiPrompt(
   text: string;
   images: PiImageContent[];
   documents: PiDocumentContent[];
+  textAttachments: PastedTextAttachment[];
   composer?: WorkbenchComposerSubmission;
 } {
   const sourceText = message.content
@@ -1809,9 +1830,12 @@ export function appendMessageToPiPrompt(
   const text = composer?.text ?? sourceText;
   const images: PiImageContent[] = [];
   const documents: PiDocumentContent[] = [];
+  const textAttachments: PastedTextAttachment[] = [];
 
   const collect = (part: (typeof message.content)[number], fallbackName?: string) => {
-    if (part.type === "image") {
+    if (part.type === "file" && part.textAttachment) {
+      textAttachments.push(part.textAttachment);
+    } else if (part.type === "image") {
       images.push(splitDataUrl(part.image, "image/png", part.filename ?? fallbackName));
     } else if (part.type === "file" && part.mimeType.startsWith("image/")) {
       images.push(splitDataUrl(part.data, part.mimeType, part.filename ?? fallbackName));
@@ -1826,7 +1850,13 @@ export function appendMessageToPiPrompt(
     attachment.content.forEach((part) => collect(part, attachment.name)),
   );
 
-  return { text, images, documents, ...(composer === undefined ? {} : { composer }) };
+  return {
+    text,
+    images,
+    documents,
+    textAttachments,
+    ...(composer === undefined ? {} : { composer }),
+  };
 }
 
 export function optimisticUserMessage(

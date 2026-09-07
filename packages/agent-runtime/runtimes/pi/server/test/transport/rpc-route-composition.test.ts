@@ -7,6 +7,7 @@ import {
 } from "../../src/transport/rpc-route-composition";
 
 const ROUTE_METHODS = [
+  "composer.attachments.create",
   "usage.statistics",
   "session.list",
   "session.contextTrace.list",
@@ -27,6 +28,7 @@ const ROUTE_METHODS = [
 function unusedDependencies(): PiRpcRouteGroupsDependencies {
   const empty = {} as never;
   return {
+    composerAttachments: empty,
     usageStatistics: empty,
     session: empty,
     sessionContextTrace: empty,

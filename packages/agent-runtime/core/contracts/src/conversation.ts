@@ -1,3 +1,4 @@
+import type { PastedTextAttachment } from "@workbench/contracts/composer";
 import type { ComposerJsonValue } from "@workbench/contracts/composer";
 
 export type { ComposerSubmission } from "@workbench/contracts/composer";
@@ -68,6 +69,7 @@ export interface DataBlock extends MessageBlockBase {
 }
 
 export interface FileBlock extends MessageBlockBase {
+  readonly textAttachment?: PastedTextAttachment;
   readonly kind: "file";
   readonly name: string;
   readonly source: string;
@@ -178,12 +180,25 @@ export type ConversationNode =
 export type ComposerMode = "send" | "queue" | "steer";
 export type ComposerPhase = "idle" | "submitting" | "error";
 
-export interface ComposerAttachment {
+export interface InlineComposerAttachment {
+  readonly kind?: "inline";
   readonly key: string;
   readonly name: string;
   readonly source: string;
   readonly mediaType?: string;
 }
+
+export type PastedTextComposerAttachment = {
+  readonly kind: "pasted-text";
+  readonly key: string;
+  readonly name: string;
+  readonly mediaType: "text/plain";
+} & (
+  | { readonly status: "saving" | "error"; readonly text: string; readonly error?: string }
+  | { readonly status: "ready"; readonly attachment: PastedTextAttachment }
+);
+
+export type ComposerAttachment = InlineComposerAttachment | PastedTextComposerAttachment;
 
 export interface ComposerQueueItem {
   readonly key: string;

@@ -23,16 +23,7 @@ import { parseComposerDocument } from "./composer-document";
 import { ComposerTokenIcon, type ComposerTokenKind } from "./composer-token-icon";
 import { useConversationMessageContext } from "./conversation-message-context";
 
-function UserMessageTextBubble({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      data-slot="user-message-bubble"
-      className="w-fit max-w-full min-w-0 self-end rounded-[var(--radius-xl)] bg-aui-user-message px-4 py-2.5 text-start text-base leading-6 text-foreground whitespace-pre-wrap [overflow-wrap:anywhere]"
-    >
-      {children}
-    </div>
-  );
-}
+import { UserMessageTextBubble } from "./user-message-text-bubble";
 
 /** Renders the serialized Composer document in a sent user message using the same Token UI. */
 export function WorkbenchComposerMessageText({ text }: { text: string }) {
@@ -73,7 +64,7 @@ export function WorkbenchComposerMessageTextContent({
 
   if (composerDocument.some((node) => node.type === "command" || node.type === "mention")) {
     return (
-      <UserMessageTextBubble>
+      <UserMessageTextBubble key={text}>
         <p className="whitespace-pre-wrap">
           {composerDocument.map((node, index) => {
             switch (node.type) {
@@ -160,7 +151,7 @@ export function WorkbenchComposerMessageTextContent({
     const argumentsText = removeAgentCommandBuffer(commandText.argumentsText);
     const commandOwnsArguments = commandText.command.argsBinding?.kind === "message-text";
     return (
-      <UserMessageTextBubble>
+      <UserMessageTextBubble key={text}>
         <p className="whitespace-pre-wrap">
           <ComposerCommandToken
             icon={<ComposerTokenIcon kind={commandText.command.kind} />}
@@ -179,7 +170,7 @@ export function WorkbenchComposerMessageTextContent({
   }
 
   return (
-    <UserMessageTextBubble>
+    <UserMessageTextBubble key={text}>
       <MarkdownTextContent text={text} inheritLineHeight preserveWhitespace resetParagraphMargins />
     </UserMessageTextBubble>
   );

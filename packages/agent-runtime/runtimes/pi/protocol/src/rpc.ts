@@ -1981,6 +1981,7 @@ export interface SessionScratchPromoteValue {
 }
 
 export type SessionPromptContent =
+  | { type: "attachment"; attachmentId: string }
   | { type: "text"; text: string }
   | {
       type: "image";

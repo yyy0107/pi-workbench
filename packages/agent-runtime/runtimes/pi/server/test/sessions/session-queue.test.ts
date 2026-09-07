@@ -117,3 +117,39 @@ test("uses the prompt RPC id as the stable queue id when it is available", () =>
   assert.equal(item.id, "session.prompt:client-1");
   assert.equal(queue.items()[0]?.id, "session.prompt:client-1");
 });
+
+test("retains text attachment cards and model paths across queue snapshots, steering and editing", () => {
+  const attachment = {
+    id: "8b95d58b-3189-45f0-9be6-f7a9e4de7248",
+    name: "pasted-text.txt",
+    mediaType: "text/plain" as const,
+    path: "/runtime/pasted-text.txt",
+    bytes: 5000,
+    characterCount: 5000,
+    preview: "sample",
+  };
+  const queue = new SessionQueueProjection({ createId: ids() });
+  queue.append("followUp", {
+    message: "compiled model path",
+    sourceText: "",
+    textAttachmentIds: [attachment.id],
+    textAttachments: [attachment],
+  });
+  queue.reconcile([], [{ message: "compiled model path" }]);
+  assert.deepEqual(queue.items()[0]!.message.content, [
+    { type: "attachment", attachmentId: attachment.id, attachment },
+  ]);
+  assert.equal(queue.items()[0]!.message.source.modelText, "compiled model path");
+  queue.moveToSteering("queue-1");
+  queue.reconcile([{ message: "compiled model path" }], []);
+  assert.equal(queue.items()[0]!.message.content[0]!.attachmentId, attachment.id);
+  queue.edit("queue-1", {
+    message: "edited model path",
+    sourceText: "edited",
+    textAttachmentIds: [attachment.id],
+    textAttachments: [attachment],
+  });
+  queue.reconcile([{ message: "edited model path" }], []);
+  assert.equal(queue.items()[0]!.message.content[0]!.text, "edited");
+  assert.equal(queue.items()[0]!.message.content[1]!.attachmentId, attachment.id);
+});

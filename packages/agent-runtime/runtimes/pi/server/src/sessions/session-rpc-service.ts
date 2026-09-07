@@ -1202,11 +1202,17 @@ export class SessionRpcService {
       !message.trim() &&
       attachments.images.length === 0 &&
       attachments.documents.length === 0 &&
+      !input.content.some((part) => part.type === "attachment") &&
       !composerHasSemantics
     ) {
       throw new SessionRpcServiceError("command-error", "The prompt has no content.", {});
     }
     const executionAttachments = [
+      ...input.content.flatMap((part) =>
+        part.type === "attachment"
+          ? [{ kind: "text-reference" as const, attachmentId: part.attachmentId }]
+          : [],
+      ),
       ...attachments.images.map((image) => ({
         kind: "image" as const,
         data: image.data,
@@ -1263,7 +1269,11 @@ export class SessionRpcService {
     let mutation: AgentQueueMutation;
     if (input.action.kind === "edit") {
       if (
-        input.action.content.some((part) => part.type !== "text" || typeof part.text !== "string")
+        input.action.content.some(
+          (part) =>
+            (part.type !== "text" || typeof part.text !== "string") &&
+            (part.type !== "attachment" || typeof part.attachmentId !== "string"),
+        )
       ) {
         throw new SessionRpcServiceError(
           "attachment-error",
@@ -1276,6 +1286,9 @@ export class SessionRpcService {
         text: input.action.content
           .map((part) => (typeof part.text === "string" ? part.text : ""))
           .join(""),
+        textAttachmentIds: input.action.content.flatMap((part) =>
+          part.type === "attachment" ? [part.attachmentId as string] : [],
+        ),
       };
     } else {
       mutation = input.action;

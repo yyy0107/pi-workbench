@@ -1,4 +1,8 @@
 import type {
+  ReadPastedTextAttachmentRequest,
+  ReadPastedTextAttachmentResult,
+} from "@workbench/agent-runtime-contracts/composer-attachments";
+import type {
   ComposerAttachment,
   ComposerQueueItem,
   ComposerSubmission,
@@ -18,6 +22,11 @@ export interface ConversationActions {
   /** Update only submit-relevant draft text; selection and IME state remain editor-owned. */
   setComposerText(text: string): void;
   addComposerAttachment(attachment: ComposerAttachment): Promise<void>;
+  addPastedTextAttachment(text: string): Promise<void>;
+  retryPastedTextAttachment(key: string): Promise<void>;
+  readPastedTextAttachment(
+    input: ReadPastedTextAttachmentRequest,
+  ): Promise<ReadPastedTextAttachmentResult>;
   removeComposerAttachment(key: string): void;
   dismissComposerError(): void;
   send(input: ComposerSubmission): Promise<void>;

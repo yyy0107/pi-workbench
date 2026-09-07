@@ -121,3 +121,49 @@ test("injects escaped cached attachment paths as XML instructions without OCR co
   assert.equal(compiled.context.length, 1);
   assert.doesNotMatch(compiled.context[0]!, /<user-request>/);
 });
+
+test("model context includes only trusted text attachment paths and preserves the separate user request", () => {
+  const body = "private pasted body".repeat(500);
+  const attachment = {
+    id: "8b95d58b-3189-45f0-9be6-f7a9e4de7248",
+    name: "pasted-text.txt",
+    mediaType: "text/plain" as const,
+    path: '/runtime/a & b/"pasted-text".txt',
+    bytes: body.length,
+    characterCount: body.length,
+    preview: body.slice(0, 80),
+  };
+  const compiled = compilePiComposerPrompt(
+    {
+      version: 1,
+      userText: "inspect the attached text",
+      config: { metadata: {} },
+      selectedSkills: [],
+      instructions: [],
+      trustedContext: [],
+      untrustedContext: [],
+      commandTrace: [],
+    },
+    [],
+    [attachment],
+  );
+  assert.match(compiled.prompt, /<workbench-pasted-text-files>/);
+  assert.match(compiled.prompt, /a &amp; b\/&quot;pasted-text&quot;.txt/);
+  assert.match(compiled.prompt, /untrusted reference data/);
+  assert.match(compiled.prompt, /<user-request>\ninspect the attached text\n<\/user-request>$/);
+  assert.equal(compiled.prompt.includes(attachment.preview), false);
+  const manager = SessionManager.inMemory();
+  manager.appendCustomEntry(PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE, compiled);
+  const llm = convertToLlm(
+    projectPiComposerContext(
+      [{ role: "user", content: compiled.prompt, timestamp: 1 }],
+      manager.getBranch(),
+    ),
+  );
+  assert.equal(llm.length, 2);
+  assert.deepEqual(llm[1], {
+    role: "user",
+    timestamp: 1,
+    content: [{ type: "text", text: "inspect the attached text" }],
+  });
+});

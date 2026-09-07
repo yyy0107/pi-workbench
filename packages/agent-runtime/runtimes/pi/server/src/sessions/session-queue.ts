@@ -18,6 +18,10 @@ export interface SessionQueueProjectionOptions {
 function copyPrompt(prompt: PiQueuedPrompt): PiQueuedPrompt {
   return {
     message: prompt.message,
+    ...(prompt.textAttachments?.length
+      ? { textAttachments: prompt.textAttachments, textAttachmentIds: prompt.textAttachmentIds }
+      : {}),
+    ...(prompt.sourceText === undefined ? {} : { sourceText: prompt.sourceText }),
     ...(prompt.images?.length ? { images: prompt.images.map((image) => ({ ...image })) } : {}),
     ...(prompt.documents?.length
       ? { documents: prompt.documents.map((document) => ({ ...document })) }
@@ -50,7 +54,14 @@ function promptMatches(left: PiQueuedPrompt, right: PiQueuedPrompt): boolean {
 
 function queueContent(prompt: PiQueuedPrompt): QueueItem["message"]["content"] {
   return [
-    ...(prompt.message ? [{ type: "text", text: prompt.message }] : []),
+    ...((prompt.sourceText ?? prompt.message)
+      ? [{ type: "text", text: prompt.sourceText ?? prompt.message }]
+      : []),
+    ...(prompt.textAttachments ?? []).map((attachment) => ({
+      type: "attachment",
+      attachmentId: attachment.id,
+      attachment,
+    })),
     ...(prompt.images ?? []).map((image) => ({
       type: "image",
       mediaType: image.mimeType,
@@ -106,6 +117,12 @@ export class SessionQueueProjection {
             ? priorLane[index]
             : undefined;
         const retained = sameLane ?? moved ?? positional;
+        const originalText = (sameLane ?? moved)?.prompt;
+        if (originalText?.sourceText !== undefined && prompt.sourceText === undefined) {
+          prompt.textAttachments = originalText.textAttachments;
+          prompt.textAttachmentIds = originalText.textAttachmentIds;
+          prompt.sourceText = originalText.sourceText;
+        }
         if (retained) unused.delete(retained);
         return {
           id: retained?.id ?? this.createId(),
@@ -195,7 +212,10 @@ export class SessionQueueProjection {
         id: item.id,
         role: "user",
         content: queueContent(item.prompt),
-        source: { kind: "user" },
+        source: {
+          kind: "user",
+          ...(item.prompt.sourceText === undefined ? {} : { modelText: item.prompt.message }),
+        },
       },
     }));
   }

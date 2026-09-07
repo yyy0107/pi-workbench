@@ -1,3 +1,5 @@
+import { chatContentEnUS } from "../chat/i18n/en-US";
+import { chatContentZhCN } from "../chat/i18n/zh-CN";
 import { assistantEnUS } from "./chat/en-US";
 import { assistantZhCN } from "./chat/zh-CN";
 import { rightWorkspaceEnUS } from "../right-workspace/presentation/i18n/en-US";
@@ -15,6 +17,7 @@ import type { Locale } from "./config";
 import type { CatalogShape } from "./types";
 
 const enUS = {
+  chatContent: chatContentEnUS,
   assistant: assistantEnUS,
   rightWorkspace: rightWorkspaceEnUS,
   workbench: workbenchEnUS,
@@ -28,6 +31,7 @@ const enUS = {
 export type Messages = CatalogShape<typeof enUS>;
 
 const zhCN = {
+  chatContent: chatContentZhCN,
   assistant: assistantZhCN,
   rightWorkspace: rightWorkspaceZhCN,
   workbench: workbenchZhCN,

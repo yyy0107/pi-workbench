@@ -665,6 +665,16 @@ trace 不会整体注入模型。普通正文直接传递；带结构化语义�
 及图片，不再套 `<user-request>`。内部传输仍保留兼容包装，防止模板展开后的 `/...` 被 Pi 再执行为命令；
 历史压缩也仍能读取完整上下文。纯 session-action 完成后不启动聊天；附带正文时仅在执行成功后继续一次主请求。
 
+长文本粘贴由通用 Conversation actions 调用 `composer.attachments.create/read/discard`，不依赖已创建的
+服务端会话。单次粘贴达到 5000 个 UTF-16 单元时立即落盘；UTF-8 大小上限为 5 MiB，读取每页最多
+25000 个 UTF-16 单元，5000～25000 字符的就绪附件可恢复正文。上传请求体单独容纳 JSON 转义开销。
+托管文件位于 Runtime 状态目录的 `attachments/<uuid>/pasted-text.txt`；稳定 ID、原子写入及加锁登记
+保证重试幂等，删除墓碑处理上传取消竞争。提交/排队时按 ID 验证并永久保留文件，不做定时清理。
+发送协议只携带 attachment ID；模型通过独立的 `<workbench-pasted-text-files>` 上下文获取可信路径和
+读取说明，附件内容始终视为不可信参考材料。`workbench.composer-user.v3` 的可选 `textAttachments`
+保存描述信息，历史及队列投影显示独立卡片；原文只在上传接口传输。队列编辑沿用已编译的其它上下文，
+并更新 canonical 描述信息及对应的模型输入拆分记录。
+
 UI 原文和 canonical Composer document 以隐藏的 `workbench.composer-user.v3` custom message
 持久化；`sourceText` 只作为编辑器 serialization/fallback，并统一使用
 `[$label](command://<agent|workbench>/<id>?args=<encoded-json>)` 与

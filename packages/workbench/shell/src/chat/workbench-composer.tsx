@@ -73,6 +73,8 @@ import {
   withComposerCommandParameterDefaults,
 } from "./composer-command-parameters";
 import { addComposerImagesFromPaste } from "./composer-image-paste";
+import { canRestorePastedText } from "@workbench/agent-runtime-contracts/composer-attachments";
+import { addComposerTextFromPaste } from "./composer-text-paste";
 import { ComposerAttachments } from "./composer-attachments";
 import {
   $insertDirectiveAtSelection,
@@ -388,7 +390,10 @@ export function WorkbenchComposer({
   );
   const runningMode = runningComposerMode(session.actions, preferredRunningMode);
   const canSendWhileRunning = session.actions[runningMode] !== undefined;
-  const canSend = composer.phase !== "submitting" && !isEmpty;
+  const canSend =
+    composer.phase !== "submitting" &&
+    !isEmpty &&
+    !composerAttachments.some((item) => item.kind === "pasted-text" && item.status !== "ready");
   const attachmentsEnabled = session.actions.addComposerAttachment !== undefined;
   const mainThreadId = session.id;
   const isNewThread =
@@ -411,6 +416,8 @@ export function WorkbenchComposer({
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [composerOverlayCount, setComposerOverlayCount] = useState(0);
   const lexicalEditorRef = useRef<LexicalEditor | null>(null);
+  const activeSessionRef = useRef(session);
+  activeSessionRef.current = session;
   const [isComposerFocused, setIsComposerFocused] = useState(false);
   const [isComposerComposing, setIsComposerComposing] = useState(false);
   const [composerCursorPosition, setComposerCursorPosition] = useState(0);
@@ -998,6 +1005,71 @@ export function WorkbenchComposer({
     });
   }, []);
 
+  const restorePastedText = useCallback(
+    async (key: string) => {
+      const item = session.snapshot
+        .getSnapshot()
+        .composer.attachments.find((entry) => entry.key === key);
+      const editor = lexicalEditorRef.current;
+      const read = session.actions.readPastedTextAttachment;
+      if (
+        !editor ||
+        !read ||
+        item?.kind !== "pasted-text" ||
+        item.status !== "ready" ||
+        !canRestorePastedText(item.attachment.characterCount)
+      )
+        throw new Error("Text attachment cannot be restored");
+      const page = await read({ id: item.attachment.id });
+      if (
+        page.nextOffset !== undefined ||
+        !canRestorePastedText(page.text.length) ||
+        page.text.length !== item.attachment.characterCount
+      )
+        throw new Error("Incomplete text attachment");
+      if (
+        activeSessionRef.current !== session ||
+        lexicalEditorRef.current !== editor ||
+        !session.snapshot.getSnapshot().composer.attachments.includes(item)
+      )
+        throw new Error("Composer changed");
+      await new Promise<void>((resolve, reject) =>
+        editor.focus(() => {
+          if (
+            activeSessionRef.current !== session ||
+            lexicalEditorRef.current !== editor ||
+            !session.snapshot.getSnapshot().composer.attachments.includes(item)
+          ) {
+            reject(new Error("Composer changed"));
+            return;
+          }
+          let inserted = false;
+          editor.update(
+            () => {
+              let selection = $getSelection();
+              if (!$isRangeSelection(selection)) {
+                $getRoot().selectEnd();
+                selection = $getSelection();
+              }
+              if ($isRangeSelection(selection)) {
+                selection.insertRawText(page.text);
+                inserted = true;
+              }
+            },
+            { discrete: true, tag: "history-push" },
+          );
+          if (!inserted) {
+            reject(new Error("Editor selection unavailable"));
+            return;
+          }
+          session.actions.removeComposerAttachment?.(key);
+          resolve();
+        }),
+      );
+    },
+    [session],
+  );
+
   const updateComposerMarkdown = useCallback(
     (markdown: string) => session.actions.setComposerText?.(markdown),
     [session],
@@ -1182,6 +1254,10 @@ export function WorkbenchComposer({
             <ComposerAttachments
               attachments={composerAttachments}
               onRemove={(key) => session.actions.removeComposerAttachment?.(key)}
+              onRetry={(key) => {
+                void session.actions.retryPastedTextAttachment?.(key);
+              }}
+              onRestore={restorePastedText}
             />
           }
           input={
@@ -1214,6 +1290,8 @@ export function WorkbenchComposer({
               onCompositionStartCapture={() => setIsComposerComposing(true)}
               onCompositionEndCapture={() => setIsComposerComposing(false)}
               onPasteCapture={(event) => {
+                if (addComposerTextFromPaste(event, session.actions.addPastedTextAttachment))
+                  return;
                 void addComposerImagesFromPaste(event, {
                   attachmentsEnabled,
                   addAttachment: async (file) => addComposerFiles([file]),

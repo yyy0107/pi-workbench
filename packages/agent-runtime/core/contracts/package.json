@@ -20,6 +20,11 @@
       "import": "./src/commands.ts",
       "default": "./src/commands.ts"
     },
+    "./composer-attachments": {
+      "types": "./src/composer-attachments.ts",
+      "import": "./src/composer-attachments.ts",
+      "default": "./src/composer-attachments.ts"
+    },
     "./conversation": {
       "types": "./src/conversation.ts",
       "import": "./src/conversation.ts",

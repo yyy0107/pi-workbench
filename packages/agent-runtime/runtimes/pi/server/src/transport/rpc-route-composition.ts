@@ -1,3 +1,6 @@
+import type { ComposerTextAttachmentService } from "@workbench/agent-runtime-contracts/composer-attachments";
+import { getComposerTextAttachmentStore } from "../attachments/composer-text-attachments";
+import { createComposerAttachmentRpcRoutes } from "./routes/composer-attachment-rpc-routes";
 import type { WorkbenchAgentServerAdapter } from "@workbench/agent-runtime-server/adapter";
 import type { AgentCommandCatalogPort } from "@workbench/agent-runtime-server/commands";
 
@@ -75,6 +78,7 @@ import { projectRpcDomainError } from "@workbench/host-server/rpc";
 
 /** Injectable dependencies for the ordered Pi RPC route-group composition. */
 export interface PiRpcRouteGroupsDependencies {
+  readonly composerAttachments: ComposerTextAttachmentService;
   readonly usageStatistics: Parameters<typeof createUsageStatisticsRpcRoutes>[0];
   readonly session: SessionRpcRoutesDependencies;
   readonly sessionContextTrace: SessionContextTraceRpcRoutesDependencies;
@@ -97,6 +101,7 @@ export function createPiRpcRouteGroups(
   dependencies: PiRpcRouteGroupsDependencies,
 ): readonly RpcRouteGroup[] {
   return [
+    createComposerAttachmentRpcRoutes(dependencies.composerAttachments),
     createUsageStatisticsRpcRoutes(dependencies.usageStatistics),
     createSessionRpcRoutes(dependencies.session),
     createSessionContextTraceRpcRoutes(dependencies.sessionContextTrace),
@@ -149,6 +154,7 @@ export function createDefaultPiRpcRouteGroups({
   const domainErrors = { projectDomainError: projectRpcDomainError } as const;
 
   return createPiRpcRouteGroups({
+    composerAttachments: getComposerTextAttachmentStore(),
     usageStatistics: { readUsage: readUsageStatistics },
     session: { protocol: sessionProtocolFacade, ...domainErrors },
     sessionContextTrace: { service: sessionContextTraceService, ...domainErrors },
