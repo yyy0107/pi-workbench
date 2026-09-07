@@ -72,6 +72,7 @@ import type {
 import { parsePiConversationEvent, projectPiConversationEvent } from "./conversation-events";
 import type { PiUsageMetadata } from "./pi-usage";
 import { aggregatePiTurnStatistics } from "./session-statistics";
+import { readPiTurnTiming } from "./turn-timing";
 
 function messageDate(timestamp: number | undefined, index: number): Date {
   return new Date(timestamp ?? index);
@@ -1029,7 +1030,7 @@ export function applyToolExecutionUpdate(
         return {
           ...part,
           artifact: output,
-          ...(part.timing || update.startedAt === undefined
+          ...(part.timing?.completedAt !== undefined || update.startedAt === undefined
             ? {}
             : { timing: { startedAt: update.startedAt } }),
         } satisfies ToolCallMessagePart;
@@ -1105,6 +1106,12 @@ function assistantTurnTiming(
   content: ThreadAssistantMessage["content"],
   turnStartedAt?: number,
 ): { startedAt: number; completedAt: number } | undefined {
+  const turnTimings = messages.flatMap((message) => {
+    const timing = readPiTurnTiming(
+      message.metadata.custom.workbenchTurnTiming ?? message.metadata.custom.piTurnTiming,
+    );
+    return timing ? [timing] : [];
+  });
   const starts = messages.flatMap((message) => {
     const streamStartedAt = message.metadata.timing?.streamStartTime;
     const sourceTimestamp = messageSourceTimestamp(message);
@@ -1116,6 +1123,7 @@ function assistantTurnTiming(
     ];
   });
   if (turnStartedAt !== undefined && Number.isFinite(turnStartedAt)) starts.push(turnStartedAt);
+  starts.push(...turnTimings.map((timing) => timing.startedAt));
 
   const completions = messages.flatMap((message) => {
     const timing = message.metadata.timing;
@@ -1123,6 +1131,7 @@ function assistantTurnTiming(
       ? []
       : [timing.streamStartTime + timing.totalStreamTime];
   });
+  completions.push(...turnTimings.map((timing) => timing.completedAt));
   for (const part of content) {
     if (part.type === "tool-call" && part.timing?.completedAt !== undefined) {
       completions.push(part.timing.completedAt);
@@ -1313,7 +1322,7 @@ export function piHistoryToThreadMessages(
   const composerCommandResponseIndexes = new Map<string, number>();
   const attachmentRecognitionBySubmissionId = new Map<string, AttachmentRecognitionSnapshot>();
   const runningCompactCommandResponses = new Set<string>();
-  const resolvedToolTimingById = new Map<string, ToolCallTiming>();
+  const resolvedToolTimingById = new Map(toolTimingById);
   for (const timing of history.context.toolTimings ?? []) {
     if (
       Number.isFinite(timing.startedAt) &&
@@ -1325,9 +1334,6 @@ export function piHistoryToThreadMessages(
         completedAt: timing.completedAt,
       });
     }
-  }
-  for (const [toolCallId, timing] of toolTimingById ?? []) {
-    resolvedToolTimingById.set(toolCallId, timing);
   }
 
   history.context.messages.forEach((message, index) => {
@@ -1438,12 +1444,11 @@ export function piHistoryToThreadMessages(
             timing:
               message.timestamp === undefined
                 ? undefined
-                : (timingByTimestamp?.get(message.timestamp) ??
-                  persistedMessageTiming(
+                : (persistedMessageTiming(
                     message,
                     history.context.entryCompletedAts?.[index],
                     history.context.entryFirstTokenAts?.[index],
-                  )),
+                  ) ?? timingByTimestamp?.get(message.timestamp)),
             toolTimingById: resolvedToolTimingById,
             createdAt: history.context.entryCompletedAts?.[index] ?? undefined,
             eventSeq: history.context.entrySeqs?.[index] ?? undefined,

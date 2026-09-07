@@ -1965,6 +1965,65 @@ test("restores completed reasoning duration from the persisted entry timestamp",
   });
 });
 
+test("restores authoritative history timing instead of shortened browser measurements", () => {
+  const history: PiSessionHistory = {
+    sessionId: "session",
+    context: {
+      entryIds: ["user", "assistant", "tool", "final"],
+      entryCompletedAts: [1_000, 61_000, 241_000, 601_000],
+      toolTimings: [{ toolCallId: "tool", startedAt: 61_000, completedAt: 241_000 }],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        { role: "user", content: "Fix it", timestamp: 1_000 },
+        {
+          role: "assistant",
+          timestamp: 11_000,
+          content: [{ type: "toolCall", id: "tool", name: "read", arguments: {} }],
+        },
+        {
+          role: "toolResult",
+          toolCallId: "tool",
+          toolName: "read",
+          content: [{ type: "text", text: "OK" }],
+          timestamp: 241_000,
+        },
+        {
+          role: "assistant",
+          timestamp: 301_000,
+          content: [{ type: "text", text: "Done" }],
+          stopReason: "stop",
+        },
+      ],
+    },
+  };
+  const [user, assistant] = piHistoryToThreadMessages(
+    history,
+    new Map([
+      [11_000, { streamStartTime: 11_000, totalStreamTime: 1, totalChunks: 0, toolCallCount: 1 }],
+      [301_000, { streamStartTime: 301_000, totalStreamTime: 1, totalChunks: 0, toolCallCount: 0 }],
+    ]),
+    new Map([["tool", { startedAt: 61_000, completedAt: 61_001 }]]),
+  );
+  assert.equal(assistant?.role, "assistant");
+  if (assistant?.role !== "assistant") return;
+  const timing = { startedAt: 1_000, completedAt: 601_000 };
+  assert.deepEqual(assistant.metadata.custom.workbenchTurnTiming, timing);
+  assert.equal(assistant.metadata.timing?.totalStreamTime, 300_000);
+  const tool = assistant.content.find((part) => part.type === "tool-call");
+  assert.deepEqual(tool?.timing, { startedAt: 61_000, completedAt: 241_000 });
+  // History is already coalesced when the live tail is merged into it.
+  assert.deepEqual(
+    coalesceConsecutiveAssistantMessages([assistant])[0]?.metadata.custom.workbenchTurnTiming,
+    timing,
+  );
+  assert.deepEqual(
+    coalesceConsecutiveAssistantMessages([user!, assistant])[1]?.metadata.custom
+      .workbenchTurnTiming,
+    timing,
+  );
+});
+
 test("keeps duplicate entry ids unique in encounter order", () => {
   const history: PiSessionHistory = {
     sessionId: "session",

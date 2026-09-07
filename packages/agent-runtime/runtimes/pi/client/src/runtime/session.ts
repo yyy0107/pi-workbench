@@ -1881,6 +1881,11 @@ export class PiClientSession implements ConversationSession {
     }
     if (sequence !== undefined && sequence <= this.lastSequence) return;
     if (sequence !== undefined) this.lastSequence = sequence;
+    // Replayed events may arrive together; measure their server times, not delivery times.
+    const eventTime =
+      typeof event.eventTime === "number" && Number.isFinite(event.eventTime)
+        ? event.eventTime
+        : Date.now();
 
     if (event.runTiming !== undefined && this.snapshotValue.isRunning) {
       this.replaceSnapshot({
@@ -1986,7 +1991,7 @@ export class PiClientSession implements ConversationSession {
           sequence === undefined
             ? createClientMessageId("pi-conversation-event")
             : `pi-event-${sequence}:conversation-event`,
-          Date.now(),
+          eventTime,
         ),
       );
       this.publishMessages();
@@ -2001,7 +2006,7 @@ export class PiClientSession implements ConversationSession {
         this.publishLiveUserMessage(message, sequence, undefined, false);
       } else if (message?.role === "assistant") {
         this.activeMessageTiming = {
-          streamStartTime: Date.now(),
+          streamStartTime: message.timestamp ?? eventTime,
           totalChunks: 0,
         };
         const assistantMessageId =
@@ -2033,8 +2038,10 @@ export class PiClientSession implements ConversationSession {
             this.activeMessageTiming.firstTokenTime === undefined &&
             hasOutputToken(assistantMessage)
           ) {
-            this.activeMessageTiming.firstTokenTime =
-              Date.now() - this.activeMessageTiming.streamStartTime;
+            this.activeMessageTiming.firstTokenTime = Math.max(
+              0,
+              eventTime - this.activeMessageTiming.streamStartTime,
+            );
           }
         }
         const assistantMessageId =
@@ -2059,7 +2066,7 @@ export class PiClientSession implements ConversationSession {
     if (event.type === "tool_execution_start") {
       this.markPromptStarted();
       const toolCallId = typeof event.toolCallId === "string" ? event.toolCallId : undefined;
-      const toolTiming = toolCallId ? this.startToolTiming(toolCallId) : undefined;
+      const toolTiming = toolCallId ? this.startToolTiming(toolCallId, eventTime) : undefined;
       if (
         toolCallId &&
         this.updateToolExecution({
@@ -2076,7 +2083,7 @@ export class PiClientSession implements ConversationSession {
     if (event.type === "tool_execution_update") {
       this.markPromptStarted();
       const toolCallId = typeof event.toolCallId === "string" ? event.toolCallId : undefined;
-      const toolTiming = toolCallId ? this.startToolTiming(toolCallId) : undefined;
+      const toolTiming = toolCallId ? this.startToolTiming(toolCallId, eventTime) : undefined;
       if (
         toolCallId &&
         this.updateToolExecution({
@@ -2094,7 +2101,7 @@ export class PiClientSession implements ConversationSession {
     if (event.type === "tool_execution_end") {
       this.markPromptStarted();
       const toolCallId = typeof event.toolCallId === "string" ? event.toolCallId : undefined;
-      const toolTiming = toolCallId ? this.completeToolTiming(toolCallId) : undefined;
+      const toolTiming = toolCallId ? this.completeToolTiming(toolCallId, eventTime) : undefined;
       if (
         toolCallId &&
         this.updateToolExecution({
@@ -2126,7 +2133,7 @@ export class PiClientSession implements ConversationSession {
       }
       if (message?.role === "assistant") {
         const assistantMessage = message as PiAssistantMessage;
-        const timing = this.completeMessageTiming(assistantMessage);
+        const timing = this.completeMessageTiming(assistantMessage, eventTime);
         if (timing && assistantMessage.timestamp !== undefined) {
           this.messageTimingByTimestamp.set(assistantMessage.timestamp, timing);
         }
@@ -2528,18 +2535,17 @@ export class PiClientSession implements ConversationSession {
     return reconciled;
   }
 
-  private startToolTiming(toolCallId: string): ToolCallTiming {
+  private startToolTiming(toolCallId: string, startedAt: number): ToolCallTiming {
     const existing = this.toolTimingById.get(toolCallId);
     if (existing) return existing;
 
-    const timing = { startedAt: Date.now() };
+    const timing = { startedAt };
     this.toolTimingById.set(toolCallId, timing);
     return timing;
   }
 
-  private completeToolTiming(toolCallId: string): ToolCallTiming {
+  private completeToolTiming(toolCallId: string, completedAt: number): ToolCallTiming {
     const existing = this.toolTimingById.get(toolCallId);
-    const completedAt = Date.now();
     const timing = {
       startedAt: existing?.startedAt ?? completedAt,
       completedAt,
@@ -2569,10 +2575,16 @@ export class PiClientSession implements ConversationSession {
     };
   }
 
-  private completeMessageTiming(message: PiAssistantMessage): MessageTiming | undefined {
+  private completeMessageTiming(
+    message: PiAssistantMessage,
+    completedAt: number,
+  ): MessageTiming | undefined {
+    if (!this.activeMessageTiming && message.timestamp !== undefined) {
+      this.activeMessageTiming = { streamStartTime: message.timestamp, totalChunks: 0 };
+    }
     const active = this.activeMessageTiming;
     if (!active) return undefined;
-    const totalStreamTime = Math.max(0, Date.now() - active.streamStartTime);
+    const totalStreamTime = Math.max(0, completedAt - active.streamStartTime);
     if (active.firstTokenTime === undefined && hasOutputToken(message)) {
       active.firstTokenTime = totalStreamTime;
     }

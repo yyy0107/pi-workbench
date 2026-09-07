@@ -3112,6 +3112,77 @@ test("replaces failed automatic-retry attempts in the visible response", (t) => 
   );
 });
 
+test("uses server timestamps for replayed message and tool durations", (t) => {
+  t.mock.method(Date, "now", () => 500_000);
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session");
+  const internals = session as unknown as { handleEvent(event: PiEvent): void };
+  let sequence = 0;
+  const emit = (eventTime: number, event: PiEvent) =>
+    internals.handleEvent({ ...event, eventTime, sequence: sequence++ });
+  emit(1_000_000, {
+    type: "message_end",
+    message: { role: "user", content: "Fix it", timestamp: 1_000_000 },
+  });
+  const toolMessage = {
+    role: "assistant",
+    timestamp: 1_010_000,
+    content: [{ type: "toolCall", id: "tool", name: "read", arguments: {} }],
+    stopReason: "toolUse",
+  };
+  emit(1_010_000, { type: "message_start", message: toolMessage });
+  emit(1_060_000, { type: "message_end", message: toolMessage });
+  emit(1_060_000, { type: "tool_execution_start", toolCallId: "tool" });
+  emit(1_240_000, {
+    type: "tool_execution_end",
+    toolCallId: "tool",
+    result: { content: [{ type: "text", text: "OK" }] },
+  });
+  const finalMessage = {
+    role: "assistant",
+    timestamp: 1_300_000,
+    content: [{ type: "text", text: "Done" }],
+    stopReason: "stop",
+  };
+  emit(1_300_000, { type: "message_start", message: { ...finalMessage, content: [] } });
+  emit(1_360_000, { type: "message_update", message: finalMessage });
+  emit(1_600_000, { type: "message_end", message: finalMessage });
+
+  const assistant = session.getSnapshot().messages.at(-1);
+  assert.equal(assistant?.role, "assistant");
+  assert.deepEqual(assistant?.metadata.custom.workbenchTurnTiming, {
+    startedAt: 1_000_000,
+    completedAt: 1_600_000,
+  });
+  assert.equal(assistant?.metadata.timing?.totalStreamTime, 300_000);
+  assert.equal(assistant?.metadata.timing?.firstTokenTime, 60_000);
+  const tool = assistant?.content.find((part) => part.type === "tool-call");
+  assert.deepEqual(tool?.timing, { startedAt: 1_060_000, completedAt: 1_240_000 });
+});
+
+test("recovers completed message timing when reconnect missed message_start", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session");
+  const internals = session as unknown as { handleEvent(event: PiEvent): void };
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 0,
+    eventTime: 601_000,
+    message: {
+      role: "assistant",
+      timestamp: 1_000,
+      content: [{ type: "text", text: "Done" }],
+      stopReason: "stop",
+    },
+  });
+  assert.deepEqual(session.getSnapshot().messages.at(-1)?.metadata.custom.workbenchTurnTiming, {
+    startedAt: 1_000,
+    completedAt: 601_000,
+  });
+});
+
 test("keeps the optimistic assistant id from stream start through completion", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
