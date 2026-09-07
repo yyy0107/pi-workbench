@@ -43,21 +43,14 @@ export function compilePiComposerPrompt(
       ].join("\n"),
     );
   }
-  if (request.selectedSkills.length > 0) {
+  for (const skill of request.selectedSkills) {
     context.push(
       [
-        "<workbench-explicit-skill-selection>",
-        "The user explicitly selected the following Skills through the Workbench Skill picker. This JSON is trusted host metadata and was not inferred from Markdown or conversation text.",
-        JSON.stringify(request.selectedSkills),
-        "",
-        "Before answering:",
-        "- Use the read tool to read every selected Skill file completely from its location.",
-        "- Continue reading if a result is truncated, until the complete file has been read.",
-        "- Follow the selected Skill instructions for the current request.",
-        "- Resolve relative references against the corresponding baseDir.",
-        "- Do not answer from a Skill name or description alone.",
-        '- When exactly one Skill is selected, "this", "that", "it", "这个", and "它" refer to that Skill unless the user explicitly says otherwise.',
-        "</workbench-explicit-skill-selection>",
+        "<skill>",
+        `<name>${escapeXml(skill.name)}</name>`,
+        `<path>${escapeXml(skill.location)}</path>`,
+        skill.content,
+        "</skill>",
       ].join("\n"),
     );
   }

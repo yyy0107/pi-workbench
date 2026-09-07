@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { convertToLlm, SessionManager } from "@earendil-works/pi-coding-agent";
 
-import { compilePiComposerPrompt } from "../../src/commands/pi-composer-prompt";
+import {
+  compilePiComposerPrompt,
+  PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE,
+} from "../../src/commands/pi-composer-prompt";
+import { projectPiComposerContext } from "../../src/internal-extensions/composer-context";
 
 test("adapts a resolved request at Pi's trust boundary without injecting command trace", () => {
   const { prompt, userText, context } = compilePiComposerPrompt({
@@ -38,39 +43,49 @@ test("adapts a resolved request at Pi's trust boundary without injecting command
   assert.doesNotMatch(context.join("\n"), /<user-request>|inspect concurrency/);
 });
 
-test("binds a deictic request to the Skill explicitly selected in Composer", () => {
-  const { prompt, userText, context } = compilePiComposerPrompt({
+test("injects complete selected Skills as separate Codex-style user messages", () => {
+  const content = "---\nname: mcp-scripting\n---\n\n# Script\nKeep <xml> & Markdown intact.\n";
+  const skills = ["mcp-scripting", "notes"].map((name) => ({
+    invocationName: `skill:${name}`,
+    name,
+    location: `/skills/a & b/${name}/SKILL.md`,
+    baseDir: `/skills/a & b/${name}`,
+    selectedBy: "user" as const,
+    content,
+  }));
+  const compiled = compilePiComposerPrompt({
     version: 1,
     userText: "怎么使用这个",
     config: { metadata: {} },
-    selectedSkills: [
-      {
-        invocationName: "skill:mcp-scripting",
-        name: "mcp-scripting",
-        location: "/skills/mcp-scripting/SKILL.md",
-        baseDir: "/skills/mcp-scripting",
-        selectedBy: "user",
-      },
-    ],
+    selectedSkills: skills,
     instructions: [],
     trustedContext: [],
     untrustedContext: [],
     commandTrace: [],
   });
-
-  assert.match(prompt, /<workbench-explicit-skill-selection>/);
-  assert.match(
-    prompt,
-    /explicitly selected the following Skills through the Workbench Skill picker/,
+  const expected = skills.map(
+    (skill) =>
+      `<skill>\n<name>${skill.name}</name>\n<path>/skills/a &amp; b/${skill.name}/SKILL.md</path>\n${content}\n</skill>`,
   );
-  assert.match(prompt, /"location":"\/skills\/mcp-scripting\/SKILL.md"/);
-  assert.match(prompt, /Use the read tool to read every selected Skill file completely/);
-  assert.match(prompt, /Do not answer from a Skill name or description alone/);
-  assert.match(prompt, /"这个"/);
-  assert.doesNotMatch(prompt, /<workbench-trusted-instructions>/);
-  assert.match(prompt, /<user-request>\n怎么使用这个\n<\/user-request>$/);
-  assert.equal(userText, "怎么使用这个");
-  assert.equal(context.length, 1);
+  assert.deepEqual(compiled.context, expected);
+  assert.doesNotMatch(compiled.prompt, /workbench-explicit-skill-selection|Before answering:/);
+  assert.equal(compiled.userText, "怎么使用这个");
+
+  const manager = SessionManager.inMemory();
+  manager.appendCustomEntry(PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE, compiled);
+  assert.deepEqual(
+    convertToLlm(
+      projectPiComposerContext(
+        [{ role: "user", content: compiled.prompt, timestamp: 1 }],
+        manager.getBranch(),
+      ),
+    ),
+    [...expected, compiled.userText].map((text) => ({
+      role: "user",
+      content: [{ type: "text", text }],
+      timestamp: 1,
+    })),
+  );
 });
 
 test("injects escaped cached attachment paths as XML instructions without OCR contents", () => {

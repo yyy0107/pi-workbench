@@ -190,6 +190,8 @@ export interface WorkbenchResolvedSkillSelection {
   location: string;
   baseDir: string;
   selectedBy: "user";
+  /** Complete SKILL.md snapshot, including frontmatter, read from the resolved catalog path. */
+  content: string;
 }
 
 export interface WorkbenchResolvedContext {

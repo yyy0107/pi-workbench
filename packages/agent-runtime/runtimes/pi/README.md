@@ -648,22 +648,22 @@ Workbench 已适配的带参命令还可由 catalog 返回声明式 `argsSchema`
 RPC 边界同时读取旧 `version: 1` / `source: "pi"` 请求并在进入执行层前归一化。提交随后对 catalog
 中的全部 Token 做 preflight resolve；未知、冲突或已失效的命令会
 在任何副作用发生前拒绝。执行阶段不再把所有命令统一实现成“先调用一次模型，再收集回答”：skill
-通过 Pi 已加载资源公开的 `filePath`/`baseDir` 记录为可信的显式用户选择，prompt 编译只提示模型
-必须先使用现有 `read` 工具完整按需读取对应 `SKILL.md`，不会把 Skill 正文预先拼入请求；prompt template
-按 Pi 公开的参数替换语义确定性转换 user text，两者都只进入一次最终主模型调用。显式 Skill 提交时若
-`read` 不在当前 active tools 中，preflight 会在执行任何命令前拒绝请求，避免模型只根据名称或描述猜测。
+通过 Pi 已加载资源公开的 `filePath`/`baseDir` 解析显式用户选择，并在服务端读取完整 `SKILL.md`
+（保留 frontmatter）作为本次请求快照。每个技能按 Codex 的 `<skill>`、`<name>`、`<path>` 格式
+独立注入全文，不再要求模型先调用 `read`，也不依赖当前是否启用该工具；文件读取失败沿用命令失败流程，
+阻止本次主模型调用。prompt template 按 Pi 公开的参数替换语义确定性转换 user text，两者都只进入一次最终主模型调用。
 extension command 仍通过 `AgentSession.prompt()` 的公开命令入口执行，但明确作为拥有该 turn 的
 `agent-turn`，完成后不会再启动第二个主请求。`/compact` 和 `/reload` 分别使用 `AgentSession.compact()` 与
 `AgentSession.reload()`；Workbench 不调用或复制 extension handler，Pi 包源码和 `registerCommand()`
 契约保持不变。
 
 服务端先形成 canonical `ResolvedAgentRequest`，分别保存 user text、request config、显式选择的
-Skill 引用、trusted instructions、trusted/untrusted context 和仅供历史/诊断使用的 command trace。
+Skill 引用及文件快照、trusted instructions、trusted/untrusted context 和仅供历史/诊断使用的 command trace。
 trace 不会整体注入模型。普通正文直接传递；带结构化语义的请求由
 `server/src/commands/pi-composer-prompt.ts` 编译为 Pi prompt/queue API 接受的单个字符串，保证正文与
 上下文一起排队，同时以不参与模型上下文的 `workbench.composer-model-input.v1` custom entry 保存拆分。
 `workbench.composer-context` 在 Pi 原生 `context` hook 中仅匹配当前分支已记录且实际送达的请求，
-把 config、Skill 选择及其按需读取提示、instructions 和带信任边界的 context 转成独立消息，正文保留原文
+把 config、Skill 全文、instructions 和带信任边界的 context 转成独立消息，正文保留原文
 及图片，不再套 `<user-request>`。内部传输仍保留兼容包装，防止模板展开后的 `/...` 被 Pi 再执行为命令；
 历史压缩也仍能读取完整上下文。纯 session-action 完成后不启动聊天；附带正文时仅在执行成功后继续一次主请求。
 

@@ -18,7 +18,6 @@ interface RegisteredExtensionCommand {
 }
 
 export interface ComposerCommandPlanningSession {
-  getActiveToolNames(): string[];
   extensionRunner: {
     getRegisteredCommands(): readonly RegisteredExtensionCommand[];
   };
@@ -131,12 +130,6 @@ export function preflightPlanWorkbenchComposerCommands(
 
   if (planned.length > 1 && planned.some((command) => command.exclusive)) {
     throw new PiServerError("pi_composer_command_conflict", 400);
-  }
-  if (
-    planned.some((command) => command.kind === "skill") &&
-    !session.getActiveToolNames().includes("read")
-  ) {
-    throw new PiServerError("pi_skill_read_tool_unavailable", 400);
   }
   return planned;
 }

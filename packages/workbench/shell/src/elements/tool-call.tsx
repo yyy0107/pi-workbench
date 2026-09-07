@@ -46,16 +46,16 @@ export function ToolCallDetails({
 }: Readonly<Pick<ToolCallProps, "request" | "requestLabel" | "result" | "resultLabel">>) {
   return (
     <div className={cn(field, "mt-2 overflow-hidden rounded-2xl text-xs")}>
-      <div className="px-3.5 pt-2.5 pb-2">
-        <p className={cn(mono, "text-foreground/35 mb-1")}>{requestLabel}</p>
-        <pre className="text-foreground/55 max-h-72 overflow-auto whitespace-pre-wrap break-words font-mono">
+      <div className="pt-2.5 pb-2">
+        <p className={cn(mono, "text-foreground/35 mb-1 px-3.5")}>{requestLabel}</p>
+        <pre className="text-foreground/55 max-h-72 overflow-auto px-3.5 whitespace-pre-wrap break-words font-mono">
           {request}
         </pre>
       </div>
       <div className="bg-foreground/[0.06] mx-3.5 h-px" />
-      <div className="px-3.5 pt-2 pb-2.5">
-        <p className={cn(mono, "text-foreground/35 mb-1")}>{resultLabel}</p>
-        <pre className="text-foreground/90 max-h-72 overflow-auto whitespace-pre-wrap break-words font-sans">
+      <div className="pt-2 pb-2.5">
+        <p className={cn(mono, "text-foreground/35 mb-1 px-3.5")}>{resultLabel}</p>
+        <pre className="text-foreground/90 max-h-72 overflow-auto px-3.5 whitespace-pre-wrap break-words font-sans">
           {result}
         </pre>
       </div>

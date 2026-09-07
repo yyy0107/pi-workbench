@@ -68,16 +68,14 @@ test("classifies deterministic prompt and Skill commands", () => {
   );
 });
 
-test("rejects an explicit Skill when the read tool is unavailable", () => {
+test("accepts an explicit Skill when the read tool is unavailable", () => {
   const noReadSession = {
     ...session,
     getActiveToolNames: () => ["bash"],
   } as unknown as Parameters<typeof preflightPlanWorkbenchComposerCommands>[0];
 
-  assert.throws(
-    () =>
-      preflightPlanWorkbenchComposerCommands(noReadSession, submission([command("skill:react")])),
-    { code: "pi_skill_read_tool_unavailable" },
+  assert.doesNotThrow(() =>
+    preflightPlanWorkbenchComposerCommands(noReadSession, submission([command("skill:react")])),
   );
 });
 

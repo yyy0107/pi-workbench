@@ -366,12 +366,15 @@ test("treats an extension command as one explicit agent turn without a second re
   ]);
 });
 
-test("records an explicit Skill selection without reading its file or starting an intermediate turn", async () => {
-  const root = "/skills/create-skill";
+test("snapshots an explicit Skill without a read tool or an intermediate turn and reports missing files", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-selected-skill-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
   const skillFile = `${root}/SKILL.md`;
+  const content = "---\nname: create-skill\n---\n\n# Create Skill\nRead references/example.md.\n";
+  await writeFile(skillFile, content);
   let promptCount = 0;
   const session = {
-    getActiveToolNames: () => ["read", "bash"],
+    getActiveToolNames: () => ["bash"],
     extensionRunner: { getRegisteredCommands: () => [] },
     promptTemplates: [],
     resourceLoader: {
@@ -396,8 +399,8 @@ test("records an explicit Skill selection without reading its file or starting a
     },
   } as unknown as Parameters<typeof resolveWorkbenchComposerCommands>[0];
 
-  const resolved = await resolveWorkbenchComposerCommands(session, {
-    version: 2,
+  const submission = {
+    version: 2 as const,
     sourceText: "tokens",
     text: "build a reusable workflow",
     context: [],
@@ -407,11 +410,12 @@ test("records an explicit Skill selection without reading its file or starting a
         id: "skill",
         commandId: "skill:create-skill",
         label: "Create Skill",
-        scope: "message",
-        source: "agent",
+        scope: "message" as const,
+        source: "agent" as const,
       },
     ],
-  });
+  };
+  const resolved = await resolveWorkbenchComposerCommands(session, submission);
 
   assert.equal(promptCount, 0);
   assert.equal(resolved.agentTurn, false);
@@ -422,6 +426,7 @@ test("records an explicit Skill selection without reading its file or starting a
       location: skillFile,
       baseDir: root,
       selectedBy: "user",
+      content,
     },
   ]);
   assert.deepEqual(resolved.request.instructions, []);
@@ -433,6 +438,11 @@ test("records an explicit Skill selection without reading its file or starting a
     })),
     [{ commandId: "skill:create-skill", effect: "instruction", status: "success" }],
   );
+  await rm(skillFile);
+  const failed = await resolveWorkbenchComposerCommands(session, submission);
+  assert.deepEqual(failed.request.selectedSkills, []);
+  assert.equal(failed.request.commandTrace[0]?.status, "execution-failed");
+  assert.equal(promptCount, 0);
 });
 
 test("expands a prompt template into the single main request without an intermediate turn", async () => {

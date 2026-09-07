@@ -1,6 +1,6 @@
 import { existsSync, mkdtempSync, rmdirSync, statSync, unlinkSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { open, readdir, stat } from "node:fs/promises";
+import { open, readdir, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -586,6 +586,7 @@ export async function resolveWorkbenchComposerCommands(
             location: plan.skill.filePath,
             baseDir: plan.skill.baseDir,
             selectedBy: "user",
+            content: await readFile(plan.skill.filePath, "utf8"),
           });
           break;
         }
