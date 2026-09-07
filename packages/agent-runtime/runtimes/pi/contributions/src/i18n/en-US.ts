@@ -490,6 +490,11 @@ export const piExtensionsEnUS = {
       projectTag: ({ project }: { project: string }) => `Project: ${project}`,
       expandCategory: ({ name }: { name: string }) => `Expand ${name}`,
       collapseCategory: ({ name }: { name: string }) => `Collapse ${name}`,
+      viewRemaining: (
+        { names, count }: { names: string; count: number },
+        { number }: MessageFormatters,
+      ) => `View ${names}${count > 0 ? `, and ${number(count)} more` : ""}`,
+      showLess: "Show less",
       noMatches: "No capabilities match this search.",
       noSession: "No Pi capabilities are available yet.",
       scopeUnavailable: "This resource scope does not have an available Pi catalog yet.",

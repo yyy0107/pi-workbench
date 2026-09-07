@@ -29,6 +29,7 @@ import type { ToolboxCapabilitySurfaceParams, ToolboxMainSection } from "./toolb
 import { ToolboxCapabilityDetails } from "./toolbox-capability-surface";
 import { useToolboxCatalogs, type ToolboxCapabilityItem } from "./toolbox-catalog";
 import { useToolboxScope } from "./toolbox-scope-store";
+import { ToolboxResourceGroup } from "./toolbox-resource-group";
 import { withTooltip } from "@workbench/shell/ui";
 
 type InstalledSection = Exclude<ToolboxMainSection, "packages" | "updates">;
@@ -96,8 +97,10 @@ export function ToolboxResourceList({
         {group.title ? (
           <h2 className="mt-8 mb-3 border-b px-3 pb-4 text-base font-medium">{group.title}</h2>
         ) : null}
-        <ul className="grid grid-cols-1 gap-x-6 gap-y-3 @2xl:grid-cols-2">
-          {group.items.map((item) => {
+        <ToolboxResourceGroup
+          items={group.items}
+          query={query}
+          renderItem={(item) => {
             const Icon = CAPABILITY_ICONS[item.kind];
             const disabled = item.params.enabled === false;
             const status =
@@ -175,8 +178,8 @@ export function ToolboxResourceList({
                 </Button>
               </li>
             );
-          })}
-        </ul>
+          }}
+        />
       </Fragment>
     ));
 }

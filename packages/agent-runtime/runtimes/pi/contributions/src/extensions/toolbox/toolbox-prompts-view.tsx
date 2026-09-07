@@ -28,6 +28,7 @@ import {
 } from "./toolbox-capability";
 import { useToolboxCatalogs, type ToolboxCapabilityItem } from "./toolbox-catalog";
 import { ToolboxDetailView } from "./toolbox-installed-view";
+import { ToolboxResourceGroup } from "./toolbox-resource-group";
 import { PromptEditorDialog, PromptUseDialog, promptErrorKey } from "./toolbox-prompt-dialogs";
 import { toolboxScopeTarget } from "./toolbox-scope";
 import { useToolboxScope } from "./toolbox-scope-store";
@@ -219,8 +220,10 @@ export function ToolboxPromptsView({ initialQuery = "" }: { initialQuery?: strin
                 )}
               </p>
             ) : (
-              <ul className="grid grid-cols-1 gap-x-6 gap-y-3 @2xl:grid-cols-2">
-                {visible.map((item) => (
+              <ToolboxResourceGroup
+                items={visible}
+                query={query}
+                renderItem={(item) => (
                   <li key={item.id} className="flex min-w-0 items-center gap-2 py-2">
                     <Button
                       variant="ghost"
@@ -273,8 +276,8 @@ export function ToolboxPromptsView({ initialQuery = "" }: { initialQuery?: strin
                       )}
                     </Button>
                   </li>
-                ))}
-              </ul>
+                )}
+              />
             )}
           </div>
         </div>

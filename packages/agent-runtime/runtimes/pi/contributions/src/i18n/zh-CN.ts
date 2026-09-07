@@ -448,6 +448,11 @@ export const piExtensionsZhCN = {
       projectTag: ({ project }: { project: string }) => `项目：${project}`,
       expandCategory: ({ name }: { name: string }) => `展开${name}`,
       collapseCategory: ({ name }: { name: string }) => `收起${name}`,
+      viewRemaining: (
+        { names, count }: { names: string; count: number },
+        { number }: MessageFormatters,
+      ) => `查看 ${names}${count > 0 ? `，另有 ${number(count)} 项` : ""}`,
+      showLess: "收起",
       noMatches: "没有匹配的能力。",
       noSession: "暂时没有可用的 Pi 能力。",
       scopeUnavailable: "此资源范围暂时没有可用的 Pi 目录。",

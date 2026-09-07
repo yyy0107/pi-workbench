@@ -9,6 +9,7 @@ import type { ToolboxCapabilityItem } from "./toolbox-catalog";
 import { CapabilityMetadataFields, ExtensionControls } from "./toolbox-capability-presentation";
 import { builtinExtensionSurfaceParams, builtinToolPreferenceKey } from "./toolbox-capability";
 import { ToolboxResourceList } from "./toolbox-installed-view";
+import { ToolboxResourceGroup } from "./toolbox-resource-group";
 
 const items: ToolboxCapabilityItem[] = [
   {
@@ -193,6 +194,86 @@ test("Pi extensions group by source after search while keeping disabled entries"
   const empty = render("missing", "zh-CN", resources, true);
   assert.match(empty, /没有匹配的能力/);
   assert.doesNotMatch(empty, /<h2|<li/);
+});
+
+test("resource groups preview six entries with localized remaining names and unrestricted search", () => {
+  const resources: ToolboxCapabilityItem[] = Array.from({ length: 9 }, (_, index) => ({
+    ...items[0],
+    id: `skill:${index}`,
+    name: `Skill ${index + 1}`,
+    searchText: `Skill ${index + 1}`,
+  }));
+  for (const kind of ["skill", "extension", "package"] as const) {
+    const entries = resources.map((item) => ({
+      ...item,
+      kind,
+      params: { ...item.params, capabilityKind: kind },
+    }));
+    const html = render("", "en-US", entries);
+    assert.equal((html.match(/<li\b/g) ?? []).length, 6);
+    assert.match(html, /View Skill 7, Skill 8, and 1 more/);
+    assert.match(html, /aria-expanded="false"/);
+    const listId = html.match(/<ul id="([^"]+)"/)?.[1];
+    assert.ok(listId);
+    assert.ok(html.includes(`aria-controls="${listId}"`));
+  }
+  assert.match(render("", "zh-CN", resources), /查看 Skill 7、Skill 8，另有 1 项/);
+  assert.match(render("", "en-US", resources.slice(0, 7)), /View Skill 7<\/button>/);
+  assert.match(render("", "en-US", resources.slice(0, 8)), /View Skill 7, Skill 8<\/button>/);
+  assert.doesNotMatch(render("", "en-US", resources.slice(0, 6)), /aria-expanded=/);
+
+  const grouped = [
+    ...resources.map((item) => ({
+      ...item,
+      params: { ...item.params, origin: "package" as const },
+    })),
+    ...resources.map((item) => ({
+      ...item,
+      id: `builtin:${item.id}`,
+      params: { ...item.params, builtin: true },
+    })),
+  ];
+  assert.equal((render("", "en-US", grouped, true).match(/<li\b/g) ?? []).length, 12);
+  const searched = render("skill", "en-US", grouped, true);
+  assert.equal((searched.match(/<li\b/g) ?? []).length, 18);
+  assert.doesNotMatch(searched, /aria-expanded=/);
+});
+
+test("shared resource groups limit custom prompt rows and preserve their actions", () => {
+  const prompts: ToolboxCapabilityItem[] = Array.from({ length: 9 }, (_, index) => ({
+    ...items[0],
+    id: `prompt:${index}`,
+    kind: "prompt",
+    name: `Template ${index + 1}`,
+    params: { ...items[0].params, capabilityKind: "prompt" },
+  }));
+  const renderPrompts = (query: string) =>
+    renderToStaticMarkup(
+      <WorkbenchSettingsProvider
+        service={{ load: async () => ({}), update: async () => undefined }}
+      >
+        <I18nProvider initialLocale="en-US" bundles={[piTranslationBundle]}>
+          <ToolboxResourceGroup
+            items={prompts}
+            query={query}
+            renderItem={(item) => (
+              <li key={item.id}>
+                <button>{item.name}</button>
+                <button>Use {item.name}</button>
+              </li>
+            )}
+          />
+        </I18nProvider>
+      </WorkbenchSettingsProvider>,
+    );
+  const collapsed = renderPrompts("");
+  assert.equal((collapsed.match(/<li\b/g) ?? []).length, 6);
+  assert.match(collapsed, /View Template 7, Template 8, and 1 more/);
+  assert.doesNotMatch(collapsed, /Use Template 7/);
+  const searched = renderPrompts("Template");
+  assert.equal((searched.match(/<li\b/g) ?? []).length, 9);
+  assert.match(searched, /Use Template 9/);
+  assert.doesNotMatch(searched, /aria-expanded=/);
 });
 
 test("all native tool entries expose their actual names and independent switches", () => {
