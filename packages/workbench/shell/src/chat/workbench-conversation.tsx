@@ -258,7 +258,7 @@ export function WorkbenchConversationContent({
           ref={viewport.viewportRef}
           data-slot="conversation-viewport"
           className={cn(
-            "relative col-span-full row-start-2 min-h-0 w-full min-w-0 scroll-smooth overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none]",
+            "relative col-span-full row-start-2 mx-[calc(var(--scrollbar-hit-padding)/4)] min-h-0 min-w-0 scroll-smooth overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none]",
             isEmpty || isHistoryLoading
               ? "flex flex-col"
               : "grid auto-rows-max grid-cols-subgrid content-start",
