@@ -154,10 +154,10 @@ function WorkbenchMessageError() {
     (kind === "cancelled" || kind === "aborted") && messageResumeCheckpoint === undefined;
   const showRetry =
     !messageResumeCheckpoint && !stoppedWithoutCheckpoint && session.actions.retry !== undefined;
-  const showAction = canContinue || showRetry;
+  const showAction = isInLatestTurn && isLastAssistant && (canContinue || showRetry);
 
   const retry = () => {
-    if (isRunning) return;
+    if (!showAction || isRunning || retryPhase !== "idle") return;
     setContinuationFailed(false);
     setRetryPhase("requested");
     try {

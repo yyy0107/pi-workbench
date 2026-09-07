@@ -11,7 +11,7 @@ import type {
   TextBlock,
   ToolCallBlock,
 } from "@workbench/agent-runtime-contracts/conversation";
-import { useConversationSession } from "@workbench/agent-runtime-client";
+import { useConversationSession, useSessionState } from "@workbench/agent-runtime-client";
 
 import { File, getBase64Size, getFileDataKind } from "./file";
 import { Image } from "./image";
@@ -190,6 +190,8 @@ export function WorkbenchConversationError({
 }: Readonly<{ error: ConversationError; nodeKey: string; className?: string }>) {
   const { t } = useI18n();
   const session = useConversationSession();
+  const isLast = useSessionState((snapshot) => snapshot.nodeKeys.at(-1) === nodeKey);
+  const isRunning = useSessionState((snapshot) => snapshot.isRunning);
   const retry = error.recoverable === false ? undefined : session.actions.retry;
   const [retrying, setRetrying] = useState(false);
 
@@ -199,10 +201,11 @@ export function WorkbenchConversationError({
       title={t("workbench.chat.errors.requestFailedTitle")}
       detail={error.message || t("workbench.chat.errors.unknownFailure")}
       retrying={retrying}
+      retryDisabled={isRunning}
       retryLabel={t("workbench.chat.errors.retry")}
       retryingLabel={t("workbench.chat.errors.retrying")}
       onRetry={() => {
-        if (!retry || retrying) return;
+        if (!retry || !isLast || isRunning || retrying) return;
         setRetrying(true);
         void retry(nodeKey)
           .catch((retryError: unknown) => {
@@ -210,7 +213,7 @@ export function WorkbenchConversationError({
           })
           .finally(() => setRetrying(false));
       }}
-      showAction={retry !== undefined}
+      showAction={isLast && retry !== undefined}
     />
   );
 }
