@@ -186,7 +186,8 @@ import { resolveInitialSessionModel } from "./session-initial-model";
 export { PiServerError } from "../core/errors";
 
 const SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
-const ASSISTANT_CHUNK_FLUSH_MS = 16;
+// Batch across token arrivals so long reasoning streams do not repeat metadata per token.
+const ASSISTANT_CHUNK_FLUSH_MS = 100;
 export const SCRATCH_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 const SCRATCH_EXPIRY_BUSY_RETRY_MS = 60 * 1000;
 const TOOL_TIMING_CUSTOM_TYPE = "workbench.tool-timing.v1";

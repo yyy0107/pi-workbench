@@ -28,7 +28,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
     "test": "node ../../../../../scripts/run-typescript-tests.mjs --package",
-    "bench:history": "node --no-warnings=ExperimentalWarning --import ../../../../../scripts/register-typescript-test-loader.mjs test/benchmarks/session-history.benchmark.ts"
+    "bench:history": "node --no-warnings=ExperimentalWarning --import ../../../../../scripts/register-typescript-test-loader.mjs test/benchmarks/session-history.benchmark.ts",
+    "diagnose:stream": "node --no-warnings=ExperimentalWarning --import ../../../../../scripts/register-typescript-test-loader.mjs test/benchmarks/opencode-stream-diagnostic.ts"
   },
   "dependencies": {
     "@earendil-works/pi-ai": "0.84.2",

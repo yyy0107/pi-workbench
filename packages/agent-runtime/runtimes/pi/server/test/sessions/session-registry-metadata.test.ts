@@ -3353,6 +3353,7 @@ test("packs assistant deltas into durable linear-size chunks while legacy update
   await mkdir(cwd, { recursive: true });
   const host = await createSession(cwd, "transient-message-updates");
   t.after(() => host.shutdown());
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   const legacyEvents: Array<{ type: string; sequence?: number; [key: string]: unknown }> = [];
   const unsubscribeLegacy = host.subscribe((event) => legacyEvents.push(event));
   t.after(() => {
@@ -3403,6 +3404,8 @@ test("packs assistant deltas into durable linear-size chunks while legacy update
   });
   let text = "";
   for (let index = 0; index < updateCount; index += 1) {
+    // Tokens arriving on separate frames must still share the same durable chunk.
+    if (index < 9) t.mock.timers.tick(10);
     text += chunk;
     const partial = {
       ...assistantMessage(text, startedAt),
@@ -3419,7 +3422,9 @@ test("packs assistant deltas into durable linear-size chunks while legacy update
       },
     });
   }
-  await new Promise((resolve) => setTimeout(resolve, 25));
+  t.mock.timers.tick(9);
+  assert.equal(host.currentSequence, 0, "buffer token arrivals until the 100 ms boundary");
+  t.mock.timers.tick(1);
 
   const activeReconnectFrames: ServerRequest<MuxStreamPayload>[] = [];
   const activeReconnect = hub.subscribe("mux", {
@@ -3567,7 +3572,7 @@ test("packs assistant deltas into durable linear-size chunks while legacy update
       partial: toolDeltaPartial,
     },
   });
-  await new Promise((resolve) => setTimeout(resolve, 25));
+  t.mock.timers.tick(100);
 
   const toolReconnectFrames: ServerRequest<MuxStreamPayload>[] = [];
   const toolReconnect = hub.subscribe("mux", {
@@ -3604,7 +3609,7 @@ test("packs assistant deltas into durable linear-size chunks while legacy update
       partial: toolCompletePartial,
     },
   });
-  await new Promise((resolve) => setTimeout(resolve, 25));
+  t.mock.timers.tick(100);
   const renamedReconnectFrames: ServerRequest<MuxStreamPayload>[] = [];
   const renamedReconnect = hub.subscribe("mux", {
     onFrame: (frame) => renamedReconnectFrames.push(frame),
@@ -3639,6 +3644,9 @@ test("packs assistant deltas into durable linear-size chunks while legacy update
     type: "message_end",
     message: { ...toolCompletePartial, stopReason: "toolUse" },
   });
+  assert.equal(host.canonicalEvents.at(-2)?.type, "message_update");
+  assert.equal(host.canonicalEvents.at(-1)?.type, "message_end");
+  t.mock.timers.reset();
 });
 
 function assistantMessage(text: string, timestamp: number) {

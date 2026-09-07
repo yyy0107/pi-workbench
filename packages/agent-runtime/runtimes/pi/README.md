@@ -1060,13 +1060,15 @@ Pi 目前的 `before_provider_request` 是“逻辑 provider 请求”钩子：�
 `requestId` 误画成每次网络尝试。当前 scope 是 `agent-turn`；compaction/branch summary 或附件 OCR
 内部自行发起的辅助模型请求，并不保证经过这个 provider payload 钩子。
 
-token 级 `message_update` 使用 canonical durable chunk：服务端在 16 ms 窗口内合并相邻的
+token 级 `message_update` 使用 canonical durable chunk：服务端在 100 ms 窗口内合并相邻的
 text/reasoning/tool-args fragment，将一个 `SessionMessageChunkData` 作为有连续 durable `seq` 的
 `message_update` 先写入 Pi JSONL，再通过 `session/event` 发布并推进 reconnect watermark。delta 复用
 `@earendil-works/pi-ai` 的 `PiMessagesEvent` 内容事件子集，并由固定的 `streamId`、`message_start`
 的 durable `startSeq`、`firstRevision` 和 `revision` 定序；payload 只重复不含 `content` 的固定大小
-message metadata。`message_start` 后仍会保留 revision 0 的空 snapshot，使首 token 前接入的客户端能快速
-建立 stream；snapshot 只是 bootstrap 优化，history 会从 journal 重放 chunk 并物化未完成 assistant。
+message metadata，避免长思考时近乎逐 token 重复写入元数据；非 update 事件会立即刷出待保存分块。
+流式显示和落盘共享该窗口，进程异常退出可能丢失尚未刷出的分块。`message_start` 后仍会保留 revision 0
+的空 snapshot，使首 token 前接入的客户端能快速建立 stream；snapshot 只是 bootstrap 优化，history 会从
+journal 重放 chunk 并物化未完成 assistant。
 最终 durable `message_end` 仍是完成态的权威校正，首 token 时间也只在
 `message_end.data.workbenchTiming` 中持久化一次。旧 JSONL 中的累计式 durable `message_update` 继续按原
 序列读取；客户端也继续接受旧服务端的 transient `session/message-update`，用于滚动升级兼容。
@@ -1467,6 +1469,29 @@ pnpm lint
 ```bash
 pnpm --filter @workbench/agent-runtime-pi-server test
 ```
+
+OpenCode Go / DeepSeek V4 Flash 的真实流式诊断可单独运行（会产生一次模型请求，不进入自动测试）：
+
+```bash
+pnpm --filter @workbench/agent-runtime-pi-server diagnose:stream --self-test
+pnpm --filter @workbench/agent-runtime-pi-server diagnose:stream --session /absolute/path/to/session.jsonl --timeout-seconds 300
+pnpm --filter @workbench/agent-runtime-pi-server diagnose:stream --transport raw --session /absolute/path/to/session.jsonl --timeout-seconds 900
+```
+
+脚本通过现有 Context Trace 读取器校验并恢复首个请求，核对原始系统提示词和用户消息，保留原请求的
+工具声明、输出上限等参数，并强制最高思考强度 `max`；没有原始 Trace 时失败，不使用当前提示词替代。
+认证复用 Pi `ModelRuntime`，不加载项目扩展、不执行工具、不写入源会话。测试禁用客户端自动重试，
+默认 300 秒后中止；`SIGINT` 也会中止并保存已采集统计。
+两个 transport 都发送明确的客户端 User-Agent 和来自源会话的稳定 `x-opencode-session`。
+默认 `pi` 使用 Pi 的流式解析器；`raw` 仅通过 ModelRuntime 获取认证，再以 Node 原生 HTTPS 直接读取
+响应，记录 TLS 信息、HTTP 完整结束状态和未成帧的 SSE 尾部。原生 HTTPS 不读取代理环境变量，但仍可能
+经过系统透明代理；诊断时可用 `--connect-ip <已验证的服务器IP> --local-address <本机网卡IP>` 单独绑定
+连接目标和本地地址，Host 与 TLS servername 保持原域名，并需通过路由表或连接记录确认实际路径。
+临时输出目录中的 `events.jsonl` 和 `summary.json` 只保存 fetch body、SSE frame、SSE/Pi 思考与文本
+增量的时序、字节数、配对延迟、事件循环延迟、用量及来源 hash，并记录流结束标记和脱敏截断的错误摘要；
+不保存凭据、提示词或模型输出正文。
+fetch body 时间是解码后的 HTTP 数据交付时间，并非 TCP 收包时间；该诊断隔离模型链路，不覆盖桌面端
+扩展、Workbench journal 和浏览器渲染。
 
 修改 custom server 或 WebSocket 时，除单元测试外还应在非 3000 端口进行 smoke test，至少验证
 RPC envelope、恶意 Host 的 `403`、普通 stream GET 的 `426`、两个 WS handshake，以及向
