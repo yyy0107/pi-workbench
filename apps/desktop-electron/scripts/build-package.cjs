@@ -111,16 +111,10 @@ async function buildPackage({
 }
 
 if (require.main === module) {
-  void buildPackage()
-    .then((result) => {
-      if (result?.type === ARTIFACT_ONLY_RESULT_TYPE) {
-        console.log(JSON.stringify(result));
-      }
-    })
-    .catch((error) => {
-      console.error(error);
-      process.exitCode = 1;
-    });
+  void buildPackage().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
 }
 
 module.exports = { ARTIFACT_ONLY_RESULT_TYPE, ARTIFACT_ONLY_ARGUMENT, buildPackage };
