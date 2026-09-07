@@ -112,11 +112,7 @@ test("bundled resources install into the Pi directory after relocation and pruni
       "createTodoExtension",
     ),
   );
-  assert.ok(
-    (await readFile(path.join(directories.prompts, "pi-skill", "zh-CN.md"), "utf8")).includes(
-      "SKILL.md",
-    ),
-  );
+  assert.deepEqual(await readdir(directories.prompts), []);
   for (const directory of Object.values(directories) as string[])
     assert.ok(
       (await readdir(directory, { withFileTypes: true })).every((entry) => entry.isDirectory()),
