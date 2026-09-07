@@ -78,6 +78,14 @@
         "nsis"
       ]
     },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerHeader": "resources/installer/header.bmp",
+      "installerSidebar": "resources/installer/sidebar.bmp",
+      "uninstallerSidebar": "resources/installer/sidebar.bmp",
+      "include": "resources/installer/installer.nsh"
+    },
     "linux": {
       "category": "Development",
       "description": "Pi Workbench",
