@@ -1119,20 +1119,18 @@ export class PiSessionManager implements AgentRuntime {
         });
         workspaceChanged = true;
       }
-      const runningChanged = this.applySummaryRunning(payload.summary);
+      const summaryChanged = this.applySummaryRunning(payload.summary);
       const waitingForUserInputChanged = this.applySummaryWaitingForUserInput(payload.summary);
-      const summaryChanged = this.setSummary(payload.summary);
-      if (workspaceChanged || runningChanged || waitingForUserInputChanged || summaryChanged) {
+      if (workspaceChanged || waitingForUserInputChanged || summaryChanged) {
         this.notify();
       }
       return;
     }
     if (payload.type === "host/session-changed") {
       if (payload.summary.id !== payload.sessionId) return;
-      const runningChanged = this.applySummaryRunning(payload.summary);
+      const summaryChanged = this.applySummaryRunning(payload.summary);
       const waitingForUserInputChanged = this.applySummaryWaitingForUserInput(payload.summary);
-      const summaryChanged = this.setSummary(payload.summary);
-      if (runningChanged || waitingForUserInputChanged || summaryChanged) {
+      if (waitingForUserInputChanged || summaryChanged) {
         this.notify();
       }
       return;
@@ -1870,9 +1868,7 @@ export class PiSessionManager implements AgentRuntime {
     if (this.disposed) return;
     const next = new Set(sessionIds);
     const all = new Set([...this.running, ...next]);
-    // A live host idle frame may have already removed the manager-level running bit while the
-    // session correctly retained its local lease awaiting the ordered mux terminal boundary.
-    // Include those locally-running sessions so a later unary rebaseline can repair the split.
+    // Include locally-running sessions so a unary rebaseline can release a stale local lease.
     for (const session of this.sessions.values()) {
       const remoteId = session.remoteId;
       if (remoteId && session.getSnapshot().isRunning) all.add(remoteId);
@@ -1897,6 +1893,14 @@ export class PiSessionManager implements AgentRuntime {
     authoritativeBaseline = false,
   ): void {
     if (this.disposed) return;
+    const session = this.sessions.get(remoteId);
+    if (session && session !== source) {
+      session.setRunningFromManager(running, runTiming, authoritativeBaseline);
+      // Host status and mux events can cross. Keep the catalog running when the session's
+      // local lease rejects an idle frame, including immediately after stop/resume.
+      running ||= session.getSnapshot().isRunning;
+    }
+    if (session?.isStopRequested) running = false;
     if (running && runTiming !== undefined) this.observeRunTiming(remoteId, runTiming);
     else if (!running) this.runTimings.delete(remoteId);
     this.metadataRunningMutations?.set(remoteId, {
@@ -1921,10 +1925,6 @@ export class PiSessionManager implements AgentRuntime {
       });
     }
 
-    const session = this.sessions.get(remoteId);
-    if (session && session !== source) {
-      session.setRunningFromManager(running, runTiming, authoritativeBaseline);
-    }
     if (wasRunning && !running && this.activeRemoteId !== remoteId) this.completed.add(remoteId);
     if (running) {
       this.completed.delete(remoteId);
@@ -1972,20 +1972,9 @@ export class PiSessionManager implements AgentRuntime {
 
   private applySummaryRunning(summary: PiSessionSummary): boolean {
     const wasRunning = this.running.has(summary.id);
-    if (summary.running) this.running.add(summary.id);
-    else this.running.delete(summary.id);
-    if (summary.running && summary.runTiming) this.observeRunTiming(summary.id, summary.runTiming);
-    else if (!summary.running) this.runTimings.delete(summary.id);
-    const session = this.sessions.get(summary.id);
-    session?.setRunningFromManager(summary.running, summary.runTiming);
-    if (wasRunning && !summary.running && this.activeRemoteId !== summary.id) {
-      this.completed.add(summary.id);
-    }
-    if (summary.running) {
-      this.completed.delete(summary.id);
-      if (!wasRunning) this.failedRuns.delete(summary.id);
-    }
-    return wasRunning !== summary.running;
+    const summaryChanged = this.setSummary(summary);
+    this.updateRunning(summary.id, summary.running, undefined, summary.runTiming);
+    return summaryChanged || wasRunning !== this.running.has(summary.id);
   }
 
   private applySummaryWaitingForUserInput(summary: PiSessionSummary): boolean {

@@ -443,6 +443,10 @@ test("continues a matching checkpoint without regenerating or truncating message
     globalThis.fetch = originalFetch;
   });
   const requests: Array<{ method: string; payload: unknown }> = [];
+  let finishCancel!: () => void;
+  const cancelResponse = new Promise<void>((resolve) => {
+    finishCancel = resolve;
+  });
   globalThis.fetch = async (_input, init) => {
     const request = JSON.parse(String(init?.body)) as {
       rpcId: string;
@@ -450,6 +454,7 @@ test("continues a matching checkpoint without regenerating or truncating message
       payload: unknown;
     };
     requests.push({ method: request.method, payload: request.payload });
+    if (request.method === "session.cancel") await cancelResponse;
     return Response.json({
       type: "server-response",
       rpcId: request.rpcId,
@@ -459,10 +464,22 @@ test("continues a matching checkpoint without regenerating or truncating message
 
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
+  const managerInternals = manager as unknown as {
+    setSummary(value: PiSessionSummary): void;
+    handleHostFrame(payload: HostStreamPayload, generation: number): void;
+    handleMuxFrame(frame: ServerRequest<MuxStreamPayload>, generation: number): void;
+    applyRunningSnapshot(sessionIds: string[], authoritativeBaseline?: boolean): void;
+    refreshMetadata(): Promise<void>;
+  };
+  managerInternals.setSummary(summary());
+  managerInternals.refreshMetadata = async () => {};
   const session = manager.getSession("remote-session", "remote-session");
   const internals = session as unknown as {
     snapshotValue: ReturnType<typeof session.getSnapshot>;
+    handleEvent(event: PiEvent): void;
+    reload(): Promise<void>;
   };
+  internals.reload = async () => {};
   const messages = internals.snapshotValue.messages;
   internals.snapshotValue = {
     ...internals.snapshotValue,
@@ -482,9 +499,33 @@ test("continues a matching checkpoint without regenerating or truncating message
   };
   connectionInternals.ensureSessionEvents = async () => undefined;
 
+  internals.handleEvent({ type: "agent_start", sequence: 6 });
+  assert.equal(manager.isRunning("remote-session"), true);
+  const cancelling = session.cancel();
+  assert.equal(manager.getThreadStateSnapshot("remote-session").metadata.running, false);
+  managerInternals.handleHostFrame(
+    { type: "host/session-status", sessionId: "remote-session", running: true },
+    1,
+  );
+  assert.equal(manager.isRunning("remote-session"), false);
+  internals.handleEvent({ type: "agent_settled", sequence: 8 });
+  finishCancel();
+  await cancelling;
+  managerInternals.handleHostFrame(
+    {
+      type: "host/session-changed",
+      sessionId: "remote-session",
+      summary: summary({ running: true }),
+    },
+    1,
+  );
+  assert.equal(manager.isRunning("remote-session"), false);
+  assert.equal(session.getSnapshot().isRunning, false);
+
   await session.resume("checkpoint-1", "leaf-1");
 
   assert.deepEqual(requests, [
+    { method: "session.cancel", payload: { sessionId: "remote-session" } },
     {
       method: "session.resume",
       payload: {
@@ -496,6 +537,70 @@ test("continues a matching checkpoint without regenerating or truncating message
   ]);
   assert.deepEqual(session.getSnapshot().messages, messages);
   assert.equal(session.getSnapshot().isRunning, true);
+
+  const assertRunning = () => {
+    assert.equal(session.getSnapshot().isRunning, true);
+    assert.equal(manager.isRunning("remote-session"), true);
+    assert.equal(manager.getThreadStateSnapshot("remote-session").metadata.running, true);
+    assert.equal(manager.getThreadCustom("remote-session")?.piRunning, true);
+    assert.equal(manager.getThreadStateSnapshot("remote-session").metadata.completed, false);
+  };
+  // A stop-time metadata baseline can arrive while resume is still awaiting agent_start.
+  managerInternals.applyRunningSnapshot([], true);
+  assertRunning();
+  internals.handleEvent({ type: "agent_start", sequence: 9 });
+  managerInternals.handleHostFrame(
+    { type: "host/session-status", sessionId: "remote-session", running: false },
+    1,
+  );
+  assertRunning();
+  for (const type of ["host/session-added", "host/session-changed"] as const) {
+    managerInternals.handleHostFrame(
+      { type, sessionId: "remote-session", blank: false, summary: summary() },
+      1,
+    );
+    assertRunning();
+  }
+  managerInternals.handleMuxFrame(
+    {
+      type: "server-request",
+      rpcId: "stopped-prompt",
+      method: "session/prompt-accepted",
+      payload: {
+        type: "session/prompt-accepted",
+        sessionId: "remote-session",
+        mode: "queue",
+        running: false,
+      },
+    },
+    1,
+  );
+  assertRunning();
+  internals.handleEvent({ type: "agent_settled", sequence: 10 });
+  assert.equal(session.getSnapshot().isRunning, false);
+  assert.equal(manager.getThreadStateSnapshot("remote-session").metadata.running, false);
+});
+
+test("restores the running indicator when stopping fails", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () => {
+    throw new Error("cancel failed");
+  };
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("remote-session", "remote-session");
+  const internals = session as unknown as { handleEvent(event: PiEvent): void };
+  internals.handleEvent({ type: "agent_start" });
+
+  const cancelling = session.cancel();
+  assert.equal(manager.isRunning("remote-session"), false);
+  await assert.rejects(cancelling);
+  assert.equal(session.isStopRequested, false);
+  assert.equal(session.getSnapshot().isRunning, true);
+  assert.equal(manager.isRunning("remote-session"), true);
 });
 
 test("reloads and repairs a missing checkpoint before continuing an existing stopped card", async (t) => {

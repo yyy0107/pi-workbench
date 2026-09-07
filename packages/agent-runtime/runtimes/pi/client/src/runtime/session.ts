@@ -456,6 +456,7 @@ export class PiClientSession implements ConversationSession {
   private promptRequestPending = false;
   private localRunLeaseActive = false;
   private terminalResponseReceived = false;
+  private stopRequest?: Promise<void>;
   private readonly pendingPromptRpcIds = new Set<string>();
   private readonly attachmentRecognitionSnapshots = new Map<
     string,
@@ -852,6 +853,7 @@ export class PiClientSession implements ConversationSession {
     this.promptRequestPending = false;
     this.localRunLeaseActive = false;
     this.terminalResponseReceived = false;
+    this.stopRequest = undefined;
     this.messagePublishScheduled = false;
     this.authoritativeMessageIdAliases.clear();
     this.openTask = undefined;
@@ -1171,6 +1173,7 @@ export class PiClientSession implements ConversationSession {
     this.promptRequestPending = true;
     this.localRunLeaseActive = true;
     this.terminalResponseReceived = false;
+    this.stopRequest = undefined;
     // A running external-store snapshot is a complete turn: user and assistant rows are both
     // present from its first observable frame and keep the same ids for the whole stream. Establish
     // the local lease before publishing so synchronous subscribers cannot observe an unprotected
@@ -1326,6 +1329,7 @@ export class PiClientSession implements ConversationSession {
     this.promptRequestPending = true;
     this.localRunLeaseActive = true;
     this.terminalResponseReceived = false;
+    this.stopRequest = undefined;
     this.publishMessagesAndSetRunning(true);
 
     try {
@@ -1369,6 +1373,7 @@ export class PiClientSession implements ConversationSession {
     this.promptRequestPending = true;
     this.localRunLeaseActive = true;
     this.terminalResponseReceived = false;
+    this.stopRequest = undefined;
     this.publishMessagesAndSetRunning(true);
     try {
       await this.manager.connections.ensureSessionEvents(sessionId, this.handleEvent);
@@ -1486,10 +1491,29 @@ export class PiClientSession implements ConversationSession {
     }
   }
 
+  get isStopRequested(): boolean {
+    return this.stopRequest !== undefined;
+  }
+
   async cancel(): Promise<void> {
     if (this.disposed) return;
     if (!this.remoteIdValue) return;
-    await cancelPiRpcSession({ sessionId: this.remoteIdValue }, this.manager.rpcTransportOptions);
+    if (this.stopRequest) return this.stopRequest;
+    const remoteId = this.remoteIdValue;
+    const request = cancelPiRpcSession({ sessionId: remoteId }, this.manager.rpcTransportOptions)
+      .then(() => undefined)
+      .catch((error) => {
+        if (this.stopRequest === request) {
+          this.stopRequest = undefined;
+          this.manager.updateRunningFromSession(remoteId, this.snapshotValue.isRunning, this);
+        }
+        throw error;
+      });
+    // Hide the catalog animation immediately, but keep consuming the run's terminal events.
+    // Retain the stop intent until another run starts so late busy frames cannot revive it.
+    this.stopRequest = request;
+    this.manager.updateRunningFromSession(remoteId, false, this);
+    await request;
   }
 
   private async queuePrompt(
@@ -1626,7 +1650,7 @@ export class PiClientSession implements ConversationSession {
     authoritativeBaseline = false,
   ): void {
     if (this.disposed) return;
-    if (running && this.terminalResponseReceived) return;
+    if (running && (this.terminalResponseReceived || this.isStopRequested)) return;
     if (!running && this.localRunLeaseActive) {
       // Live host and mux frames can cross on their independent sockets, so an idle host frame
       // cannot end a locally submitted run before its durable terminal event arrives. A unary
@@ -1694,6 +1718,7 @@ export class PiClientSession implements ConversationSession {
       return;
     }
     if (event.type === "agent_start") {
+      if (!this.snapshotValue.isRunning) this.stopRequest = undefined;
       this.markPromptStarted();
       this.resumeVisibleResponse(event.runTiming);
       this.setRunning(true, true, event.runTiming);
