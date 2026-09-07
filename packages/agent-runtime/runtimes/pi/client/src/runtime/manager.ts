@@ -1207,7 +1207,6 @@ export class PiSessionManager implements AgentRuntime {
   }
 
   async createThread(options: CreateThreadOptions = {}): Promise<string> {
-    const previousDraftId = this.activeDraftId();
     await this.start();
     const created = await createPiRpcSession(
       {
@@ -1219,13 +1218,20 @@ export class PiSessionManager implements AgentRuntime {
     await this.refreshMetadata();
     this.getSession(created.sessionId, created.sessionId);
     this.setActive(created.sessionId, created.sessionId);
-    if (previousDraftId) this.disposeDraft(previousDraftId);
     return created.sessionId;
   }
 
   createDraft(options: CreateThreadOptions = {}): string {
     if (this.disposed) throw new Error("PiSessionManager has been disposed");
-    const previousDraftId = this.activeDraftId();
+    for (const session of this.sessions.values()) {
+      if (
+        !session.remoteId &&
+        this.draftWorkspaces.get(session.localId)?.id === options.workspaceId
+      ) {
+        this.setActive(session.localId, undefined);
+        return session.localId;
+      }
+    }
     const localId = createClientMessageId("pi-thread");
     const workspace = options.workspaceId ? this.workspaces.get(options.workspaceId) : undefined;
     if (workspace) {
@@ -1238,29 +1244,18 @@ export class PiSessionManager implements AgentRuntime {
     }
     this.getSession(localId);
     this.setActive(localId, undefined);
-    if (previousDraftId) this.disposeDraft(previousDraftId);
     return localId;
   }
 
   switchToThread(id: string): void {
     const session = this.session(id);
     if (!session) throw new Error(`Unknown Pi Session: ${id}`);
-    const previousDraftId = session.id === this.activeLocalId ? undefined : this.activeDraftId();
     this.setActive(session.id, session.remoteId);
-    if (previousDraftId) this.disposeDraft(previousDraftId);
   }
 
   switchToNewThread(): void {
     if (this.activeLocalId && this.activeRemoteId === undefined) return;
     this.createDraft();
-  }
-
-  private activeDraftId(): string | undefined {
-    return this.activeLocalId && this.activeRemoteId === undefined ? this.activeLocalId : undefined;
-  }
-
-  private disposeDraft(localId: string): void {
-    if (this.sessions.get(localId)?.remoteId === undefined) this.disposeCachedSession(localId);
   }
 
   async ensureRemote(session: PiClientSession): Promise<PiSessionSummary> {

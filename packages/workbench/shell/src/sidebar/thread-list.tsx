@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useI18n } from "../i18n";
 import { SidebarRow } from "../ui/sidebar-items";
 import { Skeleton } from "../ui/skeleton";
-import { DraftThreadListItem } from "./draft-thread-list-item";
 import { WorkbenchThreadListItem } from "./thread-list-item";
 import { sidebarThreadScope, useWorkspaceSidebar } from "./workspace-sidebar-context";
 
@@ -14,13 +13,11 @@ export function WorkbenchThreadList({
   workspaceId,
   pinnedOnly = false,
   showEmpty = true,
-  showNewThread = false,
   onNavigate,
 }: {
   workspaceId?: string;
   pinnedOnly?: boolean;
   showEmpty?: boolean;
-  showNewThread?: boolean;
   onNavigate?: () => void;
 }) {
   const { t } = useI18n();
@@ -46,12 +43,9 @@ export function WorkbenchThreadList({
       : [];
   });
   const loading = sidebar.isLoading && sidebar.threadsById.size === 0;
-  const threadLimit = workspaceId ? visibleCount - (showNewThread ? 1 : 0) : threads.length;
+  const threadLimit = workspaceId ? visibleCount : threads.length;
   return (
     <div className="flex min-h-0 flex-col gap-(--sidebar-list-gap)" data-sidebar-scope={scope}>
-      {showNewThread && workspaceId ? (
-        <DraftThreadListItem workspaceId={workspaceId} onNavigate={onNavigate} />
-      ) : null}
       {loading ? (
         <div aria-label={t("workbench.sidebar.loading")}>
           {Array.from({ length: 5 }, (_, index) => (

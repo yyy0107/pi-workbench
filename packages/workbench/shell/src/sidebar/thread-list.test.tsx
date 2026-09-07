@@ -17,7 +17,6 @@ import { I18nProvider } from "../i18n";
 import { WorkbenchSettingsProvider, type WorkbenchSettingsPort } from "../settings";
 import { WorkbenchNavigationProvider, type WorkbenchNavigationPort } from "../navigation";
 import { SidebarRow } from "../ui/sidebar-items";
-import { DraftThreadListItem } from "./draft-thread-list-item";
 import { WorkbenchThreadList } from "./thread-list";
 import { WorkbenchThreadListItem } from "./thread-list-item";
 import {
@@ -113,7 +112,6 @@ test("workspace conversations isolate selection updates and paginate independent
   let draftWorkspaceId: string | undefined;
   let collapsedWorkspaceIds: string[] = [];
   let searchQuery = "";
-  let showNewThread = false;
   const lists = new Map<string, ReturnType<typeof WorkbenchThreadList>>();
 
   const rowRenders = new Map<string, number>();
@@ -158,7 +156,7 @@ test("workspace conversations isolate selection updates and paginate independent
                 <WorkbenchNavigationProvider navigation={navigation}>
                   <SidebarDragSessionProvider>
                     <WorkspaceSidebarProvider searchQuery={searchQuery}>
-                      <Probe workspaceId="project" showNewThread={showNewThread} />
+                      <Probe workspaceId="project" />
                       <Probe workspaceId="pinned-project" />
                       <Probe pinnedOnly />
                       <RowProbe id="pinned-0" />
@@ -175,11 +173,8 @@ test("workspace conversations isolate selection updates and paginate independent
     });
   const children = (id = "project") => Children.toArray(lists.get(id)?.props.children);
   const rowCount = (id = "project") =>
-    children(id).filter(
-      (child) =>
-        isValidElement(child) &&
-        (child.type === WorkbenchThreadListItem || child.type === DraftThreadListItem),
-    ).length;
+    children(id).filter((child) => isValidElement(child) && child.type === WorkbenchThreadListItem)
+      .length;
   const more = (id = "project") =>
     children(id)
       .filter(isValidElement<{ label: string; onActivate(): void }>)
@@ -249,11 +244,18 @@ test("workspace conversations isolate selection updates and paginate independent
     assert.equal(rowCount(), 5);
     assert.ok(more());
 
-    showNewThread = true;
+    draftWorkspaceId = "project";
+    navigation = { ...navigation, currentConversationId: undefined, isHome: true };
+    await act(async () => {
+      current = { sessionId: "local-draft", isNewThread: true };
+      currentListeners.forEach((listener) => listener());
+    });
     await render();
     assert.equal(rowCount(), 5);
-    assert.ok(
-      children().some((child) => isValidElement(child) && child.type === DraftThreadListItem),
+    assert.equal(
+      children().filter(isValidElement).length,
+      6,
+      "a new conversation adds no placeholder row and consumes no pagination slot",
     );
     await showMore();
     assert.equal(rowCount(), 10);
@@ -261,7 +263,6 @@ test("workspace conversations isolate selection updates and paginate independent
     collapsedWorkspaceIds = ["project"];
     await render();
     collapsedWorkspaceIds = [];
-    showNewThread = false;
     searchQuery = "Match";
     await render();
     assert.equal(rowCount(), 5);

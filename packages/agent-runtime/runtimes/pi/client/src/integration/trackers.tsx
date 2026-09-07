@@ -18,11 +18,6 @@ export function PiDraftWorkspaceTracker({ manager }: { manager: PiSessionManager
 
   useLayoutEffect(() => {
     if (!newThreadId) return;
-    return () => manager.setDraftWorkspace(newThreadId, undefined);
-  }, [manager, newThreadId]);
-
-  useLayoutEffect(() => {
-    if (!newThreadId) return;
     const workspace =
       draftWorkspaceId === undefined ||
       draftWorkspaceName === undefined ||

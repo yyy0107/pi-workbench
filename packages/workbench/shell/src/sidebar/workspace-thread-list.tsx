@@ -160,10 +160,6 @@ const WorkspaceDirectorySection = memo(function WorkspaceDirectorySection({
       active: state.selection.activeWorkspaceId === directory.id,
       expanded: !state.selection.collapsedWorkspaceIds.includes(directory.id),
       running: state.groups.runningWorkspaceIds.has(directory.id),
-      isDraft:
-        state.current.isNewThread &&
-        state.navigation.isHome &&
-        state.selection.draftWorkspaceId === directory.id,
       searchQuery: state.searchQuery,
       capabilities: state.capabilities,
       runtime: state.runtime,
@@ -179,9 +175,6 @@ const WorkspaceDirectorySection = memo(function WorkspaceDirectorySection({
   const running = !expanded && sidebar.running;
   const pinned = directory.pinned === true;
   const query = sidebar.searchQuery.trim().toLocaleLowerCase();
-  const showNewThread =
-    sidebar.isDraft &&
-    (!query || t("workbench.sidebar.newThread").toLocaleLowerCase().includes(query));
   const remove = async () => {
     try {
       await sidebar.capabilities.removeWorkspace(directory.id);
@@ -294,12 +287,7 @@ const WorkspaceDirectorySection = memo(function WorkspaceDirectorySection({
         />
       }
     >
-      <WorkbenchThreadList
-        workspaceId={directory.id}
-        showEmpty={!showNewThread && !query}
-        showNewThread={showNewThread}
-        onNavigate={onNavigate}
-      />
+      <WorkbenchThreadList workspaceId={directory.id} showEmpty={!query} onNavigate={onNavigate} />
     </SidebarGroup>
   );
 });

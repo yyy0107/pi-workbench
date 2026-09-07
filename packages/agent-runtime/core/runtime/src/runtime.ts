@@ -65,7 +65,7 @@ export interface AgentRuntime {
   readonly threadActions: Readonly<Partial<ThreadListActions>>;
   session(id: string): ConversationSession | undefined;
   createThread(options?: CreateThreadOptions): Promise<string>;
-  /** Create and select a fresh local draft without allocating a remote conversation. */
+  /** Create or restore and select a local draft without allocating a remote conversation. */
   createDraft(options?: CreateThreadOptions): string;
   switchToThread(id: string): void;
   switchToNewThread(): void;
