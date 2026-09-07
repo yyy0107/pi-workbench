@@ -1,3 +1,4 @@
+import { readDesktopSystemFontsPort } from "@workbench/desktop-contracts";
 import {
   readDesktopRuntimeBootstrapPort,
   readDesktopRuntimeLifecyclePort,
@@ -6,6 +7,7 @@ import { defineRuntimeConnection, type RuntimeConnection } from "@workbench/host
 
 export interface WorkbenchDesktopBridge {
   readonly settings?: unknown;
+  readonly systemFonts?: unknown;
   readonly lifecycle?: unknown;
   readonly runtime?: unknown;
   readonly titleBar?: unknown;
@@ -40,4 +42,10 @@ export async function restartDesktopRuntime(): Promise<void> {
   await port.restartRuntime();
   // Keep the current shell and its restart command available if replacement fails.
   window.location.reload();
+}
+
+export async function getDesktopFontFamilies(): Promise<readonly string[]> {
+  const port = readDesktopSystemFontsPort(window.workbenchDesktop?.systemFonts);
+  if (!port) throw new Error("Desktop system fonts capability is unavailable.");
+  return port.getFontFamilies();
 }

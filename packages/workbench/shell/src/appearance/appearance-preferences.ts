@@ -31,11 +31,25 @@ export const CORNER_RADIUS_STYLES = [
 ] as const;
 export type CornerRadiusStyle = (typeof CORNER_RADIUS_STYLES)[number];
 
-export const UI_FONT_FAMILIES = ["system", "geist", "serif", "rounded", "ubuntuSansMono"] as const;
-export type UiFontFamily = (typeof UI_FONT_FAMILIES)[number];
+export const UI_FONT_FAMILIES = ["system"] as const;
+export type LocalFontFamily = `local:${string}`;
+
+export function isLocalFontFamily(value: unknown): value is LocalFontFamily {
+  return (
+    typeof value === "string" &&
+    value.startsWith("local:") &&
+    value.length <= 256 &&
+    value.slice(6).trim().length > 0 &&
+    // Reject control characters before using persisted names in CSS.
+    // eslint-disable-next-line no-control-regex
+    !/[\u0000-\u001f\u007f]/u.test(value)
+  );
+}
+
+export type UiFontFamily = (typeof UI_FONT_FAMILIES)[number] | LocalFontFamily;
 
 export const CONTENT_FONT_FAMILIES = ["inherit", ...UI_FONT_FAMILIES] as const;
-export type ContentFontFamily = (typeof CONTENT_FONT_FAMILIES)[number];
+export type ContentFontFamily = "inherit" | UiFontFamily;
 
 export const FONT_WEIGHTS = [300, 400, 500, 600, 700] as const;
 export type FontWeight = (typeof FONT_WEIGHTS)[number];
@@ -46,21 +60,8 @@ export type RunningIndicatorId = (typeof RUNNING_INDICATOR_IDS)[number];
 export const MIN_RUNNING_INDICATOR_SIZE = 12;
 export const MAX_RUNNING_INDICATOR_SIZE = 32;
 
-export const CODE_FONT_FAMILIES = [
-  "geistMono",
-  "systemMono",
-  "compactMono",
-  "jetBrainsMono",
-  "firaCode",
-  "cascadiaCode",
-  "sourceCodePro",
-  "ibmPlexMono",
-  "menlo",
-  "consolas",
-  "liberationMono",
-  "ubuntuMono",
-] as const;
-export type CodeFontFamily = (typeof CODE_FONT_FAMILIES)[number];
+export const CODE_FONT_FAMILIES = ["systemMono"] as const;
+export type CodeFontFamily = (typeof CODE_FONT_FAMILIES)[number] | LocalFontFamily;
 
 export const CODE_THEMES = [
   "dark-plus",
@@ -257,7 +258,7 @@ export const DEFAULT_APPEARANCE_PREFERENCES = Object.freeze({
   runningIndicatorSize: 14,
   composerAnimationEnabled: true,
   composerAnimationIntensity: 50,
-  codeFont: "consolas",
+  codeFont: "systemMono",
   codeFontWeight: 400,
   uiFontSize: 16,
   codeFontSize: 13,
@@ -278,6 +279,37 @@ function isNonEmptyString(value: unknown): value is string {
 
 function isOneOf<T extends string | number>(value: unknown, options: readonly T[]): value is T {
   return options.includes(value as T);
+}
+
+// Keep saved selections usable as installed fonts after removing bundled font presets.
+const LEGACY_FONT_FAMILIES: Readonly<Record<string, LocalFontFamily>> = {
+  geist: "local:Geist",
+  notoSansSc: "local:Noto Sans SC",
+  notoSerifSc: "local:Noto Serif SC",
+  serif: "local:Georgia",
+  rounded: "local:SF Pro Rounded",
+  ubuntuSansMono: "local:Ubuntu Sans Mono",
+  geistMono: "local:Geist Mono",
+  compactMono: "local:SFMono-Regular",
+  jetBrainsMono: "local:JetBrains Mono",
+  firaCode: "local:Fira Code",
+  cascadiaCode: "local:Cascadia Code",
+  sourceCodePro: "local:Source Code Pro",
+  ibmPlexMono: "local:IBM Plex Mono",
+  menlo: "local:Menlo",
+  consolas: "local:Consolas",
+  liberationMono: "local:Liberation Mono",
+  ubuntuMono: "local:Ubuntu Mono",
+};
+
+function parseFontFamily<T extends string>(
+  value: unknown,
+  options: readonly T[],
+): T | LocalFontFamily | undefined {
+  if (isLocalFontFamily(value) || isOneOf(value, options)) return value;
+  return typeof value === "string" && Object.hasOwn(LEGACY_FONT_FAMILIES, value)
+    ? LEGACY_FONT_FAMILIES[value]
+    : undefined;
 }
 
 function isSurfaceOpacity(value: unknown): value is SurfaceOpacity {
@@ -380,19 +412,17 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
     darkContrast: isIntegerInRange(value.darkContrast, MIN_THEME_CONTRAST, MAX_THEME_CONTRAST)
       ? value.darkContrast
       : DEFAULT_APPEARANCE_PREFERENCES.darkContrast,
-    uiFont: isOneOf(value.uiFont, UI_FONT_FAMILIES)
-      ? value.uiFont
-      : isOneOf(value.lightUiFont, UI_FONT_FAMILIES)
-        ? value.lightUiFont
-        : isOneOf(value.darkUiFont, UI_FONT_FAMILIES)
-          ? value.darkUiFont
-          : DEFAULT_APPEARANCE_PREFERENCES.uiFont,
+    uiFont:
+      parseFontFamily(value.uiFont, UI_FONT_FAMILIES) ??
+      parseFontFamily(value.lightUiFont, UI_FONT_FAMILIES) ??
+      parseFontFamily(value.darkUiFont, UI_FONT_FAMILIES) ??
+      DEFAULT_APPEARANCE_PREFERENCES.uiFont,
     uiFontWeight: isOneOf(value.uiFontWeight, FONT_WEIGHTS)
       ? value.uiFontWeight
       : DEFAULT_APPEARANCE_PREFERENCES.uiFontWeight,
-    contentFont: isOneOf(value.contentFont, CONTENT_FONT_FAMILIES)
-      ? value.contentFont
-      : DEFAULT_APPEARANCE_PREFERENCES.contentFont,
+    contentFont:
+      parseFontFamily(value.contentFont, CONTENT_FONT_FAMILIES) ??
+      DEFAULT_APPEARANCE_PREFERENCES.contentFont,
     contentFontWeight: isOneOf(value.contentFontWeight, FONT_WEIGHTS)
       ? value.contentFontWeight
       : DEFAULT_APPEARANCE_PREFERENCES.contentFontWeight,
@@ -417,13 +447,11 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
           )
         ? legacyRunningIndicator.size
         : DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorSize,
-    codeFont: isOneOf(value.codeFont, CODE_FONT_FAMILIES)
-      ? value.codeFont
-      : isOneOf(value.lightCodeFont, CODE_FONT_FAMILIES)
-        ? value.lightCodeFont
-        : isOneOf(value.darkCodeFont, CODE_FONT_FAMILIES)
-          ? value.darkCodeFont
-          : DEFAULT_APPEARANCE_PREFERENCES.codeFont,
+    codeFont:
+      parseFontFamily(value.codeFont, CODE_FONT_FAMILIES) ??
+      parseFontFamily(value.lightCodeFont, CODE_FONT_FAMILIES) ??
+      parseFontFamily(value.darkCodeFont, CODE_FONT_FAMILIES) ??
+      DEFAULT_APPEARANCE_PREFERENCES.codeFont,
     codeFontWeight: isOneOf(value.codeFontWeight, FONT_WEIGHTS)
       ? value.codeFontWeight
       : DEFAULT_APPEARANCE_PREFERENCES.codeFontWeight,

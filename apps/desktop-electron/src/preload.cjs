@@ -37,6 +37,9 @@ contextBridge.exposeInMainWorld(
         return () => ipcRenderer.removeListener("workbench:desktop-notification-sound", handler);
       },
     }),
+    systemFonts: Object.freeze({
+      getFontFamilies: () => ipcRenderer.invoke("workbench:system-fonts"),
+    }),
     lifecycle: Object.freeze({
       restartRuntime: () => ipcRenderer.invoke(RUNTIME_RESTART_CHANNEL),
     }),

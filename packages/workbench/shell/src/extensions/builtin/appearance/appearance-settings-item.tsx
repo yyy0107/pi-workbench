@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckIcon, ChevronDownIcon, ImagePlusIcon, Trash2Icon } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { CodeThemePreview } from "../../../code-highlighting/code-theme-preview";
 import { RunningThreadIndicator } from "../../../elements/running-thread-indicator";
@@ -60,8 +60,13 @@ import {
   type FontWeight,
   type RunningIndicatorId,
   type UiFontFamily,
+  isLocalFontFamily,
 } from "../../../appearance";
-import { useAppearanceController, useAppearancePreferences } from "../../../appearance";
+import {
+  useAppearanceController,
+  useAppearancePreferences,
+  useSystemFonts,
+} from "../../../appearance";
 
 import {
   useBackgroundImage,
@@ -381,7 +386,11 @@ function SelectControl<Value extends string | number>({
         <span className="min-w-0 truncate">{optionLabel(value)}</span>
         <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
       </SettingsDropdownTrigger>
-      <SettingsDropdownContent align="end" side="bottom">
+      <SettingsDropdownContent
+        align="end"
+        side="bottom"
+        className="max-h-[min(20rem,var(--available-height))]"
+      >
         {options.map((option) => (
           <SettingsDropdownItem key={option} onClick={() => onChange(option)}>
             <span className="min-w-0 flex-1">{optionLabel(option)}</span>
@@ -418,7 +427,7 @@ function FontControl<Value extends string>({
       <SelectControl
         label={label}
         value={value}
-        options={options}
+        options={options.includes(value) ? options : [...options, value]}
         optionLabel={optionLabel}
         onChange={onChange}
       />
@@ -820,7 +829,12 @@ function ColorControl({
 }
 
 export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
-  const { t, text, number } = useI18n();
+  const { t, text, number, locale } = useI18n();
+  const { fonts: systemFonts, status: systemFontStatus } = useSystemFonts();
+  const systemFontOptions = useMemo(
+    () => [...systemFonts].sort((a, b) => a.slice(6).localeCompare(b.slice(6), locale)),
+    [systemFonts, locale],
+  );
   const appearanceController = useAppearanceController();
   const preferences = useAppearancePreferences();
   const systemDark = useMediaQuery("(prefers-color-scheme: dark)");
@@ -856,7 +870,7 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
   const cornerRadiusIndexLabel = (value: number): string =>
     cornerRadiusLabel(CORNER_RADIUS_STYLES[value] ?? preferences.cornerRadius);
   const uiFontLabel = (value: UiFontFamily): string =>
-    t(`extensions.appearance.fontFamilies.ui.${value}`);
+    isLocalFontFamily(value) ? value.slice(6) : t(`extensions.appearance.fontFamilies.ui.${value}`);
   const contentFontLabel = (value: ContentFontFamily): string =>
     value === "inherit" ? t("extensions.appearance.typography.inheritUiFont") : uiFontLabel(value);
   const runningIndicatorLabel = (value: RunningIndicatorId): string =>
@@ -866,7 +880,9 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
   const activityIndicatorSizeLabel = (value: number): string =>
     t("extensions.appearance.activityAnimation.sizeValue", { size: value });
   const codeFontLabel = (value: CodeFontFamily): string =>
-    t(`extensions.appearance.fontFamilies.code.${value}`);
+    isLocalFontFamily(value)
+      ? value.slice(6)
+      : t(`extensions.appearance.fontFamilies.code.${value}`);
   const codeThemeLabel = (value: CodeTheme): string =>
     t(`extensions.appearance.codeThemes.${value}`);
   const contrastLabel = (value: number): string =>
@@ -932,11 +948,19 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                       }
                     />
                   </SettingRow>
-                  <SettingRow label={t("extensions.appearance.typography.font")} wideControl>
+                  <SettingRow
+                    label={t("extensions.appearance.typography.font")}
+                    description={
+                      systemFontStatus === "ready"
+                        ? undefined
+                        : t(`extensions.appearance.systemFonts.${systemFontStatus}`)
+                    }
+                    wideControl
+                  >
                     <FontControl
                       label={t("extensions.appearance.typography.font")}
                       value={preferences.uiFont}
-                      options={UI_FONT_FAMILIES}
+                      options={[...UI_FONT_FAMILIES, ...systemFontOptions]}
                       optionLabel={uiFontLabel}
                       weight={preferences.uiFontWeight}
                       onChange={(uiFont) => appearanceController.update({ uiFont })}
@@ -971,7 +995,7 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                     <FontControl
                       label={t("extensions.appearance.typography.contentFont")}
                       value={preferences.contentFont}
-                      options={CONTENT_FONT_FAMILIES}
+                      options={[...CONTENT_FONT_FAMILIES, ...systemFontOptions]}
                       optionLabel={contentFontLabel}
                       weight={
                         preferences.contentFont === "inherit"
@@ -989,7 +1013,7 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                     <FontControl
                       label={t("extensions.appearance.code.font")}
                       value={preferences.codeFont}
-                      options={CODE_FONT_FAMILIES}
+                      options={[...CODE_FONT_FAMILIES, ...systemFontOptions]}
                       optionLabel={codeFontLabel}
                       weight={preferences.codeFontWeight}
                       onChange={(codeFont) => appearanceController.update({ codeFont })}

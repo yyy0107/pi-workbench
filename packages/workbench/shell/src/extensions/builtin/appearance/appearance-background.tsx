@@ -2,14 +2,9 @@
 
 import { useEffect, useRef, type CSSProperties } from "react";
 
-import {
-  type BackgroundBlur,
-  type CodeFontFamily,
-  type CornerRadiusStyle,
-  type GlassBlur,
-  type UiFontFamily,
-} from "../../../appearance";
+import { type BackgroundBlur, type CornerRadiusStyle, type GlassBlur } from "../../../appearance";
 import { useAppearancePreferences } from "../../../appearance";
+import { uiFontStack, codeFontStack } from "../../../appearance/font-families";
 import { useMediaQuery } from "../../../hooks/use-media-query";
 
 import { useBackgroundImage } from "./background-image-store";
@@ -26,29 +21,6 @@ const GLASS_BLUR_STYLES: Record<GlassBlur, string> = {
   soft: "6px",
   medium: "12px",
   strong: "20px",
-};
-
-const UI_FONT_STACKS: Record<UiFontFamily, string> = {
-  system: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  geist: "var(--font-geist-sans), system-ui, sans-serif",
-  serif: "ui-serif, Georgia, Cambria, 'Times New Roman', serif",
-  rounded: "ui-rounded, 'SF Pro Rounded', system-ui, sans-serif",
-  ubuntuSansMono: "'Ubuntu Sans Mono', 'Ubuntu Mono', ui-monospace, monospace",
-};
-
-const CODE_FONT_STACKS: Record<CodeFontFamily, string> = {
-  geistMono: "var(--font-geist-mono), ui-monospace, monospace",
-  systemMono: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-  compactMono: "'SFMono-Regular', Consolas, 'Liberation Mono', monospace",
-  jetBrainsMono: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-  firaCode: "'Fira Code', 'Fira Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
-  cascadiaCode: "'Cascadia Code', 'Cascadia Mono', Consolas, ui-monospace, monospace",
-  sourceCodePro: "'Source Code Pro', 'Liberation Mono', ui-monospace, monospace",
-  ibmPlexMono: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
-  menlo: "Menlo, Monaco, 'Courier New', monospace",
-  consolas: "Consolas, 'Courier New', monospace",
-  liberationMono: "'Liberation Mono', 'DejaVu Sans Mono', ui-monospace, monospace",
-  ubuntuMono: "'Ubuntu Mono', 'Liberation Mono', ui-monospace, monospace",
 };
 
 const SURFACE_COLOR_PROPERTIES = [
@@ -196,14 +168,14 @@ export function AppearanceBackground() {
       "--workbench-light-accent": preferences.lightAccentColor,
       "--workbench-light-background": preferences.lightBackgroundColor,
       "--workbench-light-foreground": preferences.lightForegroundColor,
-      "--workbench-light-ui-font": UI_FONT_STACKS[preferences.uiFont],
-      "--workbench-light-code-font": CODE_FONT_STACKS[preferences.codeFont],
+      "--workbench-light-ui-font": uiFontStack(preferences.uiFont),
+      "--workbench-light-code-font": codeFontStack(preferences.codeFont),
       "--workbench-light-contrast": `${preferences.lightContrast}%`,
       "--workbench-dark-accent": preferences.darkAccentColor,
       "--workbench-dark-background": preferences.darkBackgroundColor,
       "--workbench-dark-foreground": preferences.darkForegroundColor,
-      "--workbench-dark-ui-font": UI_FONT_STACKS[preferences.uiFont],
-      "--workbench-dark-code-font": CODE_FONT_STACKS[preferences.codeFont],
+      "--workbench-dark-ui-font": uiFontStack(preferences.uiFont),
+      "--workbench-dark-code-font": codeFontStack(preferences.codeFont),
       "--workbench-dark-contrast": `${preferences.darkContrast}%`,
       "--workbench-ui-font-size": `${preferences.uiFontSize}px`,
       "--workbench-code-font-size": `${preferences.codeFontSize}px`,
@@ -211,7 +183,7 @@ export function AppearanceBackground() {
       "--workbench-content-font":
         preferences.contentFont === "inherit"
           ? "var(--workbench-theme-ui-font)"
-          : UI_FONT_STACKS[preferences.contentFont],
+          : uiFontStack(preferences.contentFont),
       "--workbench-content-font-weight": String(
         preferences.contentFont === "inherit"
           ? preferences.uiFontWeight

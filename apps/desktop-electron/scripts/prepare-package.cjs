@@ -115,6 +115,7 @@ const PACKAGED_MAIN_LOCAL_EXTERNALS = Object.freeze([
   "packaged-runtime-lifecycle.cjs",
   "runtime-artifact-environment.cjs",
   "title-bar-overlay.cjs",
+  "system-fonts.cjs",
 ]);
 
 function packagedMainLocalRuntimePlugin() {

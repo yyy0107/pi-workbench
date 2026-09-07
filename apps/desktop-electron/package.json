@@ -60,6 +60,7 @@
       "electron/runtime-artifact-environment.cjs",
       "electron/server-process-lifecycle.cjs",
       "electron/title-bar-overlay.cjs",
+      "electron/system-fonts.cjs",
       "public/app-icon.png",
       "!node_modules/**/*"
     ],

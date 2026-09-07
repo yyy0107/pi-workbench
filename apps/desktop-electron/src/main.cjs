@@ -19,11 +19,13 @@ const {
   assertDesktopRendererDevelopmentResponse,
   createDesktopRendererProtocolHandler,
 } = require("./desktop-renderer-protocol.cjs");
+const { getSystemFontFamilies } = require("./system-fonts.cjs");
 const { copyTitleBarOverlayOptions } = require("./title-bar-overlay.cjs");
 const { resolveDesktopArtifactSupport } = require("./runtime-artifact-environment.cjs");
 
 const RUNTIME_BOOTSTRAP_CHANNEL = "workbench:runtime-bootstrap";
 const RUNTIME_RESTART_CHANNEL = "workbench:runtime-restart";
+const SYSTEM_FONTS_CHANNEL = "workbench:system-fonts";
 const TITLE_BAR_OVERLAY_CHANNEL = "workbench:title-bar-overlay";
 protocol.registerSchemesAsPrivileged([
   {
@@ -125,6 +127,17 @@ function isTrustedMainFrameEvent(event) {
     return false;
   }
 }
+
+let systemFontFamiliesRequest;
+ipcMain.handle(SYSTEM_FONTS_CHANNEL, (event) => {
+  if (!isTrustedMainFrameEvent(event))
+    throw new Error("System fonts are unavailable to this frame.");
+  systemFontFamiliesRequest ??= getSystemFontFamilies().catch((error) => {
+    systemFontFamiliesRequest = undefined;
+    throw error;
+  });
+  return systemFontFamiliesRequest;
+});
 
 ipcMain.on(RUNTIME_BOOTSTRAP_CHANNEL, (event) => {
   const response =

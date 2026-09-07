@@ -9,6 +9,7 @@ import {
 import { MainViewHost as ExtensionMainViewHost } from "@workbench/extension-host/hosts/main-view-host";
 import { defineExtension } from "@workbench/extension-sdk";
 import type { RuntimeConnection } from "@workbench/host-contracts";
+import { SystemFontsProvider } from "@workbench/shell/appearance";
 import { WorkbenchThread } from "@workbench/shell/chat";
 import { createTranslationBundleMessageFactory, type Locale } from "@workbench/shell/i18n";
 import { useWorkbenchNavigation } from "@workbench/shell/navigation";
@@ -18,7 +19,7 @@ import { DesktopNavigationProvider } from "@/navigation/desktop-navigation-provi
 import { DesktopTitleBarOverlaySync } from "./desktop-title-bar-overlay-sync";
 import { DesktopTaskNotifications } from "./desktop-task-notifications";
 import { desktopSettingsExtension } from "./desktop-settings";
-import { restartDesktopRuntime } from "./runtime-bootstrap";
+import { getDesktopFontFamilies, restartDesktopRuntime } from "./runtime-bootstrap";
 
 const defineDesktopRendererMessage = createTranslationBundleMessageFactory(
   desktopRendererTranslationBundle,
@@ -78,16 +79,18 @@ export function DesktopWorkbench({
       installationId="desktop-renderer-primary"
       runtimeConnection={runtimeConnection}
     >
-      <DesktopNavigationProvider>
-        <PiWorkbenchShell
-          assets={PRODUCT_ASSETS}
-          platformExtensions={DESKTOP_EXTENSIONS}
-          installationEffects={DesktopInstallationEffects}
-          mainViewHost={DesktopMainViewHost}
-        >
-          <WorkbenchThread />
-        </PiWorkbenchShell>
-      </DesktopNavigationProvider>
+      <SystemFontsProvider value={getDesktopFontFamilies}>
+        <DesktopNavigationProvider>
+          <PiWorkbenchShell
+            assets={PRODUCT_ASSETS}
+            platformExtensions={DESKTOP_EXTENSIONS}
+            installationEffects={DesktopInstallationEffects}
+            mainViewHost={DesktopMainViewHost}
+          >
+            <WorkbenchThread />
+          </PiWorkbenchShell>
+        </DesktopNavigationProvider>
+      </SystemFontsProvider>
     </PiWorkbenchApplicationProviders>
   );
 }

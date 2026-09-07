@@ -74,10 +74,10 @@ test("maps registered section ids to appearance settings pages", () => {
 test("theme reset owns all fonts, sizes, weights and code syntax", () => {
   const preferences = {
     ...DEFAULT_APPEARANCE_PREFERENCES,
-    uiFont: "ubuntuSansMono",
+    uiFont: "local:Ubuntu Sans Mono",
     uiFontWeight: 500,
     uiFontSize: 18,
-    contentFont: "serif",
+    contentFont: "local:Georgia",
     contentFontWeight: 300,
     codeFont: "systemMono",
     codeFontWeight: 600,

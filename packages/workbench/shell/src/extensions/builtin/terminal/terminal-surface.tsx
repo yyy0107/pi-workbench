@@ -68,11 +68,6 @@ const TERMINAL_MONOSPACE_FALLBACK =
 const TERMINAL_SCROLLBAR_FALLBACK_SIZE = 16;
 const TERMINAL_VIEWPORT_CLASS_NAME = `${styles.scrollbarTheme} min-h-0 flex-1 overflow-hidden py-2 ps-2 [&_.xterm]:h-full [&_.xterm-viewport]:!bg-transparent [&_.xterm-viewport]:!overflow-y-auto`;
 
-function resolveTerminalFontFamily(container: HTMLElement): string {
-  const geistMono = getComputedStyle(container).getPropertyValue("--font-geist-mono").trim();
-  return geistMono ? `${geistMono}, ${TERMINAL_MONOSPACE_FALLBACK}` : TERMINAL_MONOSPACE_FALLBACK;
-}
-
 const LIGHT_ANSI_THEME = {
   black: "#24292f",
   red: "#cf222e",
@@ -197,7 +192,7 @@ function xtermOptions(
     cursorBlink: false,
     cursorStyle: "block",
     disableStdin: disabledStdin,
-    fontFamily: resolveTerminalFontFamily(container),
+    fontFamily: TERMINAL_MONOSPACE_FALLBACK,
     fontSize: 12,
     fontWeight: "400",
     fontWeightBold: "700",
@@ -483,7 +478,7 @@ function TerminalTranscriptSurface({
       if (visibleRef.current) resizeObserver.observe();
       void document.fonts.ready.then(() => {
         if (disposed || !terminal) return;
-        terminal.options.fontFamily = resolveTerminalFontFamily(container);
+        terminal.options.fontFamily = TERMINAL_MONOSPACE_FALLBACK;
         resizeObserver?.schedule();
       });
       interruptRef.current = () => {
@@ -841,7 +836,7 @@ function PtyTerminalSurface({
       if (visibleRef.current) resizeObserver.observe();
       void document.fonts.ready.then(() => {
         if (disposed || !terminal) return;
-        terminal.options.fontFamily = resolveTerminalFontFamily(container);
+        terminal.options.fontFamily = TERMINAL_MONOSPACE_FALLBACK;
         resizeObserver?.schedule();
       });
       connect();

@@ -76,16 +76,16 @@ test("parses persisted appearance preferences", () => {
     darkBackgroundColor: "#111827",
     darkForegroundColor: "#f9fafb",
     darkContrast: 114,
-    uiFont: "rounded",
+    uiFont: "local:SF Pro Rounded",
     uiFontWeight: 500,
-    contentFont: "ubuntuSansMono",
+    contentFont: "local:Ubuntu Sans Mono",
     contentFontWeight: 300,
     runningIndicatorId: "spinner",
     runningIndicatorStyleId: "weaving",
     runningIndicatorSize: 26,
     composerAnimationEnabled: false,
     composerAnimationIntensity: 75,
-    codeFont: "jetBrainsMono",
+    codeFont: "local:JetBrains Mono",
     codeFontWeight: 600,
     uiFontSize: 18,
     codeFontSize: 15,
@@ -201,8 +201,8 @@ test("migrates fonts from split light and dark preferences", () => {
     }),
   );
 
-  assert.equal(preferences.uiFont, "rounded");
-  assert.equal(preferences.codeFont, "jetBrainsMono");
+  assert.equal(preferences.uiFont, "local:SF Pro Rounded");
+  assert.equal(preferences.codeFont, "local:JetBrains Mono");
   assert.equal("lightUiFont" in preferences, false);
   assert.equal("darkUiFont" in preferences, false);
   assert.equal("lightCodeFont" in preferences, false);
