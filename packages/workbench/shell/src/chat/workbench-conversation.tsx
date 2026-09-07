@@ -40,8 +40,10 @@ import { displayedAgentRunElapsedMs } from "./workbench-thread-timing";
 
 const THREAD_VIEWPORT_MASK_IMAGE =
   "linear-gradient(to bottom, transparent 0, #000 var(--thread-header-fade-size), #000 calc(100% - var(--composer-dock-corner-radius)), transparent 100%), linear-gradient(#000 0 0)";
+// Keep the mask seam outside the entire scrollbar gutter, including its transparent hit area.
+// Using content padding here cuts through the thumb and leaves a line at fractional scales.
 const THREAD_VIEWPORT_MASK_SIZE =
-  "calc(100% - var(--thread-viewport-inline-padding)) 100%, var(--thread-viewport-inline-padding) 100%";
+  "calc(100% - var(--scrollbar-hit-size)) 100%, var(--scrollbar-hit-size) 100%";
 const THREAD_INLINE_GUTTER_CLASS_NAME =
   "[padding-inline:var(--thread-viewport-inline-padding)] [scrollbar-gutter:stable_both-edges]";
 
