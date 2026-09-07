@@ -7,6 +7,7 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { Value } from "typebox/value";
 
 import {
   MAX_AGENT_BASH_INPUT_CHARACTERS,
@@ -112,6 +113,7 @@ export function createWorkbenchBashToolOverride(
         const execution = executionContext.getStore();
         if (!execution) throw new Error("Interactive bash execution context is unavailable.");
         const plan = normalizedResolvedCommand(command, toolOptions.commandPrefix, commandPolicy);
+        const timeout = effectiveTimeout(executionOptions.timeout, plan.timeoutSeconds);
         return terminals.execute({
           sessionId,
           toolCallId: execution.toolCallId,
@@ -119,9 +121,7 @@ export function createWorkbenchBashToolOverride(
           cwd: executionCwd,
           onData: executionOptions.onData,
           ...(executionOptions.signal ? { signal: executionOptions.signal } : {}),
-          ...(effectiveTimeout(executionOptions.timeout, plan.timeoutSeconds) === undefined
-            ? {}
-            : { timeout: effectiveTimeout(executionOptions.timeout, plan.timeoutSeconds) }),
+          ...(timeout === undefined ? {} : { timeout }),
           ...(executionOptions.env ? { env: executionOptions.env } : {}),
           ...(toolOptions.shellPath ? { shell: toolOptions.shellPath } : {}),
           ...(execution.input?.source === "agent" ? { initialInput: execution.input.data } : {}),
@@ -133,6 +133,18 @@ export function createWorkbenchBashToolOverride(
   const parameters = Type.Object(
     {
       ...base.parameters.properties,
+      command: Type.String({
+        minLength: 1,
+        pattern: "\\S",
+        description:
+          "Command for the current session's configured terminal shell. Use that shell's syntax and path format. Keep each call focused on one operation so failures can be located; preserve stderr during diagnosis. Exclude dependency/cache directories before recursive traversal, not by filtering results afterward.",
+      }),
+      timeout: Type.Number({
+        exclusiveMinimum: 0,
+        maximum: 2_147_483_647 / 1_000,
+        description:
+          "Required execution time limit in seconds. On expiry the runtime requests process termination and reports a timeout. Choose a budget for this command: typically 10–30 seconds for local diagnostics, longer for network operations, installations or builds. Include user response time for interactive commands. No implicit unlimited wait; do not automatically retry a timed-out operation with side effects.",
+      }),
       input: bashInputSchema,
     },
     { additionalProperties: false },
@@ -140,13 +152,21 @@ export function createWorkbenchBashToolOverride(
 
   const interactive: ToolDefinition<typeof parameters, BashToolDetails | undefined> = {
     ...base,
-    description: `${base.description} Before running a command that reads stdin, inspect what it asks for and declare input ownership: provide safe deterministic input as agent data, or delegate sensitive, preference-dependent, or uncertain input to the user.`,
+    description:
+      "Execute a command in the current session's configured terminal shell and working directory. Returns captured stdout and stderr; large output is truncated with the full output saved to a file. A positive timeout in seconds is required for every call. Before running a command that reads stdin, inspect what it asks for and declare input ownership: provide safe deterministic input as agent data, or delegate sensitive, preference-dependent, or uncertain input to the user.",
     promptGuidelines: [
       ...(base.promptGuidelines ?? []),
       "Before calling bash, determine whether the command reads stdin. Omit input when it does not. Use input.source=agent with exact data only when the answer is safe and deterministic; include required newlines. Use input.source=user for secrets, choices, preferences, or prompts you cannot predict reliably, and do not invent that input.",
+      "Set a finite timeout for diagnostic commands and network checks. Narrow recursive searches to relevant directories and exclude dependency/cache directories before traversal (for example, rg glob exclusions or grep --exclude-dir); piping results through grep -v or head does not bound the scan. Preserve stderr when diagnosing a failure.",
     ],
     parameters,
-    execute(toolCallId, params, signal, onUpdate, context) {
+    prepareArguments: undefined,
+    async execute(toolCallId, params, signal, onUpdate, context) {
+      if (!Value.Check(parameters, params)) {
+        throw new Error(
+          "Invalid bash arguments: provide a non-empty command, a finite positive timeout in seconds within the supported limit, and valid input ownership. Unknown fields are not accepted.",
+        );
+      }
       const execution = {
         toolCallId,
         ...(params.input ? { input: params.input } : {}),

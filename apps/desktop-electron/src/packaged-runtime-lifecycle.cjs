@@ -523,6 +523,7 @@ async function startPackagedWorkbenchRuntime({
   let startupComplete = false;
   let stopping = false;
   let stopPromise;
+  let restartDrainPromise;
   let unexpectedHandled = false;
 
   const stopWithReason = (reason, stopRenderer) => {
@@ -555,13 +556,28 @@ async function startPackagedWorkbenchRuntime({
   };
   const stop = () =>
     stopWithReason(support.runtimeHostControl.RuntimeHostShutdownReason.containerExit, true);
-  const drainForRestart = () =>
-    stopWithReason(support.runtimeHostControl.RuntimeHostShutdownReason.restart, false);
+  const drainForRestart = () => {
+    restartDrainPromise ??= stopWithReason(
+      support.runtimeHostControl.RuntimeHostShutdownReason.restart,
+      false,
+    ).catch(async () => {
+      // A crashed control channel cannot acknowledge shutdown. Require confirmed tree cleanup
+      // before allowing a replacement, even when the earlier graceful shutdown failed.
+      try {
+        await forceCleanup(runtime, { platform, stopProcess });
+      } catch (error) {
+        restartDrainPromise = undefined;
+        throw error;
+      }
+    });
+    return restartDrainPromise;
+  };
 
   const handleUnexpected = (error) => {
     if (!startupComplete || stopping || unexpectedHandled) return;
     unexpectedHandled = true;
-    void stop().then(
+    // The static desktop renderer owns the recovery UI and must survive a sidecar failure.
+    void stopWithReason(support.runtimeHostControl.RuntimeHostShutdownReason.restart, false).then(
       () => onUnexpectedExit(error),
       (cleanupError) =>
         onUnexpectedExit(
@@ -590,9 +606,13 @@ async function startPackagedWorkbenchRuntime({
   } catch (error) {
     runtime ??= error?.managedChild?.type === "runtime" ? error.managedChild : runtime;
     try {
-      await stop();
+      // A failed replacement must leave the existing desktop available for another attempt.
+      await drainForRestart();
     } catch (cleanupError) {
-      throw new AggregateError([error, cleanupError], "Packaged Workbench startup cleanup failed.");
+      throw Object.assign(
+        new AggregateError([error, cleanupError], "Packaged Workbench startup cleanup failed."),
+        { code: "WORKBENCH_RUNTIME_CLEANUP_FAILED", cleanup: drainForRestart },
+      );
     }
     throw error;
   }

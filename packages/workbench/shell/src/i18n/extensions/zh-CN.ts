@@ -1488,7 +1488,17 @@ export const extensionsZhCN = {
       stopping: "正在停止命令…",
       connectionError: "命令终端连接失败",
       stop: "停止命令",
-      running: "命令输出正在实时更新",
+      running: "执行中 · 尚未收到进程退出通知",
+      elapsed: ({ seconds }: { seconds: number }, { number }: MessageFormatters) =>
+        `已运行 ${number(seconds)} 秒`,
+      quiet: ({ seconds }: { seconds: number }, { number }: MessageFormatters) =>
+        `已连续 ${number(seconds)} 秒没有输出`,
+      processId: ({ pid }: { pid: number }, { number }: MessageFormatters) =>
+        `PID ${number(pid, { useGrouping: false })}`,
+      exited: ({ code }: { code: number }, { number }: MessageFormatters) =>
+        `进程已退出 · 退出码 ${number(code)}`,
+      awaitingResult: ({ code }: { code: number }, { number }: MessageFormatters) =>
+        `进程已退出 · 退出码 ${number(code)} · 正在等待工具结果`,
       complete: "命令已完成",
       failed: "命令未完成",
       waiting: "命令正在等待操作",

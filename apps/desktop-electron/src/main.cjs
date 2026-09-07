@@ -46,6 +46,7 @@ let runtimeConfiguration;
 let runtimeReady = false;
 let runtimeRestartPromise;
 let runtimeStartPromise;
+let runtimeStartupCleanup;
 let runtimeStopComplete = false;
 let rendererProtocolInstalled = false;
 let quitPreparation;
@@ -188,7 +189,7 @@ function stopWorkbenchRuntime() {
   runtimeReady = false;
   rendererRuntimeConnection = undefined;
   const sessionToStop = packagedRuntimeSession;
-  if (!sessionToStop) return Promise.resolve();
+  if (!sessionToStop) return runtimeStartupCleanup?.() ?? Promise.resolve();
   return sessionToStop.stop().finally(() => {
     if (packagedRuntimeSession === sessionToStop) packagedRuntimeSession = undefined;
   });
@@ -292,22 +293,33 @@ function startWorkbenchRuntime() {
     return Promise.reject(new Error("Workbench Runtime configuration is unavailable."));
   }
   if (runtimeStartPromise) return runtimeStartPromise;
-  const starting = startPackagedWorkbenchRuntime({
-    ...runtimeConfiguration,
-    environment: desktopServices.environment,
-    beforeStop: stopRendererRequestIntake,
-    onUnexpectedExit(error) {
-      if (isQuitting) return;
-      dialog.showErrorBox(
-        "Pi Workbench",
-        `本地服务已停止。\n\nThe local service stopped.\n\n${error.message}`,
-      );
-      app.quit();
-    },
-  });
-  const tracked = starting.finally(() => {
-    if (runtimeStartPromise === tracked) runtimeStartPromise = undefined;
-  });
+  const starting = (async () => {
+    // A failed startup can retain a cleanup obligation; satisfy it before spawning again.
+    await runtimeStartupCleanup?.();
+    runtimeStartupCleanup = undefined;
+    return startPackagedWorkbenchRuntime({
+      ...runtimeConfiguration,
+      environment: desktopServices.environment,
+      beforeStop: stopRendererRequestIntake,
+      onUnexpectedExit(error) {
+        if (isQuitting) return;
+        runtimeReady = false;
+        rendererRuntimeConnection = undefined;
+        console.error("Workbench Runtime exited unexpectedly.", error);
+        desktopServices.showRuntimeError(error);
+      },
+    });
+  })();
+  const tracked = starting
+    .catch((error) => {
+      if (error?.code === "WORKBENCH_RUNTIME_CLEANUP_FAILED") {
+        runtimeStartupCleanup = error.cleanup;
+      }
+      throw error;
+    })
+    .finally(() => {
+      if (runtimeStartPromise === tracked) runtimeStartPromise = undefined;
+    });
   runtimeStartPromise = tracked;
   return tracked;
 }
@@ -329,14 +341,15 @@ function installPackagedRendererProtocol(runtimeSession) {
 
 async function restartWorkbenchRuntime() {
   const previousSession = packagedRuntimeSession;
-  const previousInstanceId = rendererRuntimeConnection?.instanceId;
-  if (!previousSession || !previousInstanceId || !currentWorkbenchUrl) {
+  const previousInstanceId =
+    rendererRuntimeConnection?.instanceId ?? previousSession?.runtimeConnection.instanceId;
+  if (!runtimeConfiguration || !currentWorkbenchUrl) {
     throw new Error("Workbench Runtime restart is unavailable.");
   }
 
   runtimeReady = false;
   rendererRuntimeConnection = undefined;
-  await previousSession.drainForRestart();
+  if (previousSession) await previousSession.drainForRestart();
   if (packagedRuntimeSession === previousSession) packagedRuntimeSession = undefined;
   if (isQuitting) return;
 
@@ -359,12 +372,8 @@ function scheduleWorkbenchRuntimeRestart() {
   runtimeRestartPromise ??= restartWorkbenchRuntime()
     .catch((error) => {
       if (isQuitting) throw error;
-      const detail = error instanceof Error ? error.message : String(error);
-      dialog.showErrorBox(
-        "Pi Workbench",
-        `无法重启本地服务。\n\nCould not restart the local service.\n\n${detail}`,
-      );
-      app.quit();
+      console.error("Could not restart Workbench Runtime.", error);
+      desktopServices.showRuntimeError(error);
       throw error;
     })
     .finally(() => {
@@ -374,7 +383,7 @@ function scheduleWorkbenchRuntimeRestart() {
 }
 
 ipcMain.handle(RUNTIME_RESTART_CHANNEL, (event) => {
-  if (isQuitting || !runtimeReady || !packagedRuntimeSession || !isTrustedMainFrameEvent(event)) {
+  if (isQuitting || !runtimeConfiguration || !isTrustedMainFrameEvent(event)) {
     throw new Error("Workbench Runtime restart is unavailable.");
   }
   return scheduleWorkbenchRuntimeRestart();

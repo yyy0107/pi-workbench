@@ -462,6 +462,12 @@ function createDesktopServices(
     lastActivity = Date.now();
   });
   return {
+    showRuntimeError(error) {
+      dialog.showErrorBox(
+        "Pi Workbench",
+        `${copy[locale].runtimeUnavailable}\n\n${copy[locale].runtimeRecovery}\n\n${error instanceof Error ? error.message : String(error)}`,
+      );
+    },
     get environment() {
       return proxyEnvironment(
         process.env,

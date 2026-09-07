@@ -41,6 +41,7 @@ export interface TerminalProcessSnapshot {
   interactionState: TerminalInteractionState;
   attachmentState: TerminalAttachmentState;
   startedAt: number;
+  lastOutputAt?: number;
   outputBytes: number;
   outputBytesCap: number;
   outputCapReached: boolean;
@@ -115,6 +116,8 @@ function parseProcessSnapshot(value: unknown): TerminalProcessSnapshot | undefin
     typeof value.attachmentState !== "string" ||
     !TERMINAL_ATTACHMENT_STATES.includes(value.attachmentState as TerminalAttachmentState) ||
     !isBoundedInteger(value.startedAt, 0, Number.MAX_SAFE_INTEGER) ||
+    (value.lastOutputAt !== undefined &&
+      !isBoundedInteger(value.lastOutputAt, value.startedAt, Number.MAX_SAFE_INTEGER)) ||
     !isBoundedInteger(value.outputBytes, 0, Number.MAX_SAFE_INTEGER) ||
     !isBoundedInteger(value.outputBytesCap, 1, Number.MAX_SAFE_INTEGER) ||
     typeof value.outputCapReached !== "boolean"
@@ -133,6 +136,7 @@ function parseProcessSnapshot(value: unknown): TerminalProcessSnapshot | undefin
     interactionState: value.interactionState as TerminalInteractionState,
     attachmentState: value.attachmentState as TerminalAttachmentState,
     startedAt: value.startedAt,
+    ...(value.lastOutputAt === undefined ? {} : { lastOutputAt: value.lastOutputAt as number }),
     outputBytes: value.outputBytes,
     outputBytesCap: value.outputBytesCap,
     outputCapReached: value.outputCapReached,

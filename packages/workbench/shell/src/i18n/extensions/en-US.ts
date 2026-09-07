@@ -1529,7 +1529,17 @@ export const extensionsEnUS = {
       stopping: "Stopping command…",
       connectionError: "The command terminal connection failed",
       stop: "Stop command",
-      running: "Command output is updating live",
+      running: "Running · awaiting process exit notification",
+      elapsed: ({ seconds }: { seconds: number }, { number }: MessageFormatters) =>
+        `Running for ${number(seconds)} s`,
+      quiet: ({ seconds }: { seconds: number }, { number }: MessageFormatters) =>
+        `No output for ${number(seconds)} s`,
+      processId: ({ pid }: { pid: number }, { number }: MessageFormatters) =>
+        `PID ${number(pid, { useGrouping: false })}`,
+      exited: ({ code }: { code: number }, { number }: MessageFormatters) =>
+        `Process exited · code ${number(code)}`,
+      awaitingResult: ({ code }: { code: number }, { number }: MessageFormatters) =>
+        `Process exited · code ${number(code)} · waiting for tool result`,
       complete: "Command completed",
       failed: "Command did not complete",
       waiting: "Command is waiting for action",

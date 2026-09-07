@@ -76,6 +76,32 @@ test("explicit AgentSession shells stay pinned after the shared default changes"
   await Promise.all([old.completion, pinned.completion, fresh.completion]);
 });
 
+test("retains the last real output time across terminal reattachment", async (t) => {
+  let now = 1_000;
+  t.mock.method(Date, "now", () => now);
+  const terminal = new FakePty();
+  const manager = new ToolTerminalSessionManager({ spawnPty: () => terminal });
+  t.after(() => manager.dispose());
+  const execution = manager.spawn({
+    sessionId: "timing",
+    toolCallId: "call",
+    command: "sleep 10",
+    cwd: "/workspace",
+    onData() {},
+  });
+  const attached = await manager.attach({ sessionId: "timing", toolCallId: "call" });
+  assert.equal(attached.snapshot().lastOutputAt, 1_000);
+  now = 3_000;
+  terminal.emitData("progress\r");
+  now = 7_000;
+  const reattached = await manager.attach({ sessionId: "timing", toolCallId: "call" });
+  assert.equal(reattached.snapshot().startedAt, 1_000);
+  assert.equal(reattached.snapshot().lastOutputAt, 3_000);
+  terminal.emitExit({ exitCode: 0 });
+  await execution.completion;
+  assert.equal(reattached.snapshot().lastOutputAt, 3_000);
+});
+
 test("registers a stable process handle before the tool process exits", async () => {
   const terminal = new FakePty();
   const manager = new ToolTerminalSessionManager({

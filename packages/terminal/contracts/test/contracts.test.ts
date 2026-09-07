@@ -89,6 +89,16 @@ test("parses terminal server process lifecycle frames", () => {
     process,
   });
   assert.deepEqual(
+    parseTerminalServerFrame({ type: "process/ready", process: { ...process, lastOutputAt: 200 } }),
+    { type: "process/ready", process: { ...process, lastOutputAt: 200 } },
+  );
+  for (const lastOutputAt of [99, -1, "200", NaN, Infinity]) {
+    assert.equal(
+      parseTerminalServerFrame({ type: "process/ready", process: { ...process, lastOutputAt } }),
+      undefined,
+    );
+  }
+  assert.deepEqual(
     parseTerminalServerFrame({
       type: "process/output-delta",
       delta: {

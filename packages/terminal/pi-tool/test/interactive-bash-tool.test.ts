@@ -27,21 +27,31 @@ test("routes the Pi bash tool call through its addressable interactive terminal"
   assert.equal(
     Value.Check(tool.parameters, {
       command: "read answer",
+      timeout: 30,
       input: { source: "agent", data: "yes\n" },
     }),
     true,
   );
   assert.equal(
-    Value.Check(tool.parameters, { command: "read answer", input: { source: "user" } }),
+    Value.Check(tool.parameters, {
+      command: "read answer",
+      timeout: 30,
+      input: { source: "user" },
+    }),
     true,
   );
   assert.equal(
-    Value.Check(tool.parameters, { command: "read answer", input: { source: "agent" } }),
+    Value.Check(tool.parameters, {
+      command: "read answer",
+      timeout: 30,
+      input: { source: "agent" },
+    }),
     false,
   );
   assert.equal(
     Value.Check(tool.parameters, {
       command: "read answer",
+      timeout: 30,
       input: { source: "user", data: "invented secret" },
     }),
     false,
@@ -49,7 +59,11 @@ test("routes the Pi bash tool call through its addressable interactive terminal"
 
   const result = await tool.execute(
     "call-9",
-    { command: "read answer && echo ready", input: { source: "agent", data: "yes\n" } },
+    {
+      command: "read answer && echo ready",
+      timeout: 30,
+      input: { source: "agent", data: "yes\n" },
+    },
     undefined,
     undefined,
     undefined as never,
@@ -61,6 +75,7 @@ test("routes the Pi bash tool call through its addressable interactive terminal"
   assert.equal(execution?.cwd, "/workspace");
   assert.equal(execution?.shell, "/bin/zsh");
   assert.equal(execution?.initialInput, "yes\n");
+  assert.equal(execution?.timeout, 30);
   assert.equal(result.content[0]?.type, "text");
   assert.equal(
     result.content[0]?.type === "text" ? result.content[0].text : undefined,
@@ -84,7 +99,7 @@ test("leaves stdin attached to the terminal when the agent delegates input to th
 
   await tool.execute(
     "call-user-input",
-    { command: "read -s secret", input: { source: "user" } },
+    { command: "read -s secret", timeout: 300, input: { source: "user" } },
     undefined,
     undefined,
     undefined as never,
@@ -92,6 +107,7 @@ test("leaves stdin attached to the terminal when the agent delegates input to th
 
   assert.equal(execution?.command, "read -s secret");
   assert.equal(execution?.initialInput, undefined);
+  assert.equal(execution?.timeout, 300);
 });
 
 test("normalizes redundant temp-log capture after the configured command prefix", async () => {
@@ -111,6 +127,7 @@ test("normalizes redundant temp-log capture after the configured command prefix"
   await tool.execute(
     "call-10",
     {
+      timeout: 120,
       command:
         'npx skills add https://github.com/NetEase/skills > /tmp/skills_add.log 2>&1; echo "exit=$?"; tail -40 /tmp/skills_add.log',
     },
@@ -152,7 +169,13 @@ test("does not start a PTY when an injected command policy rejects execution", a
   );
 
   await assert.rejects(
-    tool.execute("call-11", { command: "echo ready" }, undefined, undefined, undefined as never),
+    tool.execute(
+      "call-11",
+      { command: "echo ready", timeout: 30 },
+      undefined,
+      undefined,
+      undefined as never,
+    ),
     /policy rejection/,
   );
   assert.equal(executions, 0);
@@ -185,4 +208,55 @@ test("uses the stricter structured timeout from the execution plan", async () =>
 
   assert.equal(execution?.command, "npx skills add example");
   assert.equal(execution?.timeout, 60);
+  await tool.execute(
+    "call-shorter-timeout",
+    { command: "timeout 60 npx skills add example", timeout: 0.5 },
+    undefined,
+    undefined,
+    undefined as never,
+  );
+  assert.equal(execution?.timeout, 0.5);
+});
+
+test("schema and execution both reject unbounded or malformed commands before spawning", async () => {
+  let executions = 0;
+  const tool = createWorkbenchBashToolOverride(
+    "/workspace",
+    "session",
+    {},
+    {
+      async execute() {
+        executions++;
+        return { exitCode: 0 };
+      },
+    },
+  );
+  assert.deepEqual(tool.parameters.required, ["command", "timeout"]);
+  assert.doesNotMatch(tool.description, /optional.*timeout/i);
+  for (const params of [
+    { command: "echo ready" },
+    ...[0, -1, NaN, Infinity, 2_147_483.648, null, "30"].map((timeout) => ({
+      command: "echo ready",
+      timeout,
+    })),
+    ...["", " \n\t"].map((command) => ({ command, timeout: 30 })),
+    { command: "echo ready", timeout: 30, background: true },
+    { command: "read answer", timeout: 30, input: { source: "agent" } },
+    { command: "read answer", timeout: 30, input: { source: "user", data: "invented" } },
+  ]) {
+    assert.equal(Value.Check(tool.parameters, params), false);
+    await assert.rejects(
+      tool.execute("invalid", params as never, undefined, undefined, undefined as never),
+      /Invalid bash arguments/,
+    );
+  }
+  assert.equal(executions, 0);
+  await tool.execute(
+    "build",
+    { command: "pnpm build", timeout: 3_600 },
+    undefined,
+    undefined,
+    undefined as never,
+  );
+  assert.equal(executions, 1);
 });

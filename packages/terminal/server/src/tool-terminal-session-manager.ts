@@ -96,6 +96,7 @@ interface ManagedToolTerminalSession {
   readonly pty: TerminalPty;
   readonly processHandle: string;
   readonly startedAt: number;
+  lastOutputAt: number;
   readonly output: TerminalProcessBuffer;
   readonly transcriptProjector: TerminalTranscriptProjector;
   readonly onTranscriptData: ToolTerminalExecutionOptions["onData"];
@@ -264,6 +265,7 @@ export class ToolTerminalSessionManager {
       ...this.#interactionDetectorOptions,
       onStateChange: () => this.#publishInteractionState(session),
     });
+    const startedAt = Date.now();
     session = {
       key,
       sessionId: options.sessionId,
@@ -273,7 +275,8 @@ export class ToolTerminalSessionManager {
       shell,
       pty: terminal,
       processHandle,
-      startedAt: Date.now(),
+      startedAt,
+      lastOutputAt: startedAt,
       output: new TerminalProcessBuffer(processHandle, this.#maxHistoryBytes),
       transcriptProjector: new TerminalTranscriptProjector(),
       onTranscriptData: options.onData,
@@ -288,6 +291,7 @@ export class ToolTerminalSessionManager {
 
     session.dataSubscription = terminal.onData((data) => {
       if (session.exitEvent || !data) return;
+      session.lastOutputAt = Math.max(session.startedAt, Date.now());
       session.interactionDetector.feed(data);
       const delta = session.output.append(data);
       const transcript = session.transcriptProjector.feed(data);
@@ -485,6 +489,7 @@ export class ToolTerminalSessionManager {
       interactionState: session.interactionDetector.state,
       attachmentState: session.clients.size > 0 ? "attached" : "detached",
       startedAt: session.startedAt,
+      lastOutputAt: session.lastOutputAt,
       outputBytes: session.output.outputBytes,
       outputBytesCap: session.output.outputBytesCap,
       outputCapReached: session.output.outputCapReached,

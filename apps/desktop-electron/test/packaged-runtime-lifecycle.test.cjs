@@ -178,6 +178,66 @@ test("drains one Runtime generation for restart without closing renderer intake"
   assert.equal(fixture.child.exitCode, 0);
 });
 
+test("a Runtime crash preserves renderer intake and reports once after tree cleanup", async () => {
+  const fixture = harness();
+  const failures = [];
+  const session = await startPackagedWorkbenchRuntime({
+    ...fixture.options,
+    beforeStop: () => fixture.records.push({ event: "renderer-stop" }),
+    onUnexpectedExit: (error) => failures.push(error),
+  });
+  fixture.child.exit(1, null);
+  await new Promise(setImmediate);
+  assert.equal(failures.length, 1);
+  assert.match(failures[0].message, /exited unexpectedly/u);
+  assert.ok(fixture.records.some((record) => record.event === "force"));
+  assert.equal(
+    fixture.records.some((record) => record.event === "renderer-stop"),
+    false,
+  );
+  await session.drainForRestart();
+  assert.equal(failures.length, 1);
+});
+
+test("restart after control loss requires successful tree cleanup and can retry failed cleanup", async () => {
+  const fixture = harness();
+  let allowCleanup = false;
+  const failures = [];
+  const session = await startPackagedWorkbenchRuntime({
+    ...fixture.options,
+    stopProcess: async (child) =>
+      allowCleanup ? fixture.options.stopProcess(child) : { exited: false },
+    onUnexpectedExit: (error) => failures.push(error),
+  });
+  fixture.child.stdout.end();
+  await new Promise(setImmediate);
+  assert.equal(failures.length, 1);
+  await assert.rejects(session.drainForRestart(), /process tree did not exit/u);
+  allowCleanup = true;
+  await session.drainForRestart();
+  assert.equal(fixture.child.signalCode, "SIGKILL");
+});
+
+test("failed startup retains a retryable cleanup obligation when its process tree survives", async () => {
+  const fixture = harness({ startupError: true, trailingFrame: true });
+  let allowCleanup = false;
+  let failure;
+  await assert.rejects(
+    startPackagedWorkbenchRuntime({
+      ...fixture.options,
+      stopProcess: async (child) =>
+        allowCleanup ? fixture.options.stopProcess(child) : { exited: false },
+    }),
+    (error) => {
+      failure = error;
+      return error.code === "WORKBENCH_RUNTIME_CLEANUP_FAILED";
+    },
+  );
+  await assert.rejects(failure.cleanup(), /process tree did not exit/u);
+  allowCleanup = true;
+  await failure.cleanup();
+});
+
 test("scrubs inherited control namespaces and redacts split credentials", () => {
   const environment = packagedChildEnvironment(
     { PATH: "/usr/bin", NODE_OPTIONS: "--inspect", workbench_web_origin: "stale" },
@@ -224,7 +284,10 @@ test("the token-free owner report accepts only an exact Runtime acknowledgement"
 test("startup and protocol failures force-clean the sole child", async () => {
   const startup = harness({ startupError: true });
   await assert.rejects(
-    startPackagedWorkbenchRuntime(startup.options),
+    startPackagedWorkbenchRuntime({
+      ...startup.options,
+      beforeStop: () => startup.records.push({ event: "renderer-stop" }),
+    }),
     /Runtime Host could not start/u,
   );
   assert.equal(
@@ -232,6 +295,10 @@ test("startup and protocol failures force-clean the sole child", async () => {
     false,
   );
   assert.equal(startup.child.exitCode, 0);
+  assert.equal(
+    startup.records.some((record) => record.event === "renderer-stop"),
+    false,
+  );
 
   const trailing = harness({ trailingFrame: true });
   const session = await startPackagedWorkbenchRuntime(trailing.options);

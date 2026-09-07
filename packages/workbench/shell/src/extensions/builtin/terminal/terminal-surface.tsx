@@ -28,6 +28,7 @@ import {
   type TerminalClientFrame,
   type TerminalErrorCode,
   type TerminalInteractionState,
+  type TerminalProcessSnapshot,
   workbenchBashInputFromArgs,
 } from "@workbench/terminal-contracts";
 
@@ -52,6 +53,7 @@ import {
 } from "./terminal-tool-transcript";
 import styles from "./terminal-surface.module.css";
 import { useTerminalToolCall } from "./use-terminal-tool-call";
+import { terminalToolStatus, type ToolConnectionStatus } from "./terminal-tool-status";
 import { createTerminalResizeObserver } from "./terminal-resize-observer";
 
 type ConnectionStatus =
@@ -60,15 +62,6 @@ type ConnectionStatus =
   | { phase: "disconnected" }
   | { phase: "exited"; exitCode: number }
   | { phase: "error"; code: TerminalErrorCode };
-
-type ToolConnectionStatus =
-  | { phase: "connecting" }
-  | { phase: "connected" }
-  | { phase: "disconnected" }
-  | { phase: "stopping" }
-  | { phase: "exited"; exitCode: number }
-  | { phase: "fallback" }
-  | { phase: "error" };
 
 const TERMINAL_MONOSPACE_FALLBACK =
   'ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
@@ -284,6 +277,9 @@ function TerminalTranscriptSurface({
   const fallbackSnapshotRef = useRef<{ command: string; output: string } | undefined>(undefined);
   const [connection, setConnection] = useState<ToolConnectionStatus>({ phase: "connecting" });
   const [interactionState, setInteractionState] = useState<TerminalInteractionState>("none");
+  const [terminalProcess, setTerminalProcess] = useState<TerminalProcessSnapshot>();
+  const lastOutputAtRef = useRef<number | undefined>(undefined);
+  const [now, setNow] = useState(Date.now);
   const { piSessionId, toolCallId } = target;
   const block = useTerminalToolCall(target);
   const command = bashCommandFromArgs(block?.arguments) ?? target.command;
@@ -292,6 +288,13 @@ function TerminalTranscriptSurface({
   const userInputRequested =
     running && workbenchBashInputFromArgs(block?.arguments)?.source === "user";
   const failed = block?.status === "error" || block?.status === "incomplete";
+  const processActive = connection.phase === "connected" || connection.phase === "stopping";
+  useEffect(() => {
+    if (!isVisible || !processActive) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(timer);
+  }, [isVisible, processActive]);
   useEffect(() => {
     synchronizeVisibilityRef.current();
   }, [isVisible]);
@@ -410,10 +413,14 @@ function TerminalTranscriptSurface({
           }
           const frame = parseTerminalServerFrame(value);
           if (!frame || !terminal) return;
-          if (frame.type === "process/output-delta") writer.enqueue(frame.delta.data);
-          else if (frame.type === "process/state") {
+          if (frame.type === "process/output-delta") {
+            lastOutputAtRef.current = Date.now();
+            writer.enqueue(frame.delta.data);
+          } else if (frame.type === "process/state") {
             setInteractionState(frame.interactionState);
           } else if (frame.type === "process/ready") {
+            setTerminalProcess(frame.process);
+            lastOutputAtRef.current = frame.process.lastOutputAt;
             writer.flush();
             processHandle = frame.process.processHandle;
             ready = true;
@@ -527,46 +534,62 @@ function TerminalTranscriptSurface({
     fallbackSnapshotRef.current = { command, output };
   }, [command, connection.phase, output]);
 
+  const status = terminalToolStatus(connection, running, interactionState, userInputRequested);
   const connectionLabel =
-    interactionState === "active"
-      ? t("extensions.terminal.transcript.interactionActive")
-      : userInputRequested
-        ? t("extensions.terminal.transcript.userInputRequested")
-        : interactionState === "possible"
-          ? t("extensions.terminal.transcript.interactionPossible")
-          : connection.phase === "connecting"
-            ? t("extensions.terminal.transcript.connecting")
-            : connection.phase === "disconnected"
-              ? t("extensions.terminal.transcript.reconnecting")
-              : connection.phase === "stopping"
-                ? t("extensions.terminal.transcript.stopping")
-                : connection.phase === "error"
-                  ? t("extensions.terminal.transcript.connectionError")
-                  : statusLabel;
+    status === undefined
+      ? statusLabel
+      : connection.phase === "exited"
+        ? t(`extensions.terminal.transcript.${running ? "awaitingResult" : "exited"}`, {
+            code: connection.exitCode,
+          })
+        : status !== "awaitingResult" && status !== "exited"
+          ? t(`extensions.terminal.transcript.${status}`)
+          : statusLabel;
 
   return (
     <section
       className="group/terminal text-foreground relative flex size-full min-h-0 flex-col"
       aria-label={t("extensions.terminal.transcript.output")}
-      aria-busy={running || connection.phase === "stopping"}
+      aria-busy={processActive}
     >
-      <span className="sr-only" role="status" aria-live="polite">
-        {connectionLabel}
-      </span>
-      {running && connection.phase === "connected" ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          data-frame="none"
-          className="bg-background/85 text-muted-foreground hover:bg-muted hover:text-foreground absolute end-2 top-2 z-10 opacity-100 shadow-sm backdrop-blur-sm transition-opacity md:pointer-events-none md:opacity-0 md:group-hover/terminal:pointer-events-auto md:group-hover/terminal:opacity-100 md:group-focus-within/terminal:pointer-events-auto md:group-focus-within/terminal:opacity-100"
-          aria-label={t("extensions.terminal.transcript.stop")}
-          title={t("extensions.terminal.transcript.stop")}
-          onClick={() => interruptRef.current()}
-        >
-          <SquareIcon className="size-4" fill="currentColor" />
-        </Button>
-      ) : null}
+      <div className="border-border text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-3 py-2 text-xs">
+        <span role="status" aria-live="polite">
+          {connectionLabel}
+        </span>
+        {terminalProcess && processActive ? (
+          <>
+            <span className="tabular-nums">
+              {t("extensions.terminal.transcript.elapsed", {
+                seconds: Math.max(0, Math.floor((now - terminalProcess.startedAt) / 1_000)),
+              })}
+            </span>
+            {lastOutputAtRef.current !== undefined ? (
+              <span className="tabular-nums">
+                {t("extensions.terminal.transcript.quiet", {
+                  seconds: Math.max(0, Math.floor((now - lastOutputAtRef.current) / 1_000)),
+                })}
+              </span>
+            ) : null}
+            <span>
+              {t("extensions.terminal.transcript.processId", { pid: terminalProcess.pid })}
+            </span>
+          </>
+        ) : null}
+        {connection.phase === "connected" ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            data-frame="none"
+            className="ms-auto"
+            aria-label={t("extensions.terminal.transcript.stop")}
+            title={t("extensions.terminal.transcript.stop")}
+            onClick={() => interruptRef.current()}
+          >
+            <SquareIcon fill="currentColor" />
+          </Button>
+        ) : null}
+      </div>
       <div ref={containerRef} className={TERMINAL_VIEWPORT_CLASS_NAME} />
     </section>
   );

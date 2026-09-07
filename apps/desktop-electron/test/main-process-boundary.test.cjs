@@ -74,7 +74,7 @@ test("Runtime restart is a trusted-frame lifecycle capability with ordered gener
   );
   assert.match(
     mainSource,
-    /const tracked = starting\.finally[\s\S]*runtimeStartPromise = tracked/u,
+    /const tracked = starting[\s\S]*\.finally[\s\S]*runtimeStartPromise = tracked/u,
   );
   assert.match(
     mainSource,

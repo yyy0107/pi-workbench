@@ -37,10 +37,7 @@ export function bootstrapDesktopRuntimeConnection(): Promise<RuntimeConnection> 
 export async function restartDesktopRuntime(): Promise<void> {
   const port = readDesktopRuntimeLifecyclePort(window.workbenchDesktop?.lifecycle);
   if (!port) throw new Error("Desktop Runtime lifecycle capability is unavailable.");
-  try {
-    await port.restartRuntime();
-  } finally {
-    // A failed replacement returns through the existing bootstrap/retry path.
-    window.location.reload();
-  }
+  await port.restartRuntime();
+  // Keep the current shell and its restart command available if replacement fails.
+  window.location.reload();
 }

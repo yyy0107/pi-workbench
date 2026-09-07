@@ -198,7 +198,10 @@ test("desktop settings apply power, secure credentials, activity notifications a
         encryptString: (value) => Buffer.from(`encrypted:${value}`),
         decryptString: (value) => value.toString().slice(10),
       },
-      dialog: { showMessageBox: async () => ({ response: 0 }) },
+      dialog: {
+        showMessageBox: async () => ({ response: 0 }),
+        showErrorBox: (_title, message) => events.push(["runtime-error", message]),
+      },
     },
     {
       settings: readDesktopSettings(app),
@@ -249,6 +252,10 @@ test("desktop settings apply power, secure credentials, activity notifications a
     failed: false,
   };
   call("task-state", { locale: "zh-CN", tasks: [task] });
+  service.showRuntimeError(new Error("test failure"));
+  assert.match(events.at(-1)[1], /本地服务不可用/u);
+  assert.match(events.at(-1)[1], /重启本地服务/u);
+  assert.match(events.at(-1)[1], /test failure/u);
   await call("settings", { automaticUpdates: true });
   updater.emit("update-downloaded", { version: "0.2.0" });
   await new Promise(setImmediate);
