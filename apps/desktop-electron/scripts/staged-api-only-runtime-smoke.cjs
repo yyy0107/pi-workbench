@@ -503,7 +503,6 @@ async function runStagedApiOnlyRuntimeSmoke({
       detached: platform !== "win32",
       windowsHide: true,
     });
-    registerServerProcess(child, { platform });
     if (!child) throw new Error("Staged API-only Runtime Host process did not start.");
     processClose = observeProcessClose(child);
     if (!child.stdin || !child.stdout || !child.stderr) {
@@ -514,6 +513,7 @@ async function runStagedApiOnlyRuntimeSmoke({
       timeoutMs: readyTimeoutMs,
       timers,
     });
+    await registerServerProcess(child, { platform });
     await control.send(startFrame, "Runtime Host start control frame");
     const readyOutput = await control.next("Runtime Host ready control frame");
     stderrMonitor.assertSafe();

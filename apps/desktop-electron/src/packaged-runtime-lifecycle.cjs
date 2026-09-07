@@ -350,9 +350,6 @@ function spawnControlledChild(
     stdio: ["pipe", "pipe", "pipe"],
     windowsHide: true,
   });
-  // Windows can reparent descendants when this leader crashes. Capture the exact process census
-  // before the control protocol can start work so later forced cleanup never guesses by PID.
-  registerServerProcess(child, { platform });
   if (!child?.stdin || !child.stdout || !child.stderr) {
     throw new Error(`${label} requires piped control stdin, stdout, and stderr.`);
   }
@@ -386,6 +383,9 @@ async function startRuntimeChild(options, rendererOrigin, accessToken) {
     label: "Runtime Host",
   });
   try {
+    // Install child stream/error listeners before awaiting the Windows census, but capture its
+    // identity before the control protocol starts work so forced cleanup never guesses by PID.
+    await registerServerProcess(managed.child, { platform: options.platform });
     await options.reportOwner?.({ owner: "runtime", pid: managed.child.pid });
     const { contracts } = managed;
     await managed.channel.send(

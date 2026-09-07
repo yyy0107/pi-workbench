@@ -16,15 +16,17 @@ export interface WindowsProcessRegistry {
     number,
     { readonly depth: number; readonly identity: WindowsProcessIdentity }
   >;
-  register(pid: number, child?: Pick<ChildProcess, "once">): this;
-  refresh(): ReadonlyMap<number, WindowsProcessIdentity>;
+  register(pid: number, child?: Pick<ChildProcess, "once">): Promise<this>;
+  refresh(): Promise<ReadonlyMap<number, WindowsProcessIdentity>>;
   dispose(): void;
 }
 
-export function readWindowsProcessCensus(): readonly WindowsProcessIdentity[];
+export function readWindowsProcessCensus(): Promise<readonly WindowsProcessIdentity[]>;
 export function createWindowsProcessRegistry(options?: {
   readonly censusIntervalMs?: number;
-  readonly readCensus?: () => readonly WindowsProcessIdentity[];
+  readonly readCensus?: () =>
+    | readonly WindowsProcessIdentity[]
+    | Promise<readonly WindowsProcessIdentity[]>;
 }): WindowsProcessRegistry;
 export function killWindowsProcessTree(pid: number): Promise<void>;
 export function terminateVerifiedWindowsProcessTree(

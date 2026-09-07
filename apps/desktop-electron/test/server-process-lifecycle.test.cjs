@@ -55,8 +55,8 @@ function windowsCensusFixture(records) {
   const registry = createWindowsProcessRegistry({
     readCensus: () => current,
     timers: {
-      clearInterval() {},
-      setInterval() {
+      clearTimeout() {},
+      setTimeout() {
         return { unref() {} };
       },
     },
@@ -203,7 +203,7 @@ test("Windows dead leader cleans a previously registered live descendant by exac
     pid: 422,
   });
   const census = windowsCensusFixture([windowsProcess({ pid: child.pid }), descendant]);
-  registerServerProcess(child, { platform: "win32", windowsRegistry: census.registry });
+  await registerServerProcess(child, { platform: "win32", windowsRegistry: census.registry });
   child.exit(1, null);
   census.set([descendant]);
   const killed = [];
@@ -225,7 +225,7 @@ test("Windows dead-leader helper failure does not claim the registered descendan
   const child = new FakeChildProcess({ pid: 421 });
   const descendant = windowsProcess({ parentPid: child.pid, pid: 422 });
   const census = windowsCensusFixture([windowsProcess({ pid: child.pid }), descendant]);
-  registerServerProcess(child, { platform: "win32", windowsRegistry: census.registry });
+  await registerServerProcess(child, { platform: "win32", windowsRegistry: census.registry });
   child.exit(1, null);
   census.set([descendant]);
 
@@ -244,7 +244,7 @@ test("Windows PID reuse or argv mismatch fails closed without terminating the re
   const child = new FakeChildProcess({ pid: 421 });
   const descendant = windowsProcess({ parentPid: child.pid, pid: 422 });
   const census = windowsCensusFixture([windowsProcess({ pid: child.pid }), descendant]);
-  registerServerProcess(child, { platform: "win32", windowsRegistry: census.registry });
+  await registerServerProcess(child, { platform: "win32", windowsRegistry: census.registry });
   child.exit(1, null);
   census.set([
     windowsProcess({
@@ -277,7 +277,7 @@ test("Windows orphan cleanup ignores an unrelated quoted-command decoy outside t
     pid: 423,
   });
   const census = windowsCensusFixture([windowsProcess({ pid: child.pid }), descendant, decoy]);
-  registerServerProcess(child, { platform: "win32", windowsRegistry: census.registry });
+  await registerServerProcess(child, { platform: "win32", windowsRegistry: census.registry });
   child.exit(1, null);
   census.set([descendant, decoy]);
   const killed = [];

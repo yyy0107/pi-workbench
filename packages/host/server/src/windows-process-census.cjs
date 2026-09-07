@@ -1,6 +1,8 @@
-const { execFileSync, spawn } = require("node:child_process");
+const { execFile, spawn } = require("node:child_process");
+const { promisify } = require("node:util");
 
-const DEFAULT_WINDOWS_CENSUS_INTERVAL_MS = 100;
+const execFileAsync = promisify(execFile);
+const DEFAULT_WINDOWS_CENSUS_INTERVAL_MS = 1_000;
 
 function windowsProcessCensusError(message) {
   return new Error(`Windows process census uncertainty: ${message}`);
@@ -58,16 +60,17 @@ $records = @(
 `;
 }
 
-function readWindowsProcessCensus({ execFileSyncImpl = execFileSync } = {}) {
-  const output = execFileSyncImpl(
+async function readWindowsProcessCensus({ execFileImpl = execFileAsync } = {}) {
+  const { stdout } = await execFileImpl(
     "powershell.exe",
     ["-NoProfile", "-Command", windowsCensusCommand()],
     {
       encoding: "utf8",
+      timeout: 10_000,
       windowsHide: true,
     },
   );
-  const parsed = JSON.parse(output);
+  const parsed = JSON.parse(stdout);
   return Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
 }
 
@@ -151,14 +154,15 @@ function killWindowsProcessTree(pid, { spawnImpl = spawn } = {}) {
 function createWindowsProcessRegistry({
   censusIntervalMs = DEFAULT_WINDOWS_CENSUS_INTERVAL_MS,
   readCensus = readWindowsProcessCensus,
-  timers = { clearInterval, setInterval },
+  timers = { clearTimeout, setTimeout },
 } = {}) {
   const records = new Map();
   let leaderPid;
   let monitoring;
   let failure;
+  let stopped = false;
+  let pending = Promise.resolve();
 
-  const census = () => normalizeWindowsCensus(readCensus());
   const fail = (error) => {
     failure ??= error instanceof Error ? error : windowsProcessCensusError("process census failed");
     return failure;
@@ -186,10 +190,10 @@ function createWindowsProcessRegistry({
       }
     }
   };
-  const refresh = () => {
+  const read = async () => {
     if (failure) throw failure;
     try {
-      const current = census();
+      const current = normalizeWindowsCensus(await readCensus());
       if (!Number.isInteger(leaderPid))
         throw windowsProcessCensusError("leader was never registered");
       const leader = current.get(leaderPid);
@@ -210,6 +214,34 @@ function createWindowsProcessRegistry({
       throw fail(error);
     }
   };
+  // Serialize reads so shutdown gets a fresh census after any in-flight background scan.
+  const refresh = () => {
+    const next = pending.then(read);
+    pending = next.catch(() => undefined);
+    return next;
+  };
+  const dispose = () => {
+    stopped = true;
+    if (monitoring) timers.clearTimeout(monitoring);
+    monitoring = undefined;
+  };
+  const schedule = () => {
+    if (stopped) return;
+    // PowerShell startup + CIM enumeration is expensive. Leave an idle gap after each scan,
+    // rather than blocking Electron's UI thread or piling up concurrent PowerShell processes.
+    // ponytail: snapshots can miss short-lived parent branches; use Windows Job Objects if
+    // guaranteed descendant ownership between scans becomes necessary.
+    monitoring = timers.setTimeout(async () => {
+      monitoring = undefined;
+      try {
+        await refresh();
+        schedule();
+      } catch {
+        // Shutdown reports the stored uncertainty; do not keep retrying a failed census.
+      }
+    }, censusIntervalMs);
+    monitoring?.unref?.();
+  };
   return Object.freeze({
     get failure() {
       return failure;
@@ -220,38 +252,26 @@ function createWindowsProcessRegistry({
     get records() {
       return records;
     },
-    register(pid, child) {
+    async register(pid, child) {
       if (!Number.isInteger(pid) || pid < 2 || pid === process.pid) {
         throw windowsProcessCensusError("leader has an unsafe PID");
       }
       if (leaderPid !== undefined) throw windowsProcessCensusError("leader was registered twice");
       leaderPid = pid;
-      refresh();
-      monitoring = timers.setInterval(() => {
-        try {
-          refresh();
-        } catch {
-          // The synchronous shutdown path reports this stored uncertainty to its owner.
-        }
-      }, censusIntervalMs);
-      monitoring?.unref?.();
-      child?.once?.("exit", () => {
-        if (monitoring) timers.clearInterval(monitoring);
-        monitoring = undefined;
-      });
+      child?.once?.("exit", dispose);
+      await refresh();
+      schedule();
       return this;
     },
     refresh,
-    dispose() {
-      if (monitoring) timers.clearInterval(monitoring);
-      monitoring = undefined;
-    },
+    dispose,
   });
 }
 
 async function terminateVerifiedWindowsProcessTree(registry, killTree = killWindowsProcessTree) {
+  registry.dispose();
   if (registry.failure) throw registry.failure;
-  const current = registry.refresh();
+  const current = await registry.refresh();
   const verified = [];
   for (const entry of registry.records.values()) {
     const observed = current.get(entry.identity.pid);
@@ -274,7 +294,7 @@ async function terminateVerifiedWindowsProcessTree(registry, killTree = killWind
     try {
       await killTree(entry.identity.pid);
     } catch {
-      const afterFailure = registry.refresh().get(entry.identity.pid);
+      const afterFailure = (await registry.refresh()).get(entry.identity.pid);
       if (afterFailure && sameWindowsProcessIdentity(entry.identity, afterFailure)) {
         throw windowsProcessCensusError(
           `taskkill could not terminate verified PID ${entry.identity.pid}`,

@@ -42,15 +42,15 @@ function signalProcessGroup(pid, signal) {
   process.kill(-pid, signal);
 }
 
-function registerServerProcess(
+async function registerServerProcess(
   child,
   { platform = process.platform, windowsRegistry = createWindowsProcessRegistry() } = {},
 ) {
   if (platform !== "win32" || !child) return undefined;
   if (windowsRegistrations.has(child)) return windowsRegistrations.get(child);
-  windowsRegistry.register(child.pid, child);
-  windowsRegistrations.set(child, windowsRegistry);
-  return windowsRegistry;
+  const registration = windowsRegistry.register(child.pid, child);
+  windowsRegistrations.set(child, registration);
+  return registration;
 }
 
 function registeredWindowsProcessRegistry(child, options) {
@@ -100,7 +100,7 @@ async function forceStop(child, platform, killGroup, killWindowsTree, windowsOpt
 
   if (platform === "win32") {
     try {
-      const registry = registeredWindowsProcessRegistry(child, windowsOptions);
+      const registry = await registeredWindowsProcessRegistry(child, windowsOptions);
       return await terminateVerifiedWindowsProcessTree(registry, killWindowsTree);
     } catch {
       // A Windows tree must never fall back to a bare PID after its exact census is uncertain.
@@ -142,7 +142,7 @@ async function stopServerProcess(
   }
   if (platform === "win32") {
     try {
-      registerServerProcess(child, windowsOptions);
+      await registerServerProcess(child, windowsOptions);
     } catch {
       return { exited: false, forced: true };
     }
@@ -158,7 +158,7 @@ async function stopServerProcess(
   }
   if (await waitUntil(exited, gracefulTimeoutMs)) {
     // A cooperative Windows leader can still leave a reparented child if it exits during its own
-    // final cleanup. The same exact census is cheap to inspect here and refuses an unproven tree.
+    // final cleanup. Reverify the retained identities before reporting successful cleanup.
     if (platform === "win32") {
       const cleaned = await forceStop(child, platform, killGroup, killWindowsTree, windowsOptions);
       return { exited: cleaned, forced: false };
