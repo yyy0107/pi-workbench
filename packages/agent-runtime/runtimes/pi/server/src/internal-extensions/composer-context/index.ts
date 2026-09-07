@@ -29,9 +29,13 @@ export function projectPiComposerContext(
     const input = modelInput(entry.data);
     if (input) inputs.set(input.prompt, input);
   }
-  if (inputs.size === 0) return messages;
+  // Empty custom messages carry UI metadata; Pi would turn them into empty user input.
+  const modelMessages = messages.filter(
+    (message) => message.role !== "custom" || message.content.length > 0,
+  );
+  if (inputs.size === 0) return modelMessages.length === messages.length ? messages : modelMessages;
 
-  return messages.flatMap((message): ContextEvent["messages"] => {
+  return modelMessages.flatMap((message): ContextEvent["messages"] => {
     if (message.role !== "user") return [message];
     const content =
       typeof message.content === "string"

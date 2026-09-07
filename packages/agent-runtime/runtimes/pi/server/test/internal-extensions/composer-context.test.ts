@@ -9,6 +9,41 @@ import {
 } from "../../src/commands/pi-composer-prompt";
 import { projectPiComposerContext } from "../../src/internal-extensions/composer-context";
 
+test("excludes empty UI metadata from model input while preserving persisted history and multimodal content", () => {
+  const manager = SessionManager.inMemory();
+  manager.appendCustomMessageEntry("workbench.composer-user.v3", "", false, { userText: "hello" });
+  manager.appendCustomMessageEntry("workbench.composer-resolution.v2", "", false);
+  manager.appendCustomMessageEntry("workbench.composer-command-response.v2", [], true);
+  manager.appendCustomMessageEntry("extension.context", "Keep this hidden context", false);
+  const image = { type: "image" as const, mimeType: "image/png", data: "image-data" };
+  manager.appendCustomMessageEntry("extension.image", [image], false);
+  manager.appendMessage({
+    role: "user",
+    content: [{ type: "text", text: "hello" }, image],
+    timestamp: 1,
+  });
+  const messages = manager.buildSessionContext().messages;
+  const original = structuredClone(messages);
+  const expected = convertToLlm(messages.slice(3));
+
+  // Plain prompts have no model-input marker; structured prompts take the projection path.
+  for (const structured of [false, true]) {
+    if (structured) {
+      manager.appendCustomEntry(PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE, {
+        version: 1,
+        prompt: "hello",
+        userText: "hello",
+        context: [],
+      });
+    }
+    const projected = projectPiComposerContext(messages, manager.getBranch());
+    assert.deepEqual(convertToLlm(projected), expected);
+    assert.deepEqual(projectPiComposerContext(projected, manager.getBranch()), projected);
+    assert.deepEqual(messages, original);
+    assert.deepEqual(manager.buildSessionContext().messages, original);
+  }
+});
+
 test("projects only the delivered request, keeping context separate from text and images", () => {
   const manager = SessionManager.inMemory();
   const requests = ["first attachment", "queued attachment"].map((value) =>
