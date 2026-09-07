@@ -1,6 +1,14 @@
 "use client";
 
-import { memo, useState, useEffect, useRef, type FC, type PropsWithChildren } from "react";
+import {
+  memo,
+  useState,
+  useEffect,
+  useRef,
+  type FC,
+  type PropsWithChildren,
+  type ReactNode,
+} from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import {
   CheckIcon,
@@ -9,7 +17,6 @@ import {
   DownloadIcon,
   ImageIcon,
   ImageOffIcon,
-  Loader2Icon,
   RefreshCwIcon,
   ShieldAlertIcon,
 } from "lucide-react";
@@ -169,11 +176,13 @@ function ImageRoot({ className, variant, size, children, ...props }: ImageRootPr
 
 type ImagePreviewProps = Omit<React.ComponentProps<"img">, "children"> & {
   containerClassName?: string;
+  loadingPlaceholder?: ReactNode;
 };
 
 function ImagePreview({
   className,
   containerClassName,
+  loadingPlaceholder,
   onLoad,
   onError,
   alt,
@@ -199,17 +208,21 @@ function ImagePreview({
       data-slot="image-preview"
       className={cn("relative", !loaded && !error && "min-h-32", containerClassName)}
     >
-      {!loaded && !error && (
-        <div
-          data-slot="image-preview-loading"
-          className="bg-muted/50 absolute inset-0 flex items-center justify-center"
-        >
-          <ImageIcon className="text-muted-foreground aui-chat-icon-size-placeholder animate-pulse motion-reduce:animate-none" />
-        </div>
-      )}
+      {!loaded &&
+        !error &&
+        (loadingPlaceholder ?? (
+          <div
+            data-slot="image-preview-loading"
+            className="bg-muted/50 absolute inset-0 flex items-center justify-center"
+          >
+            <ImageIcon className="text-muted-foreground aui-chat-icon-size-placeholder animate-pulse motion-reduce:animate-none" />
+          </div>
+        ))}
       {error ? (
         <div
           data-slot="image-preview-error"
+          role="img"
+          aria-label={t("assistant.image.loadFailed")}
           className="bg-muted/50 flex min-h-32 items-center justify-center p-4"
         >
           <ImageOffIcon className="text-muted-foreground aui-chat-icon-size-placeholder" />
@@ -252,9 +265,10 @@ function ImageFilename({ className, children, ...props }: React.ComponentProps<"
 type ImageZoomProps = PropsWithChildren<{
   src: string;
   alt?: string;
+  className?: string;
 }>;
 
-function ImageZoom({ src, alt, children }: ImageZoomProps) {
+function ImageZoom({ src, alt, children, className }: ImageZoomProps) {
   const { t } = useI18n();
 
   return (
@@ -262,7 +276,10 @@ function ImageZoom({ src, alt, children }: ImageZoomProps) {
       <DialogTrigger
         type="button"
         aria-label={t("assistant.image.zoom")}
-        className="aui-image-zoom-trigger block w-full cursor-zoom-in border-0 bg-transparent p-0 text-start"
+        className={cn(
+          "aui-image-zoom-trigger block w-full cursor-zoom-in border-0 bg-transparent p-0 text-start",
+          className,
+        )}
       >
         {children}
       </DialogTrigger>
@@ -290,27 +307,52 @@ function ImageGenerating({ className }: { className?: string }) {
   return (
     <div
       data-slot="image-generating"
-      className={cn("bg-muted/50 flex min-h-32 items-center justify-center p-4", className)}
+      role="status"
+      className={cn(
+        "relative aspect-square w-full overflow-hidden bg-muted text-muted-foreground",
+        className,
+      )}
     >
-      <Loader2Icon className="text-muted-foreground aui-chat-icon-size-placeholder animate-spin" />
+      <span data-slot="image-generating-dots" aria-hidden="true" />
       <span className="sr-only">{t("assistant.image.generating")}</span>
     </div>
   );
 }
 
-function ImageContentFilterError({ className, reason }: { className?: string; reason?: string }) {
+function ImageContentFilterError({
+  className,
+  reason,
+  stopped = false,
+}: {
+  className?: string;
+  reason?: string;
+  stopped?: boolean;
+}) {
   const { t } = useI18n();
 
   return (
     <div
       data-slot="image-content-filter-error"
+      role="status"
       className={cn(
         "bg-muted/50 flex min-h-32 flex-col items-center justify-center gap-2 p-4 text-center",
         className,
       )}
     >
-      <ShieldAlertIcon className="text-muted-foreground aui-chat-icon-size-placeholder" />
-      <p className="text-sm font-medium">{t("assistant.image.failed")}</p>
+      {reason ? (
+        <ShieldAlertIcon
+          aria-hidden="true"
+          className="text-muted-foreground aui-chat-icon-size-placeholder"
+        />
+      ) : (
+        <ImageOffIcon
+          aria-hidden="true"
+          className="text-muted-foreground aui-chat-icon-size-placeholder"
+        />
+      )}
+      <p className="text-sm font-medium">
+        {t(stopped ? "assistant.image.stopped" : "assistant.image.failed")}
+      </p>
       {reason && <p className="text-muted-foreground text-xs">{reason}</p>}
     </div>
   );
@@ -400,27 +442,39 @@ const ImageImpl: FC<ImageMessagePart> = (props) => {
   const { t } = useI18n();
   const { image, filename, status } = props;
 
-  if (status?.type === "running") {
-    return (
-      <ImageRoot>
-        <ImageGenerating />
-      </ImageRoot>
-    );
-  }
-
-  if (status?.type === "incomplete" && status.reason === "content-filter") {
-    return (
-      <ImageRoot>
-        <ImageContentFilterError reason={t("assistant.image.providerBlocked")} />
-      </ImageRoot>
-    );
-  }
-
   return (
-    <ImageRoot>
-      <ImageZoom src={image} alt={filename || t("assistant.image.contentAlt")}>
-        <ImagePreview src={image} alt={filename || t("assistant.image.contentAlt")} />
-      </ImageZoom>
+    <ImageRoot
+      data-slot="image-generation"
+      variant="ghost"
+      className="aspect-square w-full bg-muted"
+    >
+      {status?.type === "running" ? (
+        <ImageGenerating />
+      ) : status?.type === "incomplete" || !image ? (
+        <ImageContentFilterError
+          className="h-full"
+          stopped={
+            status?.type === "incomplete" &&
+            status.reason !== "error" &&
+            status.reason !== "content-filter"
+          }
+          reason={
+            status?.type === "incomplete" && status.reason === "content-filter"
+              ? t("assistant.image.providerBlocked")
+              : undefined
+          }
+        />
+      ) : (
+        <ImageZoom src={image} alt={filename || t("assistant.image.contentAlt")} className="h-full">
+          <ImagePreview
+            src={image}
+            alt={filename || t("assistant.image.contentAlt")}
+            containerClassName="h-full"
+            className="h-full"
+            loadingPlaceholder={<ImageGenerating className="absolute inset-0 h-full" />}
+          />
+        </ImageZoom>
+      )}
     </ImageRoot>
   );
 };

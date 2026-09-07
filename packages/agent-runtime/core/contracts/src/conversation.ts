@@ -75,6 +75,8 @@ export interface FileBlock extends MessageBlockBase {
   readonly source: string;
   readonly mediaType?: string;
   readonly sourceType?: "url" | "id";
+  /** Optional per-file generation state, independent of the enclosing assistant turn. */
+  readonly status?: "running" | "complete" | "incomplete" | "error";
 }
 
 export interface SourceBlock extends MessageBlockBase {

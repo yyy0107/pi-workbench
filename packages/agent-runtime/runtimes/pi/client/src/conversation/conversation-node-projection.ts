@@ -166,12 +166,29 @@ function blocks(message: ThreadMessage): MessageBlock[] {
         break;
       case "image": {
         const imageMediaType = mediaType(part.image);
+        const status =
+          message.role === "assistant" &&
+          part.status?.type === "running" &&
+          message.status.type !== "running" &&
+          message.status.type !== "requires-action"
+            ? message.status
+            : (part.status ?? (message.role === "assistant" ? message.status : undefined));
         projected.push({
           key: key("file", part.filename),
           kind: "file",
           name: part.filename ?? "image",
           source: part.image,
           mediaType: imageMediaType ?? "image/png",
+          ...(status === undefined
+            ? {}
+            : {
+                status:
+                  status.type === "incomplete" && status.reason === "error"
+                    ? ("error" as const)
+                    : status.type === "requires-action"
+                      ? ("running" as const)
+                      : status.type,
+              }),
           ...(/^(?:data:|https?:\/\/|blob:)/i.test(part.image)
             ? { sourceType: "url" as const }
             : {}),

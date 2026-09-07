@@ -88,6 +88,8 @@ export const assistantEnUS = {
     closeZoom: "Close zoomed image",
     generating: "Generating image…",
     failed: "Image could not be generated",
+    stopped: "Image generation stopped",
+    loadFailed: "Image could not be loaded",
     providerBlocked: "The provider blocked this image.",
     regenerate: "Regenerate image",
     download: "Download image",

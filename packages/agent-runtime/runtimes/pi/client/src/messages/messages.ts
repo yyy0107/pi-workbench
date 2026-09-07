@@ -717,6 +717,7 @@ export function hasRunningWorkbenchCompactCommandResponse(
 }
 
 function imageUrl(image: PiImageContent): string {
+  if (!image.data) return "";
   if (image.data.startsWith("data:") || /^https?:\/\//i.test(image.data)) return image.data;
   return `data:${image.mimeType};base64,${image.data}`;
 }
@@ -930,7 +931,10 @@ export function piAssistantToThreadMessage(
           ...(providerMetadata === undefined ? {} : { providerMetadata }),
         };
       case "image":
-        return threadImagePart(part);
+        return {
+          ...threadImagePart(part),
+          status: assistantStatus(message, Boolean(streaming), Boolean(unfinished), termination),
+        };
       case "toolCall":
         const toolTiming =
           toolTimingById?.get(part.id) ??
