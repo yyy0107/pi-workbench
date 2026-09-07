@@ -9,7 +9,6 @@ import {
   MessageSquareIcon,
   PaperclipIcon,
   PlusIcon,
-  SquareIcon,
   SquareSlashIcon,
   XIcon,
 } from "lucide-react";
@@ -390,7 +389,10 @@ export function ComposerPrimaryActionView({
       className={COMPOSER_PRIMARY_ACTION_CLASS_NAME}
       onClick={onCancel}
     >
-      <SquareIcon className="aui-composer-stop-icon fill-current" />
+      <span
+        aria-hidden="true"
+        className="aui-composer-stop-icon size-[var(--composer-stop-icon-size)] shrink-0 rounded-[min(var(--button-radius),calc(var(--composer-stop-icon-size)/8))] bg-current"
+      />
     </Button>
   ) : (
     <Button

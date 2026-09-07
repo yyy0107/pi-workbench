@@ -38,9 +38,4 @@
     --button-icon-frame-size: calc(var(--icon-frame-size-compact) - 6px);
     --button-icon-size: calc(var(--icon-size-sm) - 2px);
   }
-
-  [data-slot="workbench-composer-actions"]
-    .aui-composer-primary-action:has(.aui-composer-stop-icon) {
-    --button-icon-size: var(--composer-stop-icon-size);
-  }
 }
