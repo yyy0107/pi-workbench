@@ -4,4 +4,4 @@ set -Eeuo pipefail
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.."
 pnpm install --frozen-lockfile --prod=false
-exec pnpm electron:dist --linux deb --publish never "$@"
+exec pnpm dev -- --hot "$@"

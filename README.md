@@ -74,6 +74,8 @@ Web and Electron development both use port `3000`; run one at a time.
 
 ## Build
 
+One-command scripts for running, development, builds and releases are available in [run_scripts](./run_scripts/README.md).
+
 Build all apps and start the production Web service:
 
 ```bash

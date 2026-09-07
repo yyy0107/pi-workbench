@@ -3,8 +3,8 @@ setlocal
 
 cd /d "%~dp0\..\.." || exit /b 1
 
-call pnpm install --frozen-lockfile --prod=false
+call pnpm release:build
 if errorlevel 1 exit /b %errorlevel%
 
-call pnpm electron:dist:artifact --win nsis --publish never %*
+call pnpm release:upload %*
 exit /b %errorlevel%

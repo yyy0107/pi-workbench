@@ -74,6 +74,8 @@ Web 与 Electron 开发均使用端口 `3000`，请勿同时启动。
 
 ## 构建
 
+运行、开发、构建和发布的一键脚本见 [run_scripts](./run_scripts/README.zh-CN.md)。
+
 构建全部应用并启动生产 Web 服务：
 
 ```bash
