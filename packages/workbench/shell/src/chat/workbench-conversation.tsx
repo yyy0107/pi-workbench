@@ -1,7 +1,14 @@
 "use client";
 
 import { ArrowDownIcon } from "lucide-react";
-import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 import {
   SessionProvider,
@@ -184,11 +191,14 @@ export function WorkbenchConversationContent({
   const session = useConversationSession();
   const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
   const isThreadLoading = useSessionState((snapshot) => snapshot.isLoading);
+  // Session selection is an external-store update, so a transition around the click cannot
+  // defer it. Paint the loading frame first, then mount history in an interruptible render.
+  const isHistoryReady = useDeferredValue(!isThreadLoading, false);
   const isRunning = useSessionState((snapshot) => snapshot.isRunning);
   const hasMore = useSessionState((snapshot) => snapshot.hasMore);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const isEmpty = nodeKeys.length === 0;
-  const isHistoryLoading = showHistoryLoading && isThreadLoading;
+  const isHistoryLoading = showHistoryLoading && (isThreadLoading || !isHistoryReady);
   const hasDockedComposer = Boolean(composerDock) && (!isEmpty || isHistoryLoading);
   const slotContext = { threadId };
   const loadOlder = useCallback(() => {

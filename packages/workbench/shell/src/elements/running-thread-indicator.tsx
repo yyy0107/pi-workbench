@@ -41,10 +41,14 @@ function OrbIndicator({ animated = true }: IndicatorProps) {
 
 function SpinnerIndicator({ animated = true }: IndicatorProps) {
   return (
-    <LoaderCircleIcon
-      aria-hidden="true"
-      className={cn("size-4 motion-reduce:animate-none", animated && "animate-spin")}
-    />
+    <span
+      className={cn(
+        "inline-flex motion-reduce:animate-none",
+        animated && "animate-spin [will-change:transform]",
+      )}
+    >
+      <LoaderCircleIcon aria-hidden="true" className="size-4" />
+    </span>
   );
 }
 
