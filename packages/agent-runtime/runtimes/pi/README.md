@@ -518,6 +518,16 @@ Project Trust 遵循 Pi 的资源判定与持久化规则：没有受保护的�
 
 ## Skills
 
+`workbench-settings` 内置技能通过宿主工具 `workbench_settings` 读取和修改当前 Runtime 的
+Workbench preferences，覆盖外观、语言、对话行为和内置工具开关。工具复用 Settings RPC 校验和
+同一设置服务的文件锁、原子写入及进程内通知，不暴露配置文件路径或其他 section 的凭据；未知顶层字段
+会报错。外观等对象仍按顶层替换，技能要求先读再合并；已经打开的 UI 缓存可能需要刷新。
+同一工具的 `domain: "pi"` 复用 `AgentSettingsService` 和共享 RPC validator，支持用户/当前项目
+系统提示词及追加提示词、用户级 compaction。Pi 写入必须携带同一 scope 读取的 `expectedRevision`；
+项目 scope 由当前对话 cwd 匹配已登记 Workspace，不接受任意路径，也不回退全局。更新保留 Pi 的
+文件锁和冲突处理，需新会话或空闲 `/reload` 生效；不会改变项目信任。字段说明按需读取
+`references/pi-settings.md`，providers、认证和其他 Pi 设置继续由 `pi-docs` 与各自服务处理。
+
 Workbench 随 Runtime 内置 `skill-creator`，用于创建和更新技能。会话与 Toolbox 通过 Pi 的
 `skillsOverride` 加入同一份资源，复用技能详情、文件浏览、自动发现和 `/skill:skill-creator` 调用。
 内置项在用户范围显示，来源为 `builtin`，默认启用且不可删除；已有同名用户或受信任项目技能优先。

@@ -67,7 +67,10 @@ import { createTerminalShellPreference } from "@workbench/terminal-server/shell"
 import { ToolTerminalSessionManager } from "@workbench/terminal-server/tool-sessions";
 import { runWorkbenchShutdownHooks } from "@workbench/server-core/shutdown-hooks";
 import { subscribeWorkbenchSettingsPreferences } from "@workbench/settings-server/service";
-import { createInstalledWorkbenchSettingsService } from "./installed-workbench-settings";
+import {
+  createInstalledWorkbenchSettingsAgentAccess,
+  createInstalledWorkbenchSettingsService,
+} from "./installed-workbench-settings";
 import { getInstalledPiAutomationService } from "./installed-automation";
 
 export interface InstalledPiServer {
@@ -174,6 +177,7 @@ function createInstalledPiAgentHostBindings(
 ): PiAgentHostBindings {
   const settings = createInstalledWorkbenchSettingsService();
   return {
+    workbenchSettings: createInstalledWorkbenchSettingsAgentAccess(),
     workspaceFiles,
     getDefaultTerminalShell: terminalShell.getShell,
     attachmentUnderstandingSettings: getImageUnderstandingSettingsStore,

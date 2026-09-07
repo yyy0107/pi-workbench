@@ -70,7 +70,13 @@ test("sessions persist bundled skill switches through reload and cold reopen", a
   check(reopened);
 });
 
-for (const name of ["skill-creator", "pi-docs", "skill-installer", "extension-creator"]) {
+for (const name of [
+  "skill-creator",
+  "pi-docs",
+  "skill-installer",
+  "extension-creator",
+  "workbench-settings",
+]) {
   test(`bundled ${name} can toggle while files remain read-only`, async (t) => {
     const root = await mkdtemp(path.join(tmpdir(), "workbench-builtin-skills-"));
     t.after(() => rm(root, { recursive: true, force: true }));
@@ -100,6 +106,7 @@ for (const name of ["skill-creator", "pi-docs", "skill-installer", "extension-cr
       "pi-docs",
       "skill-creator",
       "skill-installer",
+      "workbench-settings",
     ]);
     const skill = skills.find((entry) => entry.name === name)!;
     assert.equal(skill.sourceInfo.source, "builtin");
@@ -207,6 +214,9 @@ test("bundled validator accepts a real skill and rejects missing descriptions an
   const piDocs = skills.find(({ name }) => name === "pi-docs")!;
   const docsValidation = run(piDocs.baseDir);
   assert.equal(docsValidation.status, 0, docsValidation.stderr);
+  const workbenchSettings = skills.find(({ name }) => name === "workbench-settings")!;
+  const settingsValidation = run(workbenchSettings.baseDir);
+  assert.equal(settingsValidation.status, 0, settingsValidation.stderr);
   const installer = skills.find(({ name }) => name === "skill-installer")!;
   const installerValidation = run(installer.baseDir);
   assert.equal(installerValidation.status, 0, installerValidation.stderr);
@@ -339,6 +349,7 @@ test("installs built-in skills and extensions and removes retired prompts withou
     "enhanced-search",
     "message-termination",
     "rpiv-todo",
+    "workbench-settings",
   ]);
   for (const name of [
     "ask-user",
@@ -348,6 +359,7 @@ test("installs built-in skills and extensions and removes retired prompts withou
     "enhanced-search",
     "message-termination",
     "rpiv-todo",
+    "workbench-settings",
   ])
     assert.ok((await stat(path.join(directories.extensions, name, "index.ts"))).isFile());
   assert.ok(

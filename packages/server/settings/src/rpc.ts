@@ -27,7 +27,7 @@ export interface WorkbenchSettingsRpcRoutesDependencies {
 }
 
 const emptyPayload = rpcObject({});
-const workbenchSettingsUpdatePayload = rpcObject({
+export const workbenchSettingsUpdatePayload = rpcObject({
   patch: rpcObject({
     appearance: rpcOptional(rpcNullable(rpcRecord(rpcUnknown))),
     runningMessageMode: rpcOptional(rpcNullable(rpcEnum(["queue", "steer"]))),

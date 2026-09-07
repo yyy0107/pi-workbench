@@ -14,6 +14,11 @@ interface WorkspaceRegistryGlobal {
 const registryGlobal = globalThis as typeof globalThis & WorkspaceRegistryGlobal;
 const WORKSPACE_STORE_IMPLEMENTATION_VERSION = 4;
 
+export async function resolvePiWorkspaceRoot(workspaceId: string): Promise<string | undefined> {
+  return (await getWorkspaceStore().list()).items.find((item) => item.workspaceId === workspaceId)
+    ?.path;
+}
+
 function hasLegacyStateOverride(): boolean {
   return Boolean(
     process.env.PI_WORKBENCH_WORKSPACE_STATE_FILE?.trim() ||
