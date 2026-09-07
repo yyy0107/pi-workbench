@@ -61,7 +61,7 @@ test("native conversation scrolling follows the bottom, respects user lock, and 
   );
 });
 
-async function checkConversationViewport(autoScroll: boolean) {
+async function checkConversationViewport(autoScroll: boolean, restorePosition = true) {
   const environment = installMinimalReactDomEnvironment();
   const root = createRoot(environment.container);
   const originalResize = Object.getOwnPropertyDescriptor(globalThis, "ResizeObserver");
@@ -79,6 +79,8 @@ async function checkConversationViewport(autoScroll: boolean) {
   let lineContentTop = 392;
   let textConnected = true;
   let flowAttached = false;
+  let reachedTop = 0;
+  const onReachTop = () => reachedTop++;
   const text = { nodeType: 3 };
   const flow = { getBoundingClientRect: () => ({ width }) };
   const viewport = {
@@ -166,6 +168,7 @@ async function checkConversationViewport(autoScroll: boolean) {
       autoScroll,
       isRunning: false,
       nodeKeys,
+      onReachTop: restorePosition ? undefined : onReachTop,
       scrollToBottomOnInitialize: false,
       sessionId: "reflow",
     });
@@ -181,16 +184,18 @@ async function checkConversationViewport(autoScroll: boolean) {
         createElement(ThreadScrollStateProvider, {
           persistence: {
             read: () =>
-              JSON.stringify([
-                [
-                  "reflow",
-                  {
-                    scrollTop: autoScroll ? 80 : 360,
-                    atBottom: false,
-                    ...(autoScroll ? { anchor: { messageId: "message", offsetTop: 32 } } : {}),
-                  },
-                ],
-              ]),
+              !restorePosition
+                ? null
+                : JSON.stringify([
+                    [
+                      "reflow",
+                      {
+                        scrollTop: autoScroll ? 80 : 360,
+                        atBottom: false,
+                        ...(autoScroll ? { anchor: { messageId: "message", offsetTop: 32 } } : {}),
+                      },
+                    ],
+                  ]),
             write: () => {},
           },
           children: createElement(Probe),
@@ -205,6 +210,51 @@ async function checkConversationViewport(autoScroll: boolean) {
     });
     assert.equal(viewport.scrollTop, 0);
     assert.deepEqual(mutationOptions, { childList: true });
+
+    if (!restorePosition) {
+      assert.equal(reachedTop, 0, "the loading frame must not request history");
+      await act(async () => {
+        // Deferred history mounts after the hook, without changing node keys or scrollTop.
+        // Many tool messages can collapse into a single assistant row shorter than the viewport.
+        flowAttached = true;
+        viewport.scrollHeight = 200;
+        mutate();
+      });
+      assert.equal(reachedTop, 1, "a short first page must load older messages without scrolling");
+      await act(async () => {
+        viewport.scrollHeight = 300;
+        resize();
+      });
+      assert.equal(reachedTop, 2, "backfill must continue while the viewport remains unscrollable");
+      await act(async () => {
+        viewport.scrollHeight = 1_200;
+        resize();
+      });
+      assert.equal(viewport.scrollTop, 900);
+      assert.equal(reachedTop, 2, "backfill stops once the latest page fills the viewport");
+      await act(async () => {
+        listeners.get("wheel")?.();
+        viewport.scrollTop = 0;
+        listeners.get("scroll")?.();
+      });
+      assert.equal(reachedTop, 3, "scrolling to the top still loads an older page");
+      await act(async () => {
+        viewport.scrollHeight += 100;
+        resize();
+      });
+      assert.equal(reachedTop, 4, "content changes at the top must not strand pagination");
+      await act(async () => {
+        viewport.scrollTop = 100;
+        listeners.get("scroll")?.();
+        viewport.scrollHeight += 100;
+        resize();
+        width = 0;
+        viewport.scrollTop = 0;
+        resize();
+      });
+      assert.equal(reachedTop, 4, "reading away from the top or hiding the view must not backfill");
+      return;
+    }
 
     await act(async () => {
       flowAttached = true;
@@ -375,3 +425,6 @@ for (const autoScroll of [false, true]) {
   test(`conversation reflow and bottom follow (autoScroll=${autoScroll})`, () =>
     checkConversationViewport(autoScroll));
 }
+
+test("deferred conversation history fills the viewport before waiting for scroll events", () =>
+  checkConversationViewport(false, false));

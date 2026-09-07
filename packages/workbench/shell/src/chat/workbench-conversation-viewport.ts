@@ -333,7 +333,10 @@ export function useWorkbenchConversationViewport({
       } else if (pendingScrollBehavior.current === null) {
         followBottom.current = false;
       }
-      return rememberPosition(viewport, metrics);
+      rememberPosition(viewport, metrics);
+      // Deferred mounts and collapsed history may never emit a scroll event. Check after
+      // content changes too, so a short first page cannot strand older user messages.
+      if (conversationViewportAtTop(metrics) && !isDisclosureScrollLocked(viewport)) onReachTop?.();
     };
     const cancelPendingScroll = () => {
       stopRestoration();
@@ -434,7 +437,6 @@ export function useWorkbenchConversationViewport({
       else if (moved || !readingAnchor.current) readingAnchor.current = readReadingAnchor(viewport);
       handleScroll(metrics);
       lastContentWidth.current = width;
-      if (conversationViewportAtTop(metrics)) onReachTop?.();
     };
 
     const handleDisclosureUnlock = () => {
