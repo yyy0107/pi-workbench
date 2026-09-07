@@ -189,7 +189,7 @@ function createDesktopServices(
   let installing = false;
   let operation;
   let interval;
-  const notices = new Set();
+  const notices = new Map();
   const copy = { "en-US": require("./i18n/en-US.cjs"), "zh-CN": require("./i18n/zh-CN.cjs") };
   const snapshot = () => ({
     preferences: { ...preferences },
@@ -419,6 +419,12 @@ function createDesktopServices(
       throw new Error("invalid-task-state");
     locale = Object.hasOwn(copy, state.locale) ? state.locale : "en-US";
     const next = new Map(state.tasks.map((task) => [task.id, task]));
+    for (const [notice, { taskId, kind }] of notices) {
+      const task = next.get(taskId);
+      if (task && (kind === "waiting" ? task.waiting : task.completed)) continue;
+      notices.delete(notice);
+      notice.close();
+    }
     if (tasks && preferences.taskNotifications && Notification.isSupported()) {
       for (const task of next.values()) {
         const previous = tasks.get(task.id);
@@ -436,7 +442,7 @@ function createDesktopServices(
           body: task.title || "Pi Workbench",
           silent: true,
         });
-        notices.add(notification);
+        notices.set(notification, { taskId: task.id, kind });
         notification.once("show", () => {
           if (preferences.taskNotifications && preferences.notificationSounds)
             getWindow()?.webContents.send(
@@ -444,9 +450,14 @@ function createDesktopServices(
               preferences.notificationSound,
             );
         });
-        notification.on("close", () => notices.delete(notification));
+        notification.on("close", (details) => {
+          // Timed-out Windows toasts remain in the Action Center until dismissed.
+          if (details?.reason !== "timedOut") notices.delete(notification);
+        });
         notification.on("failed", () => notices.delete(notification));
         notification.on("click", () => {
+          notices.delete(notification);
+          notification.close();
           const window = getWindow();
           if (window) {
             window.show();
@@ -534,7 +545,7 @@ function createDesktopServices(
         powerSaveBlocker.stop(blocker);
         blocker = undefined;
       }
-      for (const notice of notices) notice.close();
+      for (const notice of notices.keys()) notice.close();
       notices.clear();
     },
   };

@@ -313,6 +313,108 @@ test("desktop settings apply power, secure credentials, activity notifications a
   assert.equal(installed, 1);
 });
 
+test("task notifications are dismissed when read or clicked without clearing other unread tasks", async (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-notifications-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const handlers = new Map();
+  const notifications = [];
+  const events = [];
+  const app = { getPath: () => directory, getVersion: () => "test" };
+  class Notification extends EventEmitter {
+    static isSupported() {
+      return true;
+    }
+    constructor() {
+      super();
+      this.closeCount = 0;
+      notifications.push(this);
+    }
+    show() {}
+    close() {
+      this.closeCount++;
+      // Electron does not guarantee a close event after programmatic dismissal.
+    }
+  }
+  const service = createDesktopServices(
+    {
+      app,
+      ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) },
+      Notification,
+      powerSaveBlocker: {},
+    },
+    {
+      settings: readDesktopSettings(app),
+      isTrusted: () => true,
+      getWindow: () => ({
+        show: () => events.push("show"),
+        focus: () => events.push("focus"),
+        webContents: { send: (...args) => events.push(args) },
+      }),
+    },
+  );
+  t.after(() => service.dispose());
+  const sync = (tasks) =>
+    handlers.get("workbench:desktop-task-state")(
+      {},
+      {
+        locale: "en-US",
+        tasks: tasks.map((task) => ({ ...task })),
+      },
+    );
+  const tasks = ["completed", "failed", "waiting", "other"].map((id) => ({
+    id,
+    title: id,
+    running: true,
+    waiting: false,
+    completed: false,
+    failed: false,
+  }));
+  sync(tasks);
+  for (const task of tasks) {
+    task.running = task.waiting = task.id === "waiting";
+    task.completed = !task.waiting;
+    task.failed = task.id === "failed";
+  }
+  sync(tasks);
+  assert.equal(notifications.length, 4);
+  // A timed-out Windows toast can still be present in the Action Center.
+  notifications[1].emit("close", { reason: "timedOut" });
+  await handlers.get("workbench:desktop-settings")({}, { taskNotifications: false });
+  events.length = 0;
+
+  tasks[0].completed = tasks[1].completed = false;
+  sync(tasks);
+  assert.deepEqual(
+    notifications.map((notice) => notice.closeCount),
+    [1, 1, 0, 0],
+  );
+  sync(tasks);
+  assert.deepEqual(
+    notifications.map((notice) => notice.closeCount),
+    [1, 1, 0, 0],
+  );
+
+  notifications[2].emit("click");
+  assert.deepEqual(
+    notifications.map((notice) => notice.closeCount),
+    [1, 1, 1, 0],
+  );
+  assert.deepEqual(events, ["show", "focus", ["workbench:desktop-open-task", "waiting"]]);
+  sync(tasks);
+  assert.equal(notifications.length, 4);
+
+  sync([]);
+  assert.deepEqual(
+    notifications.map((notice) => notice.closeCount),
+    [1, 1, 1, 1],
+  );
+  service.dispose();
+  assert.deepEqual(
+    notifications.map((notice) => notice.closeCount),
+    [1, 1, 1, 1],
+  );
+});
+
 test("the actual Electron Node child applies the shared proxy to fetch and HTTP requests", async (t) => {
   const proxy = http.createServer((_request, response) => response.end("proxied"));
   const sockets = new Set();
