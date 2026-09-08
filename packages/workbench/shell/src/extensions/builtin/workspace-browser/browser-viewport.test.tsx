@@ -29,6 +29,7 @@ test("browser viewport requests sharp frames and updates density without changin
     },
   });
   const commands: BrowserCommand[] = [];
+  const errors: unknown[] = [];
   let frameListener: ((event: BrowserEvent) => void) | undefined;
   let densityListener: (() => void) | undefined;
   let observedResolution = "";
@@ -129,7 +130,7 @@ test("browser viewport requests sharp frames and updates density without changin
       sessionId: "tab",
       isVisible: true,
       zoom: 1,
-      onError: (error) => assert.fail(String(error)),
+      onError: (error) => errors.push(error),
       onFind() {},
     });
     tree.props.ref.current = element;
@@ -158,6 +159,8 @@ test("browser viewport requests sharp frames and updates density without changin
       ),
     );
     await flushResize();
+    assert.equal(tree.props.children[0].props.style.visibility, "hidden");
+    assert.ok(tree.props.children.at(-1));
     assert.deepEqual(commands.at(-1), {
       type: "viewport",
       sessionId: "tab",
@@ -191,6 +194,14 @@ test("browser viewport requests sharp frames and updates density without changin
     paints.get(paintId)!(0);
     paints.delete(paintId);
     assert.equal(picture.src, "data:image/png;base64,frame");
+    await act(async () => tree.props.children[0].props.onLoad());
+    assert.equal(tree.props.children[0].props.style.visibility, "visible");
+    assert.equal(tree.props.children.at(-1), null);
+    await act(async () => tree.props.children[0].props.onError());
+    assert.equal(tree.props.children[0].props.style.visibility, "hidden");
+    assert.equal(errors.length, 1, "decode failures reach the existing reload/retry UI");
+    await act(async () => tree.props.children[0].props.onLoad());
+    assert.equal(tree.props.children[0].props.style.visibility, "visible");
     assert.equal(cursor.hidden, true, "a controlled tab has no invented initial mouse position");
     frameListener?.({ type: "cursor", sessionId: "tab", cursor: { x: 80, y: 60 } });
     frameListener?.({ type: "cursor", sessionId: "tab", cursor: { x: 120, y: 100 } });

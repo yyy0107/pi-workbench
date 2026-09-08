@@ -263,6 +263,21 @@ test("assistant control keeps CSS cursors across tools and releases on takeover 
       false,
       "Hosts without a run signal release after their tool finishes",
     );
+    const failedCapture = t.mock.method(engine, "capture", async () => {
+      throw new BrowserError(
+        "browser-operation-failed",
+        "CDP Page.captureScreenshot timed out after 30000 ms.",
+      );
+    });
+    await assert.rejects(manager.handle({ type: "screenshot", sessionId: "tab" }, active), {
+      code: "browser-operation-failed",
+    });
+    assert.equal(
+      tab.state.status,
+      "error",
+      "agent screenshot failures expose the workspace retry UI",
+    );
+    failedCapture.mock.restore();
     await move(active);
     engine.update(tab, { status: "disconnected" });
     assert.equal(tab.state.agentControlled, false);
@@ -272,6 +287,54 @@ test("assistant control keeps CSS cursors across tools and releases on takeover 
     assert.equal(tab.state.agentControlled, false);
     assert.equal(tab.state.agentCursor, undefined);
     assert.equal(engine.tabs.size, 0);
+  } finally {
+    manager.dispose();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("popup URLs cannot survive the document that requested them", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "workbench-browser-popup-"));
+  const manager = new BrowserManager({ stateDirectory: directory });
+  const engine = manager as unknown as {
+    tabs: Map<string, { cdpSessionId: string; targetId: string }>;
+    connectTab(tab: { cdpSessionId: string; targetId: string }): Promise<void>;
+    history(): Promise<void>;
+    navigate(tab: unknown, url: string): Promise<void>;
+    onEvent(event: { method: string; sessionId?: string; params: object }): Promise<void>;
+  };
+  t.mock.method(engine, "connectTab", async (tab: { cdpSessionId: string; targetId: string }) => {
+    tab.cdpSessionId = "cdp";
+    tab.targetId = "target";
+  });
+  t.mock.method(engine, "history", async () => {});
+  const navigate = t.mock.method(engine, "navigate", async () => {});
+  try {
+    await manager.handle({ type: "attach", sessionId: "tab", projectId: "project" });
+    await engine.onEvent({
+      method: "Page.windowOpen",
+      sessionId: "cdp",
+      params: { url: "https://example.test/stale-preload" },
+    });
+    await engine.onEvent({
+      method: "Page.frameNavigated",
+      sessionId: "cdp",
+      params: { frame: { id: "main", url: "https://example.test/new-document" } },
+    });
+    await engine.onEvent({
+      method: "Page.windowOpen",
+      sessionId: "cdp",
+      params: { url: "https://example.test/current" },
+    });
+    await engine.onEvent({
+      method: "Target.attachedToTarget",
+      params: {
+        targetInfo: { type: "page", targetId: "popup", openerId: "target", url: "" },
+        sessionId: "popup-cdp",
+        waitingForDebugger: true,
+      },
+    });
+    assert.equal(navigate.mock.calls[0]!.arguments[1], "https://example.test/current");
   } finally {
     manager.dispose();
     await rm(directory, { recursive: true, force: true });

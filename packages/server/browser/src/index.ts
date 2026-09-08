@@ -570,6 +570,7 @@ export class BrowserManager {
         });
       } catch (error) {
         tab.screencasting = false;
+        this.update(tab, { status: "error", error: "browser-operation-failed" });
         throw error;
       }
     } else if (!tab.visible && tab.screencasting) {
@@ -678,6 +679,7 @@ export class BrowserManager {
       if (!params.frame.parentId) {
         tab.frameId = params.frame.id;
         tab.fileRequests.clear();
+        tab.popupUrls.length = 0;
         this.update(tab, { url: params.frame.url, title: params.frame.url });
         await this.history(tab);
       }
@@ -1064,7 +1066,13 @@ export class BrowserManager {
         return { found: found === true };
       }
       case "screenshot":
-        return this.capture(tab, command.fullPage === true);
+        try {
+          return await this.capture(tab, command.fullPage === true);
+        } catch (error) {
+          if (error instanceof BrowserError && error.code === "browser-operation-failed")
+            this.update(tab, { status: "error", error: error.code });
+          throw error;
+        }
       case "print": {
         const result = await this.send(tab, "Page.printToPDF", {
           printBackground: true,

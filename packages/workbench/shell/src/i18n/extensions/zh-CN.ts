@@ -1519,6 +1519,8 @@ export const extensionsZhCN = {
   },
 
   workspaceBrowser: {
+    waitingFrame: "正在等待浏览器画面…",
+    frameError: "浏览器画面显示失败，请重新加载后重试。",
     agentControlled: "助手正在控制此浏览器",
     pageInput: "浏览器页面输入",
     stop: "停止加载",

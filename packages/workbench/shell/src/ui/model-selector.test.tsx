@@ -103,6 +103,7 @@ test("provider browsing scopes model search and effort menus follow the selected
 
     await browse("b");
     assert.deepEqual(changes, []);
+    assert.equal(radioGroups()[1]!.props.value, "", "an unselected provider stays controlled");
     assert.equal(search().props.value, "");
     assert.deepEqual(visibleModels(), ["b/reason", "b/plain"]);
     assert.deepEqual(menuLabels(), ["Provider", "Model"]);
@@ -130,6 +131,15 @@ test("provider browsing scopes model search and effort menus follow the selected
     assert.equal(radioGroups()[0]!.props.value, "b");
     assert.equal(search().props.value, "");
     assert.deepEqual(visibleModels(), ["b/reason", "b/plain"]);
+    props = { ...props, models: [], selectedModelId: undefined, selectedEffort: undefined };
+    await act(async () => root.render(<Probe />));
+    assert.equal(radioGroups()[0]!.props.value, "");
+    props = { ...props, models, selectedModelId: "a/reason" };
+    await act(async () => root.render(<Probe />));
+    assert.deepEqual(
+      radioGroups().map((group) => group.props.value),
+      ["a", "a/reason", ""],
+    );
   } finally {
     await act(async () => root.unmount());
     environment.restore();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MousePointer2Icon } from "lucide-react";
 import type { BrowserDevice, BrowserEvent, BrowserInput } from "@workbench/browser-contracts";
 import type { BrowserSessionService } from "./browser-session-service";
@@ -121,6 +121,8 @@ export function BrowserViewport({
   onFind(): void;
 }) {
   const { t } = useI18n();
+  const [imageStatus, setImageStatus] = useState<"waiting" | "ready" | "error">("waiting");
+  useEffect(() => setImageStatus("waiting"), [browser, sessionId]);
   const container = useRef<HTMLDivElement>(null);
   const picture = useRef<HTMLImageElement>(null);
   const keyboard = useRef<HTMLTextAreaElement>(null);
@@ -382,10 +384,17 @@ export function BrowserViewport({
       }}
     >
       <img
+        key={sessionId}
         ref={picture}
         alt={t("extensions.workspaceBrowser.viewportTitle")}
         draggable={false}
         decoding="sync"
+        style={{ visibility: imageStatus === "ready" ? "visible" : "hidden" }}
+        onLoad={() => setImageStatus("ready")}
+        onError={() => {
+          setImageStatus("error");
+          errorHandler.current(new Error("Browser frame could not be decoded."));
+        }}
         className="pointer-events-none size-full select-none object-contain"
       />
       <textarea
@@ -491,6 +500,18 @@ export function BrowserViewport({
           style={{ transform: "translate(-16.6667%, -16.6667%)" }}
         />
       </div>
+      {imageStatus !== "ready" ? (
+        <div
+          role="status"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground"
+        >
+          {t(
+            imageStatus === "error"
+              ? "extensions.workspaceBrowser.frameError"
+              : "extensions.workspaceBrowser.waitingFrame",
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

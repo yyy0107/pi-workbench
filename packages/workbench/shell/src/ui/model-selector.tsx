@@ -225,7 +225,7 @@ export function ModelSelector({
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="max-h-64 w-52 overflow-y-auto" sideOffset={4}>
               <DropdownMenuRadioGroup
-                value={providerId}
+                value={providerId ?? ""}
                 onValueChange={(nextProviderId) => {
                   setBrowsedProviderId(nextProviderId);
                   setModelQuery("");
@@ -280,7 +280,10 @@ export function ModelSelector({
                 {!filteredModels.length ? (
                   <MenuStatus>{labels.noSearchResults}</MenuStatus>
                 ) : (
-                  <DropdownMenuRadioGroup value={providerModel?.id} onValueChange={onModelChange}>
+                  <DropdownMenuRadioGroup
+                    value={providerModel?.id ?? ""}
+                    onValueChange={onModelChange}
+                  >
                     {filteredModels.map((model) => (
                       <ModelMenuItem
                         key={model.id}
@@ -308,7 +311,7 @@ export function ModelSelector({
                 </MenuCurrentValue>
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-44" sideOffset={4}>
-                <DropdownMenuRadioGroup value={selectedEffort} onValueChange={onEffortChange}>
+                <DropdownMenuRadioGroup value={selectedEffort ?? ""} onValueChange={onEffortChange}>
                   {reasoningLevels.map((level) => (
                     <DropdownMenuRadioItem
                       key={level.id}

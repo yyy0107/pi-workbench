@@ -1562,6 +1562,8 @@ export const extensionsEnUS = {
   },
 
   workspaceBrowser: {
+    waitingFrame: "Waiting for browser image…",
+    frameError: "Could not display the browser image. Reload to retry.",
     agentControlled: "The assistant is controlling this browser",
     pageInput: "Browser page input",
     stop: "Stop loading",
