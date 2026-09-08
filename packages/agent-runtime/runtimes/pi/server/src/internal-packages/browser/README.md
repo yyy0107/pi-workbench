@@ -1,6 +1,6 @@
 # Browser for Pi
 
-`@workbench/pi-browser` is a Pi package containing the `workbench_browser` tool and the `browser` skill. It works in Workbench and in standalone Pi CLI, using the same browser engine and command contracts.
+`@workbench/pi-browser` is a Pi package containing the `workbench_browser` tool and the `browser-use` skill. It works in Workbench and in standalone Pi CLI, using the same browser engine and command contracts.
 
 In Workbench, the package connects to the existing in-app browser and its permission UI. In standalone Pi, it lazily starts an isolated headless Chrome or Chromium instance for the current Pi session. Standalone mode does not open a visible browser window or attach to the user's normal Chrome, Edge, or Workbench profile.
 

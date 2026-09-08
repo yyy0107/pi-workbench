@@ -39,7 +39,7 @@ test("the built-in browser loads once as a Pi package across reloads and native 
       .getExtensions()
       .extensions.filter((extension) => extension.tools.has("workbench_browser"));
   const browserSkills = () =>
-    resourceLoader.getSkills().skills.filter((skill) => skill.name === "browser");
+    resourceLoader.getSkills().skills.filter((skill) => skill.name === "browser-use");
   for (let reload = 0; reload < 2; reload++) {
     await registerWorkbenchBuiltinPackages(agentDir);
     await context.reload();
@@ -70,7 +70,7 @@ test("the built-in browser loads once as a Pi package across reloads and native 
     "user",
     resourceLoader.getExtensions().extensions,
   );
-  assert.equal(details.find((resource) => resource.type === "skill")?.name, "browser");
+  assert.equal(details.find((resource) => resource.type === "skill")?.name, "browser-use");
   assert.deepEqual(details.find((resource) => resource.type === "extension")?.toolNames, [
     "workbench_browser",
   ]);
@@ -90,7 +90,7 @@ test("the built-in browser loads once as a Pi package across reloads and native 
   assert.equal(packageCatalog.packages[0]?.builtin, true);
   assert.equal(packageCatalog.packages[0]?.name, "@workbench/pi-browser");
   const skillCatalog = await skills.list(request);
-  const browserSkill = skillCatalog.skills.find((skill) => skill.name === "browser");
+  const browserSkill = skillCatalog.skills.find((skill) => skill.name === "browser-use");
   assert.equal(browserSkill?.origin, "package");
   assert.equal(browserSkill?.packageBuiltin, true);
   const extensionCatalog = await extensions.list(request);
@@ -125,7 +125,7 @@ test("the built-in browser loads once as a Pi package across reloads and native 
     assert.equal(browser[0]?.enabled, false);
   }
   assert.equal(
-    (await skills.list(request)).skills.find((skill) => skill.name === "browser")?.enabled,
+    (await skills.list(request)).skills.find((skill) => skill.name === "browser-use")?.enabled,
     false,
   );
   assert.equal(
@@ -138,7 +138,7 @@ test("the built-in browser loads once as a Pi package across reloads and native 
     {
       source: WORKBENCH_BROWSER_PACKAGE_SOURCE,
       extensions: [`+${extensionPath.split(path.sep).join("/")}`],
-      skills: ["+skills/browser/SKILL.md"],
+      skills: ["+skills/browser-use/SKILL.md"],
     },
   ]);
   await settingsManager.flush();
@@ -165,16 +165,16 @@ test("registration migrates the retired browser skill switch and preserves exist
   const settings = SettingsManager.create(agentDir, agentDir, { projectTrusted: false });
   assert.deepEqual(settings.getGlobalSettings().packages, [
     customPackage,
-    { source: WORKBENCH_BROWSER_PACKAGE_SOURCE, skills: ["-skills/browser/SKILL.md"] },
+    { source: WORKBENCH_BROWSER_PACKAGE_SOURCE, skills: ["-skills/browser-use/SKILL.md"] },
   ]);
   assert.deepEqual(settings.getGlobalSettings().skills, ["-skills/custom"]);
   assert.equal(settings.getGlobalSettings().defaultModel, "preserved-model");
   const configured = {
     source: "packages/.builtin/browser",
     extensions: ["-index.js"],
-    skills: ["+skills/browser/SKILL.md"],
+    skills: ["+skills/browser-use/SKILL.md"],
   };
-  settings.setPackages([customPackage, configured]);
+  settings.setPackages([customPackage, { ...configured, skills: ["+skills/browser/SKILL.md"] }]);
   settings.setSkillPaths(["-skills/.builtin/browser"]);
   await settings.flush();
   await registerWorkbenchBuiltinPackages(agentDir);

@@ -529,10 +529,10 @@ Workbench 将完整内置包部署到 Pi 用户目录的 `packages/.builtin/brow
 `package`；不再注册 `workbench.browser` 内联扩展或单独安装 Browser 技能。
 工具箱在 Pi Packages 中显示带内置标记的 Browser，详情展示包内技能及扩展注册的工具、事件；
 包随 Workbench 更新，不单独卸载或更新，包内资源沿用 Pi 原生过滤规则启停。
-Workbench 与使用同一 Pi 用户目录的独立 Pi CLI 消费同一份包，技能唯一源码位于包的 `skills/browser/`。
+Workbench 与使用同一 Pi 用户目录的独立 Pi CLI 消费同一份包，技能唯一源码位于包的 `skills/browser-use/`。
 独立 Pi CLI 惰性启动同一 BrowserManager 引擎，通过 Pi UI 处理权限确认，并在会话结束时释放浏览器；
 Workbench 则继续使用应用的共享浏览器与权限 UI。
-`browser` 技能通过同包扩展的 `workbench_browser` 工具控制应用内浏览器，
+`browser-use` 技能通过同包扩展的 `workbench_browser` 工具控制应用内浏览器，
 与用户复用同一标签和权限设置。`tabs.list` 只列举当前项目已有的标签；`snapshot` 返回页面无障碍树
 及元素引用，`click` / `fill` 使用当前快照的引用操作元素，导航后旧引用失效。Workbench Host 将
 当前对话的 cwd 解析为已登记的 workspaceId，确保工具能发现和复用用户打开的标签。导航、截图、键盘和

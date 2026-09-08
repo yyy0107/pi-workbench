@@ -80,8 +80,8 @@ test("the packed Pi package loads its extension and skill without private worksp
   const skills = loader.getSkills();
   assert.deepEqual(skills.diagnostics, []);
   assert.equal(
-    skills.skills.find((skill) => skill.name === "browser")?.filePath,
-    path.join(root, "skills/browser/SKILL.md"),
+    skills.skills.find((skill) => skill.name === "browser-use")?.filePath,
+    path.join(root, "skills/browser-use/SKILL.md"),
   );
   const global = globalThis as typeof globalThis & {
     __workbenchPiAgentHostBindings?: { browser?: BrowserHost };
@@ -284,4 +284,5 @@ test("the source Pi package loads the live TypeScript entry", async (t) => {
   assert.equal(loaded.extensions[0].handlers.has("session_shutdown"), true);
   assert.equal(loaded.extensions[0].handlers.has("agent_settled"), true);
   assert.equal(loader.getSkills().skills[0]?.sourceInfo.origin, "package");
+  assert.equal(loader.getSkills().skills[0]?.name, "browser-use");
 });

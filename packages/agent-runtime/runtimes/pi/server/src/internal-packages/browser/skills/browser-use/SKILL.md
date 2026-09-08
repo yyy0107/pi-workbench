@@ -1,9 +1,9 @@
 ---
-name: browser
+name: browser-use
 description: Navigate pages, inspect content, click elements, fill forms, and take screenshots with the in-app Workbench browser or the Browser package's session browser in standalone Pi. Use for explicit browser interaction and local web app verification; prefer an available connector or API for semantic tasks that do not require the page UI.
 ---
 
-# Browser
+# Browser Use
 
 Use `workbench_browser`. In Workbench it controls the in-app browser, sharing its tabs, authentication, and settings with the user. In standalone Pi it lazily starts an isolated headless Chrome/Chromium instance for the session, without sharing another browser's profile or opening a visible window.
 

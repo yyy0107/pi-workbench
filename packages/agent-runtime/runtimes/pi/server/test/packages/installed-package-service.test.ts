@@ -219,7 +219,7 @@ test("identifies the built-in browser package and rejects its removal or replace
       session: {
         settingsManager: {
           getGlobalSettings: () => ({
-            packages: [{ source, skills: ["-skills/browser/SKILL.md"] }],
+            packages: [{ source, skills: ["-skills/browser-use/SKILL.md"] }],
           }),
           getProjectSettings: () => ({ packages: [source] }),
         },

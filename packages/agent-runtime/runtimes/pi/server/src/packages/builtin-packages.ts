@@ -24,6 +24,14 @@ export async function registerWorkbenchBuiltinPackages(agentDir: string): Promis
     isWorkbenchBuiltinPackage(typeof entry === "string" ? entry : entry.source),
   );
   let browser: PackageSource = packages[index] ?? WORKBENCH_BROWSER_PACKAGE_SOURCE;
+  if (typeof browser !== "string" && browser.skills) {
+    const previousSkills = browser.skills;
+    const skills = previousSkills.map((pattern) =>
+      pattern.replace(/^([+-]?(?:\.\/)?skills\/)browser(?=\/|$)/u, "$1browser-use"),
+    );
+    if (skills.some((pattern, index) => pattern !== previousSkills[index]))
+      browser = { ...browser, skills };
+  }
   const previousSkillRoot = path.join(agentDir, "skills", ".builtin", "browser");
   const previousSkillPatterns = (global.skills ?? []).filter(
     (pattern) =>
@@ -41,7 +49,7 @@ export async function registerWorkbenchBuiltinPackages(agentDir: string): Promis
       ...(typeof browser === "string" ? { source: browser } : browser),
       skills: withResourceEnabled(
         [],
-        "skills/browser/SKILL.md",
+        "skills/browser-use/SKILL.md",
         !previousSkillPatterns.some((pattern) => pattern.startsWith("-")),
       ),
     };
