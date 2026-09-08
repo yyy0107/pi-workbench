@@ -1,6 +1,8 @@
 import { createStore } from "zustand/vanilla";
 
 import type { WorkbenchSettingsPort } from "@workbench/shell/settings";
+import type { WorkbenchLocalApp } from "@workbench/host-contracts/runtime-capabilities";
+import { SYSTEM_DEFAULT_APP_ID } from "./file-open-apps";
 
 export const FILE_OPEN_PREFERENCES = Symbol("workbench.file-open-preferences");
 
@@ -47,4 +49,25 @@ export function createFileOpenPreferences(settings: WorkbenchSettingsPort) {
       disposed = true;
     },
   });
+}
+
+export async function rememberFileOpenApp(
+  preferences: ReturnType<typeof createFileOpenPreferences>,
+  preferenceKey: string,
+  app: WorkbenchLocalApp | undefined,
+  apps: readonly WorkbenchLocalApp[],
+): Promise<void> {
+  await preferences.getState().hydrate();
+  const previousChoices = preferences.getState().appIds;
+  const previousAppId = previousChoices[preferenceKey];
+  const browserKey = `browser:${preferenceKey}`;
+  if (
+    app?.kind !== "browser" &&
+    previousAppId &&
+    !previousChoices[browserKey] &&
+    apps.some((candidate) => candidate.kind === "browser" && candidate.id === previousAppId)
+  ) {
+    await preferences.getState().remember(browserKey, previousAppId);
+  }
+  await preferences.getState().remember(preferenceKey, app?.id ?? SYSTEM_DEFAULT_APP_ID);
 }

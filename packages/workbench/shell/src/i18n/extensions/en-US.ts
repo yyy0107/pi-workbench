@@ -716,6 +716,15 @@ export const extensionsEnUS = {
   },
 
   workspaceFile: {
+    linkMenu: {
+      openFile: "Open file",
+      saveAs: "Save as…",
+      copyPath: "Copy path",
+      pathCopied: "File path copied",
+      showInFolder: "Open in file manager",
+      actionFailed:
+        "The file action could not be completed. Check that the file is accessible and try again.",
+    },
     capabilityUnavailable: "This runtime does not support workspace files.",
     title: "File",
     loadFailed: "The file could not be loaded. Try again.",

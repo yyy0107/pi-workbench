@@ -100,6 +100,10 @@ function harness(overrides: Partial<TestRuntimeHttpRouterDependencies> = {}) {
         headers: { "content-range": "bytes 1-2/3" },
       });
     },
+    handleLocalFileContentRequest(runtimeRequest) {
+      call("handleLocalFileContentRequest", runtimeRequest);
+      return new Response(runtimeRequest.method === "HEAD" ? null : "local-bytes");
+    },
     ...overrides,
   };
   return {
@@ -171,6 +175,17 @@ test("dispatches RPC and passes streaming responses through without cloning or b
 
   assert.deepEqual(seenRequests, [running, events, exported, content]);
   assert.deepEqual(calls, [{ name: "handleRpcPost", args: ["session.list"] }]);
+});
+
+test("dispatches local file content GET and HEAD to the host file handler", async () => {
+  const { router, calls } = harness();
+  for (const method of ["GET", "HEAD"]) {
+    const content = request("/api/host.files.content?path=%2Ftmp%2Fpreview.png", { method });
+    const response = await router(content);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), method === "HEAD" ? "" : "local-bytes");
+    assert.deepEqual(calls.at(-1), { name: "handleLocalFileContentRequest", args: [content] });
+  }
 });
 
 test("owns legacy model, session collection, session resource and picker validation", async () => {

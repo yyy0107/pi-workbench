@@ -4,8 +4,9 @@ import test from "node:test";
 import type {
   WorkbenchSettingsPort,
   WorkbenchSettingsPreferences,
+  WorkbenchSettingsPreferencesPatch,
 } from "@workbench/shell/settings";
-import { createFileOpenPreferences } from "./file-open-preferences";
+import { createFileOpenPreferences, rememberFileOpenApp } from "./file-open-preferences";
 
 test("restores choices and serializes different file types without losing confirmed preferences", async () => {
   let stored: WorkbenchSettingsPreferences = { fileOpenApps: { "extension:html": "firefox" } };
@@ -67,4 +68,23 @@ test("retries failed hydration and ignores late responses after disposal", async
   await hydration;
   await store.getState().remember("extension:pdf", "acrobat");
   assert.deepEqual(store.getState().appIds, {});
+});
+
+test("preserves a legacy browser preference before replacing the file application", async () => {
+  const writes: WorkbenchSettingsPreferencesPatch[] = [];
+  const store = createFileOpenPreferences({
+    load: async () => ({ fileOpenApps: { "extension:html": "firefox" } }),
+    update: async (patch) => {
+      writes.push(patch);
+    },
+  });
+  await store.getState().hydrate();
+  await rememberFileOpenApp(store, "extension:html", undefined, [
+    { id: "firefox", name: "Firefox", kind: "browser", supportedFileKinds: ["html"] },
+  ]);
+  assert.deepEqual(writes, [
+    { fileOpenApps: { "extension:html": "firefox", "browser:extension:html": "firefox" } },
+    { fileOpenApps: { "extension:html": "system-default", "browser:extension:html": "firefox" } },
+  ]);
+  store.dispose();
 });

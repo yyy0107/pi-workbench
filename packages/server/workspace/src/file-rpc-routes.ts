@@ -6,6 +6,7 @@ import {
   WORKSPACE_FILE_SEARCH_RESULT_LIMIT,
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 import type { WorkspaceFileProtocol } from "./files";
+import type { LocalFileProtocol } from "./local-files";
 import {
   handleRpcPost,
   rpcBusinessError,
@@ -139,6 +140,66 @@ export function createWorkspaceFileRpcRoutes({
         default:
           return undefined;
       }
+    },
+  };
+}
+
+export function createLocalFileRpcRoutes({
+  service,
+  projectDomainError,
+}: {
+  service: LocalFileProtocol;
+  projectDomainError: WorkspaceFileRpcRoutesDependencies["projectDomainError"];
+}): RpcRouteGroup {
+  const path = rpcString({ minLength: 1, maxLength: WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT });
+  const pathPayload = rpcObject({ path });
+  const writePayload = rpcObject({
+    path,
+    content: rpcString({ maxLength: WORKSPACE_FILE_EDITABLE_SIZE_LIMIT }),
+    expectedVersion: nonEmptyString,
+  });
+  return {
+    handle(request, method) {
+      if (method === "host.files.write") {
+        return handleRpcPost(request, {
+          method,
+          payload: writePayload,
+          maxRequestBodyBytes: RPC_REQUEST_BODY_LIMITS.workspaceFileWrite,
+          handler: (payload, context) =>
+            invokeFileOperation(
+              () =>
+                service.writeFile(
+                  payload.path,
+                  payload.content,
+                  payload.expectedVersion,
+                  context.signal,
+                ),
+              context.signal,
+              "File writing was cancelled.",
+              projectDomainError,
+            ),
+        });
+      }
+      const operation: ((path: string, signal?: AbortSignal) => Promise<unknown>) | undefined =
+        method === "host.files.list"
+          ? service.listDirectory
+          : method === "host.files.describe"
+            ? service.describeFile
+            : method === "host.files.read"
+              ? service.readFile
+              : undefined;
+      if (!operation) return undefined;
+      return handleRpcPost(request, {
+        method,
+        payload: pathPayload,
+        handler: (payload, context) =>
+          invokeFileOperation(
+            () => operation.call(service, payload.path, context.signal),
+            context.signal,
+            "File access was cancelled.",
+            projectDomainError,
+          ),
+      });
     },
   };
 }

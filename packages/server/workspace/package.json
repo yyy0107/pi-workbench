@@ -5,6 +5,11 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
+    "./local-files": {
+      "types": "./src/local-files.ts",
+      "import": "./src/local-files.ts",
+      "default": "./src/local-files.ts"
+    },
     "./files": {
       "types": "./src/files.ts",
       "import": "./src/files.ts",

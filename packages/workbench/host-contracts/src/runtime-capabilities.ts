@@ -13,6 +13,37 @@ export interface WorkbenchHostDirectoryListing {
   truncated: boolean;
 }
 
+/** Files on the connected Runtime Host, including paths outside registered projects. */
+export interface WorkbenchLocalFileDescriptor {
+  absolutePath: string;
+  name: string;
+  mediaType: string;
+  encoding: "utf-8" | null;
+  version: string;
+  size: number;
+  modifiedAt: number;
+}
+
+export interface WorkbenchLocalFileSnapshot extends Omit<
+  WorkbenchLocalFileDescriptor,
+  "mediaType" | "encoding"
+> {
+  content: string;
+  encoding: "utf-8";
+}
+
+export interface WorkbenchLocalFilesListResult {
+  absolutePath: string;
+  entries: Array<{
+    absolutePath: string;
+    name: string;
+    kind: "file" | "directory";
+    hidden: boolean;
+    symbolicLink?: boolean;
+  }>;
+  truncated: boolean;
+}
+
 export interface WorkbenchProjectTrust {
   path: string;
   requiresTrust: boolean;

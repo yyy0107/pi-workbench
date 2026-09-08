@@ -6,6 +6,15 @@ export interface WorkspaceFileSession {
   workspaceId: string;
 }
 
+export interface LocalFileSession {
+  source: "local";
+  rootPath: string;
+}
+
+export type FileContentTarget =
+  | { source: "workspace"; workspaceId: string; relativePath: string }
+  | { source: "local"; path: string };
+
 export type ResourceCatalogTarget = { scope: "user" } | { scope: "project"; workspaceId: string };
 
 type ResourceCatalogIdentity =
@@ -29,7 +38,7 @@ export type ExtensionFileSession = ResourceCatalogIdentity & {
 };
 
 export type ResourceFileSession = SkillFileSession | ExtensionFileSession;
-export type FileWorkspaceSession = WorkspaceFileSession | ResourceFileSession;
+export type FileWorkspaceSession = WorkspaceFileSession | LocalFileSession | ResourceFileSession;
 
 export interface WorkspaceFileContext {
   scope: WorkspaceScope;
@@ -58,7 +67,7 @@ export interface FileSnapshot {
   path: string;
   relativePath?: string;
   workspaceId?: string;
-  source: "memory" | "workspace" | "resource";
+  source: "memory" | "workspace" | "local" | "resource";
   name: string;
   content: string;
   savedContent: string;
@@ -71,7 +80,7 @@ export interface FileDescriptor {
   path: string;
   relativePath?: string;
   workspaceId?: string;
-  source: "memory" | "workspace" | "resource";
+  source: "memory" | "workspace" | "local" | "resource";
   name: string;
   mediaType: string;
   encoding: "utf-8" | null;
@@ -143,6 +152,10 @@ function resourceMetadata(
 export function resolveFileWorkspaceSession(
   params: Readonly<Record<string, unknown>>,
 ): FileWorkspaceSession | undefined {
+  if (params.source === "local") {
+    const rootPath = nonEmptyString(params.rootPath);
+    return rootPath ? { source: "local", rootPath } : undefined;
+  }
   if (params.source === "workspace") {
     const rootPath = nonEmptyString(params.rootPath);
     const workspaceId = nonEmptyString(params.workspaceId);
@@ -210,6 +223,7 @@ export function fileWorkspaceContext(
 }
 
 export function fileWorkspaceSessionKey(session: FileWorkspaceSession): string {
+  if (session.source === "local") return JSON.stringify(["local", session.rootPath]);
   if (session.source === "workspace") {
     return JSON.stringify(["workspace", session.workspaceId, session.rootPath]);
   }
@@ -232,6 +246,7 @@ export function fileWorkspaceOpenableResource(
   session: FileWorkspaceSession,
   file: Pick<FileNode, "path" | "relativePath" | "name">,
 ): OpenableResource {
+  if (session.source === "local") return { scheme: "file", path: file.path, label: file.name };
   if (session.source === "skill") {
     return {
       scheme: "skill-file",

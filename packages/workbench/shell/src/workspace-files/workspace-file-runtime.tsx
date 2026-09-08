@@ -1,7 +1,10 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { useWorkbenchWorkspaceCapability } from "@workbench/agent-runtime-client/context";
+import {
+  useWorkbenchRuntimeHostCapability,
+  useWorkbenchWorkspaceCapability,
+} from "@workbench/agent-runtime-client/context";
 import { useRuntimeConnection } from "../runtime-connection";
 import {
   BufferedFileWorkspaceService,
@@ -24,6 +27,7 @@ export function WorkbenchWorkspaceFileRuntimeProvider({
   resources,
 }: Readonly<{ children: ReactNode; resources?: FileWorkspaceResourceBackend }>) {
   const workspace = useWorkbenchWorkspaceCapability();
+  const localFiles = useWorkbenchRuntimeHostCapability()?.files;
   const connection = useRuntimeConnection();
   const runtime = useMemo<WorkspaceFileRuntime>(
     () =>
@@ -40,10 +44,17 @@ export function WorkbenchWorkspaceFileRuntimeProvider({
               }
             : undefined,
           resources,
+          localFiles
+            ? {
+                ...localFiles,
+                contentUrl: (path) =>
+                  connection.kind === "same-origin" ? localFiles.fileContentUrl(path) : undefined,
+              }
+            : undefined,
         ),
         diffs: new MemoryFileDiffService(),
       }),
-    [connection.kind, resources, workspace],
+    [connection.kind, localFiles, resources, workspace],
   );
   return <WorkspaceFileRuntimeProvider runtime={runtime}>{children}</WorkspaceFileRuntimeProvider>;
 }

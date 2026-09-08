@@ -1,7 +1,10 @@
 "use client";
 
 import { useLayoutEffect } from "react";
-import { useWorkbenchWorkspaceCapability } from "@workbench/agent-runtime-client/context";
+import {
+  useWorkbenchRuntimeHostCapability,
+  useWorkbenchWorkspaceCapability,
+} from "@workbench/agent-runtime-client/context";
 import type { Disposable, OpenHandlerDefinition, OpenerRegistry } from "@workbench/extension-sdk";
 import { useWorkbenchAssets } from "@workbench/shell/presentation";
 import {
@@ -49,16 +52,17 @@ export function createWorkspaceFileOpenersContribution(binding: WorkspaceFileOpe
   return function WorkspaceFileOpenersContribution() {
     const { fileViewerAssetBaseUrl } = useWorkbenchAssets();
     const workspace = useWorkbenchWorkspaceCapability();
+    const localFiles = useWorkbenchRuntimeHostCapability()?.files;
     const runtime = useWorkspaceFileRuntime();
     useLayoutEffect(
       () => acquireFileViewerAssetBaseLease(fileViewerAssetBaseUrl),
       [fileViewerAssetBaseUrl],
     );
     useLayoutEffect(() => {
-      if (!workspace) return;
+      if (!workspace && !localFiles) return;
       const connection = binding.connect(runtime);
       return () => connection.dispose();
-    }, [runtime, workspace]);
+    }, [localFiles, runtime, workspace]);
     return null;
   };
 }

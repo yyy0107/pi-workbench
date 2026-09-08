@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { useWorkbenchWorkspaceCapability } from "@workbench/agent-runtime-client/context";
+import {
+  useWorkbenchRuntimeHostCapability,
+  useWorkbenchWorkspaceCapability,
+} from "@workbench/agent-runtime-client/context";
+import type { WorkbenchWorkspaceFileStreamOptions } from "@workbench/agent-runtime-client/capabilities";
+import type { FileContentTarget } from "../../../workspace-files";
 
 import { ProgressiveTextDocument, type ProgressiveTextSnapshot } from "./progressive-text-document";
 
@@ -12,10 +17,7 @@ export type ProgressiveTextStage = "idle" | "loading" | "rendering" | "ready" | 
 
 export interface ProgressiveTextSource {
   text?: string;
-  stream?: {
-    workspaceId: string;
-    relativePath: string;
-  };
+  stream?: FileContentTarget;
   totalBytes: number;
   version: string;
 }
@@ -47,24 +49,16 @@ export function useProgressiveTextDocument(
   enabled = true,
 ): ProgressiveTextState {
   const workspaceClient = useWorkbenchWorkspaceCapability();
+  const localFiles = useWorkbenchRuntimeHostCapability()?.files;
   const [attempt, setAttempt] = useState(0);
   const sourceAvailable = source !== undefined;
   const sourceText = source?.text;
   const sourceTotalBytes = source?.totalBytes;
   const sourceVersion = source?.version;
-  const streamRelativePath = source?.stream?.relativePath;
-  const streamWorkspaceId = source?.stream?.workspaceId;
+  const stream = source?.stream;
   const document = useMemo(
     () => new ProgressiveTextDocument(sourceTotalBytes),
-    [
-      enabled,
-      attempt,
-      sourceText,
-      sourceTotalBytes,
-      sourceVersion,
-      streamRelativePath,
-      streamWorkspaceId,
-    ],
+    [enabled, attempt, sourceText, sourceTotalBytes, sourceVersion, stream],
   );
   const initialState = useMemo<InternalProgressiveTextState>(
     () => ({
@@ -133,24 +127,27 @@ export function useProgressiveTextDocument(
         }
       };
       cancelIdle = scheduleIdle(parseNextChunk);
-    } else if (streamWorkspaceId && streamRelativePath && workspaceClient) {
-      void workspaceClient
-        .streamFileText(
-          { workspaceId: streamWorkspaceId, relativePath: streamRelativePath },
-          {
-            signal: abortController.signal,
-            onChunk(chunk) {
-              document.append(chunk.text, chunk.loadedBytes, chunk.totalBytes ?? sourceTotalBytes);
-              schedulePublish("loading");
-            },
-          },
-        )
-        .then(
-          (result) => finish(result.loadedBytes, result.totalBytes ?? sourceTotalBytes),
-          () => {
-            if (!abortController.signal.aborted) publish("error");
-          },
-        );
+    } else if (stream && (stream.source === "local" ? localFiles : workspaceClient)) {
+      const options: WorkbenchWorkspaceFileStreamOptions = {
+        signal: abortController.signal,
+        onChunk(chunk) {
+          document.append(chunk.text, chunk.loadedBytes, chunk.totalBytes ?? sourceTotalBytes);
+          schedulePublish("loading");
+        },
+      };
+      const result =
+        stream.source === "local"
+          ? localFiles!.streamFileText(stream.path, options)
+          : workspaceClient!.streamFileText(
+              { workspaceId: stream.workspaceId, relativePath: stream.relativePath },
+              options,
+            );
+      void result.then(
+        (result) => finish(result.loadedBytes, result.totalBytes ?? sourceTotalBytes),
+        () => {
+          if (!abortController.signal.aborted) publish("error");
+        },
+      );
     } else {
       publish("error");
     }
@@ -168,8 +165,8 @@ export function useProgressiveTextDocument(
     sourceAvailable,
     sourceText,
     sourceTotalBytes,
-    streamRelativePath,
-    streamWorkspaceId,
+    stream,
+    localFiles,
     workspaceClient,
   ]);
 

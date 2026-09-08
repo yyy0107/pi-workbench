@@ -1,6 +1,10 @@
 import type { MessageFormatters } from "../../i18n/types";
 
 export const uiEnUS = {
+  fileLink: {
+    openFailed:
+      "The file could not be opened. Check that it exists and is accessible on the connected host.",
+  },
   colorPicker: {
     hex: "Hex color",
     red: "Red",

@@ -11,12 +11,10 @@ import {
   FileTextIcon,
   FolderIcon,
   FoldersIcon,
-  Globe2Icon,
   ImageIcon,
   LoaderCircleIcon,
   MusicIcon,
   SaveIcon,
-  TerminalIcon,
   VideoIcon,
   XIcon,
 } from "lucide-react";
@@ -69,23 +67,12 @@ import {
   localSystemApps,
   SYSTEM_DEFAULT_APP_ID,
 } from "./file-open-apps";
-import { createFileOpenPreferences, FILE_OPEN_PREFERENCES } from "./file-open-preferences";
-import { assetModuleUrl, type AssetModule } from "./asset-module-url";
-import chromeIcon from "./icons/chrome.svg";
-import chromiumIcon from "./icons/chromium.svg";
-import cursorIcon from "./icons/cursor.svg";
-import datagripIcon from "./icons/datagrip.svg";
-import edgeIcon from "./icons/edge.svg";
-import firefoxIcon from "./icons/firefox.svg";
-import ideaIcon from "./icons/idea.svg";
-import mpvIcon from "./icons/mpv.svg";
-import pycharmIcon from "./icons/pycharm.svg";
-import qoderIcon from "./icons/qoder.svg";
-import safariIcon from "./icons/safari.svg";
-import traeIcon from "./icons/trae.svg";
-import vlcIcon from "./icons/vlc.svg";
-import vscodeIcon from "./icons/vscode.svg";
-import webstormIcon from "./icons/webstorm.svg";
+import {
+  createFileOpenPreferences,
+  FILE_OPEN_PREFERENCES,
+  rememberFileOpenApp,
+} from "./file-open-preferences";
+import { LocalAppIcon } from "./local-app-icon";
 import type { FileSurfaceParams } from "./file-surface";
 import {
   isFileViewerPreviewFile,
@@ -94,55 +81,6 @@ import {
   toggleFileViewMode,
 } from "./file-view-mode";
 import { isLargeTextFile } from "./progressive-text-document";
-
-const LOCAL_APP_ICON_SOURCES: Readonly<Record<string, AssetModule>> = {
-  chrome: chromeIcon,
-  chromium: chromiumIcon,
-  cursor: cursorIcon,
-  datagrip: datagripIcon,
-  edge: edgeIcon,
-  firefox: firefoxIcon,
-  idea: ideaIcon,
-  mpv: mpvIcon,
-  pycharm: pycharmIcon,
-  qoder: qoderIcon,
-  safari: safariIcon,
-  trae: traeIcon,
-  vlc: vlcIcon,
-  vscode: vscodeIcon,
-  webstorm: webstormIcon,
-};
-
-function LocalAppIcon({ app }: { app?: WorkbenchLocalApp }) {
-  const source = app?.icon ? LOCAL_APP_ICON_SOURCES[app.icon] : undefined;
-  const sourceUrl = source ? assetModuleUrl(source) : undefined;
-  const [failedSource, setFailedSource] = useState<string>();
-  if (sourceUrl && failedSource !== sourceUrl) {
-    return (
-      <img
-        aria-hidden="true"
-        src={sourceUrl}
-        alt=""
-        width={16}
-        height={16}
-        className={cn(
-          "size-[var(--button-icon-size,var(--icon-size-md))] shrink-0 object-contain",
-          app?.icon === "qoder" && "rounded-[3px] bg-[#101114] p-px",
-        )}
-        onError={() => setFailedSource(sourceUrl)}
-      />
-    );
-  }
-  if (app?.kind === "terminal") return <TerminalIcon aria-hidden="true" />;
-  if (app?.kind === "file-manager") return <FolderIcon aria-hidden="true" />;
-  if (app?.kind === "media-player") return <VideoIcon aria-hidden="true" />;
-  if (app?.kind === "browser") return <Globe2Icon aria-hidden="true" />;
-  if (app?.kind === "image-editor") return <ImageIcon aria-hidden="true" />;
-  if (app?.kind === "pdf-reader" || app?.kind === "office") {
-    return <FileTextIcon aria-hidden="true" />;
-  }
-  return <Code2Icon aria-hidden="true" />;
-}
 
 function FileKindIcon({ kind }: { kind: WorkbenchLocalAppFileKind }) {
   if (kind === "image") return <ImageIcon aria-hidden="true" />;
@@ -285,22 +223,7 @@ function AvailableFileSurfaceHeader({
         else await hostClient.openPath(target);
         if (preferenceKey) {
           try {
-            const previousChoices = appPreferences.getState().appIds;
-            const previousAppId = previousChoices[preferenceKey];
-            const browserKey = `browser:${preferenceKey}`;
-            if (
-              app?.kind !== "browser" &&
-              previousAppId &&
-              !previousChoices[browserKey] &&
-              localApps.some(
-                (candidate) => candidate.kind === "browser" && candidate.id === previousAppId,
-              )
-            ) {
-              await appPreferences.getState().remember(browserKey, previousAppId);
-            }
-            await appPreferences
-              .getState()
-              .remember(preferenceKey, app?.id ?? SYSTEM_DEFAULT_APP_ID);
+            await rememberFileOpenApp(appPreferences, preferenceKey, app, localApps);
             setPreferenceError(undefined);
           } catch (error) {
             reportError(error, { source: "workspace", contributionId: surface.id });
@@ -356,7 +279,9 @@ function AvailableFileSurfaceHeader({
     <div className="flex size-full min-w-0 items-center gap-3 px-3">
       <FileBreadcrumbTree surface={surface} context={context} isVisible={isVisible} />
 
-      {fileSession?.source === "workspace" && surface.dirty && path ? (
+      {(fileSession?.source === "workspace" || fileSession?.source === "local") &&
+      surface.dirty &&
+      path ? (
         <Button
           type="button"
           variant="ghost"

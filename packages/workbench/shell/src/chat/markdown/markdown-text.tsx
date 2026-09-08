@@ -42,7 +42,7 @@ import {
 import { cn } from "../../utils";
 import { CodexCodeHeader } from "./codex-code-header";
 import { MermaidCode } from "./mermaid-code";
-import { MarkdownLinkIcon, markdownLinkIconPlugins } from "./markdown-link-icons";
+import { MarkdownFileLink, MarkdownLinkIcon, markdownLinkIconPlugins } from "./markdown-link-icons";
 import {
   INLINE_CITATION_GROUP_SENTINEL,
   parseInlineCitationUrlSentinel,
@@ -251,6 +251,7 @@ function MarkdownCode({
 const sourceCodeComponents = {
   code: MarkdownCode,
   span: MarkdownLinkIcon,
+  "workbench-file-link": MarkdownFileLink,
   sup: MarkdownSuperscript,
 } as Components;
 

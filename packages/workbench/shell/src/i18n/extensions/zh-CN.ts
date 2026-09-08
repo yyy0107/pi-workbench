@@ -695,6 +695,14 @@ export const extensionsZhCN = {
   },
 
   workspaceFile: {
+    linkMenu: {
+      openFile: "打开文件",
+      saveAs: "另存为…",
+      copyPath: "复制路径",
+      pathCopied: "已复制文件路径",
+      showInFolder: "在文件管理器中打开",
+      actionFailed: "无法完成文件操作，请确认文件可访问后重试。",
+    },
     capabilityUnavailable: "当前运行时不支持工作区文件。",
     title: "文件",
     loadFailed: "无法加载文件，请重试。",

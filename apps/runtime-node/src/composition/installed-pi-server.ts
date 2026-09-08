@@ -19,9 +19,14 @@ import {
   type WorkspaceFileService,
 } from "@workbench/workspace-server/files";
 import { createWorkspaceGitService } from "@workbench/workspace-server/git";
-import { createWorkspaceFileContentHandler } from "@workbench/workspace-server/http";
+import {
+  createLocalFileContentHandler,
+  createWorkspaceFileContentHandler,
+} from "@workbench/workspace-server/http";
+import { LocalFileService } from "@workbench/workspace-server/local-files";
 import {
   createWorkspaceFileRpcRoutes,
+  createLocalFileRpcRoutes,
   createWorkspaceGitRpcRoutes,
 } from "@workbench/workspace-server/rpc";
 import type { WorkbenchAgentServerAdapter } from "@workbench/agent-runtime-server/adapter";
@@ -146,6 +151,7 @@ export function createInstalledPiDisposer({
 function createInstalledPiRuntimeHttpHandler(
   handleRpcPost: PiRpcPostHandler,
   handleWorkspaceFileContentRequest: PiRuntimeHttpHandler,
+  handleLocalFileContentRequest: PiRuntimeHttpHandler,
 ): PiRuntimeHttpHandler {
   const handlePiRequest = createPiRuntimeHttpRouter({
     listModels: listPiModels,
@@ -168,6 +174,7 @@ function createInstalledPiRuntimeHttpHandler(
   return createRuntimeHttpRouter({
     handleRpcPost,
     handleWorkspaceFileContentRequest,
+    handleLocalFileContentRequest,
     handlePiRequest,
   });
 }
@@ -272,6 +279,7 @@ function createInstalledPiServer(
   const workspaceFiles = createWorkspaceFileService({
     resolveWorkspaceRoot: resolvePiWorkspaceRoot,
   });
+  const localFiles = new LocalFileService();
   const workspaceGit = createWorkspaceGitService({
     resolveWorkspaceRoot: resolvePiWorkspaceRoot,
     mutateWorkspace: mutatePiWorkspace,
@@ -297,6 +305,7 @@ function createInstalledPiServer(
     }),
     createWorkspaceGitRpcRoutes({ service: workspaceGit, ...domainErrors }),
     createWorkspaceFileRpcRoutes({ service: workspaceFiles, ...domainErrors }),
+    createLocalFileRpcRoutes({ service: localFiles, ...domainErrors }),
     createAutomationRpcRoutes({ service: automation, ...domainErrors }),
     createWorkbenchSettingsRpcRoutes({
       getService: createInstalledWorkbenchSettingsService,
@@ -333,6 +342,7 @@ function createInstalledPiServer(
     handleHttpRequest: createInstalledPiRuntimeHttpHandler(
       handleRpcPost,
       handleWorkspaceFileContentRequest,
+      createLocalFileContentHandler(localFiles),
     ),
     dispose,
   });

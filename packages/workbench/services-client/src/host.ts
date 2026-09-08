@@ -7,6 +7,11 @@ import type {
 } from "@workbench/host-contracts/runtime-capabilities";
 import { callServiceRpc, capabilityCall } from "./errors";
 import type { RpcCallOptions } from "@workbench/host-client/rpc";
+import { fetchFileContent, streamFileText } from "./file-content";
+
+export function localFileContentUrl(path: string): string {
+  return `/api/host.files.content?${new URLSearchParams({ path })}`;
+}
 
 export async function pickHostDirectory(options?: RpcCallOptions): Promise<string | undefined> {
   const { path } = await callServiceRpc<Record<string, never>, { path: string | null }>(
@@ -56,6 +61,25 @@ export function createHostClient(
 ): WorkbenchServicesCapabilities["host"] {
   const options = Object.freeze({ ...rpcOptions });
   return Object.freeze({
+    files: {
+      listDirectory: (path) => callServiceRpc("host.files.list", { path }, options),
+      describeFile: (path) => callServiceRpc("host.files.describe", { path }, options),
+      readFile: (path) => callServiceRpc("host.files.read", { path }, options),
+      writeFile: (path, content, expectedVersion) =>
+        callServiceRpc("host.files.write", { path, content, expectedVersion }, options),
+      fileContentUrl: localFileContentUrl,
+      fetchFileContent: (path, requestOptions) =>
+        capabilityCall(() =>
+          fetchFileContent(localFileContentUrl(path), { ...options, ...requestOptions }),
+        ),
+      streamFileText: (path, streamOptions) =>
+        capabilityCall(() =>
+          streamFileText(localFileContentUrl(path), {
+            ...streamOptions,
+            transport: options.transport,
+          }),
+        ),
+    },
     pickDirectory: (requestOptions) =>
       capabilityCall(() =>
         pickHostDirectory({ ...options, signal: requestOptions?.signal ?? options.signal }),

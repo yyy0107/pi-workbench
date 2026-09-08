@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "../../ui/dial
 import { useCopyFeedback } from "../../hooks/use-clipboard-copy";
 import { useI18n } from "../../i18n";
 import { cn } from "../../utils";
+import { downloadBlob } from "../../file-download";
 
 interface ImageMessagePart {
   readonly image: string;
@@ -76,17 +77,17 @@ const downloadImagePart = (part: Pick<ImageMessagePart, "image" | "filename">): 
   if (typeof document === "undefined") return;
   const ext = extensionForMimeType(mimeFromImage(part.image));
   const filename = part.filename ?? `image.${ext}`;
-  const isDataUri = /^data:/i.test(part.image);
-  const objectUrl = isDataUri ? URL.createObjectURL(dataUriToBlob(part.image)) : null;
-  const href = objectUrl ?? part.image;
+  if (/^data:/i.test(part.image)) {
+    downloadBlob(dataUriToBlob(part.image), filename);
+    return;
+  }
   const a = document.createElement("a");
-  a.href = href;
+  a.href = part.image;
   a.download = filename;
   a.rel = "noopener";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  if (objectUrl) setTimeout(() => URL.revokeObjectURL(objectUrl), 40_000);
 };
 
 const imageBlob = (image: string): Promise<Blob> => {

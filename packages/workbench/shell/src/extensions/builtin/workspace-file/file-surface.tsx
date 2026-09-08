@@ -15,11 +15,15 @@ import {
   fileWorkspaceContext,
   resolveFileWorkspaceSession,
   type FileDescriptor,
+  type FileContentTarget,
   type FileWorkspaceSession,
 } from "@workbench/shell/workspace-files";
 import { useRuntimeConnection } from "@workbench/shell/runtime-connection";
 import { useWorkspaceFileRuntime } from "@workbench/shell/workspace-files";
-import { useWorkbenchWorkspaceCapability } from "@workbench/agent-runtime-client/context";
+import {
+  useWorkbenchRuntimeHostCapability,
+  useWorkbenchWorkspaceCapability,
+} from "@workbench/agent-runtime-client/context";
 
 import { FileCodeEditor, FileCodeView } from "./file-code-editor";
 import { saveFileBuffer } from "./file-buffer-actions";
@@ -71,7 +75,7 @@ function descriptorFromParams(params: FileSurfaceParams): FileDescriptor | undef
     path: params.absolutePath,
     ...(params.relativePath ? { relativePath: params.relativePath } : {}),
     ...(params.source === "workspace" ? { workspaceId: params.workspaceId } : {}),
-    source: params.source === "workspace" ? "workspace" : "resource",
+    source: params.source === "workspace" || params.source === "local" ? params.source : "resource",
     name: params.name,
     mediaType: params.mediaType,
     encoding: params.encoding,
@@ -100,7 +104,11 @@ function UnavailableFile({ title, description }: { title: string; description: s
 export function FileSurface(props: WorkspaceSurfaceProps<FileSurfaceParams>) {
   const { t } = useI18n();
   const workspace = useWorkbenchWorkspaceCapability();
-  if (props.surface.params.source === "workspace" && !workspace) {
+  const localFiles = useWorkbenchRuntimeHostCapability()?.files;
+  if (
+    (props.surface.params.source === "workspace" && !workspace) ||
+    (props.surface.params.source === "local" && !localFiles)
+  ) {
     return (
       <UnavailableFile
         title={t("extensions.workspaceFile.title")}
@@ -142,11 +150,23 @@ function AvailableFileSurface({
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const viewMode = resolveFileViewMode(path, surface.params.viewMode);
   const requiresAuthenticatedPreview = runtimeConnection.kind === "desktop-sidecar";
+  const contentTarget = useMemo<FileContentTarget | undefined>(
+    () =>
+      descriptor?.source === "local"
+        ? { source: "local", path: descriptor.path }
+        : descriptor?.workspaceId && descriptor.relativePath
+          ? {
+              source: "workspace",
+              workspaceId: descriptor.workspaceId,
+              relativePath: descriptor.relativePath,
+            }
+          : undefined,
+    [descriptor],
+  );
   const objectUrl = useWorkspaceFileObjectUrl(
-    descriptor?.workspaceId && descriptor.relativePath
+    descriptor && contentTarget
       ? {
-          workspaceId: descriptor.workspaceId,
-          relativePath: descriptor.relativePath,
+          target: contentTarget,
           version: descriptor.version,
           retryToken,
           enabled:
@@ -177,8 +197,7 @@ function AvailableFileSurface({
     descriptor &&
     isLargeTextFile(descriptor.size) &&
     !snapshot &&
-    descriptor?.workspaceId &&
-    descriptor.relativePath &&
+    contentTarget &&
     (requiresAuthenticatedPreview || descriptor.contentUrl),
   );
   const progressiveTextSource = useMemo(() => {
@@ -190,17 +209,13 @@ function AvailableFileSurface({
         version: `${snapshot.version}:${snapshot.modifiedAt}:${snapshot.content.length}`,
       };
     }
-    if (!canStreamLargeText || !descriptor.workspaceId || !descriptor.relativePath)
-      return undefined;
+    if (!canStreamLargeText || !contentTarget) return undefined;
     return {
-      stream: {
-        workspaceId: descriptor.workspaceId,
-        relativePath: descriptor.relativePath,
-      },
+      stream: contentTarget,
       totalBytes: descriptor.size,
       version: descriptor.version,
     };
-  }, [canStreamLargeText, descriptor, largeTextMode, snapshot]);
+  }, [canStreamLargeText, contentTarget, descriptor, largeTextMode, snapshot]);
   const progressiveText = useProgressiveTextDocument(progressiveTextSource, isVisible);
   const needsTextSnapshot = needsTextContent && !canStreamLargeText;
 
@@ -497,7 +512,7 @@ function AvailableFileSurface({
     );
   }
 
-  if (fileSession.source !== "workspace") {
+  if (fileSession.source !== "workspace" && fileSession.source !== "local") {
     return (
       <section className="flex h-full min-h-0 flex-col">
         <FileCodeView

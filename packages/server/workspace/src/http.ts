@@ -8,6 +8,7 @@ import {
   WorkspaceFileError,
   type ResolvedWorkspaceFileContent,
 } from "./files";
+import type { LocalFileService } from "./local-files";
 
 const INVALID_QUERY_TEXT = "missing or invalid workspace file query parameters";
 const FILE_NOT_FOUND_TEXT = "workspace file not found";
@@ -36,16 +37,38 @@ export function createWorkspaceFileContentHandler(
 ): (request: Request) => Promise<Response> {
   const dependencies: WorkspaceFileContentDependencies = {
     resolveFile: (input, signal) => service.resolveFileContent(input, signal),
-    createStream: (canonicalPath, range, signal) =>
-      Readable.toWeb(
-        createReadStream(canonicalPath, {
-          start: range.start,
-          end: range.end,
-          signal,
-        }),
-      ) as ReadableStream<Uint8Array>,
+    createStream: createFileStream,
   };
   return (request) => handleWorkspaceFileContentRequest(request, dependencies);
+}
+
+const createFileStream: WorkspaceFileContentDependencies["createStream"] = (
+  canonicalPath,
+  range,
+  signal,
+) =>
+  Readable.toWeb(
+    createReadStream(canonicalPath, { start: range.start, end: range.end, signal }),
+  ) as ReadableStream<Uint8Array>;
+
+class InvalidFileQueryError extends Error {}
+
+export function createLocalFileContentHandler(
+  service: Pick<LocalFileService, "resolveFileContent">,
+) {
+  return (request: Request) =>
+    handleFileContentRequest(
+      request,
+      () => {
+        const params = new URL(request.url).searchParams;
+        const paths = params.getAll("path");
+        if (paths.length !== 1 || !paths[0] || [...params.keys()].some((key) => key !== "path")) {
+          throw new InvalidFileQueryError("missing or invalid local file path");
+        }
+        return service.resolveFileContent(paths[0], request.signal);
+      },
+      createFileStream,
+    );
 }
 
 function parseQuery(request: Request): { workspaceId: string; relativePath: string } | undefined {
@@ -116,6 +139,7 @@ function textErrorResponse(request: Request, status: number, message: string): R
 }
 
 function errorResponse(request: Request, error: unknown): Response {
+  if (error instanceof InvalidFileQueryError) return textErrorResponse(request, 400, error.message);
   if (!(error instanceof WorkspaceFileError)) {
     return textErrorResponse(request, 500, FILE_PREPARATION_FAILED_TEXT);
   }
@@ -144,15 +168,28 @@ export async function handleWorkspaceFileContentRequest(
   request: Request,
   dependencies: WorkspaceFileContentDependencies,
 ): Promise<Response> {
+  return handleFileContentRequest(
+    request,
+    () => {
+      const query = parseQuery(request);
+      if (!query) throw new InvalidFileQueryError(INVALID_QUERY_TEXT);
+      return dependencies.resolveFile(query, request.signal);
+    },
+    dependencies.createStream,
+  );
+}
+
+async function handleFileContentRequest(
+  request: Request,
+  resolveFile: () => Promise<ResolvedWorkspaceFileContent>,
+  createStream: WorkspaceFileContentDependencies["createStream"],
+): Promise<Response> {
   const rejected = rejectUntrustedApiRequest(request);
   if (rejected) return requestResponse(request, rejected);
 
-  const query = parseQuery(request);
-  if (!query) return textErrorResponse(request, 400, INVALID_QUERY_TEXT);
-
   let file: ResolvedWorkspaceFileContent;
   try {
-    file = await dependencies.resolveFile(query, request.signal);
+    file = await resolveFile();
     request.signal.throwIfAborted();
   } catch (error) {
     request.signal.throwIfAborted();
@@ -200,8 +237,8 @@ export async function handleWorkspaceFileContentRequest(
   if (request.method === "HEAD" || file.size === 0) {
     return new Response(null, { status, headers });
   }
-  return new Response(
-    dependencies.createStream(file.canonicalPath, selectedRange, request.signal),
-    { status, headers },
-  );
+  return new Response(createStream(file.canonicalPath, selectedRange, request.signal), {
+    status,
+    headers,
+  });
 }

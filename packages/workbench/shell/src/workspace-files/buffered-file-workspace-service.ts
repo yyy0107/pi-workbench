@@ -1,4 +1,6 @@
 import { WorkbenchAgentCapabilityError } from "@workbench/agent-runtime-client";
+import type { WorkbenchLocalFilesCapability } from "@workbench/agent-runtime-client/capabilities";
+import type { WorkbenchLocalFileSnapshot } from "@workbench/host-contracts/runtime-capabilities";
 import type {
   WorkbenchWorkspaceFileDescriptor,
   WorkbenchWorkspaceFileRequest,
@@ -34,6 +36,13 @@ export interface FileWorkspaceResourceBackend {
   listDirectory(session: ResourceFileSession, relativePath: string): Promise<FileDirectoryListing>;
   readFile(session: ResourceFileSession, relativePath: string): Promise<FileSnapshot>;
 }
+
+export type LocalFileWorkspaceBackend = Pick<
+  WorkbenchLocalFilesCapability,
+  "listDirectory" | "describeFile" | "readFile" | "writeFile"
+> & {
+  contentUrl?(path: string): string | undefined;
+};
 
 function fileName(path: string): string {
   return path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
@@ -114,6 +123,20 @@ function snapshotFromRemote(value: WorkbenchWorkspaceFileSnapshot): FileSnapshot
   };
 }
 
+function snapshotFromLocal(value: WorkbenchLocalFileSnapshot, rootPath?: string): FileSnapshot {
+  return {
+    path: value.absolutePath,
+    relativePath: workspaceRelativePath(rootPath, value.absolutePath),
+    source: "local",
+    name: value.name,
+    content: value.content,
+    savedContent: value.content,
+    version: value.version,
+    modifiedAt: value.modifiedAt,
+    size: value.size,
+  };
+}
+
 function descriptorFromRemote(
   value: WorkbenchWorkspaceFileDescriptor,
   contentUrl?: FileWorkspaceBackend["contentUrl"],
@@ -163,13 +186,35 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
   readonly #backend?: FileWorkspaceBackend;
 
   readonly #resources?: FileWorkspaceResourceBackend;
+  readonly #localFiles?: LocalFileWorkspaceBackend;
 
-  constructor(backend?: FileWorkspaceBackend, resources?: FileWorkspaceResourceBackend) {
+  constructor(
+    backend?: FileWorkspaceBackend,
+    resources?: FileWorkspaceResourceBackend,
+    localFiles?: LocalFileWorkspaceBackend,
+  ) {
     this.#backend = backend;
     this.#resources = resources;
+    this.#localFiles = localFiles;
   }
 
   async listDirectory(context: WorkspaceFileContext, path: string): Promise<FileDirectoryListing> {
+    if (context.session?.source === "local") {
+      if (!this.#localFiles) throw new WorkbenchAgentCapabilityError("unavailable");
+      const listing = await this.#localFiles.listDirectory(
+        workspaceAbsolutePath(context.rootPath, path),
+      );
+      return {
+        path: listing.absolutePath,
+        relativePath: workspaceRelativePath(context.rootPath, listing.absolutePath),
+        nodes: listing.entries.map((entry) => ({
+          ...entry,
+          path: entry.absolutePath,
+          relativePath: workspaceRelativePath(context.rootPath, entry.absolutePath),
+        })),
+        truncated: listing.truncated,
+      };
+    }
     if (context.session && context.session.source !== "workspace") {
       if (!this.#resources) throw new WorkbenchAgentCapabilityError("unavailable");
       return this.#resources.listDirectory(
@@ -233,6 +278,21 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
     if (snapshot && snapshot.content !== snapshot.savedContent) {
       return descriptorFromSnapshot(snapshot);
     }
+    if (context.session?.source === "local") {
+      if (!this.#localFiles) throw new WorkbenchAgentCapabilityError("unavailable");
+      const descriptor = await this.#localFiles.describeFile(
+        workspaceAbsolutePath(context.rootPath, path),
+      );
+      return {
+        ...descriptor,
+        path: descriptor.absolutePath,
+        relativePath: context.rootPath
+          ? workspaceRelativePath(context.rootPath, descriptor.absolutePath)
+          : undefined,
+        source: "local",
+        contentUrl: this.#localFiles.contentUrl?.(descriptor.absolutePath),
+      };
+    }
     if (context.workspaceId) {
       if (!this.#backend) throw new WorkbenchAgentCapabilityError("unavailable");
       const descriptor = await this.#backend.describeFile({
@@ -249,6 +309,13 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
   }
 
   async readFile(context: WorkspaceFileContext, path: string): Promise<FileSnapshot> {
+    if (context.session?.source === "local") {
+      if (!this.#localFiles) throw new WorkbenchAgentCapabilityError("unavailable");
+      const remote = await this.#localFiles.readFile(workspaceAbsolutePath(context.rootPath, path));
+      const snapshot = snapshotFromLocal(remote, context.rootPath);
+      this.storeSnapshot(context.scope, snapshot);
+      return { ...snapshot };
+    }
     if (context.session && context.session.source !== "workspace") {
       if (!this.#resources) throw new WorkbenchAgentCapabilityError("unavailable");
       const snapshot = await this.#resources.readFile(
@@ -280,6 +347,17 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
     content: string,
     version: string,
   ): Promise<FileSnapshot> {
+    if (context.session?.source === "local") {
+      if (!this.#localFiles) throw new WorkbenchAgentCapabilityError("unavailable");
+      const remote = await this.#localFiles.writeFile(
+        workspaceAbsolutePath(context.rootPath, path),
+        content,
+        version,
+      );
+      const snapshot = snapshotFromLocal(remote, context.rootPath);
+      this.storeSnapshot(context.scope, snapshot);
+      return { ...snapshot };
+    }
     if (context.session?.source === "skill" || context.session?.source === "extension") {
       throw new Error("Resource files are read-only");
     }

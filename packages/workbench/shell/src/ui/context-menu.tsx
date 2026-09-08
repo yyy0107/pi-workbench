@@ -63,3 +63,10 @@ export {
   ContextMenuSeparator,
   ContextMenuTrigger,
 };
+
+// Base UI context menus and dropdowns share the same submenu primitives and styling.
+export {
+  DropdownMenuSub as ContextMenuSub,
+  DropdownMenuSubContent as ContextMenuSubContent,
+  DropdownMenuSubTrigger as ContextMenuSubTrigger,
+} from "./dropdown-menu";
