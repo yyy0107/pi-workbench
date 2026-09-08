@@ -1,0 +1,21 @@
+/* Drag geometry must not invalidate every highlighted token in an open file. */
+@property --right-workspace-layout-width {
+  syntax: "*";
+  inherits: false;
+}
+
+@property --right-workspace-content-width {
+  syntax: "*";
+  inherits: false;
+}
+
+@property --right-workspace-resize-translate-x {
+  syntax: "*";
+  inherits: false;
+}
+
+/* Only the frame consumes its parent's preview values; surfaces do not inherit them. */
+[data-slot="right-workspace-layout"] > [data-workbench-surface="right-workspace"] {
+  --right-workspace-content-width: inherit;
+  --right-workspace-resize-translate-x: inherit;
+}

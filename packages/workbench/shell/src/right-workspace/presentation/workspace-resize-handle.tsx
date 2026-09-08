@@ -10,6 +10,7 @@ import {
   applyRightWorkspaceResizePreview,
 } from "../../right-workspace";
 import { useRightWorkspace } from "../../right-workspace-react";
+import { beginRightWorkspaceResize } from "../workspace-resize-preview";
 
 const WIDE_RIGHT_WORKSPACE_WIDTH = 720;
 
@@ -24,7 +25,7 @@ export function WorkspaceResizeHandle({
 }>) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
-  const resizingShellRef = useRef<HTMLElement | null>(null);
+  const finishResizeRef = useRef<(() => void) | null>(null);
 
   return (
     <CollapsibleResizeHandle
@@ -43,18 +44,8 @@ export function WorkspaceResizeHandle({
       onCommit={controller.setWidth}
       onOpenChange={controller.setWorkspaceOpen}
       onResizingChange={(resizing) => {
-        if (resizing) {
-          workspaceRef.current?.setAttribute("data-resizing", "true");
-          const shell =
-            workspaceRef.current?.closest<HTMLElement>("[data-workbench-shell]") ?? null;
-          resizingShellRef.current = shell;
-          shell?.setAttribute("data-resizing", "true");
-          return;
-        }
-
-        workspaceRef.current?.removeAttribute("data-resizing");
-        resizingShellRef.current?.removeAttribute("data-resizing");
-        resizingShellRef.current = null;
+        finishResizeRef.current?.();
+        finishResizeRef.current = resizing ? beginRightWorkspaceResize(workspaceRef.current) : null;
       }}
     />
   );

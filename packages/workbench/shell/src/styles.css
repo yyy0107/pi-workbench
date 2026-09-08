@@ -3,6 +3,7 @@
 @import "./extensions/builtin/appearance/appearance-background.css";
 @import "./extensions/builtin/user-message-index/user-message-index.css";
 @import "./shell/shell-layout.css";
+@import "./right-workspace/presentation/right-workspace.css";
 @import "./ui/sidebar-items.css";
 @import "./ui/control-icons.css";
 @import "./ui/color-picker.css";
