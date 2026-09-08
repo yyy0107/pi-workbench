@@ -380,6 +380,7 @@ export const extensionsEnUS = {
     },
   },
   modelSelector: {
+    provider: "Provider",
     saving: "Saving the model for this session",
     noModels: "No Pi models found.",
     searchLabel: "Search models",

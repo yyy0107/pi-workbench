@@ -374,6 +374,7 @@ export const extensionsZhCN = {
     },
   },
   modelSelector: {
+    provider: "提供方",
     saving: "正在保存此会话的模型",
     noModels: "没有找到可用的 Pi 模型。",
     searchLabel: "搜索模型",

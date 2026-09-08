@@ -294,6 +294,7 @@ function AvailableModelSelector({
       currentUnavailable={currentUnavailable}
       labels={{
         select: t("assistant.model.select"),
+        provider: t("extensions.modelSelector.provider"),
         model: t("assistant.model.model"),
         reasoningEffort: t("assistant.model.reasoningEffort"),
         search: t("extensions.modelSelector.searchLabel"),
