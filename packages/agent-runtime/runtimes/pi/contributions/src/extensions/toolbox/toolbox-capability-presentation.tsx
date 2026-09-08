@@ -285,13 +285,15 @@ export function CapabilityMetadataFields({ params }: { params: ToolboxCapability
             ? scopeLabel(params.packageScope)
             : t("extensions.toolbox.details.notExposed")}
         </DetailField>
-        <DetailField label={t("extensions.toolbox.details.resourceSelection")}>
-          {t(
-            params.packageFiltered
-              ? "extensions.toolbox.packages.filteredResources"
-              : "extensions.toolbox.packages.allResources",
-          )}
-        </DetailField>
+        {params.packageFiltered !== undefined ? (
+          <DetailField label={t("extensions.toolbox.details.resourceSelection")}>
+            {t(
+              params.packageFiltered
+                ? "extensions.toolbox.packages.filteredResources"
+                : "extensions.toolbox.packages.allResources",
+            )}
+          </DetailField>
+        ) : null}
       </>
     );
   }
@@ -732,6 +734,7 @@ export function ExtensionCapabilityDetailsPanel({
 
 export interface ExtensionControlsProps {
   builtin?: boolean;
+  packageBuiltin?: boolean;
   canDelete: boolean;
   canOpenDirectory: boolean;
   canToggle: boolean;
@@ -748,6 +751,7 @@ export interface ExtensionControlsProps {
 
 export function ExtensionControls({
   builtin = false,
+  packageBuiltin = false,
   canDelete,
   canOpenDirectory,
   canToggle,
@@ -807,23 +811,25 @@ export function ExtensionControls({
             >
               <FolderOpenIcon aria-hidden="true" />
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              disabled={!canDelete}
-              className="text-destructive hover:text-destructive"
-              aria-label={t("extensions.toolbox.extensions.deleteExtension", { name })}
-              title={t(
-                canDelete
-                  ? "extensions.toolbox.extensions.deleteExtension"
-                  : "extensions.toolbox.extensions.deleteUnavailable",
-                { name },
-              )}
-              onClick={onDelete}
-            >
-              <Trash2Icon aria-hidden="true" />
-            </Button>
+            {!packageBuiltin ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                disabled={!canDelete}
+                className="text-destructive hover:text-destructive"
+                aria-label={t("extensions.toolbox.extensions.deleteExtension", { name })}
+                title={t(
+                  canDelete
+                    ? "extensions.toolbox.extensions.deleteExtension"
+                    : "extensions.toolbox.extensions.deleteUnavailable",
+                  { name },
+                )}
+                onClick={onDelete}
+              >
+                <Trash2Icon aria-hidden="true" />
+              </Button>
+            ) : null}
           </>
         ) : null}
       </div>
@@ -849,6 +855,7 @@ export function ExtensionControls({
 }
 
 export interface SkillControlsProps {
+  packageBuiltin?: boolean;
   canDelete: boolean;
   canOpenDirectory: boolean;
   canToggle: boolean;
@@ -862,6 +869,7 @@ export interface SkillControlsProps {
 }
 
 export function SkillControls({
+  packageBuiltin = false,
   canDelete,
   canOpenDirectory,
   canToggle,
@@ -916,23 +924,25 @@ export function SkillControls({
       >
         <FolderOpenIcon aria-hidden="true" />
       </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        disabled={!canDelete}
-        className="text-destructive hover:text-destructive"
-        aria-label={t("extensions.toolbox.skills.deleteSkill", { name })}
-        title={t(
-          canDelete
-            ? "extensions.toolbox.skills.deleteSkill"
-            : "extensions.toolbox.skills.deleteUnavailable",
-          { name },
-        )}
-        onClick={onDelete}
-      >
-        <Trash2Icon aria-hidden="true" />
-      </Button>
+      {!packageBuiltin ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          disabled={!canDelete}
+          className="text-destructive hover:text-destructive"
+          aria-label={t("extensions.toolbox.skills.deleteSkill", { name })}
+          title={t(
+            canDelete
+              ? "extensions.toolbox.skills.deleteSkill"
+              : "extensions.toolbox.skills.deleteUnavailable",
+            { name },
+          )}
+          onClick={onDelete}
+        >
+          <Trash2Icon aria-hidden="true" />
+        </Button>
+      ) : null}
     </div>
   );
 }

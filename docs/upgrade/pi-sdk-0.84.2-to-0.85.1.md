@@ -170,7 +170,7 @@ Workbench 的 [session-registry.ts](../../packages/agent-runtime/runtimes/pi/ser
 | P1     | 检查随产品分发的 Pi 文档快照和开发技能引用                                         | 保持明确的版本标记；若更新快照，依据目标正文重新生成/核对，不能只替换版本号 |
 | P2     | 按实际需求评估 frame API、外部内存会话恢复、UI prompt 事件等                       | 独立确认收益和迁移边界，不作为完成基础升级的前置条件                        |
 
-文档同步范围包括 [内置 pi-docs](../../packages/agent-runtime/runtimes/pi/server/src/skills/builtin-skills/pi-docs/SKILL.md) 及其 `references/`（当前明确标记 0.84.2），以及 [Pi AI 技能](../../.agents/skills/pi-ai-sdk/SKILL.md)、[Coding Agent source-routing](../../.agents/skills/pi-coding-agent-sdk/references/source-routing.md) 中的入口说明。后者当前将 `./client` 列为可用包入口，需在升级时按新发布条件修正。
+文档同步范围包括 [内置 pi-docs](../../packages/agent-runtime/runtimes/pi/server/src/internal-skills/pi-docs/SKILL.md) 及其 `references/`（当前明确标记 0.84.2），以及 [Pi AI 技能](../../.agents/skills/pi-ai-sdk/SKILL.md)、[Coding Agent source-routing](../../.agents/skills/pi-coding-agent-sdk/references/source-routing.md) 中的入口说明。后者当前将 `./client` 列为可用包入口，需在升级时按新发布条件修正。
 
 ### 7.1 可复用的验证入口
 

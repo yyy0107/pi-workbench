@@ -71,7 +71,6 @@ test("sessions persist bundled skill switches through reload and cold reopen", a
 });
 
 for (const name of [
-  "browser",
   "skill-creator",
   "pi-docs",
   "skill-installer",
@@ -103,7 +102,6 @@ for (const name of [
     const { skills, diagnostics } = loader.getSkills();
     assert.deepEqual(diagnostics, []);
     assert.deepEqual(skills.map(({ name }) => name).sort(), [
-      "browser",
       "extension-creator",
       "pi-docs",
       "skill-creator",
@@ -213,8 +211,9 @@ test("bundled validator accepts a real skill and rejects missing descriptions an
     spawnSync(process.execPath, [validator, directory], { encoding: "utf8" });
   const valid = run(builtin.baseDir);
   assert.equal(valid.status, 0, valid.stderr);
-  const browser = skills.find(({ name }) => name === "browser")!;
-  const browserValidation = run(browser.baseDir);
+  const browserValidation = run(
+    path.join(root, "packages", ".builtin", "browser", "skills", "browser"),
+  );
   assert.equal(browserValidation.status, 0, browserValidation.stderr);
   const piDocs = skills.find(({ name }) => name === "pi-docs")!;
   const docsValidation = run(piDocs.baseDir);
@@ -327,7 +326,18 @@ test("installs built-in skills and extensions and removes retired prompts withou
     path.join(agentDir, "settings.json"),
     JSON.stringify({ skills: [disabledPath, "custom-skill"] }),
   );
+  for (const [kind, filename] of [
+    ["skills", "SKILL.md"],
+    ["extensions", "index.ts"],
+  ]) {
+    const directory = path.join(agentDir, kind, ".builtin", "browser");
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, filename), "Previous Browser resource\n");
+  }
   const directories = await ensureWorkbenchBuiltinResources(agentDir);
+  await assert.rejects(stat(path.join(directories.skills, "browser")), { code: "ENOENT" });
+  await assert.rejects(stat(path.join(directories.extensions, "browser")), { code: "ENOENT" });
+  assert.ok((await stat(path.join(directories.packages, "browser", "package.json"))).isFile());
   await assert.rejects(stat(legacySkill), { code: "ENOENT" });
   assert.deepEqual(SettingsManager.create(agentDir, agentDir).getGlobalSettings().skills, [
     "-skills/.builtin/skill-creator/SKILL.md",
@@ -348,7 +358,6 @@ test("installs built-in skills and extensions and removes retired prompts withou
   assert.deepEqual((await readdir(directories.extensions)).sort(), [
     "_shared",
     "ask-user",
-    "browser",
     "builtin-tools",
     "composer-context",
     "context-trace",
@@ -359,7 +368,6 @@ test("installs built-in skills and extensions and removes retired prompts withou
   ]);
   for (const name of [
     "ask-user",
-    "browser",
     "builtin-tools",
     "composer-context",
     "context-trace",
@@ -399,6 +407,10 @@ test("installs built-in skills and extensions and removes retired prompts withou
   await mkdir(retiredDirectory);
   const customCopy = path.join(retiredDirectory, "custom.md");
   await writeFile(customCopy, "Keep my copy\n");
+  const legacyBrowser = path.join(directories.skills, "browser");
+  await mkdir(legacyBrowser);
+  await writeFile(path.join(legacyBrowser, "SKILL.md"), "Retired Browser skill\n");
+  await writeFile(path.join(legacyBrowser, "custom.md"), "Keep custom Browser content\n");
   const skill = path.join(directories.skills, "skill-creator", "SKILL.md");
   const before = await stat(skill);
   await Promise.all([
@@ -409,6 +421,11 @@ test("installs built-in skills and extensions and removes retired prompts withou
   assert.equal(await readFile(custom, "utf8"), "Custom instructions\n");
   assert.equal(await readFile(unknown, "utf8"), "Keep this file\n");
   assert.equal(await readFile(customCopy, "utf8"), "Keep my copy\n");
+  await assert.rejects(stat(path.join(legacyBrowser, "SKILL.md")), { code: "ENOENT" });
+  assert.equal(
+    await readFile(path.join(legacyBrowser, "custom.md"), "utf8"),
+    "Keep custom Browser content\n",
+  );
   const loader = new DefaultResourceLoader({
     cwd: agentDir,
     agentDir,
@@ -427,7 +444,7 @@ test("installs built-in skills and extensions and removes retired prompts withou
   await assert.rejects(ensureWorkbenchBuiltinResources(agentDir), /symbolic link/);
 });
 
-test("built-in migration does not follow legacy prompt directory links", async (t) => {
+test("built-in migration does not follow legacy resource directory links", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-builtin-migration-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const agentDir = path.join(root, "agent");
@@ -437,8 +454,13 @@ test("built-in migration does not follow legacy prompt directory links", async (
   await writeFile(custom, "User content\n");
   const prompts = path.join(agentDir, "prompts", ".builtin");
   await mkdir(prompts, { recursive: true });
-  for (const name of ["en-US", "pi-skill"]) {
-    const link = path.join(prompts, name);
+  for (const link of [
+    path.join(prompts, "en-US"),
+    path.join(prompts, "pi-skill"),
+    path.join(agentDir, "skills", ".builtin", "browser"),
+    path.join(agentDir, "extensions", ".builtin", "browser"),
+  ]) {
+    await rm(link, { recursive: true, force: true });
     await symlink(outside, link, "dir");
     await assert.rejects(ensureWorkbenchBuiltinResources(agentDir), /symbolic link/);
     assert.equal(await readFile(custom, "utf8"), "User content\n");

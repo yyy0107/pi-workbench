@@ -60,6 +60,7 @@ import {
 } from "../internal-extensions/builtin-tools";
 import { getPiAgentHostBindings } from "../agent-runtime/pi-agent-host-bindings";
 import { extensionDisplayName } from "./extension-name";
+import { isWorkbenchBuiltinPackage } from "../packages/builtin-packages";
 
 export const MAX_EXTENSION_FILE_BYTES = 5 * 1024 * 1024;
 const EXTENSION_DIRECTORY_ENTRY_LIMIT = 2_000;
@@ -752,6 +753,10 @@ export class ExtensionService implements ExtensionProtocol {
             source: extension.sourceInfo.source,
             scope: extension.sourceInfo.scope,
             origin: extension.sourceInfo.origin,
+            ...(extension.sourceInfo.origin === "package" &&
+            isWorkbenchBuiltinPackage(extension.sourceInfo.source, extension.sourceInfo.scope)
+              ? { packageBuiltin: true }
+              : {}),
             enabled: extension.enabled,
             ...extensionContributions(extension),
           })),

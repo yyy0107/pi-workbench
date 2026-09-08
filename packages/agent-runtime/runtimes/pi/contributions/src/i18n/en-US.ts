@@ -766,6 +766,7 @@ export const piExtensionsEnUS = {
           "Plugin connections are not part of the current Workbench/Pi protocol. Accounts and connection status cannot be listed yet.",
       },
       packages: {
+        openInstalledPackage: "Open Pi Package",
         title: "Pi Packages",
         installedTitle: "Installed Pi Packages",
         officialCatalog: "Official Pi catalog",

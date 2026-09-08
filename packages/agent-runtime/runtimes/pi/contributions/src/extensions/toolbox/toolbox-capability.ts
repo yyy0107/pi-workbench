@@ -37,6 +37,7 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   modelInvocable?: boolean;
   enabled?: boolean;
   builtin?: boolean;
+  packageBuiltin?: boolean;
   provenance?: BuiltinExtensionView["provenance"];
   invocationName?: string;
   argumentHint?: string;
@@ -83,10 +84,9 @@ export function browserCapabilityPresentation(
 ) {
   if (
     !params.builtin ||
-    !(
-      (params.capabilityKind === "skill" && params.name === "browser") ||
-      (params.capabilityKind === "extension" && params.name === "workbench.browser")
-    )
+    params.capabilityKind !== "package" ||
+    (params.name !== "@workbench/pi-browser" &&
+      params.source?.replace(/\\/g, "/").replace(/^\.\//, "") !== "packages/.builtin/browser")
   )
     return undefined;
   return {
@@ -231,6 +231,7 @@ export function skillSurfaceParams(skill: SkillView): ToolboxCapabilitySurfacePa
     enabled: skill.enabled,
     modelInvocable: skill.modelInvocable,
     ...(skill.source === "builtin" ? { builtin: true } : {}),
+    ...(skill.packageBuiltin ? { packageBuiltin: true } : {}),
     source: skill.source,
     scope: skill.scope,
     origin: skill.origin,
@@ -251,6 +252,7 @@ export function extensionSurfaceParams(extension: ExtensionView): ToolboxCapabil
     source: extension.source,
     scope: extension.scope,
     origin: extension.origin,
+    ...(extension.packageBuiltin ? { packageBuiltin: true } : {}),
     eventNames: [...extension.eventNames],
     toolNames: [...extension.toolNames],
     commandNames: [...extension.commandNames],
@@ -305,12 +307,42 @@ export function installedPackageSurfaceParams(
   return {
     capabilityId: installedPackageCapabilityId(item),
     capabilityKind: "package",
-    name: item.source,
+    name: item.name ?? item.source,
+    ...(item.description ? { description: item.description } : {}),
+    ...(item.builtin ? { builtin: true } : {}),
     source: item.source,
     installed: true,
     packageScope: item.scope,
     packageFiltered: item.filtered,
     ...(packageName ? { packageName } : {}),
+  };
+}
+
+/** Open the actual supplying package snapshot, including local and pinned sources. */
+export function resourcePackageSurfaceParams(
+  params: ToolboxCapabilitySurfaceParams,
+  target: PiResourceCatalogTarget | undefined,
+): ToolboxCapabilitySurfaceParams | undefined {
+  if (
+    params.origin !== "package" ||
+    !params.source ||
+    (params.scope !== "user" && params.scope !== "project") ||
+    !target ||
+    target.scope !== params.scope
+  )
+    return undefined;
+  return {
+    ...installedPackageSurfaceParams({
+      source: params.source,
+      scope: params.scope,
+      filtered: false,
+      ...(params.packageBuiltin ? { builtin: true } : {}),
+    }),
+    packageFiltered: undefined,
+    catalogTarget: target,
+    ...(params.projectId ? { projectId: params.projectId } : {}),
+    ...(params.projectName ? { projectName: params.projectName } : {}),
+    ...(params.projectPath ? { projectPath: params.projectPath } : {}),
   };
 }
 

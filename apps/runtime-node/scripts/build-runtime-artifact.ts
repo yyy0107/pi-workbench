@@ -3195,18 +3195,27 @@ export async function copyRuntimeBuiltinResources(
   outputDirectory: string,
 ): Promise<void> {
   // Workbench modules are bundled into server.mjs, so import.meta.url resolves at the artifact root.
-  for (const relative of ["skills/builtin-skills", "internal-extensions"]) {
+  for (const relative of ["internal-skills", "internal-prompts", "internal-extensions"]) {
     await cp(
       path.join(repositoryRoot, "packages/agent-runtime/runtimes/pi/server/src", relative),
       path.join(outputDirectory, relative),
       { recursive: true },
     );
   }
-  await cp(
-    path.join(repositoryRoot, "packages/agent-runtime/runtimes/pi/browser-package/skills/browser"),
-    path.join(outputDirectory, "skills/browser"),
-    { recursive: true },
+  const browserBuild = spawnSync(
+    process.execPath,
+    [
+      path.join(
+        repositoryRoot,
+        "packages/agent-runtime/runtimes/pi/server/src/internal-packages/browser/build.mjs",
+      ),
+      path.join(outputDirectory, "internal-packages/browser"),
+    ],
+    { encoding: "utf8" },
   );
+  if (browserBuild.error) throw browserBuild.error;
+  if (browserBuild.status !== 0)
+    throw new Error(browserBuild.stderr || browserBuild.stdout || "Browser package build failed.");
 }
 
 export async function buildRuntimeArtifact({

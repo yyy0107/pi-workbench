@@ -4,6 +4,7 @@ packages:
   - "packages/server/*"
   - "packages/agent-runtime/core/*"
   - "packages/agent-runtime/runtimes/pi/*"
+  - "packages/agent-runtime/runtimes/pi/server/src/internal-packages/*"
   - "packages/extension-platform/*"
   - "packages/host/*"
   - "packages/terminal/*"

@@ -10,7 +10,6 @@ import { TODO_EXTENSION_NAME, createTodoExtension } from "./rpiv-todo";
 import { contextTraceExtension } from "./context-trace";
 import { messageTerminationExtension } from "./message-termination";
 import { instrumentSystemPromptHookTracing } from "./context-trace/system-prompt-hook-trace";
-import { browserExtension } from "./browser";
 import { workbenchSettingsExtension } from "./workbench-settings";
 
 export const WORKBENCH_INTERNAL_PI_EXTENSION_PATH_PREFIX = "<inline:workbench.";
@@ -23,7 +22,6 @@ export function createWorkbenchInternalPiExtensions(
   return [
     ...createBuiltinToolExtensions(builtinToolSettings),
     { name: "workbench.settings", factory: workbenchSettingsExtension, hidden: true },
-    { name: "workbench.browser", factory: browserExtension, hidden: true },
     { name: TODO_EXTENSION_NAME, factory: createTodoExtension(todoSettings), hidden: true },
     {
       name: "workbench.message-termination",

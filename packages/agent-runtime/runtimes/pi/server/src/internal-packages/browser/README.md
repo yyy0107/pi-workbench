@@ -9,7 +9,7 @@ In Workbench, the package connects to the existing in-app browser and its permis
 From the Workbench repository, install its source directory into Pi:
 
 ```bash
-pi install /absolute/path/to/workbench-ui/packages/agent-runtime/runtimes/pi/browser-package
+pi install /absolute/path/to/workbench-ui/packages/agent-runtime/runtimes/pi/server/src/internal-packages/browser
 ```
 
 Pi records local directory packages by path. Keep the directory available after installation. Start a new Pi session, or run `/reload` in an idle session, to load the extension and skill. The source manifest loads `index.ts`, so a reload uses the latest source without a build. Workbench deploys and registers the same package at `packages/.builtin/browser` under its Pi agent directory; a second manual installation there is unnecessary.

@@ -21,6 +21,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { BrowserCommand } from "@workbench/browser-contracts";
 import type { BrowserHost } from "../index";
+import { browserPackageArtifactRelativePath } from "../resources";
 
 test("the packed Pi package loads its extension and skill without private workspace dependencies", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "pi-browser-package-"));
@@ -49,10 +50,8 @@ test("the packed Pi package loads its extension and skill without private worksp
   const resource = (await import(
     pathToFileURL(path.join(root, "resources.js")).href
   )) as typeof import("../resources");
-  assert.equal(
-    fileURLToPath(resource.browserSkillDirectory),
-    path.join(root, "skills", "browser") + path.sep,
-  );
+  assert.equal(fileURLToPath(resource.browserPackageDirectory), root + path.sep);
+  assert.equal(resource.browserPackageArtifactRelativePath, browserPackageArtifactRelativePath);
   await mkdir(path.join(directory, "agent"));
   const settingsManager = SettingsManager.inMemory(
     { packages: [root], compaction: { enabled: false }, retry: { enabled: false } },

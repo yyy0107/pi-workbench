@@ -123,7 +123,8 @@ async function workspaceDirectories(repositoryRoot) {
   return directories.sort(({ directory: left }, { directory: right }) => left.localeCompare(right));
 }
 
-async function sourceFiles(directory) {
+async function sourceFiles(directory, workspaceRoots) {
+  if (workspaceRoots.has(directory)) return [];
   let entries;
   try {
     entries = await readdir(directory, { withFileTypes: true });
@@ -136,7 +137,7 @@ async function sourceFiles(directory) {
   for (const entry of entries) {
     if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
     const target = path.join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...(await sourceFiles(target)));
+    if (entry.isDirectory()) files.push(...(await sourceFiles(target, workspaceRoots)));
     if (entry.isFile() && SOURCE_EXTENSIONS.has(path.extname(entry.name))) files.push(target);
   }
   return files;
@@ -432,6 +433,7 @@ function workspaceDependencyCycles(graph) {
 
 export async function workspaceDependencyViolations(repositoryRoot = REPOSITORY_ROOT) {
   const directories = await workspaceDirectories(repositoryRoot);
+  const workspaceRoots = new Set(directories.map(({ directory }) => directory));
   const workspaces = [];
 
   for (const { directory, kind } of directories) {
@@ -451,7 +453,9 @@ export async function workspaceDependencyViolations(repositoryRoot = REPOSITORY_
   const allWorkspaceNames = new Set(workspaces.map(({ manifest }) => manifest.name));
   const appNames = new Map(apps.map(({ directory, manifest }) => [manifest.name, directory]));
   const appDirectories = apps.map(({ directory }) => directory);
-  const packageDirectories = packages.map(({ directory }) => directory);
+  const packageDirectories = packages
+    .map(({ directory }) => directory)
+    .sort((left, right) => right.length - left.length);
   const violations = [];
   for (const cycle of workspaceDependencyCycles(
     productionWorkspaceGraph(packages, workspaceNames),
@@ -496,7 +500,10 @@ export async function workspaceDependencyViolations(repositoryRoot = REPOSITORY_
     for (const sourceDirectory of ["src", "test"]) {
       const allowDevelopment = sourceDirectory === "test";
       const declared = declaredDependencies(manifest, allowDevelopment);
-      for (const filename of await sourceFiles(path.join(directory, sourceDirectory))) {
+      for (const filename of await sourceFiles(
+        path.join(directory, sourceDirectory),
+        workspaceRoots,
+      )) {
         const source = await readFile(filename, "utf8");
         violations.push(
           ...sourceBoundaryViolations({

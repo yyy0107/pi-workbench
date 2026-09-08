@@ -706,6 +706,7 @@ export const piExtensionsZhCN = {
           "当前 Workbench/Pi 协议尚未包含 Plugin 连接，因此暂时无法列出账号和连接状态。",
       },
       packages: {
+        openInstalledPackage: "打开 Pi Package",
         title: "Pi Packages",
         installedTitle: "已安装的 Pi Packages",
         officialCatalog: "Pi 官方目录",

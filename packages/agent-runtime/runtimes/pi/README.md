@@ -518,11 +518,21 @@ Project Trust 遵循 Pi 的资源判定与持久化规则：没有受保护的�
 
 ## Skills
 
-[`@workbench/pi-browser`](./browser-package/README.md) 将 Browser 扩展与专属技能封装为 Pi Package。
-Workbench 内置适配器与独立 Pi CLI 消费同一份工具实现，技能唯一源码位于包的 `skills/browser/`。
+内置 Pi Packages 的源码统一位于 [`server/src/internal-packages/`](./server/src/internal-packages/)，
+每个包使用独立目录，与 `server/src/internal-extensions/` 分开组织。
+内置技能位于 [`server/src/internal-skills/`](./server/src/internal-skills/)，内置提示词模板目录为
+`server/src/internal-prompts/`，当前没有随应用分发的模板。四类内置资源目录同级，按“一项一个目录”组织；
+`skills/`、`prompts/`、`extensions/` 和 `packages/` 保留各自的资源管理服务。
+[`@workbench/pi-browser`](./server/src/internal-packages/browser/README.md) 将 Browser 扩展与专属技能封装为 Pi Package。
+Workbench 将完整内置包部署到 Pi 用户目录的 `packages/.builtin/browser/`，并通过 Pi 原生 `packages`
+配置注册本地包。工具、技能和生命周期事件统一由同一份 `package.json` manifest 加载，来源为
+`package`；不再注册 `workbench.browser` 内联扩展或单独安装 Browser 技能。
+工具箱在 Pi Packages 中显示带内置标记的 Browser，详情展示包内技能及扩展注册的工具、事件；
+包随 Workbench 更新，不单独卸载或更新，包内资源沿用 Pi 原生过滤规则启停。
+Workbench 与使用同一 Pi 用户目录的独立 Pi CLI 消费同一份包，技能唯一源码位于包的 `skills/browser/`。
 独立 Pi CLI 惰性启动同一 BrowserManager 引擎，通过 Pi UI 处理权限确认，并在会话结束时释放浏览器；
 Workbench 则继续使用应用的共享浏览器与权限 UI。
-`browser` 内置技能通过 `workbench.browser` 扩展的 `workbench_browser` 工具控制应用内浏览器，
+`browser` 技能通过同包扩展的 `workbench_browser` 工具控制应用内浏览器，
 与用户复用同一标签和权限设置。`tabs.list` 只列举当前项目已有的标签；`snapshot` 返回页面无障碍树
 及元素引用，`click` / `fill` 使用当前快照的引用操作元素，导航后旧引用失效。Workbench Host 将
 当前对话的 cwd 解析为已登记的 workspaceId，确保工具能发现和复用用户打开的标签。导航、截图、键盘和
@@ -553,8 +563,9 @@ Runtime 会将内置资源同步到 Pi 用户目录（默认 `~/.pi/agent`，遵
 内容相同时不重写，也不修改 `.builtin` 外的自定义资源。校验脚本通过随安装生成的 `runtime.json` 定位
 当前 Runtime 的公开 Pi SDK，不依赖 Python 或 Codex 配置。
 
-`.builtin` 不参与 Pi 的常规自动发现，内置技能由 Workbench 显式加载；扩展保持宿主内联注册，磁盘保存
-其源码快照，不会再加载一份。Runtime artifact 同时携带这些资源，其中扩展源码作为明确登记的模型可读资源保留。
+`.builtin` 不参与 Pi 的常规自动发现。独立内置技能由 Workbench 显式加载，宿主生命周期适配器保持
+内联注册并在磁盘保存源码快照；完整 Pi Package 则通过原生 `packages` 配置加载包声明的全部资源。
+Runtime artifact 同时携带这些资源，其中宿主扩展源码作为明确登记的模型可读资源保留。
 
 Skills、Extensions 与已安装 Package 的兼容 RPC 接受两种互斥资源身份：会话内设置界面可继续提交
 `{ sessionId }`；Toolbox 必须提交 `{ target: { scope: "user" } }` 或
@@ -812,7 +823,8 @@ Project Trust 决策控制；查询设置页不会提升项目资源信任。
 
 `package.list` 按资源 target 返回该用户级或项目级 settings 中已配置的 Packages；Toolbox 不需要先有
 任何 session。
-响应只包含 package source、作用域，以及是否采用资源筛选配置；不会向浏览器返回 settings 文件路径
+响应包含 package source、作用域，以及是否采用资源筛选配置；应用分发的内置包另带 `builtin` 标记和名称。
+不会向浏览器返回 settings 文件路径
 或具体资源路径。这个列表用于工具箱的“已安装”视图，并遵循当前 session 已生效的项目信任边界。
 
 `package.describe` 只在打开一个已安装 Package 详情时按需读取本地快照。请求使用完整的
@@ -1286,6 +1298,15 @@ packages/agent-runtime/runtimes/pi/
     │   ├── enhanced-search/
     │   ├── message-termination/
     │   └── rpiv-todo/
+    ├── internal-packages/
+    │   └── browser/
+    ├── internal-skills/
+    │   ├── skill-creator/
+    │   ├── skill-installer/
+    │   ├── extension-creator/
+    │   ├── pi-docs/
+    │   └── workbench-settings/
+    ├── internal-prompts/
     ├── skills/
     │   └── skill-service.ts
     ├── workspaces/

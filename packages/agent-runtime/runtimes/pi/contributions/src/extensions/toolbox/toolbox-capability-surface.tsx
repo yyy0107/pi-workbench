@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { ToolboxPromptDetails } from "./toolbox-prompt-details";
+import { useMainViewService } from "@workbench/extension-host";
 
 import { useOpenerService, useWorkspaceContext } from "@workbench/shell/right-workspace/react";
 import {
@@ -67,6 +68,7 @@ import {
   toolboxDirectoryResource,
   browserCapabilityPresentation,
   builtinToolPreferenceKey,
+  resourcePackageSurfaceParams,
   type ToolboxCapabilitySurfaceParams,
 } from "./toolbox-capability";
 import { toolboxScopeTarget } from "./toolbox-scope";
@@ -179,6 +181,7 @@ function EnhancedSearchSettings() {
 
 function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfaceParams }) {
   const { number, t } = usePiI18n();
+  const mainViews = useMainViewService();
   const browser = browserCapabilityPresentation(params, t);
   const displayedName = browser?.name ?? params.name;
   const builtinPreferenceKey = builtinToolPreferenceKey(params);
@@ -236,10 +239,14 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
     params.source ?? "",
     isInstalledPackage,
   );
+  const isBuiltinPackage =
+    isInstalledPackage &&
+    (params.builtin === true || installedPackageDetails.value?.builtin === true);
   const installedPackageUpdates = usePiPackageUpdates(
     catalogTarget,
-    isInstalledPackage && params.packageUpdateAvailable !== true,
+    isInstalledPackage && !isBuiltinPackage && params.packageUpdateAvailable !== true,
   );
+  const supplyingPackage = resourcePackageSurfaceParams(params, catalogTarget);
   const skillDetails = usePiSkillDetails(catalogTarget, params.name, isSkill);
   const displayedSkillFilePath = skillDetails.value?.filePath
     ? abbreviateUserHomePath(skillDetails.value.filePath)
@@ -351,6 +358,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
     (params.origin !== "package" || Boolean(params.source));
   const canDeleteSkill =
     isSkill &&
+    !params.packageBuiltin &&
     Boolean(catalogTarget) &&
     !skillRemoved &&
     !skillMutationPending &&
@@ -389,6 +397,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
       params.scope !== "temporary";
   const canDeleteExtension =
     Boolean(extensionIdentity) &&
+    !params.packageBuiltin &&
     !extensionRemoved &&
     !extensionMutationPending &&
     ((params.origin === "package" &&
@@ -601,6 +610,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
   const checkedPackageUpdateAvailable = checkedPackageUpdate !== undefined;
   const packageUpdateAvailable =
     isInstalledPackage &&
+    !isBuiltinPackage &&
     !installedPackageRemoved &&
     (params.packageUpdateAvailable === true || checkedPackageUpdateAvailable) &&
     updateFeedback.status !== "updated";
@@ -608,7 +618,8 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
   const updating = updateFeedback.status === "updating";
   const mutating = installing || removing || updating;
   const showUninstallFeedback =
-    removeFeedback.status !== "idle" || (installationPresent && !uninstallTarget);
+    !isBuiltinPackage &&
+    (removeFeedback.status !== "idle" || (installationPresent && !uninstallTarget));
   const installTargetLabel = (target: PackageInstallChoice): string =>
     target.scope === "user"
       ? t("extensions.toolbox.packages.installLocationUser")
@@ -680,7 +691,13 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
       });
   };
   const uninstallPackage = () => {
-    if (!installationPresent || !uninstallTarget || !uninstallSource || mutating) {
+    if (
+      isBuiltinPackage ||
+      !installationPresent ||
+      !uninstallTarget ||
+      !uninstallSource ||
+      mutating
+    ) {
       return;
     }
     const rpcTarget =
@@ -901,6 +918,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
           </div>
           {isSkill ? (
             <SkillControls
+              packageBuiltin={params.packageBuiltin}
               canDelete={canDeleteSkill}
               canOpenDirectory={directoryResource?.scheme === "skill-directory"}
               canToggle={canToggleSkill}
@@ -958,7 +976,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
                   )}
                 </Button>
               ) : null}
-              {installationPresent ? (
+              {installationPresent && !isBuiltinPackage ? (
                 <Button
                   type="button"
                   variant="destructive"
@@ -997,6 +1015,25 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
           {displayedDescription}
         </p>
         {browser ? <p className="text-muted-foreground mt-3 text-sm">{browser.details}</p> : null}
+        {supplyingPackage ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() =>
+              mainViews.open({
+                kind: "toolbox",
+                title:
+                  browserCapabilityPresentation(supplyingPackage, t)?.name ?? supplyingPackage.name,
+                params: { section: "installed", detailOnly: true, selected: supplyingPackage },
+              })
+            }
+          >
+            <PackageIcon aria-hidden="true" />
+            {t("extensions.toolbox.packages.openInstalledPackage")}
+          </Button>
+        ) : null}
         {displayedHeaderFilePath
           ? withTooltip(
               <p
@@ -1083,6 +1120,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
         {isExtension ? (
           <ExtensionControls
             builtin={params.builtin}
+            packageBuiltin={params.packageBuiltin}
             canDelete={canDeleteExtension}
             canOpenDirectory={directoryResource?.scheme === "extension-directory"}
             canToggle={canToggleExtension}

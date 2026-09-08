@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 sys.dont_write_bytecode = True
 server = Path(__file__).resolve().parents[2]
-scripts = server / "src/skills/builtin-skills/extension-creator/scripts"
+scripts = server / "src/internal-skills/extension-creator/scripts"
 sys.path.insert(0, str(scripts))
 import create_extension as creator
 import validate_extension as validator

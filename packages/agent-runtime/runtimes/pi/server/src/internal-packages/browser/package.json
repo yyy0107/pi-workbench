@@ -24,7 +24,7 @@
     "build": "node build.mjs",
     "prepack": "pnpm build",
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
-    "test": "node ../../../../../scripts/run-typescript-tests.mjs --package"
+    "test": "node ../../../../../../../../scripts/run-typescript-tests.mjs --package"
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "0.85.1",
