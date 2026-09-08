@@ -12,7 +12,7 @@ from unittest.mock import patch
 import zipfile
 
 sys.dont_write_bytecode = True
-scripts = Path(__file__).resolve().parents[2] / "src/skills/builtin-skills/skill-installer/scripts"
+scripts = Path(__file__).resolve().parents[2] / "src/internal-skills/skill-installer/scripts"
 sys.path.insert(0, str(scripts))
 import github_utils
 

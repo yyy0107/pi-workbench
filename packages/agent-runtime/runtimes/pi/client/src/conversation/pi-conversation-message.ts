@@ -87,6 +87,7 @@ export interface PiImageMessagePart {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly status?: PiMessagePartStatus;
   readonly providerMetadata?: PiPartProviderMetadata;
 }
 

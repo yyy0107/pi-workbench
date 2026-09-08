@@ -30,6 +30,7 @@ import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build, type Metafile } from "esbuild";
+import { DefaultResourceLoader, SettingsManager } from "@earendil-works/pi-coding-agent";
 
 async function temporaryDirectory(prefix: string): Promise<string> {
   return realpath(await mkdtemp(path.join(os.tmpdir(), prefix)));
@@ -78,6 +79,10 @@ test("bundled resources install into the Pi directory after relocation and pruni
   t.after(() => rm(outputDirectory, { force: true, recursive: true }));
   const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
   await copyRuntimeBuiltinResources(repositoryRoot, outputDirectory);
+  const promptSource = path.join(outputDirectory, "internal-prompts", "example");
+  await mkdir(promptSource);
+  for (const locale of ["en-US", "zh-CN"])
+    await writeFile(path.join(promptSource, `${locale}.md`), `${locale} bundled prompt\n`);
   await build({
     ...createRuntimeArtifactBuildOptions({ outputDirectory }),
     entryPoints: [
@@ -108,15 +113,48 @@ test("bundled resources install into the Pi directory after relocation and pruni
     (await readFile(path.join(skillDirectory, "SKILL.md"), "utf8")).includes("name: skill-creator"),
   );
   assert.ok(
+    (
+      await readFile(path.join(directories.packages, "browser", "skills/browser/SKILL.md"), "utf8")
+    ).includes("name: browser"),
+  );
+  assert.ok(
     (await readFile(path.join(directories.extensions, "rpiv-todo", "index.ts"), "utf8")).includes(
       "createTodoExtension",
     ),
   );
-  assert.deepEqual(await readdir(directories.prompts), []);
+  assert.deepEqual(await readdir(directories.prompts), ["example"]);
+  for (const locale of ["en-US", "zh-CN"])
+    assert.equal(
+      await readFile(path.join(directories.prompts, "example", `${locale}.md`), "utf8"),
+      `${locale} bundled prompt\n`,
+    );
   for (const directory of Object.values(directories) as string[])
     assert.ok(
       (await readdir(directory, { withFileTypes: true })).every((entry) => entry.isDirectory()),
     );
+  const browserEntry = path.join(directories.packages, "browser", "index.js");
+  const browserCode = await readFile(browserEntry, "utf8");
+  assert.doesNotMatch(browserCode, /file:\/\/|from ["']@workbench\//);
+  assert.ok(browserCode.length > 1_000);
+  const loader = new DefaultResourceLoader({
+    cwd: agentDir,
+    agentDir,
+    settingsManager: SettingsManager.create(agentDir, agentDir, { projectTrusted: false }),
+    noThemes: true,
+    noContextFiles: true,
+  });
+  await loader.reload();
+  assert.deepEqual(loader.getExtensions().errors, []);
+  const extension = loader
+    .getExtensions()
+    .extensions.find((entry) => entry.resolvedPath === browserEntry);
+  assert.ok(extension);
+  assert.equal(extension.sourceInfo.origin, "package");
+  assert.equal(extension.tools.has("workbench_browser"), true);
+  assert.equal(extension.handlers.has("session_shutdown"), true);
+  const browserSkill = loader.getSkills().skills.find((skill) => skill.name === "browser");
+  assert.equal(browserSkill?.sourceInfo.origin, "package");
+  assert.equal(browserSkill?.sourceInfo.source, extension.sourceInfo.source);
   const validation = spawnSync(
     process.execPath,
     [path.join(skillDirectory, "scripts/validate-skill.mjs"), skillDirectory],
@@ -308,6 +346,42 @@ test("reanchors exact Runtime app external package specifiers and subpaths for N
     { specifier: "ws/lib/websocket.js", parent: runtimeAppIssuer },
     { specifier: "unrelated-package", parent: originalParent },
   ]);
+});
+
+test("runtime-relative skill assets do not pull build-checkout files into either trace", async (t) => {
+  const repositoryRoot = path.resolve(".");
+  const outputDirectory = await mkdtemp(path.join(repositoryRoot, ".runtime-trace-cwd-"));
+  t.after(() => rm(outputDirectory, { force: true, recursive: true }));
+  const requireFromApp = createRequire(path.join(repositoryRoot, "apps/runtime-node/package.json"));
+  const { nodeFileTrace } = requireFromApp("@vercel/nft") as typeof import("@vercel/nft");
+  const tracedConditions: string[] = [];
+
+  await assert.rejects(
+    buildRuntimeArtifact({
+      outputDirectory,
+      testOnlyOutputPolicy: TEST_ONLY_ALLOW_NONSTANDARD_RUNTIME_ARTIFACT_OUTPUT,
+      nodeFileTraceImpl: async (entries, options) => {
+        assert.ok(Array.isArray(options.conditions));
+        const condition = options.conditions.includes("require") ? "require" : "import";
+        const probe = path.join(path.dirname(entries[0]!), `trace-skills-${condition}.mjs`);
+        await writeFile(
+          probe,
+          `import { readFile } from "node:fs/promises";
+import path from "node:path";
+export const readSkill = (context) => readFile(path.resolve(context.workdir, "skills", context.name));
+`,
+        );
+        const result = await nodeFileTrace([probe], options);
+        assert.deepEqual([...result.fileList], [path.relative(repositoryRoot, probe)]);
+        assert.equal(result.warnings.size, 0);
+        tracedConditions.push(condition);
+        // Stop before materializing an artifact: this probe replaces the real dependency graph.
+        return { ...result, warnings: new Set([new Error("skill trace probe complete")]) };
+      },
+    }),
+    /skill trace probe complete/u,
+  );
+  assert.deepEqual(tracedConditions.sort(), ["import", "require"]);
 });
 
 test("accepts only app/package source inputs in the Runtime bundle closure", () => {

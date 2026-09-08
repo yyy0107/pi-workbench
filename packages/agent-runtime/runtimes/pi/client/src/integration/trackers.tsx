@@ -29,7 +29,9 @@ export function PiDraftWorkspaceTracker({ manager }: { manager: PiSessionManager
             cwd: draftWorkspaceRootPath,
             ...(draftWorkspacePinned === undefined ? {} : { pinned: draftWorkspacePinned }),
           };
-    manager.setDraftWorkspace(newThreadId, workspace);
+    // Changing project selection restores that project's draft instead of moving the current one.
+    const localId = manager.createDraft({ workspaceId: draftWorkspaceId });
+    manager.setDraftWorkspace(localId, workspace);
   }, [
     draftWorkspaceRootPath,
     draftWorkspaceId,

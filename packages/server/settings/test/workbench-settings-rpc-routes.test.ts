@@ -2,9 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { SUPPORTED_LOCALES, type Locale } from "@workbench/contracts/locale";
-import {
-  BUILTIN_EXTENSION_PREFERENCE_KEYS,
-} from "@workbench/agent-runtime-contracts/settings";
+import { BUILTIN_EXTENSION_PREFERENCE_KEYS } from "@workbench/agent-runtime-contracts/settings";
 import type { WorkbenchSettingsProtocol } from "@workbench/agent-runtime-contracts/settings";
 import { type ServerResponse } from "@workbench/host-contracts/rpc";
 import { rpcBusinessError } from "@workbench/host-server/rpc";
@@ -53,9 +51,7 @@ async function successValue<Value>(response: Response): Promise<Value> {
 }
 
 const builtinSwitches = Object.fromEntries(
-  [
-    ...Object.values(BUILTIN_EXTENSION_PREFERENCE_KEYS),
-  ].map((key) => [key, false]),
+  [...Object.values(BUILTIN_EXTENSION_PREFERENCE_KEYS)].map((key) => [key, false]),
 );
 
 const unexpectedDomainError = (error: unknown): never => {
@@ -119,6 +115,7 @@ test("resolves a Workbench Settings service per call and sanitizes preference pa
         locale: "zh-CN",
         sidebarExpandedWorkspaceIds: ["workspace-1", "workspace-2"],
         sidebarSelectedThreadId: "session-1",
+        fileOpenApps: { "extension:html": "firefox", "extension:pdf": "system-default" },
         sidebarThreadSortMode: "manual",
         toolboxPins: ["skills", "packages"],
         toolboxScope: { kind: "project", workspaceId: "workspace-1", ignored: true },
@@ -160,6 +157,7 @@ test("resolves a Workbench Settings service per call and sanitizes preference pa
         locale: "zh-CN",
         sidebarExpandedWorkspaceIds: ["workspace-1", "workspace-2"],
         sidebarSelectedThreadId: "session-1",
+        fileOpenApps: { "extension:html": "firefox", "extension:pdf": "system-default" },
         sidebarThreadSortMode: "manual",
         toolboxPins: ["skills", "packages"],
         toolboxScope: { kind: "project", workspaceId: "workspace-1" },
@@ -268,6 +266,8 @@ test("validates Workbench Settings patches before resolving a service", async ()
     { patch: { sidebarThreadSortMode: "alphabetical" } },
     { patch: { toolboxScope: { kind: "project", workspaceId: "" } } },
     { patch: { modelSelector: { modelId: "" } } },
+    { patch: { fileOpenApps: { "extension:pdf": 1 } } },
+    { patch: { fileOpenApps: { "extension:html": "" } } },
     { patch: { backgroundImage: { name: "", mimeType: "image/png", data: "AAAA" } } },
   ]) {
     const response = routes.handle(

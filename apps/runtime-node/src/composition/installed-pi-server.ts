@@ -1,4 +1,5 @@
 import { builtinToolEnabled } from "@workbench/agent-runtime-contracts/settings";
+import { BrowserManager } from "@workbench/browser-server";
 import applicationPackage from "../../package.json" with { type: "json" };
 
 import { getImageUnderstandingSettingsStore } from "./installed-attachment-understanding";
@@ -18,9 +19,14 @@ import {
   type WorkspaceFileService,
 } from "@workbench/workspace-server/files";
 import { createWorkspaceGitService } from "@workbench/workspace-server/git";
-import { createWorkspaceFileContentHandler } from "@workbench/workspace-server/http";
+import {
+  createLocalFileContentHandler,
+  createWorkspaceFileContentHandler,
+} from "@workbench/workspace-server/http";
+import { LocalFileService } from "@workbench/workspace-server/local-files";
 import {
   createWorkspaceFileRpcRoutes,
+  createLocalFileRpcRoutes,
   createWorkspaceGitRpcRoutes,
 } from "@workbench/workspace-server/rpc";
 import type { WorkbenchAgentServerAdapter } from "@workbench/agent-runtime-server/adapter";
@@ -28,6 +34,7 @@ import type { WorkbenchAgentServerAdapter } from "@workbench/agent-runtime-serve
 import {
   bindPiAgentHostBindings,
   resolvePiWorkspaceRoot,
+  resolvePiWorkspaceId,
   mutatePiWorkspace,
   CommandService,
   createPiAgentServerImplementation,
@@ -67,11 +74,15 @@ import { createTerminalShellPreference } from "@workbench/terminal-server/shell"
 import { ToolTerminalSessionManager } from "@workbench/terminal-server/tool-sessions";
 import { runWorkbenchShutdownHooks } from "@workbench/server-core/shutdown-hooks";
 import { subscribeWorkbenchSettingsPreferences } from "@workbench/settings-server/service";
-import { createInstalledWorkbenchSettingsService } from "./installed-workbench-settings";
+import {
+  createInstalledWorkbenchSettingsAgentAccess,
+  createInstalledWorkbenchSettingsService,
+} from "./installed-workbench-settings";
 import { getInstalledPiAutomationService } from "./installed-automation";
 
 export interface InstalledPiServer {
-  readonly lifecycleVersion: 5;
+  readonly lifecycleVersion: 7;
+  readonly browser: BrowserManager;
   readonly terminalShell: ReturnType<typeof createTerminalShellPreference>;
   readonly toolTerminalSessions: ToolTerminalSessionManager;
   readonly agent: WorkbenchAgentServerAdapter;
@@ -141,6 +152,7 @@ export function createInstalledPiDisposer({
 function createInstalledPiRuntimeHttpHandler(
   handleRpcPost: PiRpcPostHandler,
   handleWorkspaceFileContentRequest: PiRuntimeHttpHandler,
+  handleLocalFileContentRequest: PiRuntimeHttpHandler,
 ): PiRuntimeHttpHandler {
   const handlePiRequest = createPiRuntimeHttpRouter({
     listModels: listPiModels,
@@ -163,6 +175,7 @@ function createInstalledPiRuntimeHttpHandler(
   return createRuntimeHttpRouter({
     handleRpcPost,
     handleWorkspaceFileContentRequest,
+    handleLocalFileContentRequest,
     handlePiRequest,
   });
 }
@@ -171,9 +184,16 @@ function createInstalledPiAgentHostBindings(
   workspaceFiles: WorkspaceFileService,
   terminalShell: ReturnType<typeof createTerminalShellPreference>,
   toolTerminalSessions: ToolTerminalSessionManager,
+  browser: BrowserManager,
 ): PiAgentHostBindings {
   const settings = createInstalledWorkbenchSettingsService();
   return {
+    browser: {
+      command: (command, signal, controlSignal) =>
+        browser.handle(command, { source: "agent", signal, controlSignal }),
+      resolveProjectId: async (cwd) => (await resolvePiWorkspaceId(cwd)) ?? cwd,
+    },
+    workbenchSettings: createInstalledWorkbenchSettingsAgentAccess(),
     workspaceFiles,
     getDefaultTerminalShell: terminalShell.getShell,
     attachmentUnderstandingSettings: getImageUnderstandingSettingsStore,
@@ -264,16 +284,19 @@ function createInstalledPiServer(
   const workspaceFiles = createWorkspaceFileService({
     resolveWorkspaceRoot: resolvePiWorkspaceRoot,
   });
+  const localFiles = new LocalFileService();
   const workspaceGit = createWorkspaceGitService({
     resolveWorkspaceRoot: resolvePiWorkspaceRoot,
     mutateWorkspace: mutatePiWorkspace,
   });
   const terminalShell = createTerminalShellPreference();
   const toolTerminalSessions = new ToolTerminalSessionManager({ getShell: terminalShell.getShell });
+  const browser = new BrowserManager();
   const host = createInstalledPiAgentHostBindings(
     workspaceFiles,
     terminalShell,
     toolTerminalSessions,
+    browser,
   );
   bindPiAgentHostBindings(host);
   const commands = new CommandService();
@@ -287,6 +310,7 @@ function createInstalledPiServer(
     }),
     createWorkspaceGitRpcRoutes({ service: workspaceGit, ...domainErrors }),
     createWorkspaceFileRpcRoutes({ service: workspaceFiles, ...domainErrors }),
+    createLocalFileRpcRoutes({ service: localFiles, ...domainErrors }),
     createAutomationRpcRoutes({ service: automation, ...domainErrors }),
     createWorkbenchSettingsRpcRoutes({
       getService: createInstalledWorkbenchSettingsService,
@@ -312,7 +336,8 @@ function createInstalledPiServer(
     automation,
   });
   return Object.freeze({
-    lifecycleVersion: 5 as const,
+    lifecycleVersion: 7 as const,
+    browser,
     terminalShell,
     toolTerminalSessions,
     agent,
@@ -322,6 +347,7 @@ function createInstalledPiServer(
     handleHttpRequest: createInstalledPiRuntimeHttpHandler(
       handleRpcPost,
       handleWorkspaceFileContentRequest,
+      createLocalFileContentHandler(localFiles),
     ),
     dispose,
   });
@@ -332,7 +358,7 @@ export function getInstalledPiServer(): InstalledPiServer {
   const current = installedGlobal.__workbenchInstalledPiServer;
   if (current) {
     bindPiAgentHostBindings(current.host);
-    if (current.lifecycleVersion !== 5) {
+    if (current.lifecycleVersion !== 7) {
       const upgraded = createInstalledPiServer(current.agent);
       installedGlobal.__workbenchInstalledPiServer = upgraded;
       return upgraded;

@@ -217,7 +217,13 @@ test("copies the final prompt resource inventory onto the live event summary", (
     ],
     contextFileCount: 1,
     contextFiles: ["AGENTS.md"],
-    skills: [{ name: "review", disableModelInvocation: false }],
+    skills: [
+      {
+        name: "review",
+        filePath: "/workspace/.pi/skills/review/SKILL.md",
+        disableModelInvocation: false,
+      },
+    ],
     extensions: [{ name: "audit", hidden: false }],
     tools: { active: ["read"], total: 1 },
   });

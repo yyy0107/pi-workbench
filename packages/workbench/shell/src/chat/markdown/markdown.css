@@ -62,10 +62,26 @@
 }
 
 .aui-streamdown :where([data-streamdown="link"]) {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
   color: var(--primary);
   font-weight: 400;
+  text-decoration-line: none;
+  text-underline-offset: 0.15em;
+}
+
+.aui-streamdown :where([data-streamdown="link"]:hover, [data-streamdown="link"]:focus-visible) {
   text-decoration-line: underline;
-  text-underline-offset: 2px;
+  text-decoration-style: dashed;
+}
+
+.aui-streamdown .aui-markdown-link-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  width: var(--icon-size-sm);
+  height: var(--icon-size-sm);
+  margin-inline-end: 0.25em;
 }
 
 .aui-streamdown :where(.aui-streamdown-inline-code, [data-streamdown="inline-code"]) {

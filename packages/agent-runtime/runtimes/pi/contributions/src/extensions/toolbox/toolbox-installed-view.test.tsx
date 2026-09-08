@@ -6,7 +6,11 @@ import { I18nProvider, type Locale } from "@workbench/shell/i18n";
 import { WorkbenchSettingsProvider } from "@workbench/shell/settings";
 import { piTranslationBundle } from "../../i18n";
 import type { ToolboxCapabilityItem } from "./toolbox-catalog";
-import { CapabilityMetadataFields, ExtensionControls } from "./toolbox-capability-presentation";
+import {
+  CapabilityMetadataFields,
+  ExtensionControls,
+  SkillControls,
+} from "./toolbox-capability-presentation";
 import { builtinExtensionSurfaceParams, builtinToolPreferenceKey } from "./toolbox-capability";
 import { ToolboxResourceList } from "./toolbox-installed-view";
 import { ToolboxResourceGroup } from "./toolbox-resource-group";
@@ -173,6 +177,11 @@ test("Pi extensions group by source after search while keeping disabled entries"
     extension("Builtin Todo", { builtin: true }),
     extension("Own review", { origin: "top-level", source: "auto", enabled: false }),
     extension("Package search", { origin: "package", source: "npm:pi-search", enabled: true }),
+    extension("Browser package", {
+      origin: "package",
+      source: "./packages/.builtin/browser",
+      packageBuiltin: true,
+    }),
   ];
   const html = render("", "en-US", resources, true);
   const groups = [...html.matchAll(/<h2\b[^>]*>([^<]*)<\/h2>([\s\S]*?)(?=<h2\b|$)/g)];
@@ -181,6 +190,8 @@ test("Pi extensions group by source after search while keeping disabled entries"
     ["Pi Packages", "Custom extensions", "Built-in extensions"],
   );
   assert.match(groups[0][2], /Package search/);
+  assert.match(groups[0][2], /Browser package/);
+  assert.doesNotMatch(groups[2][2], /Browser package/);
   assert.match(groups[1][2], /Own review/);
   assert.match(groups[1][2], />Disabled</);
   assert.match(groups[2][2], /Builtin Todo/);
@@ -194,6 +205,37 @@ test("Pi extensions group by source after search while keeping disabled entries"
   const empty = render("missing", "zh-CN", resources, true);
   assert.match(empty, /没有匹配的能力/);
   assert.doesNotMatch(empty, /<h2|<li/);
+});
+
+test("bundled package resources retain enabled switches and directories without removal controls", () => {
+  const props = {
+    packageBuiltin: true,
+    name: "browser",
+    enabled: true,
+    canToggle: true,
+    canDelete: false,
+    canOpenDirectory: true,
+    mutationState: "idle" as const,
+    removed: false,
+    onToggle: () => undefined,
+    onDelete: () => undefined,
+    onOpenDirectory: () => undefined,
+  };
+  for (const Control of [SkillControls, ExtensionControls]) {
+    const html = renderToStaticMarkup(
+      <WorkbenchSettingsProvider
+        service={{ load: async () => ({}), update: async () => undefined }}
+      >
+        <I18nProvider initialLocale="en-US" bundles={[piTranslationBundle]}>
+          <Control {...props} openFailed={false} />
+        </I18nProvider>
+      </WorkbenchSettingsProvider>,
+    );
+    assert.match(html, /role="switch"/);
+    assert.match(html, /aria-checked="true"/);
+    assert.match(html, /aria-label="Open the browser folder[^"]*"/);
+    assert.doesNotMatch(html, /aria-label="Delete|role="switch"[^>]* disabled/);
+  }
 });
 
 test("resource groups preview six entries with localized remaining names and unrestricted search", () => {

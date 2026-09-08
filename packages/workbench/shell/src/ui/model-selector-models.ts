@@ -16,6 +16,18 @@ export interface ModelSelectorOption {
   unavailable?: boolean;
 }
 
+export function groupModelSelectorOptions(
+  models: readonly ModelSelectorOption[],
+): Map<string, ModelSelectorOption[]> {
+  const groups = new Map<string, ModelSelectorOption[]>();
+  for (const model of models) {
+    const group = groups.get(model.provider);
+    if (group) group.push(model);
+    else groups.set(model.provider, [model]);
+  }
+  return groups;
+}
+
 export function filterModelSelectorOptions(
   models: readonly ModelSelectorOption[],
   query: string,

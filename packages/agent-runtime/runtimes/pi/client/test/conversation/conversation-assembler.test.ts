@@ -324,6 +324,7 @@ test("projects image, file, and document source semantics into Workbench blocks"
       name: "generated",
       source: "https://example.com/generated",
       mediaType: "image/png",
+      status: "complete",
       sourceType: "url",
     },
     {
@@ -348,6 +349,56 @@ test("projects image, file, and document source semantics into Workbench blocks"
       title: "Guide",
     },
   ]);
+});
+
+test("preserves per-image generation state from live Pi messages through Workbench projection", () => {
+  const raw: PiAssistantMessage = {
+    role: "assistant",
+    content: [{ type: "image", data: "", mimeType: "image/png" }],
+  };
+  const project = (streaming: boolean, stopReason?: string) => {
+    const message = piAssistantToThreadMessage({ ...raw, stopReason }, "generated-image", {
+      streaming,
+    });
+    const [node] = conversationNodesFromPiConversation([message]);
+    assert.equal(node?.kind, "assistant");
+    if (node?.kind !== "assistant") throw new Error("Missing assistant node");
+    return { message, block: node.blocks[0] };
+  };
+  const running = project(true);
+  assert.equal(running.block?.kind, "file");
+  if (running.block?.kind !== "file") return;
+  assert.equal(running.block.source, "");
+  assert.equal(running.block.status, "running");
+  const [cancelled] = conversationNodesFromPiConversation([
+    { ...running.message, status: { type: "incomplete", reason: "cancelled" } },
+  ]);
+  assert.equal(
+    cancelled?.kind === "assistant" &&
+      cancelled.blocks[0]?.kind === "file" &&
+      cancelled.blocks[0].status,
+    "incomplete",
+  );
+  for (const [stopReason, status] of [
+    ["stop", "complete"],
+    ["aborted", "incomplete"],
+    ["error", "error"],
+  ]) {
+    const { block } = project(false, stopReason);
+    assert.equal(block?.kind === "file" && block.status, status);
+    assert.equal(block?.key, running.block.key);
+  }
+
+  const completed = project(false, "stop").message;
+  const [continued] = conversationNodesFromPiConversation([
+    { ...completed, status: { type: "running" } },
+  ]);
+  assert.equal(
+    continued?.kind === "assistant" &&
+      continued.blocks[0]?.kind === "file" &&
+      continued.blocks[0].status,
+    "complete",
+  );
 });
 
 test("projects native reasoning and tool timeline state into Workbench blocks", () => {

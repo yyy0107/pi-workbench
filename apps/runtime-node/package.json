@@ -13,12 +13,14 @@
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json"
   },
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "0.84.2",
+    "@earendil-works/pi-coding-agent": "0.85.1",
     "@workbench/agent-runtime-pi-protocol": "workspace:*",
     "@workbench/agent-runtime-pi-server": "workspace:*",
     "@workbench/agent-runtime-server": "workspace:*",
     "@workbench/attachment-understanding-server": "workspace:*",
     "@workbench/automation-server": "workspace:*",
+    "@workbench/browser-contracts": "workspace:*",
+    "@workbench/browser-server": "workspace:*",
     "@workbench/host-server": "workspace:*",
     "@workbench/local-host-server": "workspace:*",
     "@workbench/pi-terminal-tool": "workspace:*",

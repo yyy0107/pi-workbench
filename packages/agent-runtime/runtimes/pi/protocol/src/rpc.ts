@@ -684,6 +684,8 @@ export interface SkillView {
   source: string;
   scope: ExtensionSourceScope;
   origin: ExtensionSourceOrigin;
+  /** The resource belongs to a Workbench-bundled Pi package. */
+  packageBuiltin?: boolean;
 }
 
 export interface SkillListValue {
@@ -776,6 +778,8 @@ export interface ExtensionView {
   source: string;
   scope: ExtensionSourceScope;
   origin: ExtensionSourceOrigin;
+  /** Package distribution does not change the extension's mutable resource identity. */
+  packageBuiltin?: boolean;
   enabled: boolean;
   eventNames: string[];
   toolNames: string[];
@@ -875,6 +879,9 @@ export interface InstalledPackageView {
   source: string;
   scope: "user" | "project";
   filtered: boolean;
+  builtin?: boolean;
+  name?: string;
+  description?: string;
 }
 
 export interface InstalledPackageListValue {
@@ -894,6 +901,7 @@ export interface InstalledPackageDescribePayload {
 export interface InstalledPackageDetailsView {
   source: string;
   scope: "user" | "project";
+  builtin?: boolean;
   name?: string;
   version?: string;
   description?: string;
@@ -1435,6 +1443,8 @@ export interface SessionContextTracePromptResources {
   contextFiles: string[];
   skills: Array<{
     name: string;
+    /** Catalog identity used to associate read tool calls with this skill. */
+    filePath?: string;
     disableModelInvocation: boolean;
   }>;
   extensions: Array<{

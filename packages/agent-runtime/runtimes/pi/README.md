@@ -417,7 +417,7 @@ Workspace Git 同样只接受 `workspaceId`，并从 `WorkspaceStore` 解析权�
 该入口在扩展加载前保存宿主 `fetch`，并通过 Pi 的请求级 `fetch` 参数保护支持注入的 HTTP
 适配器；普通回答、压缩、图片理解及 deferred 请求共用这条边界。调用方显式传入的 `fetch`、
 认证、代理环境参数和 WebSocket transport 选择继续由 SDK 处理，不改写扩展使用的全局 `fetch`。
-Pi 0.84.2 的 Google 适配器不支持注入，Bedrock 使用自己的 HTTP handler，未知扩展 API 也保留
+Pi 0.85.1 的 Google 适配器不支持注入，Bedrock 使用自己的 HTTP handler，未知扩展 API 也保留
 原有传输。这是对全局 `fetch` 被意外替换的定向防护，不是同进程扩展的安全沙箱，也不覆盖认证
 刷新和模型目录请求；升级 SDK 时需复核支持注入的 API 列表。
 
@@ -446,6 +446,9 @@ Pi `ModelRuntime` 是 provider、model 和凭证状态的权威来源：
   及其他模型配置；`llm.resetModelContextWindow` 只删除该覆盖字段，恢复 Provider 目录值。这个值只供 Pi 做 token 容量统计、溢出判断和自动压缩，不会作为 API 的
   `max_tokens` 发送；`maxTokens` 是独立的最大输出元数据，由 provider 适配器映射到对应的输出参数；
 - `session.models` 在 catalog 之外还返回 session 当前选择和 `routable` 状态；
+- Pi 0.85.1 的模型与推理等级切换仅保存到当前会话，不隐式改写 Pi 全局默认值。Workbench
+  继续通过自身 `modelSelector` 设置记住 UI 选择，并在新会话提交时显式传入；未指定模型的
+  自动化或后端会话仍使用 Pi 已保存的默认值。
 - `session.selectModel` 与 prompt/queue mutation 串行执行，避免与正在提交的图片 prompt
   发生竞态；session context policy 也使用同一 mutation 队列，按 `inherit`、`auto`、`maximum`
   或 `custom` 计算当前模型的有效预算。策略作为 branch-local custom entry 持久化，fork 会复制
@@ -515,6 +518,39 @@ Project Trust 遵循 Pi 的资源判定与持久化规则：没有受保护的�
 
 ## Skills
 
+内置 Pi Packages 的源码统一位于 [`server/src/internal-packages/`](./server/src/internal-packages/)，
+每个包使用独立目录，与 `server/src/internal-extensions/` 分开组织。
+内置技能位于 [`server/src/internal-skills/`](./server/src/internal-skills/)，内置提示词模板目录为
+`server/src/internal-prompts/`，当前没有随应用分发的模板。四类内置资源目录同级，按“一项一个目录”组织；
+`skills/`、`prompts/`、`extensions/` 和 `packages/` 保留各自的资源管理服务。
+[`@workbench/pi-browser`](./server/src/internal-packages/browser/README.md) 将 Browser 扩展与专属技能封装为 Pi Package。
+Workbench 将完整内置包部署到 Pi 用户目录的 `packages/.builtin/browser/`，并通过 Pi 原生 `packages`
+配置注册本地包。工具、技能和生命周期事件统一由同一份 `package.json` manifest 加载，来源为
+`package`；不再注册 `workbench.browser` 内联扩展或单独安装 Browser 技能。
+工具箱在 Pi Packages 中显示带内置标记的 Browser，详情展示包内技能及扩展注册的工具、事件；
+包随 Workbench 更新，不单独卸载或更新，包内资源沿用 Pi 原生过滤规则启停。
+Workbench 与使用同一 Pi 用户目录的独立 Pi CLI 消费同一份包，技能唯一源码位于包的 `skills/browser-use/`。
+独立 Pi CLI 惰性启动同一 BrowserManager 引擎，通过 Pi UI 处理权限确认，并在会话结束时释放浏览器；
+Workbench 则继续使用应用的共享浏览器与权限 UI。
+`browser-use` 技能通过同包扩展的 `workbench_browser` 工具控制应用内浏览器，
+与用户复用同一标签和权限设置。`tabs.list` 只列举当前项目已有的标签；`snapshot` 返回页面无障碍树
+及元素引用，`click` / `fill` 使用当前快照的引用操作元素，导航后旧引用失效。Workbench Host 将
+当前对话的 cwd 解析为已登记的 workspaceId，确保工具能发现和复用用户打开的标签。导航、截图、键盘和
+鼠标输入继续复用共享 BrowserManager，普通操作不要求开启完整 CDP 权限。工具结果沿现有
+Browser Runtime Bridge 展示在右侧浏览器工作区，不创建另一套浏览器进程或会话协议。
+该技能默认可发现，支持 `/skill:browser` 与现有技能启停、文档查看流程；本地站点和 HTML
+通过项目的开发或静态 HTTP 服务打开，直接 `file:` 导航不在此工具范围内。
+
+`workbench-settings` 内置技能通过宿主工具 `workbench_settings` 读取和修改当前 Runtime 的
+Workbench preferences，覆盖外观、语言、对话行为和内置工具开关。工具复用 Settings RPC 校验和
+同一设置服务的文件锁、原子写入及进程内通知，不暴露配置文件路径或其他 section 的凭据；未知顶层字段
+会报错。外观等对象仍按顶层替换，技能要求先读再合并；已经打开的 UI 缓存可能需要刷新。
+同一工具的 `domain: "pi"` 复用 `AgentSettingsService` 和共享 RPC validator，支持用户/当前项目
+系统提示词及追加提示词、用户级 compaction。Pi 写入必须携带同一 scope 读取的 `expectedRevision`；
+项目 scope 由当前对话 cwd 匹配已登记 Workspace，不接受任意路径，也不回退全局。更新保留 Pi 的
+文件锁和冲突处理，需新会话或空闲 `/reload` 生效；不会改变项目信任。字段说明按需读取
+`references/pi-settings.md`，providers、认证和其他 Pi 设置继续由 `pi-docs` 与各自服务处理。
+
 Workbench 随 Runtime 内置 `skill-creator`，用于创建和更新技能。会话与 Toolbox 通过 Pi 的
 `skillsOverride` 加入同一份资源，复用技能详情、文件浏览、自动发现和 `/skill:skill-creator` 调用。
 内置项在用户范围显示，来源为 `builtin`，默认启用且不可删除；已有同名用户或受信任项目技能优先。
@@ -527,8 +563,9 @@ Runtime 会将内置资源同步到 Pi 用户目录（默认 `~/.pi/agent`，遵
 内容相同时不重写，也不修改 `.builtin` 外的自定义资源。校验脚本通过随安装生成的 `runtime.json` 定位
 当前 Runtime 的公开 Pi SDK，不依赖 Python 或 Codex 配置。
 
-`.builtin` 不参与 Pi 的常规自动发现，内置技能由 Workbench 显式加载；扩展保持宿主内联注册，磁盘保存
-其源码快照，不会再加载一份。Runtime artifact 同时携带这些资源，其中扩展源码作为明确登记的模型可读资源保留。
+`.builtin` 不参与 Pi 的常规自动发现。独立内置技能由 Workbench 显式加载，宿主生命周期适配器保持
+内联注册并在磁盘保存源码快照；完整 Pi Package 则通过原生 `packages` 配置加载包声明的全部资源。
+Runtime artifact 同时携带这些资源，其中宿主扩展源码作为明确登记的模型可读资源保留。
 
 Skills、Extensions 与已安装 Package 的兼容 RPC 接受两种互斥资源身份：会话内设置界面可继续提交
 `{ sessionId }`；Toolbox 必须提交 `{ target: { scope: "user" } }` 或
@@ -786,7 +823,8 @@ Project Trust 决策控制；查询设置页不会提升项目资源信任。
 
 `package.list` 按资源 target 返回该用户级或项目级 settings 中已配置的 Packages；Toolbox 不需要先有
 任何 session。
-响应只包含 package source、作用域，以及是否采用资源筛选配置；不会向浏览器返回 settings 文件路径
+响应包含 package source、作用域，以及是否采用资源筛选配置；应用分发的内置包另带 `builtin` 标记和名称。
+不会向浏览器返回 settings 文件路径
 或具体资源路径。这个列表用于工具箱的“已安装”视图，并遵循当前 session 已生效的项目信任边界。
 
 `package.describe` 只在打开一个已安装 Package 详情时按需读取本地快照。请求使用完整的
@@ -1260,6 +1298,15 @@ packages/agent-runtime/runtimes/pi/
     │   ├── enhanced-search/
     │   ├── message-termination/
     │   └── rpiv-todo/
+    ├── internal-packages/
+    │   └── browser/
+    ├── internal-skills/
+    │   ├── skill-creator/
+    │   ├── skill-installer/
+    │   ├── extension-creator/
+    │   ├── pi-docs/
+    │   └── workbench-settings/
+    ├── internal-prompts/
     ├── skills/
     │   └── skill-service.ts
     ├── workspaces/

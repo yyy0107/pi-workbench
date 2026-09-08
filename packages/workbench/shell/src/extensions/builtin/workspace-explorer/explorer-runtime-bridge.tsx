@@ -55,7 +55,10 @@ export function ExplorerRuntimeBridge() {
       context,
       placement: "auxiliary",
       status: "ready",
-      policy: fileSession.source === "workspace" ? "background" : "force-focus",
+      policy:
+        fileSession.source === "workspace" || fileSession.source === "local"
+          ? "background"
+          : "force-focus",
     });
   }, [context, contextExplorers, controller, currentExplorer, fileSession, hydrated]);
 

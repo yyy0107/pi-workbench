@@ -87,6 +87,9 @@ test("serves admitted files with strict exact-origin CSP and fails closed", asyn
   assert.equal(await response.text(), "ok");
   assert.equal(requested.length, 1);
   const csp = response.headers.get("content-security-policy");
+  assert.match(csp, /(?:^|; )default-src 'none'(?:;|$)/u);
+  assert.match(csp, /(?:^|; )frame-src 'none'(?:;|$)/u);
+  assert.match(csp, /(?:^|; )frame-ancestors 'none'(?:;|$)/u);
   assert.match(csp, /(?:^|; )script-src 'self'(?:;|$)/u);
   assert.match(csp, /style-src 'self'; style-src-elem 'self' 'unsafe-inline';/u);
   assert.match(csp, /connect-src http:\/\/127\.0\.0\.1:43102 ws:\/\/127\.0\.0\.1:43102/u);

@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 
 import { WorkbenchAgentCapabilityError } from "@workbench/agent-runtime-client";
-import { useWorkbenchWorkspaceCapability } from "@workbench/agent-runtime-client/context";
+import {
+  useWorkbenchRuntimeHostCapability,
+  useWorkbenchWorkspaceCapability,
+} from "@workbench/agent-runtime-client/context";
+import type { FileContentTarget } from "../../../workspace-files";
 
 type WorkspaceFileObjectUrlState =
   | {
@@ -32,8 +36,7 @@ const LOADING_OBJECT_URL_SNAPSHOT = Object.freeze({ status: "loading" as const }
 export function useWorkspaceFileObjectUrl(
   source:
     | {
-        workspaceId: string;
-        relativePath: string;
+        target: FileContentTarget;
         version: string;
         retryToken: number;
         enabled: boolean;
@@ -41,8 +44,10 @@ export function useWorkspaceFileObjectUrl(
     | undefined,
 ): WorkspaceFileObjectUrlSnapshot {
   const workspaceClient = useWorkbenchWorkspaceCapability();
+  const localFiles = useWorkbenchRuntimeHostCapability()?.files;
+  const target = source?.target;
   const sourceKey = source?.enabled
-    ? JSON.stringify([source.workspaceId, source.relativePath, source.version, source.retryToken])
+    ? JSON.stringify([target, source.version, source.retryToken])
     : undefined;
   const [state, setState] = useState<WorkspaceFileObjectUrlState>();
 
@@ -51,7 +56,7 @@ export function useWorkspaceFileObjectUrl(
     if (!source?.enabled || !sourceKey) {
       return;
     }
-    if (!workspaceClient) {
+    if (!target || (target.source === "local" ? !localFiles : !workspaceClient)) {
       setState({
         sourceKey,
         status: "error",
@@ -61,11 +66,14 @@ export function useWorkspaceFileObjectUrl(
     }
     const controller = new AbortController();
     let objectUrl: string | undefined;
-    void workspaceClient
-      .fetchFileContent(
-        { workspaceId: source.workspaceId, relativePath: source.relativePath },
-        { signal: controller.signal },
-      )
+    const content =
+      target.source === "local"
+        ? localFiles!.fetchFileContent(target.path, { signal: controller.signal })
+        : workspaceClient!.fetchFileContent(
+            { workspaceId: target.workspaceId, relativePath: target.relativePath },
+            { signal: controller.signal },
+          );
+    void content
       .then((blob) => {
         if (controller.signal.aborted) return;
         objectUrl = URL.createObjectURL(blob);
@@ -80,7 +88,7 @@ export function useWorkspaceFileObjectUrl(
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [source?.enabled, source?.relativePath, source?.workspaceId, sourceKey, workspaceClient]);
+  }, [source?.enabled, target, sourceKey, localFiles, workspaceClient]);
 
   if (!sourceKey) return IDLE_OBJECT_URL_SNAPSHOT;
   if (!state || state.sourceKey !== sourceKey) return LOADING_OBJECT_URL_SNAPSHOT;

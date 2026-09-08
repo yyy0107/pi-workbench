@@ -2,6 +2,7 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 
 import { APP_REGISTRY, FILE_MANAGER_APP } from "../registry";
+import { localAppView } from "../types";
 import {
   findExecutable,
   localAppPathExists,
@@ -194,11 +195,7 @@ async function toolboxExecutable(
 
 function detectedApp(definition: LocalAppDefinition, executable: string): DetectedLocalApp {
   return {
-    id: definition.id,
-    name: definition.name,
-    kind: definition.kind,
-    ...(definition.icon ? { icon: definition.icon } : {}),
-    supportedFileKinds: [...definition.supportedFileKinds],
+    ...localAppView(definition),
     platform: "windows",
     targetMode: definition.targetMode ?? "path",
     launcher: { type: "executable", path: executable },

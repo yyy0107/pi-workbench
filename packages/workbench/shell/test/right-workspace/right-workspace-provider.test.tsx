@@ -22,7 +22,16 @@ import { act, createElement, Fragment, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { flushReactMicrotasks, installMinimalReactDomEnvironment } from "../react-dom-environment";
-import { useBrowserSessionService } from "../../src/extensions/builtin/workspace-browser/browser-session-service";
+import {
+  BROWSER_SESSION_SERVICE_RESOURCE,
+  MemoryBrowserSessionService,
+  useBrowserSessionService,
+} from "../../src/extensions/builtin/workspace-browser/browser-session-service";
+import { useRightWorkspaceInstallationResource } from "../../src/right-workspace/right-workspace-context";
+import {
+  RuntimeConnectionProvider,
+  createSameOriginRuntimeConnection,
+} from "../../src/runtime-connection";
 import { useArtifactPreviewService } from "../../src/extensions/builtin/workspace-artifact/artifact-preview-service";
 import type { BrowserSessionService } from "../../src/extensions/builtin/workspace-browser/browser-session-service";
 import type { ArtifactPreviewService } from "../../src/extensions/builtin/workspace-artifact/artifact-preview-service";
@@ -387,6 +396,10 @@ interface WorkspaceServiceSnapshot {
 function WorkspaceServiceProbe({
   capture,
 }: Readonly<{ capture(services: WorkspaceServiceSnapshot): void }>) {
+  useRightWorkspaceInstallationResource(
+    BROWSER_SESSION_SERVICE_RESOURCE,
+    () => new MemoryBrowserSessionService(),
+  );
   capture({
     artifacts: useArtifactPreviewService(),
     browser: useBrowserSessionService(),
@@ -396,12 +409,15 @@ function WorkspaceServiceProbe({
 }
 
 function workspaceServiceProviderTree(capture: (services: WorkspaceServiceSnapshot) => void) {
-  return createElement(RightWorkspaceProvider, {
-    createOpener: openerFactory([], "workspace-services"),
-    initialContext: { applicationId: "shared-app" },
-    registry: new WorkspaceSurfaceRegistryImpl(),
-    validateLocalizableText,
-    children: createElement(WorkspaceServiceProbe, { capture }),
+  return createElement(RuntimeConnectionProvider, {
+    connection: createSameOriginRuntimeConnection("http://localhost"),
+    children: createElement(RightWorkspaceProvider, {
+      createOpener: openerFactory([], "workspace-services"),
+      initialContext: { applicationId: "shared-app" },
+      registry: new WorkspaceSurfaceRegistryImpl(),
+      validateLocalizableText,
+      children: createElement(WorkspaceServiceProbe, { capture }),
+    }),
   });
 }
 
@@ -462,8 +478,8 @@ test("workspace service resources isolate equal ids and release listeners on tru
       updatedAt: 1,
     });
 
-    assert.equal(first.browser.getSession("shared-browser")?.url, "https://first.example");
-    assert.equal(second.browser.getSession("shared-browser")?.url, "https://second.example");
+    assert.equal(first.browser.getSession("shared-browser")?.url, "https://first.example/");
+    assert.equal(second.browser.getSession("shared-browser")?.url, "https://second.example/");
     assert.equal(
       first.artifacts.getArtifact({ id: "shared-artifact", scope })?.content,
       "first installation",

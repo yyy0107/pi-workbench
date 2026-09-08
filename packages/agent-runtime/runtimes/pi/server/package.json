@@ -32,8 +32,8 @@
     "diagnose:stream": "node --no-warnings=ExperimentalWarning --import ../../../../../scripts/register-typescript-test-loader.mjs test/benchmarks/opencode-stream-diagnostic.ts"
   },
   "dependencies": {
-    "@earendil-works/pi-ai": "0.84.2",
-    "@earendil-works/pi-coding-agent": "0.84.2",
+    "@earendil-works/pi-ai": "0.85.1",
+    "@earendil-works/pi-coding-agent": "0.85.1",
     "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/agent-runtime-pi-protocol": "workspace:*",
     "@workbench/agent-runtime-pi-shared": "workspace:*",
@@ -41,9 +41,11 @@
     "@workbench/attachment-understanding-contracts": "workspace:*",
     "@workbench/attachment-understanding-server": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
+    "@workbench/browser-contracts": "workspace:*",
     "@workbench/contracts": "workspace:*",
     "@workbench/host-server": "workspace:*",
     "@workbench/local-host-server": "workspace:*",
+    "@workbench/pi-browser": "workspace:*",
     "@workbench/server-core": "workspace:*",
     "@workbench/workspace-server": "workspace:*",
     "mime": "4.1.0",

@@ -46,6 +46,7 @@ import {
   type InstalledPackageUpdateState,
 } from "./package-update-metadata";
 import { readPackageResourceDetails } from "./package-resource-details";
+import { isWorkbenchBuiltinPackage } from "./builtin-packages";
 
 interface PackageSettingsSnapshot {
   packages?: readonly PackageSource[];
@@ -117,6 +118,7 @@ export interface InstalledPackageServiceErrorDetails {
   "install-failed": { name: string; scope: "user" | "project" };
   "update-failed": { source: string; scope: "user" | "project" };
   "package-not-installed": { source: string; scope: "user" | "project" };
+  "package-read-only": { source: string; scope: "user" | "project" };
   "package-details-unavailable": { source: string; scope: "user" | "project" };
   "remove-failed": { source: string; scope: "user" | "project" };
   internal: Record<string, never>;
@@ -298,9 +300,13 @@ function packageView(
   source: PackageSource,
   scope: InstalledPackageView["scope"],
 ): InstalledPackageView {
+  const packageSource = typeof source === "string" ? source : source.source;
   return {
-    source: typeof source === "string" ? source : source.source,
+    source: packageSource,
     scope,
+    ...(isWorkbenchBuiltinPackage(packageSource, scope)
+      ? { builtin: true, name: "@workbench/pi-browser" }
+      : {}),
     filtered:
       typeof source === "object" &&
       (source.extensions !== undefined ||
@@ -753,7 +759,13 @@ export class InstalledPackageService implements InstalledPackageProtocol {
 
   async describe(request: InstalledPackageDescribePayload): Promise<InstalledPackageDetailsView> {
     try {
-      return await this.dependencies.describeInstalledPackage(request);
+      const details = await this.dependencies.describeInstalledPackage(request);
+      return {
+        ...details,
+        ...(isWorkbenchBuiltinPackage(request.source, request.target.scope)
+          ? { builtin: true }
+          : {}),
+      };
     } catch (error) {
       if (error instanceof InstalledPackageServiceError) throw error;
       if (error instanceof ScopedResourceContextError) throw error;
@@ -874,6 +886,13 @@ export class InstalledPackageService implements InstalledPackageProtocol {
   }
 
   async update({ source, target }: PiPackageUpdatePayload): Promise<PiPackageUpdateValue> {
+    if (isWorkbenchBuiltinPackage(source, target.scope)) {
+      throw new InstalledPackageServiceError(
+        "package-read-only",
+        "Built-in Pi packages are updated with Workbench.",
+        { source, scope: target.scope },
+      );
+    }
     if (target.scope === "project") {
       let workspace: { path: string } | undefined;
       try {
@@ -994,6 +1013,13 @@ export class InstalledPackageService implements InstalledPackageProtocol {
   }
 
   async remove({ source, target }: PiPackageRemovePayload): Promise<PiPackageRemoveValue> {
+    if (isWorkbenchBuiltinPackage(source, target.scope)) {
+      throw new InstalledPackageServiceError(
+        "package-read-only",
+        "Built-in Pi packages cannot be removed.",
+        { source, scope: target.scope },
+      );
+    }
     if (target.scope === "project") {
       let workspace: { path: string } | undefined;
       try {

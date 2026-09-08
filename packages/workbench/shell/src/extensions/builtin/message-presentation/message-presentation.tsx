@@ -121,7 +121,13 @@ function PresentedBlock({
       case "data":
         return <WorkbenchMessageDataBlock block={block} />;
       case "file":
-        return <WorkbenchMessageFileBlock block={block} referenceLabel={referenceLabel} />;
+        return (
+          <WorkbenchMessageFileBlock
+            block={block}
+            referenceLabel={referenceLabel}
+            assistant={node.kind === "assistant"}
+          />
+        );
       case "source":
         return inlineSourcePartIndices.has(index) ? null : (
           <WorkbenchMessageSourceBlock

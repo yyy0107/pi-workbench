@@ -13,6 +13,37 @@ export interface WorkbenchHostDirectoryListing {
   truncated: boolean;
 }
 
+/** Files on the connected Runtime Host, including paths outside registered projects. */
+export interface WorkbenchLocalFileDescriptor {
+  absolutePath: string;
+  name: string;
+  mediaType: string;
+  encoding: "utf-8" | null;
+  version: string;
+  size: number;
+  modifiedAt: number;
+}
+
+export interface WorkbenchLocalFileSnapshot extends Omit<
+  WorkbenchLocalFileDescriptor,
+  "mediaType" | "encoding"
+> {
+  content: string;
+  encoding: "utf-8";
+}
+
+export interface WorkbenchLocalFilesListResult {
+  absolutePath: string;
+  entries: Array<{
+    absolutePath: string;
+    name: string;
+    kind: "file" | "directory";
+    hidden: boolean;
+    symbolicLink?: boolean;
+  }>;
+  truncated: boolean;
+}
+
 export interface WorkbenchProjectTrust {
   path: string;
   requiresTrust: boolean;
@@ -21,10 +52,19 @@ export interface WorkbenchProjectTrust {
   decisionPath?: string;
 }
 
-export type WorkbenchLocalAppKind = "editor" | "media-player" | "terminal" | "file-manager";
+export type WorkbenchLocalAppKind =
+  | "editor"
+  | "browser"
+  | "pdf-reader"
+  | "image-editor"
+  | "office"
+  | "media-player"
+  | "terminal"
+  | "file-manager";
 
 export type WorkbenchLocalAppFileKind =
   | "text"
+  | "html"
   | "image"
   | "audio"
   | "video"
@@ -40,6 +80,8 @@ export interface WorkbenchLocalApp {
   kind: WorkbenchLocalAppKind;
   icon?: string;
   supportedFileKinds: readonly WorkbenchLocalAppFileKind[];
+  /** Optional format restriction within a file kind, using lowercase extensions without dots. */
+  supportedFileExtensions?: readonly string[];
 }
 
 export interface WorkbenchLocalAppOpenRequest {

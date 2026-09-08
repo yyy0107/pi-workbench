@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { WrenchIcon } from "lucide-react";
 import type {
+  AssistantMessageNode,
   DataBlock,
   ReasoningBlock,
   ToolCallBlock,
@@ -238,6 +239,47 @@ test("preserves a localizable registered tool summary until the timeline renders
   assert.notEqual(step?.kind, "data");
   if (!step || step.kind === "data") return;
   assert.equal(step.chip, summary);
+});
+
+test("resolves the current tool row with its owning message and preserves explicit empty summaries", () => {
+  const block = tool("read", { path: "/skills/review/SKILL.md" });
+  const node: AssistantMessageNode = {
+    kind: "assistant",
+    key: "assistant",
+    status: "running",
+    blocks: [block],
+  };
+  const resolved: ToolPresentationDefinition = {
+    label: "Read review skill",
+    activeLabel: "Reading review skill",
+    icon: WrenchIcon,
+    compact: true,
+    summarize: () => "",
+  };
+  const presentation: ToolPresentationDefinition = {
+    label: "Read",
+    activeLabel: "Reading",
+    icon: WrenchIcon,
+    resolve(call, owner) {
+      assert.equal(call, block);
+      assert.equal(owner, node);
+      return resolved;
+    },
+  };
+  assert.deepEqual(timelineSteps([block], { read: presentation }, node), [
+    { kind: "read", chip: "", presentation: resolved },
+  ]);
+  for (const resolve of [
+    () => undefined,
+    () => {
+      throw new Error("broken resolver");
+    },
+  ]) {
+    const fallback = { ...presentation, resolve };
+    assert.deepEqual(timelineSteps([block], { read: fallback }, node), [
+      { kind: "read", chip: "SKILL.md", presentation: fallback },
+    ]);
+  }
 });
 
 test("resolves a stream-safe active label from partial tool arguments", () => {

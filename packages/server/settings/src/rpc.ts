@@ -27,7 +27,7 @@ export interface WorkbenchSettingsRpcRoutesDependencies {
 }
 
 const emptyPayload = rpcObject({});
-const workbenchSettingsUpdatePayload = rpcObject({
+export const workbenchSettingsUpdatePayload = rpcObject({
   patch: rpcObject({
     appearance: rpcOptional(rpcNullable(rpcRecord(rpcUnknown))),
     runningMessageMode: rpcOptional(rpcNullable(rpcEnum(["queue", "steer"]))),
@@ -63,6 +63,7 @@ const workbenchSettingsUpdatePayload = rpcObject({
       ),
     ),
     locale: rpcOptional(rpcNullable(rpcEnum(SUPPORTED_LOCALES))),
+    fileOpenApps: rpcOptional(rpcNullable(rpcRecord(rpcString({ minLength: 1, maxLength: 128 })))),
     modelSelector: rpcOptional(
       rpcNullable(
         rpcObject({

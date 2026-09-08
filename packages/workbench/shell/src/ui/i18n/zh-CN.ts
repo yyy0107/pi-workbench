@@ -1,6 +1,9 @@
 import type { MessageFormatters } from "../../i18n/types";
 
 export const uiZhCN = {
+  fileLink: {
+    openFailed: "无法打开文件，请确认文件在当前连接的主机上存在且可访问。",
+  },
   colorPicker: {
     hex: "十六进制颜色",
     red: "红",

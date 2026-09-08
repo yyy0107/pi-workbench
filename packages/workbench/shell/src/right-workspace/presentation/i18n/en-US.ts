@@ -43,6 +43,8 @@ export const rightWorkspaceEnUS = {
     add: "Add feedback",
     placeholder: "Describe the change you want…",
     save: "Add comment",
+    saving: "Adding comment…",
+    saveFailed: "The comment could not be added. Please try again.",
     cancel: "Cancel",
     remove: "Remove feedback",
     pending: ({ count }: { count: number }, { number }: MessageFormatters) =>

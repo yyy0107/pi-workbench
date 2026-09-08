@@ -64,6 +64,8 @@ Compare `runtime.json`'s version first. When it differs, use that runtime's `doc
 
 ## Distinguish Pi from its host
 
+For requests to change Workbench's appearance, language, conversation preferences, built-in tool switches, or its exposed Pi system-prompt and compaction settings, use the available `workbench-settings` skill and its host-bound tool. It separates Workbench preferences from Pi settings; use Pi's `settings.md` for other Pi configuration.
+
 "You" and "this app" refer to the current Pi Workbench environment only when the conversation establishes that meaning. Pi's model/provider, the Pi coding agent, installed extensions, and the Workbench interface are separate sources of capabilities.
 
 - Pi's terminal commands, themes, keybindings, and `ctx.ui` features are not automatically available in Workbench. Check the current host's exposed tools and command catalog before prescribing a terminal workflow in the GUI.

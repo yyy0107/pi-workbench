@@ -38,7 +38,6 @@ import {
   WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
   type AttachmentRecognitionSnapshot,
 } from "@workbench/attachment-understanding-contracts/state-machine";
-import { appendWorkspaceFeedbackContext } from "@workbench/agent-runtime-client/prompt-feedback";
 
 import type {
   PiAssistantMessage,
@@ -1365,10 +1364,6 @@ export class PiClientSession implements ConversationSession {
     );
     let remoteId: string | undefined;
     try {
-      const promptText = appendWorkspaceFeedbackContext(
-        prompt.text,
-        workspaceFeedbackClaim?.items ?? [],
-      );
       const draftModel = this.remoteIdValue ? undefined : this.draftModelSelection;
       const summary = await this.manager.ensureRemote(this);
       if (this.disposed) {
@@ -1398,10 +1393,11 @@ export class PiClientSession implements ConversationSession {
           sessionId: submittedRemoteId,
           mode: "queue",
           content: piPromptContent(
-            promptText,
+            prompt.text,
             prompt.images,
             prompt.documents,
             prompt.textAttachments.map((attachment) => attachment.id),
+            workspaceFeedbackClaim?.items,
           ),
           ...(prompt.composer === undefined ? {} : { composer: prompt.composer }),
           ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
@@ -1719,10 +1715,11 @@ export class PiClientSession implements ConversationSession {
           sessionId: this.remoteIdValue,
           mode: mode === "steer" ? "steer" : "queue",
           content: piPromptContent(
-            appendWorkspaceFeedbackContext(prompt.message, workspaceFeedbackClaim?.items ?? []),
+            prompt.message,
             prompt.images,
             prompt.documents,
             prompt.textAttachmentIds,
+            workspaceFeedbackClaim?.items,
           ),
           ...(prompt.composer === undefined ? {} : { composer: prompt.composer }),
           ...(clientTimeZone === undefined ? {} : { clientTimeZone }),

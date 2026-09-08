@@ -3,10 +3,18 @@ import test from "node:test";
 
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import {
+  OpenerRegistryImpl,
+  WorkspaceSurfaceRegistryImpl,
+} from "@workbench/extension-sdk/internal";
+import { DefaultOpenerService } from "@workbench/extension-host/services";
+import { RightWorkspaceProvider } from "../../right-workspace-react";
+import { ToastProvider } from "../../ui/toast";
+import { parseLocalFileHref } from "../../workspace-files/file-link";
 
 import { CodexCodeHeader } from "./codex-code-header";
 
-import { I18nProvider } from "../../i18n";
+import { I18nProvider, isLocalizableText } from "../../i18n";
 import { WorkbenchSettingsProvider, type WorkbenchSettingsPort } from "../../settings";
 import {
   MarkdownCodeBlockContent,
@@ -25,7 +33,16 @@ function render(node: ReactNode): string {
   return renderToStaticMarkup(
     createElement(WorkbenchSettingsProvider, {
       service: settings,
-      children: createElement(I18nProvider, { initialLocale: "en-US", children: node }),
+      children: createElement(I18nProvider, {
+        initialLocale: "en-US",
+        children: createElement(RightWorkspaceProvider, {
+          registry: new WorkspaceSurfaceRegistryImpl(),
+          createOpener: (surfaces) => new DefaultOpenerService(new OpenerRegistryImpl(), surfaces),
+          initialContext: { applicationId: "test", rootPath: "/workspace", projectId: "test" },
+          validateLocalizableText: isLocalizableText,
+          children: createElement(ToastProvider, { children: node }),
+        }),
+      }),
     }),
   );
 }
@@ -82,7 +99,7 @@ test("routes Mermaid fences to diagrams while keeping source previews literal", 
     for (const isRunning of [false, true]) {
       const markup = render(
         createElement(MarkdownTextContent, {
-          text: `\`\`\`${language}\n${code}\n${isRunning ? "" : "\`\`\`"}`,
+          text: `\`\`\`${language}\n${code}\n${isRunning ? "" : "```"}`,
           isRunning,
         }),
       );
@@ -128,6 +145,59 @@ test("renders structured citations with stable accessible labels", () => {
 
   assert.match(markup, /data-slot="inline-citation"/);
   assert.match(markup, /aria-label="Example guide"/);
+});
+
+test("decorates assistant links by destination while retaining Streamdown link safety", () => {
+  const links = [
+    ["/workspace/notes.md:12", "file-text"],
+    ["file:///tmp/notes.md", "file-text"],
+    ["C:/Users/me/notes.md", "file-text"],
+    ["notes.md:12", "file-text"],
+    ["../src/main.ts#L12", "file-text"],
+    ["https://example.com/guide", "earth"],
+    ["//example.com/guide", "earth"],
+    ["/images/screen.PNG", "image"],
+    ["https://example.com/screen%2Ewebp?size=large#preview", "image"],
+    ["/workspace/docs/", "folder"],
+    ["#details", "hash"],
+    ["mailto:hello@example.com", "mail"],
+    ["https://example.com/%ZZ", "earth"],
+  ];
+  for (const isRunning of [false, true]) {
+    for (const [href, icon] of links) {
+      const markup = render(
+        createElement(MarkdownTextContentWithCitations, {
+          text: `Before [\`reference\`](${href}) after.`,
+          sources: [],
+          isRunning,
+        }),
+      );
+      assert.match(
+        markup,
+        parseLocalFileHref(href)
+          ? /<a[^>]+data-streamdown="link"/
+          : /<button[^>]+data-streamdown="link"/,
+        href,
+      );
+      if (parseLocalFileHref(href)) assert.match(markup, /data-slot="context-menu-trigger"/, href);
+      else assert.doesNotMatch(markup, /data-slot="context-menu-trigger"/, href);
+      assert.ok(markup.includes(`lucide-${icon}`), `${href}\n${markup}`);
+      assert.match(markup, /<svg[^>]+aria-hidden="true"[^>]*>.*<\/svg><code/, href);
+      assert.equal(markup.replace(/<[^>]+>/g, ""), "Before reference after.", href);
+    }
+  }
+
+  for (const text of [
+    "[![preview](https://example.com/image.png)](https://example.com)",
+    "[unsafe](javascript:alert%281%29)",
+    "An unfinished [reference](https://",
+  ]) {
+    const markup = render(
+      createElement(MarkdownTextContentWithCitations, { text, sources: [], isRunning: true }),
+    );
+    assert.doesNotMatch(markup, /aui-markdown-link-icon/);
+    assert.doesNotMatch(markup, /href="javascript:/);
+  }
 });
 
 test("code header exposes expand and collapse controls before copy", () => {

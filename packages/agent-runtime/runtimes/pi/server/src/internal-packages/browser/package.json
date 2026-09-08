@@ -1,0 +1,52 @@
+{
+  "name": "@workbench/pi-browser",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Control the in-app Workbench browser or a session browser in Pi CLI.",
+  "keywords": [
+    "pi-package"
+  ],
+  "files": [
+    "dist",
+    "skills",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./resources": "./resources.ts"
+  },
+  "publishConfig": {
+    "directory": "dist",
+    "linkDirectory": false
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepack": "pnpm build",
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../../../../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "0.85.1",
+    "@earendil-works/pi-coding-agent": "0.85.1",
+    "@types/node": "^26.2.0",
+    "@workbench/browser-contracts": "workspace:*",
+    "@workbench/browser-server": "workspace:*",
+    "esbuild": "^0.28.2",
+    "typebox": "1.3.7",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  }
+}

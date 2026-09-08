@@ -1,23 +1,23 @@
 "use client";
 
 import { ChevronDownIcon, SearchIcon } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 
 import {
   DropdownMenu,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "./dropdown-menu";
 import { Input } from "./input";
-import { SelectorDropdownContent, useAnimatedSelectorDropdown } from "./selector-dropdown";
+import { SelectorDropdownContent } from "./selector-dropdown";
 import { cn } from "../utils";
 import {
   filterModelSelectorOptions,
+  groupModelSelectorOptions,
   type ModelSelectorEffort,
   type ModelSelectorOption,
 } from "./model-selector-models";
@@ -27,6 +27,7 @@ export type { ModelSelectorEffort, ModelSelectorOption } from "./model-selector-
 
 export interface ModelSelectorLabels {
   select: string;
+  provider: string;
   model: string;
   reasoningEffort: string;
   search: string;
@@ -50,7 +51,7 @@ function MenuStatus({ children, alert }: { children: React.ReactNode; alert?: bo
   );
 }
 
-function ModelMenuItem({
+const ModelMenuItem = memo(function ModelMenuItem({
   disabled,
   itemRef,
   model,
@@ -74,86 +75,7 @@ function ModelMenuItem({
       )}
     </DropdownMenuRadioItem>
   );
-}
-
-function ModelMenuGroup({
-  disabled,
-  groupRef,
-  models,
-  providerId,
-  providerName,
-  providers,
-  selectedItemRef,
-  selectedModelId,
-  onModelChange,
-  onProviderChange,
-}: {
-  disabled: boolean;
-  groupRef: (element: HTMLDivElement | null) => void;
-  models: readonly ModelSelectorOption[];
-  providerId: string;
-  providerName: string;
-  providers: ReadonlyArray<readonly [string, string]>;
-  selectedItemRef: React.RefObject<HTMLDivElement | null>;
-  selectedModelId?: string;
-  onModelChange(modelId: string): void;
-  onProviderChange(providerId: string): void;
-}) {
-  const [providerMenuOpen, setProviderMenuOpen] = useState(false);
-
-  const changeProvider = (nextProviderId: string) => {
-    setProviderMenuOpen(false);
-    window.requestAnimationFrame(() => onProviderChange(nextProviderId));
-  };
-
-  return (
-    <div ref={groupRef}>
-      <DropdownMenuSub open={providerMenuOpen} onOpenChange={setProviderMenuOpen}>
-        <DropdownMenuSubTrigger
-          openOnHover={false}
-          className="bg-popover sticky top-0 z-10 h-[var(--button-height-default)] w-full cursor-pointer rounded-none px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-xs font-medium text-muted-foreground focus:[background:var(--button-background-selected)] data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] [&>svg:last-child]:hidden"
-        >
-          <span className="min-w-0 flex-1 truncate text-start">{providerName}</span>
-          <ChevronDownIcon className="size-3.5 shrink-0 opacity-50" />
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent
-          align="start"
-          alignOffset={0}
-          side="bottom"
-          sideOffset={0}
-          className="max-h-64 w-52 overflow-y-auto"
-        >
-          <DropdownMenuRadioGroup value={providerId} onValueChange={changeProvider}>
-            {providers.map(([candidateId, candidateName]) => (
-              <DropdownMenuRadioItem
-                key={candidateId}
-                value={candidateId}
-                closeOnClick={false}
-                className="h-[var(--dropdown-control-height)] px-2 pe-8"
-              >
-                {withTooltip(
-                  <span className="min-w-0 flex-1 truncate" title={candidateName}>
-                    {candidateName}
-                  </span>,
-                )}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
-      <DropdownMenuRadioGroup value={selectedModelId} onValueChange={onModelChange}>
-        {models.map((model) => (
-          <ModelMenuItem
-            key={model.id}
-            model={model}
-            disabled={disabled}
-            itemRef={model.id === selectedModelId ? selectedItemRef : undefined}
-          />
-        ))}
-      </DropdownMenuRadioGroup>
-    </div>
-  );
-}
+});
 
 function ModelSearch({
   label,
@@ -175,7 +97,7 @@ function ModelSearch({
           value={value}
           aria-label={label}
           placeholder={placeholder}
-          className="ps-8 shadow-none"
+          className="ps-8 shadow-none transition-none"
           onChange={(event) => onChange(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (event.key !== "Escape") event.stopPropagation();
@@ -220,26 +142,26 @@ export function ModelSelector({
   onOpen?(): void;
 }) {
   const [modelQuery, setModelQuery] = useState("");
-  const selectorDropdown = useAnimatedSelectorDropdown();
-  const providerGroupRefs = useRef(new Map<string, HTMLDivElement>());
+  const [browsedProviderId, setBrowsedProviderId] = useState<string>();
+  const [providerMenuOpen, setProviderMenuOpen] = useState(false);
   const selectedModelRef = useRef<HTMLDivElement>(null);
-  const filteredModels = useMemo(
-    () => filterModelSelectorOptions(models, modelQuery),
-    [modelQuery, models],
-  );
+  const modelsByProvider = useMemo(() => groupModelSelectorOptions(models), [models]);
   const selectedModel = models.find((model) => model.id === selectedModelId) ?? models[0];
-  const reasoningLevels = selectedModel?.efforts ?? [];
+  const providerId =
+    browsedProviderId && modelsByProvider.has(browsedProviderId)
+      ? browsedProviderId
+      : selectedModel?.provider;
+  const providerModel = selectedModel?.provider === providerId ? selectedModel : undefined;
+  const filteredModels = useMemo(
+    () => filterModelSelectorOptions(modelsByProvider.get(providerId ?? "") ?? [], modelQuery),
+    [modelQuery, modelsByProvider, providerId],
+  );
+  const reasoningLevels = providerModel?.efforts ?? [];
   const selectedEffortOption = reasoningLevels.find((level) => level.id === selectedEffort);
   const providers = useMemo(
-    () =>
-      Array.from(
-        new Map(filteredModels.map((model) => [model.provider, model.providerName])).entries(),
-      ),
-    [filteredModels],
+    () => Array.from(modelsByProvider, ([id, group]) => [id, group[0]!.providerName] as const),
+    [modelsByProvider],
   );
-  const selectProviderGroup = useCallback((providerId: string) => {
-    providerGroupRefs.current.get(providerId)?.scrollIntoView({ block: "start" });
-  }, []);
 
   return withTooltip(
     <fieldset
@@ -249,25 +171,26 @@ export function ModelSelector({
     >
       <DropdownMenu
         onOpenChange={(open) => {
-          selectorDropdown.onOpenChange(open);
           if (open) onOpen?.();
-          else setModelQuery("");
+          else {
+            setModelQuery("");
+            setBrowsedProviderId(undefined);
+            setProviderMenuOpen(false);
+          }
         }}
       >
         <DropdownMenuTrigger
-          ref={selectorDropdown.triggerRef}
+          openOnHover={false}
           disabled={selectionLocked}
           aria-label={labels.select}
-          style={selectorDropdown.triggerStyle}
           className={cn(
-            "group relative flex w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] font-sans [font-size:var(--workbench-ui-font-size,1rem)] leading-[var(--control-text-line-height)]! outline-none transition-[width,background-color,color] [transition-duration:400ms,200ms,200ms] ease-out hover:[background:var(--button-background-hover)] focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48",
+            "group relative flex w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] font-sans [font-size:var(--workbench-ui-font-size,1rem)] leading-[var(--control-text-line-height)]! outline-none hover:[background:var(--button-background-hover)] focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48",
             compact ? "h-[var(--button-height-compact)]" : "h-[var(--dropdown-control-height)]",
           )}
-          onTransitionEnd={selectorDropdown.onTriggerTransitionEnd}
         >
           {withTooltip(
             <span
-              className="group-hover:pe-6 group-focus-visible:pe-6 group-data-popup-open:pe-6 block max-w-full min-w-0 truncate text-end font-medium transition-[padding] duration-200 ease-out"
+              className="block max-w-full min-w-0 truncate pe-6 text-end font-medium"
               title={selectedModel?.name}
             >
               {selectedModel?.name ?? labels.select}
@@ -276,17 +199,57 @@ export function ModelSelector({
           <ChevronDownIcon className="absolute end-2 size-3.5 shrink-0 opacity-0 transition-[opacity,transform] group-hover:opacity-50 group-focus-visible:opacity-50 group-data-popup-open:rotate-180 group-data-popup-open:opacity-50" />
         </DropdownMenuTrigger>
 
-        <SelectorDropdownContent
-          align="end"
-          side="bottom"
-          sideOffset={4}
-          style={selectorDropdown.contentStyle}
-        >
+        <SelectorDropdownContent align="center" side="bottom" sideOffset={4}>
           {selectionFailed || currentUnavailable ? (
             <MenuStatus alert={selectionFailed}>
               {selectionFailed ? labels.selectFailed : labels.currentUnavailable}
             </MenuStatus>
           ) : null}
+
+          {loadFailed || !models.length ? (
+            <MenuStatus alert={loadFailed}>
+              {loadFailed ? labels.loadFailed : labels.noModels}
+            </MenuStatus>
+          ) : null}
+
+          <DropdownMenuSub open={providerMenuOpen} onOpenChange={setProviderMenuOpen}>
+            <DropdownMenuSubTrigger
+              openOnHover={false}
+              disabled={selectionLocked || !providers.length}
+              className="h-[var(--dropdown-control-height)] gap-3 px-2 [&>svg]:ml-1.5"
+            >
+              <span>{labels.provider}</span>
+              <MenuCurrentValue>
+                {modelsByProvider.get(providerId ?? "")?.[0]?.providerName ?? "—"}
+              </MenuCurrentValue>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="max-h-64 w-52 overflow-y-auto" sideOffset={4}>
+              <DropdownMenuRadioGroup
+                value={providerId ?? ""}
+                onValueChange={(nextProviderId) => {
+                  setBrowsedProviderId(nextProviderId);
+                  setModelQuery("");
+                  setProviderMenuOpen(false);
+                }}
+              >
+                {providers.map(([id, name]) => (
+                  <DropdownMenuRadioItem
+                    key={id}
+                    value={id}
+                    closeOnClick={false}
+                    disabled={selectionLocked}
+                    className="h-[var(--dropdown-control-height)] px-2 pe-8"
+                  >
+                    {withTooltip(
+                      <span className="min-w-0 flex-1 truncate" title={name}>
+                        {name}
+                      </span>,
+                    )}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
 
           <DropdownMenuSub
             onOpenChangeComplete={(open) => {
@@ -294,11 +257,12 @@ export function ModelSelector({
             }}
           >
             <DropdownMenuSubTrigger
+              openOnHover={false}
               disabled={selectionLocked || !models.length}
               className="h-[var(--dropdown-control-height)] gap-3 px-2 [&>svg]:ml-1.5"
             >
               <span>{labels.model}</span>
-              <MenuCurrentValue>{selectedModel?.name ?? labels.select}</MenuCurrentValue>
+              <MenuCurrentValue>{providerModel?.name ?? labels.select}</MenuCurrentValue>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent
               className="grid max-h-80 w-72 grid-rows-[auto_minmax(0,1fr)] overflow-hidden p-0"
@@ -313,70 +277,56 @@ export function ModelSelector({
                 />
               ) : null}
               <div className="min-h-0 overflow-y-auto">
-                {loadFailed || !models.length ? (
-                  <MenuStatus alert={loadFailed}>
-                    {loadFailed ? labels.loadFailed : labels.noModels}
-                  </MenuStatus>
-                ) : !filteredModels.length ? (
+                {!filteredModels.length ? (
                   <MenuStatus>{labels.noSearchResults}</MenuStatus>
                 ) : (
-                  providers.map(([providerId, providerName], index) => {
-                    const providerModels = filteredModels.filter(
-                      (model) => model.provider === providerId,
-                    );
-                    if (!providerModels.length) return null;
-                    return (
-                      <div key={providerId}>
-                        {index > 0 ? <DropdownMenuSeparator className="mx-0 my-0" /> : null}
-                        <ModelMenuGroup
-                          providerId={providerId}
-                          providerName={providerName}
-                          providers={providers}
-                          models={providerModels}
-                          selectedItemRef={selectedModelRef}
-                          selectedModelId={selectedModel?.id}
-                          disabled={selectionLocked}
-                          groupRef={(element) => {
-                            if (element) providerGroupRefs.current.set(providerId, element);
-                            else providerGroupRefs.current.delete(providerId);
-                          }}
-                          onModelChange={onModelChange}
-                          onProviderChange={selectProviderGroup}
-                        />
-                      </div>
-                    );
-                  })
+                  <DropdownMenuRadioGroup
+                    value={providerModel?.id ?? ""}
+                    onValueChange={onModelChange}
+                  >
+                    {filteredModels.map((model) => (
+                      <ModelMenuItem
+                        key={model.id}
+                        model={model}
+                        disabled={selectionLocked}
+                        itemRef={model.id === providerModel?.id ? selectedModelRef : undefined}
+                      />
+                    ))}
+                  </DropdownMenuRadioGroup>
                 )}
               </div>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
 
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger
-              disabled={selectionLocked || !reasoningLevels.length}
-              className="h-[var(--dropdown-control-height)] gap-3 px-2 [&>svg]:ml-1.5"
-            >
-              <span>{labels.reasoningEffort}</span>
-              <MenuCurrentValue>
-                {selectedEffortOption ? getEffortLabel(selectedEffortOption) : "—"}
-              </MenuCurrentValue>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-44" sideOffset={4}>
-              <DropdownMenuRadioGroup value={selectedEffort} onValueChange={onEffortChange}>
-                {reasoningLevels.map((level) => (
-                  <DropdownMenuRadioItem
-                    key={level.id}
-                    value={level.id}
-                    closeOnClick={false}
-                    disabled={selectionLocked}
-                    className="h-[var(--dropdown-control-height)] px-2 pe-8"
-                  >
-                    <span className="min-w-0 flex-1 truncate">{getEffortLabel(level)}</span>
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
+          {reasoningLevels.length > 0 ? (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger
+                openOnHover={false}
+                disabled={selectionLocked}
+                className="h-[var(--dropdown-control-height)] gap-3 px-2 [&>svg]:ml-1.5"
+              >
+                <span>{labels.reasoningEffort}</span>
+                <MenuCurrentValue>
+                  {selectedEffortOption ? getEffortLabel(selectedEffortOption) : "—"}
+                </MenuCurrentValue>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-44" sideOffset={4}>
+                <DropdownMenuRadioGroup value={selectedEffort ?? ""} onValueChange={onEffortChange}>
+                  {reasoningLevels.map((level) => (
+                    <DropdownMenuRadioItem
+                      key={level.id}
+                      value={level.id}
+                      closeOnClick={false}
+                      disabled={selectionLocked}
+                      className="h-[var(--dropdown-control-height)] px-2 pe-8"
+                    >
+                      <span className="min-w-0 flex-1 truncate">{getEffortLabel(level)}</span>
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          ) : null}
         </SelectorDropdownContent>
       </DropdownMenu>
     </fieldset>,

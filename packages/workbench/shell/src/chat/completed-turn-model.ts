@@ -4,19 +4,27 @@ import type { MessageFormatters } from "../i18n";
 
 interface MessageBlockLike {
   readonly kind: string;
+  readonly mediaType?: string;
+  readonly source?: string;
 }
 
 /**
- * The last text part is the final answer body. Everything before it belongs
+ * The last text part is the final answer body; generated images also remain visible.
+ * Everything before the first answer image or final text belongs
  * to the completed-work disclosure. A tool-only turn has no body, so all of
  * its parts are considered completed work.
  */
 export function completedWorkBoundary(blocks: readonly MessageBlockLike[]): number {
+  const imageIndex = blocks.findIndex(
+    (block) =>
+      block.kind === "file" &&
+      (block.mediaType?.startsWith("image/") || /^data:image\//i.test(block.source ?? "")),
+  );
   for (let index = blocks.length - 1; index >= 0; index -= 1) {
-    if (blocks[index]?.kind === "text") return index;
+    if (blocks[index]?.kind === "text") return imageIndex < 0 ? index : Math.min(imageIndex, index);
   }
 
-  return blocks.length;
+  return imageIndex < 0 ? blocks.length : imageIndex;
 }
 
 /**

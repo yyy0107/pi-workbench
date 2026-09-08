@@ -1,5 +1,6 @@
 export {
   createWorkspaceFileRpcRoutes,
+  createLocalFileRpcRoutes,
   type WorkspaceFileRpcRoutesDependencies,
 } from "./file-rpc-routes";
 export {

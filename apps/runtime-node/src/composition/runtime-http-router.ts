@@ -1,6 +1,7 @@
 export interface RuntimeHttpRouterDependencies {
   readonly handleRpcPost: (request: Request, method: string) => Promise<Response>;
   readonly handleWorkspaceFileContentRequest: (request: Request) => Response | Promise<Response>;
+  readonly handleLocalFileContentRequest: (request: Request) => Response | Promise<Response>;
   readonly handlePiRequest: (request: Request) => Promise<Response>;
 }
 
@@ -8,16 +9,19 @@ export interface RuntimeHttpRouterDependencies {
 export function createRuntimeHttpRouter({
   handleRpcPost,
   handleWorkspaceFileContentRequest,
+  handleLocalFileContentRequest,
   handlePiRequest,
 }: RuntimeHttpRouterDependencies): (request: Request) => Promise<Response> {
   return async (request) => {
     const pathname = new URL(request.url).pathname;
-    if (pathname === "/api/workspace.files.content") {
+    if (pathname === "/api/workspace.files.content" || pathname === "/api/host.files.content") {
       if (request.method === "OPTIONS")
         return new Response(null, { status: 204, headers: { Allow: "GET, HEAD, OPTIONS" } });
       if (request.method !== "GET" && request.method !== "HEAD")
         return new Response(null, { status: 405 });
-      return handleWorkspaceFileContentRequest(request);
+      return pathname === "/api/host.files.content"
+        ? handleLocalFileContentRequest(request)
+        : handleWorkspaceFileContentRequest(request);
     }
     if (pathname === "/api/session.export") return handlePiRequest(request);
     const match = /^\/api\/([^/]+)$/u.exec(pathname);

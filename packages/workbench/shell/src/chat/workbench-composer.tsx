@@ -40,6 +40,7 @@ import type { WorkbenchAgentCommand } from "@workbench/agent-runtime-contracts/c
 import {
   WORKBENCH_COMPOSER_ATTACHMENT_ACCEPT,
   composerAttachmentFromFile,
+  useAgentRuntime,
   useConversationSession,
   useCurrentSession,
   useSessionState,
@@ -76,6 +77,8 @@ import { addComposerImagesFromPaste } from "./composer-image-paste";
 import { canRestorePastedText } from "@workbench/agent-runtime-contracts/composer-attachments";
 import { addComposerTextFromPaste } from "./composer-text-paste";
 import { ComposerAttachments } from "./composer-attachments";
+import { ComposerHistoryKeyboardPlugin } from "./composer-history-keyboard-plugin";
+import { getComposerInputHistory } from "./composer-input-history";
 import {
   $insertDirectiveAtSelection,
   DirectiveNode,
@@ -377,6 +380,7 @@ export function WorkbenchComposer({
 }: Readonly<{ forceExistingThread?: boolean }> = {}) {
   const { t, text: localize } = useI18n();
   const { runtimeName } = useWorkbenchBranding();
+  const runtime = useAgentRuntime();
   const session = useConversationSession();
   const currentSession = useCurrentSession();
   const composer = useSessionState((snapshot) => snapshot.composer);
@@ -399,6 +403,11 @@ export function WorkbenchComposer({
   const isNewThread =
     !forceExistingThread && currentSession.sessionId === mainThreadId && currentSession.isNewThread;
   const { activeWorkspace, draftWorkspace } = useWorkspaceSelection();
+  const inputHistory = getComposerInputHistory(runtime, session, draftWorkspace?.id);
+  const navigateInputHistory = useCallback(
+    (direction: "previous" | "next") => inputHistory.navigate(session, direction),
+    [inputHistory, session],
+  );
   const contextWorkspace = draftWorkspace ?? activeWorkspace;
   const workspaceFileSearch = useWorkbenchAgentWorkspaceFileSearch();
   const composerCommandRegistry = useComposerCommandRegistry();
@@ -899,6 +908,13 @@ export function WorkbenchComposer({
       const steer =
         runningComposerMode(session.actions, preferredRunningMode, invertMode) === "steer";
       const snapshot = session.snapshot.getSnapshot();
+      if (
+        snapshot.composer.phase === "submitting" ||
+        snapshot.composer.attachments.some(
+          (item) => item.kind === "pasted-text" && item.status !== "ready",
+        )
+      )
+        return;
       if (!canSubmit) {
         setSubmissionBlocked(true);
         return;
@@ -959,6 +975,7 @@ export function WorkbenchComposer({
         void submitWorkbenchComposer(session, request, { steer }).then(
           (dispatched) => {
             if (!dispatched) return;
+            inputHistory.record(session, snapshot.composer.text);
             setComposerCommandError(false);
             clearCommandParameterValues();
           },
@@ -975,6 +992,7 @@ export function WorkbenchComposer({
       composerCommandRegistry,
       composerSuggestionsByCommandKey,
       agentCommands,
+      inputHistory,
       reportComposerCommandError,
       preferredRunningMode,
       session,
@@ -1325,6 +1343,16 @@ export function WorkbenchComposer({
                 onDismiss={() => setSuppressedMatchKey(slashCommandMatch?.key)}
               />
               <ComposerEnterPlugin onSubmit={dispatchComposer} />
+              <ComposerHistoryKeyboardPlugin
+                enabled={
+                  !isComposerComposing &&
+                  !contextMenuOpen &&
+                  !commandMenuOpen &&
+                  !composerOverlayVisible &&
+                  composer.phase !== "submitting"
+                }
+                onNavigate={navigateInputHistory}
+              />
             </MarkdownComposerInput>
           }
           actionsLeft={

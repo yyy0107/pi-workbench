@@ -20,6 +20,7 @@ import {
 
 import {
   bindCapabilityToCatalogTarget,
+  browserCapabilityPresentation,
   builtinExtensionSurfaceParams,
   builtinToolPreferenceKey,
   extensionSurfaceParams,
@@ -421,14 +422,18 @@ export function useToolboxCatalogs(
                 entryTarget.resource,
                 entryTarget.project,
               );
+              const browser = browserCapabilityPresentation(params, t);
+              const name = browser?.name ?? params.name;
+              const description = browser?.description ?? item.description;
               return {
                 id: params.capabilityId,
                 kind: "package" as const,
-                name: item.source,
+                name,
+                ...(description ? { description } : {}),
                 ...(params.projectId && entryTarget.project
                   ? { project: entryTarget.project }
                   : {}),
-                searchText: `${item.source} ${item.scope} ${
+                searchText: `${name} ${description ?? ""} ${item.name ?? ""} ${item.source} ${item.scope} ${
                   params.projectId ? projectSearchText(entryTarget) : ""
                 }`,
                 params,
@@ -436,7 +441,7 @@ export function useToolboxCatalogs(
             }),
         ),
       ),
-    [packagesCatalog.entries, scope],
+    [packagesCatalog.entries, scope, t],
   );
 
   return {

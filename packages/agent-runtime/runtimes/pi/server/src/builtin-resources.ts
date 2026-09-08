@@ -1,6 +1,6 @@
 import { lstat, mkdir, readFile, readdir, realpath, rm, rmdir } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   getAgentDir,
@@ -16,6 +16,11 @@ import {
   withCrossProcessFileLock,
 } from "@workbench/server-core/file-persistence";
 import { pathWithin } from "./resources/resource-mutations";
+import {
+  browserPackageArtifactRelativePath,
+  browserPackageDirectory,
+} from "@workbench/pi-browser/resources";
+import { registerWorkbenchBuiltinPackages } from "./packages/builtin-packages";
 
 async function ensureBuiltinDirectory(directory: string): Promise<void> {
   await mkdir(directory, { recursive: true });
@@ -50,6 +55,7 @@ export async function ensureWorkbenchBuiltinResources(agentDir = getAgentDir()) 
     skills: path.join(agentDir, "skills", ".builtin"),
     extensions: path.join(agentDir, "extensions", ".builtin"),
     prompts: path.join(agentDir, "prompts", ".builtin"),
+    packages: path.join(agentDir, "packages", ".builtin"),
   };
   await mkdir(agentDir, { recursive: true });
   await withCrossProcessFileLock(
@@ -62,19 +68,81 @@ export async function ensureWorkbenchBuiltinResources(agentDir = getAgentDir()) 
           throw new Error("Built-in resources must stay inside the Pi agent directory.");
         await ensureBuiltinDirectory(directory);
       }
-      await copyBuiltinDirectory(
-        fileURLToPath(new URL("./skills/builtin-skills/", import.meta.url)),
-        directories.skills,
-      );
-      const extensionSource = fileURLToPath(new URL("./internal-extensions/", import.meta.url));
-      // Each extension owns a directory; the root registry belongs to the compiled host.
-      for (const entry of await readdir(extensionSource, { withFileTypes: true })) {
-        if (entry.isDirectory())
-          await copyBuiltinDirectory(
-            path.join(extensionSource, entry.name),
-            path.join(directories.extensions, entry.name),
-          );
+      // Each bundled resource owns a directory; root registries and placeholders stay with the host.
+      for (const [kind, relative] of [
+        ["skills", "./internal-skills/"],
+        ["prompts", "./internal-prompts/"],
+        ["extensions", "./internal-extensions/"],
+      ] as const) {
+        const source = fileURLToPath(new URL(relative, import.meta.url));
+        for (const entry of await readdir(source, { withFileTypes: true })) {
+          if (entry.isDirectory())
+            await copyBuiltinDirectory(
+              path.join(source, entry.name),
+              path.join(directories[kind], entry.name),
+            );
+        }
       }
+      // Development follows the live source; artifacts ship an independent compiled Pi package.
+      const sourceRoot = fileURLToPath(browserPackageDirectory);
+      const sourceEntry = path.join(sourceRoot, "index.ts");
+      const development = await lstat(sourceEntry).then(
+        (entry) => entry.isFile(),
+        (error: NodeJS.ErrnoException) => {
+          if (error.code !== "ENOENT") throw error;
+          return false;
+        },
+      );
+      const browserRoot = development
+        ? sourceRoot
+        : fileURLToPath(new URL(browserPackageArtifactRelativePath, import.meta.url));
+      const browserDirectory = path.join(directories.packages, "browser");
+      await ensureBuiltinDirectory(browserDirectory);
+      if (development) {
+        await copyBuiltinDirectory(
+          path.join(browserRoot, "skills"),
+          path.join(browserDirectory, "skills"),
+        );
+        await writeBuiltinFile(
+          path.join(browserDirectory, "README.md"),
+          await readFile(path.join(browserRoot, "README.md"), "utf8"),
+        );
+        const browserManifest = JSON.parse(
+          await readFile(path.join(browserRoot, "package.json"), "utf8"),
+        );
+        if (browserManifest.name !== "@workbench/pi-browser")
+          throw new Error("The built-in Browser package manifest is invalid.");
+        await writeBuiltinFile(
+          path.join(browserDirectory, "index.js"),
+          `export { default } from ${JSON.stringify(pathToFileURL(sourceEntry).href)};\n`,
+        );
+        await writeBuiltinFile(
+          path.join(browserDirectory, "resources.js"),
+          'export const browserPackageDirectory = new URL("./", import.meta.url);\n' +
+            `export const browserPackageArtifactRelativePath = ${JSON.stringify(browserPackageArtifactRelativePath)};\n`,
+        );
+        await writeBuiltinFile(
+          path.join(browserDirectory, "package.json"),
+          JSON.stringify(
+            {
+              name: browserManifest.name,
+              version: browserManifest.version,
+              private: browserManifest.private,
+              description: browserManifest.description,
+              keywords: browserManifest.keywords,
+              type: "module",
+              exports: { ".": "./index.js", "./resources": "./resources.js" },
+              peerDependencies: browserManifest.peerDependencies,
+              pi: { ...browserManifest.pi, extensions: ["./index.js"] },
+            },
+            null,
+            2,
+          ) + "\n",
+        );
+      } else {
+        await copyBuiltinDirectory(browserRoot, browserDirectory);
+      }
+      await registerWorkbenchBuiltinPackages(agentDir);
       // The installed validator lives outside node_modules; record this Runtime's public SDK entry.
       await writeBuiltinFile(
         path.join(directories.skills, "skill-creator", "runtime.json"),
@@ -137,19 +205,27 @@ export async function ensureWorkbenchBuiltinResources(agentDir = getAgentDir()) 
       ]) {
         await rm(path.join(directories.extensions, `${name}.ts`), { force: true });
       }
-      // Remove only shipped prompt files, preserving any custom files in these directories.
+      // Remove only retired shipped files, preserving unknown additions and rejecting links.
       const retiredPrompts = ["pi-extension", "pi-hook", "pi-tool", "pi-skill"];
       const retiredLocales = ["en-US", "zh-CN"];
-      for (const [name, files] of [
+      for (const [directory, files] of [
+        [path.join(directories.skills, "browser"), ["SKILL.md"]],
+        [path.join(directories.extensions, "browser"), ["index.ts"]],
         ...retiredPrompts.map(
           (name) =>
-            [name, [...retiredLocales.map((locale) => `${locale}.md`), "LICENSE.pi"]] as const,
+            [
+              path.join(directories.prompts, name),
+              [...retiredLocales.map((locale) => `${locale}.md`), "LICENSE.pi"],
+            ] as const,
         ),
         ...retiredLocales.map(
-          (locale) => [locale, retiredPrompts.map((name) => `prompts-${name}.md`)] as const,
+          (locale) =>
+            [
+              path.join(directories.prompts, locale),
+              retiredPrompts.map((name) => `prompts-${name}.md`),
+            ] as const,
         ),
-      ]) {
-        const directory = path.join(directories.prompts, name);
+      ] as const) {
         try {
           if ((await lstat(directory)).isSymbolicLink())
             throw new Error("A built-in resource directory cannot be a symbolic link.");

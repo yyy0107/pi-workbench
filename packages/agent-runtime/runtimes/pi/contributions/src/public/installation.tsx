@@ -14,6 +14,7 @@ import { settingModelConfigExtension } from "../extensions/setting-model-config"
 import { piSettingsActionExtension } from "../extensions/settings";
 import { toolboxExtension } from "../extensions/toolbox";
 import { usageStatisticsExtension } from "../extensions/usage-statistics/extension";
+import { skillReadingExtension } from "../extensions/skill-reading/extension";
 import { createPiResourceFileBackend } from "../services/pi-resource-file-backend";
 
 /**
@@ -28,7 +29,12 @@ export const piAgentRuntimeExtensionGroups = Object.freeze({
     usageStatisticsExtension,
   ]),
   toolbox: Object.freeze([toolboxExtension]),
-  diagnostics: Object.freeze([connectionStatusExtension, contextTraceExtension, aboutExtension]),
+  diagnostics: Object.freeze([
+    connectionStatusExtension,
+    contextTraceExtension,
+    skillReadingExtension,
+    aboutExtension,
+  ]),
 });
 
 /** All Pi UI contributions for consumers that do not need cross-owner ordering. */

@@ -13,6 +13,7 @@ import {
   parseInstalledPackageDetails,
   updateConfiguredPackage,
 } from "../../src/packages/installed-package-service";
+import { WORKBENCH_BROWSER_PACKAGE_SOURCE } from "../../src/packages/builtin-packages";
 
 test("parses installed package details from the downloaded package.json snapshot", () => {
   const details = parseInstalledPackageDetails(
@@ -208,6 +209,53 @@ test("lists only the requested Toolbox package scope without resolving a session
     packages: [{ source: "npm:user-tools", scope: "user", filtered: false }],
   });
   assert.deepEqual(requestedTargets, [{ scope: "user" }]);
+});
+
+test("identifies the built-in browser package and rejects its removal or replacement", async () => {
+  const source = WORKBENCH_BROWSER_PACKAGE_SOURCE;
+  const target = { scope: "user" as const };
+  const service = new InstalledPackageService({
+    getScopedResourceHost: async () => ({
+      session: {
+        settingsManager: {
+          getGlobalSettings: () => ({
+            packages: [{ source, skills: ["-skills/browser-use/SKILL.md"] }],
+          }),
+          getProjectSettings: () => ({ packages: [source] }),
+        },
+      },
+    }),
+    describeInstalledPackage: async () => ({
+      source,
+      scope: "user",
+      name: "@workbench/pi-browser",
+      types: ["extension", "skill"],
+      dependencyCount: 0,
+      peerDependencyCount: 3,
+    }),
+    updateUserPackage: async () => assert.fail("Built-in packages must not be updated separately"),
+    prepareUserPackageRemoval: async () =>
+      assert.fail("Built-in package files must not be removed"),
+  });
+  assert.deepEqual(await service.list({ target }), {
+    packages: [
+      { source, scope: "user", filtered: true, builtin: true, name: "@workbench/pi-browser" },
+    ],
+  });
+  assert.deepEqual(await service.list({ target: { scope: "project", workspaceId: "project" } }), {
+    packages: [{ source, scope: "project", filtered: false }],
+  });
+  assert.equal((await service.describe({ source, target })).builtin, true);
+  for (const operation of [
+    () => service.update({ source, target }),
+    () => service.remove({ source, target }),
+  ]) {
+    await assert.rejects(
+      operation,
+      (error) =>
+        error instanceof InstalledPackageServiceError && error.code === "package-read-only",
+    );
+  }
 });
 
 test("describes the installed package snapshot for the exact Toolbox source and scope", async () => {

@@ -1,5 +1,6 @@
 export * from "./avatar";
 export * from "./button";
+export * from "./file-link";
 export * from "./collapsible";
 export * from "./collapsible-resize-handle";
 export * from "./command";

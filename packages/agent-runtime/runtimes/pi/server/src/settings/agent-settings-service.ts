@@ -32,7 +32,7 @@ import {
   withCrossProcessFileLock,
 } from "@workbench/server-core/file-persistence";
 import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
-import { resolvePiWorkspaceRoot } from "../workspaces/workspace-service-bindings";
+import { resolvePiWorkspaceRoot } from "../workspaces/workspace-registry";
 import { validateWorkspace } from "../workspaces/workspace-paths";
 
 type JsonObject = Record<string, unknown>;

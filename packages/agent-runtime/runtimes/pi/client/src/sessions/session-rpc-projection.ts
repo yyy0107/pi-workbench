@@ -28,6 +28,10 @@ import {
   piConversationEventMessage,
 } from "../messages/conversation-events";
 import { SessionMessageAccumulator } from "../transport/session-message-accumulator";
+import {
+  appendWorkspaceFeedbackContext,
+  type PromptFeedbackItem,
+} from "@workbench/agent-runtime-client/prompt-feedback";
 
 export const WORKBENCH_SESSION_SUMMARY_PROJECTION = "workbench.piSessionSummary";
 
@@ -481,11 +485,13 @@ export function piPromptContent(
   images: readonly PiImageContent[] = [],
   documents: readonly PiDocumentContent[] = [],
   textAttachmentIds: readonly string[] = [],
+  feedback: readonly PromptFeedbackItem[] = [],
 ): SessionPromptContent[] {
+  const promptText = appendWorkspaceFeedbackContext(text, feedback);
   return [
     ...textAttachmentIds.map((attachmentId) => ({ type: "attachment" as const, attachmentId })),
-    ...(text ? [{ type: "text" as const, text }] : []),
-    ...images.map((image) => ({
+    ...(promptText ? [{ type: "text" as const, text: promptText }] : []),
+    ...[...images, ...feedback.flatMap((item) => item.images ?? [])].map((image) => ({
       type: "image" as const,
       mediaType: promptMediaType(image.mimeType),
       data: image.data,

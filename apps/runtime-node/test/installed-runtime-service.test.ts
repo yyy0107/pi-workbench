@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createInstalledRuntimeDisposer } from "../src/installed-runtime-service";
 
-test("installed Runtime disposal waits for Pi quiescence before disposing Terminal owners", async () => {
+test("installed Runtime disposal waits for Pi quiescence before disposing Terminal and Browser owners", async () => {
   const calls: string[] = [];
   let releasePi!: () => void;
   const piReleased = new Promise<void>((resolve) => (releasePi = resolve));
@@ -16,7 +16,11 @@ test("installed Runtime disposal waits for Pi quiescence before disposing Termin
       await piReleased;
       calls.push("pi:end");
     },
-    disposeTerminals: [() => calls.push("terminal:interactive"), () => calls.push("terminal:tool")],
+    disposeResources: [
+      () => calls.push("terminal:interactive"),
+      () => calls.push("terminal:tool"),
+      () => calls.push("browser"),
+    ],
   });
 
   const operation = dispose();
@@ -25,10 +29,16 @@ test("installed Runtime disposal waits for Pi quiescence before disposing Termin
   assert.deepEqual(calls, ["pi:start"]);
   releasePi();
   await operation;
-  assert.deepEqual(calls, ["pi:start", "pi:end", "terminal:interactive", "terminal:tool"]);
+  assert.deepEqual(calls, [
+    "pi:start",
+    "pi:end",
+    "terminal:interactive",
+    "terminal:tool",
+    "browser",
+  ]);
 });
 
-test("installed Runtime disposal attempts every Terminal owner after a Pi failure", async () => {
+test("installed Runtime disposal attempts every resource owner after a Pi failure", async () => {
   const piFailure = new Error("Pi shutdown failed");
   const terminalFailure = new Error("interactive terminal shutdown failed");
   const calls: string[] = [];
@@ -36,12 +46,13 @@ test("installed Runtime disposal attempts every Terminal owner after a Pi failur
     async disposePi() {
       throw piFailure;
     },
-    disposeTerminals: [
+    disposeResources: [
       () => {
         calls.push("terminal:interactive");
         throw terminalFailure;
       },
       () => calls.push("terminal:tool"),
+      () => calls.push("browser"),
     ],
   });
 
@@ -50,10 +61,10 @@ test("installed Runtime disposal attempts every Terminal owner after a Pi failur
     assert.deepEqual(error.errors, [piFailure, terminalFailure]);
     return true;
   });
-  assert.deepEqual(calls, ["terminal:interactive", "terminal:tool"]);
+  assert.deepEqual(calls, ["terminal:interactive", "terminal:tool", "browser"]);
 });
 
-test("an aborted shutdown deadline force-disposes Terminal owners without waiting for Pi", async () => {
+test("an aborted shutdown deadline force-disposes Terminal and Browser owners without waiting for Pi", async () => {
   const calls: string[] = [];
   let releasePi!: () => void;
   const piReleased = new Promise<void>((resolve) => (releasePi = resolve));
@@ -64,13 +75,17 @@ test("an aborted shutdown deadline force-disposes Terminal owners without waitin
       await piReleased;
       calls.push("pi:end");
     },
-    disposeTerminals: [() => calls.push("terminal:interactive"), () => calls.push("terminal:tool")],
+    disposeResources: [
+      () => calls.push("terminal:interactive"),
+      () => calls.push("terminal:tool"),
+      () => calls.push("browser"),
+    ],
   });
 
   const operation = dispose(controller.signal);
   assert.deepEqual(calls, ["pi:start"]);
   controller.abort(new Error("shutdown deadline expired"));
-  assert.deepEqual(calls, ["pi:start", "terminal:interactive", "terminal:tool"]);
+  assert.deepEqual(calls, ["pi:start", "terminal:interactive", "terminal:tool", "browser"]);
 
   let settled = false;
   void operation.finally(() => {
@@ -81,5 +96,11 @@ test("an aborted shutdown deadline force-disposes Terminal owners without waitin
 
   releasePi();
   await operation;
-  assert.deepEqual(calls, ["pi:start", "terminal:interactive", "terminal:tool", "pi:end"]);
+  assert.deepEqual(calls, [
+    "pi:start",
+    "terminal:interactive",
+    "terminal:tool",
+    "browser",
+    "pi:end",
+  ]);
 });

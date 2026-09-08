@@ -4,6 +4,7 @@ packages:
   - "packages/server/*"
   - "packages/agent-runtime/core/*"
   - "packages/agent-runtime/runtimes/pi/*"
+  - "packages/agent-runtime/runtimes/pi/server/src/internal-packages/*"
   - "packages/extension-platform/*"
   - "packages/host/*"
   - "packages/terminal/*"
@@ -20,4 +21,4 @@ allowBuilds:
   tree-sitter-bash: false
 
 patchedDependencies:
-  "@earendil-works/pi-coding-agent@0.84.2": patches/@earendil-works__pi-coding-agent@0.84.2.patch
+  "@earendil-works/pi-coding-agent@0.85.1": patches/@earendil-works__pi-coding-agent@0.85.1.patch

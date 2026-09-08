@@ -68,7 +68,13 @@ export class MemoryWorkspaceFeedbackStore implements WorkspaceFeedbackStore {
     const id = createFeedbackId();
     this.replace([
       ...this.#snapshot.feedback,
-      { ...draft, id, target: { ...draft.target }, createdAt: Date.now() },
+      {
+        ...draft,
+        id,
+        target: { ...draft.target },
+        ...(draft.images ? { images: draft.images.map((image) => ({ ...image })) } : {}),
+        createdAt: Date.now(),
+      },
     ]);
     return id;
   };
@@ -134,11 +140,12 @@ export class MemoryWorkspaceFeedbackStore implements WorkspaceFeedbackStore {
 
     return {
       token,
-      items: feedback.map(({ id, kind, target, text }) => ({
+      items: feedback.map(({ id, kind, target, text, images }) => ({
         id,
         kind,
         target: { ...target },
         text,
+        ...(images ? { images: images.map((image) => ({ ...image })) } : {}),
       })),
     };
   };

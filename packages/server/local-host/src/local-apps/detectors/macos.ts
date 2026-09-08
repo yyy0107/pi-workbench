@@ -2,6 +2,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 import { APP_REGISTRY, FILE_MANAGER_APP } from "../registry";
+import { localAppView } from "../types";
 import {
   localAppPathExists,
   runLocalAppCommand,
@@ -36,11 +37,7 @@ async function findBundle(
 
 function detectedBundle(definition: LocalAppDefinition, bundleId: string): DetectedLocalApp {
   return {
-    id: definition.id,
-    name: definition.name,
-    kind: definition.kind,
-    ...(definition.icon ? { icon: definition.icon } : {}),
-    supportedFileKinds: [...definition.supportedFileKinds],
+    ...localAppView(definition),
     platform: "macos",
     targetMode: definition.targetMode ?? "path",
     launcher: { type: "mac-bundle", bundleId },
@@ -49,11 +46,7 @@ function detectedBundle(definition: LocalAppDefinition, bundleId: string): Detec
 
 function detectedPath(definition: LocalAppDefinition, appPath: string): DetectedLocalApp {
   return {
-    id: definition.id,
-    name: definition.name,
-    kind: definition.kind,
-    ...(definition.icon ? { icon: definition.icon } : {}),
-    supportedFileKinds: [...definition.supportedFileKinds],
+    ...localAppView(definition),
     platform: "macos",
     targetMode: definition.targetMode ?? "path",
     launcher: { type: "mac-app", path: appPath },

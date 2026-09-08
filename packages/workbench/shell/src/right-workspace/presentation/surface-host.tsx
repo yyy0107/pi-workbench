@@ -44,6 +44,7 @@ import {
   useRightWorkspaceEnvironment,
 } from "../right-workspace-context";
 import { reconcileSurfaceMountContexts } from "../surface-mount-contexts";
+import { observeWorkspaceSplitResize } from "../workspace-split-resize-observer";
 
 interface SurfacePaneProps {
   active?: WorkspaceSurfaceInstance;
@@ -249,37 +250,9 @@ export function SurfaceHost({ isVisible = true }: { isVisible?: boolean }) {
     if (!workspaceOpen || !auxiliaryOpen || !activeAuxiliaryId) return;
     const element = containerRef.current;
     if (!element) return;
-    const workspace = element.closest<HTMLElement>('[data-workbench-surface="right-workspace"]');
-    let measureFrame: number | undefined;
-    const measure = () => {
-      measureFrame = undefined;
-      if (workspace?.dataset.resizing === "true") return;
-      const nextWidth = Math.round(element.getBoundingClientRect().width);
+    return observeWorkspaceSplitResize(element, (nextWidth) => {
       setContainerWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
-    };
-    const scheduleMeasure = () => {
-      if (measureFrame !== undefined) return;
-      measureFrame = window.requestAnimationFrame(measure);
-    };
-    scheduleMeasure();
-    const observer = new ResizeObserver(scheduleMeasure);
-    observer.observe(element);
-    const resizeStateObserver = workspace
-      ? new MutationObserver(() => {
-          if (workspace.dataset.resizing !== "true") scheduleMeasure();
-        })
-      : undefined;
-    if (workspace) {
-      resizeStateObserver?.observe(workspace, {
-        attributes: true,
-        attributeFilter: ["data-resizing"],
-      });
-    }
-    return () => {
-      observer.disconnect();
-      resizeStateObserver?.disconnect();
-      if (measureFrame !== undefined) window.cancelAnimationFrame(measureFrame);
-    };
+    });
   }, [activeAuxiliaryId, auxiliaryOpen, workspaceOpen]);
 
   return (

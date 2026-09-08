@@ -4,6 +4,7 @@ import path from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { configuredWorkbenchSettingsFile } from "@workbench/server-core/workbench-settings-file";
 import { WorkspaceStore } from "./workspace-store";
+import { validateWorkspace } from "./workspace-paths";
 
 interface WorkspaceRegistryGlobal {
   __workbenchWorkspaceStore?: WorkspaceStore;
@@ -13,6 +14,17 @@ interface WorkspaceRegistryGlobal {
 
 const registryGlobal = globalThis as typeof globalThis & WorkspaceRegistryGlobal;
 const WORKSPACE_STORE_IMPLEMENTATION_VERSION = 4;
+
+export async function resolvePiWorkspaceRoot(workspaceId: string): Promise<string | undefined> {
+  return (await getWorkspaceStore().list()).items.find((item) => item.workspaceId === workspaceId)
+    ?.path;
+}
+
+export async function resolvePiWorkspaceId(cwd: string): Promise<string | undefined> {
+  const canonicalPath = validateWorkspace(cwd).cwd;
+  return (await getWorkspaceStore().list()).items.find((item) => item.path === canonicalPath)
+    ?.workspaceId;
+}
 
 function hasLegacyStateOverride(): boolean {
   return Boolean(

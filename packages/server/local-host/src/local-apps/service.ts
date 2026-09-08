@@ -1,5 +1,6 @@
 import { realpath, stat } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import {
   type WorkbenchLocalAppOpenResult as LocalAppOpenValue,
@@ -8,6 +9,7 @@ import {
 import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
 import { detectInstalledApps } from "./detectors/index";
 import { launchLocalApp } from "./launchers/index";
+import { localAppView } from "./types";
 import type {
   DetectedLocalApp,
   LocalAppDetector,
@@ -72,16 +74,6 @@ async function canonicalLaunchTarget(
   }
 }
 
-function view(app: DetectedLocalApp) {
-  return {
-    id: app.id,
-    name: app.name,
-    kind: app.kind,
-    ...(app.icon ? { icon: app.icon } : {}),
-    supportedFileKinds: [...app.supportedFileKinds],
-  };
-}
-
 export class LocalAppService implements LocalAppProtocol {
   private apps: DetectedLocalApp[] | undefined;
   private detection: Promise<DetectedLocalApp[]> | undefined;
@@ -100,7 +92,7 @@ export class LocalAppService implements LocalAppProtocol {
       });
       this.apps = await this.detection;
     }
-    return { apps: this.apps.map(view) };
+    return { apps: this.apps.map(localAppView) };
   }
 
   async refresh(signal?: AbortSignal): Promise<LocalAppsListValue> {
@@ -126,7 +118,10 @@ export class LocalAppService implements LocalAppProtocol {
     const target = await canonicalLaunchTarget(requestedTarget, signal);
     try {
       signal?.throwIfAborted();
-      await this.launch(app, target);
+      await this.launch(
+        app,
+        app.kind === "browser" ? { ...target, path: pathToFileURL(target.path).href } : target,
+      );
       return { opened: true };
     } catch (error) {
       if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw error;

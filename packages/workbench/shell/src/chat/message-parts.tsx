@@ -58,7 +58,7 @@ function DefaultBlock({
       case "data":
         return <WorkbenchMessageDataBlock block={block} />;
       case "file":
-        return <WorkbenchMessageFileBlock block={block} />;
+        return <WorkbenchMessageFileBlock block={block} assistant={node.kind === "assistant"} />;
       case "source":
         return (
           <WorkbenchMessageSourceBlock

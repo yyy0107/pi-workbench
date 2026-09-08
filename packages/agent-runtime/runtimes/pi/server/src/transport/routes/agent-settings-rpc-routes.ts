@@ -1,20 +1,12 @@
 import { RPC_REQUEST_BODY_LIMITS } from "../rpc-request-budgets";
 import type { SettingsOpenDocumentValue } from "@workbench/agent-runtime-pi-protocol/rpc";
-import type {
-  AgentSettingsProtocol,
-  AgentSettingsUpdateRequest,
-} from "../../settings/agent-settings-service";
-import { compactionSettingsPatch } from "../compaction-rpc-validator";
-import { resourceCatalogTarget } from "../resource-rpc-validators";
+import type { AgentSettingsProtocol } from "../../settings/agent-settings-service";
 import {
-  handleRpcPost,
-  rpcBusinessError,
-  rpcInteger,
-  rpcObject,
-  rpcOptional,
-  rpcString,
-  type RpcValidator,
-} from "@workbench/host-server/rpc";
+  scopedDescribePayload,
+  scopedUpdatePayload,
+  settingsUpdatePayload,
+} from "../agent-settings-rpc-validators";
+import { handleRpcPost, rpcBusinessError, rpcObject } from "@workbench/host-server/rpc";
 import type { RpcRouteGroup } from "@workbench/host-server/rpc";
 
 export interface AgentSettingsRpcRoutesDependencies {
@@ -27,23 +19,6 @@ export interface AgentSettingsRpcRoutesDependencies {
 }
 
 const emptyPayload = rpcObject({});
-const scopedDescribePayload = rpcObject({ target: resourceCatalogTarget });
-const settingsUpdateFields = {
-  ns: rpcString({ minLength: 1 }),
-  patch: rpcObject({
-    systemPrompt: rpcOptional(rpcString({ maxLength: 500_000 })),
-    appendSystemPrompt: rpcOptional(rpcString({ maxLength: 500_000 })),
-    compaction: rpcOptional(compactionSettingsPatch),
-  }),
-  expectedRevision: rpcOptional(rpcInteger({ minimum: 0 })),
-};
-const settingsUpdatePayload = rpcObject(
-  settingsUpdateFields,
-) as RpcValidator<AgentSettingsUpdateRequest>;
-const scopedUpdatePayload = rpcObject({
-  ...settingsUpdateFields,
-  target: resourceCatalogTarget,
-}) as RpcValidator<AgentSettingsUpdateRequest>;
 
 function isAborted(error: unknown, signal: AbortSignal): boolean {
   return signal.aborted || (error instanceof Error && error.name === "AbortError");

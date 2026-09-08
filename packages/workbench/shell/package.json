@@ -37,6 +37,11 @@
       "import": "./src/conversation-title.ts",
       "default": "./src/conversation-title.ts"
     },
+    "./directory-picker": {
+      "types": "./src/directory-picker.ts",
+      "import": "./src/directory-picker.ts",
+      "default": "./src/directory-picker.ts"
+    },
     "./dom": {
       "types": "./src/dom.tsx",
       "import": "./src/dom.tsx",
@@ -184,6 +189,7 @@
     "test": "node ../../../scripts/run-typescript-tests.mjs --package"
   },
   "dependencies": {
+    "@workbench/browser-contracts": "workspace:*",
     "@base-ui/react": "^1.7.0",
     "@file-viewer/core": "2.3.0",
     "@file-viewer/preset-lite": "2.3.0",

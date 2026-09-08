@@ -1,5 +1,6 @@
 @import "./chat-icons.css";
 @import "./composer-icons.css";
+@import "./renderers/image.css";
 
 /* Shared by the central conversation and side-chat, regardless of their surface name. */
 :where([data-slot="workbench-conversation"]) {

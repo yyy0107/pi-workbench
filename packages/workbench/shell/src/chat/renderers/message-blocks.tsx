@@ -128,7 +128,8 @@ export function WorkbenchMessageSourceBlock({
 export function WorkbenchMessageFileBlock({
   block,
   referenceLabel,
-}: Readonly<{ block: FileBlock; referenceLabel?: string }>) {
+  assistant = false,
+}: Readonly<{ block: FileBlock; referenceLabel?: string; assistant?: boolean }>) {
   if (block.textAttachment)
     return <PastedTextAttachmentPreview attachment={block.textAttachment} />;
   const mediaType = resolvedMediaType(block);
@@ -136,7 +137,17 @@ export function WorkbenchMessageFileBlock({
   const image = mediaType.startsWith("image/");
 
   const content =
-    image && source ? (
+    image && assistant && block.sourceType !== "id" ? (
+      <Image
+        image={source ?? ""}
+        filename={block.name}
+        status={
+          block.status === "error" || block.status === "incomplete"
+            ? { type: "incomplete", reason: block.status === "error" ? "error" : "other" }
+            : { type: block.status ?? "complete" }
+        }
+      />
+    ) : image && source ? (
       <Image.Root>
         <Image.Zoom src={source} alt={block.name}>
           <Image.Preview src={source} alt={block.name} />

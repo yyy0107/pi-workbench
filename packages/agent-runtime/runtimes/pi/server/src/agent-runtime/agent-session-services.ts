@@ -14,7 +14,7 @@ import { ModelConfigStore } from "../models/model-config-store";
 const hostFetch = globalThis.fetch;
 const protectedRuntimes = new WeakSet<ModelRuntime>();
 
-// Pi 0.84.2 supports fetch injection for these HTTP adapters. Google rejects it;
+// Pi 0.85.1 supports fetch injection for these HTTP adapters. Google rejects it;
 // Bedrock owns its HTTP handler. Unknown extension APIs retain their own transport.
 const fetchApis = new Set<Api>([
   "anthropic-messages",

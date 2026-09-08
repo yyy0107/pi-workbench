@@ -77,6 +77,47 @@ test("accepts declared production, peer, development, builtin, and workspace imp
   assert.deepEqual(await workspaceDependencyViolations(root), []);
 });
 
+test("assigns nested workspace sources and boundaries to their closest package", async (t) => {
+  const root = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const parent = "packages/server/host";
+  const child = `${parent}/src/internal-packages/child`;
+  await writeFile(
+    path.join(root, "pnpm-workspace.yaml"),
+    WORKSPACE_YAML.replace("packages:\n", `packages:\n  - "${parent}/src/internal-packages/*"\n`),
+  );
+  await packageFixture(
+    root,
+    parent,
+    { name: "@workbench/host", private: true },
+    {
+      "src/index.ts": 'import "./internal";\nimport "./internal-packages/child/src/index";\n',
+      "src/internal.ts": "export const internal = true;\n",
+    },
+  );
+  await packageFixture(
+    root,
+    child,
+    {
+      name: "@workbench/child",
+      private: true,
+      dependencies: { "child-only": "1.0.0" },
+      devDependencies: { "child-test-only": "1.0.0" },
+    },
+    {
+      "src/index.ts": 'import "child-only";\nimport "./internal";\nimport "../../../internal";\n',
+      "src/internal.ts": "export const internal = true;\n",
+      "test/index.test.ts": 'import "child-test-only";\nimport "../src/index";\n',
+      "dist/index.js": 'import "bundled-only";\n',
+    },
+  );
+
+  assert.deepEqual(await workspaceDependencyViolations(root), [
+    `${parent}/src/index.ts: workspace source must not depend on another package source (${child}) via module specifier ./internal-packages/child/src/index`,
+    `${child}/src/index.ts: workspace source must not depend on another package source (${parent}) via module specifier ../../../internal`,
+  ]);
+});
+
 test("rejects undeclared bare imports and development dependencies used by src", async (t) => {
   const root = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));

@@ -1056,10 +1056,6 @@ export async function createRuntimeArtifactTraceResolver({
     if (specifier === "@earendil-works/pi-ai") return piAiEntry;
     if (specifier === "@earendil-works/pi-coding-agent")
       return path.join(piCodingAgentDirectory, "dist", "index.js");
-    if (specifier === "@earendil-works/pi-coding-agent/rpc-entry")
-      return path.join(piCodingAgentDirectory, "dist", "rpc-entry.js");
-    if (specifier === "@earendil-works/pi-coding-agent/client")
-      return path.join(piCodingAgentDirectory, "dist", "client", "index.js");
     return resolveDependency(specifier, parent, job, cjsResolve);
   };
 }
@@ -3199,13 +3195,27 @@ export async function copyRuntimeBuiltinResources(
   outputDirectory: string,
 ): Promise<void> {
   // Workbench modules are bundled into server.mjs, so import.meta.url resolves at the artifact root.
-  for (const relative of ["skills/builtin-skills", "internal-extensions"]) {
+  for (const relative of ["internal-skills", "internal-prompts", "internal-extensions"]) {
     await cp(
       path.join(repositoryRoot, "packages/agent-runtime/runtimes/pi/server/src", relative),
       path.join(outputDirectory, relative),
       { recursive: true },
     );
   }
+  const browserBuild = spawnSync(
+    process.execPath,
+    [
+      path.join(
+        repositoryRoot,
+        "packages/agent-runtime/runtimes/pi/server/src/internal-packages/browser/build.mjs",
+      ),
+      path.join(outputDirectory, "internal-packages/browser"),
+    ],
+    { encoding: "utf8" },
+  );
+  if (browserBuild.error) throw browserBuild.error;
+  if (browserBuild.status !== 0)
+    throw new Error(browserBuild.stderr || browserBuild.stdout || "Browser package build failed.");
 }
 
 export async function buildRuntimeArtifact({
@@ -3272,13 +3282,15 @@ export async function buildRuntimeArtifact({
       ];
       // Both branches are needed: Pi's published tree is ESM-first while several of its runtime
       // dependencies select CJS exports through require(). Their union remains an NFT exact closure.
+      // Resolve runtime-relative user data (for example Anthropic skill downloads) from the isolated
+      // candidate. Bundled resources are copied explicitly after dependency tracing.
       const traces = await Promise.all([
         trace(traceEntries, {
           base: repositoryRoot,
           conditions: ["node", "production", "import"],
           exportsOnly: true,
           ignore: path.isAbsolute,
-          processCwd: repositoryRoot,
+          processCwd: temporaryDirectory,
           resolve,
         }),
         trace(traceEntries, {
@@ -3286,7 +3298,7 @@ export async function buildRuntimeArtifact({
           conditions: ["node", "production", "require"],
           exportsOnly: true,
           ignore: path.isAbsolute,
-          processCwd: repositoryRoot,
+          processCwd: temporaryDirectory,
           resolve,
         }),
       ]);

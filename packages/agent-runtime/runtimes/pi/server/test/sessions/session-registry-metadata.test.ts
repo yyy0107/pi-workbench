@@ -5,6 +5,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { Type } from "@earendil-works/pi-ai";
+import {
+  fauxAssistantMessage,
+  fauxProvider,
+  fauxToolCall,
+  type FauxResponseFactory,
+} from "@earendil-works/pi-ai/providers/faux";
 
 import { convertToLlm, getAgentDir, SessionManager } from "@earendil-works/pi-coding-agent";
 
@@ -37,6 +43,7 @@ const {
   replacePromptQueue,
   releaseScratchSession,
   resolveWorkbenchComposerCommands,
+  selectSessionModel,
   sendPrompt,
   SerializedSessionMutations,
   sessionModifiedAt,
@@ -63,6 +70,8 @@ import {
 } from "../../src/agent-runtime/pi-agent-host-bindings";
 import { resolvePiWorkspaceRoot } from "../../src/workspaces/workspace-service-bindings";
 import { projectPiComposerContext } from "../../src/internal-extensions/composer-context";
+import { createPiAutomationRuntimeBindings } from "../../src/automations/pi-automation-service";
+import { getWorkspaceStore } from "../../src/workspaces/workspace-registry";
 
 function getImageUnderstandingSettingsStore() {
   return new ImageUnderstandingSettingsStore({
@@ -170,6 +179,129 @@ test("detects image content across durable session message roles", () => {
     ]),
     true,
   );
+});
+
+test("keeps model selections session-local across prompts, cold reopen, and automation launches", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-session-model-defaults-"));
+  const agentDir = path.join(root, "agent");
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
+  process.env.PI_CODING_AGENT_DIR = agentDir;
+  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
+  const hosts: Awaited<ReturnType<typeof createSession>>[] = [];
+  t.after(async () => {
+    for (const host of hosts) await host.shutdown();
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
+    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
+    await rm(root, { recursive: true, force: true });
+  });
+  await mkdir(agentDir, { recursive: true });
+  const defaults = {
+    defaultProvider: "selection-test",
+    defaultModel: "default",
+    defaultThinkingLevel: "medium",
+  };
+  const settingsPath = path.join(agentDir, "settings.json");
+  await writeFile(settingsPath, JSON.stringify(defaults));
+  await writeFile(
+    path.join(agentDir, "models.json"),
+    JSON.stringify({
+      providers: {
+        "selection-test": {
+          api: "openai-completions",
+          baseUrl: "http://127.0.0.1:1/v1",
+          apiKey: "test-only-key",
+          models: ["default", "selected", "prompt"].map((id) => ({
+            id,
+            name: id,
+            reasoning: true,
+            input: ["text"],
+            contextWindow: 128_000,
+            maxTokens: 1_000,
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          })),
+        },
+      },
+    }),
+  );
+  const first = await createSession(root, "model-defaults-first");
+  const second = await createSession(root, "model-defaults-second");
+  hosts.push(first, second);
+  first.session.sessionManager.appendMessage({ role: "user", content: "Saved task", timestamp: 1 });
+  first.session.sessionManager.appendMessage(assistantMessage("Saved answer", 2));
+  const assertSelection = (host: typeof first, model: string, effort: string) => {
+    assert.equal(host.session.model?.id, model);
+    assert.equal(host.session.thinkingLevel, effort);
+  };
+  await selectSessionModel(first.id, {
+    provider: "selection-test",
+    model: "selected",
+    reasoningEffort: "high",
+  });
+  assertSelection(first, "selected", "high");
+  assertSelection(second, "default", "medium");
+  await first.session.settingsManager.flush();
+  assert.deepEqual(JSON.parse(await readFile(settingsPath, "utf8")), defaults);
+  await first.shutdown();
+  const reopened = await getOrStartSession(first.id);
+  hosts.push(reopened);
+  assertSelection(reopened, "selected", "high");
+
+  t.mock.method(
+    reopened.session,
+    "prompt",
+    async (_message: string, options?: Parameters<typeof reopened.session.prompt>[1]) => {
+      options?.preflightResult?.(true);
+    },
+  );
+  await sendPrompt(reopened.id, "Use this model for the task", undefined, {
+    provider: "selection-test",
+    modelId: "prompt",
+    thinkingLevel: "low",
+  });
+  assertSelection(reopened, "prompt", "low");
+  await reopened.session.settingsManager.flush();
+  assert.deepEqual(JSON.parse(await readFile(settingsPath, "utf8")), defaults);
+
+  const { workspace } = await getWorkspaceStore().create({ path: root });
+  const submitted: string[] = [];
+  const automation = createPiAutomationRuntimeBindings({
+    agentExecution: {
+      async cancel() {},
+      async submit({ threadId }) {
+        submitted.push(threadId);
+        return { kind: "started" };
+      },
+    },
+  });
+  const definition = {
+    schemaVersion: 1 as const,
+    id: "selection-automation",
+    revision: 1,
+    name: "Selection automation",
+    prompt: "Run the configured task",
+    workspaceId: workspace.workspaceId,
+    schedule: { cron: "0 9 * * *", timezone: "UTC" },
+    enabled: true,
+    createdAt: 1,
+    updatedAt: 1,
+    sessions: [],
+  };
+  const target = { workspaceId: workspace.workspaceId, path: root };
+  for (const model of [
+    undefined,
+    { provider: "selection-test", model: "selected", reasoningEffort: "high" },
+  ]) {
+    const id = await automation.launch({ ...definition, model }, target, "schedule", 1_000);
+    const host = await getOrStartSession(id);
+    hosts.push(host);
+    assertSelection(host, model?.model ?? "default", model?.reasoningEffort ?? "medium");
+    await host.session.settingsManager.flush();
+  }
+  assert.equal(submitted.length, 2);
+  assert.deepEqual(JSON.parse(await readFile(settingsPath, "utf8")), defaults);
 });
 
 test("projects historical images as placeholders for a text-only model without mutating history", () => {
@@ -1933,6 +2065,93 @@ test("cancels compaction before waiting for the agent to become idle", async (t)
 
   await cancelSession(host.id);
   assert.equal(controller.signal.aborted, true);
+});
+
+test("compacts large tool results before the next model request and preserves context-only ordering", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-tool-result-compaction-"));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  let host: Awaited<ReturnType<typeof createSession>>;
+  t.after(async () => {
+    await host?.shutdown();
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    await rm(root, { recursive: true, force: true });
+  });
+  host = await createSession(root, "tool-result-compaction", undefined, {
+    customTools: [
+      {
+        name: "large_result",
+        label: "Large result",
+        description: "Return a large tool result",
+        parameters: Type.Object({}),
+        async execute() {
+          await host.session.sendCustomMessage(
+            { customType: "test.context-only", content: "Preserve this context", display: false },
+            { triggerTurn: false },
+          );
+          return { content: [{ type: "text", text: "x".repeat(80_000) }], details: {} };
+        },
+      },
+    ],
+  });
+  const faux = fauxProvider({
+    provider: "compaction-test",
+    tokensPerSecond: 0,
+    models: [{ id: "compaction-model", contextWindow: 16_000, maxTokens: 1_000 }],
+  });
+  host.session.modelRuntime.registerNativeProvider(faux.provider);
+  await host.session.modelRuntime.setRuntimeApiKey(faux.getModel().provider, "test-only-key");
+  await host.session.modelRuntime.getAvailable();
+  await host.selectModel({ provider: faux.getModel().provider, model: faux.getModel().id });
+  host.session.setActiveToolsByName(["large_result"]);
+  await host.updateContextPolicy({
+    mode: "custom",
+    desiredContextTokens: 16_000,
+    compaction: { enabled: true, reserveTokens: 1_000, keepRecentTokens: 500 },
+  });
+  host.session.settingsManager.applyOverrides({ retry: { enabled: false } });
+  const order: string[] = [];
+  host.session.subscribe((event) => {
+    if (event.type === "message_end" && event.message.role === "toolResult")
+      order.push("tool-result");
+    if (event.type === "message_end" && event.message.role === "custom") order.push("context-only");
+    if (event.type === "compaction_start" || event.type === "compaction_end")
+      order.push(event.type);
+  });
+  let requestedTool = false;
+  const respond: FauxResponseFactory = (_context, options) => {
+    if (options?.cacheRetention === "none") return fauxAssistantMessage("Previous work summarized");
+    if (!requestedTool) {
+      requestedTool = true;
+      return fauxAssistantMessage(fauxToolCall("large_result", {}), { stopReason: "toolUse" });
+    }
+    order.push("next-model-request");
+    return fauxAssistantMessage("Task completed");
+  };
+  faux.setResponses([respond, respond, respond, respond]);
+  await sendPrompt(host.id, "Read the large result and finish");
+  await host.waitForCurrentPrompt();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.equal(order.filter((item) => item === "compaction_start").length, 1);
+  assert.equal(order.filter((item) => item === "compaction_end").length, 1);
+  assert.equal(order.filter((item) => item === "tool-result").length, 1);
+  assert.equal(order.filter((item) => item === "context-only").length, 1);
+  assert.equal(order.filter((item) => item === "next-model-request").length, 1);
+  assert.ok(order.indexOf("tool-result") < order.indexOf("context-only"));
+  assert.ok(order.indexOf("tool-result") < order.indexOf("compaction_start"));
+  assert.ok(order.indexOf("compaction_end") < order.indexOf("next-model-request"));
+  assert.equal(host.session.messages.at(-1)?.role, "assistant");
+  assert.equal(JSON.stringify(host.session.messages.at(-1)).includes("Task completed"), true);
+  assert.equal(host.isBusy, false);
+  assert.equal(host.isRunning, false);
+  assert.deepEqual(host.steeringMessages, []);
+  assert.deepEqual(host.followUpMessages, []);
+  assert.equal(
+    host.session.sessionManager.getBranch().filter((entry) => entry.type === "compaction").length,
+    1,
+  );
 });
 
 test("shutdown waits for prompt completion and saves one interruption before a cold reopen", async (t) => {
@@ -3830,6 +4049,64 @@ test("creates detached omitted and anchored forks without replacing the source",
   assert.equal(source.getSessionId(), "fork-source");
   assert.equal(source.getSessionFile(), sourcePath);
   assert.equal(source.getLeafId(), sourceLeaf);
+  assert.equal(await readFile(sourcePath, "utf8"), sourceBefore);
+});
+
+test("detached forks retain compacted context when the kept boundary is a label", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-compacted-fork-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = SessionManager.create(root, root);
+  source.appendMessage({ role: "user", content: "Old task", timestamp: 1 });
+  const oldAnswer = source.appendMessage(assistantMessage("Old answer", 2));
+  const label = source.appendLabelChange(oldAnswer, "Summary boundary");
+  const keptUser = { role: "user" as const, content: "Keep this task", timestamp: 3 };
+  const keptEntryId = source.appendMessage(keptUser);
+  source.appendMessage(assistantMessage("Keep this answer", 4));
+  source.appendCompaction("Earlier work summarized", label, 20_000);
+  const nextUser = { role: "user" as const, content: "Continue the task", timestamp: 5 };
+  const nextAnswer = {
+    ...assistantMessage("Continuing from the summary", 6),
+    providerThinkingLevel: "high",
+    content: [
+      {
+        type: "thinking" as const,
+        thinking: "Kept reasoning",
+        thinkingSignature: "provider-signature",
+      },
+      { type: "text" as const, text: "Continuing from the summary" },
+    ],
+  };
+  appendSessionEventJournal(source, { type: "turn_start", seq: 0, time: 5, data: {} });
+  appendSessionEventJournal(source, {
+    type: "message_end",
+    seq: 1,
+    time: 5,
+    data: { message: nextUser },
+  });
+  source.appendMessage(nextUser);
+  appendSessionEventJournal(source, {
+    type: "message_end",
+    seq: 2,
+    time: 6,
+    data: { message: nextAnswer },
+  });
+  source.appendMessage(nextAnswer);
+  appendSessionEventJournal(source, { type: "turn_end", seq: 3, time: 7, data: {} });
+  const sourcePath = source.getSessionFile()!;
+  const sourceBefore = await readFile(sourcePath, "utf8");
+  const context = source.buildSessionContext().messages;
+  assert.equal(context[0]?.role, "compactionSummary");
+  assert.deepEqual(context[1], keptUser);
+
+  for (const atSeq of [undefined, 2]) {
+    const child = createDetachedSessionFork(sourcePath, atSeq, root);
+    const compaction = child.getBranch().findLast((entry) => entry.type === "compaction");
+    assert.equal(compaction?.firstKeptEntryId, keptEntryId);
+    assert.deepEqual(child.buildSessionContext().messages, context);
+    const restored = SessionManager.open(child.getSessionFile()!).buildSessionContext().messages;
+    assert.deepEqual(restored, context);
+    assert.deepEqual(restored.at(-1), nextAnswer);
+  }
   assert.equal(await readFile(sourcePath, "utf8"), sourceBefore);
 });
 

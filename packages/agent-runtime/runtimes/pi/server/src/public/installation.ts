@@ -21,5 +21,6 @@ export {
 
 export {
   resolvePiWorkspaceRoot,
+  resolvePiWorkspaceId,
   mutatePiWorkspace,
 } from "../workspaces/workspace-service-bindings";

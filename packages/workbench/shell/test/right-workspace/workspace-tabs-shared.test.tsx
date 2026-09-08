@@ -5,6 +5,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { WorkspaceSurfaceRegistryImpl } from "@workbench/extension-sdk/internal";
+import type { WorkspaceSurfaceDefinition } from "@workbench/extension-sdk";
 import { PanelsTopLeftIcon } from "lucide-react";
 
 import { WorkbenchDomIdsProvider } from "../../src/dom";
@@ -57,7 +58,10 @@ test("WorkspaceTabs delegates keyboard navigation to the shared Tabs primitive",
   assert.doesNotMatch(source, /onKeyDown=/u);
 });
 
-async function createTabsHarness(onRender?: (tree: ReturnType<typeof WorkspaceTabs>) => void) {
+async function createTabsHarness(
+  onRender?: (tree: ReturnType<typeof WorkspaceTabs>) => void,
+  tabIndicator?: WorkspaceSurfaceDefinition["tabIndicator"],
+) {
   const dom = installMinimalReactDomEnvironment();
   const listeners = new Map<string, (event: any) => void>();
   const frames = new Map<number, FrameRequestCallback>();
@@ -89,6 +93,7 @@ async function createTabsHarness(onRender?: (tree: ReturnType<typeof WorkspaceTa
     icon: PanelsTopLeftIcon,
     getResourceKey: (params) => String(params.name),
     render: () => null,
+    tabIndicator,
   });
   let controller!: ReturnType<typeof useRightWorkspace>;
   let state!: RightWorkspaceState;
@@ -150,6 +155,35 @@ async function createTabsHarness(onRender?: (tree: ReturnType<typeof WorkspaceTa
 }
 
 const mouse = (button: number) => ({ button, preventDefault: test.mock.fn() });
+
+test("surface-owned indicators receive both background and active tab identities without changing titles", async () => {
+  const Indicator = () => <span aria-label="Live indicator" />;
+  const harness = await createTabsHarness(undefined, Indicator);
+  try {
+    await act(async () => {
+      for (const name of ["Background", "Active"])
+        harness.controller.open({
+          kind: "fixture",
+          title: name,
+          params: { name },
+          context: harness.context,
+          status: "ready",
+        });
+    });
+    for (const index of [0, 1]) {
+      const tab = harness.trigger(index).props.children[0];
+      const indicator = tab.props.children.find((child: any) => child?.type === Indicator);
+      assert.ok(indicator);
+      assert.equal(indicator.props.surface.id, tab.props.value);
+      assert.equal(indicator.props.surface.title, index === 0 ? "Background" : "Active");
+      assert.deepEqual(indicator.props.context, harness.context);
+      assert.equal(indicator.props.isVisible, index === 1);
+      assert.equal(indicator.props.surface.status, "ready");
+    }
+  } finally {
+    await harness.dispose();
+  }
+});
 
 test("drag previews coalesce pointer moves and commit the workspace order only on drop", async () => {
   const previousComputedStyle = Object.getOwnPropertyDescriptor(globalThis, "getComputedStyle");

@@ -104,6 +104,15 @@ export function localAppFileKindFor(
   const normalizedMediaType = mediaType?.split(";", 1)[0]?.trim().toLowerCase();
   const extension = fileExtension(path);
 
+  if (
+    normalizedMediaType === "text/html" ||
+    normalizedMediaType === "application/xhtml+xml" ||
+    extension === "html" ||
+    extension === "htm" ||
+    extension === "xhtml"
+  ) {
+    return "html";
+  }
   if (normalizedMediaType?.startsWith("image/") || isImagePreviewFile(path, mediaType)) {
     return "image";
   }
@@ -136,12 +145,43 @@ export function localAppFileKindFor(
 export function compatibleLocalFileApps(
   apps: readonly WorkbenchLocalApp[],
   fileKind: WorkbenchLocalAppFileKind,
+  path?: string,
 ): WorkbenchLocalApp[] {
+  const extension = fileExtension(path);
   return apps.filter(
     (app) =>
       app.kind !== "terminal" &&
       app.kind !== "file-manager" &&
-      app.supportedFileKinds.includes(fileKind),
+      (app.supportedFileKinds.includes(fileKind) ||
+        (fileKind === "html" &&
+          app.kind === "editor" &&
+          app.supportedFileKinds.includes("text"))) &&
+      (!app.supportedFileExtensions ||
+        Boolean(extension && app.supportedFileExtensions.includes(extension))),
+  );
+}
+
+export const SYSTEM_DEFAULT_APP_ID = "system-default";
+
+export function fileOpenPreferenceKey(
+  path: string | undefined,
+  kind: WorkbenchLocalAppFileKind,
+): string {
+  if (!path) return "folder";
+  const extension = fileExtension(path);
+  return extension ? `extension:${extension}` : `kind:${kind}`;
+}
+
+export function preferredLocalApp(
+  apps: readonly WorkbenchLocalApp[],
+  fileKind: WorkbenchLocalAppFileKind,
+  preferredId: string | undefined,
+): WorkbenchLocalApp | undefined {
+  if (preferredId === SYSTEM_DEFAULT_APP_ID) return undefined;
+  return (
+    apps.find((app) => app.id === preferredId) ??
+    (fileKind === "pdf" ? apps.find((app) => app.kind === "pdf-reader") : undefined) ??
+    apps[0]
   );
 }
 
@@ -151,4 +191,38 @@ export function localSystemApps(apps: readonly WorkbenchLocalApp[]): WorkbenchLo
 
 export function compatibleLocalFolderApps(apps: readonly WorkbenchLocalApp[]): WorkbenchLocalApp[] {
   return apps.filter((app) => app.kind === "editor");
+}
+
+export function fileOpenSelectors(
+  apps: readonly WorkbenchLocalApp[],
+  path: string | undefined,
+  fileKind: WorkbenchLocalAppFileKind,
+  preferredAppIds: Readonly<Record<string, string>>,
+) {
+  const compatible = path
+    ? compatibleLocalFileApps(apps, fileKind, path)
+    : compatibleLocalFolderApps(apps);
+  const fileKey = fileOpenPreferenceKey(path, fileKind);
+  return (["file", "browser"] as const)
+    .map((id) => {
+      const choices = compatible.filter((app) => (app.kind === "browser") === (id === "browser"));
+      const preferenceKey = id === "browser" ? `browser:${fileKey}` : fileKey;
+      const preferredId =
+        preferredAppIds[preferenceKey] ?? (id === "browser" ? preferredAppIds[fileKey] : undefined);
+      const allowSystemDefault = id === "file" && fileKind !== "html";
+      const preferred = preferredLocalApp(choices, fileKind, preferredId);
+      return {
+        id,
+        apps: choices,
+        preferenceKey,
+        allowSystemDefault,
+        primaryApp: preferred ?? (allowSystemDefault ? undefined : choices[0]),
+      };
+    })
+    .filter(
+      (selector) =>
+        selector.id === "file" ||
+        selector.apps.length > 0 ||
+        (Boolean(path) && (fileKind === "html" || fileKind === "pdf")),
+    );
 }

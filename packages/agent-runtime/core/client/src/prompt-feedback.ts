@@ -3,6 +3,12 @@ export interface PromptFeedbackItem {
   readonly kind: string;
   readonly target: Readonly<Record<string, unknown>>;
   readonly text: string;
+  /** Binary image content travels through the Runtime's normal image attachment admission. */
+  readonly images?: readonly {
+    readonly data: string;
+    readonly mimeType: string;
+    readonly name?: string;
+  }[];
 }
 
 /** Opaque ownership token for one immutable snapshot of pending prompt feedback. */

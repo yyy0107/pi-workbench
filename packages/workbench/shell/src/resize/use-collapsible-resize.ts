@@ -241,11 +241,18 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
       session.startWidth + current.direction * (event.clientX - session.startX);
     const releaseDistance = current.releaseDistance ?? DEFAULT_RELEASE_DISTANCE;
     if (session.collapsed) {
-      if (requestedWidth < session.collapseThreshold + releaseDistance) return;
+      session.rawWidth = Math.min(session.rawWidth, requestedWidth);
+      const expansionDistance = requestedWidth - session.rawWidth;
+      if (expansionDistance < releaseDistance) return;
 
       session.collapsed = false;
       current.onOpenChange(true);
-      const rawWidth = clampExpandedWidth(session, requestedWidth);
+      const rawWidth = clampExpandedWidth(
+        session,
+        session.minimumWidth + expansionDistance - releaseDistance,
+      );
+      // Continue from the reopened width while retaining the original width for cancellation.
+      session.startX = event.clientX - current.direction * (rawWidth - session.startWidth);
       session.rawWidth = rawWidth;
       animatePreview(session, snapDragWidth(session, rawWidth), event.currentTarget);
       return;
@@ -253,6 +260,7 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
 
     if (requestedWidth < session.collapseThreshold) {
       session.collapsed = true;
+      session.rawWidth = requestedWidth;
       animatePreview(session, 0, event.currentTarget, () => {
         if (!session.collapsed || sessionRef.current === session) return;
         optionsRef.current.onCommit(session.minimumWidth);

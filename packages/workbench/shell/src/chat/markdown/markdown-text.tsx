@@ -42,6 +42,7 @@ import {
 import { cn } from "../../utils";
 import { CodexCodeHeader } from "./codex-code-header";
 import { MermaidCode } from "./mermaid-code";
+import { MarkdownFileLink, MarkdownLinkIcon, markdownLinkIconPlugins } from "./markdown-link-icons";
 import {
   INLINE_CITATION_GROUP_SENTINEL,
   parseInlineCitationUrlSentinel,
@@ -249,6 +250,8 @@ function MarkdownCode({
 
 const sourceCodeComponents = {
   code: MarkdownCode,
+  span: MarkdownLinkIcon,
+  "workbench-file-link": MarkdownFileLink,
   sup: MarkdownSuperscript,
 } as Components;
 
@@ -307,8 +310,11 @@ function MarkdownLinkSafetyDialog({ isOpen, onClose, onConfirm, url }: LinkSafet
           </Button>
           <Button
             type="button"
-            onClick={() => {
-              onConfirm();
+            onClick={(event) => {
+              const request = new CustomEvent("workbench:open-browser-link", {
+                bubbles: true, cancelable: true, detail: { url },
+              });
+              if (event.currentTarget.dispatchEvent(request)) onConfirm();
               close();
             }}
           >
@@ -418,6 +424,7 @@ export const MarkdownTextContentWithCitations = memo(function MarkdownTextConten
         defer={isRunning}
         mode={isRunning ? "streaming" : "static"}
         preprocess={preprocess}
+        rehypePlugins={markdownLinkIconPlugins}
         smooth
       />
     </InlineCitationContext.Provider>

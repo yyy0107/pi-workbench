@@ -87,6 +87,8 @@ export const assistantZhCN = {
     closeZoom: "关闭图片预览",
     generating: "正在生成图片…",
     failed: "图片生成失败",
+    stopped: "图片生成已停止",
+    loadFailed: "图片加载失败",
     providerBlocked: "服务提供方阻止了此图片。",
     regenerate: "重新生成图片",
     download: "下载图片",

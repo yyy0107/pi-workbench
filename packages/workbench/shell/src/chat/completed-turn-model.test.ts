@@ -31,6 +31,15 @@ test("includes every block when a completed turn has no text body", () => {
   assert.equal(completedWorkBoundary([{ kind: "reasoning" }, { kind: "tool-call" }]), 2);
 });
 
+test("keeps generated images outside completed work, including images before final text", () => {
+  const image = { kind: "file", mediaType: "image/png" };
+  assert.equal(completedWorkBoundary([image]), 0);
+  assert.equal(completedWorkBoundary([{ kind: "reasoning" }, image]), 1);
+  assert.equal(completedWorkBoundary([{ kind: "tool-call" }, image, image, { kind: "text" }]), 1);
+  assert.equal(completedWorkBoundary([{ kind: "reasoning" }, { kind: "text" }, image]), 1);
+  assert.equal(completedWorkBoundary([{ kind: "file", source: "data:image/png;base64,abc" }]), 0);
+});
+
 test("folds every assistant work block before the final answer", () => {
   const boundary = completedWorkBoundary([{ kind: "data" }]);
 

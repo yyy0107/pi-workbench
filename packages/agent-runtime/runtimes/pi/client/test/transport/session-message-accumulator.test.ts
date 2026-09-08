@@ -8,6 +8,7 @@ import type {
   SessionMessageUpdatePayload,
 } from "@workbench/agent-runtime-pi-protocol/stream";
 import { piAssistantToThreadMessage } from "../../src/messages/messages";
+import { piHistoryFromSessionEvents } from "../../src/sessions/session-rpc-projection";
 
 const { SessionMessageAccumulator } = (await import(
   new URL("../../src/transport/session-message-accumulator.ts", import.meta.url).href
@@ -295,17 +296,29 @@ test("preserves reconnect snapshot tool JSON until the tool call ends", () => {
 
 test("replays packed durable chunks and advances their canonical sequence after a snapshot", () => {
   const accumulator = new SessionMessageAccumulator();
-  accumulator.start({ role: "assistant", content: [] }, 10, 1);
-  const first = accumulator.applyChunk(
-    chunk(1, 3, [
+  const initial: PiAssistantMessage = { role: "assistant", content: [] };
+  accumulator.start(initial, 10, 1);
+  const firstChunk = {
+    ...chunk(1, 5, [
       { type: "text_start", contentIndex: 0 },
       { type: "text_delta", contentIndex: 0, delta: "Hello" },
+      { type: "thinking_start", contentIndex: 1 },
+      {
+        type: "thinking_end",
+        contentIndex: 1,
+        content: "reasoning",
+        contentSignature: "thinking-signature",
+      },
     ]),
-    11,
-    2,
-  );
-  const firstMessage = messageFrom(first) as { content: Array<{ text?: string }> };
-  assert.equal(firstMessage.content[0]?.text, "Hello");
+    message: { role: "assistant" as const, model: "model-1", providerThinkingLevel: "high" },
+  };
+  const first = accumulator.applyChunk(firstChunk, 11, 2);
+  const firstMessage = messageFrom(first) as unknown as PiAssistantMessage;
+  assert.deepEqual(firstMessage.content, [
+    { type: "text", text: "Hello" },
+    { type: "thinking", thinking: "reasoning", thinkingSignature: "thinking-signature" },
+  ]);
+  assert.equal(firstMessage.providerThinkingLevel, "high");
   assert.equal(first.kind === "event" ? first.event.sequence : undefined, 11);
 
   const snapshot = new SessionMessageAccumulator();
@@ -315,23 +328,54 @@ test("replays packed durable chunks and advances their canonical sequence after 
     sessionId: "session-1",
     streamId: "stream-1",
     startSeq: 10,
-    revision: 3,
+    revision: 5,
     time: 2,
-    message: { role: "assistant", content: [{ type: "text", text: "Hello" }] },
+    message: JSON.parse(JSON.stringify(firstMessage)),
   });
-  const duplicate = snapshot.applyChunk(
-    chunk(1, 3, [{ type: "text_delta", contentIndex: 0, delta: "Hello" }]),
-    11,
-    2,
-  );
+  const duplicate = snapshot.applyChunk(firstChunk, 11, 2);
   assert.equal(duplicate.kind, "event");
   if (duplicate.kind !== "event") return;
   assert.equal(duplicate.event.sequence, 11);
   const duplicateMessage = duplicate.event.message as PiAssistantMessage;
-  assert.equal(
-    duplicateMessage.content[0]?.type === "text"
-      ? (duplicateMessage.content[0] as { text: string }).text
-      : undefined,
-    "Hello",
+  assert.deepEqual(duplicateMessage, firstMessage);
+  const continued = messageFrom(
+    snapshot.applyChunk(
+      chunk(6, 6, [
+        {
+          type: "text_end",
+          contentIndex: 0,
+          content: "Hello!",
+          contentSignature: "text-signature",
+        },
+      ]),
+      12,
+      3,
+    ),
   );
+  assert.equal(continued.providerThinkingLevel, "high");
+  assert.deepEqual(continued.content, [
+    { type: "text", text: "Hello!", textSignature: "text-signature" },
+    { type: "thinking", thinking: "reasoning", thinkingSignature: "thinking-signature" },
+  ]);
+
+  const finalMessage: PiAssistantMessage = {
+    ...firstMessage,
+    providerThinkingLevel: "max",
+    stopReason: "error",
+    errorMessage: "provider disconnected",
+    content: [
+      { type: "text", text: "corrected", textSignature: "final-signature" },
+      { type: "thinking", thinking: "reasoning", thinkingSignature: "thinking-signature" },
+    ],
+  };
+  const history = piHistoryFromSessionEvents("session-1", {
+    events: [
+      { event: { type: "message_start", seq: 10, time: 1, data: { message: initial } } },
+      { event: { type: "message_update", seq: 11, time: 2, data: firstChunk } },
+      { event: { type: "message_end", seq: 12, time: 3, data: { message: finalMessage } } },
+    ],
+    hasMore: false,
+  });
+  assert.deepEqual(history.context.messages, [finalMessage]);
+  assert.equal(history.context.activeAssistant, undefined);
 });

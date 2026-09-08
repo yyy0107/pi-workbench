@@ -8,6 +8,11 @@ export interface WorkspaceFeedback {
   readonly kind: WorkspaceFeedbackKind;
   readonly target: Readonly<Record<string, unknown>>;
   readonly text: string;
+  readonly images?: readonly {
+    readonly data: string;
+    readonly mimeType: string;
+    readonly name?: string;
+  }[];
   readonly scope: WorkspaceScope;
   readonly threadId?: string;
   readonly createdAt: number;
@@ -15,12 +20,10 @@ export interface WorkspaceFeedback {
 
 export type WorkspaceFeedbackDraft = Omit<WorkspaceFeedback, "id" | "createdAt">;
 
-export interface WorkspaceFeedbackClaimItem {
-  readonly id: string;
-  readonly kind: string;
-  readonly target: Readonly<Record<string, unknown>>;
-  readonly text: string;
-}
+export type WorkspaceFeedbackClaimItem = Pick<
+  WorkspaceFeedback,
+  "id" | "kind" | "target" | "text" | "images"
+>;
 
 /** Opaque ownership token for one immutable snapshot of pending workspace feedback. */
 export interface WorkspaceFeedbackClaim {

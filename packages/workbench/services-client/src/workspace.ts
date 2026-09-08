@@ -17,12 +17,8 @@ import type {
   WorkbenchWorkspaceGitStatus as WorkspaceGitStatus,
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 import { callServiceRpc, capabilityCall } from "./errors";
-import {
-  RpcClientError,
-  resolveRuntimeFetch,
-  type RpcCallOptions,
-} from "@workbench/host-client/rpc";
-import type { RuntimeFetch } from "@workbench/host-client";
+import type { RpcCallOptions } from "@workbench/host-client/rpc";
+import { fetchFileContent, streamFileText, type StreamFileTextOptions } from "./file-content";
 
 export function listWorkspaceFiles(
   payload: WorkspaceFilesListPayload,
@@ -53,93 +49,24 @@ export function workspaceFileContentUrl(payload: WorkspaceFileDescribePayload): 
   return `/api/workspace.files.content?${query.toString()}`;
 }
 
-/**
- * Read a binary preview through the installation-bound HTTP carrier. Desktop sidecars cannot use
- * a bare `<img src="/api/...">` because that request cannot carry the in-memory Bearer token.
- */
-export async function fetchWorkspaceFileContent(
+export function fetchWorkspaceFileContent(
   payload: WorkspaceFileDescribePayload,
   options?: RpcCallOptions,
 ): Promise<Blob> {
-  const response = await resolveRuntimeFetch(options?.transport)(workspaceFileContentUrl(payload), {
-    headers: { Accept: "*/*" },
-    signal: options?.signal,
-  });
-  if (!response.ok) throw new RpcClientError("workspace_file_content_failed", response.status);
-  return response.blob();
+  return fetchFileContent(workspaceFileContentUrl(payload), options);
 }
 
-export interface WorkspaceFileTextChunk {
-  text: string;
-  loadedBytes: number;
-  totalBytes?: number;
-}
-
-export interface StreamWorkspaceFileTextOptions {
-  signal?: AbortSignal;
-  onChunk(chunk: WorkspaceFileTextChunk): void;
-  /** Directs this file-content request to one explicit Runtime Host. */
-  transport?: RuntimeFetch;
-}
-
-function contentLength(response: Response): number | undefined {
-  const header = response.headers.get("content-length");
-  if (header === null) return undefined;
-  const value = Number(header);
-  return Number.isSafeInteger(value) && value >= 0 ? value : undefined;
-}
-
-function decodeWorkspaceFileText(decoder: TextDecoder, value?: Uint8Array, stream = false): string {
-  try {
-    return value ? decoder.decode(value, { stream }) : decoder.decode();
-  } catch {
-    throw new RpcClientError("workspace-file-unsupported-encoding", 422);
-  }
-}
-
-export async function streamWorkspaceFileText(
+export function streamWorkspaceFileText(
   payload: WorkspaceFileDescribePayload,
-  { signal, onChunk, transport }: StreamWorkspaceFileTextOptions,
-): Promise<{ loadedBytes: number; totalBytes?: number }> {
-  const response = await resolveRuntimeFetch(transport)(workspaceFileContentUrl(payload), {
-    headers: { Accept: "text/plain, text/*;q=0.9, application/json;q=0.8, */*;q=0.1" },
-    signal,
-  });
-  if (!response.ok) {
-    throw new RpcClientError("workspace_file_content_failed", response.status);
-  }
-
-  const totalBytes = contentLength(response);
-  const decoder = new TextDecoder("utf-8", { fatal: true });
-  const reader = response.body?.getReader();
-  if (!reader) throw new RpcClientError("workspace_file_content_unavailable", response.status);
-
-  let loadedBytes = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      signal?.throwIfAborted();
-      if (done) break;
-      if (value.includes(0)) {
-        throw new RpcClientError("workspace-file-unsupported-encoding", 422);
-      }
-      loadedBytes += value.byteLength;
-      const text = decodeWorkspaceFileText(decoder, value, true);
-      onChunk({ text, loadedBytes, ...(totalBytes === undefined ? {} : { totalBytes }) });
-    }
-    const text = decodeWorkspaceFileText(decoder);
-    if (text) {
-      onChunk({ text, loadedBytes, ...(totalBytes === undefined ? {} : { totalBytes }) });
-    }
-  } catch (error) {
-    if (error instanceof RpcClientError || signal?.aborted) throw error;
-    throw new RpcClientError("workspace_file_content_failed", response.status);
-  } finally {
-    reader.releaseLock();
-  }
-
-  return { loadedBytes, ...(totalBytes === undefined ? {} : { totalBytes }) };
+  options: StreamFileTextOptions,
+) {
+  return streamFileText(workspaceFileContentUrl(payload), options);
 }
+
+export type {
+  FileTextChunk as WorkspaceFileTextChunk,
+  StreamFileTextOptions as StreamWorkspaceFileTextOptions,
+} from "./file-content";
 
 export function readWorkspaceFile(
   payload: WorkspaceFileReadPayload,

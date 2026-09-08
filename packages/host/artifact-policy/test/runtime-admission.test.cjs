@@ -6,6 +6,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const { TERMINAL_WEBSOCKET_PATH } = require("@workbench/terminal-contracts");
+const { BROWSER_WEBSOCKET_PATH } = require("@workbench/browser-contracts");
 
 const nativeRuntime = require("../src/runtime-native.cjs");
 const modelResources = require("../src/runtime-model-resources.cjs");
@@ -26,6 +27,7 @@ test("creates an immutable Runtime admission policy without owning an Agent Runt
   assert.deepEqual(policy.expectedUpgradePaths, [
     ...agentRuntimeUpgradePaths,
     TERMINAL_WEBSOCKET_PATH,
+    BROWSER_WEBSOCKET_PATH,
   ]);
   assert.notStrictEqual(policy.expectedUpgradePaths, agentRuntimeUpgradePaths);
   assert.throws(

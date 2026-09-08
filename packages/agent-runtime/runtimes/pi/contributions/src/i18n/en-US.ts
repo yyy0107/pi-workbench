@@ -2,6 +2,26 @@ import type { MessageFormatters } from "@workbench/shell/i18n";
 
 export const piExtensionsEnUS = {
   extensions: {
+    skillReading: {
+      document: {
+        loading: ({ name }: { name: string }) => `Reading ${name} skill`,
+        read: ({ name }: { name: string }) => `Read ${name} skill`,
+        partial: ({ name }: { name: string }) => `Partially read ${name} skill`,
+        empty: ({ name }: { name: string }) => `No content returned for ${name} skill`,
+        error: ({ name }: { name: string }) => `Could not read ${name} skill`,
+        cancelled: ({ name }: { name: string }) => `Reading ${name} skill was cancelled`,
+        waiting: ({ name }: { name: string }) => `Waiting to read ${name} skill`,
+      },
+      resource: {
+        loading: ({ name }: { name: string }) => `Reading ${name} skill resources`,
+        read: ({ name }: { name: string }) => `Read ${name} skill resources`,
+        partial: ({ name }: { name: string }) => `Partially read ${name} skill resources`,
+        empty: ({ name }: { name: string }) => `No content returned for ${name} skill resources`,
+        error: ({ name }: { name: string }) => `Could not read ${name} skill resources`,
+        cancelled: ({ name }: { name: string }) => `Reading ${name} skill resources was cancelled`,
+        waiting: ({ name }: { name: string }) => `Waiting to read ${name} skill resources`,
+      },
+    },
     usageStatistics: {
       title: "Usage statistics",
       description: "Explore your token usage and conversation activity.",
@@ -625,6 +645,12 @@ export const piExtensionsEnUS = {
         packageRemoved:
           "The Pi package was uninstalled and its capabilities were removed from the sessions.",
       },
+      browser: {
+        name: "Browser",
+        description: "Control the in-app browser",
+        details:
+          "Navigate pages, inspect their content, click elements, type into forms, and take screenshots in the Workbench browser. Manage permissions and site access in Settings → Browser.",
+      },
       builtins: {
         enhancedSearch: "Enhanced Find and Grep",
         enhancedSearchDescription:
@@ -760,6 +786,7 @@ export const piExtensionsEnUS = {
           "Plugin connections are not part of the current Workbench/Pi protocol. Accounts and connection status cannot be listed yet.",
       },
       packages: {
+        openInstalledPackage: "Open Pi Package",
         title: "Pi Packages",
         installedTitle: "Installed Pi Packages",
         officialCatalog: "Official Pi catalog",

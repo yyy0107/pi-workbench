@@ -102,6 +102,10 @@ Use API subpaths only for direct/custom-provider wire implementations:
 import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 ```
 
+Pi AI 0.85.1 also exposes `utils/*` for narrow utility imports. The new
+`AssistantMessageFrameEncoder` and `reduceAssistantMessageFrames()` do not replace Workbench's
+`pi-messages-v1` protocol; changing the stored wire format needs its own compatibility work.
+
 Never use:
 
 ```ts

@@ -23,7 +23,7 @@ Use Pi AI as the provider-neutral model, message, streaming, tool-schema, authen
 - Inspect `package.json`, the resolved `node_modules/@earendil-works/pi-ai/package.json`, and its `exports` map.
 - Treat the installed `dist/*.d.ts` and bundled `README.md` as authoritative for Workbench compilation.
 - Use `/home/wy/projects/pi/packages/ai/src/` to understand implementation or upstream ownership, but account for version drift.
-- Import only from documented exports: the root, `providers/*`, `api/*`, `oauth`, `bedrock-provider`, or `bun-oauth`. Never import `dist/**`.
+- Import only from documented exports: the root, `providers/*`, `api/*`, `utils/*`, `oauth`, `bedrock-provider`, or `bun-oauth`. Never import `dist/**`.
 - Avoid `@earendil-works/pi-ai/compat` in new code; it is the legacy global registry surface.
 
 ### 2. Choose the owning runtime

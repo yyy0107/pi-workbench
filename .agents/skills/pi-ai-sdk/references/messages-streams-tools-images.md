@@ -31,7 +31,7 @@ Message roles are `user`, `assistant`, and `toolResult`. Assistant content block
 
 Contexts and models are plain serializable data, but Workbench should still use its canonical session history/contracts rather than inventing a second persistence format.
 
-Do not drop provider continuity fields such as response ids, thinking signatures, text signatures, or tool-call ids when replaying a message unless the owning adapter explicitly transforms them.
+Do not drop provider continuity fields such as response ids, `providerThinkingLevel`, thinking signatures, text signatures, or tool-call ids when replaying a message unless the owning adapter explicitly transforms them.
 
 ## Consume AssistantMessageEvent streams
 
@@ -62,11 +62,11 @@ const message = await stream.result();
 
 Stream invariants:
 
-- `start` precedes partial updates.
+- `start` precedes partial updates and `done`; request setup failures can terminate directly with `error` before `start`.
 - `done` or `error` is terminal.
 - Text, thinking, and tool-call events may interleave; always route by `contentIndex`.
-- The event's `partial` message is cumulative but should not be serialized into Workbench's compact delta channel on every token.
-- Request failures do not normally throw from the stream; inspect the terminal event and final `AssistantMessage.stopReason`.
+- The event's `partial` is a shared live accumulator, not an event-time snapshot; do not serialize it into Workbench's compact delta channel on every token.
+- Inspect terminal events and the final `AssistantMessage.stopReason` for request failures. Direct `streamSimple()` calls can throw synchronously when request auth is missing.
 - `complete()` and `completeSimple()` consume the stream and return the same final message, including error/aborted results.
 
 Use `streamSimple()` for provider-neutral reasoning levels. Use `stream()` plus `hasApi()` when provider-specific options are required.

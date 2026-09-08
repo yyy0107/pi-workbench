@@ -6,6 +6,7 @@ import { useI18n } from "../../i18n";
 import { MIN_AUXILIARY_SURFACE_WIDTH, auxiliarySurfaceSnapPoints } from "../../right-workspace";
 import { useCollapsibleResize } from "../../resize";
 import { useRightWorkspace } from "../../right-workspace-react";
+import { beginRightWorkspaceResize } from "../workspace-resize-preview";
 
 export function WorkspaceSplitResizeHandle({
   width,
@@ -18,7 +19,7 @@ export function WorkspaceSplitResizeHandle({
 }>) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
-  const resizingWorkspace = useRef<HTMLElement | null>(null);
+  const finishResizeRef = useRef<(() => void) | null>(null);
   const resize = useCollapsibleResize({
     width,
     minimumWidth: MIN_AUXILIARY_SURFACE_WIDTH,
@@ -32,17 +33,8 @@ export function WorkspaceSplitResizeHandle({
     onCommit: controller.setAuxiliaryWidth,
     onOpenChange: controller.setAuxiliaryOpen,
     onResizingChange: (resizing) => {
-      if (resizing) {
-        const workspace =
-          paneRef.current?.closest<HTMLElement>('[data-workbench-surface="right-workspace"]') ??
-          null;
-        resizingWorkspace.current = workspace;
-        workspace?.setAttribute("data-resizing", "true");
-        return;
-      }
-
-      resizingWorkspace.current?.removeAttribute("data-resizing");
-      resizingWorkspace.current = null;
+      finishResizeRef.current?.();
+      finishResizeRef.current = resizing ? beginRightWorkspaceResize(paneRef.current) : null;
     },
   });
 

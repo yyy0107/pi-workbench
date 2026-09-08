@@ -61,6 +61,7 @@ test("routes Next, Runtime HTTP, exact Runtime upgrades, and HMR to their sole o
     "/api/events.mux",
     "/api/events.host",
     "/api/terminal",
+    "/api/browser/ws",
   ]);
   const port = await unusedLoopbackPort();
   const publicOrigin = `http://${RUNTIME_CONNECTED_WEB_HOST}:${port}`;

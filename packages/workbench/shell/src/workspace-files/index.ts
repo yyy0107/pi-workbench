@@ -5,6 +5,7 @@ export {
   workspaceRelativePath,
   type FileWorkspaceBackend,
   type FileWorkspaceResourceBackend,
+  type LocalFileWorkspaceBackend,
 } from "./buffered-file-workspace-service";
 export {
   MemoryFileDiffService,
@@ -23,11 +24,13 @@ export {
   resolveFileWorkspaceSession,
   type ExtensionFileSession,
   type FileDescriptor,
+  type FileContentTarget,
   type FileDirectoryListing,
   type FileNode,
   type FileSnapshot,
   type FileWorkspaceService,
   type FileWorkspaceSession,
+  type LocalFileSession,
   type ResourceCatalogTarget,
   type ResourceFileSession,
   type SkillFileSession,
@@ -41,3 +44,4 @@ export {
   useWorkspaceFileRuntime,
   type WorkspaceFileRuntime,
 } from "./workspace-file-runtime";
+export { fileLinkResource, openFileLink, parseLocalFileHref } from "./file-link";

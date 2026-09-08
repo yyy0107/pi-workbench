@@ -11,11 +11,12 @@ export function createRightWorkspacePromptFeedbackPort(
       if (!claim) return undefined;
       return {
         token: claim.token,
-        items: claim.items.map(({ id, kind, target, text }) => ({
+        items: claim.items.map(({ id, kind, target, text, images }) => ({
           id,
           kind,
           target: { ...target },
           text,
+          ...(images ? { images: images.map((image) => ({ ...image })) } : {}),
         })),
       };
     },

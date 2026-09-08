@@ -1,0 +1,11 @@
+# Screenshots, viewport, and coordinate input
+
+- Use `action: "screenshot"` for visual inspection or when a snapshot cannot represent the target. Search a truncated snapshot with `params.query` first when the target has a known name. For unlabeled controls or unavailable frames, use a screenshot when image input is supported by the current model.
+
+- `viewport` and `capture` report CSS dimensions; `pixels` reports the encoded bitmap dimensions. For a viewport image you inspected at W × H, click at `x = imageX * viewport.width / W`, `y = imageY * viewport.height / H`. Use W/H of the image actually displayed to you, or `pixels` when inspecting the original bitmap. Apply this ratio once; do not multiply by device density or zoom again. A full-page image includes content outside the viewport; scroll and take a viewport screenshot before clicking.
+
+- Ordinary pages lay out within the available viewport at the selected zoom. Responsive sites can reflow in a narrow panel; sites with fixed-width content may require horizontal scrolling. Device previews use their chosen device dimensions, and screenshot pixel density does not change the page's CSS layout width.
+
+- Screenshot results include an image content block and CSS dimensions. If the current model does not support image input, use text snapshots; do not claim to have inspected an image or guess coordinates from an image you cannot see. They do not automatically save a file or open an external image viewer. In standalone Pi, inline image display also depends on the terminal's image support and Pi's terminal image settings.
+
+Use `{"action":"click","sessionId":"<current-session>","params":{"x":120,"y":80}}` for a complete left click at screenshot-derived CSS coordinates. Prefer `params.ref` when the snapshot exposes the intended element; never combine both forms. Reserve `input` with `params.event` for individual mouse, scrolling, keyboard, or text events. Do not change viewport dimensions, zoom, or device emulation just to simplify coordinate conversion. After scrolling, resizing, or user interaction, inspect a fresh image before another coordinate click. Ordinary interaction does not require full CDP access.

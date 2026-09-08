@@ -4,6 +4,26 @@ import { piExtensionsEnUS } from "./en-US";
 
 export const piExtensionsZhCN = {
   extensions: {
+    skillReading: {
+      document: {
+        loading: ({ name }: { name: string }) => `正在读取 ${name} 技能`,
+        read: ({ name }: { name: string }) => `已读取 ${name} 技能`,
+        partial: ({ name }: { name: string }) => `已部分读取 ${name} 技能`,
+        empty: ({ name }: { name: string }) => `未读到 ${name} 技能内容`,
+        error: ({ name }: { name: string }) => `${name} 技能读取失败`,
+        cancelled: ({ name }: { name: string }) => `已取消读取 ${name} 技能`,
+        waiting: ({ name }: { name: string }) => `等待读取 ${name} 技能`,
+      },
+      resource: {
+        loading: ({ name }: { name: string }) => `正在读取 ${name} 技能资料`,
+        read: ({ name }: { name: string }) => `已读取 ${name} 技能资料`,
+        partial: ({ name }: { name: string }) => `已部分读取 ${name} 技能资料`,
+        empty: ({ name }: { name: string }) => `未读到 ${name} 技能资料内容`,
+        error: ({ name }: { name: string }) => `${name} 技能资料读取失败`,
+        cancelled: ({ name }: { name: string }) => `已取消读取 ${name} 技能资料`,
+        waiting: ({ name }: { name: string }) => `等待读取 ${name} 技能资料`,
+      },
+    },
     usageStatistics: {
       title: "使用统计",
       description: "查看 Token 用量与聊天活动记录。",
@@ -575,6 +595,12 @@ export const piExtensionsZhCN = {
         removed: "Skill 已删除。",
         packageRemoved: "Pi Package 已卸载，相关能力已从会话中移除。",
       },
+      browser: {
+        name: "Browser",
+        description: "控制应用内浏览器",
+        details:
+          "在 Workbench 浏览器中打开网页、检查页面内容、点击元素、填写表单和截取屏幕。在「设置 → 浏览器」中管理权限与网站访问。",
+      },
       builtins: {
         enhancedSearch: "增强 Find 和 Grep",
         enhancedSearchDescription:
@@ -700,6 +726,7 @@ export const piExtensionsZhCN = {
           "当前 Workbench/Pi 协议尚未包含 Plugin 连接，因此暂时无法列出账号和连接状态。",
       },
       packages: {
+        openInstalledPackage: "打开 Pi Package",
         title: "Pi Packages",
         installedTitle: "已安装的 Pi Packages",
         officialCatalog: "Pi 官方目录",

@@ -33,6 +33,9 @@ import type {
   WorkbenchHostDirectoryListing,
   WorkbenchLocalApp,
   WorkbenchLocalAppOpenRequest,
+  WorkbenchLocalFileDescriptor,
+  WorkbenchLocalFileSnapshot,
+  WorkbenchLocalFilesListResult,
   WorkbenchProjectTrust,
 } from "@workbench/host-contracts/runtime-capabilities";
 
@@ -64,7 +67,8 @@ export class WorkbenchAgentCapabilityError extends Error {
 }
 
 export interface WorkbenchRuntimeHostCapability {
-  pickDirectory(): Promise<string | undefined>;
+  readonly files?: WorkbenchLocalFilesCapability;
+  pickDirectory(options?: WorkbenchCapabilityRequestOptions): Promise<string | undefined>;
   listDirectory(path?: string): Promise<WorkbenchHostDirectoryListing>;
   createDirectory(path: string, name: string): Promise<string>;
   openPath(path: string): Promise<void>;
@@ -72,6 +76,23 @@ export interface WorkbenchRuntimeHostCapability {
   openLocalApp(request: WorkbenchLocalAppOpenRequest): Promise<void>;
   describeProjectTrust(path: string): Promise<WorkbenchProjectTrust>;
   updateProjectTrust(path: string, trusted: boolean): Promise<WorkbenchProjectTrust>;
+}
+
+export interface WorkbenchLocalFilesCapability {
+  listDirectory(path: string): Promise<WorkbenchLocalFilesListResult>;
+  describeFile(path: string): Promise<WorkbenchLocalFileDescriptor>;
+  readFile(path: string): Promise<WorkbenchLocalFileSnapshot>;
+  writeFile(
+    path: string,
+    content: string,
+    expectedVersion: string,
+  ): Promise<WorkbenchLocalFileSnapshot>;
+  fileContentUrl(path: string): string;
+  fetchFileContent(path: string, options?: WorkbenchCapabilityRequestOptions): Promise<Blob>;
+  streamFileText(
+    path: string,
+    options: WorkbenchWorkspaceFileStreamOptions,
+  ): Promise<WorkbenchWorkspaceFileTextResult>;
 }
 
 export interface WorkbenchCapabilityRequestOptions {

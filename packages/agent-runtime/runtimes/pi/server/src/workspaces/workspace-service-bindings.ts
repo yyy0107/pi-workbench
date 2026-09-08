@@ -2,16 +2,12 @@ import {
   WorkspaceGitServiceError,
   type WorkspaceMutationResult,
 } from "@workbench/workspace-server/git";
-import { getWorkspaceStore } from "./workspace-registry";
 import {
   getPiResourceMutationCoordinator,
   PiResourceMutationBusyError,
 } from "../resources/pi-resource-mutation-coordinator";
 
-export async function resolvePiWorkspaceRoot(workspaceId: string): Promise<string | undefined> {
-  return (await getWorkspaceStore().list()).items.find((item) => item.workspaceId === workspaceId)
-    ?.path;
-}
+export { resolvePiWorkspaceRoot, resolvePiWorkspaceId } from "./workspace-registry";
 
 export async function mutatePiWorkspace<Value>(
   rootPath: string,

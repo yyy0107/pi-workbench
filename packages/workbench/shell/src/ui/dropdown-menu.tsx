@@ -112,13 +112,14 @@ function DropdownMenuSubTrigger({
       data-slot="dropdown-menu-sub-trigger"
       data-inset={inset}
       className={cn(
-        "flex cursor-default items-center gap-1.5 rounded-md px-1.5 pt-[var(--control-content-padding-block-compact-start)] pb-[var(--control-content-padding-block-compact-end)] text-sm leading-[var(--control-text-line-height)]! outline-hidden select-none focus:[background:var(--control-state-background-selected)] focus:[color:var(--control-state-foreground-selected)] not-data-[variant=destructive]:focus:**:[color:var(--control-state-foreground-selected)] data-inset:pl-7 data-popup-open:[background:var(--control-state-background-selected)] data-popup-open:[color:var(--control-state-foreground-selected)] data-open:[background:var(--control-state-background-selected)] data-open:[color:var(--control-state-foreground-selected)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--icon-size-md)]",
+        menuItemStyles,
+        "data-popup-open:[background:var(--control-state-background-selected)] data-popup-open:[color:var(--control-state-foreground-selected)] data-open:[background:var(--control-state-background-selected)] data-open:[color:var(--control-state-foreground-selected)]",
         className,
       )}
       {...props}
     >
       {children}
-      <ChevronRightIcon className="ml-auto" />
+      <ChevronRightIcon aria-hidden="true" className="ml-auto" />
     </MenuPrimitive.SubmenuTrigger>
   );
 }
