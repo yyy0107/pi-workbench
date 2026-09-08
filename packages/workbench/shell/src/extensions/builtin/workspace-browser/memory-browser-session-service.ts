@@ -76,6 +76,7 @@ function normalizeUrl(value: string): string {
   );
   const hasScheme = /^[a-z][a-z\d+.-]*:/i.test(trimmed) && !hostWithPort;
   const url = new URL(hasScheme ? trimmed : `https://${trimmed}`);
+  if (url.protocol === "file:" && !url.hostname) return url.href;
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) {
     throw new Error("Browser addresses must use HTTP or HTTPS without credentials.");
   }

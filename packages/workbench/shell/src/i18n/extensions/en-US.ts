@@ -752,6 +752,7 @@ export const extensionsEnUS = {
     open: "Open",
     openOptions: "Open options",
     editorOptions: "Choose editor",
+    openInInternalBrowser: "Open in internal browser",
     browserOptions: "Choose browser",
     noCompatibleApps: "No compatible applications found.",
     openPreferenceLoadFailed: "Saved application choices could not be loaded.",

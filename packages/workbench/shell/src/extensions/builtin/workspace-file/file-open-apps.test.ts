@@ -247,7 +247,10 @@ test("gives HTML separate editor and browser selectors with independent remember
   const missingEditor = fileOpenSelectors([choices.at(-1)!], "index.html", "html", {});
   assert.equal(missingEditor[0]?.primaryApp, undefined);
   assert.equal(missingEditor[0]?.allowSystemDefault, false);
-  assert.equal(fileOpenSelectors([], "index.html", "html", {}).length, 1);
+  assert.deepEqual(
+    fileOpenSelectors([], "index.html", "html", {}).map((selector) => selector.id),
+    ["file", "browser"],
+  );
   assert.deepEqual(
     fileOpenSelectors(choices, "index.ts", "text", {}).map((selector) => selector.id),
     ["file"],

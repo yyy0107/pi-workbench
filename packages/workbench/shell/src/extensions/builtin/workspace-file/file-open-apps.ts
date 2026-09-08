@@ -219,5 +219,10 @@ export function fileOpenSelectors(
         primaryApp: preferred ?? (allowSystemDefault ? undefined : choices[0]),
       };
     })
-    .filter((selector) => selector.id === "file" || selector.apps.length > 0);
+    .filter(
+      (selector) =>
+        selector.id === "file" ||
+        selector.apps.length > 0 ||
+        (Boolean(path) && (fileKind === "html" || fileKind === "pdf")),
+    );
 }

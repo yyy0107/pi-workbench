@@ -730,6 +730,7 @@ export const extensionsZhCN = {
     open: "打开",
     openOptions: "打开选项",
     editorOptions: "选择编辑器",
+    openInInternalBrowser: "在内部浏览器打开",
     browserOptions: "选择浏览器",
     noCompatibleApps: "未找到兼容的应用。",
     openPreferenceLoadFailed: "无法读取已保存的打开方式。",

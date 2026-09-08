@@ -11,6 +11,7 @@ import {
   FileTextIcon,
   FolderIcon,
   FoldersIcon,
+  Globe2Icon,
   ImageIcon,
   LoaderCircleIcon,
   MusicIcon,
@@ -47,6 +48,7 @@ import type {
   WorkbenchLocalApp,
 } from "@workbench/host-contracts/runtime-capabilities";
 import {
+  useOpenerService,
   useRightWorkspace,
   useRightWorkspaceState,
   useWorkspaceDraftStore,
@@ -111,6 +113,7 @@ function AvailableFileSurfaceHeader({
   const { files } = useWorkspaceFileRuntime();
   const draftStore = useWorkspaceDraftStore();
   const controller = useRightWorkspace();
+  const opener = useOpenerService();
   const domIds = useWorkbenchDomIds();
   const reportError = useExtensionErrorReporter();
   const auxiliaryOpen = useRightWorkspaceState((state) => state.auxiliaryOpen);
@@ -251,6 +254,23 @@ function AvailableFileSurfaceHeader({
       surface.id,
     ],
   );
+  const openInInternalBrowser = async () => {
+    if (!path || opening || surface.dirty) return;
+    setOpening(true);
+    try {
+      await opener.open({
+        resource: { scheme: "browser-file", path },
+        context,
+        scope: surface.scope,
+        policy: "force-focus",
+      });
+    } catch (error) {
+      reportError(error, { source: "workspace", contributionId: surface.id });
+      controller.update(surface.id, { status: "error", statusMessage: FILE_SURFACE_OPEN_FAILED });
+    } finally {
+      setOpening(false);
+    }
+  };
   const save = useCallback(async () => {
     if (!path || saving) return;
     setSaving(true);
@@ -450,6 +470,8 @@ function AvailableFileSurfaceHeader({
                     />
                   ) : primaryApp ? (
                     <LocalAppIcon app={primaryApp} />
+                  ) : id === "browser" ? (
+                    <Globe2Icon aria-hidden="true" />
                   ) : path ? (
                     <FileKindIcon kind={fileKind} />
                   ) : (
@@ -468,6 +490,20 @@ function AvailableFileSurfaceHeader({
                   <DropdownMenuContent align="end" className="w-max max-w-(--available-width)">
                     <DropdownMenuGroup>
                       <DropdownMenuLabel>{menuLabel}</DropdownMenuLabel>
+                      {id === "browser" ? (
+                        <DropdownMenuItem
+                          disabled={opening || surface.dirty}
+                          title={
+                            surface.dirty
+                              ? t("extensions.workspaceFile.saveBeforeBrowser")
+                              : undefined
+                          }
+                          onClick={() => void openInInternalBrowser()}
+                        >
+                          <Globe2Icon aria-hidden="true" />
+                          {t("extensions.workspaceFile.openInInternalBrowser")}
+                        </DropdownMenuItem>
+                      ) : null}
                       {localAppsLoading && localApps.length === 0 ? (
                         <DropdownMenuItem disabled>
                           <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" />
@@ -513,7 +549,10 @@ function AvailableFileSurfaceHeader({
                             )}
                           </DropdownMenuRadioItem>
                         ) : null}
-                        {!allowSystemDefault && !localAppsLoading && apps.length === 0 ? (
+                        {id === "file" &&
+                        !allowSystemDefault &&
+                        !localAppsLoading &&
+                        apps.length === 0 ? (
                           <DropdownMenuItem disabled>
                             {t("extensions.workspaceFile.noCompatibleApps")}
                           </DropdownMenuItem>

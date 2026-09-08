@@ -73,7 +73,7 @@ const MAX_FILE_BYTES = 64 * 1024 * 1024;
 const MAX_TABS = 32;
 const MAIN_FRAME_SCHEMES = new Set(["http:", "https:", "about:", "chrome:"]);
 
-export function normalizeBrowserUrl(value: string, internal = false): string {
+export function normalizeBrowserUrl(value: string, internal = false, localFile = false): string {
   const trimmed = value.trim();
   if (!trimmed || trimmed === "about:blank") return "about:blank";
   if (internal && Object.values(BROWSER_PAGES).includes(trimmed)) return trimmed;
@@ -83,6 +83,7 @@ export function normalizeBrowserUrl(value: string, internal = false): string {
   const hasScheme = /^[a-z][a-z\d+.-]*:/i.test(trimmed) && !hostWithPort;
   try {
     let url = new URL(hasScheme ? trimmed : `https://${trimmed}`);
+    if (localFile && url.protocol === "file:" && !url.hostname) return url.href;
     if (!["http:", "https:"].includes(url.protocol) || url.username || url.password)
       throw new Error();
     if (
@@ -479,7 +480,7 @@ export class BrowserManager {
     source: Source,
     internal = false,
   ): Promise<BrowserSessionState> {
-    const url = normalizeBrowserUrl(value, internal);
+    const url = normalizeBrowserUrl(value, internal, source === "user");
     if (source === "agent") tab.signal?.throwIfAborted();
     tab.source = source;
     if (source === "user") tab.signal = undefined;
@@ -757,7 +758,8 @@ export class BrowserManager {
       if (tab.source === "agent") tab.signal?.throwIfAborted();
       const url = new URL(params.request.url);
       if (
-        !MAIN_FRAME_SCHEMES.has(url.protocol) ||
+        (!MAIN_FRAME_SCHEMES.has(url.protocol) &&
+          !(url.protocol === "file:" && !url.hostname && tab.source === "user")) ||
         (url.protocol === "about:" && url.href !== "about:blank")
       ) {
         throw new BrowserError("browser-permission-denied");
@@ -933,7 +935,7 @@ export class BrowserManager {
           : await this.createTab(
               command.sessionId,
               command.projectId,
-              normalizeBrowserUrl(command.url ?? "about:blank"),
+              normalizeBrowserUrl(command.url ?? "about:blank", false, source === "user"),
               source,
               signal,
               controlSignal,

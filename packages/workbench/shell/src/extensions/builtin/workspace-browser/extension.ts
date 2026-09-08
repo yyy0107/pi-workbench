@@ -9,6 +9,7 @@ import {
 import { defineMessage } from "../../../i18n";
 import { BrowserSettingsItem, BROWSER_SETTINGS_SECTION_ID } from "./browser-settings";
 import { BrowserEventsOverlay } from "./browser-events-overlay";
+import { createBrowserFileOpener } from "./browser-file-opener";
 import { BrowserRuntimeBridge } from "./browser-runtime-bridge";
 import { BrowserMenuItem } from "./browser-menu-item";
 import { BrowserTabIndicator } from "./browser-control-indicator";
@@ -42,7 +43,13 @@ export const workspaceBrowserExtension = defineExtension({
   name: "Workspace Browser",
   version: "1.0.0",
   setup(context) {
+    const fileOpener = createBrowserFileOpener();
     return [
+      context.openers.register(fileOpener.handler),
+      context.slots.register("shell.overlay", {
+        id: "browser-file-opener",
+        component: fileOpener.Runtime,
+      }),
       context.workspace.register(browserSurfaceDefinition),
       context.slots.register("shell.overlay", {
         id: "browser-events",
