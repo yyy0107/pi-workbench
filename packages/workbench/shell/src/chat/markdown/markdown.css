@@ -73,6 +73,7 @@
 
 .aui-streamdown :where([data-streamdown="link"]:hover, [data-streamdown="link"]:focus-visible) {
   text-decoration-line: underline;
+  text-decoration-style: dashed;
 }
 
 .aui-streamdown .aui-markdown-link-icon {

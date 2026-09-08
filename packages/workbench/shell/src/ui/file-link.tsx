@@ -26,7 +26,7 @@ export function FileLink({
         {...props}
         href={href}
         className={cn(
-          "text-primary no-underline hover:underline focus-visible:underline",
+          "text-primary no-underline decoration-dashed hover:underline focus-visible:underline",
           className,
         )}
         onClick={(event) => {
