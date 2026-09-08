@@ -19,6 +19,8 @@
     "@workbench/agent-runtime-server": "workspace:*",
     "@workbench/attachment-understanding-server": "workspace:*",
     "@workbench/automation-server": "workspace:*",
+    "@workbench/browser-contracts": "workspace:*",
+    "@workbench/browser-server": "workspace:*",
     "@workbench/host-server": "workspace:*",
     "@workbench/local-host-server": "workspace:*",
     "@workbench/pi-terminal-tool": "workspace:*",

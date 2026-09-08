@@ -41,6 +41,8 @@ export const rightWorkspaceZhCN = {
     add: "添加反馈",
     placeholder: "描述你希望进行的修改…",
     save: "添加批注",
+    saving: "正在添加批注…",
+    saveFailed: "无法添加批注，请重试。",
     cancel: "取消",
     remove: "移除反馈",
     pending: ({ count }: { count: number }, { number }: MessageFormatters) =>

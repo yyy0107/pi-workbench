@@ -12,6 +12,7 @@ test("explicitly adapts Shell claims without sharing mutable item payloads", () 
     kind: "diff-line",
     target: { path: "src/app.ts", line: 42 },
     text: "Review this line.",
+    images: [{ data: "image-bytes", mimeType: "image/png", name: "annotation.png" }],
     scope: { type: "thread", key: "thread-1" },
     threadId: "thread-1",
   });
@@ -25,9 +26,12 @@ test("explicitly adapts Shell claims without sharing mutable item payloads", () 
       kind: "diff-line",
       target: { path: "src/app.ts", line: 42 },
       text: "Review this line.",
+      images: [{ data: "image-bytes", mimeType: "image/png", name: "annotation.png" }],
     },
   ]);
   assert.notEqual(claim.items[0]?.target, feedback.getSnapshot().feedback[0]?.target);
+  assert.notEqual(claim.items[0]?.images, feedback.getSnapshot().feedback[0]?.images);
+  assert.notEqual(claim.items[0]?.images?.[0], feedback.getSnapshot().feedback[0]?.images?.[0]);
   port.commit(claim.token);
   assert.equal(feedback.getSnapshot().feedback.length, 0);
 });

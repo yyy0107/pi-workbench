@@ -1,5 +1,7 @@
 "use client";
 
+export { createSettingsMainViewRequest } from "./extensions/builtin/settings/settings-main-view";
+
 import {
   createContext,
   createElement,

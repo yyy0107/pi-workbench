@@ -14,6 +14,7 @@ test("serializes only the prompt feedback contract", () => {
     text: "Return a business error here.",
     surfaceId: "review-1",
     createdAt: 123,
+    images: [{ data: "private-image-bytes", mimeType: "image/png", name: "annotation.png" }],
   };
   const prompt = appendWorkspaceFeedbackContext("Please address the comments.  ", [uiFeedback]);
 
@@ -23,7 +24,7 @@ test("serializes only the prompt feedback contract", () => {
       '[{"id":"feedback-1","kind":"diff-line","target":{"path":"src/app.ts","side":"new","line":42},"text":"Return a business error here."}]\n' +
       "</pi-workbench-workspace-feedback>",
   );
-  assert.doesNotMatch(prompt, /surfaceId|createdAt/);
+  assert.doesNotMatch(prompt, /surfaceId|createdAt|private-image-bytes/);
 });
 
 test("leaves prompts unchanged when no feedback is pending", () => {

@@ -28,6 +28,7 @@ test("registers Workbench-owned adapters as hidden inline extensions", () => {
         hidden: true,
       })),
       { name: "workbench.settings", hidden: true },
+      { name: "workbench.browser", hidden: true },
       { name: "workbench.rpiv-todo", hidden: true },
       { name: "workbench.message-termination", hidden: true },
       { name: "workbench.ask-user", hidden: true },

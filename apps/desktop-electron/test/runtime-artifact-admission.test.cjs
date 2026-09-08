@@ -50,6 +50,7 @@ test("routes target-key selection through the complete shared admission policy",
     "/api/events.mux",
     "/api/events.host",
     "/api/terminal",
+    "/api/browser/ws",
   ]);
   assert.strictEqual(
     DESKTOP_RUNTIME_ARTIFACT_ADMISSION_POLICY.expectedUpgradePaths,

@@ -1,4 +1,5 @@
 import { builtinToolEnabled } from "@workbench/agent-runtime-contracts/settings";
+import { BrowserManager } from "@workbench/browser-server";
 import applicationPackage from "../../package.json" with { type: "json" };
 
 import { getImageUnderstandingSettingsStore } from "./installed-attachment-understanding";
@@ -74,7 +75,8 @@ import {
 import { getInstalledPiAutomationService } from "./installed-automation";
 
 export interface InstalledPiServer {
-  readonly lifecycleVersion: 5;
+  readonly lifecycleVersion: 7;
+  readonly browser: BrowserManager;
   readonly terminalShell: ReturnType<typeof createTerminalShellPreference>;
   readonly toolTerminalSessions: ToolTerminalSessionManager;
   readonly agent: WorkbenchAgentServerAdapter;
@@ -174,9 +176,11 @@ function createInstalledPiAgentHostBindings(
   workspaceFiles: WorkspaceFileService,
   terminalShell: ReturnType<typeof createTerminalShellPreference>,
   toolTerminalSessions: ToolTerminalSessionManager,
+  browser: BrowserManager,
 ): PiAgentHostBindings {
   const settings = createInstalledWorkbenchSettingsService();
   return {
+    browser: { command: (command, signal) => browser.handle(command, { source: "agent", signal }) },
     workbenchSettings: createInstalledWorkbenchSettingsAgentAccess(),
     workspaceFiles,
     getDefaultTerminalShell: terminalShell.getShell,
@@ -274,10 +278,12 @@ function createInstalledPiServer(
   });
   const terminalShell = createTerminalShellPreference();
   const toolTerminalSessions = new ToolTerminalSessionManager({ getShell: terminalShell.getShell });
+  const browser = new BrowserManager();
   const host = createInstalledPiAgentHostBindings(
     workspaceFiles,
     terminalShell,
     toolTerminalSessions,
+    browser,
   );
   bindPiAgentHostBindings(host);
   const commands = new CommandService();
@@ -316,7 +322,8 @@ function createInstalledPiServer(
     automation,
   });
   return Object.freeze({
-    lifecycleVersion: 5 as const,
+    lifecycleVersion: 7 as const,
+    browser,
     terminalShell,
     toolTerminalSessions,
     agent,
@@ -336,7 +343,7 @@ export function getInstalledPiServer(): InstalledPiServer {
   const current = installedGlobal.__workbenchInstalledPiServer;
   if (current) {
     bindPiAgentHostBindings(current.host);
-    if (current.lifecycleVersion !== 5) {
+    if (current.lifecycleVersion !== 7) {
       const upgraded = createInstalledPiServer(current.agent);
       installedGlobal.__workbenchInstalledPiServer = upgraded;
       return upgraded;

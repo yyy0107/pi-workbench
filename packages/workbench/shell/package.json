@@ -184,6 +184,7 @@
     "test": "node ../../../scripts/run-typescript-tests.mjs --package"
   },
   "dependencies": {
+    "@workbench/browser-contracts": "workspace:*",
     "@base-ui/react": "^1.7.0",
     "@file-viewer/core": "2.3.0",
     "@file-viewer/preset-lite": "2.3.0",

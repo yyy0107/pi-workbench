@@ -14,7 +14,13 @@ import type { PiComposerMessage as AppendMessage } from "../../src/conversation/
 import { PiSessionManager } from "../../src/runtime/manager";
 
 const feedback = [
-  { id: "feedback-1", kind: "diff-line", target: { line: 42 }, text: "Revise this." },
+  {
+    id: "feedback-1",
+    kind: "browser-element",
+    target: { screenshot: { name: "annotation.png" } },
+    text: "Revise this.",
+    images: [{ mimeType: "image/png", name: "annotation.png", data: "c2NyZWVuc2hvdA==" }],
+  },
 ] as const;
 
 function remoteSummary(): PiSessionSummary {
@@ -103,7 +109,9 @@ test("a failed send releases its feedback claim for retry", async (t) => {
   t.after(() => {
     globalThis.fetch = originalFetch;
   });
-  globalThis.fetch = async () => {
+  let body = "";
+  globalThis.fetch = async (_input, init) => {
+    body = String(init?.body);
     throw new Error("offline");
   };
 
@@ -119,6 +127,7 @@ test("a failed send releases its feedback claim for retry", async (t) => {
   const session = manager.getSession("local-thread", "remote-thread");
 
   await assert.rejects(session.send(userMessage("Please address the comment.")), /offline/);
+  assertScreenshotAttachment(body);
 
   assert.deepEqual(releases, ["claim-1"]);
   assert.equal(manager.claimPromptFeedback("local-thread", "remote-thread")?.token, "claim-2");
@@ -170,4 +179,38 @@ test("a failed queue admission releases feedback and a retry commits a new claim
   assert.deepEqual(commits, ["claim-2"]);
   assert.equal(requestBodies.length, 2);
   assert.ok(requestBodies.every((body) => body.includes("Revise this.")));
+  for (const body of requestBodies) assertScreenshotAttachment(body);
 });
+
+function assertScreenshotAttachment(body: string): void {
+  const {
+    payload: { content },
+  } = JSON.parse(body) as {
+    payload: {
+      content: Array<{
+        type: string;
+        text?: string;
+        data?: string;
+        mediaType?: string;
+        name?: string;
+      }>;
+    };
+  };
+  assert.deepEqual(
+    content.filter((part) => part.type === "image"),
+    [
+      {
+        type: "image",
+        mediaType: "image/png",
+        name: "annotation.png",
+        data: "c2NyZWVuc2hvdA==",
+      },
+    ],
+  );
+  const text = content
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("");
+  assert.match(text, /Revise this\./);
+  assert.doesNotMatch(text, /c2NyZWVuc2hvdA==/);
+}

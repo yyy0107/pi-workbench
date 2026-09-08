@@ -6,6 +6,7 @@
  * resolved (the desktop launcher and TypeScript test runner already establish that hook).
  */
 const { TERMINAL_WEBSOCKET_PATH } = require("@workbench/terminal-contracts");
+const { BROWSER_WEBSOCKET_PATH } = require("@workbench/browser-contracts");
 
 const nativeRuntime = require("./runtime-native.cjs");
 const modelResources = require("./runtime-model-resources.cjs");
@@ -19,7 +20,11 @@ function createRuntimeArtifactAdmissionPolicy(agentRuntimeUpgradePaths) {
     throw new Error("Agent Runtime upgrade paths must be an array of strings.");
   }
   return Object.freeze({
-    expectedUpgradePaths: Object.freeze([...agentRuntimeUpgradePaths, TERMINAL_WEBSOCKET_PATH]),
+    expectedUpgradePaths: Object.freeze([
+      ...agentRuntimeUpgradePaths,
+      TERMINAL_WEBSOCKET_PATH,
+      BROWSER_WEBSOCKET_PATH,
+    ]),
     expectedNativeRuntimeFiles: nativeRuntime.expectedNativeRuntimeFiles,
     collectModelReadableResources: modelResources.collectRuntimeArtifactModelReadableResources,
     assertModelReadableResourceClassification:

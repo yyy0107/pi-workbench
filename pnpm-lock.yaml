@@ -184,6 +184,12 @@ importers:
       '@workbench/automation-server':
         specifier: workspace:*
         version: link:../../packages/server/automation
+      '@workbench/browser-contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts/browser
+      '@workbench/browser-server':
+        specifier: workspace:*
+        version: link:../../packages/server/browser
       '@workbench/host-server':
         specifier: workspace:*
         version: link:../../packages/host/server
@@ -629,6 +635,9 @@ importers:
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../../../contracts/automation
+      '@workbench/browser-contracts':
+        specifier: workspace:*
+        version: link:../../../../contracts/browser
       '@workbench/contracts':
         specifier: workspace:*
         version: link:../../../../contracts/core
@@ -705,6 +714,15 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  packages/contracts/browser:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   packages/contracts/core:
     devDependencies:
       '@types/node':
@@ -772,6 +790,9 @@ importers:
 
   packages/host/artifact-policy:
     dependencies:
+      '@workbench/browser-contracts':
+        specifier: workspace:*
+        version: link:../../contracts/browser
       '@workbench/terminal-contracts':
         specifier: workspace:*
         version: link:../../terminal/contracts
@@ -851,6 +872,22 @@ importers:
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../workbench/host-contracts
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/server/browser:
+    dependencies:
+      '@workbench/browser-contracts':
+        specifier: workspace:*
+        version: link:../../contracts/browser
+      '@workbench/server-core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -1194,6 +1231,9 @@ importers:
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../contracts/automation
+      '@workbench/browser-contracts':
+        specifier: workspace:*
+        version: link:../../contracts/browser
       '@workbench/contracts':
         specifier: workspace:*
         version: link:../../contracts/core

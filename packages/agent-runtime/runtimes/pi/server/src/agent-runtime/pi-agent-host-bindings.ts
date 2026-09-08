@@ -2,6 +2,7 @@ import type {
   BuiltinResourcePreferenceKey,
   WorkbenchSettingsProtocol,
 } from "@workbench/agent-runtime-contracts/settings";
+import type { BrowserCommand } from "@workbench/browser-contracts";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 
 import type { BuiltinToolSettings } from "../internal-extensions/builtin-tools";
@@ -17,6 +18,7 @@ export interface PiBashToolFactoryInput {
 
 /** Workbench Host capabilities required while constructing a Pi session. */
 export interface PiAgentHostBindings {
+  readonly browser?: { command(command: BrowserCommand, signal?: AbortSignal): Promise<unknown> };
   readonly workbenchSettings?: Pick<WorkbenchSettingsProtocol, "describe" | "update">;
   readonly getDefaultTerminalShell?: () => string;
   readonly attachmentUnderstandingSettings?: () => Pick<

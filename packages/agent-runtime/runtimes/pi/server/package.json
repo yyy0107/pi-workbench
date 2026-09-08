@@ -47,7 +47,8 @@
     "@workbench/server-core": "workspace:*",
     "@workbench/workspace-server": "workspace:*",
     "mime": "4.1.0",
-    "typebox": "1.3.7"
+    "typebox": "1.3.7",
+    "@workbench/browser-contracts": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

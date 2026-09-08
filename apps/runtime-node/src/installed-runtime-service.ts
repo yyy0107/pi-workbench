@@ -21,9 +21,11 @@ import {
   type TerminalSessionManagerLike,
 } from "@workbench/terminal-server/gateway";
 import { TerminalSessionManager } from "@workbench/terminal-server/shell-sessions";
+import { BROWSER_WEBSOCKET_PATH } from "@workbench/browser-contracts";
 
 import { getInstalledPiServer } from "./composition/installed-pi-server";
 import { createTerminalShellRpcHandler } from "./terminal-shell-rpc";
+import { createBrowserGateway, MAX_BROWSER_CLIENT_MESSAGE_BYTES } from "./browser-gateway";
 
 const MAX_RUNTIME_WEBSOCKET_PAYLOAD_BYTES = 128 * 1024;
 
@@ -31,11 +33,15 @@ export const INSTALLED_RUNTIME_WEBSOCKET_PATHS = Object.freeze([
   STREAM_PATHS.mux,
   STREAM_PATHS.host,
   TERMINAL_WEBSOCKET_PATH,
+  BROWSER_WEBSOCKET_PATH,
 ]);
 
 export interface InstalledRuntimeServiceOptions {
   readonly desktopSidecarAuth?: DesktopSidecarRuntimeAuthPolicy;
-  readonly onUnexpectedError?: (scope: "pi-websocket" | "terminal", error: unknown) => void;
+  readonly onUnexpectedError?: (
+    scope: "pi-websocket" | "terminal" | "browser",
+    error: unknown,
+  ) => void;
 }
 
 export interface InstalledRuntimeService {
@@ -48,39 +54,39 @@ export interface InstalledRuntimeService {
 
 export interface InstalledRuntimeDisposalOwners {
   readonly disposePi: () => Promise<void>;
-  readonly disposeTerminals: readonly (() => void)[];
+  readonly disposeResources: readonly (() => void)[];
 }
 
-/** Preserves Pi quiescence before Terminal teardown while still aggregating every cleanup error. */
+/** Preserves Pi quiescence before resource teardown while aggregating every cleanup error. */
 export function createInstalledRuntimeDisposer({
   disposePi,
-  disposeTerminals,
+  disposeResources,
 }: InstalledRuntimeDisposalOwners): (signal?: AbortSignal) => Promise<void> {
   let disposeOperation: Promise<void> | undefined;
   let settled = false;
-  let terminalsDisposed = false;
+  let resourcesDisposed = false;
   const errors: unknown[] = [];
   const abortListenerCleanups = new Set<() => void>();
-  const disposeTerminalOwners = () => {
-    if (terminalsDisposed) return;
-    terminalsDisposed = true;
-    for (const disposeTerminal of disposeTerminals) {
+  const disposeResourceOwners = () => {
+    if (resourcesDisposed) return;
+    resourcesDisposed = true;
+    for (const disposeResource of disposeResources) {
       try {
-        disposeTerminal();
+        disposeResource();
       } catch (error) {
         errors.push(error);
       }
     }
   };
   const observeAbort = (signal: AbortSignal | undefined) => {
-    if (!signal || settled || terminalsDisposed) return;
+    if (!signal || settled || resourcesDisposed) return;
     if (signal.aborted) {
-      disposeTerminalOwners();
+      disposeResourceOwners();
       return;
     }
-    const forceDisposeTerminals = () => disposeTerminalOwners();
-    signal.addEventListener("abort", forceDisposeTerminals, { once: true });
-    abortListenerCleanups.add(() => signal.removeEventListener("abort", forceDisposeTerminals));
+    const forceDisposeResources = () => disposeResourceOwners();
+    signal.addEventListener("abort", forceDisposeResources, { once: true });
+    abortListenerCleanups.add(() => signal.removeEventListener("abort", forceDisposeResources));
   };
   return (signal) => {
     if (disposeOperation) {
@@ -101,7 +107,7 @@ export function createInstalledRuntimeDisposer({
       } catch (error) {
         errors.push(error);
       }
-      disposeTerminalOwners();
+      disposeResourceOwners();
       settled = true;
       for (const cleanup of abortListenerCleanups) cleanup();
       abortListenerCleanups.clear();
@@ -114,7 +120,7 @@ export function createInstalledRuntimeDisposer({
 }
 
 /**
- * Installs the single Pi/Terminal service graph used by either the combined launcher or the
+ * Installs the shared Pi, Terminal and Browser graph used by either the combined launcher or the
  * API-only Runtime Host. This application composition intentionally has no Next dependency.
  */
 export function createInstalledRuntimeService(
@@ -122,7 +128,7 @@ export function createInstalledRuntimeService(
 ): InstalledRuntimeService {
   const reportUnexpectedError =
     options.onUnexpectedError ??
-    ((scope: "pi-websocket" | "terminal", error: unknown) => {
+    ((scope: "pi-websocket" | "terminal" | "browser", error: unknown) => {
       console.error(`[workbench] ${scope} failed.`, error);
     });
   const webSocketAuthenticationAdmission = options.desktopSidecarAuth
@@ -187,10 +193,32 @@ export function createInstalledRuntimeService(
     inspectTrust: inspectApiRequestTrust,
     onUnexpectedError: (error) => reportUnexpectedError("terminal", error),
   });
+  const browserManager = installedPi.browser;
+  const browserWebSocketServer = new WebSocketServer({
+    noServer: true,
+    perMessageDeflate: false,
+    maxPayload: MAX_BROWSER_CLIENT_MESSAGE_BYTES,
+  });
+  const browserGateway = createBrowserGateway({
+    webSocketServer: createAuthenticatedNoServerWebSocketServer({
+      webSocketServer: browserWebSocketServer,
+      ...(options.desktopSidecarAuth === undefined
+        ? {}
+        : { authPolicy: options.desktopSidecarAuth }),
+      ...(webSocketAuthenticationAdmission === undefined
+        ? {}
+        : { authenticationAdmission: webSocketAuthenticationAdmission }),
+      onUnexpectedError: (error) => reportUnexpectedError("browser", error),
+    }),
+    manager: browserManager,
+    trustedHosts: configuredApiTrustedHosts(),
+    onUnexpectedError: (error) => reportUnexpectedError("browser", error),
+  });
   const handlePiUpgrade = piWebSocketGateway.handleUpgrade.bind(piWebSocketGateway);
   const webSocketGateway: WorkbenchWebSocketGateway = {
     handleUpgrade(request, socket, head) {
       return (
+        browserGateway.handleUpgrade(request, socket, head) ||
         terminalGateway.handleUpgrade(request, socket, head) ||
         handlePiUpgrade(request, socket, head)
       );
@@ -199,7 +227,11 @@ export function createInstalledRuntimeService(
 
   const dispose = createInstalledRuntimeDisposer({
     disposePi: () => installedPi.dispose(),
-    disposeTerminals: [() => terminalSessions.dispose(), () => toolTerminalSessions.dispose()],
+    disposeResources: [
+      () => terminalSessions.dispose(),
+      () => toolTerminalSessions.dispose(),
+      () => browserManager.dispose(),
+    ],
   });
   return Object.freeze({
     handleHttpRequest: (request: Request) =>
@@ -208,7 +240,11 @@ export function createInstalledRuntimeService(
         ? setDefaultShell(request)
         : installedPi.handleHttpRequest(request),
     webSocketGateway,
-    webSocketServers: Object.freeze([piWebSocketServer, terminalWebSocketServer]),
+    webSocketServers: Object.freeze([
+      piWebSocketServer,
+      terminalWebSocketServer,
+      browserWebSocketServer,
+    ]),
     upgradeRequiredPaths: INSTALLED_RUNTIME_WEBSOCKET_PATHS,
     dispose,
   });
