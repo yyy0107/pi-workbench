@@ -3202,6 +3202,11 @@ export async function copyRuntimeBuiltinResources(
       { recursive: true },
     );
   }
+  await cp(
+    path.join(repositoryRoot, "packages/agent-runtime/runtimes/pi/browser-package/skills/browser"),
+    path.join(outputDirectory, "skills/browser"),
+    { recursive: true },
+  );
 }
 
 export async function buildRuntimeArtifact({

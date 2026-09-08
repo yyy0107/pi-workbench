@@ -108,6 +108,11 @@ test("bundled resources install into the Pi directory after relocation and pruni
     (await readFile(path.join(skillDirectory, "SKILL.md"), "utf8")).includes("name: skill-creator"),
   );
   assert.ok(
+    (await readFile(path.join(directories.skills, "browser", "SKILL.md"), "utf8")).includes(
+      "name: browser",
+    ),
+  );
+  assert.ok(
     (await readFile(path.join(directories.extensions, "rpiv-todo", "index.ts"), "utf8")).includes(
       "createTodoExtension",
     ),

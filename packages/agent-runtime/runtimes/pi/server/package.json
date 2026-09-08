@@ -41,14 +41,15 @@
     "@workbench/attachment-understanding-contracts": "workspace:*",
     "@workbench/attachment-understanding-server": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
+    "@workbench/browser-contracts": "workspace:*",
     "@workbench/contracts": "workspace:*",
     "@workbench/host-server": "workspace:*",
     "@workbench/local-host-server": "workspace:*",
+    "@workbench/pi-browser": "workspace:*",
     "@workbench/server-core": "workspace:*",
     "@workbench/workspace-server": "workspace:*",
     "mime": "4.1.0",
-    "typebox": "1.3.7",
-    "@workbench/browser-contracts": "workspace:*"
+    "typebox": "1.3.7"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

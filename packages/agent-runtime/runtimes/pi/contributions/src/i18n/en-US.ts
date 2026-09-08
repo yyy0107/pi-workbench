@@ -625,6 +625,12 @@ export const piExtensionsEnUS = {
         packageRemoved:
           "The Pi package was uninstalled and its capabilities were removed from the sessions.",
       },
+      browser: {
+        name: "Browser",
+        description: "Control the in-app browser",
+        details:
+          "Navigate pages, inspect their content, click elements, type into forms, and take screenshots in the Workbench browser. Manage permissions and site access in Settings → Browser.",
+      },
       builtins: {
         enhancedSearch: "Enhanced Find and Grep",
         enhancedSearchDescription:

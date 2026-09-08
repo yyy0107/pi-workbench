@@ -20,6 +20,7 @@ import {
 
 import {
   bindCapabilityToCatalogTarget,
+  browserCapabilityPresentation,
   builtinExtensionSurfaceParams,
   builtinToolPreferenceKey,
   extensionSurfaceParams,
@@ -224,20 +225,23 @@ export function useToolboxCatalogs(
                 entryTarget.resource,
                 entryTarget.project,
               );
+              const browser = browserCapabilityPresentation(params, t);
               const description =
-                params.builtin && skill.name === "skill-creator"
+                browser?.description ??
+                (params.builtin && skill.name === "skill-creator"
                   ? t("extensions.toolbox.skills.creatorDescription")
-                  : skill.description;
+                  : skill.description);
               return {
                 id: params.capabilityId,
                 kind: "skill" as const,
-                name: skill.name,
+                name: browser?.name ?? skill.name,
                 description,
                 ...(params.projectId && entryTarget.project
                   ? { project: entryTarget.project }
                   : {}),
                 searchText: [
                   skill.name,
+                  browser?.name ?? "",
                   description,
                   skill.description,
                   skill.whenToUse ?? "",
@@ -344,6 +348,7 @@ export function useToolboxCatalogs(
         extensionsCatalog.entries.flatMap(({ value }) =>
           (value.builtins ?? []).map((extension) => {
             const params = builtinExtensionSurfaceParams(extension);
+            const browser = browserCapabilityPresentation(params, t);
             const key = builtinToolPreferenceKey(params);
             const preference = key
               ? {
@@ -365,21 +370,24 @@ export function useToolboxCatalogs(
             const nativeTool = (
               Object.keys(BUILTIN_TOOL_PREFERENCE_KEYS) as BuiltinToolName[]
             ).find((name) => extension.name === `workbench.tool.${name}`);
-            const description = nativeTool
-              ? t(`extensions.toolbox.builtins.tools.${nativeTool}`)
-              : t("extensions.toolbox.extensions.capabilitySummary", {
-                  events: extension.eventNames.length,
-                  tools: extension.toolNames.length,
-                  commands: extension.commandNames.length,
-                });
+            const description =
+              browser?.description ??
+              (nativeTool
+                ? t(`extensions.toolbox.builtins.tools.${nativeTool}`)
+                : t("extensions.toolbox.extensions.capabilitySummary", {
+                    events: extension.eventNames.length,
+                    tools: extension.toolNames.length,
+                    commands: extension.commandNames.length,
+                  }));
             if (nativeTool) params.description = description;
             return {
               id: params.capabilityId,
               kind: "extension" as const,
-              name: params.name,
+              name: browser?.name ?? params.name,
               description,
               searchText: [
                 extension.name,
+                browser?.name ?? "",
                 description,
                 ...extension.eventNames,
                 ...extension.toolNames,

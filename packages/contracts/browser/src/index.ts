@@ -58,6 +58,24 @@ export interface BrowserSessionState {
   height: number;
   device?: BrowserDevice;
 }
+export interface BrowserSnapshotNode {
+  depth: number;
+  role: string;
+  name: string;
+  ref?: string;
+  value?: string;
+  disabled?: boolean;
+  checked?: boolean | "mixed";
+  selected?: boolean;
+  expanded?: boolean;
+  unavailable?: "frame";
+}
+export interface BrowserSnapshot {
+  session: BrowserSessionState;
+  snapshotId: string;
+  nodes: BrowserSnapshotNode[];
+  truncated: boolean;
+}
 export type BrowserPage =
   | "history"
   | "downloads"
@@ -118,7 +136,11 @@ export type BrowserInput =
     }
   | { kind: "text"; text: string };
 export type BrowserCommand =
+  | { type: "tabs.list"; projectId: string }
   | { type: "attach"; sessionId: string; projectId: string; url?: string }
+  | { type: "snapshot"; sessionId: string }
+  | { type: "click"; sessionId: string; ref: string }
+  | { type: "fill"; sessionId: string; ref: string; text: string }
   | { type: "navigate"; sessionId: string; url: string }
   | { type: "back" | "forward" | "reload" | "stop" | "close" | "print" | "copy"; sessionId: string }
   | { type: "screenshot"; sessionId: string; fullPage?: boolean }
@@ -311,6 +333,9 @@ export function parseBrowserCommand(value: unknown): BrowserCommand | undefined 
   if ("sessionId" in value && (!string(value.sessionId, 256) || !value.sessionId)) return undefined;
   let valid = false;
   switch (value.type) {
+    case "tabs.list":
+      valid = string(value.projectId, 1024) && value.projectId.length > 0;
+      break;
     case "settings.get":
     case "downloads.list":
     case "downloads.clear":
@@ -346,8 +371,16 @@ export function parseBrowserCommand(value: unknown): BrowserCommand | undefined 
         case "close":
         case "print":
         case "copy":
+        case "snapshot":
         case "site-tools.list":
           valid = true;
+          break;
+        case "click":
+        case "fill":
+          valid =
+            string(value.ref, 256) &&
+            value.ref.length > 0 &&
+            (value.type === "click" || string(value.text, 65536));
           break;
         case "screenshot":
           valid = value.fullPage === undefined || typeof value.fullPage === "boolean";

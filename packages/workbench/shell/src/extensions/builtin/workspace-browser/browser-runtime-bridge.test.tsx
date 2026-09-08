@@ -44,8 +44,8 @@ test("thread revisits preserve the browser page and history while new calls reus
   class Browser extends MemoryBrowserSessionService {
     override async command<T>(command: BrowserCommand, source?: "agent"): Promise<T> {
       agentNavigations.push({ command, source });
-      assert.equal(command.type, "navigate");
       if (command.type === "navigate") await this.navigate(command.sessionId, command.url);
+      else assert.equal(command.type, "close");
       return undefined as T;
     }
   }
@@ -229,6 +229,53 @@ test("thread revisits preserve the browser page and history while new calls reus
       workspace.surfaceOrder,
       [],
       "closing an agent browser also closes its workspace surface",
+    );
+    const listCall: ToolCallBlock = {
+      ...tool("list-call", "https://ignored.example/"),
+      toolName: "workbench_browser",
+      arguments: { action: "tabs.list" },
+      result: {
+        content: [{ type: "text", text: "[]" }],
+        details: {},
+      },
+    };
+    await act(async () => {
+      nodes.set("first", node([listCall]));
+      for (const listener of listeners) listener();
+    });
+    assert.deepEqual(workspace.surfaceOrder, [], "tab discovery must not reveal a synthetic tab");
+    const commandsBeforeSnapshot = agentNavigations.length;
+    await act(async () => {
+      nodes.set(
+        "first",
+        node([
+          listCall,
+          {
+            ...tool("snapshot-call", "https://observed.example/"),
+            toolName: "workbench_browser",
+            arguments: { action: "snapshot", sessionId: "observed-tab" },
+            result: {
+              content: [{ type: "text", text: '{"snapshotId":"snapshot-1","nodes":[]}' }],
+              details: {
+                browserSessionId: "observed-tab",
+                projectId: "test",
+                url: "https://observed.example/",
+              },
+            },
+          },
+        ]),
+      );
+      for (const listener of listeners) listener();
+    });
+    assert.equal(workspace.surfaceOrder.length, 1);
+    const observedSurface = workspace.surfaces[workspace.surfaceOrder[0]!]!;
+    assert.equal(observedSurface.params.browserSessionId, "observed-tab");
+    assert.equal(observedSurface.params.url, "https://observed.example/");
+    assert.equal(browser.getSession("observed-tab")?.url, "https://observed.example/");
+    assert.equal(
+      agentNavigations.length,
+      commandsBeforeSnapshot,
+      "snapshot projection reveals its observed session without replaying navigation",
     );
     assert.deepEqual(errors, []);
   } finally {

@@ -518,6 +518,19 @@ Project Trust 遵循 Pi 的资源判定与持久化规则：没有受保护的�
 
 ## Skills
 
+[`@workbench/pi-browser`](./browser-package/README.md) 将 Browser 扩展与专属技能封装为 Pi Package。
+Workbench 内置适配器与独立 Pi CLI 消费同一份工具实现，技能唯一源码位于包的 `skills/browser/`。
+独立 Pi CLI 惰性启动同一 BrowserManager 引擎，通过 Pi UI 处理权限确认，并在会话结束时释放浏览器；
+Workbench 则继续使用应用的共享浏览器与权限 UI。
+`browser` 内置技能通过 `workbench.browser` 扩展的 `workbench_browser` 工具控制应用内浏览器，
+与用户复用同一标签和权限设置。`tabs.list` 只列举当前项目已有的标签；`snapshot` 返回页面无障碍树
+及元素引用，`click` / `fill` 使用当前快照的引用操作元素，导航后旧引用失效。Workbench Host 将
+当前对话的 cwd 解析为已登记的 workspaceId，确保工具能发现和复用用户打开的标签。导航、截图、键盘和
+鼠标输入继续复用共享 BrowserManager，普通操作不要求开启完整 CDP 权限。工具结果沿现有
+Browser Runtime Bridge 展示在右侧浏览器工作区，不创建另一套浏览器进程或会话协议。
+该技能默认可发现，支持 `/skill:browser` 与现有技能启停、文档查看流程；本地站点和 HTML
+通过项目的开发或静态 HTTP 服务打开，直接 `file:` 导航不在此工具范围内。
+
 `workbench-settings` 内置技能通过宿主工具 `workbench_settings` 读取和修改当前 Runtime 的
 Workbench preferences，覆盖外观、语言、对话行为和内置工具开关。工具复用 Settings RPC 校验和
 同一设置服务的文件锁、原子写入及进程内通知，不暴露配置文件路径或其他 section 的凭据；未知顶层字段

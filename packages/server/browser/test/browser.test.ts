@@ -5,7 +5,12 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { mock } from "node:test";
-import type { BrowserEvent, BrowserSessionState } from "@workbench/browser-contracts";
+import {
+  parseBrowserCommand,
+  type BrowserEvent,
+  type BrowserSessionState,
+  type BrowserSnapshot,
+} from "@workbench/browser-contracts";
 
 import { BrowserError, BrowserManager, normalizeBrowserUrl } from "../src/index";
 import { findBrowserExecutable, type BrowserCdp } from "../src/cdp";
@@ -17,6 +22,181 @@ function pngDimensions(data: string): { width: number; height: number } {
   assert.equal(bytes.subarray(1, 4).toString(), "PNG");
   return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
 }
+
+test("browser observation commands validate their project and observed references", () => {
+  assert.equal(parseBrowserCommand({ type: "tabs.list" }), undefined);
+  assert.equal(parseBrowserCommand({ type: "tabs.list", projectId: "" }), undefined);
+  assert.equal(parseBrowserCommand({ type: "click", sessionId: "tab", ref: "" }), undefined);
+  assert.equal(
+    parseBrowserCommand({ type: "fill", sessionId: "tab", ref: "ref", text: 123 }),
+    undefined,
+  );
+  assert.ok(parseBrowserCommand({ type: "tabs.list", projectId: "project" }));
+  assert.ok(parseBrowserCommand({ type: "fill", sessionId: "tab", ref: "ref", text: "" }));
+});
+
+test("real Chrome observes and operates scoped elements without unrestricted CDP", async (t) => {
+  try {
+    await findBrowserExecutable();
+  } catch {
+    t.skip("Chrome is not installed");
+    return;
+  }
+  const directory = await mkdtemp(path.join(tmpdir(), "workbench-browser-observation-"));
+  const server = createServer((_request, response) =>
+    response.end(
+      '<!doctype html><title>Observed form</title><label>Name <input id="name" value="old"></label><label>Password <input id="type" type="password" value="private-secret"></label><label>Redirecting input <input onkeydown="document.querySelector(\'#name\').focus()"></label><button onclick="document.querySelector(\'#result\').textContent = document.querySelector(\'#name\').value">Save name</button><p id="result" role="status">Not saved</p><button onclick="this.remove()">Remove me</button><button disabled>Disabled action</button><a href="#next">Next section</a><div style="position:relative;width:150px;height:40px"><button>Covered action</button><div style="position:absolute;inset:0;background:gray"></div></div><iframe title="Embedded form" srcdoc="<button>Frame action</button>"></iframe>',
+    ),
+  );
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const url = "http://127.0.0.1:" + address.port + "/";
+  const browser = new BrowserManager({ stateDirectory: directory });
+  const agent = { source: "agent" as const };
+  const observe = () =>
+    browser.handle({ type: "snapshot", sessionId: "form" }, agent) as Promise<BrowserSnapshot>;
+  const ref = (snapshot: BrowserSnapshot, name: string) => {
+    const value = snapshot.nodes.find((node) => node.name === name && node.ref)?.ref;
+    assert.ok(value, "Missing observed reference: " + name);
+    return value;
+  };
+  try {
+    await browser.handle({
+      type: "settings.update",
+      patch: {
+        permissions: { navigate: "allow", history: "allow", download: "deny", upload: "deny" },
+      },
+    });
+    await browser.handle({ type: "attach", sessionId: "form", projectId: "project", url }, agent);
+    await browser.handle({
+      type: "viewport",
+      sessionId: "form",
+      width: 800,
+      height: 600,
+      visible: true,
+    });
+    let snapshot = await observe();
+    assert.equal(snapshot.session.url, url);
+    assert.ok(snapshot.nodes.some((node) => node.depth > 0));
+    assert.ok(!JSON.stringify(snapshot).includes("private-secret"));
+    assert.equal(snapshot.nodes.find((node) => node.name === "Password ")?.value, undefined);
+    assert.ok(snapshot.nodes.some((node) => node.unavailable === "frame" && !node.ref));
+    assert.ok(!snapshot.nodes.some((node) => node.name === "Frame action"));
+    const name = ref(snapshot, "Name ");
+    await assert.rejects(
+      browser.handle(
+        {
+          type: "fill",
+          sessionId: "form",
+          ref: ref(snapshot, "Redirecting input "),
+          text: "wrong input",
+        },
+        agent,
+      ),
+      { code: "browser-element-not-interactable" },
+    );
+    await browser.handle(
+      { type: "fill", sessionId: "form", ref: name, text: "Native form input" },
+      agent,
+    );
+    await browser.handle(
+      { type: "click", sessionId: "form", ref: ref(snapshot, "Save name") },
+      agent,
+    );
+    snapshot = await observe();
+    assert.ok(snapshot.nodes.some((node) => node.name === "Native form input"));
+    await assert.rejects(
+      browser.handle({ type: "fill", sessionId: "form", ref: name, text: "stale" }, agent),
+      { code: "browser-element-stale" },
+    );
+    await assert.rejects(
+      browser.handle(
+        { type: "click", sessionId: "form", ref: ref(snapshot, "Disabled action") },
+        agent,
+      ),
+      { code: "browser-element-not-interactable" },
+    );
+    await assert.rejects(
+      browser.handle(
+        { type: "click", sessionId: "form", ref: ref(snapshot, "Covered action") },
+        agent,
+      ),
+      { code: "browser-element-not-interactable" },
+    );
+    await browser.handle(
+      { type: "fill", sessionId: "form", ref: ref(snapshot, "Name "), text: "" },
+      agent,
+    );
+    await browser.handle(
+      { type: "click", sessionId: "form", ref: ref(snapshot, "Save name") },
+      agent,
+    );
+    snapshot = await observe();
+    assert.equal(snapshot.nodes.find((node) => node.name === "Name ")?.value ?? "", "");
+    const removed = ref(snapshot, "Remove me");
+    await browser.handle({ type: "click", sessionId: "form", ref: removed }, agent);
+    await assert.rejects(
+      browser.handle({ type: "click", sessionId: "form", ref: removed }, agent),
+      { code: "browser-element-stale" },
+    );
+    const next = ref(snapshot, "Next section");
+    await browser.handle({ type: "click", sessionId: "form", ref: next }, agent);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await assert.rejects(browser.handle({ type: "click", sessionId: "form", ref: next }, agent), {
+      code: "browser-element-stale",
+    });
+    snapshot = await observe();
+    assert.ok(snapshot.session.url.endsWith("#next"));
+    await browser.handle({ type: "attach", sessionId: "other", projectId: "other-project" });
+    await assert.rejects(
+      browser.handle(
+        { type: "fill", sessionId: "other", ref: ref(snapshot, "Name "), text: "wrong tab" },
+        agent,
+      ),
+      { code: "browser-element-stale" },
+    );
+    assert.deepEqual(
+      (
+        (await browser.handle(
+          { type: "tabs.list", projectId: "project" },
+          agent,
+        )) as BrowserSessionState[]
+      ).map((tab) => tab.id),
+      ["form"],
+    );
+    await assert.rejects(
+      browser.handle(
+        { type: "cdp", sessionId: "form", method: "Runtime.evaluate", params: { expression: "1" } },
+        agent,
+      ),
+      { code: "browser-permission-denied" },
+    );
+    await browser.handle({
+      type: "settings.update",
+      patch: {
+        permissions: { navigate: "deny", history: "allow", download: "deny", upload: "deny" },
+      },
+    });
+    await assert.rejects(observe(), { code: "browser-permission-denied" });
+    await assert.rejects(
+      browser.handle({ type: "click", sessionId: "form", ref: ref(snapshot, "Save name") }, agent),
+      { code: "browser-permission-denied" },
+    );
+    await assert.rejects(
+      browser.handle(
+        { type: "fill", sessionId: "form", ref: ref(snapshot, "Name "), text: "denied" },
+        agent,
+      ),
+      { code: "browser-permission-denied" },
+    );
+  } finally {
+    browser.dispose();
+    server.close();
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+  }
+});
 
 test("browser imports preserve quoted passwords and reject unsafe or malformed data", () => {
   assert.deepEqual(
@@ -313,7 +493,7 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
         visible: true,
         ...config,
       });
-      await evaluate("document.querySelector('#secret').focus()");
+      await evaluate("document.activeElement.blur()");
       await waitFor(() => events.slice(start).some((event) => event.type === "frame"));
       const visibleFrame = events.slice(start).findLast((event) => event.type === "frame")!;
       assert.equal(visibleFrame.mimeType, "image/png");

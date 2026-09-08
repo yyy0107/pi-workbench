@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDownIcon, PlusIcon, ShieldAlertIcon } from "lucide-react";
-import { useEffect, useId, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type {
   BrowserPage,
   BrowserPermission,
@@ -118,6 +118,9 @@ export function BrowserSettingsItem() {
   const id = useId();
   const [loaded, setLoaded] = useState(false);
   const [pending, setPending] = useState(false);
+  const [actionPending, setActionPending] = useState(false);
+  const actionInFlight = useRef(false);
+  const queue = useRef(Promise.resolve());
   const [error, setError] = useState<"loadError" | "actionError" | "importTooLarge">();
   const [notice, setNotice] = useState<string>();
   const [importOpen, setImportOpen] = useState(false);
@@ -126,7 +129,7 @@ export function BrowserSettingsItem() {
   const [site, setSite] = useState<BrowserSitePermissions>();
   const [originalOrigin, setOriginalOrigin] = useState<string>();
   const [siteError, setSiteError] = useState<"invalidOrigin" | "duplicateOrigin">();
-  const disabled = !loaded || pending;
+  const disabled = !loaded || actionPending;
 
   useEffect(() => {
     let active = true;
@@ -143,21 +146,42 @@ export function BrowserSettingsItem() {
     };
   }, [browser]);
 
-  const run = async (action: () => Promise<void>, success = text("saved")) => {
-    if (pending) return;
+  const run = (action: () => Promise<void>, success = text("saved"), lockControls = true) => {
+    if (lockControls && actionInFlight.current) return Promise.resolve();
+    if (lockControls) {
+      actionInFlight.current = true;
+      setActionPending(true);
+    }
     setPending(true);
     setError(undefined);
     setNotice(undefined);
-    try {
-      await action();
-      if (success) setNotice(success);
-    } catch {
-      setError(loaded ? "actionError" : "loadError");
-    } finally {
-      setPending(false);
-    }
+    const task = queue.current.then(async () => {
+      try {
+        await action();
+        if (success) setNotice(success);
+      } catch {
+        setError(loaded ? "actionError" : "loadError");
+      } finally {
+        if (lockControls) {
+          actionInFlight.current = false;
+          setActionPending(false);
+        }
+      }
+    });
+    queue.current = task;
+    return task.then(() => {
+      if (queue.current === task) setPending(false);
+    });
   };
-  const save = (patch: Partial<BrowserSettings>) => void run(() => browser.updateSettings(patch));
+  const save = (
+    patch: Partial<BrowserSettings> | ((current: BrowserSettings) => Partial<BrowserSettings>),
+  ) =>
+    void run(
+      () =>
+        browser.updateSettings(typeof patch === "function" ? patch(browser.getSettings()) : patch),
+      text("saved"),
+      false,
+    );
   const options = <T extends PlainSettingsKey>(values: readonly T[]) =>
     values.map((value) => ({ value, label: text(value) }));
   const decisions = options(["allow", "ask", "deny"]);
@@ -265,7 +289,7 @@ export function BrowserSettingsItem() {
     void run(async () => {
       await browser.updateSettings({
         sites: [
-          ...settings.sites.filter((entry) => entry.origin !== originalOrigin),
+          ...browser.getSettings().sites.filter((entry) => entry.origin !== originalOrigin),
           { ...site, origin },
         ],
       });
@@ -288,7 +312,7 @@ export function BrowserSettingsItem() {
         {error === "loadError" ? (
           <Button
             variant="outline"
-            disabled={pending}
+            disabled={actionPending}
             onClick={() =>
               void run(async () => {
                 await browser.loadSettings();
@@ -415,7 +439,9 @@ export function BrowserSettingsItem() {
                 options={decisions}
                 disabled={disabled}
                 onChange={(value) =>
-                  save({ permissions: { ...settings.permissions, [permission]: value } })
+                  save((current) => ({
+                    permissions: { ...current.permissions, [permission]: value },
+                  }))
                 }
               />
             </Row>
@@ -467,7 +493,9 @@ export function BrowserSettingsItem() {
                       origin: entry.origin,
                     })}
                     onClick={() =>
-                      save({ sites: settings.sites.filter((item) => item.origin !== entry.origin) })
+                      save((current) => ({
+                        sites: current.sites.filter((item) => item.origin !== entry.origin),
+                      }))
                     }
                   >
                     {text("remove")}
@@ -501,7 +529,7 @@ export function BrowserSettingsItem() {
       <Dialog
         open={importOpen}
         onOpenChange={(open) => {
-          if (!pending) setImportOpen(open);
+          if (!actionPending) setImportOpen(open);
         }}
       >
         <DialogContent closeLabel={text("close")}>
@@ -551,7 +579,7 @@ export function BrowserSettingsItem() {
       <Dialog
         open={directory !== undefined}
         onOpenChange={(open) => {
-          if (!open && !pending) setDirectory(undefined);
+          if (!open && !actionPending) setDirectory(undefined);
         }}
       >
         <DialogContent closeLabel={text("close")}>
@@ -587,7 +615,7 @@ export function BrowserSettingsItem() {
               <Button
                 type="button"
                 variant="outline"
-                disabled={pending}
+                disabled={actionPending}
                 onClick={() => setDirectory(undefined)}
               >
                 {text("cancel")}
@@ -602,7 +630,7 @@ export function BrowserSettingsItem() {
       <Dialog
         open={site !== undefined}
         onOpenChange={(open) => {
-          if (!open && !pending) setSite(undefined);
+          if (!open && !actionPending) setSite(undefined);
         }}
       >
         <DialogContent
@@ -686,7 +714,7 @@ export function BrowserSettingsItem() {
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={pending}
+                  disabled={actionPending}
                   onClick={() => setSite(undefined)}
                 >
                   {text("cancel")}

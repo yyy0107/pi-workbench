@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { getAgentDir, VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
+import { getPiAgentHostBindings } from "@workbench/agent-runtime-pi-server/installation";
+import type { BrowserCommand } from "@workbench/browser-contracts";
 
 import type {
   HostDescription,
@@ -55,6 +57,42 @@ test("retains one installed RPC and Runtime HTTP router facade", () => {
   assert.equal(second.handleRpcPost, first.handleRpcPost);
   assert.equal(second.handleHttpRequest, first.handleHttpRequest);
   assert.equal(second.dispose, first.dispose);
+});
+
+test("the installed browser binding always preserves agent authority and cancellation", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-browser-project-"));
+  const previousStateFile = process.env.PI_WORKBENCH_WORKSPACE_STATE_FILE;
+  process.env.PI_WORKBENCH_WORKSPACE_STATE_FILE = path.join(root, "workspaces.json");
+  t.after(async () => {
+    if (previousStateFile === undefined) delete process.env.PI_WORKBENCH_WORKSPACE_STATE_FILE;
+    else process.env.PI_WORKBENCH_WORKSPACE_STATE_FILE = previousStateFile;
+    await rm(root, { recursive: true, force: true });
+  });
+  const projectPath = path.join(root, "project");
+  await mkdir(projectPath);
+  const created = await rpcValue<{ workspace: WorkspaceView }>(
+    await handlePiRpcPost(
+      rpcRequest("workspace.create", { path: projectPath }),
+      "workspace.create",
+    ),
+  );
+  const manager = getInstalledPiServer().browser;
+  const host = getPiAgentHostBindings().browser!;
+  assert.equal(await host.resolveProjectId!(projectPath), created.workspace.workspaceId);
+  assert.equal(await host.resolveProjectId!(root), root);
+  const result = { snapshotId: "snapshot", nodes: [] };
+  const handle = t.mock.method(manager, "handle", async () => result);
+  const controller = new AbortController();
+  const command = {
+    type: "snapshot",
+    sessionId: "selected-tab",
+    source: "user",
+  } as BrowserCommand;
+  assert.equal(await host.command(command, controller.signal), result);
+  assert.deepEqual(handle.mock.calls[0]?.arguments, [
+    command,
+    { source: "agent", signal: controller.signal },
+  ]);
 });
 
 test("host.describe reports the application and embedded Pi versions", async () => {

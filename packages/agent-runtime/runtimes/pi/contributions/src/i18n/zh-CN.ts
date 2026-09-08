@@ -575,6 +575,12 @@ export const piExtensionsZhCN = {
         removed: "Skill 已删除。",
         packageRemoved: "Pi Package 已卸载，相关能力已从会话中移除。",
       },
+      browser: {
+        name: "Browser",
+        description: "控制应用内浏览器",
+        details:
+          "在 Workbench 浏览器中打开网页、检查页面内容、点击元素、填写表单和截取屏幕。在「设置 → 浏览器」中管理权限与网站访问。",
+      },
       builtins: {
         enhancedSearch: "增强 Find 和 Grep",
         enhancedSearchDescription:

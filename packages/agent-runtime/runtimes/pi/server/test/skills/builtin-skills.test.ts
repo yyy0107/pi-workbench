@@ -71,6 +71,7 @@ test("sessions persist bundled skill switches through reload and cold reopen", a
 });
 
 for (const name of [
+  "browser",
   "skill-creator",
   "pi-docs",
   "skill-installer",
@@ -102,6 +103,7 @@ for (const name of [
     const { skills, diagnostics } = loader.getSkills();
     assert.deepEqual(diagnostics, []);
     assert.deepEqual(skills.map(({ name }) => name).sort(), [
+      "browser",
       "extension-creator",
       "pi-docs",
       "skill-creator",
@@ -211,6 +213,9 @@ test("bundled validator accepts a real skill and rejects missing descriptions an
     spawnSync(process.execPath, [validator, directory], { encoding: "utf8" });
   const valid = run(builtin.baseDir);
   assert.equal(valid.status, 0, valid.stderr);
+  const browser = skills.find(({ name }) => name === "browser")!;
+  const browserValidation = run(browser.baseDir);
+  assert.equal(browserValidation.status, 0, browserValidation.stderr);
   const piDocs = skills.find(({ name }) => name === "pi-docs")!;
   const docsValidation = run(piDocs.baseDir);
   assert.equal(docsValidation.status, 0, docsValidation.stderr);
@@ -343,6 +348,7 @@ test("installs built-in skills and extensions and removes retired prompts withou
   assert.deepEqual((await readdir(directories.extensions)).sort(), [
     "_shared",
     "ask-user",
+    "browser",
     "builtin-tools",
     "composer-context",
     "context-trace",
@@ -353,6 +359,7 @@ test("installs built-in skills and extensions and removes retired prompts withou
   ]);
   for (const name of [
     "ask-user",
+    "browser",
     "builtin-tools",
     "composer-context",
     "context-trace",

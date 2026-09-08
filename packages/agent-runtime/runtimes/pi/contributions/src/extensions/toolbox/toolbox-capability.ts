@@ -17,6 +17,7 @@ import type {
   SkillView,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type { OpenableResource } from "@workbench/extension-sdk";
+import type { PiTranslate } from "../../i18n";
 
 export type ToolboxCapabilityKind = "skill" | "extension" | "prompt" | "package";
 export type ToolboxMainSection =
@@ -74,6 +75,25 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   projectId?: string;
   projectName?: string;
   projectPath?: string;
+}
+
+export function browserCapabilityPresentation(
+  params: ToolboxCapabilitySurfaceParams,
+  t: PiTranslate,
+) {
+  if (
+    !params.builtin ||
+    !(
+      (params.capabilityKind === "skill" && params.name === "browser") ||
+      (params.capabilityKind === "extension" && params.name === "workbench.browser")
+    )
+  )
+    return undefined;
+  return {
+    name: t("extensions.toolbox.browser.name"),
+    description: t("extensions.toolbox.browser.description"),
+    details: t("extensions.toolbox.browser.details"),
+  };
 }
 
 export function bindCapabilityToCatalogTarget(

@@ -119,6 +119,15 @@ await browser.handle(
   { source: "agent", signal: abortController.signal },
 );
 
+const tabs = await browser.handle(
+  { type: "tabs.list", projectId: "/workspace" },
+  { source: "agent", signal: abortController.signal },
+);
+const snapshot = await browser.handle(
+  { type: "snapshot", sessionId: "example" },
+  { source: "agent", signal: abortController.signal },
+);
+
 unsubscribe();
 browser.dispose();
 ```
@@ -134,6 +143,24 @@ Their internal page access is limited to history and downloads, with the relevan
 `fullCdpAccess` defaults to `false`. Enabling it exposes arbitrary CDP methods through `cdp` after
 the navigation permission check, including powerful access to the dedicated browser profile.
 The regular commands retain their action-specific checks.
+
+`tabs.list` lists only existing controlled tabs with the exact requested `projectId`. It does not
+launch Chrome or discover the user's other browser windows. `snapshot` returns a bounded native
+accessibility tree with the current session, a snapshot ID, roles, names, control states, and
+optional element references. Password values are omitted. At most 1,000 nodes and approximately
+64 Ki characters of accessible text are returned; `truncated` indicates omitted content. Pages
+that have not reached DOM readiness after a one-second wait return `browser-page-loading`.
+
+Use observed references with `{ type: "click", sessionId, ref }` or
+`{ type: "fill", sessionId, ref, text }`. Both use native Chrome input, check navigation permission,
+and work while unrestricted CDP access is disabled. Fill replaces an editable element's contents;
+an empty string clears it. Click checks visibility, disabled state, and whether another element
+covers its target. References belong to one tab and its latest snapshot. Navigation, document
+replacement, a newer snapshot, or removing an element makes its references stale. Recover from
+`browser-element-stale` or `browser-element-not-interactable` by observing the page again before
+choosing the next action. Embedded frames are marked `unavailable: "frame"` and have no actionable
+references; the snapshot does not traverse their documents. Local development pages should be
+served over HTTP(S); ordinary navigation does not accept `file:` URLs.
 
 Website tools have global and per-origin switches. The launched Chrome enables
 `WebMCP,WebMCPTesting`; `site-tools.list`/`site-tools.call` use the current

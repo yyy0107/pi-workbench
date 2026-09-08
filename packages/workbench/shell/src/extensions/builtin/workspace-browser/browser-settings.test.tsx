@@ -4,7 +4,11 @@ import { act, Children, isValidElement, type ReactElement, type ReactNode } from
 import { createRoot } from "react-dom/client";
 import { Globe2Icon } from "lucide-react";
 import { WorkspaceSurfaceRegistryImpl } from "@workbench/extension-sdk/internal";
-import { BROWSER_PAGES, type BrowserCommand } from "@workbench/browser-contracts";
+import {
+  BROWSER_PAGES,
+  type BrowserCommand,
+  type BrowserSettings,
+} from "@workbench/browser-contracts";
 
 import { installMinimalReactDomEnvironment } from "../../../../test/react-dom-environment";
 import { I18nProvider } from "../../../i18n";
@@ -86,6 +90,8 @@ test("browser settings persist choices and website overrides, reuse management t
         element.props.value === value &&
         typeof element.props.onChange === "function",
     );
+  const toggle = (label: string) =>
+    find((element) => element.type === Switch && element.props["aria-label"] === label);
   const submitSite = () => {
     const form = find(
       (element) =>
@@ -127,23 +133,50 @@ test("browser settings persist choices and website overrides, reuse management t
         </RuntimeConnectionProvider>,
       ),
     );
-    await act(async () => {
-      const toggle = find(
-        (element) =>
-          element.type === Switch && element.props["aria-label"] === "Fit pages to workspace width",
-      );
-      (toggle.props.onCheckedChange as (checked: boolean) => void)(false);
+    const updateSettings = browser.updateSettings.bind(browser);
+    const patches: Partial<BrowserSettings>[] = [];
+    let finishSave!: () => void;
+    const saving = new Promise<void>((resolve) => {
+      finishSave = resolve;
     });
+    browser.updateSettings = async (patch) => {
+      patches.push(patch);
+      await saving;
+      await updateSettings(patch);
+    };
+    await act(async () => {
+      (toggle("Fit pages to workspace width").props.onCheckedChange as (checked: boolean) => void)(
+        false,
+      );
+    });
+    assert.equal(tree.props["aria-busy"], true);
+    for (const control of elements(tree).filter(
+      (element) =>
+        element.type === Switch ||
+        element.type === Input ||
+        typeof element.props.onChange === "function",
+    )) {
+      assert.equal(control.props.disabled, false, "saving must not dim or disable other controls");
+    }
+    await act(async () => {
+      (toggle("Show full URL").props.onCheckedChange as (checked: boolean) => void)(true);
+      (toggle("Show full URL").props.onCheckedChange as (checked: boolean) => void)(false);
+      (choice("Approvals", "ask").props.onChange as (value: string) => void)("deny");
+      (choice("History access", "ask").props.onChange as (value: string) => void)("allow");
+    });
+    assert.equal(patches.length, 1, "save requests must wait for the preceding request");
+    await act(async () => finishSave());
+    assert.equal(patches.length, 5, "continuous changes must all be saved");
+    assert.equal(tree.props["aria-busy"], false);
     assert.equal(browser.getSettings().fitToWidth, false);
-    await act(async () =>
-      (choice("Approvals", "ask").props.onChange as (value: string) => void)("deny"),
-    );
+    assert.equal(browser.getSettings().showFullUrl, false);
     assert.deepEqual(browser.getSettings().permissions, {
       navigate: "deny",
-      history: "ask",
+      history: "allow",
       download: "ask",
       upload: "ask",
     });
+    browser.updateSettings = updateSettings;
 
     await click(button("Add website"));
     await act(async () => setOrigin("https://name:secret@example.test"));
@@ -201,10 +234,7 @@ test("browser settings persist choices and website overrides, reuse management t
       throw new Error("save failed");
     };
     await act(async () => {
-      const toggle = find(
-        (element) => element.type === Switch && element.props["aria-label"] === "Show full URL",
-      );
-      (toggle.props.onCheckedChange as (checked: boolean) => void)(true);
+      (toggle("Show full URL").props.onCheckedChange as (checked: boolean) => void)(true);
     });
     assert.equal(browser.getSettings().showFullUrl, false);
     assert.ok(
@@ -213,6 +243,15 @@ test("browser settings persist choices and website overrides, reuse management t
           element.props.role === "alert" &&
           element.props.children === "The browser action could not be completed. Please try again.",
       ),
+    );
+    browser.updateSettings = updateSettings;
+    await act(async () => {
+      (toggle("Show full URL").props.onCheckedChange as (checked: boolean) => void)(true);
+    });
+    assert.equal(
+      browser.getSettings().showFullUrl,
+      true,
+      "failed saves must not block later changes",
     );
   } finally {
     await act(async () => root.unmount());

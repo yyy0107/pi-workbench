@@ -7,6 +7,7 @@ import {
   CircleXIcon,
   ClipboardIcon,
   FolderIcon,
+  Globe2Icon,
   LoaderCircleIcon,
   MapPinIcon,
   PackageIcon,
@@ -64,6 +65,7 @@ import { useFileWorkspaceTargetService } from "@workbench/shell/workspace-files"
 
 import {
   toolboxDirectoryResource,
+  browserCapabilityPresentation,
   builtinToolPreferenceKey,
   type ToolboxCapabilitySurfaceParams,
 } from "./toolbox-capability";
@@ -177,6 +179,8 @@ function EnhancedSearchSettings() {
 
 function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfaceParams }) {
   const { number, t } = usePiI18n();
+  const browser = browserCapabilityPresentation(params, t);
+  const displayedName = browser?.name ?? params.name;
   const builtinPreferenceKey = builtinToolPreferenceKey(params);
   const builtinPreference = useToolCapabilityPreferences(builtinPreferenceKey ?? "askUserEnabled");
   const builtinController = useToolCapabilityPreferencesController(
@@ -271,7 +275,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
   const displayedPackageDetails = isInstalledPackage
     ? installedPackageDetails.value
     : officialDetails;
-  const Icon = isPackage ? PackageIcon : isSkill ? BoxIcon : PlugIcon;
+  const Icon = browser ? Globe2Icon : isPackage ? PackageIcon : isSkill ? BoxIcon : PlugIcon;
   const {
     copy: copyInstallCommandText,
     isCopied: installCommandCopied,
@@ -504,21 +508,23 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
         : packageSizeBytes >= 1_000
           ? `${number(packageSizeBytes / 1_000, { maximumFractionDigits: 1 })} KB`
           : `${number(packageSizeBytes)} B`;
-  const displayedDescription = isInstalledPackage
-    ? installedPackageDetails.value?.description ||
-      (installedPackageDetails.loadState === "loading"
-        ? "…"
-        : t("extensions.toolbox.packages.installedDescriptionUnavailable"))
-    : isSkill && params.builtin && params.name === "skill-creator"
-      ? t("extensions.toolbox.skills.creatorDescription")
-      : params.description ||
-        (isExtension
-          ? t("extensions.toolbox.extensions.capabilitySummary", {
-              events: params.eventNames?.length ?? 0,
-              tools: params.toolNames?.length ?? 0,
-              commands: params.commandNames?.length ?? 0,
-            })
-          : t("extensions.toolbox.details.descriptionUnavailable"));
+  const displayedDescription =
+    browser?.description ??
+    (isInstalledPackage
+      ? installedPackageDetails.value?.description ||
+        (installedPackageDetails.loadState === "loading"
+          ? "…"
+          : t("extensions.toolbox.packages.installedDescriptionUnavailable"))
+      : isSkill && params.builtin && params.name === "skill-creator"
+        ? t("extensions.toolbox.skills.creatorDescription")
+        : params.description ||
+          (isExtension
+            ? t("extensions.toolbox.extensions.capabilitySummary", {
+                events: params.eventNames?.length ?? 0,
+                tools: params.toolNames?.length ?? 0,
+                commands: params.commandNames?.length ?? 0,
+              })
+            : t("extensions.toolbox.details.descriptionUnavailable")));
 
   const copyInstallCommand = () => {
     if (!selectedInstallCommand) return;
@@ -884,7 +890,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
                     : "text-2xl leading-8 font-medium tracking-tight break-words @2xl/toolbox-detail:text-3xl"
                 }
               >
-                {params.name}
+                {displayedName}
               </h1>
               {isSkill ? (
                 <StatusBadge className="max-w-full leading-5 break-words">
@@ -900,7 +906,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
               canToggle={canToggleSkill}
               enabled={skillEnabled}
               mutationState={skillMutationState}
-              name={params.name}
+              name={displayedName}
               removed={skillRemoved}
               onDelete={() => setSkillDeleteDialogOpen(true)}
               onOpenDirectory={openSkillDirectory}
@@ -990,6 +996,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
         >
           {displayedDescription}
         </p>
+        {browser ? <p className="text-muted-foreground mt-3 text-sm">{browser.details}</p> : null}
         {displayedHeaderFilePath
           ? withTooltip(
               <p
@@ -1081,7 +1088,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
             canToggle={canToggleExtension}
             enabled={extensionEnabled}
             mutationState={extensionMutationState}
-            name={params.name}
+            name={displayedName}
             openFailed={extensionOpenFailed}
             origin={params.origin}
             removed={extensionRemoved}

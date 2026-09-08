@@ -34,6 +34,7 @@ import type { WorkbenchAgentServerAdapter } from "@workbench/agent-runtime-serve
 import {
   bindPiAgentHostBindings,
   resolvePiWorkspaceRoot,
+  resolvePiWorkspaceId,
   mutatePiWorkspace,
   CommandService,
   createPiAgentServerImplementation,
@@ -187,7 +188,10 @@ function createInstalledPiAgentHostBindings(
 ): PiAgentHostBindings {
   const settings = createInstalledWorkbenchSettingsService();
   return {
-    browser: { command: (command, signal) => browser.handle(command, { source: "agent", signal }) },
+    browser: {
+      command: (command, signal) => browser.handle(command, { source: "agent", signal }),
+      resolveProjectId: async (cwd) => (await resolvePiWorkspaceId(cwd)) ?? cwd,
+    },
     workbenchSettings: createInstalledWorkbenchSettingsAgentAccess(),
     workspaceFiles,
     getDefaultTerminalShell: terminalShell.getShell,

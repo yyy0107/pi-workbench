@@ -16,6 +16,7 @@ import {
   withCrossProcessFileLock,
 } from "@workbench/server-core/file-persistence";
 import { pathWithin } from "./resources/resource-mutations";
+import { browserSkillDirectory } from "@workbench/pi-browser/resources";
 
 async function ensureBuiltinDirectory(directory: string): Promise<void> {
   await mkdir(directory, { recursive: true });
@@ -65,6 +66,10 @@ export async function ensureWorkbenchBuiltinResources(agentDir = getAgentDir()) 
       await copyBuiltinDirectory(
         fileURLToPath(new URL("./skills/builtin-skills/", import.meta.url)),
         directories.skills,
+      );
+      await copyBuiltinDirectory(
+        fileURLToPath(browserSkillDirectory),
+        path.join(directories.skills, "browser"),
       );
       const extensionSource = fileURLToPath(new URL("./internal-extensions/", import.meta.url));
       // Each extension owns a directory; the root registry belongs to the compiled host.

@@ -7,7 +7,7 @@ import {
   PiResourceMutationBusyError,
 } from "../resources/pi-resource-mutation-coordinator";
 
-export { resolvePiWorkspaceRoot } from "./workspace-registry";
+export { resolvePiWorkspaceRoot, resolvePiWorkspaceId } from "./workspace-registry";
 
 export async function mutatePiWorkspace<Value>(
   rootPath: string,
