@@ -133,9 +133,8 @@
   --button-height-compact: calc(var(--form-control-height) - 2px);
   --button-height-default: var(--input-control-height);
   --button-height-large: calc(var(--form-control-height) + 10px);
-  --button-content-padding-block-start: calc(
-    var(--control-text-offset-y) + var(--control-text-offset-y)
-  );
+  /* Center the text and icon together; asymmetric padding offsets the entire flex row. */
+  --button-content-padding-block-start: 0px;
   --button-content-padding-block-end: 0px;
   --button-radius: var(--radius);
   --button-background-hover: var(--control-state-background-hover);
