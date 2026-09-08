@@ -104,6 +104,15 @@ export function localAppFileKindFor(
   const normalizedMediaType = mediaType?.split(";", 1)[0]?.trim().toLowerCase();
   const extension = fileExtension(path);
 
+  if (
+    normalizedMediaType === "text/html" ||
+    normalizedMediaType === "application/xhtml+xml" ||
+    extension === "html" ||
+    extension === "htm" ||
+    extension === "xhtml"
+  ) {
+    return "html";
+  }
   if (normalizedMediaType?.startsWith("image/") || isImagePreviewFile(path, mediaType)) {
     return "image";
   }
@@ -136,12 +145,44 @@ export function localAppFileKindFor(
 export function compatibleLocalFileApps(
   apps: readonly WorkbenchLocalApp[],
   fileKind: WorkbenchLocalAppFileKind,
+  path?: string,
 ): WorkbenchLocalApp[] {
+  const extension = fileExtension(path);
   return apps.filter(
     (app) =>
       app.kind !== "terminal" &&
       app.kind !== "file-manager" &&
-      app.supportedFileKinds.includes(fileKind),
+      (app.supportedFileKinds.includes(fileKind) ||
+        (fileKind === "html" &&
+          app.kind === "editor" &&
+          app.supportedFileKinds.includes("text"))) &&
+      (!app.supportedFileExtensions ||
+        Boolean(extension && app.supportedFileExtensions.includes(extension))),
+  );
+}
+
+export const SYSTEM_DEFAULT_APP_ID = "system-default";
+
+export function fileOpenPreferenceKey(
+  path: string | undefined,
+  kind: WorkbenchLocalAppFileKind,
+): string {
+  if (!path) return "folder";
+  const extension = fileExtension(path);
+  return extension ? `extension:${extension}` : `kind:${kind}`;
+}
+
+export function preferredLocalApp(
+  apps: readonly WorkbenchLocalApp[],
+  fileKind: WorkbenchLocalAppFileKind,
+  preferredId: string | undefined,
+): WorkbenchLocalApp | undefined {
+  if (preferredId === SYSTEM_DEFAULT_APP_ID) return undefined;
+  return (
+    apps.find((app) => app.id === preferredId) ??
+    (fileKind === "html" ? apps.find((app) => app.kind === "browser") : undefined) ??
+    (fileKind === "pdf" ? apps.find((app) => app.kind === "pdf-reader") : undefined) ??
+    apps[0]
   );
 }
 

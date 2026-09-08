@@ -63,6 +63,7 @@ export const workbenchSettingsUpdatePayload = rpcObject({
       ),
     ),
     locale: rpcOptional(rpcNullable(rpcEnum(SUPPORTED_LOCALES))),
+    fileOpenApps: rpcOptional(rpcNullable(rpcRecord(rpcString({ minLength: 1, maxLength: 128 })))),
     modelSelector: rpcOptional(
       rpcNullable(
         rpcObject({

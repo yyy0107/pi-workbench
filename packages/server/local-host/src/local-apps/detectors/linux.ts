@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 import { APP_REGISTRY, FILE_MANAGER_APP } from "../registry";
+import { localAppView } from "../types";
 import {
   findExecutable,
   localAppPathExists,
@@ -107,11 +108,7 @@ async function findDesktopEntry(
 
 function detectedExecutable(definition: LocalAppDefinition, executable: string): DetectedLocalApp {
   return {
-    id: definition.id,
-    name: definition.name,
-    kind: definition.kind,
-    ...(definition.icon ? { icon: definition.icon } : {}),
-    supportedFileKinds: [...definition.supportedFileKinds],
+    ...localAppView(definition),
     platform: "linux",
     targetMode: definition.targetMode ?? "path",
     launcher: { type: "executable", path: executable },
@@ -166,11 +163,7 @@ export async function detectLinuxApps(
     const desktop = await findDesktopEntry(linux, directories, exists);
     if (desktop && desktopLauncher) {
       detected.push({
-        id: definition.id,
-        name: definition.name,
-        kind: definition.kind,
-        ...(definition.icon ? { icon: definition.icon } : {}),
-        supportedFileKinds: [...definition.supportedFileKinds],
+        ...localAppView(definition),
         platform: "linux",
         targetMode: definition.targetMode ?? "path",
         launcher: {
@@ -196,11 +189,7 @@ export async function detectLinuxApps(
     const flatpakId = (linux.flatpakIds ?? []).find((id) => flatpakApps.has(id));
     if (flatpakId && flatpak) {
       detected.push({
-        id: definition.id,
-        name: definition.name,
-        kind: definition.kind,
-        ...(definition.icon ? { icon: definition.icon } : {}),
-        supportedFileKinds: [...definition.supportedFileKinds],
+        ...localAppView(definition),
         platform: "linux",
         targetMode: definition.targetMode ?? "path",
         launcher: { type: "flatpak", command: flatpak, applicationId: flatpakId },

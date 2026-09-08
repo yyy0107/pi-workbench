@@ -179,6 +179,15 @@ function parsePreferences(value: unknown): WorkbenchSettingsPreferences {
           }),
     };
   }
+  if (value.fileOpenApps !== undefined) {
+    const choices = jsonRecord(value.fileOpenApps, "fileOpenApps", 128 * 1024);
+    preferences.fileOpenApps = Object.fromEntries(
+      Object.entries(choices).map(([fileType, appId]) => [
+        shortString(fileType, "fileOpenApps file type", 256),
+        shortString(appId, "fileOpenApps application", 128),
+      ]),
+    );
+  }
   if (value.sidebarExpandedWorkspaceIds !== undefined) {
     preferences.sidebarExpandedWorkspaceIds = stringList(
       value.sidebarExpandedWorkspaceIds,

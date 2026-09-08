@@ -21,10 +21,19 @@ export interface WorkbenchProjectTrust {
   decisionPath?: string;
 }
 
-export type WorkbenchLocalAppKind = "editor" | "media-player" | "terminal" | "file-manager";
+export type WorkbenchLocalAppKind =
+  | "editor"
+  | "browser"
+  | "pdf-reader"
+  | "image-editor"
+  | "office"
+  | "media-player"
+  | "terminal"
+  | "file-manager";
 
 export type WorkbenchLocalAppFileKind =
   | "text"
+  | "html"
   | "image"
   | "audio"
   | "video"
@@ -40,6 +49,8 @@ export interface WorkbenchLocalApp {
   kind: WorkbenchLocalAppKind;
   icon?: string;
   supportedFileKinds: readonly WorkbenchLocalAppFileKind[];
+  /** Optional format restriction within a file kind, using lowercase extensions without dots. */
+  supportedFileExtensions?: readonly string[];
 }
 
 export interface WorkbenchLocalAppOpenRequest {

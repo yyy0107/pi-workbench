@@ -83,3 +83,17 @@ export type LocalAppLauncherFunction = (
 ) => Promise<void>;
 
 export type { LocalAppFileKind, LocalAppKind, LocalAppPlatform, LocalAppView };
+
+/** Keep public format metadata consistent across every detector and the RPC response. */
+export function localAppView(app: LocalAppView): LocalAppView {
+  return {
+    id: app.id,
+    name: app.name,
+    kind: app.kind,
+    ...(app.icon ? { icon: app.icon } : {}),
+    supportedFileKinds: [...app.supportedFileKinds],
+    ...(app.supportedFileExtensions
+      ? { supportedFileExtensions: [...app.supportedFileExtensions] }
+      : {}),
+  };
+}

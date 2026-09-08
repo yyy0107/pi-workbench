@@ -7,6 +7,108 @@ import test from "node:test";
 import { detectLinuxApps } from "../../../src/local-apps/detectors/linux";
 import { detectMacOSApps } from "../../../src/local-apps/detectors/macos";
 import { detectWindowsApps } from "../../../src/local-apps/detectors/windows";
+import { LocalAppService } from "../../../src/local-apps/service";
+
+test("carries PDF, image and Office format support from platform detection to the public application list", async () => {
+  const officePaths = new Map([
+    ["WINWORD.EXE", "C:\\Office\\WINWORD.EXE"],
+    ["EXCEL.EXE", "C:\\Office\\EXCEL.EXE"],
+    ["POWERPNT.EXE", "C:\\Office\\POWERPNT.EXE"],
+  ]);
+  const [windows, macos, linux] = await Promise.all([
+    detectWindowsApps(undefined, {
+      env: {},
+      exists: async (candidate) => [...officePaths.values()].includes(candidate),
+      run: async (_command, args) => {
+        const name = args[1]?.split("\\").at(-1);
+        const executable = name ? officePaths.get(name) : undefined;
+        if (executable) return { stdout: `(Default)    REG_SZ    ${executable}\r\n`, stderr: "" };
+        throw new Error("not found");
+      },
+    }),
+    detectMacOSApps(undefined, {
+      home: "/Users/me",
+      exists: async (candidate) =>
+        ["/System/Applications/Preview.app", "/Applications/Inkscape.app"].includes(candidate),
+      run: async () => {
+        throw new Error("not found");
+      },
+    }),
+    detectLinuxApps(undefined, {
+      env: { PATH: "/usr/bin", XDG_DATA_HOME: "/missing", XDG_DATA_DIRS: "/missing" },
+      home: "/missing",
+      exists: async (candidate) =>
+        ["/usr/bin/okular", "/usr/bin/gimp", "/usr/bin/libreoffice"].includes(candidate),
+      run: async () => {
+        throw new Error("not found");
+      },
+    }),
+  ]);
+  const service = new LocalAppService({ detect: async () => [...windows, ...macos, ...linux] });
+  const { apps } = await service.list();
+  for (const [id, extension] of [
+    ["word", "docx"],
+    ["excel", "xlsx"],
+    ["powerpoint", "pptx"],
+    ["inkscape", "svg"],
+    ["libreoffice", "ods"],
+  ]) {
+    const app = apps.find((candidate) => candidate.id === id);
+    assert.ok(app?.supportedFileExtensions?.includes(extension!));
+    assert.equal("launcher" in app!, false);
+  }
+  assert.deepEqual(apps.find((app) => app.id === "preview")?.supportedFileKinds, ["pdf", "image"]);
+  assert.deepEqual(apps.find((app) => app.id === "okular")?.supportedFileKinds, ["pdf"]);
+  assert.deepEqual(apps.find((app) => app.id === "gimp")?.supportedFileKinds, ["image"]);
+  assert.ok(!apps.find((app) => app.id === "word")?.supportedFileExtensions?.includes("xlsx"));
+});
+
+test("discovers installed browsers on Windows, macOS, and Linux with format-specific support", async () => {
+  const chromePath = "C:\\Browsers\\Chrome\\chrome.exe";
+  const [windows, macos, linux] = await Promise.all([
+    detectWindowsApps(undefined, {
+      env: {},
+      exists: async (candidate) => candidate === chromePath,
+      run: async (_command, args) => {
+        if (args[1]?.endsWith("App Paths\\chrome.exe")) {
+          return { stdout: `(Default)    REG_SZ    ${chromePath}\r\n`, stderr: "" };
+        }
+        throw new Error("not found");
+      },
+    }),
+    detectMacOSApps(undefined, {
+      home: "/Users/me",
+      exists: async (candidate) => candidate === "/Applications/Safari.app",
+      run: async () => {
+        throw new Error("not found");
+      },
+    }),
+    detectLinuxApps(undefined, {
+      env: { PATH: "/usr/bin", XDG_DATA_HOME: "/missing", XDG_DATA_DIRS: "/missing" },
+      home: "/missing",
+      exists: async (candidate) => candidate === "/usr/bin/firefox",
+      run: async () => {
+        throw new Error("not found");
+      },
+    }),
+  ]);
+  for (const [apps, id] of [
+    [windows, "chrome"],
+    [macos, "safari"],
+    [linux, "firefox"],
+  ] as const) {
+    assert.deepEqual(
+      apps
+        .filter((app) => app.kind === "browser")
+        .map((app) => ({
+          id: app.id,
+          supportedFileKinds: app.supportedFileKinds,
+          targetMode: app.targetMode,
+        })),
+      [{ id, supportedFileKinds: ["html", "pdf"], targetMode: "path" }],
+    );
+  }
+});
 
 test("Windows prefers App Paths and still exposes the system file manager", async () => {
   const codePath = "C:\\Users\\me\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe";

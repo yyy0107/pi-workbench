@@ -86,6 +86,7 @@ export interface WorkbenchSettingsPreferences extends Partial<
   backgroundImage?: WorkbenchBackgroundImagePreference;
   locale?: Locale;
   modelSelector?: WorkbenchModelSelectorPreference;
+  fileOpenApps?: Record<string, string>;
   sidebarExpandedWorkspaceIds?: string[];
   sidebarSelectedThreadId?: string;
   sidebarThreadOrderByScope?: Record<string, string[]>;

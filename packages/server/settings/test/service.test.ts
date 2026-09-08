@@ -64,6 +64,33 @@ test("persists and validates conversation preferences", async (t) => {
   });
 });
 
+test("persists per-format application choices and rejects invalid maps without losing saved settings", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-file-app-settings-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const stateFile = path.join(root, "settings.json");
+  const service = new WorkbenchSettingsService({ stateFile });
+  const fileOpenApps = { "extension:html": "firefox", "extension:pdf": "system-default" };
+  await service.update({ patch: { fileOpenApps, showReasoning: false } });
+  for (const invalid of [
+    [],
+    { pdf: 1 },
+    { "": "chrome" },
+    { html: "" },
+    { pdf: "x".repeat(129) },
+  ]) {
+    await assert.rejects(
+      service.update({ patch: { fileOpenApps: invalid as unknown as typeof fileOpenApps } }),
+      { code: "workbench-settings-invalid" },
+    );
+  }
+  assert.deepEqual((await new WorkbenchSettingsService({ stateFile }).describe()).preferences, {
+    fileOpenApps,
+    showReasoning: false,
+  });
+  await service.update({ patch: { fileOpenApps: null } });
+  assert.deepEqual((await service.describe()).preferences, { showReasoning: false });
+});
+
 test("resolves persistence from injected Host configuration", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-settings-path-"));
   t.after(() => rm(root, { recursive: true, force: true }));

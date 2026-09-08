@@ -3,6 +3,7 @@ import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 
 import { LocalAppService, LocalAppServiceError } from "../../src/local-apps/service";
 import type { DetectedLocalApp, LocalAppLaunchTarget } from "../../src/local-apps/types";
@@ -95,4 +96,32 @@ test("returns stable domain errors for unavailable apps, targets, and launch fai
     assert.equal(error.code, "local-app-launch-failed");
     return true;
   });
+});
+
+test("opens browser files as encoded local URLs so relative assets and special characters survive", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-browser-file-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const target = path.join(root, "页面 #100%.html");
+  await writeFile(target, '<img src="./image.png">');
+  const browser: DetectedLocalApp = {
+    ...detectedEditor,
+    id: "chrome",
+    name: "Google Chrome",
+    kind: "browser",
+    supportedFileKinds: ["html", "pdf"],
+    launcher: { type: "executable", path: "/usr/bin/google-chrome" },
+  };
+  let launched: LocalAppLaunchTarget | undefined;
+  const service = new LocalAppService({
+    detect: async () => [browser],
+    launch: async (_app, launchTarget) => {
+      launched = launchTarget;
+    },
+  });
+  assert.deepEqual(await service.open("chrome", target), { opened: true });
+  assert.deepEqual(launched, {
+    path: pathToFileURL(await realpath(target)).href,
+    directory: await realpath(root),
+  });
+  assert.equal(new URL(launched!.path).hash, "");
 });
