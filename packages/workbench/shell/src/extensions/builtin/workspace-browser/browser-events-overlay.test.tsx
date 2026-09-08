@@ -14,7 +14,10 @@ import {
 import { installMinimalReactDomEnvironment } from "../../../../test/react-dom-environment";
 import { I18nProvider } from "../../../i18n";
 import { RightWorkspaceProvider, useRightWorkspaceState } from "../../../right-workspace-react";
-import { useRightWorkspaceInstallationResource } from "../../../right-workspace/right-workspace-context";
+import {
+  useRightWorkspaceEnvironment,
+  useRightWorkspaceInstallationResource,
+} from "../../../right-workspace/right-workspace-context";
 import {
   RuntimeConnectionProvider,
   createSameOriginRuntimeConnection,
@@ -121,12 +124,14 @@ test("browser overlay waits for explicit responses, routes confirmed links, and 
   let downloadsTree: ReactNode;
   let setDownloadsOpen!: (open: boolean) => void;
   let surfaceCount = 0;
+  let workspace!: ReturnType<typeof useRightWorkspaceEnvironment>;
   function PromptProbe({ element }: { element: ReactElement<Record<string, unknown>> }) {
     const Component = element.type as (props: Record<string, unknown>) => ReactNode;
     promptTree = Component(element.props);
     return null;
   }
   function Probe() {
+    workspace = useRightWorkspaceEnvironment();
     useRightWorkspaceInstallationResource(BROWSER_SESSION_SERVICE_RESOURCE, () => browser);
     surfaceCount = useRightWorkspaceState((state) => state.surfaceOrder.length);
     const [downloadsOpen, setOpen] = useState(false);
@@ -224,6 +229,37 @@ test("browser overlay waits for explicit responses, routes confirmed links, and 
     };
     await act(async () => handlers.get("click")!(modifiedClick));
     assert.equal(surfaceCount, 1);
+
+    const opener = Object.values(workspace.store.getState().surfaces)[0]!;
+    const openerSession = browser.getSession(String(opener.params.browserSessionId))!;
+    const popup: Extract<BrowserEvent, { type: "popup" }> = {
+      type: "popup",
+      openerSessionId: openerSession.id,
+      session: {
+        ...openerSession,
+        id: "popup",
+        title: "Native popup",
+        url: "https://popup.example/",
+        zoom: 1,
+        width: 800,
+        height: 600,
+      },
+    };
+    await act(async () => {
+      browser.emit(popup);
+      browser.emit(popup);
+      browser.emit({
+        ...popup,
+        openerSessionId: "unknown-opener",
+        session: { ...popup.session, id: "unknown" },
+      });
+    });
+    assert.equal(surfaceCount, 2, "a popup creates one surface in its opener's scope");
+    const currentWorkspace = workspace.store.getState();
+    const popupSurface = currentWorkspace.surfaces[currentWorkspace.activeSurfaceId!]!;
+    assert.equal(popupSurface.params.browserSessionId, popup.session.id);
+    assert.deepEqual(popupSurface.scope, opener.scope);
+    assert.equal(currentWorkspace.surfaces[opener.id]?.params.url, openerSession.url);
 
     const permission = {
       type: "permission",

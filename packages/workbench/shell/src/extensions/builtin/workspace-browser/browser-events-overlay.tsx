@@ -21,6 +21,7 @@ import {
   useToastManager,
 } from "../../../ui";
 import { useBrowserSessionService } from "./browser-session-service";
+import { useRightWorkspaceEnvironment } from "../../../right-workspace/right-workspace-context";
 import { saveBrowserFile, uploadBrowserFiles } from "./browser-files";
 
 type PromptEvent = Extract<
@@ -339,6 +340,7 @@ function BrowserPromptDialog({ event, onDone }: { event: PromptEvent; onDone(): 
 
 export function BrowserEventsOverlay() {
   const browser = useBrowserSessionService();
+  const { controller, store, context } = useRightWorkspaceEnvironment();
   const { t } = useI18n();
   const { add } = useToastManager();
   const root = useRef<HTMLSpanElement>(null);
@@ -366,6 +368,28 @@ export function BrowserEventsOverlay() {
     () =>
       browser.subscribeEvents((event) => {
         if (event.type === "settings") setSettingsReady(true);
+        if (event.type === "popup") {
+          const state = store.getState();
+          const opener = Object.values(state.surfaces).find(
+            (surface) =>
+              surface.kind === "browser" &&
+              surface.params.browserSessionId === event.openerSessionId,
+          );
+          if (opener)
+            controller.reveal({
+              kind: "browser",
+              title: event.session.title || defineMessage("extensions.workspaceBrowser.title"),
+              params: { browserSessionId: event.session.id, url: event.session.url },
+              context: {
+                ...context,
+                projectId: event.session.projectId,
+                threadId: opener.scope.type === "thread" ? opener.scope.key : undefined,
+              },
+              scope: opener.scope,
+              status: "ready",
+              policy: state.activeSurfaceId === opener.id ? "reveal" : "background",
+            });
+        }
         if (
           event.type === "permission" ||
           event.type === "dialog" ||
@@ -418,7 +442,7 @@ export function BrowserEventsOverlay() {
           }
         }
       }),
-    [add, browser, t],
+    [add, browser, context, controller, store, t],
   );
 
   const current = queue[0];

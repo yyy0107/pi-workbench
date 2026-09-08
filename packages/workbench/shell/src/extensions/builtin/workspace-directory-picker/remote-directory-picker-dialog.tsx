@@ -26,11 +26,23 @@ export function RemoteDirectoryPickerDialog({
   open,
   onOpenChange,
   onSelectPath,
+  initialPath,
+  copy,
 }: {
   hostClient: WorkbenchRuntimeHostCapability;
   open: boolean;
   onOpenChange(open: boolean): void;
   onSelectPath(path: string): void | Promise<void>;
+  initialPath?: string;
+  copy?: {
+    title: string;
+    description: string;
+    path: string;
+    pathPlaceholder: string;
+    select: string;
+    close: string;
+    selectError: string;
+  };
 }) {
   const { t } = useI18n();
   const requestId = useRef(0);
@@ -65,12 +77,12 @@ export function RemoteDirectoryPickerDialog({
     setListing(null);
     setPathInput("");
     setError(null);
-    void navigateTo();
+    void navigateTo(initialPath);
 
     return () => {
       requestId.current++;
     };
-  }, [navigateTo, open]);
+  }, [initialPath, navigateTo, open]);
 
   const selectCurrentDirectory = async () => {
     if (!listing || pathInput.trim() !== listing.path || loading || selecting) return;
@@ -93,7 +105,7 @@ export function RemoteDirectoryPickerDialog({
     error === "browse"
       ? t("extensions.workspaceDirectory.browseError")
       : error === "select"
-        ? t("extensions.workspaceDirectory.selectError")
+        ? (copy?.selectError ?? t("extensions.workspaceDirectory.selectError"))
         : undefined;
 
   return (
@@ -104,15 +116,17 @@ export function RemoteDirectoryPickerDialog({
       }}
     >
       <DialogContent
-        closeLabel={t("extensions.workspaceDirectory.close")}
+        closeLabel={copy?.close ?? t("extensions.workspaceDirectory.close")}
         showCloseButton={false}
         data-workspace-directory-picker=""
         className={cn(styles.dialog, styles.remote, "flex flex-col gap-3 overflow-hidden")}
       >
         <DialogHeader>
-          <DialogTitle>{t("extensions.workspaceDirectory.sourceFolder")}</DialogTitle>
+          <DialogTitle>
+            {copy?.title ?? t("extensions.workspaceDirectory.sourceFolder")}
+          </DialogTitle>
           <DialogDescription className="sr-only">
-            {t("extensions.workspaceDirectory.selectDescription")}
+            {copy?.description ?? t("extensions.workspaceDirectory.selectDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -136,8 +150,10 @@ export function RemoteDirectoryPickerDialog({
           </Button>
           <Input
             value={pathInput}
-            aria-label={t("extensions.workspaceDirectory.path")}
-            placeholder={t("extensions.workspaceDirectory.pathPlaceholder")}
+            aria-label={copy?.path ?? t("extensions.workspaceDirectory.path")}
+            placeholder={
+              copy?.pathPlaceholder ?? t("extensions.workspaceDirectory.pathPlaceholder")
+            }
             autoComplete="off"
             enterKeyHint="go"
             spellCheck={false}
@@ -217,7 +233,7 @@ export function RemoteDirectoryPickerDialog({
           >
             {selecting
               ? t("extensions.workspaceDirectory.selecting")
-              : t("extensions.workspaceDirectory.selectCurrent")}
+              : (copy?.select ?? t("extensions.workspaceDirectory.selectCurrent"))}
           </Button>
         </DialogFooter>
       </DialogContent>

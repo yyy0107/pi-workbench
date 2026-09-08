@@ -52,7 +52,7 @@ test("Chrome searches beyond snapshot truncation and clicks once in zoomed CSS c
     browser.dispose();
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
-    await rm(directory, { recursive: true, force: true });
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
   const control = new AbortController();
   const agent = { source: "agent" as const, controlSignal: control.signal };

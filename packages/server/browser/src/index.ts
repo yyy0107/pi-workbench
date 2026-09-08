@@ -1,5 +1,6 @@
 /* eslint-disable no-control-regex -- Browser file names must exclude ASCII control characters. */
 import { randomUUID } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -61,6 +62,9 @@ interface Tab {
   documentReady: boolean;
   snapshot?: Snapshot;
   agentControl?: { signal: AbortSignal; dispose(): void };
+  agentOperations: Set<AbortController>;
+  agentReleases: Map<string, { method: string; params: Record<string, unknown> }>;
+  userActivityTimer?: ReturnType<typeof setTimeout>;
   pointerPosition?: { x: number; y: number };
 }
 interface DownloadRecord {
@@ -71,6 +75,15 @@ interface DownloadRecord {
 
 const MAX_FILE_BYTES = 64 * 1024 * 1024;
 const MAX_TABS = 32;
+const USER_ACTIVITY_MS = 1500;
+const OBSERVATION_COMMANDS = new Set<BrowserCommand["type"]>([
+  "attach",
+  "snapshot",
+  "screenshot",
+  "copy",
+  "print",
+  "site-tools.list",
+]);
 const MAIN_FRAME_SCHEMES = new Set(["http:", "https:", "about:", "chrome:"]);
 
 export function normalizeBrowserUrl(value: string, internal = false, localFile = false): string {
@@ -116,6 +129,7 @@ export class BrowserManager {
   private readonly directory: string;
   private readonly settings: BrowserSettingsStore;
   private readonly tabs = new Map<string, Tab>();
+  private readonly agentOperation = new AsyncLocalStorage<{ tab: Tab; signal: AbortSignal }>();
   private readonly listeners = new Set<(event: BrowserEvent) => void>();
   private readonly downloads = new Map<string, DownloadRecord>();
   private readonly permissions = new Map<
@@ -169,6 +183,18 @@ export class BrowserManager {
       patch.status === "disconnected" ||
       patch.status === "error"
     ) {
+      for (const { method, params } of tab.agentReleases.values())
+        void this.browser
+          ?.send(
+            method,
+            {
+              ...params,
+              ...(method === "Input.dispatchMouseEvent" ? tab.pointerPosition : {}),
+            },
+            tab.cdpSessionId,
+          )
+          .catch(() => undefined);
+      tab.agentReleases.clear();
       tab.agentControl?.dispose();
       tab.agentControl = undefined;
       patch = { ...patch, agentControlled: false };
@@ -193,7 +219,7 @@ export class BrowserManager {
   }
 
   private beginAgentControl(tab: Tab, signal: AbortSignal): void {
-    if (signal.aborted || tab.agentControl?.signal === signal) return;
+    if (signal.aborted || tab.state.userControlled || tab.agentControl?.signal === signal) return;
     tab.agentControl?.dispose();
     const abort = () => this.clearAgentControl(tab, signal);
     tab.agentControl = {
@@ -208,6 +234,32 @@ export class BrowserManager {
     if (owner && tab.agentControl?.signal !== owner) return;
     if (!tab.agentControl && !tab.state.agentControlled && !tab.state.agentCursor) return;
     this.update(tab, { agentControlled: false });
+  }
+
+  private recordUserActivity(tab: Tab, command: BrowserCommand): void {
+    const input = command.type === "input" ? command.event : undefined;
+    if (input?.kind === "mouse") {
+      tab.pointerPosition = { x: input.x, y: input.y };
+      tab.state = {
+        ...tab.state,
+        userCursor: {
+          ...tab.pointerPosition,
+          pressed: input.type === "mousePressed" || (input.buttons ?? 0) > 0,
+        },
+      };
+    }
+    for (const operation of tab.agentOperations)
+      operation.abort(new BrowserError("browser-user-active"));
+    if (!tab.state.userControlled)
+      this.update(tab, { userControlled: true, agentControlled: false });
+    clearTimeout(tab.userActivityTimer);
+    // ponytail: recent input estimates activity; use explicit leases if long held gestures need priority.
+    // Expiry also avoids retaining ownership when a client disconnects without a release event.
+    tab.userActivityTimer = setTimeout(() => {
+      tab.userActivityTimer = undefined;
+      this.update(tab, { userControlled: false });
+    }, USER_ACTIVITY_MS);
+    tab.userActivityTimer.unref();
   }
 
   private setAgentCursor(tab: Tab, cursor: BrowserCursor | null): void {
@@ -248,12 +300,14 @@ export class BrowserManager {
       const version = await cdp.send("Browser.getVersion");
       this.defaultUserAgent = version.userAgent;
       cdp.subscribe((event) => {
-        void this.onEvent(event).catch((error) =>
-          this.publish({
-            type: "error",
-            code: error instanceof BrowserError ? error.code : "browser-operation-failed",
-          }),
-        );
+        void this.agentOperation
+          .exit(() => this.onEvent(event))
+          .catch((error) =>
+            this.publish({
+              type: "error",
+              code: error instanceof BrowserError ? error.code : "browser-operation-failed",
+            }),
+          );
       });
       await cdp.send("Target.setDiscoverTargets", { discover: true });
       await cdp.send("Target.setAutoAttach", {
@@ -276,7 +330,48 @@ export class BrowserManager {
     method: string,
     params: Record<string, unknown> = {},
   ): Promise<T> {
-    const result = await (await this.connection()).send<T>(method, params, tab.cdpSessionId);
+    const operation = this.agentOperation.getStore();
+    const signal = operation?.tab === tab ? operation.signal : undefined;
+    signal?.throwIfAborted();
+    const cdp = await this.connection();
+    signal?.throwIfAborted();
+    if (
+      signal &&
+      method === "Input.dispatchMouseEvent" &&
+      params.button &&
+      params.button !== "none"
+    ) {
+      const key = `mouse:${params.button}`;
+      if (params.type === "mousePressed")
+        tab.agentReleases.set(key, {
+          method,
+          params: {
+            type: "mouseReleased",
+            button: params.button,
+            x: params.x,
+            y: params.y,
+            buttons: 0,
+            clickCount: params.clickCount,
+          },
+        });
+      else if (params.type === "mouseReleased") tab.agentReleases.delete(key);
+    } else if (signal && method === "Input.dispatchKeyEvent") {
+      const key = `key:${params.code || params.key}`;
+      if (params.type === "keyDown" || params.type === "rawKeyDown")
+        tab.agentReleases.set(key, {
+          method,
+          params: {
+            type: "keyUp",
+            key: params.key,
+            code: params.code,
+            windowsVirtualKeyCode: params.windowsVirtualKeyCode,
+            modifiers: 0,
+          },
+        });
+      else if (params.type === "keyUp") tab.agentReleases.delete(key);
+    }
+    const result = await cdp.send<T>(method, params, tab.cdpSessionId, undefined, signal);
+    signal?.throwIfAborted();
     if (
       method === "Input.dispatchMouseEvent" &&
       ["mouseMoved", "mousePressed", "mouseReleased"].includes(String(params.type)) &&
@@ -384,10 +479,11 @@ export class BrowserManager {
     source: Source,
     signal?: AbortSignal,
     controlSignal?: AbortSignal,
+    target?: { targetId: string; sessionId: string },
   ): Promise<Tab> {
-    if (this.tabs.size >= MAX_TABS) throw new BrowserError("browser-operation-failed");
     const settings = await this.settings.get();
     signal?.throwIfAborted();
+    if (this.tabs.size >= MAX_TABS) throw new BrowserError("browser-operation-failed");
     const tab: Tab = {
       state: {
         id: sessionId,
@@ -402,7 +498,7 @@ export class BrowserManager {
         width: 1024,
         height: 768,
       },
-      targetId: "",
+      targetId: target?.targetId ?? "",
       cdpSessionId: "",
       visible: false,
       screencasting: false,
@@ -419,12 +515,14 @@ export class BrowserManager {
       viewport: { width: 1024, height: 768 },
       deviceScaleFactor: 2,
       documentReady: true,
+      agentOperations: new Set(),
+      agentReleases: new Map(),
     };
     this.tabs.set(sessionId, tab);
     if (controlSignal) this.beginAgentControl(tab, controlSignal);
     try {
-      await this.connectTab(tab);
-      if (url !== "about:blank") await this.navigate(tab, url, source);
+      await this.connectTab(tab, target);
+      if (!target && url !== "about:blank") await this.navigate(tab, url, source);
       else this.update(tab, {});
       return tab;
     } catch (error) {
@@ -438,25 +536,38 @@ export class BrowserManager {
     }
   }
 
-  private async connectTab(tab: Tab): Promise<void> {
+  private async connectTab(
+    tab: Tab,
+    target?: { targetId: string; sessionId: string },
+  ): Promise<void> {
     const cdp = await this.connection();
     if (tab.cdpSessionId) return;
     tab.pointerPosition = undefined;
-    const { targetId } = await cdp.send("Target.createTarget", { url: "about:blank" });
-    const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
+    const { targetId } =
+      target ??
+      (await cdp.send<{ targetId: string }>("Target.createTarget", {
+        url: "about:blank",
+        // Unrevealed tabs must not background the page the user is currently operating.
+        background: [...this.tabs.values()].some((candidate) => candidate.visible),
+      }));
+    const { sessionId } =
+      target ??
+      (await cdp.send<{ sessionId: string }>("Target.attachToTarget", { targetId, flatten: true }));
     tab.targetId = targetId;
     tab.cdpSessionId = sessionId;
+    await this.send(tab, "Fetch.enable", {
+      patterns: [
+        { resourceType: "Document", requestStage: "Request" },
+        { requestStage: "Response" },
+      ],
+    });
     await Promise.all([
       this.send(tab, "Page.enable"),
       this.send(tab, "Runtime.enable"),
       this.send(tab, "DOM.enable"),
       this.send(tab, "Page.setInterceptFileChooserDialog", { enabled: true }),
-      this.send(tab, "Fetch.enable", {
-        patterns: [
-          { resourceType: "Document", requestStage: "Request" },
-          { requestStage: "Response" },
-        ],
-      }),
+      // A paused noopener popup cannot answer renderer commands until it resumes.
+      ...(target ? [this.send(tab, "Runtime.runIfWaitingForDebugger")] : []),
     ]);
     const { frameTree } = await this.send(tab, "Page.getFrameTree");
     tab.frameId = frameTree.frame.id;
@@ -543,6 +654,7 @@ export class BrowserManager {
         // ponytail: native compositor density caps extreme zoom; keep native scroll/input intact.
         const density = Math.min(
           tab.deviceScaleFactor,
+          2,
           3840 / width,
           3840 / height,
           Math.sqrt((3840 * 2160) / (width * height)),
@@ -564,7 +676,8 @@ export class BrowserManager {
           )
           .catch(() => undefined);
         await this.send(tab, "Page.startScreencast", {
-          format: "png",
+          format: "jpeg",
+          quality: 90,
           maxWidth: Math.max(1, Math.floor(width * density)),
           maxHeight: Math.max(1, Math.floor(height * density)),
           everyNthFrame: 1,
@@ -614,11 +727,37 @@ export class BrowserManager {
       const opener = [...this.tabs.values()].find(
         (candidate) => candidate.targetId === params.targetInfo.openerId,
       );
-      if (opener) {
-        const url = opener.popupUrls.shift() || params.targetInfo.url;
-        // Keep the new document paused until its URL has passed the same navigation gate.
-        await this.browser?.send("Target.closeTarget", { targetId: params.targetInfo.targetId });
-        if (url && url !== "about:blank") await this.navigate(opener, url, opener.source);
+      if (
+        opener &&
+        ![...this.tabs.values()].some((tab) => tab.targetId === params.targetInfo.targetId)
+      ) {
+        try {
+          const url = normalizeBrowserUrl(
+            opener.popupUrls.shift() || params.targetInfo.url || "about:blank",
+            false,
+            opener.source === "user",
+          );
+          // Preserve the native opener/preload flow; install navigation interception before resuming.
+          const popup = await this.createTab(
+            randomUUID(),
+            opener.state.projectId,
+            url,
+            opener.source,
+            opener.signal,
+            opener.agentControl?.signal,
+            { targetId: params.targetInfo.targetId, sessionId: params.sessionId },
+          );
+          this.publish({
+            type: "popup",
+            session: { ...popup.state },
+            openerSessionId: opener.state.id,
+          });
+        } catch (error) {
+          await this.browser
+            ?.send("Target.closeTarget", { targetId: params.targetInfo.targetId })
+            .catch(() => undefined);
+          throw error;
+        }
       } else if (params.waitingForDebugger) {
         await this.browser?.send("Runtime.runIfWaitingForDebugger", {}, params.sessionId);
       }
@@ -657,7 +796,7 @@ export class BrowserManager {
               type: "frame",
               sessionId: tab.state.id,
               data: params.data,
-              mimeType: "image/png",
+              mimeType: "image/jpeg",
               width: deviceWidth / pageScaleFactor,
               height: deviceHeight / pageScaleFactor,
             });
@@ -817,42 +956,37 @@ export class BrowserManager {
       const tab = sessionId ? this.tabs.get(sessionId) : undefined;
       if (tab && controlSignal) this.clearAgentControl(tab, controlSignal);
     };
+    const tab = sessionId ? this.tabs.get(sessionId) : undefined;
+    const mutation =
+      !!tab &&
+      !OBSERVATION_COMMANDS.has(command.type) &&
+      !(source === "user" && command.type === "viewport");
+    const operation = source === "agent" && mutation ? new AbortController() : undefined;
     try {
       options.signal?.throwIfAborted();
-      const tab = sessionId ? this.tabs.get(sessionId) : undefined;
+      if (operation && tab?.state.userControlled) throw new BrowserError("browser-user-active");
+      if (operation && tab) tab.agentOperations.add(operation);
       if (tab && controlSignal) this.beginAgentControl(tab, controlSignal);
       if (controlSignal) options.signal?.addEventListener("abort", abortControl, { once: true });
-      if (tab && source === "user") {
-        const input = command.type === "input" ? command.event : undefined;
-        if (
-          [
-            "navigate",
-            "back",
-            "forward",
-            "reload",
-            "stop",
-            "close",
-            "open-page",
-            "click",
-            "fill",
-            "find",
-            "cdp",
-            "site-tools.call",
-          ].includes(command.type) ||
-          input?.kind === "text" ||
-          (input?.kind === "key" && input.type === "keyDown") ||
-          (input?.kind === "mouse" &&
-            (input.type === "mousePressed" ||
-              input.type === "mouseWheel" ||
-              (input.type === "mouseMoved" && (input.buttons ?? 0) > 0)))
-        )
-          this.clearAgentControl(tab);
+      if (mutation && source === "user") this.recordUserActivity(tab, command);
+      if (operation && tab) {
+        const signal = AbortSignal.any([
+          operation.signal,
+          ...(options.signal ? [options.signal] : []),
+          ...(controlSignal ? [controlSignal] : []),
+        ]);
+        return await this.agentOperation.run({ tab, signal }, () =>
+          this.execute(command, source, signal, controlSignal),
+        );
       }
-      return await this.execute(command, source, options.signal, controlSignal);
+      return await this.agentOperation.exit(() =>
+        this.execute(command, source, options.signal, controlSignal),
+      );
     } catch (error) {
       if (error instanceof BrowserError) throw error;
       throw new BrowserError("browser-operation-failed");
     } finally {
+      if (operation) tab?.agentOperations.delete(operation);
       options.signal?.removeEventListener("abort", abortControl);
       operationControl?.abort();
     }
@@ -1381,6 +1515,7 @@ export class BrowserManager {
       objectId = resolved.object.objectId;
       if (!objectId) throw new Error();
     } catch {
+      current();
       throw new BrowserError("browser-element-stale");
     }
     const call = (functionDeclaration: string, args: Record<string, unknown>[] = []) =>
@@ -1456,9 +1591,9 @@ export class BrowserManager {
         );
         return visible.result?.value === true;
       } finally {
-        await this.send(tab, "Runtime.releaseObject", { objectId: target.object.objectId }).catch(
-          () => undefined,
-        );
+        void this.agentOperation
+          .exit(() => this.send(tab, "Runtime.releaseObject", { objectId: target.object.objectId }))
+          .catch(() => undefined);
       }
     };
     try {
@@ -1556,7 +1691,9 @@ export class BrowserManager {
       }
       return { ...tab.state };
     } finally {
-      await this.send(tab, "Runtime.releaseObject", { objectId }).catch(() => undefined);
+      void this.agentOperation
+        .exit(() => this.send(tab, "Runtime.releaseObject", { objectId }))
+        .catch(() => undefined);
     }
   }
 
@@ -1918,6 +2055,8 @@ export class BrowserManager {
   }
 
   private async closeTab(tab: Tab): Promise<void> {
+    this.agentOperation.getStore()?.signal.throwIfAborted();
+    clearTimeout(tab.userActivityTimer);
     this.clearAgentControl(tab);
     this.tabs.delete(tab.state.id);
     for (const [id, permission] of this.permissions) {
@@ -1945,7 +2084,10 @@ export class BrowserManager {
     for (const tab of this.tabs.values())
       for (const directory of tab.uploadDirectories)
         void rm(directory, { recursive: true, force: true }).catch(() => undefined);
-    for (const tab of this.tabs.values()) this.clearAgentControl(tab);
+    for (const tab of this.tabs.values()) {
+      clearTimeout(tab.userActivityTimer);
+      this.clearAgentControl(tab);
+    }
     this.tabs.clear();
     this.listeners.clear();
     this.browser?.dispose();

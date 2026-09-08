@@ -46,7 +46,7 @@ export interface BrowserHistoryEntry {
   /** Most recent visit time, in milliseconds since the Unix epoch. */
   time: number;
 }
-/** Assistant pointer position in the remote page's CSS viewport. */
+/** Pointer position in the remote page's CSS viewport. */
 export interface BrowserCursor {
   x: number;
   y: number;
@@ -68,6 +68,9 @@ export interface BrowserSessionState {
   device?: BrowserDevice;
   agentControlled?: boolean;
   agentCursor?: BrowserCursor;
+  /** Recent user input takes priority over agent mutations in this tab. */
+  userControlled?: boolean;
+  userCursor?: BrowserCursor;
 }
 export interface BrowserSnapshotNode {
   depth: number;
@@ -192,6 +195,7 @@ export type BrowserCommand =
 
 export type BrowserEvent =
   | { type: "state"; session: BrowserSessionState }
+  | { type: "popup"; session: BrowserSessionState; openerSessionId: string }
   | { type: "cursor"; sessionId: string; cursor: BrowserCursor | null }
   | {
       type: "frame";

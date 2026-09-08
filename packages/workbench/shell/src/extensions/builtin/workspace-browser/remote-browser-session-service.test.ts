@@ -107,6 +107,9 @@ test("remote browser orders initial attach, validates frames, and isolates recon
       1,
       [],
       { type: "state", session: null },
+      { type: "popup", session: state },
+      { type: "popup", session: state, openerSessionId: "" },
+      { type: "popup", session: {}, openerSessionId: state.id },
       { type: "settings", settings: {} },
       {
         type: "permission",
@@ -120,6 +123,8 @@ test("remote browser orders initial attach, validates frames, and isolates recon
       { type: "cursor", sessionId: "tab", cursor: { x: 10, y: 20, pressed: "yes" } },
       { type: "state", session: { ...state, agentControlled: "yes" } },
       { type: "state", session: { ...state, agentCursor: { x: null, y: 20 } } },
+      { type: "state", session: { ...state, userControlled: "yes" } },
+      { type: "state", session: { ...state, userCursor: { x: 10, y: "20" } } },
     ]) {
       assert.doesNotThrow(() => first.message(malformed));
     }
@@ -131,6 +136,12 @@ test("remote browser orders initial attach, validates frames, and isolates recon
     first.result({});
     await rejectedSettings;
     assert.deepEqual(browser.getSettings(), DEFAULT_BROWSER_SETTINGS);
+
+    const popup = { ...state, id: "popup", url: "https://popup.example/" };
+    first.message({ type: "popup", session: popup, openerSessionId: state.id });
+    assert.deepEqual(browser.getSession(popup.id), popup);
+    assert.deepEqual(events.at(-1), { type: "popup", session: popup, openerSessionId: state.id });
+    assert.equal(browser.getSession(state.id)?.url, "https://next.example/");
 
     first.message({
       type: "state",
@@ -180,7 +191,16 @@ test("remote browser orders initial attach, validates frames, and isolates recon
     const recover = browser.reload(state.id);
     await settle();
     assert.equal(second.sent.at(-1)?.command.type, "attach");
-    second.message({ type: "state", session: { ...state, revision: 5, agentControlled: false } });
+    second.message({
+      type: "state",
+      session: {
+        ...state,
+        revision: 5,
+        agentControlled: false,
+        userControlled: true,
+        userCursor: { x: 6, y: 8, pressed: false },
+      },
+    });
     second.result({ ...state, revision: 4, agentControlled: true });
     await settle();
     assert.equal(second.sent.at(-1)?.command.type, "reload");
@@ -192,6 +212,8 @@ test("remote browser orders initial attach, validates frames, and isolates recon
       false,
       "an older attach reply must not resurrect a control state already released by the stream",
     );
+    assert.equal(browser.getSession(state.id)?.userControlled, true);
+    assert.deepEqual(browser.getSession(state.id)?.userCursor, { x: 6, y: 8, pressed: false });
 
     const close = browser.command({ type: "close", sessionId: state.id });
     await settle();

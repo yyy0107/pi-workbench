@@ -2,6 +2,8 @@
 
 import { ChevronDownIcon, PlusIcon, ShieldAlertIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { WorkbenchAgentCapabilityError } from "@workbench/agent-runtime-client";
+import { useWorkbenchRuntimeHostCapability } from "@workbench/agent-runtime-client/context";
 import type {
   BrowserPage,
   BrowserPermission,
@@ -10,6 +12,11 @@ import type {
 } from "@workbench/browser-contracts";
 
 import { defineMessage, useI18n } from "../../../i18n";
+import {
+  RemoteDirectoryPickerDialog,
+  shouldUseNativeDirectoryPicker,
+} from "../../../directory-picker";
+import { useRuntimeConnection } from "../../../runtime-connection";
 import {
   useRightWorkspace,
   useRightWorkspaceState,
@@ -109,6 +116,8 @@ export function BrowserSettingsItem() {
   const { t, locale } = useI18n();
   const text = (key: PlainSettingsKey) => t(`extensions.workspaceBrowser.settings.${key}`);
   const browser = useBrowserSessionService();
+  const hostClient = useWorkbenchRuntimeHostCapability();
+  const connection = useRuntimeConnection();
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const surfaces = useRightWorkspaceState((state) => state.surfaces);
@@ -124,11 +133,14 @@ export function BrowserSettingsItem() {
   const [notice, setNotice] = useState<string>();
   const [importOpen, setImportOpen] = useState(false);
   const [downloadsOpen, setDownloadsOpen] = useState(false);
-  const [directory, setDirectory] = useState<string>();
+  const [directoryOpen, setDirectoryOpen] = useState(false);
+  const directoryRequest = useRef<AbortController | undefined>(undefined);
   const [site, setSite] = useState<BrowserSitePermissions>();
   const [originalOrigin, setOriginalOrigin] = useState<string>();
   const [siteError, setSiteError] = useState<"invalidOrigin" | "duplicateOrigin">();
   const disabled = !loaded || actionPending;
+
+  useEffect(() => () => directoryRequest.current?.abort(), []);
 
   useEffect(() => {
     let active = true;
@@ -181,6 +193,40 @@ export function BrowserSettingsItem() {
       text("saved"),
       false,
     );
+  const changeDirectory = () => {
+    if (!hostClient || disabled || directoryRequest.current) return;
+    if (!shouldUseNativeDirectoryPicker(connection)) {
+      setDirectoryOpen(true);
+      return;
+    }
+    const request = new AbortController();
+    directoryRequest.current = request;
+    void run(async () => {
+      try {
+        if (request.signal.aborted) return;
+        let path: string | undefined;
+        try {
+          path = await hostClient.pickDirectory({ signal: request.signal });
+        } catch (cause) {
+          if (request.signal.aborted) return;
+          if (
+            cause instanceof WorkbenchAgentCapabilityError &&
+            (cause.code === "unavailable" || cause.code === "permission-denied")
+          ) {
+            setDirectoryOpen(true);
+            return;
+          }
+          throw cause;
+        }
+        if (path && !request.signal.aborted) {
+          await browser.updateSettings({ downloadDirectory: path });
+          setNotice(text("saved"));
+        }
+      } finally {
+        if (directoryRequest.current === request) directoryRequest.current = undefined;
+      }
+    }, "");
+  };
   const options = <T extends PlainSettingsKey>(values: readonly T[]) =>
     values.map((value) => ({ value, label: text(value) }));
   const decisions = options(["allow", "ask", "deny"]);
@@ -400,8 +446,8 @@ export function BrowserSettingsItem() {
           >
             <Button
               variant="secondary"
-              disabled={disabled}
-              onClick={() => setDirectory(settings.downloadDirectory)}
+              disabled={disabled || !hostClient}
+              onClick={changeDirectory}
             >
               {text("change")}
             </Button>
@@ -571,57 +617,28 @@ export function BrowserSettingsItem() {
           </Button>
         </DialogContent>
       </Dialog>
-      <Dialog
-        open={directory !== undefined}
-        onOpenChange={(open) => {
-          if (!open && !actionPending) setDirectory(undefined);
-        }}
-      >
-        <DialogContent closeLabel={text("close")}>
-          <DialogTitle>{text("downloadDirectory")}</DialogTitle>
-          <DialogDescription>{text("downloadDirectoryDescription")}</DialogDescription>
-          <form
-            className="contents"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void run(async () => {
-                await browser.updateSettings({ downloadDirectory: directory?.trim() ?? "" });
-                setDirectory(undefined);
-              });
-            }}
-          >
-            <SettingsField
-              label={<label htmlFor={`${id}-directory`}>{text("downloadDirectory")}</label>}
-            >
-              <Input
-                id={`${id}-directory`}
-                value={directory ?? ""}
-                disabled={disabled}
-                placeholder={text("downloadDirectoryPlaceholder")}
-                onChange={(event) => setDirectory(event.currentTarget.value)}
-              />
-            </SettingsField>
-            {error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {text(error)}
-              </p>
-            ) : null}
-            <DialogFooter closeLabel={text("cancel")}>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={actionPending}
-                onClick={() => setDirectory(undefined)}
-              >
-                {text("cancel")}
-              </Button>
-              <Button type="submit" disabled={disabled}>
-                {text("save")}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {directoryOpen && hostClient ? (
+        <RemoteDirectoryPickerDialog
+          hostClient={hostClient}
+          open
+          initialPath={settings.downloadDirectory || undefined}
+          onOpenChange={setDirectoryOpen}
+          onSelectPath={async (downloadDirectory) => {
+            await queue.current;
+            await browser.updateSettings({ downloadDirectory });
+            setNotice(text("saved"));
+          }}
+          copy={{
+            title: text("downloadDirectory"),
+            description: text("downloadDirectoryDescription"),
+            path: text("downloadDirectory"),
+            pathPlaceholder: text("downloadDirectoryPlaceholder"),
+            select: text("save"),
+            close: text("close"),
+            selectError: text("actionError"),
+          }}
+        />
+      ) : null}
       <Dialog
         open={site !== undefined}
         onOpenChange={(open) => {

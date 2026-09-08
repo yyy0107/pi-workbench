@@ -59,6 +59,8 @@ function validSession(value: unknown): value is BrowserSessionState {
     (value.error === undefined || text(value.error)) &&
     (value.agentControlled === undefined || typeof value.agentControlled === "boolean") &&
     (value.agentCursor === undefined || validCursor(value.agentCursor)) &&
+    (value.userControlled === undefined || typeof value.userControlled === "boolean") &&
+    (value.userCursor === undefined || validCursor(value.userCursor)) &&
     (value.device === undefined ||
       (record(value.device) &&
         number(value.device.width) &&
@@ -84,6 +86,9 @@ function serverFrame(value: unknown): BrowserServerFrame | undefined {
       break;
     case "state":
       valid = validSession(value.session);
+      break;
+    case "popup":
+      valid = validSession(value.session) && text(value.openerSessionId) && !!value.openerSessionId;
       break;
     case "settings":
       valid = validSettings(value.settings);
@@ -247,7 +252,7 @@ export class RemoteBrowserSessionService extends MemoryBrowserSessionService {
           else pending.resolve(frame.result);
           return;
         }
-        if (frame.type === "state") {
+        if (frame.type === "state" || frame.type === "popup") {
           this.#sessionIds.add(frame.session.id);
           this.updateSession(frame.session);
         }

@@ -1,8 +1,11 @@
 # Tabs, navigation, and local sites
 
+Workbench conversations and projects share one persistent browser profile: login cookies, site storage, and browsing history are shared. Browser session IDs identify separate tabs with their own page and back/forward stack. Switching conversations or closing a tab does not clear the profile; reuse existing site authentication instead of assuming every conversation needs a new login.
+
 1. Call `action: "tabs.list"` to inspect the current project's existing tabs. Use a matching tab's returned `id` as `sessionId` for later calls. Listing tabs does not grant permission to read unrelated pages, and the list does not identify the user's currently selected Workbench tab. If the user only identifies a current tab and several tabs could match, clarify the target before changing a page.
 2. To open a new tab, call `action: "attach"` with an HTTP(S) `url` and a distinct `sessionId` that is absent from the list. Omitting `sessionId` uses the Pi conversation's fixed default tab; it does not select the currently focused Workbench tab or create a fresh tab on every call.
 3. `attach` reuses an existing session without navigating it, even if `url` is supplied. To change an existing page, use `action: "navigate"` with its `sessionId` and the requested `url`.
+4. Links and searches that open a native popup create a separate browser session and leave the original tab available. After such a click, call `action: "tabs.list"`, identify the new page by its URL or title, and use its returned `id` for subsequent snapshots and interactions. Do not repeat the click or navigate the original tab just because its URL did not change; the new page may depend on its opener's preload data.
 
 For example, after confirming that the chosen session ID is unused, open a page with:
 

@@ -41,8 +41,8 @@ export class BrowserCdp {
       executable,
       [
         "--headless",
-        // Native screencasting is capped by compositor density, independently of emulated DPR.
-        "--force-device-scale-factor=3",
+        // Match the live stream's 2x density to bound compositor work.
+        "--force-device-scale-factor=2",
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-background-networking",
@@ -136,9 +136,12 @@ export class BrowserCdp {
     params: Record<string, unknown> = {},
     sessionId?: string,
     timeoutMs = 30_000,
+    signal?: AbortSignal,
   ): Promise<T> {
+    if (signal?.aborted) return Promise.reject(signal.reason);
     if (this.closed) return Promise.reject(new BrowserError("browser-unavailable"));
     const id = ++this.sequence;
+    let abort: (() => void) | undefined;
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
@@ -151,6 +154,12 @@ export class BrowserCdp {
       }, timeoutMs);
       timer.unref();
       this.pending.set(id, { method, resolve, reject, timer });
+      abort = () => {
+        clearTimeout(timer);
+        this.pending.delete(id);
+        reject(signal?.reason);
+      };
+      signal?.addEventListener("abort", abort, { once: true });
       this.input.write(
         `${JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })}\0`,
         (error) => {
@@ -160,6 +169,8 @@ export class BrowserCdp {
           reject(new BrowserError("browser-unavailable"));
         },
       );
+    }).finally(() => {
+      if (abort) signal?.removeEventListener("abort", abort);
     });
   }
 

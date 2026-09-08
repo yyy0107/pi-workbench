@@ -37,6 +37,11 @@
       "import": "./src/conversation-title.ts",
       "default": "./src/conversation-title.ts"
     },
+    "./directory-picker": {
+      "types": "./src/directory-picker.ts",
+      "import": "./src/directory-picker.ts",
+      "default": "./src/directory-picker.ts"
+    },
     "./dom": {
       "types": "./src/dom.tsx",
       "import": "./src/dom.tsx",

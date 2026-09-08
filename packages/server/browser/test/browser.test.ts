@@ -17,7 +17,7 @@ import { BrowserError, BrowserManager, normalizeBrowserUrl } from "../src/index"
 import { findBrowserExecutable, type BrowserCdp } from "../src/cdp";
 import { parseCookieJson, parsePasswordCsv } from "../src/imports";
 
-/** PNG bitmap dimensions are independent from the stream's CSS input coordinates. */
+/** Exported PNG screenshots retain their full bitmap density. */
 function pngDimensions(data: string): { width: number; height: number } {
   const bytes = Buffer.from(data, "base64");
   assert.equal(bytes.subarray(1, 4).toString(), "PNG");
@@ -48,6 +48,7 @@ test("browser observation commands validate their project and observed reference
 });
 
 test("assistant control keeps CSS cursors across tools and releases on takeover or cancellation", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   const directory = await mkdtemp(path.join(tmpdir(), "workbench-browser-control-"));
   const manager = new BrowserManager({ stateDirectory: directory });
   const engine = manager as unknown as {
@@ -146,7 +147,29 @@ test("assistant control keeps CSS cursors across tools and releases on takeover 
       sessionId: "tab",
       event: { kind: "mouse", type: "mouseMoved", x: 1, y: 2 },
     });
-    assert.equal(tab.state.agentCursor?.x, 127.5);
+    assert.equal(tab.state.agentCursor, undefined);
+    assert.equal(tab.state.userControlled, true);
+    assert.deepEqual(tab.state.userCursor, { x: 1, y: 2, pressed: false });
+    await assert.rejects(move(nextAgent), { code: "browser-user-active" });
+    await manager.handle({ type: "screenshot", sessionId: "tab" }, nextAgent);
+    assert.equal(tab.state.agentControlled, false, "Observation must not reclaim a user's tab");
+    const userRevision = tab.state.revision;
+    t.mock.timers.tick(1000);
+    await manager.handle({
+      type: "input",
+      sessionId: "tab",
+      event: { kind: "mouse", type: "mouseMoved", x: 3, y: 4 },
+    });
+    assert.equal(tab.state.revision, userRevision, "Pointer movement must not flood state events");
+    const listed = (await manager.handle({
+      type: "tabs.list",
+      projectId: "project",
+    })) as BrowserSessionState[];
+    assert.deepEqual(listed[0]?.userCursor, { x: 3, y: 4, pressed: false });
+    t.mock.timers.tick(1000);
+    await assert.rejects(move(nextAgent), { code: "browser-user-active" });
+    t.mock.timers.tick(500);
+    assert.equal(tab.state.userControlled, false);
     await manager.handle(
       {
         type: "cdp",
@@ -190,6 +213,9 @@ test("assistant control keeps CSS cursors across tools and releases on takeover 
     });
     assert.equal(tab.state.agentControlled, false);
     assert.equal(tab.state.agentCursor, undefined);
+    await assert.rejects(move(active), { code: "browser-user-active" });
+    assert.equal(active.controlSignal.aborted, false);
+    t.mock.timers.tick(1500);
     await move(active);
     await manager.handle({ type: "reload", sessionId: "tab" }, active);
     assert.equal(tab.state.agentControlled, true);
@@ -298,23 +324,40 @@ test("popup URLs cannot survive the document that requested them", async (t) => 
   const manager = new BrowserManager({ stateDirectory: directory });
   const engine = manager as unknown as {
     tabs: Map<string, { cdpSessionId: string; targetId: string }>;
-    connectTab(tab: { cdpSessionId: string; targetId: string }): Promise<void>;
+    connectTab(
+      tab: { cdpSessionId: string; targetId: string },
+      target?: { sessionId: string; targetId: string },
+    ): Promise<void>;
+    send(): Promise<object>;
     history(): Promise<void>;
     navigate(tab: unknown, url: string): Promise<void>;
     onEvent(event: { method: string; sessionId?: string; params: object }): Promise<void>;
   };
-  t.mock.method(engine, "connectTab", async (tab: { cdpSessionId: string; targetId: string }) => {
-    tab.cdpSessionId = "cdp";
-    tab.targetId = "target";
-  });
+  t.mock.method(
+    engine,
+    "connectTab",
+    async (
+      tab: { cdpSessionId: string; targetId: string },
+      target?: { sessionId: string; targetId: string },
+    ) => {
+      tab.cdpSessionId = target?.sessionId ?? "cdp";
+      tab.targetId = target?.targetId ?? "target";
+    },
+  );
+  t.mock.method(engine, "send", async () => ({}));
   t.mock.method(engine, "history", async () => {});
   const navigate = t.mock.method(engine, "navigate", async () => {});
+  const events: BrowserEvent[] = [];
+  manager.subscribe((event) => events.push(event));
   try {
-    await manager.handle({ type: "attach", sessionId: "tab", projectId: "project" });
+    await manager.handle(
+      { type: "attach", sessionId: "tab", projectId: "project" },
+      { source: "agent" },
+    );
     await engine.onEvent({
       method: "Page.windowOpen",
       sessionId: "cdp",
-      params: { url: "https://example.test/stale-preload" },
+      params: { url: "file:///stale-preload" },
     });
     await engine.onEvent({
       method: "Page.frameNavigated",
@@ -334,7 +377,35 @@ test("popup URLs cannot survive the document that requested them", async (t) => 
         waitingForDebugger: true,
       },
     });
-    assert.equal(navigate.mock.calls[0]!.arguments[1], "https://example.test/current");
+    assert.equal(navigate.mock.callCount(), 0, "native popups must not replace their opener");
+    const popup = events.find((event) => event.type === "popup");
+    assert.ok(popup && popup.type === "popup");
+    assert.equal(popup.openerSessionId, "tab");
+    assert.equal(engine.tabs.get(popup.session.id)?.targetId, "popup");
+    await engine.onEvent({
+      method: "Page.windowOpen",
+      sessionId: "cdp",
+      params: { url: "file:///blocked" },
+    });
+    await assert.rejects(
+      engine.onEvent({
+        method: "Target.attachedToTarget",
+        params: {
+          targetInfo: { type: "page", targetId: "unsafe-popup", openerId: "target", url: "" },
+          sessionId: "unsafe-popup-cdp",
+          waitingForDebugger: true,
+        },
+      }),
+      { code: "browser-invalid" },
+    );
+    assert.equal(engine.tabs.size, 2);
+    const attachments = await Promise.allSettled(
+      Array.from({ length: 32 }, (_, index) =>
+        manager.handle({ type: "attach", sessionId: `limit-${index}`, projectId: "project" }),
+      ),
+    );
+    assert.equal(attachments.filter((result) => result.status === "fulfilled").length, 30);
+    assert.equal(engine.tabs.size, 32, "concurrent tabs must respect the shared limit");
   } finally {
     manager.dispose();
     await rm(directory, { recursive: true, force: true });
@@ -536,6 +607,17 @@ test("real Chrome observes and operates scoped elements without unrestricted CDP
     snapshot = await observe();
     assert.ok(snapshot.session.url.endsWith("#next"));
     await browser.handle({ type: "attach", sessionId: "other", projectId: "other-project" });
+    assert.equal(
+      (
+        await engine.browser.send(
+          "Runtime.evaluate",
+          { expression: "document.visibilityState", returnByValue: true },
+          engine.tabs.get("form")!.cdpSessionId,
+        )
+      ).result.value,
+      "visible",
+      "Creating an unrevealed tab must not throttle input on the visible page",
+    );
     await assert.rejects(
       browser.handle(
         { type: "fill", sessionId: "other", ref: ref(snapshot, "Name "), text: "wrong tab" },
@@ -604,7 +686,7 @@ test("real Chrome moves the assistant pointer before acting and stops on cancell
     <button id="save" style="position:absolute;left:450px;top:300px" onclick="window.clicks++">Save</button>
     <button id="hover" style="position:absolute;left:520px;top:140px" onpointerover="document.querySelector('#cover').hidden=false" onclick="window.clicks++">Hover covered</button>
     <div id="cover" hidden style="position:absolute;left:515px;top:135px;width:150px;height:50px;background:gray"></div>
-    <script>window.pointerLog=[];window.clicks=0;for(const type of ['pointermove','pointerover','pointerdown','click','focusin'])document.addEventListener(type,event=>pointerLog.push({type,x:event.clientX,y:event.clientY,target:event.target.id,at:performance.now()}),true)</script>`),
+    <script>window.pointerLog=[];window.clicks=0;for(const type of ['pointermove','pointerover','pointerdown','pointerup','keydown','keyup','click','focusin'])document.addEventListener(type,event=>pointerLog.push({type,x:event.clientX,y:event.clientY,target:event.target.id,at:performance.now()}),true)</script>`),
   );
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
@@ -704,6 +786,24 @@ test("real Chrome moves the assistant pointer before acting and stops on cancell
       1,
       "Raw user input must stay a single native event",
     );
+    const activeSnapshot = await observe();
+    assert.equal(activeSnapshot.session.userControlled, true);
+    assert.deepEqual(activeSnapshot.session.userCursor, { x: 12, y: 12, pressed: false });
+    await assert.rejects(
+      browser.handle(
+        {
+          type: "fill",
+          sessionId: "movement",
+          ref: ref(activeSnapshot, "Name"),
+          text: "Must yield",
+        },
+        agent,
+      ),
+      { code: "browser-user-active" },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1550));
+    snapshot = await observe();
+    assert.equal(snapshot.session.userControlled, false);
     await browser.handle(
       {
         type: "input",
@@ -754,11 +854,14 @@ test("real Chrome moves the assistant pointer before acting and stops on cancell
     assert.equal(await evaluate("window.clicks"), 1);
 
     for (const takeover of [false, true]) {
-      await browser.handle({
-        type: "input",
-        sessionId: "movement",
-        event: { kind: "mouse", type: "mouseMoved", x: 12, y: 12 },
-      });
+      await browser.handle(
+        {
+          type: "input",
+          sessionId: "movement",
+          event: { kind: "mouse", type: "mouseMoved", x: 12, y: 12 },
+        },
+        agent,
+      );
       snapshot = await observe();
       await reset();
       const cancellation = new AbortController();
@@ -783,7 +886,7 @@ test("real Chrome moves the assistant pointer before acting and stops on cancell
             { type: "click", sessionId: "movement", ref: ref(snapshot, "Save") },
             { ...agent, signal: cancellation.signal },
           ),
-          { code: "browser-operation-failed" },
+          { code: takeover ? "browser-user-active" : "browser-operation-failed" },
         );
         await userInput;
         assert.equal(
@@ -804,6 +907,7 @@ test("real Chrome moves the assistant pointer before acting and stops on cancell
         unsubscribe();
       }
     }
+    await new Promise((resolve) => setTimeout(resolve, 1550));
     snapshot = await observe();
     await reset();
     await assert.rejects(
@@ -817,6 +921,100 @@ test("real Chrome moves the assistant pointer before acting and stops on cancell
       await evaluate("window.clicks"),
       0,
       "Hover-triggered covering UI must prevent the final click",
+    );
+
+    // A hung agent CDP reply must not hold the tool open or block the user's inputs.
+    await browser.handle(
+      {
+        type: "input",
+        sessionId: "movement",
+        event: {
+          kind: "key",
+          type: "keyDown",
+          key: "Shift",
+          code: "ShiftLeft",
+          windowsVirtualKeyCode: 16,
+        },
+      },
+      agent,
+    );
+    await browser.handle(
+      {
+        type: "input",
+        sessionId: "movement",
+        event: { kind: "mouse", type: "mousePressed", button: "left", x: 12, y: 12 },
+      },
+      agent,
+    );
+    await reset();
+    let started!: () => void;
+    const sending = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const send = engine.browser.send.bind(engine.browser);
+    const watched = t.mock.method(
+      engine.browser,
+      "send",
+      (...args: Parameters<BrowserCdp["send"]>) => {
+        const result = send(...args);
+        if (args[1]?.expression === "new Promise(() => {})") started();
+        return result;
+      },
+    );
+    const yielded = assert.rejects(
+      browser.handle(
+        {
+          type: "cdp",
+          sessionId: "movement",
+          method: "Runtime.evaluate",
+          params: { expression: "new Promise(() => {})", awaitPromise: true },
+        },
+        { ...agent, signal: AbortSignal.timeout(2000) },
+      ),
+      { code: "browser-user-active" },
+    );
+    await sending;
+    await browser.handle({
+      type: "input",
+      sessionId: "movement",
+      event: { kind: "mouse", type: "mouseMoved", x: 20, y: 20 },
+    });
+    await yielded;
+    watched.mock.restore();
+    assert.equal(
+      run.signal.aborted,
+      false,
+      "Only the conflicting action yields, not the agent run",
+    );
+    const takeoverEvents = await log();
+    assert.ok(takeoverEvents.some((event) => event.type === "keyup"));
+    assert.ok(takeoverEvents.some((event) => event.type === "pointerup"));
+    assert.equal(takeoverEvents.at(-1)?.type, "pointermove");
+    const userState = (await observe()).session;
+    assert.equal(userState.userControlled, true);
+    assert.equal(userState.agentControlled, false);
+    assert.deepEqual(userState.userCursor, { x: 20, y: 20, pressed: false });
+    assert.equal(
+      (
+        (await browser.handle({ type: "screenshot", sessionId: "movement" }, agent)) as {
+          mimeType: string;
+        }
+      ).mimeType,
+      "image/png",
+    );
+    await assert.rejects(browser.handle({ type: "reload", sessionId: "movement" }, agent), {
+      code: "browser-user-active",
+    });
+    await assert.rejects(
+      browser.handle({ type: "cdp", sessionId: "movement", method: "Page.reload" }, agent),
+      { code: "browser-user-active" },
+    );
+    await browser.handle({ type: "attach", sessionId: "other", projectId: "project" }, agent);
+    await browser.handle({ type: "navigate", sessionId: "other", url: "about:blank" }, agent);
+    assert.equal(
+      (await observe()).session.userControlled,
+      true,
+      "Other tabs must remain available during user activity",
     );
   } finally {
     run.abort();
@@ -1017,7 +1215,7 @@ test("browser permissions remain scoped to history, downloads and uploads with o
   );
 });
 
-test("real Chrome keeps one target while navigating, streaming, finding, copying, emulating and exporting", async (t) => {
+test("real Chrome navigates, streams, finds, copies, emulates and exports with native popups", async (t) => {
   try {
     await findBrowserExecutable();
   } catch {
@@ -1055,11 +1253,11 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
   const manager = new BrowserManager({ stateDirectory });
   const events: BrowserEvent[] = [];
   manager.subscribe((event) => events.push(event));
-  const waitFor = async (predicate: () => boolean) => {
+  const waitFor = async (predicate: () => boolean | Promise<boolean>) => {
     const until = Date.now() + 10000;
-    while (!predicate() && Date.now() < until)
+    while (!(await predicate()) && Date.now() < until)
       await new Promise((resolve) => setTimeout(resolve, 20));
-    assert.ok(predicate(), "browser event did not arrive");
+    assert.ok(await predicate(), "browser event did not arrive");
   };
   try {
     await manager.handle({ type: "attach", sessionId: "tab", projectId: "project", url });
@@ -1141,6 +1339,13 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
         method: "Runtime.evaluate",
         params: { expression, returnByValue: true, awaitPromise: true },
       }) as Promise<{ result: { value: any } }>;
+    const frameDimensions = async (frame: Extract<BrowserEvent, { type: "frame" }>) =>
+      (
+        await evaluate(`(async () => {
+          const image = new Image(); image.src = 'data:${frame.mimeType};base64,${frame.data}';
+          await image.decode(); return { width: image.naturalWidth, height: image.naturalHeight };
+        })()`)
+      ).result.value as { width: number; height: number };
     await evaluate(
       "document.querySelector('#plain').focus();document.querySelector('#plain').select()",
     );
@@ -1171,17 +1376,17 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
       });
     };
     const clickStreamInput = async (visibleFrame: Extract<BrowserEvent, { type: "frame" }>) => {
-      const encoded = pngDimensions(visibleFrame.data);
+      const encoded = await frameDimensions(visibleFrame);
       // Decode the actual stream in Chrome and click the colored input's bitmap center.
       const marker = (
         await evaluate(`(async () => {
-        const image = new Image(); image.src = 'data:image/png;base64,${visibleFrame.data}';
+        const image = new Image(); image.src = 'data:${visibleFrame.mimeType};base64,${visibleFrame.data}';
         await image.decode(); const canvas = new OffscreenCanvas(image.width, image.height);
         const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
         const { data } = context.getImageData(0, 0, image.width, image.height);
         let left = image.width, top = image.height, right = 0, bottom = 0;
         for (let i = 0; i < data.length; i += 4) {
-          if (data[i] === 255 && data[i + 1] === 0 && data[i + 2] === 0) {
+          if (data[i] > 230 && data[i + 1] < 25 && data[i + 2] < 25) {
             const x = i / 4 % image.width, y = Math.floor(i / 4 / image.width);
             left = Math.min(left, x); right = Math.max(right, x);
             top = Math.min(top, y); bottom = Math.max(bottom, y);
@@ -1221,19 +1426,21 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
       await evaluate("document.activeElement.blur()");
       const width = config.width ?? 600;
       const logicalWidth = Math.round((config.device?.width ?? width) / config.zoom);
-      const expectedWidth = config.zoom === 3 ? width : width * (config.deviceScaleFactor ?? 2);
+      const expectedWidth = width * Math.min(config.deviceScaleFactor ?? 2, 2, 2 / config.zoom);
       // A frame already in flight may arrive after the next viewport was requested.
-      const currentFrame = () =>
-        events
+      const currentFrame = async () => {
+        const frame = events
           .slice(start)
           .findLast(
-            (event) =>
-              event.type === "frame" &&
-              (config.device ||
-                (event.width === logicalWidth &&
-                  Math.abs(pngDimensions(event.data).width - expectedWidth) <= 1)),
+            (event) => event.type === "frame" && (config.device || event.width === logicalWidth),
           ) as Extract<BrowserEvent, { type: "frame" }> | undefined;
-      await waitFor(() => Boolean(currentFrame())).catch((cause) => {
+        if (
+          frame &&
+          (config.device || Math.abs((await frameDimensions(frame)).width - expectedWidth) <= 1)
+        )
+          return frame;
+      };
+      await waitFor(async () => Boolean(await currentFrame())).catch((cause) => {
         throw new Error(
           JSON.stringify({
             config,
@@ -1243,15 +1450,15 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
               .map((event) => ({
                 width: event.width,
                 height: event.height,
-                encoded: pngDimensions(event.data),
+                mimeType: event.mimeType,
               })),
           }),
           { cause },
         );
       });
-      const visibleFrame = currentFrame()!;
-      assert.equal(visibleFrame.mimeType, "image/png");
-      const encoded = pngDimensions(visibleFrame.data);
+      const visibleFrame = (await currentFrame())!;
+      assert.equal(visibleFrame.mimeType, "image/jpeg");
+      const encoded = await frameDimensions(visibleFrame);
       if (!config.device) {
         assert.ok(Math.abs(encoded.width - expectedWidth) <= 1, JSON.stringify(config));
         assert.equal(visibleFrame.width, logicalWidth);
@@ -1497,6 +1704,15 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
       },
     });
     const permissionStart = events.length;
+    await waitFor(
+      async () =>
+        !(
+          (await manager.handle({
+            type: "tabs.list",
+            projectId: "project",
+          })) as BrowserSessionState[]
+        ).find((tab) => tab.id === "tab")?.userControlled,
+    );
     await manager.handle(
       { type: "attach", sessionId: "tab", projectId: "project" },
       { source: "agent" },

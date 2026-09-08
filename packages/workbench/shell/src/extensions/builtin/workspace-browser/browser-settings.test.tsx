@@ -5,6 +5,11 @@ import { createRoot } from "react-dom/client";
 import { Globe2Icon } from "lucide-react";
 import { WorkspaceSurfaceRegistryImpl } from "@workbench/extension-sdk/internal";
 import {
+  WorkbenchAgentCapabilityError,
+  type WorkbenchRuntimeHostCapability,
+} from "@workbench/agent-runtime-client";
+import { WorkbenchAgentRuntimeEnvironmentProvider } from "@workbench/agent-runtime-client/context";
+import {
   BROWSER_PAGES,
   type BrowserCommand,
   type BrowserSettings,
@@ -12,6 +17,7 @@ import {
 
 import { installMinimalReactDomEnvironment } from "../../../../test/react-dom-environment";
 import { I18nProvider } from "../../../i18n";
+import { RemoteDirectoryPickerDialog } from "../../../directory-picker";
 import { RightWorkspaceProvider, useRightWorkspaceState } from "../../../right-workspace-react";
 import { useRightWorkspaceInstallationResource } from "../../../right-workspace/right-workspace-context";
 import {
@@ -38,6 +44,16 @@ test("browser settings persist choices and website overrides, reuse management t
   const dom = installMinimalReactDomEnvironment();
   const root = createRoot(dom.container);
   const commands: BrowserCommand[] = [];
+  let selectedDirectory: string | undefined;
+  let directoryFailure: Error | undefined;
+  let nativeCalls = 0;
+  const hostClient = {
+    pickDirectory: async () => {
+      nativeCalls++;
+      if (directoryFailure) throw directoryFailure;
+      return selectedDirectory;
+    },
+  } as WorkbenchRuntimeHostCapability;
   class Browser extends MemoryBrowserSessionService {
     override async command<T>(command: BrowserCommand): Promise<T> {
       commands.push(command);
@@ -126,7 +142,13 @@ test("browser settings persist choices and website overrides, reuse management t
                   subscribe: () => () => {},
                 })}
               >
-                <Probe />
+                <WorkbenchAgentRuntimeEnvironmentProvider
+                  id="test"
+                  commands={[]}
+                  capabilities={{ host: hostClient }}
+                >
+                  <Probe />
+                </WorkbenchAgentRuntimeEnvironmentProvider>
               </RightWorkspaceProvider>
             </I18nProvider>
           </WorkbenchSettingsProvider>
@@ -178,6 +200,31 @@ test("browser settings persist choices and website overrides, reuse management t
       upload: "ask",
     });
     browser.updateSettings = updateSettings;
+
+    selectedDirectory = "/chosen/downloads";
+    await click(button("Change"));
+    assert.equal(nativeCalls, 1, "Local downloads use the project's native picker capability");
+    assert.equal(browser.getSettings().downloadDirectory, selectedDirectory);
+    selectedDirectory = undefined;
+    await click(button("Change"));
+    assert.equal(
+      browser.getSettings().downloadDirectory,
+      "/chosen/downloads",
+      "Cancel keeps the configured location",
+    );
+    directoryFailure = new WorkbenchAgentCapabilityError("unavailable");
+    await click(button("Change"));
+    const directoryPicker = find((element) => element.type === RemoteDirectoryPickerDialog);
+    assert.equal(directoryPicker.props.initialPath, "/chosen/downloads");
+    assert.equal((directoryPicker.props.copy as { select: string }).select, "Save");
+    await act(async () => {
+      await (directoryPicker.props.onSelectPath as (path: string) => Promise<void>)(
+        "/remote/downloads",
+      );
+      (directoryPicker.props.onOpenChange as (open: boolean) => void)(false);
+    });
+    assert.equal(browser.getSettings().downloadDirectory, "/remote/downloads");
+    directoryFailure = undefined;
 
     await click(button("Add website"));
     await act(async () => setOrigin("https://name:secret@example.test"));

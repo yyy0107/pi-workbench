@@ -3,7 +3,9 @@
 The shared browser engine for Workbench Web and Electron. The Runtime owns one lazily started
 Chrome process and a dedicated persistent profile. Both clients display its page frames and send
 input through the authenticated `/api/browser/ws` gateway; the Pi `workbench_browser` tool uses
-the same `BrowserManager`. Session IDs reuse the same Chrome target and navigation history.
+the same `BrowserManager`. Browser session IDs identify tabs, not isolated browser profiles.
+Conversations and projects share login cookies, site storage, and profile-wide browsing history;
+each tab keeps its own page, back/forward stack, and `sessionStorage`.
 
 ## Setup
 
@@ -59,6 +61,12 @@ Chrome's password manager and stored by Chrome; Workbench does not create a plai
 database. Session targets live in memory and can reconnect after a Chrome process failure;
 the persistent profile survives Runtime restarts.
 
+Closing a tab or switching conversations does not clear the profile. A later conversation reuses
+the site's existing login and stored data. Persistent cookies, local storage, and browsing history
+survive closing and reopening the Runtime; website expiry, logout, and explicit browsing-data
+clearing still apply. Chrome owns this persistence; Workbench does not export credentials into
+per-conversation files.
+
 The `open-page` command opens the real Chrome history, downloads, password manager, addresses,
 site settings, general settings, clear-browsing-data, download-settings, and import settings pages
 in the existing Workbench tab. Ordinary address navigation accepts HTTP(S) and `about:blank`;
@@ -72,15 +80,15 @@ files and in-progress downloads, and returns the remaining `BrowserDownload[]` l
 ## Inputs, exports, and imports
 
 - Up to 32 browser sessions share the manager. HTTP(S) URLs containing credentials are rejected.
-  URL-based new-window links reuse the opener's Workbench tab after navigation permission checks.
+  Native new-window links open separate Workbench tabs in the same profile, preserving their opener.
 - Frame `width` and `height` describe CSS input coordinates, including zoom, fit, and mobile page
-  scale. They can differ from encoded PNG pixels. Map a point within the displayed image
+  scale. They can differ from encoded bitmap pixels. Map a point within the displayed image
   proportionally into those CSS dimensions, accounting for letterboxing.
-- Live frames use lossless PNG and Chrome's native screencast, with compositor density 3.
+- Live frames use JPEG quality 90 and Chrome's native screencast, capped at compositor density 2.
   The viewport's optional `deviceScaleFactor` requests display density 1–3 (default 2), and also
   controls screenshot export density. Streams preserve aspect ratio within 3,840 pixels per edge
   and 3,840 × 2,160 pixels total. Native compositor density is the ceiling: at zoom 3, a 600-CSS-pixel
-  panel receives up to 600 bitmap pixels across, while normal zoom receives 1,200 at density 2.
+  panel receives up to 400 bitmap pixels across, while normal zoom receives 1,200 at density 2.
   Scrolling and input remain native Chrome operations; there is no screenshot polling loop.
 - Screenshots return PNG; print returns PDF. `BrowserFile.viewport` describes the visible CSS
   input area, `capture` describes the image's CSS coverage, and `pixels` reports the encoded PNG dimensions. They match for a viewport
@@ -153,6 +161,18 @@ so a known target beyond the first 1,000 unfiltered nodes remains searchable. It
 input values; frame markers remain to expose unavailable content. Password values are omitted. At most 1,000 nodes and approximately
 64 Ki characters of accessible text are returned; `truncated` indicates omitted content. Pages
 that have not reached DOM readiness after a one-second wait return `browser-page-loading`.
+
+Tabs are shared with the user. Session results include `userControlled` and the latest `userCursor`
+in CSS input coordinates. Mouse movement (including hover), clicks, scrolling, keyboard input,
+and user page actions give that tab priority until 1.5 seconds without new activity. Pointer
+updates are kept in memory; state events announce activity transitions rather than every move.
+Conflicting agent actions immediately return `browser-user-active`, including pending CDP calls,
+without canceling the agent run or waiting for the activity lease. Snapshots, screenshots, other
+observation commands, and actions in other tabs remain available. Raw CDP is treated as an action
+because arbitrary commands can change the page. Viewport updates from the display are not user
+activity. Takeover releases agent-held keys/buttons and prevents later steps of that action;
+Chrome commands already dispatched cannot be undone. Do not automatically replay a yielded action
+or busy-poll for control: continue independent work, then observe again before retrying.
 
 Use `{ type: "click", sessionId, x, y }` for one complete native left click at viewport CSS
 coordinates observed in a current screenshot. Coordinates outside the viewport are rejected.

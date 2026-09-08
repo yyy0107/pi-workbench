@@ -36,6 +36,8 @@ export interface BrowserSession {
   error?: string;
   agentControlled?: boolean;
   agentCursor?: BrowserCursor;
+  userControlled?: boolean;
+  userCursor?: BrowserCursor;
 }
 
 export interface BrowserScreenshot {

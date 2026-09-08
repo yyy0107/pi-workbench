@@ -41,6 +41,39 @@ test("CDP errors retain the method, protocol diagnostic, and timeout without clo
     );
     const result = await browser.send("Runtime.evaluate", { expression: "1 + 1" }, sessionId);
     assert.equal(result.result.value, 2);
+    const cancellation = new AbortController();
+    const canceled = assert.rejects(
+      browser.send(
+        "Runtime.evaluate",
+        { expression: "new Promise(() => {})", awaitPromise: true },
+        sessionId,
+        30_000,
+        cancellation.signal,
+      ),
+      { code: "browser-user-active" },
+    );
+    cancellation.abort(new BrowserError("browser-user-active"));
+    await canceled;
+    await assert.rejects(
+      browser.send(
+        "Runtime.evaluate",
+        { expression: "window.shouldNotRun = true" },
+        sessionId,
+        30_000,
+        cancellation.signal,
+      ),
+      { code: "browser-user-active" },
+    );
+    assert.equal(
+      (
+        await browser.send(
+          "Runtime.evaluate",
+          { expression: "window.shouldNotRun === undefined" },
+          sessionId,
+        )
+      ).result.value,
+      true,
+    );
     assert.ok(
       new BrowserError("browser-operation-failed", "x".repeat(10_000)).message.length < 2200,
     );
