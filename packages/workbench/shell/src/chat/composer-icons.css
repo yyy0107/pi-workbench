@@ -8,7 +8,7 @@
 
 @layer components {
   .aui-composer-attachments {
-    --composer-attachment-height: calc(var(--control-hit-compact) * 2);
+    --composer-attachment-height: calc(var(--control-hit-compact) * 7 / 3);
     --composer-attachment-width: calc(var(--control-hit-compact) * 9);
     --composer-attachment-radius: max(
       0px,
@@ -61,7 +61,7 @@
   }
 
   .aui-composer-attachment-remove {
-    --button-icon-frame-size: calc(var(--icon-frame-size-compact) - 6px);
-    --button-icon-size: calc(var(--icon-size-sm) - 2px);
+    --button-icon-frame-size: calc(var(--icon-frame-size-compact) - 8px);
+    --button-icon-size: calc(var(--icon-size-sm) - 4px);
   }
 }

@@ -96,9 +96,9 @@ function AttachmentTile({
           <TooltipIconButton
             tooltip={t("assistant.composer.removeFile")}
             type="button"
-            variant="default"
             data-frame="none"
-            className="aui-composer-attachment-remove absolute end-0.5 top-0.5 rounded-full after:absolute after:-inset-1 motion-reduce:transition-none"
+            data-selection="none"
+            className="aui-composer-attachment-remove absolute end-0.5 top-0.5 rounded-full bg-foreground/60 text-background hover:text-background! active:bg-foreground/60! active:text-background! after:absolute after:-inset-1 motion-reduce:transition-none"
             side="top"
             onClick={() => onRemove(attachment.key)}
           >
@@ -235,9 +235,9 @@ function PastedTextTile({
       </div>
       <TooltipIconButton
         tooltip={t("chatContent.textAttachment.remove")}
-        variant="default"
         data-frame="none"
-        className="aui-composer-attachment-remove absolute end-1 top-1 rounded-full"
+        data-selection="none"
+        className="aui-composer-attachment-remove absolute end-1 top-1 rounded-full bg-foreground/60 text-background hover:text-background! active:bg-foreground/60! active:text-background!"
         onClick={() => onRemove(attachment.key)}
         disabled={restoring}
       >
