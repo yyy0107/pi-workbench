@@ -141,9 +141,12 @@ async function resolveDesktopArtifactLayout(
   const runtimeTargetKey =
     deriveRuntimeTargetKey ??
     require("@workbench/host-contracts/runtime-artifact-manifest").runtimeArtifactTargetKey;
+  const runtimeDirectoryName = composition.manifest.runtimeArtifactManifest.split("/")[1];
+  // Packaged desktops use a compact directory; target identity is checked by
+  // the Runtime admission resolver above, independently of the directory name.
   if (
-    composition.manifest.runtimeArtifactManifest.split("/")[1] !==
-    runtimeTargetKey(runtime.manifest.target)
+    runtimeDirectoryName !== "current" &&
+    runtimeDirectoryName !== runtimeTargetKey(runtime.manifest.target)
   ) {
     throw new Error("The desktop composition Runtime directory does not match its target key.");
   }

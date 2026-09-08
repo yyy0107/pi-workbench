@@ -370,7 +370,10 @@ async function stageRuntimeArtifact({
     throw new Error("The Runtime artifact staging root must not exist before staging.");
   }
   mkdirSync(destinationRoot, { recursive: true });
-  const destination = path.join(destinationRoot, path.basename(verifiedSource.artifactRoot));
+  // A desktop package contains one target, identified by its manifest. Repeating
+  // the full target in this path pushes nested SDK files past NSIS CopyFiles'
+  // Windows path limit, even under the default per-user installation directory.
+  const destination = path.join(destinationRoot, "current");
   cpSync(verifiedSource.artifactRoot, destination, {
     dereference: false,
     preserveTimestamps: true,

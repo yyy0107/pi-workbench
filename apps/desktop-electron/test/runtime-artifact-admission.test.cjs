@@ -25,12 +25,12 @@ const ELECTRON_TARGET = Object.freeze({
   electronVersion: "43.4.1",
 });
 
-function fixture(t) {
+function fixture(t, directory = runtimeArtifactTargetKey(ELECTRON_TARGET)) {
   const selectionRoot = mkdtempSync(path.join(os.tmpdir(), "workbench-runtime-admission-"));
   t.after(() => rmSync(selectionRoot, { force: true, recursive: true }));
-  const artifactRoot = path.join(selectionRoot, runtimeArtifactTargetKey(ELECTRON_TARGET));
+  const artifactRoot = path.join(selectionRoot, directory);
   const manifestPath = path.join(artifactRoot, "artifact-manifest.json");
-  mkdirSync(artifactRoot);
+  mkdirSync(artifactRoot, { recursive: true });
   writeFileSync(manifestPath, "{}\n");
   return {
     artifactRoot,
@@ -44,6 +44,54 @@ function fixture(t) {
     selectionRoot,
   };
 }
+
+test("admits compact desktop paths through parent, direct root and explicit manifest selection", async (t) => {
+  const value = fixture(t, "runtime-node/current");
+  for (const selection of [
+    { artifactRoot: path.dirname(value.artifactRoot) },
+    { artifactRoot: value.artifactRoot },
+    { manifestPath: value.manifestPath },
+  ]) {
+    const result = await resolveDesktopRuntimeArtifact({
+      ...selection,
+      expectedTarget: ELECTRON_TARGET,
+      resolveArtifact: async (options) => {
+        assert.equal(options.manifestPath, value.manifestPath);
+        assert.strictEqual(options.expectedTarget, ELECTRON_TARGET);
+        assert.strictEqual(options.policy, DESKTOP_RUNTIME_ARTIFACT_ADMISSION_POLICY);
+        return value.descriptor;
+      },
+    });
+    assert.strictEqual(result, value.descriptor);
+  }
+});
+
+test("compact naming does not bypass shared target validation", async (t) => {
+  const value = fixture(t, "runtime-node/current");
+  const failure = new Error("Runtime target mismatch");
+  await assert.rejects(
+    resolveDesktopRuntimeArtifact({
+      artifactRoot: path.dirname(value.artifactRoot),
+      expectedTarget: ELECTRON_TARGET,
+      resolveArtifact: async () => {
+        throw failure;
+      },
+    }),
+    (error) => error === failure,
+  );
+});
+
+test("rejects compact names outside the desktop runtime-node directory", async (t) => {
+  const value = fixture(t, "current");
+  await assert.rejects(
+    resolveDesktopRuntimeArtifact({
+      artifactRoot: value.artifactRoot,
+      expectedTarget: ELECTRON_TARGET,
+      resolveArtifact: async () => value.descriptor,
+    }),
+    /canonical target key/u,
+  );
+});
 
 test("routes target-key selection through the complete shared admission policy", async (t) => {
   assert.deepEqual(DESKTOP_RUNTIME_UPGRADE_PATHS, [

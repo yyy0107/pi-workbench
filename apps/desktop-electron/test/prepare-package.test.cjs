@@ -22,6 +22,7 @@ const {
   buildServerProcessLifecycle,
   preparePackage,
   resetElectronStaging,
+  stageRuntimeArtifact,
 } = require("../scripts/prepare-package.cjs");
 
 const TARGET = Object.freeze({
@@ -41,6 +42,44 @@ function temporaryRepository(t, prefix = "workbench-prepare-package-") {
   t.after(() => rmSync(repositoryRoot, { force: true, recursive: true }));
   return repositoryRoot;
 }
+
+test("runtime staging uses a short directory while preserving target and artifact contents", async (t) => {
+  const root = temporaryRepository(t);
+  const artifactRoot = path.join(root, "electron-node-win32-x64-none-abi148-electron43.4.1");
+  const relativeFile =
+    "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/compaction-summary-message.js";
+  writeFile(path.join(artifactRoot, relativeFile), "runtime fixture");
+  writeFile(path.join(artifactRoot, "artifact-manifest.json"), JSON.stringify({ target: TARGET }));
+  const resolvedRoots = [];
+  const staged = await stageRuntimeArtifact({
+    sourceArtifact: { artifactRoot },
+    destinationRoot: path.join(root, "runtime-node"),
+    target: TARGET,
+    resolveArtifact: async ({ artifactRoot: resolvedRoot }) => {
+      resolvedRoots.push(resolvedRoot);
+      return {
+        artifactRoot: resolvedRoot,
+        manifest: JSON.parse(
+          readFileSync(path.join(resolvedRoot, "artifact-manifest.json"), "utf8"),
+        ),
+      };
+    },
+  });
+  assert.equal(path.basename(staged.artifactRoot), "current");
+  assert.deepEqual(resolvedRoots, [artifactRoot, staged.artifactRoot]);
+  assert.deepEqual(staged.manifest.target, TARGET);
+  assert.equal(
+    readFileSync(path.join(staged.artifactRoot, relativeFile), "utf8"),
+    "runtime fixture",
+  );
+  const defaultInstallPath = path.win32.join(
+    "C:\\Users\\wy777\\AppData\\Local\\Programs\\workbench-ui\\Pi Workbench",
+    "resources/desktop-runtime/runtime-node",
+    path.basename(staged.artifactRoot),
+    relativeFile,
+  );
+  assert.ok(defaultInstallPath.length < 260);
+});
 
 function writeFile(filePath, content = "") {
   mkdirSync(path.dirname(filePath), { recursive: true });

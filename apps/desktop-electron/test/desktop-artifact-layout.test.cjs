@@ -10,14 +10,14 @@ const {
   resolveDesktopArtifactLayout,
 } = require("../scripts/desktop-artifact-layout.cjs");
 
-function fixture(t) {
+function fixture(t, runtimeDirectory = "electron-target") {
   const runtimeRoot = mkdtempSync(path.join(os.tmpdir(), "workbench-desktop-layout-"));
   t.after(() => rmSync(runtimeRoot, { force: true, recursive: true }));
   const rendererManifestPath = path.join(runtimeRoot, "desktop-renderer", "artifact-manifest.json");
   const runtimeManifestPath = path.join(
     runtimeRoot,
     "runtime-node",
-    "electron-target",
+    runtimeDirectory,
     "artifact-manifest.json",
   );
   for (const manifestPath of [rendererManifestPath, runtimeManifestPath]) {
@@ -59,37 +59,39 @@ test("composition contains only renderer and Runtime manifest references", (t) =
   );
 });
 
-test("resolves both admitted artifacts and the exact support module", async (t) => {
-  const value = fixture(t);
-  const target = { runtimeFlavor: "electron-node" };
-  const calls = [];
-  const layout = await resolveDesktopArtifactLayout(value.runtimeRoot, {
-    expectedRendererBuildId: "renderer-build",
-    expectedTarget: target,
-    deriveRuntimeTargetKey: () => "electron-target",
-    resolveRenderer: async (options) => {
-      calls.push(["renderer", options]);
-      return {
-        artifactRoot: path.dirname(value.rendererManifestPath),
-        manifestPath: value.rendererManifestPath,
-        manifest: { buildId: "renderer-build" },
-      };
-    },
-    resolveRuntime: async (options) => {
-      calls.push(["runtime", options]);
-      return {
-        artifactRoot: path.dirname(value.runtimeManifestPath),
-        manifestPath: value.runtimeManifestPath,
-        manifest: { target },
-      };
-    },
+for (const runtimeDirectory of ["electron-target", "current"]) {
+  test(`resolves both admitted artifacts and the exact support module (${runtimeDirectory})`, async (t) => {
+    const value = fixture(t, runtimeDirectory);
+    const target = { runtimeFlavor: "electron-node" };
+    const calls = [];
+    const layout = await resolveDesktopArtifactLayout(value.runtimeRoot, {
+      expectedRendererBuildId: "renderer-build",
+      expectedTarget: target,
+      deriveRuntimeTargetKey: () => "electron-target",
+      resolveRenderer: async (options) => {
+        calls.push(["renderer", options]);
+        return {
+          artifactRoot: path.dirname(value.rendererManifestPath),
+          manifestPath: value.rendererManifestPath,
+          manifest: { buildId: "renderer-build" },
+        };
+      },
+      resolveRuntime: async (options) => {
+        calls.push(["runtime", options]);
+        return {
+          artifactRoot: path.dirname(value.runtimeManifestPath),
+          manifestPath: value.runtimeManifestPath,
+          manifest: { target },
+        };
+      },
+    });
+    assert.equal(layout.supportPath, path.join(value.runtimeRoot, "desktop-artifact-support.cjs"));
+    assert.deepEqual(calls, [
+      ["renderer", { manifestPath: value.rendererManifestPath, expectedBuildId: "renderer-build" }],
+      ["runtime", { manifestPath: value.runtimeManifestPath, expectedTarget: target }],
+    ]);
   });
-  assert.equal(layout.supportPath, path.join(value.runtimeRoot, "desktop-artifact-support.cjs"));
-  assert.deepEqual(calls, [
-    ["renderer", { manifestPath: value.rendererManifestPath, expectedBuildId: "renderer-build" }],
-    ["runtime", { manifestPath: value.runtimeManifestPath, expectedTarget: target }],
-  ]);
-});
+}
 
 test("rejects escaping manifest links before either resolver runs", async (t) => {
   const value = fixture(t);

@@ -56,6 +56,12 @@ function selectRuntimeArtifactManifest(artifactRoot, expectedTarget) {
   if (existsSync(directManifest)) {
     return canonicalRegularManifest(directManifest, "Runtime artifact manifest");
   }
+  // Desktop staging has one target; its short directory avoids Windows path
+  // limits. The shared resolver still validates the manifest's exact target.
+  const compactManifest = path.join(root, "current", RUNTIME_ARTIFACT_MANIFEST_FILENAME);
+  if (path.basename(root) === "runtime-node" && existsSync(compactManifest)) {
+    return canonicalRegularManifest(compactManifest, "Runtime artifact manifest");
+  }
   if (expectedTarget) {
     const targetManifest = path.join(
       root,
@@ -101,7 +107,10 @@ async function resolveDesktopRuntimeArtifact({
     ...(expectedTarget ? { expectedTarget } : { processIdentity }),
   });
   const expectedDirectory = runtimeArtifactTargetKey(artifact.manifest.target);
-  if (path.basename(artifact.artifactRoot) !== expectedDirectory) {
+  const isCompactDesktopRoot =
+    path.basename(artifact.artifactRoot) === "current" &&
+    path.basename(path.dirname(artifact.artifactRoot)) === "runtime-node";
+  if (!isCompactDesktopRoot && path.basename(artifact.artifactRoot) !== expectedDirectory) {
     throw new Error("The Runtime artifact directory does not match its canonical target key.");
   }
   if (realpathSync(artifact.manifestPath) !== selectedManifest) {
