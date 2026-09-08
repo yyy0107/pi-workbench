@@ -83,7 +83,7 @@ files and in-progress downloads, and returns the remaining `BrowserDownload[]` l
   panel receives up to 600 bitmap pixels across, while normal zoom receives 1,200 at density 2.
   Scrolling and input remain native Chrome operations; there is no screenshot polling loop.
 - Screenshots return PNG; print returns PDF. `BrowserFile.viewport` describes the visible CSS
-  input area, and `capture` describes the image's CSS coverage. They match for a viewport
+  input area, `capture` describes the image's CSS coverage, and `pixels` reports the encoded PNG dimensions. They match for a viewport
   screenshot. A full-page screenshot includes content outside the current viewport; scroll before
   clicking that content. Exported/read files are limited to 64 MiB. All screenshot captures reject
   dimensions above 16,384 bitmap pixels or an area above 50 million bitmap pixels.
@@ -147,9 +147,17 @@ The regular commands retain their action-specific checks.
 `tabs.list` lists only existing controlled tabs with the exact requested `projectId`. It does not
 launch Chrome or discover the user's other browser windows. `snapshot` returns a bounded native
 accessibility tree with the current session, a snapshot ID, roles, names, control states, and
-optional element references. Password values are omitted. At most 1,000 nodes and approximately
+optional element references. Empty layout wrappers are omitted without dropping their children.
+An optional `query` filters accessible names by case-insensitive substring before the output limits,
+so a known target beyond the first 1,000 unfiltered nodes remains searchable. It does not search
+input values; frame markers remain to expose unavailable content. Password values are omitted. At most 1,000 nodes and approximately
 64 Ki characters of accessible text are returned; `truncated` indicates omitted content. Pages
 that have not reached DOM readiness after a one-second wait return `browser-page-loading`.
+
+Use `{ type: "click", sessionId, x, y }` for one complete native left click at viewport CSS
+coordinates observed in a current screenshot. Coordinates outside the viewport are rejected.
+Map displayed image coordinates proportionally to `viewport`; do not change zoom or device
+settings for conversion. Do not mix `ref` and coordinates.
 
 Use observed references with `{ type: "click", sessionId, ref }` or
 `{ type: "fill", sessionId, ref, text }`. Both use native Chrome input, check navigation permission,
@@ -158,8 +166,8 @@ an empty string clears it. Click checks visibility, disabled state, and whether 
 covers its target. References belong to one tab and its latest snapshot. Navigation, document
 replacement, a newer snapshot, or removing an element makes its references stale. Recover from
 `browser-element-stale` or `browser-element-not-interactable` by observing the page again before
-choosing the next action. Embedded frames are marked `unavailable: "frame"` and have no actionable
-references; the snapshot does not traverse their documents. Local development pages should be
+choosing the next action. Same-origin embedded frames are traversed and their refs support ordinary click/fill.
+Cross-origin, sandbox-isolated, and separate-target frames remain marked `unavailable: "frame"`. Local development pages should be
 served over HTTP(S); ordinary navigation does not accept `file:` URLs.
 
 Website tools have global and per-origin switches. The launched Chrome enables

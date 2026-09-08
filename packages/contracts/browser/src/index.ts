@@ -114,6 +114,8 @@ export interface BrowserFile {
   data: string;
   viewport?: { width: number; height: number };
   capture?: { width: number; height: number };
+  /** Actual encoded screenshot dimensions, independent of CSS coverage. */
+  pixels?: { width: number; height: number };
 }
 export interface BrowserDownload {
   id: string;
@@ -150,8 +152,9 @@ export type BrowserCommand =
   | { type: "history.list"; query?: string; limit?: number }
   | { type: "tabs.list"; projectId: string }
   | { type: "attach"; sessionId: string; projectId: string; url?: string }
-  | { type: "snapshot"; sessionId: string }
+  | { type: "snapshot"; sessionId: string; query?: string }
   | { type: "click"; sessionId: string; ref: string }
+  | { type: "click"; sessionId: string; x: number; y: number }
   | { type: "fill"; sessionId: string; ref: string; text: string }
   | { type: "navigate"; sessionId: string; url: string }
   | { type: "back" | "forward" | "reload" | "stop" | "close" | "print" | "copy"; sessionId: string }
@@ -388,16 +391,23 @@ export function parseBrowserCommand(value: unknown): BrowserCommand | undefined 
         case "close":
         case "print":
         case "copy":
-        case "snapshot":
         case "site-tools.list":
           valid = true;
           break;
+        case "snapshot":
+          valid = value.query === undefined || string(value.query, 1024);
+          break;
         case "click":
-        case "fill":
           valid =
-            string(value.ref, 256) &&
-            value.ref.length > 0 &&
-            (value.type === "click" || string(value.text, 65536));
+            value.ref === undefined
+              ? finite(value.x, 0, 100000) && finite(value.y, 0, 100000)
+              : string(value.ref, 256) &&
+                value.ref.length > 0 &&
+                value.x === undefined &&
+                value.y === undefined;
+          break;
+        case "fill":
+          valid = string(value.ref, 256) && value.ref.length > 0 && string(value.text, 65536);
           break;
         case "screenshot":
           valid = value.fullPage === undefined || typeof value.fullPage === "boolean";

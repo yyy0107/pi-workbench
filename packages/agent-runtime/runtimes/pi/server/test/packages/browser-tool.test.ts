@@ -41,6 +41,7 @@ test("browser tool scopes tabs, projects snapshots, validates actions, and forwa
             data: "cGljdHVyZQ==",
             viewport: { width: 640, height: 480 },
             capture: { width: 640, height: 480 },
+            pixels: { width: 1280, height: 960 },
           };
         if (command.type === "snapshot") return snapshot;
         if (command.type === "tabs.list") return [session];
@@ -121,6 +122,7 @@ test("browser tool scopes tabs, projects snapshots, validates actions, and forwa
         text: JSON.stringify({
           viewport: { width: 640, height: 480 },
           capture: { width: 640, height: 480 },
+          pixels: { width: 1280, height: 960 },
         }),
       },
       { type: "image", mimeType: "image/png", data: "cGljdHVyZQ==" },
@@ -140,15 +142,21 @@ test("browser tool scopes tabs, projects snapshots, validates actions, and forwa
     assert.deepEqual(tabs.content, [{ type: "text", text: JSON.stringify([session]) }]);
     const observed = await tool.execute(
       "observe",
-      { action: "snapshot" },
+      { action: "snapshot", params: { query: "Search" } },
       controller.signal,
       undefined,
       ctx,
     );
+    assert.deepEqual(calls.at(-1)?.command, {
+      type: "snapshot",
+      sessionId: "workbench-conversation",
+      query: "Search",
+    });
     assert.deepEqual(observed.details, attached.details);
     assert.deepEqual(observed.content, [{ type: "text", text: JSON.stringify(snapshot) }]);
     for (const [action, params] of [
       ["click", { ref: "snapshot-1:0" }],
+      ["click", { x: 160, y: 220 }],
       ["fill", { ref: "snapshot-1:0", text: "Workbench" }],
       ["dialog.respond", { accept: false }],
     ] as const) {
@@ -173,6 +181,8 @@ test("browser tool scopes tabs, projects snapshots, validates actions, and forwa
     for (const params of [
       { action: "input", params: { event: { kind: "mouse", x: -1 } } },
       { action: "click", params: { ref: "" } },
+      { action: "click", params: { x: 1 } },
+      { action: "click", params: { ref: "snapshot-1:0", x: 1, y: 2 } },
       { action: "fill", params: { ref: "snapshot-1:0", text: 1 } },
       { action: "dialog.respond", params: { accept: "yes" } },
     ]) {

@@ -157,6 +157,8 @@ test("the packed Pi package loads its extension and skill without private worksp
   for (const arguments_ of [
     { action: "cdp", params: { method: "Page.getFrameTree" } },
     { action: "click", params: { ref: "snapshot-1:0" } },
+    { action: "click", params: { x: 160, y: 220 } },
+    { action: "snapshot", params: { query: "我怀念的" } },
     { action: "fill", params: { ref: "snapshot-1:0", text: "Search" } },
   ]) {
     assert.deepEqual(
@@ -170,7 +172,7 @@ test("the packed Pi package loads its extension and skill without private worksp
     );
     await tool.execute("action", arguments_, undefined, undefined, ctx);
   }
-  assert.deepEqual(calls.at(-3), {
+  assert.deepEqual(calls.at(-5), {
     type: "cdp",
     sessionId: "workbench-package-test",
     method: "Page.getFrameTree",

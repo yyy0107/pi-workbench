@@ -60,9 +60,9 @@ export function createBrowserExtension(
       name: "workbench_browser",
       label: "workbench_browser",
       description:
-        "Control Workbench's in-app browser or this Pi session's isolated headless browser. Read the browser-use skill before browser work. Use tabs.list to discover tabs in the current project, then reuse the returned id as sessionId. Attach creates or reuses a tab; its optional HTTP(S) url applies only to a new tab. Use navigate to change an existing tab. Ordinary HTTP(S) navigation does not request browser permission; proceed within the user's task. Omitting sessionId uses this conversation's fixed default tab, not the user's focused tab. Snapshot returns {session,snapshotId,nodes,truncated}; use observed node refs with click params:{ref} or fill params:{ref,text}. Refs belong to one tab and its latest snapshot; take another snapshot after navigation or a stale-ref error. Permissions and per-site overrides are enforced by the host, and approval requests use the host UI. Screenshot returns an image plus viewport and capture dimensions in CSS pixels, not bitmap pixels. Input x/y are viewport-relative CSS pixels: for a viewport screenshot displayed at W×H, use x=imageX*viewport.width/W and y=imageY*viewport.height/H. Full-page screenshots use document coordinates; scroll and capture the viewport before coordinate input. Input params.event accepts {kind:'text',text}, {kind:'mouse',type:'mousePressed'|'mouseReleased'|'mouseMoved'|'mouseWheel',x,y,button?,deltaX?,deltaY?}, or {kind:'key',type:'keyDown'|'keyUp',key,code}. Find params: {text,backwards?}. Viewport params: {width,height,visible,zoom?,device?:{width,height,mobile}}. Ordinary pages reflow within the viewport at the selected zoom; fixed-width content may scroll horizontally. Open-page params.page may be history or downloads. History.list returns recent profile history as [{url,title,time}]; params:{query?,limit?} searches titles and URLs, with a default limit of 50 and maximum 100. History access remains subject to its browser permission. Upload params: {requestId,files:[{name,mimeType,data:base64}]}. Dialog.respond params: {accept,text?}, for page dialogs only. Download params.downloadId selects a prior download. Site-tools.call params: {name,arguments}; discover names with site-tools.list. CDP example params:{method:'Runtime.evaluate',expression:'document.title',returnByValue:true}; legacy {method,params:{...}} also works, but do not mix the two forms. CDP is available only when the user enables full access in Browser settings. Never change permissions or bypass a denied action.",
+        "Control Workbench's in-app browser or this Pi session's isolated headless browser. Read the browser-use skill before browser work. Use tabs.list to discover tabs in the current project, then reuse the returned id as sessionId. Attach creates or reuses a tab; its optional HTTP(S) url applies only to a new tab. Use navigate to change an existing tab. Ordinary HTTP(S) navigation does not request browser permission; proceed within the user's task. Omitting sessionId uses this conversation's fixed default tab, not the user's focused tab. Snapshot returns {session,snapshotId,nodes,truncated}; params:{query} filters accessible names before the output limit, including later content in large pages. Use observed node refs with click params:{ref} or fill params:{ref,text}. Click also accepts params:{x,y} for one complete left click in viewport CSS coordinates; use a current screenshot and never mix ref with x/y. Refs belong to one tab and its latest snapshot; take another snapshot after navigation or a stale-ref error. Permissions and per-site overrides are enforced by the host, and approval requests use the host UI. Screenshot returns an image plus viewport/capture in CSS pixels and pixels:{width,height} for the encoded bitmap. Keep the user's viewport, zoom, and device settings when mapping coordinates. Input x/y are viewport-relative CSS pixels: for a viewport screenshot displayed at W×H, use x=imageX*viewport.width/W and y=imageY*viewport.height/H. Full-page screenshots use document coordinates; scroll and capture the viewport before coordinate input. Input params.event accepts {kind:'text',text}, {kind:'mouse',type:'mousePressed'|'mouseReleased'|'mouseMoved'|'mouseWheel',x,y,button?,deltaX?,deltaY?}, or {kind:'key',type:'keyDown'|'keyUp',key,code}. Find params: {text,backwards?}. Viewport params: {width,height,visible,zoom?,device?:{width,height,mobile}}. Ordinary pages reflow within the viewport at the selected zoom; fixed-width content may scroll horizontally. Open-page params.page may be history or downloads. History.list returns recent profile history as [{url,title,time}]; params:{query?,limit?} searches titles and URLs, with a default limit of 50 and maximum 100. History access remains subject to its browser permission. Upload params: {requestId,files:[{name,mimeType,data:base64}]}. Dialog.respond params: {accept,text?}, for page dialogs only. Download params.downloadId selects a prior download. Site-tools.call params: {name,arguments}; discover names with site-tools.list. CDP example params:{method:'Runtime.evaluate',expression:'document.title',returnByValue:true}; legacy {method,params:{...}} also works, but do not mix the two forms. CDP is available only when the user enables full access in Browser settings. Never change permissions or bypass a denied action.",
       promptSnippet:
-        "Control the browser; read the browser-use skill first, then observe and act with snapshots.",
+        "Control the browser; read browser-use first. Search snapshots with query; use click with ref or screenshot-derived x/y, then verify the result.",
       parameters: Type.Object({
         action: StringEnum(actions),
         sessionId: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
@@ -70,6 +70,39 @@ export function createBrowserExtension(
         params: Type.Optional(
           Type.Object(
             {
+              ref: Type.Optional(
+                Type.String({
+                  description: "Observed ref for click or fill; do not combine with x/y.",
+                }),
+              ),
+              text: Type.Optional(Type.String({ description: "Text for fill or find." })),
+              query: Type.Optional(
+                Type.String({
+                  maxLength: 1024,
+                  description:
+                    "For snapshot, case-insensitive accessible-name substring, filtered before truncation. For history.list, search titles and URLs.",
+                }),
+              ),
+              x: Type.Optional(
+                Type.Number({
+                  minimum: 0,
+                  description:
+                    "Click x in viewport CSS pixels, derived from a current screenshot; requires y.",
+                }),
+              ),
+              y: Type.Optional(
+                Type.Number({
+                  minimum: 0,
+                  description:
+                    "Click y in viewport CSS pixels, derived from a current screenshot; requires x.",
+                }),
+              ),
+              fullPage: Type.Optional(
+                Type.Boolean({
+                  description:
+                    "Screenshot only: include offscreen content. Use a viewport screenshot before coordinate clicks.",
+                }),
+              ),
               method: Type.Optional(
                 Type.String({
                   description: "CDP method, such as Runtime.evaluate or Page.getFrameTree.",
@@ -203,7 +236,11 @@ export function createBrowserExtension(
             content: [
               {
                 type: "text",
-                text: JSON.stringify({ viewport: file.viewport, capture: file.capture }),
+                text: JSON.stringify({
+                  viewport: file.viewport,
+                  capture: file.capture,
+                  pixels: file.pixels,
+                }),
               },
               { type: "image", mimeType: file.mimeType, data: file.data },
             ],

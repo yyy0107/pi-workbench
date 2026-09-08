@@ -955,8 +955,26 @@ export class BrowserManager {
     }
     switch (command.type) {
       case "snapshot":
-        return this.snapshot(tab, signal);
+        return this.snapshot(tab, signal, command.query);
       case "click":
+        if ("x" in command) {
+          await tab.viewportOperation;
+          const { cssVisualViewport: viewport } = await this.send(tab, "Page.getLayoutMetrics");
+          if (command.x >= viewport.clientWidth || command.y >= viewport.clientHeight)
+            throw new BrowserError(
+              "browser-invalid",
+              "Click coordinates are outside the viewport. Use CSS coordinates from a current viewport screenshot.",
+            );
+          const current = () => signal?.throwIfAborted();
+          const position = { x: command.x, y: command.y };
+          tab.source = source;
+          if (source === "user") tab.signal = undefined;
+          tab.navigationBlocked = false;
+          if (source === "agent") await this.moveAgentPointer(tab, position, current);
+          await this.clickAt(tab, position, source, current);
+          return { ...tab.state };
+        }
+        return this.interact(tab, command, source, signal);
       case "fill":
         return this.interact(tab, command, source, signal);
       case "navigate":
@@ -1140,7 +1158,8 @@ export class BrowserManager {
     }
   }
 
-  private async snapshot(tab: Tab, signal?: AbortSignal): Promise<BrowserSnapshot> {
+  private async snapshot(tab: Tab, signal?: AbortSignal, query = ""): Promise<BrowserSnapshot> {
+    const search = query.trim().toLowerCase();
     const until = Date.now() + 1000;
     while (tab.state.status === "loading" && !tab.documentReady && Date.now() < until) {
       signal?.throwIfAborted();
@@ -1229,8 +1248,29 @@ export class BrowserManager {
         signal?.throwIfAborted();
         const role = String(node.role?.value ?? "");
         const frame = /iframe/i.test(role);
+        const name = String(node.name?.value ?? "");
+        const properties = new Map<string, unknown>(
+          (node.properties ?? []).map((property: Record<string, any>) => [
+            property.name,
+            property.value?.value,
+          ]),
+        );
+        // Empty layout wrappers consume the budget without identifying a target.
+        const layoutOnly =
+          ["generic", "none", "presentation"].includes(role) &&
+          !name.trim() &&
+          !node.value &&
+          !["focusable", "editable", "disabled", "selected", "expanded", "checked"].some((key) =>
+            properties.has(key),
+          );
         let item: BrowserSnapshotNode | undefined;
-        if (!node.ignored && role && role !== "InlineTextBox") {
+        if (
+          !node.ignored &&
+          role &&
+          role !== "InlineTextBox" &&
+          !layoutOnly &&
+          (!search || name.toLowerCase().includes(search) || frame)
+        ) {
           if (nodes.length >= 1000 || characters >= 65536) {
             truncated = true;
             return;
@@ -1238,14 +1278,8 @@ export class BrowserManager {
           item = {
             depth,
             role,
-            name: String(node.name?.value ?? "").slice(0, 2048),
+            name: name.slice(0, 2048),
           };
-          const properties = new Map<string, unknown>(
-            (node.properties ?? []).map((property: Record<string, any>) => [
-              property.name,
-              property.value?.value,
-            ]),
-          );
           for (const key of ["disabled", "selected", "expanded"] as const) {
             const value = properties.get(key);
             if (typeof value === "boolean") item[key] = value;
@@ -1313,7 +1347,7 @@ export class BrowserManager {
 
   private async interact(
     tab: Tab,
-    command: Extract<BrowserCommand, { type: "click" | "fill" }>,
+    command: Extract<BrowserCommand, { ref: string }>,
     source: Source,
     signal?: AbortSignal,
   ): Promise<BrowserSessionState> {
@@ -1518,31 +1552,32 @@ export class BrowserManager {
               "Hovering changed or covered the target. Inspect a screenshot before retrying.",
             );
         }
-        const { x, y } = position;
-        current();
-        const revision = tab.state.revision;
-        await this.send(tab, "Input.dispatchMouseEvent", {
-          type: "mousePressed",
-          x,
-          y,
-          button: "left",
-          clickCount: 1,
-        });
-        if (source === "agent" && tab.state.revision === revision)
-          this.setAgentCursor(tab, { x, y, pressed: true });
-        await this.send(tab, "Input.dispatchMouseEvent", {
-          type: "mouseReleased",
-          x,
-          y,
-          button: "left",
-          clickCount: 1,
-        });
-        if (source === "agent" && tab.state.revision === revision)
-          this.setAgentCursor(tab, { x, y, pressed: false });
+        await this.clickAt(tab, position, source, current);
       }
       return { ...tab.state };
     } finally {
       await this.send(tab, "Runtime.releaseObject", { objectId }).catch(() => undefined);
+    }
+  }
+
+  private async clickAt(
+    tab: Tab,
+    { x, y }: { x: number; y: number },
+    source: Source,
+    current: () => void,
+  ): Promise<void> {
+    current();
+    const revision = tab.state.revision;
+    for (const type of ["mousePressed", "mouseReleased"] as const) {
+      await this.send(tab, "Input.dispatchMouseEvent", {
+        type,
+        x,
+        y,
+        button: "left",
+        clickCount: 1,
+      });
+      if (source === "agent" && tab.state.revision === revision)
+        this.setAgentCursor(tab, { x, y, pressed: type === "mousePressed" });
     }
   }
 
@@ -1579,10 +1614,13 @@ export class BrowserManager {
       captureBeyondViewport: fullPage,
       ...(clip ? { clip } : {}),
     });
+    const file = this.file(`${fileName(tab.state.title)}.png`, "image/png", result.data);
+    const png = Buffer.from(file.data, "base64");
     return {
-      ...this.file(`${fileName(tab.state.title)}.png`, "image/png", result.data),
+      ...file,
       viewport,
       capture,
+      pixels: { width: png.readUInt32BE(16), height: png.readUInt32BE(20) },
     };
   }
 

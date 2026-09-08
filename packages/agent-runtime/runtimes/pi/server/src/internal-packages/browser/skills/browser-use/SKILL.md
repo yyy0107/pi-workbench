@@ -17,6 +17,10 @@ Use `workbench_browser`. In Workbench it controls the in-app browser, sharing it
 
 Select the intended tab, observe its current state, act using observed references, and check the result. Reuse the same sessions throughout the task. Read the relevant reference when entering an operation; do not load every document by default.
 
+- For a known target or a truncated snapshot, use `snapshot` with `params: {"query":"target name"}`. It searches accessible names before the output limit; repeating the same unfiltered snapshot cannot reveal the omitted tail.
+- Use `click` with `params: {"ref":"observed-ref"}`, or `params: {"x":120,"y":80}` from a current viewport screenshot for an unlabeled target. The latter sends a complete left click. Keep the user's zoom and device settings; convert image coordinates using the screenshot's reported CSS coverage.
+- Match verification to the requested outcome. For media playback, check the current track and a pause control or advancing progress. A successful click, song title, or opened track page alone does not establish playback. If the state is unchanged, inspect the target or blocking UI before retrying.
+
 | Operation                                                                                 | Read when needed                                                                                  |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Select or open tabs, navigate, use local sites, search history                            | [Navigation](references/navigation.md), before selecting or creating a tab                        |
