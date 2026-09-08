@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { Children, act, isValidElement, type ReactElement, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
 import { ExtensionProvider } from "@workbench/extension-host/installation";
 import { WorkspaceSurfaceRegistryImpl } from "@workbench/extension-sdk/internal";
 import type { LocalizableText, WorkspaceSurfaceInstance } from "@workbench/extension-sdk";
@@ -27,8 +28,9 @@ import {
 } from "./browser-session-service";
 import type { BrowserCommand } from "@workbench/browser-contracts";
 import { BrowserViewport, browserPointerPosition } from "./browser-viewport";
-import { DropdownMenuItem } from "../../../ui";
-import { InputGroupInput } from "../../../ui/input-group";
+import { DropdownMenuCheckboxItem, DropdownMenuItem } from "../../../ui";
+import { BrowserAddressBar } from "./browser-address-bar";
+import { BrowserDevicePreview, BrowserDeviceToolbar } from "./browser-device-toolbar";
 import { BrowserMenuItem } from "./browser-menu-item";
 import {
   BrowserSurface,
@@ -36,6 +38,7 @@ import {
   type BrowserSurfaceParams,
 } from "./browser-surface";
 import { browserSurfaceDefinition } from "./extension";
+import { BrowserControlBadge, BrowserTabIndicator } from "./browser-control-indicator";
 
 function elements(node: ReactNode): ReactElement<Record<string, unknown>>[] {
   return Children.toArray(node).flatMap((child) =>
@@ -75,6 +78,9 @@ test("browser tabs preserve address drafts and route toolbar actions to the live
   let state!: RightWorkspaceState;
   let menu!: ReturnType<typeof BrowserMenuItem>;
   let tree!: ReturnType<typeof BrowserSurface>;
+  let tabIndicator: ReturnType<typeof BrowserTabIndicator> = null;
+  const currentIndicator = () => tabIndicator;
+  let indicatorRenders = 0;
 
   function MenuProbe() {
     menu = BrowserMenuItem({ closeMenu: () => closed++ });
@@ -82,6 +88,15 @@ test("browser tabs preserve address drafts and route toolbar actions to the live
   }
   function SurfaceProbe({ surface }: { surface: WorkspaceSurfaceInstance<BrowserSurfaceParams> }) {
     tree = BrowserSurface({ surface, context, isVisible: true });
+    return null;
+  }
+  function IndicatorProbe({
+    surface,
+  }: {
+    surface: WorkspaceSurfaceInstance<BrowserSurfaceParams>;
+  }) {
+    indicatorRenders++;
+    tabIndicator = BrowserTabIndicator({ surface, context, isVisible: false });
     return null;
   }
   function Probe() {
@@ -93,15 +108,18 @@ test("browser tabs preserve address drafts and route toolbar actions to the live
       <>
         <MenuProbe />
         {surface ? (
-          <SurfaceProbe surface={surface as WorkspaceSurfaceInstance<BrowserSurfaceParams>} />
+          <>
+            <SurfaceProbe surface={surface as WorkspaceSurfaceInstance<BrowserSurfaceParams>} />
+            <IndicatorProbe surface={surface as WorkspaceSurfaceInstance<BrowserSurfaceParams>} />
+          </>
         ) : null}
       </>
     );
   }
   const input = () => {
-    const element = elements(tree).find((candidate) => candidate.type === InputGroupInput);
+    const element = elements(tree).find((candidate) => candidate.type === BrowserAddressBar);
     assert.ok(element);
-    return element as ReactElement<React.ComponentProps<typeof InputGroupInput>>;
+    return element as ReactElement<React.ComponentProps<typeof BrowserAddressBar>>;
   };
   const submit = () => {
     const form = elements(tree).find((candidate) => candidate.type === "form");
@@ -154,23 +172,48 @@ test("browser tabs preserve address drafts and route toolbar actions to the live
     assert.equal(state.activeSurfaceId, id);
     assert.equal(state.surfaces[id]?.kind, "browser");
     assert.ok(elements(tree).some((element) => element.type === BrowserViewport));
+    assert.equal(currentIndicator(), null);
+    const controlledSessionId = String(state.surfaces[id]!.params.browserSessionId);
+    await act(async () => {
+      browser.attach({ ...browser.getSession(controlledSessionId)!, agentControlled: true });
+    });
+    assert.equal(
+      currentIndicator()?.type,
+      BrowserControlBadge,
+      "background tabs show active control",
+    );
+    assert.ok(elements(tree).some((element) => element.type === BrowserControlBadge));
+    const rendersDuringControl = indicatorRenders;
+    await act(async () => {
+      browser.attach({ ...browser.getSession(controlledSessionId)!, width: 1200 });
+    });
+    assert.equal(
+      indicatorRenders,
+      rendersDuringControl,
+      "unrelated session updates do not rerender the indicator",
+    );
+    await act(async () => {
+      browser.attach({ ...browser.getSession(controlledSessionId)!, agentControlled: false });
+    });
+    assert.equal(currentIndicator(), null);
+    assert.equal(state.surfaces[id]?.status, "ready");
 
     await act(async () => {
-      input().props.onChange?.({ currentTarget: { value: "javascript:alert(1)" } } as never);
+      input().props.onChange("javascript:alert(1)");
     });
     await act(async () => submit());
     assert.equal(errors.length, 1);
-    assert.equal(input().props["aria-invalid"], true);
+    assert.equal(input().props.error, true);
     assert.ok(elements(tree).some((element) => element.props.role === "alert"));
     assert.equal(state.surfaces[id]?.status, "ready");
     assert.ok(elements(tree).some((element) => element.type === BrowserViewport));
 
     await act(async () => {
-      input().props.onChange?.({ currentTarget: { value: "example.com" } } as never);
+      input().props.onChange("example.com");
     });
     await act(async () => submit());
-    assert.equal(input().props.value, "example.com");
-    assert.equal(input().props["aria-invalid"], undefined);
+    assert.equal(input().props.value, "https://example.com/");
+    assert.equal(input().props.error, false);
     assert.equal(
       elements(tree).some((element) => element.props.role === "alert"),
       false,
@@ -180,7 +223,38 @@ test("browser tabs preserve address drafts and route toolbar actions to the live
     const viewport = elements(tree).find((element) => element.type === BrowserViewport)!;
     assert.equal(viewport.props.sessionId, state.surfaces[id]?.params.browserSessionId);
     assert.equal(viewport.props.isVisible, true);
-    assert.equal(viewport.props.fitToWidth, true);
+    assert.equal(viewport.props.zoom, 1);
+
+    await act(async () => {
+      const toggle = elements(tree).find(
+        (element) =>
+          element.type === DropdownMenuCheckboxItem &&
+          Children.toArray(element.props.children as ReactNode).includes("Device toolbar"),
+      );
+      assert.ok(toggle);
+      (toggle.props.onCheckedChange as (checked: boolean) => void)(true);
+    });
+    const deviceToolbar = () => {
+      const element = elements(tree).find((candidate) => candidate.type === BrowserDeviceToolbar);
+      assert.ok(element);
+      return element as unknown as ReactElement<React.ComponentProps<typeof BrowserDeviceToolbar>>;
+    };
+    await act(async () => {
+      deviceToolbar().props.onDeviceChange({ width: 429, height: 621, mobile: false });
+      deviceToolbar().props.onPreviewScaleChange(0.5);
+    });
+    const deviceViewport = elements(tree).find((element) => element.type === BrowserViewport)!;
+    assert.deepEqual(deviceViewport.props.device, { width: 429, height: 621, mobile: false });
+    assert.equal(deviceViewport.props.zoom, 1, "preview scaling must not change page zoom");
+    assert.equal(
+      elements(tree).find((element) => element.type === BrowserDevicePreview)?.props.previewScale,
+      0.5,
+    );
+    await act(async () => deviceToolbar().props.onClose());
+    assert.equal(
+      elements(tree).find((element) => element.type === BrowserViewport)?.props.device,
+      undefined,
+    );
 
     await act(async () => {
       const surface = state.surfaces[id]!;
@@ -262,6 +336,25 @@ test("browser tabs preserve address drafts and route toolbar actions to the live
   } finally {
     await act(async () => root.unmount());
     dom.restore();
+  }
+});
+
+test("browser control badges expose localized meaning without interactive controls", () => {
+  for (const [locale, label] of [
+    ["en-US", "The assistant is controlling this browser"],
+    ["zh-CN", "助手正在控制此浏览器"],
+  ] as const) {
+    const html = renderToStaticMarkup(
+      <WorkbenchSettingsProvider service={{ load: async () => ({}), update: async () => {} }}>
+        <I18nProvider initialLocale={locale}>
+          <BrowserControlBadge />
+        </I18nProvider>
+      </WorkbenchSettingsProvider>,
+    );
+    assert.ok(html.includes(`aria-label="${label}"`));
+    assert.match(html, /role="img"/);
+    assert.match(html, /data-tone="info"/);
+    assert.doesNotMatch(html, /<button|tabindex=/);
   }
 });
 

@@ -1,17 +1,39 @@
 import { build } from "esbuild";
-import { mkdir, writeFile } from "node:fs/promises";
+import { cp, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+const packageRoot = fileURLToPath(new URL("./", import.meta.url));
+const outputDirectory = process.argv[2] ?? path.join(packageRoot, "dist");
 await build({
-  entryPoints: ["index.ts"],
-  outfile: "dist/index.js",
+  absWorkingDir: packageRoot,
+  entryPoints: ["index.ts", "resources.ts"],
+  outdir: outputDirectory,
   bundle: true,
   platform: "node",
   format: "esm",
   target: "node22",
   external: ["@earendil-works/pi-coding-agent", "@earendil-works/pi-ai", "typebox"],
 });
-await mkdir("dist", { recursive: true });
+const manifest = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
 await writeFile(
-  "dist/resources.js",
-  'export const browserSkillDirectory = new URL("../skills/browser/", import.meta.url);\n',
+  path.join(outputDirectory, "package.json"),
+  JSON.stringify(
+    {
+      name: manifest.name,
+      version: manifest.version,
+      private: manifest.private,
+      description: manifest.description,
+      keywords: manifest.keywords,
+      type: manifest.type,
+      exports: { ".": "./index.js", "./resources": "./resources.js" },
+      peerDependencies: manifest.peerDependencies,
+      pi: { ...manifest.pi, extensions: ["./index.js"] },
+    },
+    null,
+    2,
+  ) + "\n",
 );
+for (const entry of ["skills", "README.md"]) {
+  await cp(path.join(packageRoot, entry), path.join(outputDirectory, entry), { recursive: true });
+}

@@ -21,6 +21,7 @@ export class BrowserCdp {
   private readonly pending = new Map<
     number,
     {
+      method: string;
       resolve(value: any): void;
       reject(error: Error): void;
       timer: ReturnType<typeof setTimeout>;
@@ -108,8 +109,17 @@ export class BrowserCdp {
             if (!request) continue;
             this.pending.delete(payload.id);
             clearTimeout(request.timer);
-            if (payload.error) request.reject(new BrowserError("browser-operation-failed"));
-            else request.resolve(payload.result ?? {});
+            if (payload.error) {
+              const diagnostic = [payload.error.message, payload.error.data]
+                .filter((value): value is string => typeof value === "string")
+                .join(". ");
+              request.reject(
+                new BrowserError(
+                  "browser-operation-failed",
+                  `CDP ${request.method} (${payload.error.code}): ${diagnostic}`,
+                ),
+              );
+            } else request.resolve(payload.result ?? {});
           } else if (typeof payload.method === "string") {
             for (const listener of this.listeners) listener(payload);
           }
@@ -132,10 +142,15 @@ export class BrowserCdp {
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(new BrowserError("browser-operation-failed"));
+        reject(
+          new BrowserError(
+            "browser-operation-failed",
+            `CDP ${method} timed out after ${timeoutMs} ms.`,
+          ),
+        );
       }, timeoutMs);
       timer.unref();
-      this.pending.set(id, { resolve, reject, timer });
+      this.pending.set(id, { method, resolve, reject, timer });
       this.input.write(
         `${JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })}\0`,
         (error) => {

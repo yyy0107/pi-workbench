@@ -62,7 +62,6 @@ test("remote browser orders initial attach, validates frames, and isolates recon
     canGoForward: false,
     revision: 1,
     zoom: 1,
-    fitToWidth: true,
     width: 800,
     height: 600,
   };
@@ -109,7 +108,18 @@ test("remote browser orders initial attach, validates frames, and isolates recon
       [],
       { type: "state", session: null },
       { type: "settings", settings: {} },
+      {
+        type: "permission",
+        requestId: "legacy-navigation",
+        sessionId: state.id,
+        origin: "https://example.test",
+        action: "navigate",
+      },
       { type: "frame", sessionId: "tab", width: "800" },
+      { type: "cursor", sessionId: "tab", cursor: { x: "10", y: 20 } },
+      { type: "cursor", sessionId: "tab", cursor: { x: 10, y: 20, pressed: "yes" } },
+      { type: "state", session: { ...state, agentControlled: "yes" } },
+      { type: "state", session: { ...state, agentCursor: { x: null, y: 20 } } },
     ]) {
       assert.doesNotThrow(() => first.message(malformed));
     }
@@ -122,6 +132,28 @@ test("remote browser orders initial attach, validates frames, and isolates recon
     await rejectedSettings;
     assert.deepEqual(browser.getSettings(), DEFAULT_BROWSER_SETTINGS);
 
+    first.message({
+      type: "state",
+      session: { ...state, revision: 3, agentControlled: true, agentCursor: { x: 1, y: 2 } },
+    });
+    assert.equal(browser.getSession(state.id)?.agentControlled, true);
+    const controlledRevision = browser.getRevision();
+    first.message({
+      type: "cursor",
+      sessionId: state.id,
+      cursor: { x: 120, y: 80, pressed: true },
+    });
+    assert.deepEqual(browser.getSession(state.id)?.agentCursor, { x: 120, y: 80, pressed: true });
+    assert.equal(
+      browser.getRevision(),
+      controlledRevision,
+      "mouse motion does not rerender all tabs",
+    );
+    assert.equal(events.at(-1)?.type, "cursor", "the viewport receives mouse motion immediately");
+    first.message({ type: "cursor", sessionId: state.id, cursor: null });
+    assert.equal(browser.getSession(state.id)?.agentCursor, undefined);
+    first.message({ type: "cursor", sessionId: state.id, cursor: { x: 120, y: 80 } });
+
     const pending = browser.command({ type: "settings.get" });
     const rejectedPending = assert.rejects(pending, { message: "connection_failed" });
     await settle();
@@ -131,6 +163,8 @@ test("remote browser orders initial attach, validates frames, and isolates recon
     await rejectedPending;
     assert.equal(first.readyState, 2);
     assert.equal(browser.getSession(state.id)?.status, "disconnected");
+    assert.equal(browser.getSession(state.id)?.agentControlled, false);
+    assert.equal(browser.getSession(state.id)?.agentCursor, undefined);
     const reconnect = browser.loadSettings();
     const second = sockets[1]!;
     second.open();
@@ -146,12 +180,18 @@ test("remote browser orders initial attach, validates frames, and isolates recon
     const recover = browser.reload(state.id);
     await settle();
     assert.equal(second.sent.at(-1)?.command.type, "attach");
-    second.result(state);
+    second.message({ type: "state", session: { ...state, revision: 5, agentControlled: false } });
+    second.result({ ...state, revision: 4, agentControlled: true });
     await settle();
     assert.equal(second.sent.at(-1)?.command.type, "reload");
     second.result(undefined);
     await recover;
     assert.equal(browser.getSession(state.id)?.status, "ready");
+    assert.equal(
+      browser.getSession(state.id)?.agentControlled,
+      false,
+      "an older attach reply must not resurrect a control state already released by the stream",
+    );
 
     const close = browser.command({ type: "close", sessionId: state.id });
     await settle();

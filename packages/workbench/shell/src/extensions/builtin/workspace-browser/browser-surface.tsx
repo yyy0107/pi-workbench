@@ -7,12 +7,9 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   DownloadIcon,
-  ExternalLinkIcon,
-  Globe2Icon,
   HistoryIcon,
   KeyRoundIcon,
   LoaderCircleIcon,
-  MaximizeIcon,
   MinusIcon,
   MoreVerticalIcon,
   PlusIcon,
@@ -44,25 +41,24 @@ import {
   DropdownMenuTrigger,
   Input,
 } from "../../../ui";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "../../../ui/input-group";
 import { useBrowserSessionService } from "./browser-session-service";
 import { BrowserAnnotationLayer } from "./browser-annotation-layer";
 import { BrowserViewport } from "./browser-viewport";
+import { BrowserControlBadge } from "./browser-control-indicator";
 import { saveBrowserFile } from "./browser-files";
 import { BrowserDownloadsDialog } from "./browser-downloads-dialog";
+import { BrowserAddressBar } from "./browser-address-bar";
+import {
+  BrowserDevicePreview,
+  BrowserDeviceToolbar,
+  type BrowserDevicePreviewScale,
+} from "./browser-device-toolbar";
+
+export { browserDisplayAddress } from "./browser-address-bar";
 
 export interface BrowserSurfaceParams extends Record<string, unknown> {
   browserSessionId: string;
   url?: string;
-}
-
-export function browserDisplayAddress(url: string, showFullUrl: boolean): string {
-  if (showFullUrl || !/^https?:/.test(url)) return url;
-  try {
-    return new URL(url).host;
-  } catch {
-    return url;
-  }
 }
 
 export function BrowserSurface({
@@ -82,12 +78,12 @@ export function BrowserSurface({
   const session = browser.getSession(sessionId);
   const settings = browser.getSettings();
   const [address, setAddress] = useState(session?.url ?? surface.params.url ?? "about:blank");
-  const [addressFocused, setAddressFocused] = useState(false);
   const [error, setError] = useState(false);
   const [finding, setFinding] = useState(false);
   const [query, setQuery] = useState("");
   const [found, setFound] = useState<boolean>();
   const [device, setDevice] = useState<BrowserDevice | undefined>(session?.device);
+  const [previewScale, setPreviewScale] = useState<BrowserDevicePreviewScale>("fit");
   const [downloadsOpen, setDownloadsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -149,16 +145,17 @@ export function BrowserSurface({
     controller.update(surface.id, { title, params: { ...surface.params, url: session.url } });
   }, [controller, session?.url, session?.title, surface.id, surface.title, surface.params]);
 
-  const navigate = () =>
+  const navigate = (value = address) =>
     run(async () => {
+      setAddress(value);
       if (!browser.getSession(sessionId)) await restore();
-      await browser.navigate(sessionId, address);
+      await browser.navigate(sessionId, value);
       try {
         drafts.removeItem(draftKey);
       } catch {
         /* The address remains usable without draft storage. */
       }
-      setAddress(browser.getSession(sessionId)?.url ?? address);
+      setAddress(browser.getSession(sessionId)?.url ?? value);
     });
   const retry = useRef(navigate);
   retry.current = navigate;
@@ -184,14 +181,13 @@ export function BrowserSurface({
     );
 
   const zoom = session.zoom ?? settings.defaultZoom;
-  const fitToWidth = session.fitToWidth ?? settings.fitToWidth;
   const zoomLabel = new Intl.NumberFormat(locale, {
     style: "percent",
     maximumFractionDigits: 0,
   }).format(zoom);
   const loading = session.status === "loading";
   const isBlank = session.url === "about:blank";
-  const viewport = (patch: { zoom?: number; fitToWidth?: boolean }) =>
+  const viewport = (patch: { zoom: number }) =>
     run(() =>
       browser.command({
         type: "viewport",
@@ -232,6 +228,38 @@ export function BrowserSurface({
       fileInput.current.click();
     }
   };
+  const browserContent = (
+    <div ref={browserArea} className="relative h-full min-h-0 w-full overflow-hidden">
+      <BrowserViewport
+        browser={browser}
+        sessionId={sessionId}
+        isVisible={isVisible}
+        zoom={zoom}
+        device={device}
+        onError={fail}
+        onFind={() => setFinding(true)}
+      />
+      {isBlank ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background p-8 text-center text-sm text-muted-foreground">
+          {t("extensions.workspaceBrowser.viewportDescription")}
+        </div>
+      ) : (
+        <BrowserAnnotationLayer
+          surface={surface}
+          label={t("extensions.workspaceBrowser.annotate")}
+        />
+      )}
+      {busy ? (
+        <div
+          role="status"
+          className="absolute start-2 top-2 rounded-(--button-radius) bg-background p-2"
+        >
+          <LoaderCircleIcon className="size-(--icon-size-md) animate-spin" />
+          <span className="sr-only">{t("extensions.workspaceBrowser.processing")}</span>
+        </div>
+      ) : null}
+    </div>
+  );
 
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col">
@@ -282,59 +310,26 @@ export function BrowserSurface({
         >
           {loading ? <SquareIcon /> : <RefreshCwIcon />}
         </Button>
-        <label className="min-w-0 flex-1">
-          <span className="sr-only">{t("extensions.workspaceBrowser.address")}</span>
-          <InputGroup>
-            <InputGroupAddon>
-              <Globe2Icon />
-            </InputGroupAddon>
-            <InputGroupInput
-              value={
-                addressFocused || address !== session.url
-                  ? address
-                  : browserDisplayAddress(address, settings.showFullUrl)
-              }
-              className="text-xs"
-              placeholder={t("extensions.workspaceBrowser.addressPlaceholder")}
-              aria-invalid={error || undefined}
-              autoComplete="off"
-              autoCapitalize="off"
-              spellCheck={false}
-              onFocus={() => setAddressFocused(true)}
-              onBlur={() => setAddressFocused(false)}
-              onChange={(event) => {
-                setAddress(event.currentTarget.value);
-                setError(false);
-                try {
-                  drafts.setItem(draftKey, event.currentTarget.value);
-                } catch {
-                  /* Best-effort draft. */
-                }
-              }}
-            />
-            {/^https?:/.test(session.url) ? (
-              <InputGroupAddon align="inline-end">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  nativeButton={false}
-                  render={
-                    <a
-                      href={session.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      data-browser-external
-                    />
-                  }
-                  aria-label={t("extensions.workspaceBrowser.openExternal")}
-                  title={t("extensions.workspaceBrowser.openExternal")}
-                >
-                  <ExternalLinkIcon />
-                </Button>
-              </InputGroupAddon>
-            ) : null}
-          </InputGroup>
-        </label>
+        <BrowserAddressBar
+          browser={browser}
+          value={address}
+          url={session.url}
+          showFullUrl={settings.showFullUrl}
+          error={error}
+          onNavigate={navigate}
+          onChange={(value) => {
+            setAddress(value);
+            setError(false);
+            try {
+              drafts.setItem(draftKey, value);
+            } catch {
+              /* Best-effort draft. */
+            }
+          }}
+        />
+        <span role="status" aria-atomic="true" className="inline-flex shrink-0">
+          {session.agentControlled ? <BrowserControlBadge /> : null}
+        </span>
         <Button
           type="button"
           variant="ghost"
@@ -393,17 +388,25 @@ export function BrowserSurface({
               </Button>
             </div>
             <DropdownMenuCheckboxItem
-              checked={fitToWidth}
-              onCheckedChange={(checked) => viewport({ fitToWidth: checked })}
-            >
-              <MaximizeIcon />
-              {t("extensions.workspaceBrowser.fitToWidth")}
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
               checked={Boolean(device)}
-              onCheckedChange={(checked) =>
-                setDevice(checked ? { width: 390, height: 844, mobile: true } : undefined)
-              }
+              onCheckedChange={(checked) => {
+                setPreviewScale("fit");
+                setDevice(
+                  checked
+                    ? {
+                        width: Math.max(
+                          240,
+                          Math.min(3840, browserArea.current?.clientWidth ?? 390),
+                        ),
+                        height: Math.max(
+                          240,
+                          Math.min(3840, browserArea.current?.clientHeight ?? 844),
+                        ),
+                        mobile: false,
+                      }
+                    : undefined,
+                );
+              }}
             >
               <SmartphoneIcon />
               {t("extensions.workspaceBrowser.deviceToolbar")}
@@ -503,42 +506,27 @@ export function BrowserSurface({
         </form>
       ) : null}
       {device ? (
-        <div className="flex shrink-0 items-center justify-center gap-2 border-b border-border px-2 py-1 text-xs">
-          <SmartphoneIcon className="size-(--icon-size-sm)" />
-          <Input
-            type="number"
-            min={240}
-            max={3840}
-            value={device.width}
-            aria-label={t("extensions.workspaceBrowser.deviceWidth")}
-            className="w-20 text-xs"
-            onChange={(event) => {
-              const width = event.currentTarget.valueAsNumber;
-              if (width >= 240 && width <= 3840) setDevice({ ...device, width });
-            }}
-          />
-          <span aria-hidden>×</span>
-          <Input
-            type="number"
-            min={240}
-            max={3840}
-            value={device.height}
-            aria-label={t("extensions.workspaceBrowser.deviceHeight")}
-            className="w-20 text-xs"
-            onChange={(event) => {
-              const height = event.currentTarget.valueAsNumber;
-              if (height >= 240 && height <= 3840) setDevice({ ...device, height });
-            }}
-          />
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={t("extensions.workspaceBrowser.settings.close")}
-            onClick={() => setDevice(undefined)}
-          >
-            <XIcon />
-          </Button>
-        </div>
+        <BrowserDeviceToolbar
+          device={device}
+          previewScale={previewScale}
+          onDeviceChange={setDevice}
+          onPreviewScaleChange={setPreviewScale}
+          onClose={() => setDevice(undefined)}
+          locale={locale}
+          labels={{
+            dimensions: t("extensions.workspaceBrowser.deviceDimensions"),
+            responsive: t("extensions.workspaceBrowser.deviceResponsive"),
+            phone: t("extensions.workspaceBrowser.devicePhone"),
+            tablet: t("extensions.workspaceBrowser.deviceTablet"),
+            desktop: t("extensions.workspaceBrowser.deviceDesktop"),
+            width: t("extensions.workspaceBrowser.deviceWidth"),
+            height: t("extensions.workspaceBrowser.deviceHeight"),
+            rotate: t("extensions.workspaceBrowser.deviceRotate"),
+            previewScale: t("extensions.workspaceBrowser.devicePreviewScale"),
+            fit: t("extensions.workspaceBrowser.deviceFit"),
+            close: t("extensions.workspaceBrowser.deviceClose"),
+          }}
+        />
       ) : null}
       {error || session.status === "error" || session.status === "disconnected" ? (
         <div
@@ -565,36 +553,23 @@ export function BrowserSurface({
           </Button>
         </div>
       ) : null}
-      <div ref={browserArea} className="relative min-h-0 flex-1 overflow-hidden">
-        <BrowserViewport
-          browser={browser}
-          sessionId={sessionId}
-          isVisible={isVisible}
-          zoom={zoom}
-          fitToWidth={fitToWidth}
-          device={device}
-          onError={fail}
-          onFind={() => setFinding(true)}
-        />
-        {isBlank ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background p-8 text-center text-sm text-muted-foreground">
-            {t("extensions.workspaceBrowser.viewportDescription")}
-          </div>
-        ) : (
-          <BrowserAnnotationLayer
-            surface={surface}
-            label={t("extensions.workspaceBrowser.annotate")}
-          />
-        )}
-        {busy ? (
-          <div
-            role="status"
-            className="absolute start-2 top-2 rounded-(--button-radius) bg-background p-2"
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        {device ? (
+          <BrowserDevicePreview
+            device={device}
+            previewScale={previewScale}
+            onDeviceChange={setDevice}
+            labels={{
+              preview: t("extensions.workspaceBrowser.devicePreview"),
+              resizeWidth: t("extensions.workspaceBrowser.deviceResizeWidth"),
+              resizeHeight: t("extensions.workspaceBrowser.deviceResizeHeight"),
+            }}
           >
-            <LoaderCircleIcon className="size-(--icon-size-md) animate-spin" />
-            <span className="sr-only">{t("extensions.workspaceBrowser.processing")}</span>
-          </div>
-        ) : null}
+            {browserContent}
+          </BrowserDevicePreview>
+        ) : (
+          browserContent
+        )}
       </div>
       <input
         ref={fileInput}

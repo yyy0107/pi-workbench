@@ -11,6 +11,7 @@ import { BrowserSettingsItem, BROWSER_SETTINGS_SECTION_ID } from "./browser-sett
 import { BrowserEventsOverlay } from "./browser-events-overlay";
 import { BrowserRuntimeBridge } from "./browser-runtime-bridge";
 import { BrowserMenuItem } from "./browser-menu-item";
+import { BrowserTabIndicator } from "./browser-control-indicator";
 import type { BrowserSurfaceParams } from "./browser-surface";
 
 const BrowserSurface = createLazyWorkspaceSurface(async () => {
@@ -31,6 +32,7 @@ export const browserSurfaceDefinition = {
     key: context.threadId ?? context.applicationId,
   }),
   render: BrowserSurface,
+  tabIndicator: BrowserTabIndicator,
   menuItem: BrowserMenuItem,
   runtime: BrowserRuntimeBridge,
 } satisfies WorkspaceSurfaceDefinition<BrowserSurfaceParams>;

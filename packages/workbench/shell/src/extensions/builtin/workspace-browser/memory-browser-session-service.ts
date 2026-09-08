@@ -3,6 +3,7 @@
 import {
   DEFAULT_BROWSER_SETTINGS,
   type BrowserCommand,
+  type BrowserCursor,
   type BrowserDevice,
   type BrowserEvent,
   type BrowserSettings,
@@ -29,11 +30,12 @@ export interface BrowserSession {
   canGoForward: boolean;
   revision: number;
   zoom?: number;
-  fitToWidth?: boolean;
   width?: number;
   height?: number;
   device?: BrowserDevice;
   error?: string;
+  agentControlled?: boolean;
+  agentCursor?: BrowserCursor;
 }
 
 export interface BrowserScreenshot {
@@ -114,9 +116,9 @@ export class MemoryBrowserSessionService implements BrowserSessionService {
     return () => {};
   }
 
-  protected updateSession(session: BrowserSession): void {
+  protected updateSession(session: BrowserSession, notify = true): void {
     this.#sessions.set(session.id, session);
-    this.publish();
+    if (notify) this.publish();
   }
 
   protected removeSession(sessionId: string): void {

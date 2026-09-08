@@ -59,7 +59,7 @@ test("retains one installed RPC and Runtime HTTP router facade", () => {
   assert.equal(second.dispose, first.dispose);
 });
 
-test("the installed browser binding always preserves agent authority and cancellation", async (t) => {
+test("the installed browser binding preserves agent authority, cancellation, and control lifetime", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-browser-project-"));
   const previousStateFile = process.env.PI_WORKBENCH_WORKSPACE_STATE_FILE;
   process.env.PI_WORKBENCH_WORKSPACE_STATE_FILE = path.join(root, "workspaces.json");
@@ -88,11 +88,14 @@ test("the installed browser binding always preserves agent authority and cancell
     sessionId: "selected-tab",
     source: "user",
   } as BrowserCommand;
-  assert.equal(await host.command(command, controller.signal), result);
+  const control = new AbortController();
+  assert.equal(await host.command(command, controller.signal, control.signal), result);
   assert.deepEqual(handle.mock.calls[0]?.arguments, [
     command,
-    { source: "agent", signal: controller.signal },
+    { source: "agent", signal: controller.signal, controlSignal: control.signal },
   ]);
+  control.abort();
+  assert.equal(controller.signal.aborted, false);
 });
 
 test("host.describe reports the application and embedded Pi versions", async () => {

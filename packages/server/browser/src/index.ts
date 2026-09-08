@@ -7,9 +7,11 @@ import {
   BROWSER_PAGES,
   parseBrowserCommand,
   type BrowserCommand,
+  type BrowserCursor,
   type BrowserDownload,
   type BrowserEvent,
   type BrowserFile,
+  type BrowserHistoryEntry,
   type BrowserPermission,
   type BrowserSessionState,
   type BrowserSettings,
@@ -26,6 +28,16 @@ import { BrowserSettingsStore } from "./settings";
 export { BrowserError } from "./errors";
 
 type Source = "user" | "agent";
+interface SnapshotReference {
+  backendNodeId: number;
+  frameId: string;
+  contextId: number;
+}
+interface Snapshot {
+  id: string;
+  frames: Map<string, number>;
+  refs: Map<string, SnapshotReference>;
+}
 interface Tab {
   state: BrowserSessionState;
   targetId: string;
@@ -36,7 +48,6 @@ interface Tab {
   screencasting: boolean;
   source: Source;
   signal?: AbortSignal;
-  allowedNavigation?: string;
   fileRequests: Map<string, { nodeId: number; multiple: boolean }>;
   uploadDirectories: Set<string>;
   viewportOperation?: Promise<void>;
@@ -48,7 +59,9 @@ interface Tab {
   viewport: { width: number; height: number };
   deviceScaleFactor: number;
   documentReady: boolean;
-  snapshot?: { id: string; contextId: number; refs: Map<string, number> };
+  snapshot?: Snapshot;
+  agentControl?: { signal: AbortSignal; dispose(): void };
+  pointerPosition?: { x: number; y: number };
 }
 interface DownloadRecord {
   download: BrowserDownload;
@@ -151,6 +164,21 @@ export class BrowserManager {
 
   private update(tab: Tab, patch: Partial<BrowserSessionState>): BrowserSessionState {
     if (
+      patch.agentControlled === false ||
+      patch.status === "disconnected" ||
+      patch.status === "error"
+    ) {
+      tab.agentControl?.dispose();
+      tab.agentControl = undefined;
+      patch = { ...patch, agentControlled: false };
+    }
+    if (
+      patch.agentControlled === false ||
+      (patch.url !== undefined && patch.url !== tab.state.url) ||
+      patch.status === "loading"
+    )
+      this.setAgentCursor(tab, null);
+    if (
       (patch.url !== undefined && patch.url !== tab.state.url) ||
       patch.status === "loading" ||
       patch.status === "disconnected" ||
@@ -161,6 +189,39 @@ export class BrowserManager {
     tab.state = { ...tab.state, ...patch, revision: tab.state.revision + 1 };
     this.publish({ type: "state", session: { ...tab.state } });
     return { ...tab.state };
+  }
+
+  private beginAgentControl(tab: Tab, signal: AbortSignal): void {
+    if (signal.aborted || tab.agentControl?.signal === signal) return;
+    tab.agentControl?.dispose();
+    const abort = () => this.clearAgentControl(tab, signal);
+    tab.agentControl = {
+      signal,
+      dispose: () => signal.removeEventListener("abort", abort),
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    if (!tab.state.agentControlled) this.update(tab, { agentControlled: true });
+  }
+
+  private clearAgentControl(tab: Tab, owner?: AbortSignal): void {
+    if (owner && tab.agentControl?.signal !== owner) return;
+    if (!tab.agentControl && !tab.state.agentControlled && !tab.state.agentCursor) return;
+    this.update(tab, { agentControlled: false });
+  }
+
+  private setAgentCursor(tab: Tab, cursor: BrowserCursor | null): void {
+    if (
+      cursor &&
+      (!tab.state.agentControlled ||
+        !Number.isFinite(cursor.x) ||
+        !Number.isFinite(cursor.y) ||
+        cursor.x < 0 ||
+        cursor.y < 0)
+    )
+      return;
+    if (!cursor && !tab.state.agentCursor) return;
+    tab.state = { ...tab.state, agentCursor: cursor ?? undefined };
+    this.publish({ type: "cursor", sessionId: tab.state.id, cursor });
   }
 
   private async connection(): Promise<BrowserCdp> {
@@ -214,7 +275,45 @@ export class BrowserManager {
     method: string,
     params: Record<string, unknown> = {},
   ): Promise<T> {
-    return (await this.connection()).send<T>(method, params, tab.cdpSessionId);
+    const result = await (await this.connection()).send<T>(method, params, tab.cdpSessionId);
+    if (
+      method === "Input.dispatchMouseEvent" &&
+      ["mouseMoved", "mousePressed", "mouseReleased"].includes(String(params.type)) &&
+      typeof params.x === "number" &&
+      Number.isFinite(params.x) &&
+      typeof params.y === "number" &&
+      Number.isFinite(params.y)
+    )
+      tab.pointerPosition = { x: params.x, y: params.y };
+    return result;
+  }
+
+  private async moveAgentPointer(
+    tab: Tab,
+    destination: { x: number; y: number },
+    current: () => void,
+  ): Promise<void> {
+    const move = async (point: { x: number; y: number }) => {
+      current();
+      await this.send(tab, "Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        ...point,
+        buttons: 0,
+      });
+      current();
+      this.setAgentCursor(tab, { ...point, pressed: false });
+    };
+    const start = tab.pointerPosition ?? { x: 0, y: 0 };
+    if (!tab.pointerPosition) await move(start);
+    if (start.x === destination.x && start.y === destination.y) return move(destination);
+    // Real native mouse events keep hover behavior and the displayed cursor on the same path.
+    for (let step = 1; step <= 8; step++) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      await move({
+        x: start.x + ((destination.x - start.x) * step) / 8,
+        y: start.y + ((destination.y - start.y) * step) / 8,
+      });
+    }
   }
 
   private async evaluate(tab: Tab, expression: string): Promise<any> {
@@ -283,9 +382,11 @@ export class BrowserManager {
     url: string,
     source: Source,
     signal?: AbortSignal,
+    controlSignal?: AbortSignal,
   ): Promise<Tab> {
     if (this.tabs.size >= MAX_TABS) throw new BrowserError("browser-operation-failed");
     const settings = await this.settings.get();
+    signal?.throwIfAborted();
     const tab: Tab = {
       state: {
         id: sessionId,
@@ -297,7 +398,6 @@ export class BrowserManager {
         canGoForward: false,
         revision: 0,
         zoom: settings.defaultZoom,
-        fitToWidth: settings.fitToWidth,
         width: 1024,
         height: 768,
       },
@@ -320,12 +420,14 @@ export class BrowserManager {
       documentReady: true,
     };
     this.tabs.set(sessionId, tab);
+    if (controlSignal) this.beginAgentControl(tab, controlSignal);
     try {
       await this.connectTab(tab);
       if (url !== "about:blank") await this.navigate(tab, url, source);
       else this.update(tab, {});
       return tab;
     } catch (error) {
+      this.clearAgentControl(tab);
       this.tabs.delete(sessionId);
       if (tab.targetId)
         void this.browser
@@ -338,6 +440,7 @@ export class BrowserManager {
   private async connectTab(tab: Tab): Promise<void> {
     const cdp = await this.connection();
     if (tab.cdpSessionId) return;
+    tab.pointerPosition = undefined;
     const { targetId } = await cdp.send("Target.createTarget", { url: "about:blank" });
     const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
     tab.targetId = targetId;
@@ -377,12 +480,10 @@ export class BrowserManager {
     internal = false,
   ): Promise<BrowserSessionState> {
     const url = normalizeBrowserUrl(value, internal);
-    await this.authorize("navigate", url, tab.state.id, source);
     if (source === "agent") tab.signal?.throwIfAborted();
     tab.source = source;
     if (source === "user") tab.signal = undefined;
     tab.navigationBlocked = false;
-    tab.allowedNavigation = url;
     this.update(tab, { status: "loading", error: undefined });
     const result = await this.send(tab, "Page.navigate", { url });
     if (result.errorText) {
@@ -408,32 +509,24 @@ export class BrowserManager {
   }
 
   private async applyViewport(tab: Tab): Promise<void> {
-    const { width, height, zoom, device, fitToWidth } = tab.state;
+    const { width, height, zoom, device } = tab.state;
     if (tab.screencasting) {
       await this.send(tab, "Page.stopScreencast");
       tab.screencasting = false;
     }
-    let logicalWidth = Math.min(16384, Math.max(1, Math.round((device?.width ?? width) / zoom)));
-    let logicalHeight = Math.min(16384, Math.max(1, Math.round((device?.height ?? height) / zoom)));
-    const metrics = () =>
-      this.send(tab, "Emulation.setDeviceMetricsOverride", {
-        width: logicalWidth,
-        height: logicalHeight,
-        deviceScaleFactor: tab.deviceScaleFactor,
-        mobile: device?.mobile ?? false,
-      });
-    await metrics();
-    if (fitToWidth && !device && tab.state.url !== "about:blank") {
-      const scrollWidth = await this.evaluate(
-        tab,
-        "Math.max(document.documentElement?.scrollWidth || 0, document.body?.scrollWidth || 0)",
-      );
-      if (typeof scrollWidth === "number" && scrollWidth > logicalWidth && scrollWidth <= 16384) {
-        logicalWidth = Math.ceil(scrollWidth);
-        logicalHeight = Math.min(16384, Math.max(1, Math.round((height * logicalWidth) / width)));
-        await metrics();
-      }
-    }
+    const logicalWidth = Math.min(16384, Math.max(1, Math.round((device?.width ?? width) / zoom)));
+    const logicalHeight = Math.min(
+      16384,
+      Math.max(1, Math.round((device?.height ?? height) / zoom)),
+    );
+    await this.send(tab, "Emulation.setDeviceMetricsOverride", {
+      width: logicalWidth,
+      height: logicalHeight,
+      deviceScaleFactor: tab.deviceScaleFactor,
+      mobile: device?.mobile ?? false,
+    });
+    if (tab.viewport.width !== logicalWidth || tab.viewport.height !== logicalHeight)
+      this.setAgentCursor(tab, null);
     tab.viewport = { width: logicalWidth, height: logicalHeight };
     await this.send(tab, "Emulation.setTouchEmulationEnabled", {
       enabled: device?.mobile ?? false,
@@ -578,22 +671,33 @@ export class BrowserManager {
       tab.frameIds.add(params.frameId);
     } else if (method === "Page.frameDetached") {
       tab.frameIds.delete(params.frameId);
-    } else if (method === "Page.frameNavigated" && !params.frame?.parentId) {
-      tab.frameId = params.frame.id;
+      if (tab.snapshot?.frames.has(params.frameId)) tab.snapshot = undefined;
+    } else if (method === "Page.frameNavigated") {
+      if (tab.snapshot?.frames.has(params.frame.id)) tab.snapshot = undefined;
       tab.frameIds.add(params.frame.id);
-      tab.fileRequests.clear();
-      this.update(tab, { url: params.frame.url, title: params.frame.url });
-      await this.history(tab);
-    } else if (method === "Page.navigatedWithinDocument" && params.frameId === tab.frameId) {
+      if (!params.frame.parentId) {
+        tab.frameId = params.frame.id;
+        tab.fileRequests.clear();
+        this.update(tab, { url: params.frame.url, title: params.frame.url });
+        await this.history(tab);
+      }
+    } else if (method === "Page.navigatedWithinDocument") {
+      if (tab.snapshot?.frames.has(params.frameId)) tab.snapshot = undefined;
+      if (params.frameId === tab.frameId) {
+        this.update(tab, { url: params.url });
+        await this.history(tab);
+      }
+    } else if (method === "DOM.documentUpdated" || method === "Runtime.executionContextsCleared") {
       tab.snapshot = undefined;
-      this.update(tab, { url: params.url });
-      await this.history(tab);
-    } else if (method === "DOM.documentUpdated") {
-      tab.snapshot = undefined;
+    } else if (method === "Runtime.executionContextDestroyed") {
+      if (tab.snapshot && [...tab.snapshot.frames.values()].includes(params.executionContextId))
+        tab.snapshot = undefined;
     } else if (method === "Page.domContentEventFired") {
       tab.documentReady = true;
-    } else if (method === "Page.frameStartedLoading" && params.frameId === tab.frameId) {
-      if (!tab.navigationBlocked) this.update(tab, { status: "loading", error: undefined });
+    } else if (method === "Page.frameStartedLoading") {
+      if (tab.snapshot?.frames.has(params.frameId)) tab.snapshot = undefined;
+      if (params.frameId === tab.frameId && !tab.navigationBlocked)
+        this.update(tab, { status: "loading", error: undefined });
     } else if (method === "Page.frameStoppedLoading" && params.frameId === tab.frameId) {
       tab.documentReady = true;
       if (!tab.navigationBlocked) this.update(tab, { status: "ready", error: undefined });
@@ -648,6 +752,7 @@ export class BrowserManager {
         await this.send(tab, "Fetch.continueRequest", { requestId: params.requestId });
         return;
       }
+      if (tab.source === "agent") tab.signal?.throwIfAborted();
       const url = new URL(params.request.url);
       if (
         !MAIN_FRAME_SCHEMES.has(url.protocol) ||
@@ -655,16 +760,13 @@ export class BrowserManager {
       ) {
         throw new BrowserError("browser-permission-denied");
       }
-      if (params.frameId === tab.frameId) {
-        if (
-          tab.source === "agent" &&
-          url.protocol === "chrome:" &&
-          ![BROWSER_PAGES.history, BROWSER_PAGES.downloads].includes(url.href)
-        )
-          throw new BrowserError("browser-permission-denied");
-        if (tab.allowedNavigation === url.href) tab.allowedNavigation = undefined;
-        else await this.authorize("navigate", url.href, tab.state.id, tab.source);
-      }
+      if (
+        params.frameId === tab.frameId &&
+        tab.source === "agent" &&
+        url.protocol === "chrome:" &&
+        ![BROWSER_PAGES.history, BROWSER_PAGES.downloads].includes(url.href)
+      )
+        throw new BrowserError("browser-permission-denied");
       await this.send(tab, "Fetch.continueRequest", { requestId: params.requestId });
     } catch (error) {
       await this.send(tab, "Fetch.failRequest", {
@@ -681,7 +783,7 @@ export class BrowserManager {
 
   async handle(
     value: BrowserCommand,
-    options: { source?: Source; signal?: AbortSignal } = {},
+    options: { source?: Source; signal?: AbortSignal; controlSignal?: AbortSignal } = {},
   ): Promise<unknown> {
     if (this.disposed) throw new BrowserError("browser-unavailable");
     const command = parseBrowserCommand(value);
@@ -699,12 +801,56 @@ export class BrowserManager {
     ) {
       throw new BrowserError("browser-permission-denied");
     }
+    const sessionId = "sessionId" in command ? command.sessionId : undefined;
+    // A UI attachment observes the existing tab; only an explicit run signal may claim control.
+    const operationControl =
+      source === "agent" && sessionId && command.type !== "attach" && !options.controlSignal
+        ? new AbortController()
+        : undefined;
+    const controlSignal =
+      source === "agent" ? (options.controlSignal ?? operationControl?.signal) : undefined;
+    const abortControl = () => {
+      const tab = sessionId ? this.tabs.get(sessionId) : undefined;
+      if (tab && controlSignal) this.clearAgentControl(tab, controlSignal);
+    };
     try {
       options.signal?.throwIfAborted();
-      return await this.execute(command, source, options.signal);
+      const tab = sessionId ? this.tabs.get(sessionId) : undefined;
+      if (tab && controlSignal) this.beginAgentControl(tab, controlSignal);
+      if (controlSignal) options.signal?.addEventListener("abort", abortControl, { once: true });
+      if (tab && source === "user") {
+        const input = command.type === "input" ? command.event : undefined;
+        if (
+          [
+            "navigate",
+            "back",
+            "forward",
+            "reload",
+            "stop",
+            "close",
+            "open-page",
+            "click",
+            "fill",
+            "find",
+            "cdp",
+            "site-tools.call",
+          ].includes(command.type) ||
+          input?.kind === "text" ||
+          (input?.kind === "key" && input.type === "keyDown") ||
+          (input?.kind === "mouse" &&
+            (input.type === "mousePressed" ||
+              input.type === "mouseWheel" ||
+              (input.type === "mouseMoved" && (input.buttons ?? 0) > 0)))
+        )
+          this.clearAgentControl(tab);
+      }
+      return await this.execute(command, source, options.signal, controlSignal);
     } catch (error) {
       if (error instanceof BrowserError) throw error;
       throw new BrowserError("browser-operation-failed");
+    } finally {
+      options.signal?.removeEventListener("abort", abortControl);
+      operationControl?.abort();
     }
   }
 
@@ -712,8 +858,12 @@ export class BrowserManager {
     command: BrowserCommand,
     source: Source,
     signal?: AbortSignal,
+    controlSignal?: AbortSignal,
   ): Promise<unknown> {
     switch (command.type) {
+      case "history.list":
+        await this.authorize("history", "about:blank", "", source, signal);
+        return this.listHistory(command.query ?? "", command.limit ?? 50, signal);
       case "tabs.list":
         return [...this.tabs.values()]
           .filter((tab) => tab.state.projectId === command.projectId)
@@ -773,7 +923,7 @@ export class BrowserManager {
       }
       case "attach": {
         const existing = this.tabs.get(command.sessionId);
-        if (existing && source === "agent") existing.signal = signal;
+        if (existing && source === "agent" && controlSignal) existing.signal = signal;
         if (existing && existing.state.projectId !== command.projectId)
           throw new BrowserError("browser-invalid");
         const tab = existing
@@ -784,9 +934,8 @@ export class BrowserManager {
               normalizeBrowserUrl(command.url ?? "about:blank"),
               source,
               signal,
+              controlSignal,
             );
-        if (existing && source === "agent")
-          await this.authorize("navigate", tab.state.url, tab.state.id, source);
         this.publish({ type: "state", session: { ...tab.state } });
         return { ...tab.state };
       }
@@ -800,11 +949,9 @@ export class BrowserManager {
         throw new BrowserError("browser-permission-denied");
       await this.authorize("history", tab.state.url, tab.state.id, source);
     }
-    if (["copy", "find", "screenshot", "print", "site-tools.list"].includes(command.type))
-      await this.authorize("navigate", tab.state.url, tab.state.id, source);
     switch (command.type) {
       case "snapshot":
-        return this.snapshot(tab, source, signal);
+        return this.snapshot(tab, signal);
       case "click":
       case "fill":
         return this.interact(tab, command, source, signal);
@@ -829,11 +976,9 @@ export class BrowserManager {
             ![BROWSER_PAGES.history, BROWSER_PAGES.downloads].includes(entry.url)
           )
             throw new BrowserError("browser-permission-denied");
-          await this.authorize("navigate", entry.url, tab.state.id, source);
           tab.source = source;
           if (source === "user") tab.signal = undefined;
           tab.navigationBlocked = false;
-          tab.allowedNavigation = entry.url;
           tab.snapshot = undefined;
           tab.documentReady = false;
           await this.send(tab, "Page.navigateToHistoryEntry", { entryId: entry.id });
@@ -841,10 +986,8 @@ export class BrowserManager {
         return { ...tab.state };
       }
       case "reload": {
-        await this.authorize("navigate", tab.state.url, tab.state.id, source);
         tab.source = source;
         tab.navigationBlocked = false;
-        tab.allowedNavigation = tab.state.url;
         tab.snapshot = undefined;
         tab.documentReady = false;
         await this.send(tab, "Page.reload");
@@ -858,13 +1001,17 @@ export class BrowserManager {
         return;
       case "viewport": {
         tab.visible = command.visible;
+        if (
+          command.device !== undefined &&
+          Boolean(command.device?.mobile) !== Boolean(tab.state.device?.mobile)
+        )
+          this.setAgentCursor(tab, null);
         if (command.deviceScaleFactor !== undefined)
           tab.deviceScaleFactor = command.deviceScaleFactor;
         this.update(tab, {
           width: Math.round(command.width),
           height: Math.round(command.height),
           ...(command.zoom === undefined ? {} : { zoom: command.zoom }),
-          ...(command.fitToWidth === undefined ? {} : { fitToWidth: command.fitToWidth }),
           ...(command.device === undefined ? {} : { device: command.device ?? undefined }),
         });
         await this.queueViewport(tab);
@@ -877,16 +1024,27 @@ export class BrowserManager {
           (input.kind === "key" && input.type === "keyDown") ||
           (input.kind === "mouse" && input.type === "mousePressed")
         ) {
-          await this.authorize("navigate", tab.state.url, tab.state.id, source);
           tab.source = source;
           if (source === "user") tab.signal = undefined;
           tab.navigationBlocked = false;
         }
         signal?.throwIfAborted();
         const { kind, ...event } = input;
+        const revision = tab.state.revision;
         if (kind === "text") await this.send(tab, "Input.insertText", event);
         else if (kind === "key") await this.send(tab, "Input.dispatchKeyEvent", event);
         else await this.send(tab, "Input.dispatchMouseEvent", event);
+        if (
+          source === "agent" &&
+          input.kind === "mouse" &&
+          input.type !== "mouseWheel" &&
+          tab.state.revision === revision
+        )
+          this.setAgentCursor(tab, {
+            x: input.x,
+            y: input.y,
+            pressed: input.type === "mousePressed" || (input.buttons ?? 0) > 0,
+          });
         return;
       }
       case "copy": {
@@ -928,10 +1086,26 @@ export class BrowserManager {
       case "cdp": {
         if (!(await this.settings.get()).fullCdpAccess)
           throw new BrowserError("browser-permission-denied");
-        await this.authorize("navigate", tab.state.url, tab.state.id, source);
         signal?.throwIfAborted();
         tab.source = source;
-        return this.send(tab, command.method, command.params);
+        const revision = tab.state.revision;
+        const result = await this.send(tab, command.method, command.params);
+        if (
+          source === "agent" &&
+          tab.state.revision === revision &&
+          command.method === "Input.dispatchMouseEvent" &&
+          command.params?.type !== "mouseWheel" &&
+          typeof command.params?.x === "number" &&
+          typeof command.params.y === "number"
+        )
+          this.setAgentCursor(tab, {
+            x: command.params.x,
+            y: command.params.y,
+            pressed:
+              command.params.type === "mousePressed" ||
+              (typeof command.params.buttons === "number" && command.params.buttons > 0),
+          });
+        return result;
       }
       case "site-tools.list":
       case "site-tools.call": {
@@ -946,7 +1120,6 @@ export class BrowserManager {
             tab,
             `(async () => { if (document.modelContext?.getTools) return (await document.modelContext.getTools()).map(tool => ({ name: tool.name, description: tool.description, inputSchema: typeof tool.inputSchema === "string" ? JSON.parse(tool.inputSchema) : tool.inputSchema })); return navigator.modelContextTesting?.listTools?.() ?? []; })()`,
           );
-        await this.authorize("navigate", tab.state.url, tab.state.id, source);
         signal?.throwIfAborted();
         tab.source = source;
         return this.evaluate(
@@ -957,7 +1130,7 @@ export class BrowserManager {
     }
   }
 
-  private async snapshot(tab: Tab, source: Source, signal?: AbortSignal): Promise<BrowserSnapshot> {
+  private async snapshot(tab: Tab, signal?: AbortSignal): Promise<BrowserSnapshot> {
     const until = Date.now() + 1000;
     while (tab.state.status === "loading" && !tab.documentReady && Date.now() < until) {
       signal?.throwIfAborted();
@@ -966,88 +1139,165 @@ export class BrowserManager {
     if (tab.state.status === "loading" && !tab.documentReady)
       throw new BrowserError("browser-page-loading");
     const url = tab.state.url;
-    await this.authorize("navigate", url, tab.state.id, source, signal);
     signal?.throwIfAborted();
-    if (tab.state.url !== url || (tab.state.status === "loading" && !tab.documentReady))
-      throw new BrowserError("browser-page-loading");
-    const snapshot = { id: randomUUID(), contextId: 0, refs: new Map<string, number>() };
+    if (!tab.frameId) throw new BrowserError("browser-page-loading");
+    const snapshot: Snapshot = { id: randomUUID(), frames: new Map(), refs: new Map() };
     tab.snapshot = snapshot;
-    const [tree, world] = await Promise.all([
-      this.send(tab, "Accessibility.getFullAXTree"),
-      this.send(tab, "Page.createIsolatedWorld", {
-        frameId: tab.frameId,
-        worldName: "workbench-browser-observation",
-      }),
-    ]);
-    snapshot.contextId = world.executionContextId;
+    const current = () => {
+      signal?.throwIfAborted();
+      if (tab.snapshot !== snapshot || tab.state.url !== url)
+        throw new BrowserError("browser-element-stale");
+    };
+    const readFrame = async (
+      frameId: string,
+      owner?: { backendNodeId: number; contextId: number },
+    ) => {
+      if (snapshot.frames.has(frameId)) return;
+      // Track the frame before awaiting CDP so navigation also invalidates an in-flight snapshot.
+      snapshot.frames.set(frameId, 0);
+      try {
+        if (owner) {
+          const resolved = await this.send(tab, "DOM.resolveNode", {
+            backendNodeId: owner.backendNodeId,
+            executionContextId: owner.contextId,
+          });
+          const objectId = resolved.object.objectId;
+          if (!objectId) throw new Error();
+          try {
+            const access = await this.send(tab, "Runtime.callFunctionOn", {
+              objectId,
+              functionDeclaration: "function() { return !!this.contentDocument; }",
+              returnByValue: true,
+            });
+            current();
+            if (access.result?.value !== true) {
+              snapshot.frames.delete(frameId);
+              return;
+            }
+          } finally {
+            await this.send(tab, "Runtime.releaseObject", { objectId }).catch(() => undefined);
+          }
+        }
+        const [tree, world] = await Promise.all([
+          this.send(tab, "Accessibility.getFullAXTree", { frameId }),
+          this.send(tab, "Page.createIsolatedWorld", {
+            frameId,
+            worldName: "workbench-browser-observation",
+          }),
+        ]);
+        current();
+        snapshot.frames.set(frameId, world.executionContextId);
+        return { tree, contextId: world.executionContextId as number };
+      } catch (error) {
+        current();
+        snapshot.frames.delete(frameId);
+        if (!owner) throw error;
+        // Cross-origin and separate-target documents keep the existing explicit fallback.
+        return;
+      }
+    };
     const nodes: BrowserSnapshotNode[] = [];
-    const byId = new Map<string, Record<string, any>>(
-      tree.nodes.map((node: Record<string, any>) => [node.nodeId, node]),
-    );
-    const seen = new Set<string>();
     let characters = 0;
     let truncated = false;
-    const visit = async (id: string, depth: number): Promise<void> => {
-      if (seen.has(id) || truncated) return;
-      seen.add(id);
-      const node = byId.get(id);
-      if (!node) return;
-      signal?.throwIfAborted();
-      const role = String(node.role?.value ?? "");
-      const frame = /iframe/i.test(role);
-      if (!node.ignored && role && role !== "InlineTextBox") {
-        if (nodes.length >= 1000 || characters >= 65536) {
-          truncated = true;
-          return;
-        }
-        const item: BrowserSnapshotNode = {
-          depth,
-          role,
-          name: String(node.name?.value ?? "").slice(0, 2048),
-        };
-        const properties = new Map<string, unknown>(
-          (node.properties ?? []).map((property: Record<string, any>) => [
-            property.name,
-            property.value?.value,
-          ]),
-        );
-        for (const key of ["disabled", "selected", "expanded"] as const) {
-          const value = properties.get(key);
-          if (typeof value === "boolean") item[key] = value;
-        }
-        const checked = properties.get("checked");
-        if (typeof checked === "boolean" || checked === "mixed") item.checked = checked;
-        if (checked === "true" || checked === "false") item.checked = checked === "true";
-        if (frame) item.unavailable = "frame";
-        else if (
-          node.backendDOMNodeId &&
-          !["RootWebArea", "StaticText", "LineBreak"].includes(role)
-        ) {
-          item.ref = snapshot.id + ":" + nodes.length;
-          snapshot.refs.set(item.ref, node.backendDOMNodeId);
-        }
-        if (typeof node.value?.value === "string" && node.backendDOMNodeId && !frame) {
-          const described = await this.send(tab, "DOM.describeNode", {
-            backendNodeId: node.backendDOMNodeId,
-          });
-          const attributes: string[] = described.node.attributes ?? [];
-          const type = attributes.find(
-            (_, index) => index % 2 === 1 && attributes[index - 1] === "type",
+    const visitFrame = async (
+      frameId: string,
+      frameDepth: number,
+      owner?: { backendNodeId: number; contextId: number },
+    ): Promise<boolean> => {
+      const frameTree = await readFrame(frameId, owner);
+      if (!frameTree) return false;
+      const { tree, contextId } = frameTree;
+      const byId = new Map<string, Record<string, any>>(
+        tree.nodes.map((node: Record<string, any>) => [node.nodeId, node]),
+      );
+      const seen = new Set<string>();
+      const visit = async (id: string, depth: number): Promise<void> => {
+        if (seen.has(id) || truncated) return;
+        seen.add(id);
+        const node = byId.get(id);
+        if (!node) return;
+        signal?.throwIfAborted();
+        const role = String(node.role?.value ?? "");
+        const frame = /iframe/i.test(role);
+        let item: BrowserSnapshotNode | undefined;
+        if (!node.ignored && role && role !== "InlineTextBox") {
+          if (nodes.length >= 1000 || characters >= 65536) {
+            truncated = true;
+            return;
+          }
+          item = {
+            depth,
+            role,
+            name: String(node.name?.value ?? "").slice(0, 2048),
+          };
+          const properties = new Map<string, unknown>(
+            (node.properties ?? []).map((property: Record<string, any>) => [
+              property.name,
+              property.value?.value,
+            ]),
           );
-          if (!(described.node.localName === "input" && type?.toLowerCase() === "password"))
-            item.value = node.value.value.slice(0, 4096);
+          for (const key of ["disabled", "selected", "expanded"] as const) {
+            const value = properties.get(key);
+            if (typeof value === "boolean") item[key] = value;
+          }
+          const checked = properties.get("checked");
+          if (typeof checked === "boolean" || checked === "mixed") item.checked = checked;
+          if (checked === "true" || checked === "false") item.checked = checked === "true";
+          if (
+            !frame &&
+            node.backendDOMNodeId &&
+            !["RootWebArea", "StaticText", "LineBreak"].includes(role)
+          ) {
+            item.ref = snapshot.id + ":" + nodes.length;
+            snapshot.refs.set(item.ref, {
+              backendNodeId: node.backendDOMNodeId,
+              frameId,
+              contextId,
+            });
+          }
+          if (typeof node.value?.value === "string" && node.backendDOMNodeId && !frame) {
+            const described = await this.send(tab, "DOM.describeNode", {
+              backendNodeId: node.backendDOMNodeId,
+            });
+            const attributes: string[] = described.node.attributes ?? [];
+            const type = attributes.find(
+              (_, index) => index % 2 === 1 && attributes[index - 1] === "type",
+            );
+            if (!(described.node.localName === "input" && type?.toLowerCase() === "password"))
+              item.value = node.value.value.slice(0, 4096);
+          }
+          characters += item.name.length + (item.value?.length ?? 0);
+          nodes.push(item);
+          depth++;
         }
-        characters += item.name.length + (item.value?.length ?? 0);
-        nodes.push(item);
-        depth++;
-      }
-      // Embedded documents need their own target/session mapping; do not invent actionable refs.
-      if (!frame) for (const child of node.childIds ?? []) await visit(child, depth);
+        if (frame) {
+          let childFrameId: string | undefined;
+          if (node.backendDOMNodeId) {
+            try {
+              const described = await this.send(tab, "DOM.describeNode", {
+                backendNodeId: node.backendDOMNodeId,
+                depth: 0,
+              });
+              childFrameId = described.node.frameId;
+            } catch {
+              current();
+            }
+          }
+          const expanded =
+            childFrameId &&
+            !truncated &&
+            (await visitFrame(childFrameId, depth, {
+              backendNodeId: node.backendDOMNodeId,
+              contextId,
+            }));
+          if (item && !expanded) item.unavailable = "frame";
+        } else for (const child of node.childIds ?? []) await visit(child, depth);
+      };
+      if (tree.nodes[0]) await visit(tree.nodes[0].nodeId, frameDepth);
+      return true;
     };
-    if (tree.nodes[0]) await visit(tree.nodes[0].nodeId, 0);
-    signal?.throwIfAborted();
-    if (tab.snapshot !== snapshot || tab.state.url !== url)
-      throw new BrowserError("browser-element-stale");
+    await visitFrame(tab.frameId, 0);
+    current();
     return { session: { ...tab.state }, snapshotId: snapshot.id, nodes, truncated };
   }
 
@@ -1058,13 +1308,22 @@ export class BrowserManager {
     signal?: AbortSignal,
   ): Promise<BrowserSessionState> {
     const snapshot = tab.snapshot;
-    const backendNodeId = snapshot?.refs.get(command.ref);
-    if (!snapshot || !backendNodeId) throw new BrowserError("browser-element-stale");
+    const reference = snapshot?.refs.get(command.ref);
+    if (!snapshot || !reference) throw new BrowserError("browser-element-stale");
+    const { backendNodeId, frameId, contextId } = reference;
+    const controlOwner = tab.agentControl?.signal;
     const current = () => {
       signal?.throwIfAborted();
+      if (
+        source === "agent" &&
+        (!controlOwner || controlOwner.aborted || tab.agentControl?.signal !== controlOwner)
+      )
+        throw new BrowserError(
+          "browser-operation-failed",
+          "Browser control ended before this interaction completed.",
+        );
       if (tab.snapshot !== snapshot) throw new BrowserError("browser-element-stale");
     };
-    await this.authorize("navigate", tab.state.url, tab.state.id, source, signal);
     current();
     tab.source = source;
     tab.signal = source === "agent" ? signal : undefined;
@@ -1073,7 +1332,7 @@ export class BrowserManager {
     try {
       const resolved = await this.send(tab, "DOM.resolveNode", {
         backendNodeId,
-        executionContextId: snapshot.contextId,
+        executionContextId: contextId,
       });
       objectId = resolved.object.objectId;
       if (!objectId) throw new Error();
@@ -1087,27 +1346,115 @@ export class BrowserManager {
         arguments: args,
         returnByValue: true,
       });
+    const geometry = async () => {
+      const [boxes, metrics] = await Promise.all([
+        this.send(tab, "DOM.getContentQuads", { backendNodeId }),
+        this.send(tab, "Page.getLayoutMetrics"),
+      ]);
+      current();
+      const viewport = metrics.cssVisualViewport;
+      const points: { x: number; y: number }[] = [];
+      for (const quad of (boxes.quads ?? []) as number[][]) {
+        if (
+          quad.length !== 8 ||
+          !quad.every(Number.isFinite) ||
+          Math.max(quad[0]!, quad[2]!, quad[4]!, quad[6]!) <= 0 ||
+          Math.min(quad[0]!, quad[2]!, quad[4]!, quad[6]!) >= viewport.clientWidth ||
+          Math.max(quad[1]!, quad[3]!, quad[5]!, quad[7]!) <= 0 ||
+          Math.min(quad[1]!, quad[3]!, quad[5]!, quad[7]!) >= viewport.clientHeight
+        )
+          continue;
+        const clipped = quad.map((value, index) =>
+          Math.max(
+            0,
+            Math.min((index % 2 ? viewport.clientHeight : viewport.clientWidth) - 1, value),
+          ),
+        );
+        const center = {
+          x: (clipped[0]! + clipped[2]! + clipped[4]! + clipped[6]!) / 4,
+          y: (clipped[1]! + clipped[3]! + clipped[5]! + clipped[7]!) / 4,
+        };
+        // ponytail: five points per quad; use finer sampling if tiny exposed targets need it.
+        points.push(center);
+        for (let index = 0; index < clipped.length; index += 2) {
+          points.push({
+            x: (center.x + clipped[index]!) / 2,
+            y: (center.y + clipped[index + 1]!) / 2,
+          });
+        }
+      }
+      if (!points.length)
+        throw new BrowserError(
+          "browser-element-not-interactable",
+          "No visible target area remains after scrolling. Inspect a screenshot or choose another element.",
+        );
+      return { viewport, points };
+    };
+    const hitTest = async (
+      point: { x: number; y: number },
+      viewport: { pageX: number; pageY: number },
+    ) => {
+      current();
+      // Native input and quads use viewport CSS coordinates; this hit test uses document CSS coordinates.
+      const hit = await this.send(tab, "DOM.getNodeForLocation", {
+        x: Math.round(point.x + viewport.pageX),
+        y: Math.round(point.y + viewport.pageY),
+      });
+      if (hit.frameId !== frameId) return false;
+      const target = await this.send(tab, "DOM.resolveNode", {
+        backendNodeId: hit.backendNodeId,
+        executionContextId: contextId,
+      });
+      try {
+        const visible = await call(
+          "function(hit) { const element = hit.nodeType === 1 ? hit : hit.parentElement; return (this === hit || this.contains(hit)) && element?.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}); }",
+          [{ objectId: target.object.objectId }],
+        );
+        return visible.result?.value === true;
+      } finally {
+        await this.send(tab, "Runtime.releaseObject", { objectId: target.object.objectId }).catch(
+          () => undefined,
+        );
+      }
+    };
     try {
       const { result } = await call(
-        "function() { return { connected: this.isConnected, visible: this.nodeType === 1 && this.getClientRects().length > 0 && this.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}), disabled: this.nodeType === 1 && (this.matches(':disabled') || !!this.closest('[aria-disabled=true]')), editable: this.isContentEditable || (this.nodeName === 'TEXTAREA' || this.nodeName === 'INPUT' && /^(text|search|email|url|tel|password|number)$/.test(this.type)) && !this.readOnly }; }",
+        "function() { const visible = element => element.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}); return { connected: this.isConnected, visible: this.nodeType === 1 && (visible(this) || getComputedStyle(this).display === 'contents' && [...this.querySelectorAll('*')].some(visible)), disabled: this.nodeType === 1 && (this.matches(':disabled') || !!this.closest('[aria-disabled=true]')), editable: this.isContentEditable || (this.nodeName === 'TEXTAREA' || this.nodeName === 'INPUT' && /^(text|search|email|url|tel|password|number)$/.test(this.type)) && !this.readOnly }; }",
       );
       if (!result?.value?.connected) throw new BrowserError("browser-element-stale");
-      if (
-        !result.value.visible ||
-        result.value.disabled ||
-        (command.type === "fill" && !result.value.editable)
-      )
-        throw new BrowserError("browser-element-not-interactable");
+      if (!result.value.visible)
+        throw new BrowserError(
+          "browser-element-not-interactable",
+          "This element has no visible content. Inspect a screenshot or choose another element.",
+        );
+      if (result.value.disabled)
+        throw new BrowserError(
+          "browser-element-not-interactable",
+          "This element is disabled. Choose an enabled control.",
+        );
+      if (command.type === "fill" && !result.value.editable)
+        throw new BrowserError(
+          "browser-element-not-interactable",
+          "This target is not a writable editable field. It may be read-only; use click for other controls.",
+        );
       current();
       await this.send(tab, "DOM.scrollIntoViewIfNeeded", { backendNodeId });
       current();
       if (command.type === "fill") {
+        if (source === "agent") {
+          const { points } = await geometry();
+          await this.moveAgentPointer(tab, points[0]!, current);
+        }
+        current();
         await this.send(tab, "DOM.focus", { backendNodeId });
         const focused = await call(
           "function() { return this.getRootNode().activeElement === this; }",
         );
         if (focused.result?.value !== true)
-          throw new BrowserError("browser-element-not-interactable");
+          throw new BrowserError(
+            "browser-element-not-interactable",
+            "The field could not receive keyboard focus. Inspect the page before entering text.",
+          );
         current();
         await this.send(tab, "Input.dispatchKeyEvent", {
           type: "keyDown",
@@ -1120,7 +1467,10 @@ export class BrowserManager {
           "function() { return this.getRootNode().activeElement === this; }",
         );
         if (stillFocused.result?.value !== true)
-          throw new BrowserError("browser-element-not-interactable");
+          throw new BrowserError(
+            "browser-element-not-interactable",
+            "The page moved keyboard focus away from this field. Inspect the page before entering text.",
+          );
         current();
         if (command.text) await this.send(tab, "Input.insertText", { text: command.text });
         else {
@@ -1136,49 +1486,31 @@ export class BrowserManager {
           });
         }
       } else {
-        const [boxes, metrics] = await Promise.all([
-          this.send(tab, "DOM.getContentQuads", { backendNodeId }),
-          this.send(tab, "Page.getLayoutMetrics"),
-        ]);
-        const viewport = metrics.cssVisualViewport;
-        const quad: number[] | undefined = boxes.quads?.find(
-          (points: number[]) =>
-            points.length === 8 &&
-            Math.max(points[0]!, points[2]!, points[4]!, points[6]!) > 0 &&
-            Math.min(points[0]!, points[2]!, points[4]!, points[6]!) < viewport.clientWidth &&
-            Math.max(points[1]!, points[3]!, points[5]!, points[7]!) > 0 &&
-            Math.min(points[1]!, points[3]!, points[5]!, points[7]!) < viewport.clientHeight,
-        );
-        if (!quad) throw new BrowserError("browser-element-not-interactable");
-        const x = Math.max(
-          0,
-          Math.min(viewport.clientWidth - 1, (quad[0]! + quad[2]! + quad[4]! + quad[6]!) / 4),
-        );
-        const y = Math.max(
-          0,
-          Math.min(viewport.clientHeight - 1, (quad[1]! + quad[3]! + quad[5]! + quad[7]!) / 4),
-        );
-        const hit = await this.send(tab, "DOM.getNodeForLocation", {
-          x: Math.round(x),
-          y: Math.round(y),
-        });
-        const target = await this.send(tab, "DOM.resolveNode", {
-          backendNodeId: hit.backendNodeId,
-          executionContextId: snapshot.contextId,
-        });
-        try {
-          const visible = await call(
-            "function(hit) { return this === hit || this.contains(hit); }",
-            [{ objectId: target.object.objectId }],
-          );
-          if (visible.result?.value !== true)
-            throw new BrowserError("browser-element-not-interactable");
-        } finally {
-          await this.send(tab, "Runtime.releaseObject", { objectId: target.object.objectId }).catch(
-            () => undefined,
-          );
+        const { viewport, points } = await geometry();
+        let position: { x: number; y: number } | undefined;
+        for (const point of points) {
+          if (await hitTest(point, viewport)) {
+            position = point;
+            break;
+          }
         }
+        if (!position)
+          throw new BrowserError(
+            "browser-element-not-interactable",
+            "The target is covered by another element or clipped at the tested points. Inspect a screenshot or dismiss the covering UI before retrying.",
+          );
+        if (source === "agent") {
+          await this.moveAgentPointer(tab, position, current);
+          const metrics = await this.send(tab, "Page.getLayoutMetrics");
+          if (!(await hitTest(position, metrics.cssVisualViewport)))
+            throw new BrowserError(
+              "browser-element-not-interactable",
+              "Hovering changed or covered the target. Inspect a screenshot before retrying.",
+            );
+        }
+        const { x, y } = position;
         current();
+        const revision = tab.state.revision;
         await this.send(tab, "Input.dispatchMouseEvent", {
           type: "mousePressed",
           x,
@@ -1186,6 +1518,8 @@ export class BrowserManager {
           button: "left",
           clickCount: 1,
         });
+        if (source === "agent" && tab.state.revision === revision)
+          this.setAgentCursor(tab, { x, y, pressed: true });
         await this.send(tab, "Input.dispatchMouseEvent", {
           type: "mouseReleased",
           x,
@@ -1193,6 +1527,8 @@ export class BrowserManager {
           button: "left",
           clickCount: 1,
         });
+        if (source === "agent" && tab.state.revision === revision)
+          this.setAgentCursor(tab, { x, y, pressed: false });
       }
       return { ...tab.state };
     } finally {
@@ -1272,6 +1608,89 @@ export class BrowserManager {
       tab.uploadDirectories.delete(directory);
       await rm(directory, { recursive: true, force: true });
       throw error;
+    }
+  }
+
+  private async listHistory(
+    query: string,
+    limit: number,
+    signal?: AbortSignal,
+  ): Promise<BrowserHistoryEntry[]> {
+    const cdp = await this.connection();
+    signal?.throwIfAborted();
+    const { targetId } = await cdp.send("Target.createTarget", {
+      url: "about:blank",
+      background: true,
+    });
+    const close = () => cdp.send("Target.closeTarget", { targetId }).catch(() => undefined);
+    let loadTimer: ReturnType<typeof setTimeout> | undefined;
+    let unsubscribeLoad: (() => void) | undefined;
+    let rejectLoad: ((reason: unknown) => void) | undefined;
+    const abort = () => {
+      rejectLoad?.(signal?.reason);
+      void close();
+    };
+    signal?.addEventListener("abort", abort, { once: true });
+    try {
+      signal?.throwIfAborted();
+      const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
+      await cdp.send("Page.enable", {}, sessionId);
+      signal?.throwIfAborted();
+      const loaded = new Promise<void>((resolve, reject) => {
+        let historyCommitted = false;
+        rejectLoad = reject;
+        loadTimer = setTimeout(() => reject(new BrowserError("browser-operation-failed")), 5000);
+        unsubscribeLoad = cdp.subscribe((event) => {
+          if (event.sessionId !== sessionId) return;
+          if (event.method === "Page.frameNavigated" && !event.params.frame?.parentId)
+            historyCommitted = event.params.frame?.url === "chrome://history/";
+          if (!historyCommitted || event.method !== "Page.loadEventFired") return;
+          clearTimeout(loadTimer);
+          unsubscribeLoad?.();
+          rejectLoad = undefined;
+          resolve();
+        });
+      });
+      // Wait outside the page context: navigating away from about:blank destroys that context.
+      await Promise.all([
+        loaded,
+        cdp.send("Page.navigate", { url: "chrome://history/" }, sessionId).then((result) => {
+          if (result.errorText) throw new BrowserError("browser-operation-failed");
+        }),
+      ]);
+      signal?.throwIfAborted();
+      // ponytail: reuse Chrome's private WebUI service; update this bridge if Chromium changes it.
+      const response = await cdp.send(
+        "Runtime.evaluate",
+        {
+          expression: `(async () => {
+            const module = await import("chrome://history/history.js");
+            const service = (module.BrowserServiceImpl ?? module.BrowserProxyImpl).getInstance();
+            const { results } = await service.handler.queryHistory(${JSON.stringify(query)}, ${limit}, null, true, true);
+            return results.value.filter(entry => /^https?:\\/\\//.test(entry.url)).slice(0, ${limit}).map(entry => ({ url: entry.url, title: entry.title, time: entry.time }));
+          })()`,
+          awaitPromise: true,
+          returnByValue: true,
+        },
+        sessionId,
+        10000,
+      );
+      signal?.throwIfAborted();
+      if (response.exceptionDetails || !Array.isArray(response.result?.value))
+        throw new BrowserError("browser-operation-failed");
+      const entries: BrowserHistoryEntry[] = response.result.value;
+      const seen = new Set<string>();
+      // Chrome groups repeated visits per day; address suggestions need one row per URL.
+      return entries.filter((entry) => {
+        if (seen.has(entry.url)) return false;
+        seen.add(entry.url);
+        return true;
+      });
+    } finally {
+      clearTimeout(loadTimer);
+      unsubscribeLoad?.();
+      signal?.removeEventListener("abort", abort);
+      await close();
     }
   }
 
@@ -1451,6 +1870,7 @@ export class BrowserManager {
   }
 
   private async closeTab(tab: Tab): Promise<void> {
+    this.clearAgentControl(tab);
     this.tabs.delete(tab.state.id);
     for (const [id, permission] of this.permissions) {
       if (permission.sessionId !== tab.state.id) continue;
@@ -1477,6 +1897,7 @@ export class BrowserManager {
     for (const tab of this.tabs.values())
       for (const directory of tab.uploadDirectories)
         void rm(directory, { recursive: true, force: true }).catch(() => undefined);
+    for (const tab of this.tabs.values()) this.clearAgentControl(tab);
     this.tabs.clear();
     this.listeners.clear();
     this.browser?.dispose();

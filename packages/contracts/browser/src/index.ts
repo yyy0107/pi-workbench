@@ -1,7 +1,7 @@
 export const BROWSER_WEBSOCKET_PATH = "/api/browser/ws";
 export const MAX_BROWSER_MESSAGE_BYTES = 16 * 1024 * 1024;
 
-export type BrowserPermission = "navigate" | "history" | "download" | "upload";
+export type BrowserPermission = "history" | "download" | "upload";
 export type BrowserPermissionDecision = "allow" | "ask" | "deny";
 export interface BrowserSitePermissions {
   origin: string;
@@ -12,7 +12,6 @@ export interface BrowserSettings {
   webLinks: "external" | "embedded";
   localLinks: "external" | "embedded";
   showFullUrl: boolean;
-  fitToWidth: boolean;
   defaultZoom: number;
   annotationScreenshots: "always" | "ask" | "never";
   downloadDirectory: string;
@@ -26,12 +25,11 @@ export const DEFAULT_BROWSER_SETTINGS: BrowserSettings = {
   webLinks: "external",
   localLinks: "embedded",
   showFullUrl: false,
-  fitToWidth: true,
   defaultZoom: 1,
   annotationScreenshots: "ask",
   downloadDirectory: "",
   askDownloadLocation: false,
-  permissions: { navigate: "ask", history: "ask", download: "ask", upload: "ask" },
+  permissions: { history: "ask", download: "ask", upload: "ask" },
   siteTools: true,
   fullCdpAccess: false,
   sites: [],
@@ -41,6 +39,18 @@ export interface BrowserDevice {
   width: number;
   height: number;
   mobile: boolean;
+}
+export interface BrowserHistoryEntry {
+  url: string;
+  title: string;
+  /** Most recent visit time, in milliseconds since the Unix epoch. */
+  time: number;
+}
+/** Assistant pointer position in the remote page's CSS viewport. */
+export interface BrowserCursor {
+  x: number;
+  y: number;
+  pressed?: boolean;
 }
 export interface BrowserSessionState {
   id: string;
@@ -53,10 +63,11 @@ export interface BrowserSessionState {
   canGoForward: boolean;
   revision: number;
   zoom: number;
-  fitToWidth: boolean;
   width: number;
   height: number;
   device?: BrowserDevice;
+  agentControlled?: boolean;
+  agentCursor?: BrowserCursor;
 }
 export interface BrowserSnapshotNode {
   depth: number;
@@ -136,6 +147,7 @@ export type BrowserInput =
     }
   | { kind: "text"; text: string };
 export type BrowserCommand =
+  | { type: "history.list"; query?: string; limit?: number }
   | { type: "tabs.list"; projectId: string }
   | { type: "attach"; sessionId: string; projectId: string; url?: string }
   | { type: "snapshot"; sessionId: string }
@@ -153,7 +165,6 @@ export type BrowserCommand =
       /** Requested image pixels per displayed CSS pixel; layout and input stay in CSS pixels. */
       deviceScaleFactor?: number;
       zoom?: number;
-      fitToWidth?: boolean;
       device?: BrowserDevice | null;
     }
   | { type: "input"; sessionId: string; event: BrowserInput }
@@ -178,6 +189,7 @@ export type BrowserCommand =
 
 export type BrowserEvent =
   | { type: "state"; session: BrowserSessionState }
+  | { type: "cursor"; sessionId: string; cursor: BrowserCursor | null }
   | {
       type: "frame";
       sessionId: string;
@@ -231,7 +243,7 @@ function finite(value: unknown, minimum: number, maximum: number): value is numb
 function member(value: unknown, options: readonly string[]): boolean {
   return typeof value === "string" && options.includes(value);
 }
-const permissions = ["navigate", "history", "download", "upload"] as const;
+const permissions = ["history", "download", "upload"] as const;
 const decisions = ["allow", "ask", "deny"];
 function validPermissions(value: unknown): boolean {
   return (
@@ -250,7 +262,6 @@ export function parseBrowserSettingsPatch(value: unknown): Partial<BrowserSettin
         if (!member(field, ["external", "embedded"])) return undefined;
         break;
       case "showFullUrl":
-      case "fitToWidth":
       case "askDownloadLocation":
       case "siteTools":
       case "fullCdpAccess":
@@ -333,6 +344,12 @@ export function parseBrowserCommand(value: unknown): BrowserCommand | undefined 
   if ("sessionId" in value && (!string(value.sessionId, 256) || !value.sessionId)) return undefined;
   let valid = false;
   switch (value.type) {
+    case "history.list":
+      valid =
+        (value.query === undefined || string(value.query, 2048)) &&
+        (value.limit === undefined ||
+          (finite(value.limit, 1, 100) && Number.isInteger(value.limit)));
+      break;
     case "tabs.list":
       valid = string(value.projectId, 1024) && value.projectId.length > 0;
       break;
@@ -392,7 +409,6 @@ export function parseBrowserCommand(value: unknown): BrowserCommand | undefined 
             typeof value.visible === "boolean" &&
             (value.deviceScaleFactor === undefined || finite(value.deviceScaleFactor, 1, 3)) &&
             (value.zoom === undefined || finite(value.zoom, 0.25, 3)) &&
-            (value.fitToWidth === undefined || typeof value.fitToWidth === "boolean") &&
             (value.device === undefined || value.device === null || device(value.device));
           break;
         case "input":

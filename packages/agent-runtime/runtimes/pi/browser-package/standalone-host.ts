@@ -140,7 +140,7 @@ export function createBrowserHostResolver(pi: ExtensionAPI) {
       sessionId,
       context,
       host: {
-        async command(command, signal) {
+        async command(command, signal, controlSignal) {
           lifetime.signal.throwIfAborted();
           active = {
             context: instance.context,
@@ -150,7 +150,7 @@ export function createBrowserHostResolver(pi: ExtensionAPI) {
               ),
             ),
           };
-          return manager.handle(command, { source: "agent", signal: active.signal });
+          return manager.handle(command, { source: "agent", signal: active.signal, controlSignal });
         },
       } satisfies BrowserHost,
       dispose() {

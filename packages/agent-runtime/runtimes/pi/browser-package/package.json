@@ -17,10 +17,8 @@
     "./resources": "./resources.ts"
   },
   "publishConfig": {
-    "exports": {
-      ".": "./dist/index.js",
-      "./resources": "./dist/resources.js"
-    }
+    "directory": "dist",
+    "linkDirectory": false
   },
   "scripts": {
     "build": "node build.mjs",
@@ -45,7 +43,7 @@
   },
   "pi": {
     "extensions": [
-      "./dist/index.js"
+      "./index.ts"
     ],
     "skills": [
       "./skills"

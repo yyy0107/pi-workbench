@@ -72,7 +72,7 @@ const permission = (requestId: string): BrowserEvent => ({
   requestId,
   sessionId: "tab",
   origin: "https://example.test",
-  action: "navigate",
+  action: "history",
 });
 const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
 
@@ -90,11 +90,18 @@ test("the resolver is lazy, reuses the Workbench host, and disposes only isolate
   assert.equal(current.subscribe.mock.callCount(), 1);
   const handle = t.mock.method(BrowserManager.prototype, "handle", async () => []);
   const controller = new AbortController();
-  await host.command({ type: "tabs.list", projectId: current.directory }, controller.signal);
+  const control = new AbortController();
+  await host.command(
+    { type: "tabs.list", projectId: current.directory },
+    controller.signal,
+    control.signal,
+  );
   const [command, options] = handle.mock.calls[0]!.arguments;
   assert.deepEqual(command, { type: "tabs.list", projectId: current.directory });
   assert.equal(options?.source, "agent");
-  assert.equal(options?.signal?.aborted, false);
+  assert.equal(options?.controlSignal, control.signal);
+  control.abort();
+  assert.equal(options?.signal?.aborted, false, "ending control does not cancel a page command");
   controller.abort();
   assert.equal(options?.signal?.aborted, true);
   const session = current.messages[0] as { stateDirectory: string };

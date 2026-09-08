@@ -3,7 +3,7 @@ import test from "node:test";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { validateToolArguments } from "@earendil-works/pi-ai";
 import type { BrowserCommand } from "@workbench/browser-contracts";
-import { browserExtension } from "../../src/internal-extensions/browser";
+import browserExtension, { createBrowserExtension } from "@workbench/pi-browser";
 import {
   bindPiAgentHostBindings,
   getPiAgentHostBindings,
@@ -50,6 +50,7 @@ test("browser tool scopes tabs, projects snapshots, validates actions, and forwa
   });
   try {
     await browserExtension({
+      on() {},
       registerTool(definition: ToolDefinition) {
         tool = definition;
       },
@@ -197,16 +198,68 @@ test("browser tool scopes tabs, projects snapshots, validates actions, and forwa
   }
 });
 
-test("browser tool is not registered without an installed host browser", async () => {
-  const previous = getPiAgentHostBindings();
-  bindPiAgentHostBindings({});
-  try {
-    await browserExtension({
-      registerTool() {
-        assert.fail("an unavailable browser must not be advertised to the model");
-      },
-    } as never);
-  } finally {
-    bindPiAgentHostBindings(previous);
-  }
+test("browser control spans tool calls and continuations, then ends at cancellation, settlement, or reload", async () => {
+  let tool!: ToolDefinition;
+  const handlers = new Map<string, () => void>();
+  const calls: Array<{ signal?: AbortSignal; controlSignal?: AbortSignal }> = [];
+  const extension = createBrowserExtension(() => ({
+    async command(_command, signal, controlSignal) {
+      calls.push({ signal, controlSignal });
+    },
+  }));
+  const api = {
+    on(event: string, handler: () => void) {
+      handlers.set(event, handler);
+    },
+    registerTool(definition: ToolDefinition) {
+      tool = definition;
+    },
+  } as never;
+  await extension(api);
+  const command = new AbortController();
+  const context = {
+    cwd: "/workspace",
+    sessionManager: { getSessionId: () => "conversation" },
+  };
+  const execute = (ctx: typeof context & { signal?: AbortSignal } = context) =>
+    tool.execute("snapshot", { action: "snapshot" }, command.signal, undefined, ctx as never);
+  handlers.get("agent_settled")!();
+  await execute();
+  await execute();
+  const first = calls[0]!.controlSignal!;
+  assert.ok(first instanceof AbortSignal);
+  assert.equal(calls[1]?.controlSignal, first, "consecutive tools keep the same control lifetime");
+  assert.equal(calls[0]?.signal, command.signal);
+  assert.notEqual(first, command.signal);
+  assert.equal(handlers.has("agent_end"), false, "automatic continuations retain control");
+  assert.equal(first.aborted, false);
+  handlers.get("agent_settled")!();
+  assert.equal(first.aborted, true);
+  assert.equal(command.signal.aborted, false, "settlement does not cancel page commands");
+
+  const run = new AbortController();
+  await execute({ ...context, signal: run.signal });
+  const nextRun = calls.at(-1)!.controlSignal!;
+  assert.notEqual(nextRun, first);
+  assert.equal(nextRun.aborted, false);
+  run.abort();
+  assert.equal(nextRun.aborted, true, "canceling between tools ends presence immediately");
+  assert.equal(command.signal.aborted, false);
+  handlers.get("agent_settled")!();
+
+  await execute();
+  const beforeReload = calls.at(-1)!.controlSignal!;
+  handlers.get("session_shutdown")!();
+  handlers.get("session_shutdown")!();
+  assert.equal(beforeReload.aborted, true);
+  assert.equal(command.signal.aborted, false);
+  await extension(api);
+  await execute();
+  const afterReload = calls.at(-1)!.controlSignal!;
+  assert.notEqual(afterReload, beforeReload);
+  assert.equal(afterReload.aborted, false);
+  command.abort();
+  assert.equal(afterReload.aborted, false, "a per-tool abort does not own run presence");
+  handlers.get("session_shutdown")!();
+  assert.equal(afterReload.aborted, true);
 });

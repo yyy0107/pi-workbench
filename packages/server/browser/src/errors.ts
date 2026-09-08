@@ -17,16 +17,15 @@ const messages: Record<BrowserErrorCode, string> = {
   "browser-permission-denied": "The browser operation is not permitted by browser settings.",
   "browser-page-loading": "The page is still loading. Request a new snapshot before interacting.",
   "browser-element-stale": "This element reference is no longer valid. Request a new snapshot.",
-  "browser-element-not-interactable":
-    "The element is hidden, disabled, covered, or not editable. Request a new snapshot before trying another action.",
+  "browser-element-not-interactable": "The requested element cannot be interacted with.",
   "browser-operation-failed": "The browser operation could not be completed.",
   "browser-file-too-large": "The browser file exceeds the supported size.",
 };
 
 export class BrowserError extends Error {
   readonly code: BrowserErrorCode;
-  constructor(code: BrowserErrorCode) {
-    super(messages[code]);
+  constructor(code: BrowserErrorCode, detail?: string) {
+    super(detail ? `${messages[code]} ${detail.slice(0, 2048)}` : messages[code]);
     this.code = code;
     this.name = "BrowserError";
   }

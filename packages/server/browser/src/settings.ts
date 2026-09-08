@@ -26,7 +26,30 @@ export class BrowserSettingsStore {
   private async load(): Promise<BrowserSettings> {
     try {
       const content = await readFile(this.stateFile, "utf8");
-      const patch = parseBrowserSettingsPatch(JSON.parse(content));
+      const stored: unknown = JSON.parse(content);
+      // Only legacy profiles may discard retired options; updates remain strict.
+      if (stored && typeof stored === "object" && !Array.isArray(stored)) {
+        const legacy = stored as Record<string, unknown>;
+        if (typeof legacy.fitToWidth === "boolean") delete legacy.fitToWidth;
+        const permissionSets = [
+          legacy.permissions,
+          ...(Array.isArray(legacy.sites)
+            ? legacy.sites.map((site) =>
+                site && typeof site === "object" ? site.permissions : undefined,
+              )
+            : []),
+        ];
+        for (const permissions of permissionSets) {
+          if (
+            permissions &&
+            typeof permissions === "object" &&
+            !Array.isArray(permissions) &&
+            ["allow", "ask", "deny"].includes(permissions.navigate)
+          )
+            delete permissions.navigate;
+        }
+      }
+      const patch = parseBrowserSettingsPatch(stored);
       if (!patch) throw new BrowserError("browser-invalid");
       return this.merge(structuredClone(DEFAULT_BROWSER_SETTINGS), patch);
     } catch (error) {
@@ -61,10 +84,11 @@ export class BrowserSettingsStore {
   }
 
   update(value: Partial<BrowserSettings>): Promise<BrowserSettings> {
-    const patch = parseBrowserSettingsPatch(value);
-    if (!patch) return Promise.reject(new BrowserError("browser-invalid"));
     const operation = this.writing.then(async () => {
-      const next = this.merge(await this.settings, structuredClone(patch));
+      const current = await this.settings;
+      const patch = parseBrowserSettingsPatch(value);
+      if (!patch) throw new BrowserError("browser-invalid");
+      const next = this.merge(current, structuredClone(patch));
       await atomicReplaceFile(this.stateFile, `${JSON.stringify(next, null, 2)}\n`, {
         directoryMode: 0o700,
         enforceFileModeAfterReplace: true,

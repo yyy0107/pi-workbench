@@ -189,7 +189,8 @@ function createInstalledPiAgentHostBindings(
   const settings = createInstalledWorkbenchSettingsService();
   return {
     browser: {
-      command: (command, signal) => browser.handle(command, { source: "agent", signal }),
+      command: (command, signal, controlSignal) =>
+        browser.handle(command, { source: "agent", signal, controlSignal }),
       resolveProjectId: async (cwd) => (await resolvePiWorkspaceId(cwd)) ?? cwd,
     },
     workbenchSettings: createInstalledWorkbenchSettingsAgentAccess(),

@@ -40,7 +40,6 @@ type SettingsKey =
   keyof typeof import("../../../i18n/extensions/en-US").extensionsEnUS.workspaceBrowser.settings;
 type PlainSettingsKey = Exclude<SettingsKey, "importSuccess" | "editSiteFor" | "removeSiteFor">;
 const PERMISSIONS = [
-  "navigate",
   "history",
   "download",
   "upload",
@@ -189,9 +188,7 @@ export function BrowserSettingsItem() {
     text(permission === "history" ? "historyPermission" : permission);
   const permissionDescription = (permission: BrowserPermission) =>
     text(permission === "history" ? "historyPermissionDescription" : `${permission}Description`);
-  const toggle = (
-    key: "showFullUrl" | "fitToWidth" | "askDownloadLocation" | "siteTools" | "fullCdpAccess",
-  ) => (
+  const toggle = (key: "showFullUrl" | "askDownloadLocation" | "siteTools" | "fullCdpAccess") => (
     <Switch
       aria-label={text(key)}
       aria-describedby={`${id}-${key}-description`}
@@ -201,7 +198,7 @@ export function BrowserSettingsItem() {
     />
   );
   const description = (
-    key: "showFullUrl" | "fitToWidth" | "askDownloadLocation" | "siteTools" | "fullCdpAccess",
+    key: "showFullUrl" | "askDownloadLocation" | "siteTools" | "fullCdpAccess",
   ) => <span id={`${id}-${key}-description`}>{text(`${key}Description`)}</span>;
   const group = (key: PlainSettingsKey, children: ReactNode, descriptionText?: string) => (
     <SettingsGroup
@@ -341,11 +338,9 @@ export function BrowserSettingsItem() {
               />
             </Row>
           ))}
-          {(["showFullUrl", "fitToWidth"] as const).map((key) => (
-            <Row key={key} label={text(key)} description={description(key)}>
-              {toggle(key)}
-            </Row>
-          ))}
+          <Row label={text("showFullUrl")} description={description("showFullUrl")}>
+            {toggle("showFullUrl")}
+          </Row>
           <Row label={text("defaultZoom")} description={text("defaultZoomDescription")}>
             <Choice
               label={text("defaultZoom")}

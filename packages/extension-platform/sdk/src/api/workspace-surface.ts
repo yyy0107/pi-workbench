@@ -101,6 +101,8 @@ export interface WorkspaceSurfaceDefinition<
   getDefaultScope?(params: P, context: WorkspaceContext): WorkspaceScope;
   /** Optional active-primary chrome rendered by the core host above every workspace pane. */
   header?: WorkspaceSurfaceRenderer<P>;
+  /** Optional non-interactive tab indicator; the feature owns its live state and accessible label. */
+  tabIndicator?: WorkspaceSurfaceRenderer<P>;
   /** Renderer component. Use createLazyWorkspaceSurface() for retryable code splitting. */
   render: WorkspaceSurfaceRenderer<P>;
   /** Optional feature-owned entry rendered in the core add-surface menu. */

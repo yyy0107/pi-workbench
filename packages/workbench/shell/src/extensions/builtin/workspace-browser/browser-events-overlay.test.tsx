@@ -230,7 +230,7 @@ test("browser overlay waits for explicit responses, routes confirmed links, and 
       requestId: "permission",
       sessionId: "session",
       origin: "https://example.test",
-      action: "navigate",
+      action: "download",
     } as const;
     await act(async () => {
       browser.emit(permission);
@@ -296,6 +296,19 @@ test("browser overlay waits for explicit responses, routes confirmed links, and 
       requestId: "upload",
       files: [{ name: "input.txt", mimeType: "text/plain", data: "YWJj" }],
     });
+
+    await act(async () => browser.emit({ ...permission, requestId: "once" }));
+    await submit();
+    assert.deepEqual(commands.at(-1), {
+      type: "permission.respond",
+      requestId: "once",
+      allow: true,
+    });
+
+    await act(async () =>
+      browser.emit({ ...permission, requestId: "internal", action: "history", origin: "null" }),
+    );
+    await click(promptTree, "Deny");
 
     await act(async () => browser.emit({ ...permission, requestId: "expired" }));
     await submit();

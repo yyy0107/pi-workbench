@@ -145,9 +145,11 @@ test("browser settings persist choices and website overrides, reuse management t
       await updateSettings(patch);
     };
     await act(async () => {
-      (toggle("Fit pages to workspace width").props.onCheckedChange as (checked: boolean) => void)(
-        false,
-      );
+      (
+        toggle("Ask where to save each download").props.onCheckedChange as (
+          checked: boolean,
+        ) => void
+      )(true);
     });
     assert.equal(tree.props["aria-busy"], true);
     for (const control of elements(tree).filter(
@@ -161,19 +163,18 @@ test("browser settings persist choices and website overrides, reuse management t
     await act(async () => {
       (toggle("Show full URL").props.onCheckedChange as (checked: boolean) => void)(true);
       (toggle("Show full URL").props.onCheckedChange as (checked: boolean) => void)(false);
-      (choice("Approvals", "ask").props.onChange as (value: string) => void)("deny");
+      (choice("Downloads", "ask").props.onChange as (value: string) => void)("deny");
       (choice("History access", "ask").props.onChange as (value: string) => void)("allow");
     });
     assert.equal(patches.length, 1, "save requests must wait for the preceding request");
     await act(async () => finishSave());
     assert.equal(patches.length, 5, "continuous changes must all be saved");
     assert.equal(tree.props["aria-busy"], false);
-    assert.equal(browser.getSettings().fitToWidth, false);
+    assert.equal(browser.getSettings().askDownloadLocation, true);
     assert.equal(browser.getSettings().showFullUrl, false);
     assert.deepEqual(browser.getSettings().permissions, {
-      navigate: "deny",
       history: "allow",
-      download: "ask",
+      download: "deny",
       upload: "ask",
     });
     browser.updateSettings = updateSettings;

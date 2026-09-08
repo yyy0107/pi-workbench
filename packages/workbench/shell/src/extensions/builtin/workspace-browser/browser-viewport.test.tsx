@@ -89,8 +89,24 @@ test("browser viewport requests sharp frames and updates density without changin
     }
   }
   const browser = new Browser();
+  browser.attach({
+    id: "tab",
+    projectId: "project",
+    url: "https://example.test/",
+    title: "Example",
+    status: "ready",
+    canGoBack: false,
+    canGoForward: false,
+    agentControlled: true,
+  });
   const attributes = new Set<string>();
   const element = {
+    get clientWidth() {
+      return bounds.width;
+    },
+    get clientHeight() {
+      return bounds.height;
+    },
     getBoundingClientRect: () => bounds,
     closest: () => ({ getAttribute: () => (dragging ? "true" : null) }),
     addEventListener() {},
@@ -104,6 +120,7 @@ test("browser viewport requests sharp frames and updates density without changin
     },
   };
   const picture = { src: "" };
+  const cursor = { hidden: true, style: { transform: "" } };
   const root = createRoot(dom.container);
   let tree!: ReturnType<typeof BrowserViewport>;
   function Probe() {
@@ -112,7 +129,6 @@ test("browser viewport requests sharp frames and updates density without changin
       sessionId: "tab",
       isVisible: true,
       zoom: 1,
-      fitToWidth: true,
       onError: (error) => assert.fail(String(error)),
       onFind() {},
     });
@@ -122,6 +138,7 @@ test("browser viewport requests sharp frames and updates density without changin
       focus: () => tree.props.children[1].props.onFocus(),
       blur: () => tree.props.children[1].props.onBlur(),
     };
+    tree.props.children[2].props.ref.current = cursor;
     return null;
   }
   const flushResize = () =>
@@ -149,7 +166,6 @@ test("browser viewport requests sharp frames and updates density without changin
       visible: true,
       deviceScaleFactor: 2,
       zoom: 1,
-      fitToWidth: true,
       device: null,
     });
     window.devicePixelRatio = 3;
@@ -175,6 +191,15 @@ test("browser viewport requests sharp frames and updates density without changin
     paints.get(paintId)!(0);
     paints.delete(paintId);
     assert.equal(picture.src, "data:image/png;base64,frame");
+    assert.equal(cursor.hidden, true, "a controlled tab has no invented initial mouse position");
+    frameListener?.({ type: "cursor", sessionId: "tab", cursor: { x: 80, y: 60 } });
+    frameListener?.({ type: "cursor", sessionId: "tab", cursor: { x: 120, y: 100 } });
+    frameListener?.({ type: "cursor", sessionId: "other", cursor: { x: 1, y: 1 } });
+    assert.equal(paints.size, 1, "cursor updates share the frame paint and coalesce to the latest");
+    paints.get(paintId)!(0);
+    paints.delete(paintId);
+    assert.equal(cursor.hidden, false);
+    assert.equal(cursor.style.transform, "translate(120px, 100px)", "DPR does not scale input");
     tree.props.children[1].props.onFocus();
     assert.ok(attributes.has("data-focus-visible"), "keyboard entry keeps a visible focus cue");
     tree.props.onPointerDown({
@@ -208,6 +233,13 @@ test("browser viewport requests sharp frames and updates density without changin
     dragChanged();
     bounds.width = 640;
     resize();
+    paints.get(paintId)!(0);
+    paints.delete(paintId);
+    assert.equal(
+      cursor.style.transform,
+      "translate(140px, 100px)",
+      "local drag letterboxing updates the cursor without changing the remote viewport",
+    );
     await flushResize();
     bounds.width = 680;
     resize();
@@ -218,6 +250,29 @@ test("browser viewport requests sharp frames and updates density without changin
     await flushResize();
     assert.equal(viewportCount(), beforeDrag + 1, "release applies only the final preview width");
     assert.equal((commands.at(-1) as Extract<BrowserCommand, { type: "viewport" }>).width, 680);
+    frameListener?.({ ...visibleFrame, width: 400, height: 800 });
+    frameListener?.({ type: "cursor", sessionId: "tab", cursor: { x: 120, y: 100 } });
+    paints.get(paintId)!(0);
+    paints.delete(paintId);
+    assert.equal(cursor.style.transform, "translate(300px, 50px)", "device preview scales once");
+    frameListener?.({ type: "cursor", sessionId: "tab", cursor: null });
+    paints.get(paintId)!(0);
+    paints.delete(paintId);
+    assert.equal(
+      cursor.hidden,
+      true,
+      "navigation can clear a stale pointer without ending control",
+    );
+    frameListener?.({ type: "cursor", sessionId: "tab", cursor: { x: 120, y: 100 } });
+    paints.get(paintId)!(0);
+    paints.delete(paintId);
+    assert.equal(cursor.hidden, false);
+    await act(async () => {
+      browser.attach({ ...browser.getSession("tab")!, agentControlled: false });
+    });
+    paints.get(paintId)!(0);
+    paints.delete(paintId);
+    assert.equal(cursor.hidden, true, "ending control or disconnecting hides the pointer");
     frameListener?.(visibleFrame);
     assert.equal(paints.size, 1);
   } finally {
@@ -303,7 +358,6 @@ test("browser keyboard pairs shortcut releases, forwards physical keys, and comm
       sessionId: "tab",
       isVisible: true,
       zoom: 1,
-      fitToWidth: true,
       onError: (error) => assert.fail(String(error)),
       onFind: () => finds++,
     });

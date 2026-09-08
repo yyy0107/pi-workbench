@@ -7,6 +7,7 @@ import {
   DEFAULT_BROWSER_SETTINGS,
   parseBrowserSettingsPatch,
   type BrowserCommand,
+  type BrowserCursor,
   type BrowserEvent,
   type BrowserFile,
   type BrowserServerFrame,
@@ -28,6 +29,14 @@ function text(value: unknown): value is string {
 function number(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
+function validCursor(value: unknown): value is BrowserCursor {
+  return (
+    record(value) &&
+    number(value.x) &&
+    number(value.y) &&
+    (value.pressed === undefined || typeof value.pressed === "boolean")
+  );
+}
 function validSettings(value: unknown): value is BrowserSettings {
   const permissions = record(value) ? value.permissions : undefined;
   return (
@@ -43,11 +52,13 @@ function validSession(value: unknown): value is BrowserSessionState {
     record(value) &&
     ["id", "projectId", "url", "title"].every((key) => text(value[key])) &&
     ["revision", "zoom", "width", "height"].every((key) => number(value[key])) &&
-    ["canGoBack", "canGoForward", "fitToWidth"].every((key) => typeof value[key] === "boolean") &&
+    ["canGoBack", "canGoForward"].every((key) => typeof value[key] === "boolean") &&
     ["loading", "ready", "error", "disconnected", "permission-required"].includes(
       String(value.status),
     ) &&
     (value.error === undefined || text(value.error)) &&
+    (value.agentControlled === undefined || typeof value.agentControlled === "boolean") &&
+    (value.agentCursor === undefined || validCursor(value.agentCursor)) &&
     (value.device === undefined ||
       (record(value.device) &&
         number(value.device.width) &&
@@ -87,12 +98,15 @@ function serverFrame(value: unknown): BrowserServerFrame | undefined {
           value.mimeType === "image/jpeg" ||
           value.mimeType === "image/png");
       break;
+    case "cursor":
+      valid = text(value.sessionId) && (value.cursor === null || validCursor(value.cursor));
+      break;
     case "permission":
       valid =
         text(value.requestId) &&
         text(value.sessionId) &&
         text(value.origin) &&
-        ["navigate", "history", "download", "upload"].includes(String(value.action));
+        ["history", "download", "upload"].includes(String(value.action));
       break;
     case "file-chooser":
       valid = text(value.sessionId) && text(value.requestId) && typeof value.multiple === "boolean";
@@ -190,7 +204,13 @@ export class RemoteBrowserSessionService extends MemoryBrowserSessionService {
         this.#pending.clear();
         for (const id of this.#sessionIds) {
           const session = this.getSession(id);
-          if (session) this.updateSession({ ...session, status: "disconnected" });
+          if (session)
+            this.updateSession({
+              ...session,
+              status: "disconnected",
+              agentControlled: false,
+              agentCursor: undefined,
+            });
         }
       };
       this.#disconnect = disconnect;
@@ -235,6 +255,13 @@ export class RemoteBrowserSessionService extends MemoryBrowserSessionService {
           this.settings = frame.settings;
           this.publish();
         }
+        if (frame.type === "cursor") {
+          const session = this.getSession(frame.sessionId);
+          if (session?.agentControlled) {
+            // Cursor frames repaint the viewport without invalidating the whole browser UI.
+            this.updateSession({ ...session, agentCursor: frame.cursor ?? undefined }, false);
+          }
+        }
         for (const listener of this.#events) listener(frame as BrowserEvent);
       };
       socket.onerror = () => disconnect("connection_failed");
@@ -254,7 +281,10 @@ export class RemoteBrowserSessionService extends MemoryBrowserSessionService {
           throw new BrowserConnectionError("browser-invalid");
         if (!this.#disposed) {
           this.#sessionIds.add(state.id);
-          this.updateSession(state);
+          const current = this.getSession(state.id);
+          // Stream updates can release control before an earlier attach reply arrives.
+          if (!current || current.status === "disconnected" || current.revision <= state.revision)
+            this.updateSession(state);
         }
         return state;
       });

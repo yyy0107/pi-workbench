@@ -644,6 +644,7 @@ export function WorkspaceTabs() {
           >
             {surfaces.map((surface, surfaceIndex) => {
               const Icon = definitionByKind.get(surface.kind)?.icon ?? PanelsTopLeftIcon;
+              const TabIndicator = definitionByKind.get(surface.kind)?.tabIndicator;
               const active = surface.id === activeSurfaceId;
               const canCloseToRight = surfaceIndex < surfaces.length - 1;
               const canCloseOthers = surfaces.length > 1;
@@ -733,6 +734,13 @@ export function WorkspaceTabs() {
                       <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-start [mask-image:linear-gradient(to_right,#000_calc(100%_-_0.75rem),transparent)]">
                         {title}
                       </span>
+                      {TabIndicator ? (
+                        <TabIndicator
+                          surface={surface}
+                          context={context}
+                          isVisible={active && workspaceState.open}
+                        />
+                      ) : null}
                       {surface.dirty ? (
                         <span
                           className="bg-foreground size-1.5 shrink-0 rounded-full"

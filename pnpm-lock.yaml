@@ -494,6 +494,7 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
+    publishDirectory: dist
 
   packages/agent-runtime/runtimes/pi/client:
     dependencies:

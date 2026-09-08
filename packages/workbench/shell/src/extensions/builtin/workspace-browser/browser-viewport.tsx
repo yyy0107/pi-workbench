@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { MousePointer2Icon } from "lucide-react";
 import type { BrowserDevice, BrowserEvent, BrowserInput } from "@workbench/browser-contracts";
 import type { BrowserSessionService } from "./browser-session-service";
 import { useI18n } from "../../../i18n";
@@ -107,7 +108,6 @@ export function BrowserViewport({
   sessionId,
   isVisible,
   zoom,
-  fitToWidth,
   device,
   onError,
   onFind,
@@ -116,7 +116,6 @@ export function BrowserViewport({
   sessionId: string;
   isVisible: boolean;
   zoom: number;
-  fitToWidth: boolean;
   device?: BrowserDevice;
   onError(error: unknown): void;
   onFind(): void;
@@ -125,6 +124,8 @@ export function BrowserViewport({
   const container = useRef<HTMLDivElement>(null);
   const picture = useRef<HTMLImageElement>(null);
   const keyboard = useRef<HTMLTextAreaElement>(null);
+  const cursor = useRef<HTMLDivElement>(null);
+  const repaint = useRef(() => {});
   const frame = useRef({ width: 1, height: 1 });
   const composing = useRef(false);
   const committedComposition = useRef<string | undefined>(undefined);
@@ -168,23 +169,63 @@ export function BrowserViewport({
   useEffect(() => {
     let paint: number | undefined;
     let latest: Extract<BrowserEvent, { type: "frame" }> | undefined;
-    const unsubscribe = browser.subscribeEvents((event) => {
-      if (event.type !== "frame" || event.sessionId !== sessionId) return;
-      latest = event;
-      if (paint !== undefined) return;
+    let controlled = browser.getSession(sessionId)?.agentControlled;
+    let position = browser.getSession(sessionId)?.agentCursor;
+    const schedule = () => {
+      if (paint !== undefined || !picture.current) return;
       paint = requestAnimationFrame(() => {
         paint = undefined;
-        if (!latest || !picture.current) return;
-        frame.current = { width: latest.width, height: latest.height };
-        picture.current.src = `data:${latest.mimeType ?? "image/jpeg"};base64,${latest.data}`;
-        latest = undefined;
+        if (latest && picture.current) {
+          frame.current = { width: latest.width, height: latest.height };
+          picture.current.src = `data:${latest.mimeType ?? "image/jpeg"};base64,${latest.data}`;
+          latest = undefined;
+        }
+        const element = container.current;
+        const pointer = cursor.current;
+        if (!pointer || !element) return;
+        pointer.hidden =
+          !isVisible ||
+          !controlled ||
+          !position ||
+          !picture.current?.src ||
+          position.x < 0 ||
+          position.y < 0 ||
+          position.x > frame.current.width ||
+          position.y > frame.current.height;
+        if (pointer.hidden || !position) return;
+        // Use local CSS dimensions; ancestor transforms and bitmap density apply independently.
+        const { clientWidth: width, clientHeight: height } = element;
+        const scale = Math.min(width / frame.current.width, height / frame.current.height);
+        const x = (width - frame.current.width * scale) / 2 + position.x * scale;
+        const y = (height - frame.current.height * scale) / 2 + position.y * scale;
+        pointer.style.transform = `translate(${x}px, ${y}px)`;
       });
+    };
+    repaint.current = schedule;
+    const unsubscribe = browser.subscribeEvents((event) => {
+      if (event.type === "state" && event.session.id === sessionId) {
+        controlled = event.session.agentControlled;
+        position = event.session.agentCursor;
+      } else if ("sessionId" in event && event.sessionId === sessionId) {
+        if (event.type === "frame") latest = event;
+        else if (event.type === "cursor") position = event.cursor ?? undefined;
+        else return;
+      } else return;
+      schedule();
     });
+    const unsubscribeSession = browser.subscribe(() => {
+      controlled = browser.getSession(sessionId)?.agentControlled;
+      position = browser.getSession(sessionId)?.agentCursor;
+      schedule();
+    });
+    schedule();
     return () => {
       unsubscribe();
+      unsubscribeSession();
+      repaint.current = () => {};
       if (paint !== undefined) cancelAnimationFrame(paint);
     };
-  }, [browser, sessionId]);
+  }, [browser, sessionId, isVisible]);
 
   useEffect(() => {
     const element = container.current;
@@ -192,6 +233,7 @@ export function BrowserViewport({
     const workspace = element.closest('[data-workbench-surface="right-workspace"]');
     let timer: ReturnType<typeof setTimeout> | undefined;
     const resize = () => {
+      repaint.current();
       if (timer) clearTimeout(timer);
       // The workspace previews drag geometry locally; apply the remote layout after release.
       if (workspace?.getAttribute("data-resizing") === "true") return;
@@ -210,7 +252,6 @@ export function BrowserViewport({
             visible: true,
             deviceScaleFactor: Math.max(2, Math.min(3, window.devicePixelRatio || 1)),
             zoom,
-            fitToWidth,
             device: device ?? null,
           })
           .catch((error: unknown) => errorHandler.current(error));
@@ -235,16 +276,7 @@ export function BrowserViewport({
       dragObserver.disconnect();
       resolution.removeEventListener("change", densityChanged);
     };
-  }, [
-    browser,
-    sessionId,
-    isVisible,
-    zoom,
-    fitToWidth,
-    device?.width,
-    device?.height,
-    device?.mobile,
-  ]);
+  }, [browser, sessionId, isVisible, zoom, device?.width, device?.height, device?.mobile]);
 
   useEffect(() => {
     const hide = () => {
@@ -447,6 +479,18 @@ export function BrowserViewport({
           input({ ...key, type: "keyUp", text: undefined, modifiers: modifiers(event) });
         }}
       />
+      <div
+        ref={cursor}
+        hidden
+        aria-hidden="true"
+        data-browser-agent-cursor=""
+        className="pointer-events-none absolute top-0 left-0 size-0"
+      >
+        <MousePointer2Icon
+          className="size-[var(--icon-size-lg)] fill-primary text-primary-foreground drop-shadow-sm"
+          style={{ transform: "translate(-16.6667%, -16.6667%)" }}
+        />
+      </div>
     </div>
   );
 }
