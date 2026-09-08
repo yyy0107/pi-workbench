@@ -113,6 +113,16 @@ export interface ToolPresentationDefinition {
   readonly activeLabel: LocalizableText;
   readonly getActiveLabel?: (block: ToolCallBlock) => LocalizableText | undefined;
   readonly icon: LucideIcon;
+  /** Resolve once per call using its owning message; undefined retains this presentation. */
+  readonly resolve?: (
+    block: ToolCallBlock,
+    node?: MessageBlockNode,
+  ) => ToolPresentationDefinition | undefined;
+  /** Override the generic failed/cancelled label for a resolved presentation. */
+  readonly terminalLabel?: LocalizableText;
+  /** Omit elapsed time and the success marker while retaining disclosure and error states. */
+  readonly compact?: boolean;
+  /** An empty string intentionally hides the argument summary. */
   readonly summarize?: (block: ToolCallBlock) => LocalizableText | undefined;
   readonly disclosureController?: ToolPresentationDisclosureController;
 }

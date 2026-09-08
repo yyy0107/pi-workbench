@@ -1443,6 +1443,8 @@ export interface SessionContextTracePromptResources {
   contextFiles: string[];
   skills: Array<{
     name: string;
+    /** Catalog identity used to associate read tool calls with this skill. */
+    filePath?: string;
     disableModelInvocation: boolean;
   }>;
   extensions: Array<{

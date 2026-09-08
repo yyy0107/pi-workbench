@@ -2,6 +2,26 @@ import type { MessageFormatters } from "@workbench/shell/i18n";
 
 export const piExtensionsEnUS = {
   extensions: {
+    skillReading: {
+      document: {
+        loading: ({ name }: { name: string }) => `Reading ${name} skill`,
+        read: ({ name }: { name: string }) => `Read ${name} skill`,
+        partial: ({ name }: { name: string }) => `Partially read ${name} skill`,
+        empty: ({ name }: { name: string }) => `No content returned for ${name} skill`,
+        error: ({ name }: { name: string }) => `Could not read ${name} skill`,
+        cancelled: ({ name }: { name: string }) => `Reading ${name} skill was cancelled`,
+        waiting: ({ name }: { name: string }) => `Waiting to read ${name} skill`,
+      },
+      resource: {
+        loading: ({ name }: { name: string }) => `Reading ${name} skill resources`,
+        read: ({ name }: { name: string }) => `Read ${name} skill resources`,
+        partial: ({ name }: { name: string }) => `Partially read ${name} skill resources`,
+        empty: ({ name }: { name: string }) => `No content returned for ${name} skill resources`,
+        error: ({ name }: { name: string }) => `Could not read ${name} skill resources`,
+        cancelled: ({ name }: { name: string }) => `Reading ${name} skill resources was cancelled`,
+        waiting: ({ name }: { name: string }) => `Waiting to read ${name} skill resources`,
+      },
+    },
     usageStatistics: {
       title: "Usage statistics",
       description: "Explore your token usage and conversation activity.",

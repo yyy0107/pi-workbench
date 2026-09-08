@@ -53,6 +53,7 @@ export function summarizeSessionContextTraceEvent(
             .filter((skill) => skill.disableModelInvocation !== true)
             .map((skill) => ({
               name: skill.name,
+              ...(skill.filePath ? { filePath: skill.filePath } : {}),
               disableModelInvocation: false,
             })),
           extensions: (detail.extensions ?? []).map((extension) => ({

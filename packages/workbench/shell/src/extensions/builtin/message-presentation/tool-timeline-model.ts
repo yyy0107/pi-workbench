@@ -7,6 +7,7 @@ import type {
 import type { LocalizableText } from "../../../i18n";
 import type {
   DataPresentationDefinition,
+  MessageBlockNode,
   ToolPresentationDefinition,
 } from "@workbench/extension-sdk";
 
@@ -123,6 +124,18 @@ export function activeToolPresentationLabel(
   }
 }
 
+function resolveToolPresentation(
+  block: ToolCallBlock,
+  presentation: ToolPresentationDefinition | undefined,
+  node?: MessageBlockNode,
+): ToolPresentationDefinition | undefined {
+  try {
+    return presentation?.resolve?.(block, node) ?? presentation;
+  } catch {
+    return presentation;
+  }
+}
+
 function normalize(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -211,7 +224,7 @@ function registeredToolChip(
 
   try {
     const summary = presentation.summarize(block);
-    if (typeof summary === "string") return summary.trim() ? compact(summary) : undefined;
+    if (typeof summary === "string") return compact(summary);
     return summary;
   } catch {
     // A presentation is optional chrome. Keep the message readable if an extension summary fails.
@@ -224,7 +237,7 @@ function toolChip(
   presentation?: ToolPresentationDefinition,
 ): LocalizableText {
   const registeredSummary = registeredToolChip(block, presentation);
-  if (registeredSummary) return registeredSummary;
+  if (registeredSummary !== undefined) return registeredSummary;
 
   const args = asRecord(block.arguments);
   const path = asString(args?.path) ?? asString(args?.file) ?? asString(args?.filePath);
@@ -262,6 +275,7 @@ function toolKind(toolName: string): ToolTimelineStepKind {
 export function timelineSteps(
   blocks: readonly TimelineSourceBlock[],
   presentations: Readonly<Record<string, ToolPresentationDefinition>> = {},
+  node?: MessageBlockNode,
 ): ToolTimelineStepModel[] {
   return blocks.map((block): ToolTimelineStepModel => {
     if (block.kind === "data") return { kind: "data" };
@@ -271,9 +285,10 @@ export function timelineSteps(
       return { kind: "thinking", chip };
     }
 
-    const presentation = Object.hasOwn(presentations, block.toolName)
+    const registered = Object.hasOwn(presentations, block.toolName)
       ? presentations[block.toolName]
       : undefined;
+    const presentation = resolveToolPresentation(block, registered, node);
     return {
       kind: toolKind(block.toolName),
       chip: toolChip(block, presentation),

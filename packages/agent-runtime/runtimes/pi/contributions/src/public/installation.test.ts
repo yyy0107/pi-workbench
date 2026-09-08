@@ -23,6 +23,7 @@ test("keeps Pi extension groups deeply frozen with their app-composition orderin
     "workbench.toolbox",
     "workbench.connection-status",
     "workbench.context-trace",
+    "workbench.skill-reading",
     "workbench.about",
   ]);
   assert.deepEqual(groupIds(piAgentRuntimeExtensions), [

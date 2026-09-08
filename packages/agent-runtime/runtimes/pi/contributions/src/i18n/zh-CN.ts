@@ -4,6 +4,26 @@ import { piExtensionsEnUS } from "./en-US";
 
 export const piExtensionsZhCN = {
   extensions: {
+    skillReading: {
+      document: {
+        loading: ({ name }: { name: string }) => `正在读取 ${name} 技能`,
+        read: ({ name }: { name: string }) => `已读取 ${name} 技能`,
+        partial: ({ name }: { name: string }) => `已部分读取 ${name} 技能`,
+        empty: ({ name }: { name: string }) => `未读到 ${name} 技能内容`,
+        error: ({ name }: { name: string }) => `${name} 技能读取失败`,
+        cancelled: ({ name }: { name: string }) => `已取消读取 ${name} 技能`,
+        waiting: ({ name }: { name: string }) => `等待读取 ${name} 技能`,
+      },
+      resource: {
+        loading: ({ name }: { name: string }) => `正在读取 ${name} 技能资料`,
+        read: ({ name }: { name: string }) => `已读取 ${name} 技能资料`,
+        partial: ({ name }: { name: string }) => `已部分读取 ${name} 技能资料`,
+        empty: ({ name }: { name: string }) => `未读到 ${name} 技能资料内容`,
+        error: ({ name }: { name: string }) => `${name} 技能资料读取失败`,
+        cancelled: ({ name }: { name: string }) => `已取消读取 ${name} 技能资料`,
+        waiting: ({ name }: { name: string }) => `等待读取 ${name} 技能资料`,
+      },
+    },
     usageStatistics: {
       title: "使用统计",
       description: "查看 Token 用量与聊天活动记录。",

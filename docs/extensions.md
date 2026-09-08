@@ -965,6 +965,18 @@ const weatherRenderer = context.renderers.tools.register("get_weather", WeatherR
 `requires-action` 和 `error`。执行、审批或恢复动作应调用所属 Runtime capability，不属于 Renderer
 展示契约。
 
+### 工具时间线标签
+
+`context.renderers.toolPresentations.register(toolName, presentation)` 定制原有工具行，展开后的结果仍由
+Tool Renderer 负责。`resolve(block, node?)` 可基于当前调用及所属消息返回该行的完整 presentation，
+例如将 `read` 路径与当轮技能目录关联并替换标签和图标。Host 只解析一次，不递归调用返回值的
+`resolve`；返回 `undefined` 或抛错时沿用注册值。回调必须是纯函数，兼容流式参数不完整和缺失上下文。
+
+`label` / `activeLabel` 分别控制静止与执行中文案；`getActiveLabel(block)` 可进一步按参数生成执行中标签。
+`terminalLabel` 可替换失败或取消时的默认文案；`compact: true` 隐藏耗时和成功标记，保留错误状态及展开交互。
+`summarize(block)` 生成参数摘要，空字符串表示隐藏摘要，`undefined` 或抛错则使用默认摘要。
+所有文案继续返回稳定的本地化描述符，由 Host 随当前语言解析。
+
 ### Data Renderer
 
 ```tsx

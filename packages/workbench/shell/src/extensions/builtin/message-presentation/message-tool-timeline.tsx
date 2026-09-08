@@ -247,7 +247,12 @@ function TimelineToolCall({
       ? t("extensions.messagePresentation.toolTimeline.activeSteps.creating")
       : activeLabel;
   const failedLabel = t("extensions.messagePresentation.toolTimeline.failed");
-  const terminalLabel = state.cancelled ? t("assistant.tool.cancelled") : failedLabel;
+  const terminalLabel =
+    presentation?.terminalLabel !== undefined
+      ? text(presentation.terminalLabel)
+      : state.cancelled
+        ? t("assistant.tool.cancelled")
+        : failedLabel;
   const fileDiff = useMemo(
     () =>
       block.status === "complete"
@@ -375,7 +380,7 @@ function TimelineToolCall({
       failed={state.failed}
       cancelled={state.cancelled}
       failedLabel={terminalLabel}
-      showCompletionIcon={!isFileMutation}
+      showCompletionIcon={!isFileMutation && !presentation?.compact}
       expandable={
         !isFileMutation ||
         Boolean(fileDiff) ||
@@ -398,7 +403,7 @@ function TimelineToolCall({
           : undefined
       }
       elapsed={
-        elapsedSeconds === undefined
+        presentation?.compact || elapsedSeconds === undefined
           ? undefined
           : t("extensions.messagePresentation.elapsed", {
               duration: formatCompactDuration(elapsedSeconds * 1_000, locale, {
@@ -516,8 +521,8 @@ export function MessageToolTimeline({
   }, [blocks, dataPresentations, indices]);
   const timelineBlocks = timeline.blocks;
   const stepModels = useMemo(
-    () => timelineSteps(timelineBlocks, toolPresentations),
-    [timelineBlocks, toolPresentations],
+    () => timelineSteps(timelineBlocks, toolPresentations, node),
+    [timelineBlocks, toolPresentations, node],
   );
   const entries = useMemo(
     () => timelineEntries(timelineBlocks, groupParallelTools, groups),
