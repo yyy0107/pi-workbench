@@ -40,11 +40,11 @@ test("restores project drafts across navigation and keeps them out of the catalo
     },
   });
   manager.start = async () => {};
-  const workspaces = ["a", "b"].map((id) => ({ id, name: id, rootPath: `/workspace/${id}` }));
+  const workspaces = ["a", "b", "c"].map((id) => ({ id, name: id, rootPath: `/workspace/${id}` }));
   for (const workspace of workspaces) {
     manager.acceptCreatedWorkspace({ ...workspace, cwd: workspace.rootPath });
   }
-  const render = (workspaceId: string | undefined, navigate: () => void) =>
+  const render = (workspaceId: string | undefined, navigate: () => void = () => {}) =>
     act(async () => {
       navigate();
       root.render(
@@ -81,14 +81,32 @@ test("restores project drafts across navigation and keeps them out of the catalo
     });
     const composerA = a.snapshot.getSnapshot().composer;
 
-    await openDraft("b");
+    // The Composer project selector changes only selection; it does not call createDraft.
+    await render("b");
     const b = activeSession();
     assert.notEqual(b, a);
     assert.equal(b.snapshot.getSnapshot().composer.text, "");
+    assert.deepEqual(b.snapshot.getSnapshot().composer.attachments, []);
     b.actions.setComposerText!("项目 B 的草稿");
     const composerB = b.snapshot.getSnapshot().composer;
 
+    await render("a");
+    assert.equal(activeSession(), a);
+    assert.equal(activeSession().snapshot.getSnapshot().composer, composerA);
+    await render(undefined);
+    assert.notEqual(activeSession(), a);
+    assert.equal(activeSession().snapshot.getSnapshot().composer.text, "");
+    assert.deepEqual(activeSession().snapshot.getSnapshot().composer.attachments, []);
+    await render("c");
+    assert.equal(activeSession().snapshot.getSnapshot().composer.text, "");
+    assert.deepEqual(activeSession().snapshot.getSnapshot().composer.attachments, []);
+    await render("b");
+    assert.equal(activeSession(), b);
+    assert.equal(activeSession().snapshot.getSnapshot().composer, composerB);
+
     manager.getSession("existing", "existing");
+    // Sidebar navigation clears draft selection before the route switches the runtime session.
+    await render(undefined);
     await render(undefined, () => manager.switchToThread("existing"));
     assert.equal(manager.session(a.id), a);
     assert.equal(manager.getThreadStateSnapshot(a.id).metadata.workspace?.id, "a");
@@ -115,7 +133,9 @@ test("restores project drafts across navigation and keeps them out of the catalo
 
     await openDraft("a");
     const promotion = manager.ensureRemote(a);
-    await openDraft("b");
+    await render(undefined);
+    assert.equal(manager.getThreadStateSnapshot(a.id).metadata.workspace?.id, "a");
+    await render("b");
     await act(async () => {
       releaseCreate();
       await promotion;

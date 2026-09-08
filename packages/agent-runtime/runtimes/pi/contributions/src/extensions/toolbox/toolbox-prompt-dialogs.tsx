@@ -3,7 +3,10 @@
 import { useId, useRef, useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
 import { useAgentRuntime, useCurrentSession, useThreadList } from "@workbench/agent-runtime-client";
-import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
+import {
+  useWorkspaceCapabilities,
+  useWorkspaceSelection,
+} from "@workbench/agent-runtime-client/workspaces";
 import { PiApiError } from "@workbench/agent-runtime-pi-client/errors";
 import { usePiResourceClient } from "@workbench/agent-runtime-pi-client/resources";
 import type {
@@ -245,6 +248,7 @@ export function PromptUseDialog({
   const current = useCurrentSession();
   const { threads } = useThreadList();
   const { workspaces, draftWorkspace } = useWorkspaceSelection();
+  const { beginNewThread } = useWorkspaceCapabilities();
   const mainViews = useMainViewService();
   const navigation = useWorkbenchNavigation();
   const id = useId();
@@ -295,6 +299,7 @@ export function PromptUseDialog({
       });
       if (!content.trim()) throw new Error("empty-template");
       insertPromptDraft(runtime, destination, content, workspaceId);
+      if (destination === "new") beginNewThread(workspaceId);
       mainViews.close();
       if (destination === "new" || destination.startsWith("draft:")) navigation.openHome();
       else navigation.openConversation(destination);
