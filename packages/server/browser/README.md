@@ -74,13 +74,19 @@ files and in-progress downloads, and returns the remaining `BrowserDownload[]` l
 - Up to 32 browser sessions share the manager. HTTP(S) URLs containing credentials are rejected.
   URL-based new-window links reuse the opener's Workbench tab after navigation permission checks.
 - Frame `width` and `height` describe CSS input coordinates, including zoom, fit, and mobile page
-  scale. They can differ from encoded JPEG pixels. Map a point within the displayed image
+  scale. They can differ from encoded PNG pixels. Map a point within the displayed image
   proportionally into those CSS dimensions, accounting for letterboxing.
+- Live frames use lossless PNG and Chrome's native screencast, with compositor density 3.
+  The viewport's optional `deviceScaleFactor` requests display density 1–3 (default 2), and also
+  controls screenshot export density. Streams preserve aspect ratio within 3,840 pixels per edge
+  and 3,840 × 2,160 pixels total. Native compositor density is the ceiling: at zoom 3, a 600-CSS-pixel
+  panel receives up to 600 bitmap pixels across, while normal zoom receives 1,200 at density 2.
+  Scrolling and input remain native Chrome operations; there is no screenshot polling loop.
 - Screenshots return PNG; print returns PDF. `BrowserFile.viewport` describes the visible CSS
   input area, and `capture` describes the image's CSS coverage. They match for a viewport
   screenshot. A full-page screenshot includes content outside the current viewport; scroll before
-  clicking that content. Exported/read files are limited to 64 MiB. Full-page captures also reject
-  dimensions above 16,384 CSS pixels or an area above 50 million pixels.
+  clicking that content. Exported/read files are limited to 64 MiB. All screenshot captures reject
+  dimensions above 16,384 bitmap pixels or an area above 50 million bitmap pixels.
 - Cookie import accepts a JSON array or `{ "cookies": [...] }`, up to 10,000 cookies, with an
   HTTP(S) `url` or a `domain`. Common export fields such as `expirationDate`, `hostOnly`, and
   `sameSite: "no_restriction"` are supported. Invalid domains, control characters, mismatched

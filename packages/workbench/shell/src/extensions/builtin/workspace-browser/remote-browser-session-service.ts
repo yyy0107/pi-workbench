@@ -79,7 +79,13 @@ function serverFrame(value: unknown): BrowserServerFrame | undefined {
       break;
     case "frame":
       valid =
-        text(value.sessionId) && text(value.data) && number(value.width) && number(value.height);
+        text(value.sessionId) &&
+        text(value.data) &&
+        number(value.width) &&
+        number(value.height) &&
+        (value.mimeType === undefined ||
+          value.mimeType === "image/jpeg" ||
+          value.mimeType === "image/png");
       break;
     case "permission":
       valid =

@@ -128,6 +128,8 @@ export type BrowserCommand =
       width: number;
       height: number;
       visible: boolean;
+      /** Requested image pixels per displayed CSS pixel; layout and input stay in CSS pixels. */
+      deviceScaleFactor?: number;
       zoom?: number;
       fitToWidth?: boolean;
       device?: BrowserDevice | null;
@@ -154,7 +156,15 @@ export type BrowserCommand =
 
 export type BrowserEvent =
   | { type: "state"; session: BrowserSessionState }
-  | { type: "frame"; sessionId: string; data: string; width: number; height: number }
+  | {
+      type: "frame";
+      sessionId: string;
+      data: string;
+      mimeType?: "image/jpeg" | "image/png";
+      /** Visible page bounds in CSS input coordinates, independent of bitmap resolution. */
+      width: number;
+      height: number;
+    }
   | { type: "settings"; settings: BrowserSettings }
   | {
       type: "permission";
@@ -347,6 +357,7 @@ export function parseBrowserCommand(value: unknown): BrowserCommand | undefined 
             finite(value.width, 1, 7680) &&
             finite(value.height, 1, 7680) &&
             typeof value.visible === "boolean" &&
+            (value.deviceScaleFactor === undefined || finite(value.deviceScaleFactor, 1, 3)) &&
             (value.zoom === undefined || finite(value.zoom, 0.25, 3)) &&
             (value.fitToWidth === undefined || typeof value.fitToWidth === "boolean") &&
             (value.device === undefined || value.device === null || device(value.device));

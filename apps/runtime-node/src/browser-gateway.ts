@@ -17,6 +17,8 @@ export const MAX_BROWSER_CLIENT_MESSAGE_BYTES = MAX_BROWSER_MESSAGE_BYTES;
 const MAX_BROWSER_SERVER_MESSAGE_BYTES = Math.ceil((64 * 1024 * 1024 * 4) / 3) + 64 * 1024;
 const MAX_BROWSER_BUFFERED_BYTES = 128 * 1024 * 1024;
 const MAX_PENDING_COMMANDS = 64;
+const MAX_PENDING_FRAMES = 32;
+const FRAME_BACKPRESSURE_BYTES = 1024 * 1024;
 
 export interface BrowserGatewayOptions {
   readonly webSocketServer: NoServerWebSocketServerLike<IncomingMessage, Duplex, Buffer, WebSocket>;
@@ -29,39 +31,82 @@ function acceptBrowserSocket(socket: WebSocket, manager: BrowserGatewayOptions["
   let closed = false;
   let unsubscribe: (() => void) | undefined;
   const pending = new Set<string>();
+  const inputOperations = new Map<string, Promise<unknown>>();
+  const frames = new Map<string, { serialized: string; size: number }>();
+  let frameBytes = 0;
+  let flushing = false;
   const cleanup = () => {
     if (closed) return;
     closed = true;
+    inputOperations.clear();
+    frames.clear();
+    frameBytes = 0;
     unsubscribe?.();
   };
   const close = (code: number, reason: string) => {
     cleanup();
     socket.close(code, reason);
   };
-  const send = (frame: BrowserServerFrame): void => {
+  const write = (serialized: string, size: number): void => {
     if (closed || socket.readyState !== 1) return;
-    // ponytail: discard stale screen frames under backpressure; reliable commands/files stay ordered.
-    if (frame.type === "frame" && socket.bufferedAmount > 1024 * 1024) return;
     try {
-      const serialized = JSON.stringify(frame);
-      const size = Buffer.byteLength(serialized);
-      if (size > MAX_BROWSER_SERVER_MESSAGE_BYTES) {
-        socket.send(
-          JSON.stringify({
-            type: "error",
-            ...("id" in frame ? { id: frame.id } : {}),
-            code: "browser-file-too-large",
-          }),
-        );
-        return;
-      }
-      if (socket.bufferedAmount + size > MAX_BROWSER_BUFFERED_BYTES) {
+      if (socket.bufferedAmount + size + frameBytes > MAX_BROWSER_BUFFERED_BYTES) {
         close(1013, "Browser client is too slow.");
         return;
       }
       socket.send(serialized, (error) => {
         if (error) close(1011, "Browser response could not be delivered.");
+        else flushFrames();
       });
+    } catch {
+      close(1011, "Browser response could not be delivered.");
+    }
+  };
+  const flushFrames = () => {
+    if (flushing || closed) return;
+    flushing = true;
+    try {
+      while (
+        frames.size &&
+        socket.readyState === 1 &&
+        socket.bufferedAmount <= FRAME_BACKPRESSURE_BYTES
+      ) {
+        const [sessionId, frame] = frames.entries().next().value!;
+        frames.delete(sessionId);
+        frameBytes -= frame.size;
+        write(frame.serialized, frame.size);
+      }
+    } finally {
+      flushing = false;
+    }
+  };
+  const send = (frame: BrowserServerFrame): void => {
+    if (closed || socket.readyState !== 1) return;
+    try {
+      const serialized = JSON.stringify(frame);
+      const size = Buffer.byteLength(serialized);
+      if (size > MAX_BROWSER_SERVER_MESSAGE_BYTES) {
+        send({
+          type: "error",
+          ...("id" in frame ? { id: frame.id } : {}),
+          code: "browser-file-too-large",
+        });
+        return;
+      }
+      if (frame.type !== "frame") return write(serialized, size);
+      // Keep only each tab's newest frame, including its final frame after the page stops changing.
+      const previous = frames.get(frame.sessionId);
+      const nextBytes = frameBytes - (previous?.size ?? 0) + size;
+      if (
+        (!previous && frames.size >= MAX_PENDING_FRAMES) ||
+        socket.bufferedAmount + nextBytes > MAX_BROWSER_BUFFERED_BYTES
+      ) {
+        close(1013, "Browser client is too slow.");
+        return;
+      }
+      frames.set(frame.sessionId, { serialized, size });
+      frameBytes = nextBytes;
+      flushFrames();
     } catch {
       close(1011, "Browser response could not be delivered.");
     }
@@ -99,8 +144,19 @@ function acceptBrowserSocket(socket: WebSocket, manager: BrowserGatewayOptions["
       return;
     }
     pending.add(frame.id);
-    void Promise.resolve()
-      .then(() => manager.handle(frame.command, { source: frame.source ?? "user" }))
+    const execute = () => {
+      if (closed) return;
+      return manager.handle(frame.command, { source: frame.source ?? "user" });
+    };
+    const sessionId = frame.command.type === "input" ? frame.command.sessionId : undefined;
+    // Pipeline transport requests while keeping each tab's key and pointer transitions ordered.
+    const operation = (
+      sessionId ? (inputOperations.get(sessionId) ?? Promise.resolve()) : Promise.resolve()
+    )
+      .catch(() => undefined)
+      .then(execute);
+    if (sessionId) inputOperations.set(sessionId, operation);
+    void operation
       .then((result) => send({ type: "result", id: frame.id, result }))
       .catch((error: unknown) => {
         send({
@@ -109,7 +165,11 @@ function acceptBrowserSocket(socket: WebSocket, manager: BrowserGatewayOptions["
           code: error instanceof BrowserError ? error.code : "browser-operation-failed",
         });
       })
-      .finally(() => pending.delete(frame.id));
+      .finally(() => {
+        pending.delete(frame.id);
+        if (sessionId && inputOperations.get(sessionId) === operation)
+          inputOperations.delete(sessionId);
+      });
   });
 }
 

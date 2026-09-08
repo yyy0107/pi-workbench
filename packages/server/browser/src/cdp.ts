@@ -27,9 +27,11 @@ export class BrowserCdp {
     }
   >();
   private readonly listeners = new Set<(event: CdpEvent) => void>();
-  private buffer: Buffer = Buffer.alloc(0);
+  private chunks: Buffer[] = [];
+  private bufferedBytes = 0;
   private sequence = 0;
   private closed = false;
+  private closing = false;
   readonly process: ChildProcess;
   private readonly input: Writable;
 
@@ -38,6 +40,8 @@ export class BrowserCdp {
       executable,
       [
         "--headless",
+        // Native screencasting is capped by compositor density, independently of emulated DPR.
+        "--force-device-scale-factor=3",
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-background-networking",
@@ -64,7 +68,8 @@ export class BrowserCdp {
       }
       this.pending.clear();
       this.listeners.clear();
-      this.buffer = Buffer.alloc(0);
+      this.chunks = [];
+      this.bufferedBytes = 0;
       onClose();
     };
     this.process.once("error", close);
@@ -73,16 +78,29 @@ export class BrowserCdp {
     output.on("error", close);
     output.on("close", close);
     output.on("data", (chunk: Buffer) => {
-      if (this.closed) return;
-      this.buffer = Buffer.concat([this.buffer, chunk]);
-      if (this.buffer.length > MAX_CDP_MESSAGE_BYTES) {
-        this.dispose();
-        return;
-      }
-      let boundary;
-      while ((boundary = this.buffer.indexOf(0)) !== -1) {
-        const message = this.buffer.subarray(0, boundary).toString("utf8");
-        this.buffer = this.buffer.subarray(boundary + 1);
+      if (this.closed || this.closing) return;
+      let start = 0;
+      while (start < chunk.length) {
+        const boundary = chunk.indexOf(0, start);
+        const end = boundary === -1 ? chunk.length : boundary;
+        const part = chunk.subarray(start, end);
+        const size = this.bufferedBytes + part.length;
+        if (size > MAX_CDP_MESSAGE_BYTES) {
+          this.dispose();
+          return;
+        }
+        this.bufferedBytes = size;
+        if (boundary === -1) {
+          this.chunks.push(part);
+          return;
+        }
+        // Copy a fragmented message once, instead of recopying it on every pipe chunk.
+        const message = this.chunks.length
+          ? Buffer.concat([...this.chunks, part], this.bufferedBytes).toString("utf8")
+          : part.toString("utf8");
+        this.chunks = [];
+        this.bufferedBytes = 0;
+        start = boundary + 1;
         try {
           const payload = JSON.parse(message);
           if (payload.id) {
@@ -107,6 +125,7 @@ export class BrowserCdp {
     method: string,
     params: Record<string, unknown> = {},
     sessionId?: string,
+    timeoutMs = 30_000,
   ): Promise<T> {
     if (this.closed) return Promise.reject(new BrowserError("browser-unavailable"));
     const id = ++this.sequence;
@@ -114,7 +133,7 @@ export class BrowserCdp {
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject(new BrowserError("browser-operation-failed"));
-      }, 30_000);
+      }, timeoutMs);
       timer.unref();
       this.pending.set(id, { resolve, reject, timer });
       this.input.write(
@@ -135,7 +154,8 @@ export class BrowserCdp {
   }
 
   dispose(): void {
-    if (this.closed) return;
+    if (this.closed || this.closing) return;
+    this.closing = true;
     void this.send("Browser.close").catch(() => undefined);
     const process = this.process;
     const timer = setTimeout(() => process.kill(), 1_000);

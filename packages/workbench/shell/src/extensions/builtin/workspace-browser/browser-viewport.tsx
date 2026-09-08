@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import type { BrowserDevice, BrowserInput } from "@workbench/browser-contracts";
+import type { BrowserDevice, BrowserEvent, BrowserInput } from "@workbench/browser-contracts";
 import type { BrowserSessionService } from "./browser-session-service";
 import { useI18n } from "../../../i18n";
 
@@ -19,28 +19,28 @@ function modifiers(event: {
   );
 }
 
-/** Keep input ordered while replacing stale motion instead of filling the RPC pending budget. */
+/** Pipeline a bounded window; the gateway preserves each session's input order. */
 export function createBrowserInputQueue(
   send: (event: BrowserInput) => Promise<unknown>,
   onError: (error: unknown) => void,
 ) {
   const queued: BrowserInput[] = [];
-  let running = false;
+  let running = 0;
   const flush = () => {
-    if (running) return;
-    const event = queued.shift();
-    if (!event) return;
-    running = true;
-    void Promise.resolve()
-      .then(() => send(event))
-      .catch((error: unknown) => {
-        queued.length = 0;
-        onError(error);
-      })
-      .finally(() => {
-        running = false;
-        flush();
-      });
+    while (running < 8 && queued.length) {
+      const event = queued.shift()!;
+      running++;
+      void Promise.resolve()
+        .then(() => send(event))
+        .catch((error: unknown) => {
+          queued.length = 0;
+          onError(error);
+        })
+        .finally(() => {
+          running--;
+          flush();
+        });
+    }
   };
   return {
     push(event: BrowserInput) {
@@ -165,22 +165,36 @@ export function BrowserViewport({
     };
   }, [inputs]);
 
-  useEffect(
-    () =>
-      browser.subscribeEvents((event) => {
-        if (event.type !== "frame" || event.sessionId !== sessionId || !picture.current) return;
-        frame.current = { width: event.width, height: event.height };
-        picture.current.src = `data:image/jpeg;base64,${event.data}`;
-      }),
-    [browser, sessionId],
-  );
+  useEffect(() => {
+    let paint: number | undefined;
+    let latest: Extract<BrowserEvent, { type: "frame" }> | undefined;
+    const unsubscribe = browser.subscribeEvents((event) => {
+      if (event.type !== "frame" || event.sessionId !== sessionId) return;
+      latest = event;
+      if (paint !== undefined) return;
+      paint = requestAnimationFrame(() => {
+        paint = undefined;
+        if (!latest || !picture.current) return;
+        frame.current = { width: latest.width, height: latest.height };
+        picture.current.src = `data:${latest.mimeType ?? "image/jpeg"};base64,${latest.data}`;
+        latest = undefined;
+      });
+    });
+    return () => {
+      unsubscribe();
+      if (paint !== undefined) cancelAnimationFrame(paint);
+    };
+  }, [browser, sessionId]);
 
   useEffect(() => {
     const element = container.current;
     if (!element) return;
+    const workspace = element.closest('[data-workbench-surface="right-workspace"]');
     let timer: ReturnType<typeof setTimeout> | undefined;
     const resize = () => {
       if (timer) clearTimeout(timer);
+      // The workspace previews drag geometry locally; apply the remote layout after release.
+      if (workspace?.getAttribute("data-resizing") === "true") return;
       timer = setTimeout(() => {
         const { width, height } = element.getBoundingClientRect();
         if (!width || !height || !isVisible) return;
@@ -194,6 +208,7 @@ export function BrowserViewport({
             sessionId,
             ...viewportSize.current,
             visible: true,
+            deviceScaleFactor: Math.max(2, Math.min(3, window.devicePixelRatio || 1)),
             zoom,
             fitToWidth,
             device: device ?? null,
@@ -203,10 +218,22 @@ export function BrowserViewport({
     };
     const observer = new ResizeObserver(resize);
     observer.observe(element);
-    resize();
+    const dragObserver = new MutationObserver(resize);
+    if (workspace)
+      dragObserver.observe(workspace, { attributes: true, attributeFilter: ["data-resizing"] });
+    let resolution: MediaQueryList;
+    const densityChanged = () => {
+      resolution?.removeEventListener("change", densityChanged);
+      resolution = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+      resolution.addEventListener("change", densityChanged);
+      resize();
+    };
+    densityChanged();
     return () => {
       if (timer) clearTimeout(timer);
       observer.disconnect();
+      dragObserver.disconnect();
+      resolution.removeEventListener("change", densityChanged);
     };
   }, [
     browser,
@@ -261,12 +288,13 @@ export function BrowserViewport({
   return (
     <div
       ref={container}
-      className="relative h-full min-h-0 w-full overflow-hidden bg-muted/25 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-ring"
+      className="relative h-full min-h-0 w-full overflow-hidden bg-muted/25 data-focus-visible:-outline-offset-2"
       onContextMenu={(event) => event.preventDefault()}
       onPointerDown={(event) => {
         if (event.target === keyboard.current) return;
         event.preventDefault();
         keyboard.current?.focus({ preventScroll: true });
+        event.currentTarget.removeAttribute("data-focus-visible");
         event.currentTarget.setPointerCapture(event.pointerId);
         const down: Extract<BrowserInput, { kind: "mouse" }> = {
           kind: "mouse",
@@ -325,6 +353,7 @@ export function BrowserViewport({
         ref={picture}
         alt={t("extensions.workspaceBrowser.viewportTitle")}
         draggable={false}
+        decoding="sync"
         className="pointer-events-none size-full select-none object-contain"
       />
       <textarea
@@ -357,7 +386,13 @@ export function BrowserViewport({
           committedComposition.current = undefined;
           event.currentTarget.value = "";
         }}
-        onBlur={release}
+        onFocus={() => {
+          container.current?.setAttribute("data-focus-visible", "");
+        }}
+        onBlur={() => {
+          container.current?.removeAttribute("data-focus-visible");
+          release();
+        }}
         onPaste={(event) => {
           event.preventDefault();
           input({ kind: "text", text: event.clipboardData.getData("text/plain") });

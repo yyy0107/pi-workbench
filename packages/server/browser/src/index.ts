@@ -37,12 +37,14 @@ interface Tab {
   allowedNavigation?: string;
   fileRequests: Map<string, { nodeId: number; multiple: boolean }>;
   uploadDirectories: Set<string>;
-  viewportOperation: Promise<void>;
+  viewportOperation?: Promise<void>;
+  viewportPending: boolean;
   dialogPending: boolean;
   navigationBlocked: boolean;
   allowedDownloads: Set<string>;
   popupUrls: string[];
   viewport: { width: number; height: number };
+  deviceScaleFactor: number;
 }
 interface DownloadRecord {
   download: BrowserDownload;
@@ -296,12 +298,13 @@ export class BrowserManager {
       frameIds: new Set(),
       fileRequests: new Map(),
       uploadDirectories: new Set(),
-      viewportOperation: Promise.resolve(),
+      viewportPending: false,
       dialogPending: false,
       navigationBlocked: false,
       allowedDownloads: new Set(),
       popupUrls: [],
       viewport: { width: 1024, height: 768 },
+      deviceScaleFactor: 2,
     };
     this.tabs.set(sessionId, tab);
     try {
@@ -402,7 +405,7 @@ export class BrowserManager {
       this.send(tab, "Emulation.setDeviceMetricsOverride", {
         width: logicalWidth,
         height: logicalHeight,
-        deviceScaleFactor: 1,
+        deviceScaleFactor: tab.deviceScaleFactor,
         mobile: device?.mobile ?? false,
       });
     await metrics();
@@ -429,12 +432,33 @@ export class BrowserManager {
     if (tab.visible && !tab.screencasting) {
       tab.screencasting = true;
       try {
+        // ponytail: native compositor density caps extreme zoom; keep native scroll/input intact.
+        const density = Math.min(
+          tab.deviceScaleFactor,
+          3840 / width,
+          3840 / height,
+          Math.sqrt((3840 * 2160) / (width * height)),
+        );
         await this.send(tab, "Page.bringToFront");
+        // CDP's evaluate timeout does not cover awaitPromise; bound this optional paint wait here.
+        await (
+          await this.connection()
+        )
+          .send(
+            "Runtime.evaluate",
+            {
+              expression:
+                "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+              awaitPromise: true,
+            },
+            tab.cdpSessionId,
+            150,
+          )
+          .catch(() => undefined);
         await this.send(tab, "Page.startScreencast", {
-          format: "jpeg",
-          quality: 85,
-          maxWidth: Math.min(width, 3840),
-          maxHeight: Math.min(height, 3840),
+          format: "png",
+          maxWidth: Math.max(1, Math.floor(width * density)),
+          maxHeight: Math.max(1, Math.floor(height * density)),
           everyNthFrame: 1,
         });
       } catch (error) {
@@ -448,11 +472,22 @@ export class BrowserManager {
   }
 
   private queueViewport(tab: Tab): Promise<void> {
-    const operation = tab.viewportOperation
-      .catch(() => undefined)
-      .then(() => this.applyViewport(tab));
-    tab.viewportOperation = operation;
-    return operation;
+    tab.viewportPending = true;
+    tab.viewportOperation ??= Promise.resolve().then(async () => {
+      try {
+        while (tab.viewportPending) {
+          tab.viewportPending = false;
+          try {
+            await this.applyViewport(tab);
+          } catch (error) {
+            if (!tab.viewportPending) throw error;
+          }
+        }
+      } finally {
+        tab.viewportOperation = undefined;
+      }
+    });
+    return tab.viewportOperation;
   }
 
   private async onEvent(event: CdpEvent): Promise<void> {
@@ -508,11 +543,12 @@ export class BrowserManager {
         if (tab.visible && typeof params.data === "string") {
           const { deviceWidth, deviceHeight, pageScaleFactor } = params.metadata ?? {};
           if (deviceWidth > 0 && deviceHeight > 0 && pageScaleFactor > 0) {
-            // Input uses CSS coordinates; JPEG pixels can be scaled for fit/device streaming.
+            // Input uses CSS coordinates; bitmap density must not change pointer coordinates.
             this.publish({
               type: "frame",
               sessionId: tab.state.id,
               data: params.data,
+              mimeType: "image/png",
               width: deviceWidth / pageScaleFactor,
               height: deviceHeight / pageScaleFactor,
             });
@@ -789,6 +825,8 @@ export class BrowserManager {
         return;
       case "viewport": {
         tab.visible = command.visible;
+        if (command.deviceScaleFactor !== undefined)
+          tab.deviceScaleFactor = command.deviceScaleFactor;
         this.update(tab, {
           width: Math.round(command.width),
           height: Math.round(command.height),
@@ -905,11 +943,15 @@ export class BrowserManager {
     let clip;
     if (fullPage) {
       const size = metrics.cssContentSize ?? metrics.contentSize;
-      if (size.width > 16384 || size.height > 16384 || size.width * size.height > 50_000_000)
-        throw new BrowserError("browser-file-too-large");
       clip = { x: 0, y: 0, width: size.width, height: size.height, scale: 1 };
       capture = { width: size.width, height: size.height };
     }
+    if (
+      capture.width * tab.deviceScaleFactor > 16384 ||
+      capture.height * tab.deviceScaleFactor > 16384 ||
+      capture.width * capture.height * tab.deviceScaleFactor ** 2 > 50_000_000
+    )
+      throw new BrowserError("browser-file-too-large");
     const result = await this.send(tab, "Page.captureScreenshot", {
       format: "png",
       captureBeyondViewport: fullPage,

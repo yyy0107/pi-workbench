@@ -1,40 +1,21 @@
 import assert from "node:assert/strict";
+import { once } from "node:events";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { mock } from "node:test";
 import type { BrowserEvent, BrowserSessionState } from "@workbench/browser-contracts";
 
 import { BrowserError, BrowserManager, normalizeBrowserUrl } from "../src/index";
-import { findBrowserExecutable } from "../src/cdp";
+import { findBrowserExecutable, type BrowserCdp } from "../src/cdp";
 import { parseCookieJson, parsePasswordCsv } from "../src/imports";
 
-/** Read the JPEG's actual encoded dimensions, which can differ from CDP's CSS viewport. */
-function jpegDimensions(data: string): { width: number; height: number } | undefined {
+/** PNG bitmap dimensions are independent from the stream's CSS input coordinates. */
+function pngDimensions(data: string): { width: number; height: number } {
   const bytes = Buffer.from(data, "base64");
-  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return undefined;
-  let index = 2;
-  while (index + 8 < bytes.length) {
-    if (bytes[index] !== 0xff) return undefined;
-    const marker = bytes[index + 1]!;
-    if (marker === 0xff) {
-      index++;
-      continue;
-    }
-    if (marker === 0xd9 || marker === 0xda) return undefined;
-    const length = bytes.readUInt16BE(index + 2);
-    if (length < 2) return undefined;
-    if (
-      [0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(
-        marker,
-      )
-    ) {
-      return { width: bytes.readUInt16BE(index + 7), height: bytes.readUInt16BE(index + 5) };
-    }
-    index += length + 2;
-  }
-  return undefined;
+  assert.equal(bytes.subarray(1, 4).toString(), "PNG");
+  return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
 }
 
 test("browser imports preserve quoted passwords and reject unsafe or malformed data", () => {
@@ -158,7 +139,7 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
     }
     response.writeHead(200, { "Content-Type": "text/html" });
     response.end(
-      '<!doctype html><title>Browser test</title><meta name="viewport" content="width=device-width"><h1>Searchable browser fixture</h1><input id="plain" value="copy me" style="position:absolute;left:100px;top:100px;width:100px;height:40px"><input id="secret" type="password" value="do not copy"><input type="file" id="upload"><div style="width:1000px">Wide content</div><a href="/download" id="download">Download</a><a href="/?popup" target="_blank" id="popup">Popup</a>',
+      '<!doctype html><title>Browser test</title><meta name="viewport" content="width=device-width"><h1>Searchable browser fixture</h1><input id="plain" value="copy me" style="position:absolute;left:100px;top:100px;width:100px;height:40px;background:rgb(255,0,0);border:0"><input id="secret" type="password" value="do not copy"><input type="file" id="upload"><div style="width:1000px">Wide content</div><a href="/download" id="download">Download</a><a href="/?popup" target="_blank" id="popup">Popup</a>',
     );
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -252,7 +233,7 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
         type: "cdp",
         sessionId: "tab",
         method: "Runtime.evaluate",
-        params: { expression, returnByValue: true },
+        params: { expression, returnByValue: true, awaitPromise: true },
       }) as Promise<{ result: { value: any } }>;
     await evaluate(
       "document.querySelector('#plain').focus();document.querySelector('#plain').select()",
@@ -284,8 +265,42 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
         event: { kind: "mouse", type: "mouseReleased", x, y, button: "left", clickCount: 1 },
       });
     };
+    const clickStreamInput = async (visibleFrame: Extract<BrowserEvent, { type: "frame" }>) => {
+      const encoded = pngDimensions(visibleFrame.data);
+      // Decode the actual stream in Chrome and click the colored input's bitmap center.
+      const marker = (
+        await evaluate(`(async () => {
+        const image = new Image(); image.src = 'data:image/png;base64,${visibleFrame.data}';
+        await image.decode(); const canvas = new OffscreenCanvas(image.width, image.height);
+        const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+        const { data } = context.getImageData(0, 0, image.width, image.height);
+        let left = image.width, top = image.height, right = 0, bottom = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i] === 255 && data[i + 1] === 0 && data[i + 2] === 0) {
+            const x = i / 4 % image.width, y = Math.floor(i / 4 / image.width);
+            left = Math.min(left, x); right = Math.max(right, x);
+            top = Math.min(top, y); bottom = Math.max(bottom, y);
+          }
+        }
+        return { left, right, top, bottom };
+      })()`)
+      ).result.value;
+      assert.ok(marker.right > marker.left && marker.bottom > marker.top);
+      await click(
+        ((marker.left + marker.right) / 2 / encoded.width) * visibleFrame.width,
+        ((marker.top + marker.bottom) / 2 / encoded.height) * visibleFrame.height,
+      );
+      assert.equal(
+        (await evaluate("document.activeElement.id")).result.value,
+        "plain",
+        JSON.stringify({ marker, encoded, width: visibleFrame.width, height: visibleFrame.height }),
+      );
+    };
     for (const config of [
-      { zoom: 1.5, fitToWidth: false },
+      { zoom: 1, fitToWidth: false, deviceScaleFactor: 2 },
+      { zoom: 1, fitToWidth: false, deviceScaleFactor: 3 },
+      { zoom: 3, fitToWidth: false, deviceScaleFactor: 2 },
+      { zoom: 1.5, fitToWidth: false, deviceScaleFactor: 2 },
       { zoom: 1, fitToWidth: true },
       { zoom: 1, fitToWidth: false, device: { width: 390, height: 844, mobile: true } },
     ]) {
@@ -299,12 +314,16 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
         ...config,
       });
       await evaluate("document.querySelector('#secret').focus()");
-      await click(120, 120);
-      assert.equal(
-        (await evaluate("document.activeElement.id")).result.value,
-        "plain",
-        JSON.stringify(config),
-      );
+      await waitFor(() => events.slice(start).some((event) => event.type === "frame"));
+      const visibleFrame = events.slice(start).findLast((event) => event.type === "frame")!;
+      assert.equal(visibleFrame.mimeType, "image/png");
+      const encoded = pngDimensions(visibleFrame.data);
+      if (!config.fitToWidth && !config.device) {
+        const expectedWidth = config.zoom === 3 ? 600 : 600 * config.deviceScaleFactor!;
+        assert.ok(Math.abs(encoded.width - expectedWidth) <= 1, JSON.stringify(config));
+        assert.ok(Math.abs(visibleFrame.width - 600 / config.zoom) < 1);
+      }
+      await clickStreamInput(visibleFrame);
       await manager.handle({
         type: "input",
         sessionId: "tab",
@@ -320,10 +339,10 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
         const fitFrame = events.slice(start).findLast((event) => event.type === "frame");
         assert.equal(fitFrame?.type, "frame");
         if (fitFrame?.type === "frame") {
-          const encoded = jpegDimensions(fitFrame.data)!;
+          const encoded = pngDimensions(fitFrame.data);
           assert.equal(
             encoded.width,
-            600,
+            1200,
             "fit stream must fill the panel width without double scaling",
           );
           assert.ok(
@@ -341,6 +360,97 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
       device: null,
       zoom: 1,
       fitToWidth: true,
+    });
+    await evaluate(
+      "document.body.style.height = '2000px'; document.querySelector('#plain').style.top = '600px'; document.activeElement.blur()",
+    );
+    const scrollStart = events.length;
+    await evaluate(
+      "scrollTo(0, 500); new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+    );
+    await waitFor(() => events.slice(scrollStart).some((event) => event.type === "frame"));
+    assert.equal((await evaluate("scrollY")).result.value, 500);
+    await clickStreamInput(events.slice(scrollStart).findLast((event) => event.type === "frame")!);
+    await evaluate(
+      "scrollTo(0, 0); document.querySelector('#plain').style.top = '100px'; document.body.style.height = ''",
+    );
+    await evaluate(
+      "window.originalRAF = requestAnimationFrame; window.requestAnimationFrame = () => 0",
+    );
+    try {
+      const started = Date.now();
+      await manager.handle({
+        type: "viewport",
+        sessionId: "tab",
+        width: 600,
+        height: 400,
+        visible: true,
+        fitToWidth: false,
+      });
+      assert.ok(
+        Date.now() - started < 1500,
+        "missing RAF callbacks must not block viewport updates",
+      );
+    } finally {
+      await evaluate(
+        "window.requestAnimationFrame = window.originalRAF; delete window.originalRAF",
+      );
+    }
+    {
+      const transport = (manager as unknown as { browser: BrowserCdp }).browser;
+      const sent = mock.method(transport, "send");
+      const first = manager.handle({
+        type: "viewport",
+        sessionId: "tab",
+        width: 720,
+        height: 400,
+        visible: true,
+      });
+      await waitFor(() =>
+        sent.mock.calls.some((call) => call.arguments[0] === "Page.stopScreencast"),
+      );
+      const requests = Array.from({ length: 24 }, (_, i) =>
+        manager.handle({
+          type: "viewport",
+          sessionId: "tab",
+          width: 700 - i,
+          height: 400,
+          visible: i % 2 === 0,
+        }),
+      );
+      const final = manager.handle({
+        type: "viewport",
+        sessionId: "tab",
+        width: 650,
+        height: 450,
+        visible: true,
+        zoom: 1.5,
+        device: { width: 480, height: 320, mobile: false },
+      });
+      await Promise.all([first, ...requests, final]);
+      const state = (await final) as BrowserSessionState;
+      assert.equal(state.width, 650);
+      assert.equal(state.height, 450);
+      assert.equal(state.zoom, 1.5);
+      assert.deepEqual(state.device, { width: 480, height: 320, mobile: false });
+      assert.equal((await evaluate("innerWidth")).result.value, 320);
+      assert.equal((await evaluate("innerHeight")).result.value, 213);
+      for (const method of ["Page.stopScreencast", "Page.startScreencast"]) {
+        assert.ok(
+          sent.mock.calls.filter((call) => call.arguments[0] === method).length <= 2,
+          "resize bursts should apply only the running and latest viewport",
+        );
+      }
+      sent.mock.restore();
+    }
+    await manager.handle({
+      type: "viewport",
+      sessionId: "tab",
+      width: 600,
+      height: 400,
+      visible: true,
+      zoom: 1,
+      device: null,
     });
     const cookies = JSON.stringify([
       { url, name: "imported", value: "cookie-value", expirationDate: Date.now() / 1000 + 3600 },
@@ -394,6 +504,10 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
     assert.deepEqual(screenshot.capture, screenshot.viewport);
     assert.equal(screenshot.viewport.width, (await evaluate("innerWidth")).result.value);
     assert.equal(screenshot.viewport.height, (await evaluate("innerHeight")).result.value);
+    assert.deepEqual(pngDimensions(screenshot.data), {
+      width: screenshot.viewport.width * 2,
+      height: screenshot.viewport.height * 2,
+    });
     const pdf = (await manager.handle({ type: "print", sessionId: "tab" })) as { data: string };
     assert.equal(Buffer.from(pdf.data, "base64").subarray(0, 4).toString(), "%PDF");
     await evaluate("document.querySelector('#download').click()");
@@ -563,6 +677,42 @@ test("real Chrome keeps one target while navigating, streaming, finding, copying
       await readFile(path.join(stateDirectory, "downloads", downloads[0]!.id), "utf8"),
       "download fixture",
     );
+
+    // Inject packets into this test's owned pipe to cover exact transport boundaries.
+    const transport = (manager as unknown as { browser: BrowserCdp }).browser;
+    const buffer = transport as unknown as { chunks: Buffer[]; bufferedBytes: number };
+    const output = transport.process.stdio[4]!;
+    await waitFor(() => buffer.bufferedBytes === 0);
+    const received: string[] = [];
+    transport.subscribe((event) => {
+      if (event.method === "Test.fragment") received.push(event.params.text);
+    });
+    const packet = (text: string) =>
+      Buffer.from(`${JSON.stringify({ method: "Test.fragment", params: { text } })}\0`);
+    const first = packet("中文");
+    const second = packet("second");
+    const third = packet("third");
+    const split = first.indexOf(Buffer.from("中")) + 1;
+    output.emit("data", first.subarray(0, split));
+    assert.deepEqual(received, []);
+    output.emit("data", Buffer.concat([first.subarray(split), second, third.subarray(0, 17)]));
+    assert.deepEqual(received, ["中文", "second"]);
+    output.emit("data", third.subarray(17));
+    assert.deepEqual(received, ["中文", "second", "third"]);
+    assert.equal(buffer.bufferedBytes, 0);
+    assert.equal(buffer.chunks.length, 0);
+
+    const dispose = mock.method(transport, "dispose");
+    const chunk = Buffer.alloc(1024 * 1024, 0x20);
+    for (let i = 0; i < 96; i++) output.emit("data", chunk);
+    assert.equal(dispose.mock.callCount(), 0);
+    assert.equal(buffer.bufferedBytes, 96 * 1024 * 1024);
+    const closed = once(transport.process, "exit");
+    output.emit("data", Buffer.from("x"));
+    assert.equal(dispose.mock.callCount(), 1);
+    await closed;
+    assert.equal(buffer.bufferedBytes, 0);
+    assert.equal(buffer.chunks.length, 0);
   } finally {
     manager.dispose();
     server.close();

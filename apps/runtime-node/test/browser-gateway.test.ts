@@ -24,11 +24,14 @@ import {
 class TestSocket extends EventEmitter {
   readyState = 1;
   bufferedAmount = 0;
+  deferWrites = false;
+  readonly writeCallbacks: Array<(error?: Error) => void> = [];
   readonly sent: BrowserServerFrame[] = [];
   readonly closes: Array<{ code: number; reason: string }> = [];
   send(data: string, callback?: (error?: Error) => void) {
     this.sent.push(JSON.parse(data) as BrowserServerFrame);
-    callback?.();
+    if (callback && this.deferWrites) this.writeCallbacks.push(callback);
+    else callback?.();
   }
   close(code: number, reason: string) {
     this.closes.push({ code, reason });
@@ -85,6 +88,121 @@ function fixture(authenticate = false) {
 }
 
 const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+test("browser inputs stay ordered per tab, let other tabs proceed, and discard queued work on disconnect", async () => {
+  const connected = fixture();
+  const calls: Array<[string, string]> = [];
+  let releaseFirst!: () => void;
+  let releaseClosing!: () => void;
+  connected.manager.handle = async (command, options) => {
+    assert.equal(command.type, "input");
+    if (command.type !== "input" || command.event.kind !== "key") assert.fail("Expected a key");
+    calls.push([command.event.key, options?.source ?? "user"]);
+    if (command.event.key === "first")
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+    if (command.event.key === "second") throw new BrowserError("browser-permission-denied");
+    if (command.event.key === "closing")
+      await new Promise<void>((resolve) => {
+        releaseClosing = resolve;
+      });
+    return { key: command.event.key };
+  };
+  const input = (id: string, sessionId: string, source?: "agent") =>
+    connected.message({
+      id,
+      command: {
+        type: "input",
+        sessionId,
+        event: { kind: "key", type: "keyDown", key: id, code: id },
+      },
+      ...(source ? { source } : {}),
+    });
+  connected.upgrade();
+  input("first", "tab-a", "agent");
+  input("second", "tab-a");
+  input("independent", "tab-b");
+  await settle();
+  assert.deepEqual(calls, [
+    ["first", "agent"],
+    ["independent", "user"],
+  ]);
+  assert.deepEqual(connected.socket.sent.at(-1), {
+    type: "result",
+    id: "independent",
+    result: { key: "independent" },
+  });
+  releaseFirst();
+  await settle();
+  assert.deepEqual(calls, [
+    ["first", "agent"],
+    ["independent", "user"],
+    ["second", "user"],
+  ]);
+  assert.deepEqual(connected.socket.sent.at(-1), {
+    type: "error",
+    id: "second",
+    code: "browser-permission-denied",
+  });
+
+  input("closing", "tab-a");
+  input("discarded", "tab-a");
+  await settle();
+  connected.socket.close(1000, "done");
+  releaseClosing();
+  await settle();
+  assert.deepEqual(calls.at(-1), ["closing", "user"]);
+  assert.equal(calls.length, 4);
+  assert.equal(connected.subscribers.size, 0);
+});
+
+test("browser backpressure delivers each tab's final frame after drain and bounds pending tabs", () => {
+  const connected = fixture();
+  connected.socket.deferWrites = true;
+  connected.upgrade();
+  const publish = (sessionId: string, data: string) => {
+    for (const listener of connected.subscribers)
+      listener({ type: "frame", sessionId, data, mimeType: "image/png", width: 800, height: 600 });
+  };
+  publish("first", "initial");
+  connected.socket.bufferedAmount = 2 * 1024 * 1024;
+  publish("first", "intermediate");
+  publish("first", "final");
+  publish("second", "other-tab");
+  assert.equal(connected.socket.sent.length, 1);
+  connected.socket.bufferedAmount = 0;
+  // Synchronous callbacks during the flush must not recurse or resend entries.
+  connected.socket.deferWrites = false;
+  connected.socket.writeCallbacks.shift()!();
+  assert.deepEqual(
+    connected.socket.sent.map((frame) => frame.type === "frame" && [frame.sessionId, frame.data]),
+    [
+      ["first", "initial"],
+      ["first", "final"],
+      ["second", "other-tab"],
+    ],
+  );
+
+  connected.socket.deferWrites = true;
+  publish("first", "before-close");
+  connected.socket.bufferedAmount = 2 * 1024 * 1024;
+  publish("first", "after-close");
+  connected.socket.close(1000, "done");
+  connected.socket.bufferedAmount = 0;
+  connected.socket.writeCallbacks.shift()!();
+  assert.equal(connected.socket.sent.length, 4);
+  assert.equal(connected.subscribers.size, 0);
+
+  const bounded = fixture();
+  bounded.upgrade();
+  bounded.socket.bufferedAmount = 2 * 1024 * 1024;
+  for (let index = 0; index < 33; index++)
+    for (const listener of bounded.subscribers)
+      listener({ type: "frame", sessionId: String(index), data: "png", width: 800, height: 600 });
+  assert.equal(bounded.socket.closes[0]?.code, 1013);
+  assert.equal(bounded.subscribers.size, 0);
+});
 
 test("browser gateway admits only its exact trusted path and validates commands before execution", async () => {
   const blocked = fixture();
@@ -153,7 +271,7 @@ test("browser ingress rejects binary, oversized, and duplicate pending requests"
   duplicate.message({ id: "same", command: { type: "settings.get" } });
   await settle();
   assert.equal(duplicate.socket.closes[0]?.code, 1008);
-  assert.equal(duplicate.calls.length, 1);
+  assert.equal(duplicate.calls.length, 0);
   assert.equal(duplicate.subscribers.size, 0);
 });
 
