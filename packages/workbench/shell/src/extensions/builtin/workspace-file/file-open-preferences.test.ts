@@ -28,6 +28,7 @@ test("restores choices and serializes different file types without losing confir
   await Promise.all([
     store.getState().remember("extension:pdf", "acrobat"),
     store.getState().remember("extension:png", "gimp"),
+    store.getState().remember("browser:extension:html", "firefox"),
   ]);
   fail = true;
   await assert.rejects(store.getState().remember("extension:html", "chrome"), /offline/);
@@ -39,6 +40,7 @@ test("restores choices and serializes different file types without losing confir
   await restored.getState().hydrate();
   assert.deepEqual(restored.getState().appIds, {
     "extension:html": "system-default",
+    "browser:extension:html": "firefox",
     "extension:pdf": "acrobat",
     "extension:png": "gimp",
   });

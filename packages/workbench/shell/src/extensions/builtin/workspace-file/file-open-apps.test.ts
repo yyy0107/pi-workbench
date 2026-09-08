@@ -11,6 +11,7 @@ import {
   fileOpenPreferenceKey,
   preferredLocalApp,
   SYSTEM_DEFAULT_APP_ID,
+  fileOpenSelectors,
 } from "./file-open-apps";
 
 const apps: WorkbenchLocalApp[] = [
@@ -172,10 +173,10 @@ test("matches Office and image applications by extension, including uppercase Wi
 
 test("resolves remembered choices only from compatible installed apps and falls back by type", () => {
   const htmlApps = compatibleLocalFileApps(apps, "html", "index.html");
-  assert.equal(preferredLocalApp(htmlApps, "html", undefined)?.id, "chrome");
+  assert.equal(preferredLocalApp(htmlApps, "html", undefined)?.id, "vscode");
   assert.equal(preferredLocalApp(htmlApps, "html", "vscode")?.id, "vscode");
-  assert.equal(preferredLocalApp(htmlApps, "html", "removed-browser")?.id, "chrome");
-  assert.equal(preferredLocalApp(htmlApps, "html", "mpv")?.id, "chrome");
+  assert.equal(preferredLocalApp(htmlApps, "html", "removed-browser")?.id, "vscode");
+  assert.equal(preferredLocalApp(htmlApps, "html", "mpv")?.id, "vscode");
   assert.equal(preferredLocalApp(htmlApps, "html", SYSTEM_DEFAULT_APP_ID), undefined);
   assert.equal(preferredLocalApp([], "html", "chrome"), undefined);
   const reader: WorkbenchLocalApp = {
@@ -194,4 +195,68 @@ test("resolves remembered choices only from compatible installed apps and falls 
   );
   assert.equal(fileOpenPreferenceKey("README", "text"), "kind:text");
   assert.equal(fileOpenPreferenceKey(undefined, "other"), "folder");
+});
+
+test("gives HTML separate editor and browser selectors with independent remembered choices", () => {
+  const choices: WorkbenchLocalApp[] = [
+    ...apps,
+    { id: "cursor", name: "Cursor", kind: "editor", supportedFileKinds: ["text"] },
+    { id: "firefox", name: "Firefox", kind: "browser", supportedFileKinds: ["html", "pdf"] },
+  ];
+  const selectors = fileOpenSelectors(choices, "index.html", "html", {
+    "extension:html": "cursor",
+    "browser:extension:html": "firefox",
+  });
+  assert.deepEqual(
+    selectors.map((selector) => ({
+      id: selector.id,
+      apps: selector.apps.map((app) => app.id),
+      primary: selector.primaryApp?.id,
+      key: selector.preferenceKey,
+      allowSystemDefault: selector.allowSystemDefault,
+    })),
+    [
+      {
+        id: "file",
+        apps: ["vscode", "cursor"],
+        primary: "cursor",
+        key: "extension:html",
+        allowSystemDefault: false,
+      },
+      {
+        id: "browser",
+        apps: ["chrome", "firefox"],
+        primary: "firefox",
+        key: "browser:extension:html",
+        allowSystemDefault: false,
+      },
+    ],
+  );
+  const legacy = fileOpenSelectors(choices, "index.html", "html", { "extension:html": "firefox" });
+  assert.deepEqual(
+    legacy.map((selector) => selector.primaryApp?.id),
+    ["vscode", "firefox"],
+  );
+  const defaults = fileOpenSelectors(choices, "index.html", "html", {
+    "extension:html": SYSTEM_DEFAULT_APP_ID,
+  });
+  assert.deepEqual(
+    defaults.map((selector) => selector.primaryApp?.id),
+    ["vscode", "chrome"],
+  );
+  const missingEditor = fileOpenSelectors([choices.at(-1)!], "index.html", "html", {});
+  assert.equal(missingEditor[0]?.primaryApp, undefined);
+  assert.equal(missingEditor[0]?.allowSystemDefault, false);
+  assert.equal(fileOpenSelectors([], "index.html", "html", {}).length, 1);
+  assert.deepEqual(
+    fileOpenSelectors(choices, "index.ts", "text", {}).map((selector) => selector.id),
+    ["file"],
+  );
+  assert.deepEqual(
+    fileOpenSelectors(choices, "doc.pdf", "pdf", {}).map((selector) =>
+      selector.apps.map((app) => app.kind),
+    ),
+    [[], ["browser", "browser"]],
+  );
+  assert.equal(fileOpenSelectors(choices, undefined, "other", {}).length, 1);
 });

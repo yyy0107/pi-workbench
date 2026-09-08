@@ -252,6 +252,7 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     id: "chrome",
     name: "Google Chrome",
     kind: "browser",
+    icon: "chrome",
     supportedFileKinds: ["html", "pdf"],
     windows: {
       executables: ["chrome.exe"],
@@ -273,6 +274,7 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     id: "edge",
     name: "Microsoft Edge",
     kind: "browser",
+    icon: "edge",
     supportedFileKinds: ["html", "pdf"],
     windows: {
       executables: ["msedge.exe"],
@@ -294,6 +296,7 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     id: "firefox",
     name: "Firefox",
     kind: "browser",
+    icon: "firefox",
     supportedFileKinds: ["html", "pdf"],
     windows: {
       executables: ["firefox.exe"],
@@ -319,6 +322,7 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     id: "chromium",
     name: "Chromium",
     kind: "browser",
+    icon: "chromium",
     supportedFileKinds: ["html", "pdf"],
     linux: {
       executables: ["chromium", "chromium-browser"],
@@ -335,6 +339,7 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     id: "safari",
     name: "Safari",
     kind: "browser",
+    icon: "safari",
     supportedFileKinds: ["html", "pdf"],
     macos: { bundleIds: ["com.apple.Safari"], appNames: ["Safari"] },
   },

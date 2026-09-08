@@ -64,22 +64,24 @@ import { FileBreadcrumbTree } from "./file-breadcrumb-tree";
 import { saveFileBuffer } from "./file-buffer-actions";
 import { FILE_SURFACE_OPEN_FAILED, FILE_SURFACE_SAVE_FAILED } from "./file-surface-messages";
 import {
-  compatibleLocalFileApps,
-  compatibleLocalFolderApps,
+  fileOpenSelectors,
   localAppFileKindFor,
   localSystemApps,
-  fileOpenPreferenceKey,
-  preferredLocalApp,
   SYSTEM_DEFAULT_APP_ID,
 } from "./file-open-apps";
 import { createFileOpenPreferences, FILE_OPEN_PREFERENCES } from "./file-open-preferences";
 import { assetModuleUrl, type AssetModule } from "./asset-module-url";
+import chromeIcon from "./icons/chrome.svg";
+import chromiumIcon from "./icons/chromium.svg";
 import cursorIcon from "./icons/cursor.svg";
 import datagripIcon from "./icons/datagrip.svg";
+import edgeIcon from "./icons/edge.svg";
+import firefoxIcon from "./icons/firefox.svg";
 import ideaIcon from "./icons/idea.svg";
 import mpvIcon from "./icons/mpv.svg";
 import pycharmIcon from "./icons/pycharm.svg";
 import qoderIcon from "./icons/qoder.svg";
+import safariIcon from "./icons/safari.svg";
 import traeIcon from "./icons/trae.svg";
 import vlcIcon from "./icons/vlc.svg";
 import vscodeIcon from "./icons/vscode.svg";
@@ -94,12 +96,17 @@ import {
 import { isLargeTextFile } from "./progressive-text-document";
 
 const LOCAL_APP_ICON_SOURCES: Readonly<Record<string, AssetModule>> = {
+  chrome: chromeIcon,
+  chromium: chromiumIcon,
   cursor: cursorIcon,
   datagrip: datagripIcon,
+  edge: edgeIcon,
+  firefox: firefoxIcon,
   idea: ideaIcon,
   mpv: mpvIcon,
   pycharm: pycharmIcon,
   qoder: qoderIcon,
+  safari: safariIcon,
   trae: traeIcon,
   vlc: vlcIcon,
   vscode: vscodeIcon,
@@ -221,15 +228,11 @@ function AvailableFileSurfaceHeader({
     () => localAppFileKindFor(path, surface.params.mediaType, surface.params.encoding),
     [path, surface.params.encoding, surface.params.mediaType],
   );
-  const fileApps = useMemo(
-    () => compatibleLocalFileApps(localApps, fileKind, path),
-    [fileKind, localApps, path],
+  const appSelectors = useMemo(
+    () => fileOpenSelectors(localApps, path, fileKind, preferredAppIds),
+    [fileKind, localApps, path, preferredAppIds],
   );
-  const folderApps = useMemo(() => compatibleLocalFolderApps(localApps), [localApps]);
   const systemApps = useMemo(() => localSystemApps(localApps), [localApps]);
-  const targetApps = path ? fileApps : folderApps;
-  const preferenceKey = fileOpenPreferenceKey(path, fileKind);
-  const primaryApp = preferredLocalApp(targetApps, fileKind, preferredAppIds[preferenceKey]);
   const openTarget = path ?? folderPath;
   const localAppName = useCallback(
     (app: WorkbenchLocalApp) => {
@@ -239,14 +242,6 @@ function AvailableFileSurfaceHeader({
     },
     [t],
   );
-  const primaryLabel =
-    primaryApp?.kind === "browser"
-      ? surface.dirty
-        ? t("extensions.workspaceFile.saveBeforeBrowser")
-        : t("extensions.workspaceFile.openInBrowser", { name: primaryApp.name })
-      : primaryApp
-        ? t("extensions.workspaceFile.openWith", { name: localAppName(primaryApp) })
-        : t(path ? "extensions.workspaceFile.openFile" : "extensions.workspaceFile.openFolder");
   useEffect(() => {
     let active = true;
     void appPreferences
@@ -282,14 +277,27 @@ function AvailableFileSurfaceHeader({
     };
   }, [hostClient, reportError, surface.id]);
   const openWithLocalApp = useCallback(
-    async (app: WorkbenchLocalApp | undefined, target: string) => {
+    async (app: WorkbenchLocalApp | undefined, target: string, preferenceKey?: string) => {
       if (!hostClient || opening || (app?.kind === "browser" && surface.dirty)) return;
       setOpening(true);
       try {
         if (app) await hostClient.openLocalApp({ appId: app.id, target });
         else await hostClient.openPath(target);
-        if (!app || targetApps.some((candidate) => candidate.id === app.id)) {
+        if (preferenceKey) {
           try {
+            const previousChoices = appPreferences.getState().appIds;
+            const previousAppId = previousChoices[preferenceKey];
+            const browserKey = `browser:${preferenceKey}`;
+            if (
+              app?.kind !== "browser" &&
+              previousAppId &&
+              !previousChoices[browserKey] &&
+              localApps.some(
+                (candidate) => candidate.kind === "browser" && candidate.id === previousAppId,
+              )
+            ) {
+              await appPreferences.getState().remember(browserKey, previousAppId);
+            }
             await appPreferences
               .getState()
               .remember(preferenceKey, app?.id ?? SYSTEM_DEFAULT_APP_ID);
@@ -313,12 +321,11 @@ function AvailableFileSurfaceHeader({
       appPreferences,
       controller,
       hostClient,
+      localApps,
       opening,
-      preferenceKey,
       reportError,
       surface.dirty,
       surface.id,
-      targetApps,
     ],
   );
   const save = useCallback(async () => {
@@ -468,112 +475,156 @@ function AvailableFileSurfaceHeader({
         </Button>
       ) : null}
 
-      {hostClient && fileSession && openTarget && folderPath ? (
-        <div className="flex shrink-0 items-center rounded-[var(--button-radius)] border border-border bg-background">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={primaryLabel}
-            title={primaryLabel}
-            disabled={
-              opening ||
-              localAppsLoading ||
-              (!preferencesHydrated && !preferenceError) ||
-              (primaryApp?.kind === "browser" && surface.dirty)
-            }
-            onClick={() => void openWithLocalApp(primaryApp, openTarget)}
-          >
-            {opening ? (
-              <LoaderCircleIcon
-                aria-hidden="true"
-                className="animate-spin motion-reduce:animate-none"
-              />
-            ) : primaryApp ? (
-              <LocalAppIcon app={primaryApp} />
-            ) : path ? (
-              <FileKindIcon kind={fileKind} />
-            ) : (
-              <FolderIcon aria-hidden="true" />
-            )}
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<Button variant="ghost" size="icon-sm" />}
-              disabled={opening}
-              aria-label={t("extensions.workspaceFile.openOptions")}
-              title={t("extensions.workspaceFile.openOptions")}
-            >
-              <ChevronDownIcon aria-hidden="true" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-max max-w-(--available-width)">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>{t("extensions.workspaceFile.openWithApps")}</DropdownMenuLabel>
-                {localAppsLoading && localApps.length === 0 ? (
-                  <DropdownMenuItem disabled>
-                    <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" />
-                    {t("extensions.workspaceFile.loadingLocalApps")}
-                  </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuRadioGroup value={primaryApp?.id ?? SYSTEM_DEFAULT_APP_ID}>
-                  {targetApps.map((app) => (
-                    <DropdownMenuRadioItem
-                      key={app.id}
-                      value={app.id}
-                      disabled={opening || (app.kind === "browser" && surface.dirty)}
-                      title={
-                        app.kind === "browser" && surface.dirty
-                          ? t("extensions.workspaceFile.saveBeforeBrowser")
-                          : undefined
-                      }
-                      onClick={() => void openWithLocalApp(app, openTarget)}
-                    >
-                      <LocalAppIcon app={app} />
-                      {localAppName(app)}
-                    </DropdownMenuRadioItem>
-                  ))}
-                  <DropdownMenuRadioItem
-                    value={SYSTEM_DEFAULT_APP_ID}
-                    disabled={opening}
-                    onClick={() => void openWithLocalApp(undefined, openTarget)}
-                  >
-                    {path ? <FileKindIcon kind={fileKind} /> : <FolderIcon aria-hidden="true" />}
-                    {t(
-                      path
-                        ? "extensions.workspaceFile.openFile"
-                        : "extensions.workspaceFile.openFolder",
-                    )}
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuGroup>
-              {systemApps.length > 0 ? <DropdownMenuSeparator /> : null}
-              {systemApps.map((app) => (
-                <DropdownMenuItem
-                  key={app.id}
-                  onClick={() => void openWithLocalApp(app, folderPath)}
+      {hostClient && fileSession && openTarget && folderPath
+        ? appSelectors.map(({ id, apps, preferenceKey, primaryApp, allowSystemDefault }) => {
+            const menuLabel = t(
+              id === "browser"
+                ? "extensions.workspaceFile.browserOptions"
+                : fileKind === "html"
+                  ? "extensions.workspaceFile.editorOptions"
+                  : "extensions.workspaceFile.openOptions",
+            );
+            const primaryLabel =
+              primaryApp?.kind === "browser"
+                ? surface.dirty
+                  ? t("extensions.workspaceFile.saveBeforeBrowser")
+                  : t("extensions.workspaceFile.openInBrowser", { name: primaryApp.name })
+                : primaryApp
+                  ? t("extensions.workspaceFile.openWith", { name: localAppName(primaryApp) })
+                  : allowSystemDefault
+                    ? t(
+                        path
+                          ? "extensions.workspaceFile.openFile"
+                          : "extensions.workspaceFile.openFolder",
+                      )
+                    : menuLabel;
+            return (
+              <div
+                key={id}
+                className="flex shrink-0 items-center rounded-[var(--button-radius)] border border-border bg-background"
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={primaryLabel}
+                  title={primaryLabel}
+                  disabled={
+                    (!primaryApp && !allowSystemDefault) ||
+                    opening ||
+                    localAppsLoading ||
+                    (!preferencesHydrated && !preferenceError) ||
+                    (primaryApp?.kind === "browser" && surface.dirty)
+                  }
+                  onClick={() => void openWithLocalApp(primaryApp, openTarget, preferenceKey)}
                 >
-                  <LocalAppIcon app={app} />
-                  {localAppName(app)}
-                </DropdownMenuItem>
-              ))}
-              {preferenceError ? (
-                <DropdownMenuItem disabled>
-                  {t(
-                    preferenceError === "load"
-                      ? "extensions.workspaceFile.openPreferenceLoadFailed"
-                      : "extensions.workspaceFile.openPreferenceSaveFailed",
+                  {opening ? (
+                    <LoaderCircleIcon
+                      aria-hidden="true"
+                      className="animate-spin motion-reduce:animate-none"
+                    />
+                  ) : primaryApp ? (
+                    <LocalAppIcon app={primaryApp} />
+                  ) : path ? (
+                    <FileKindIcon kind={fileKind} />
+                  ) : (
+                    <FolderIcon aria-hidden="true" />
                   )}
-                </DropdownMenuItem>
-              ) : null}
-              {localAppsError ? (
-                <DropdownMenuItem disabled>
-                  {t("extensions.workspaceFile.localAppsLoadError")}
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      ) : null}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={<Button variant="ghost" size="icon-sm" />}
+                    disabled={opening}
+                    aria-label={menuLabel}
+                    title={menuLabel}
+                  >
+                    <ChevronDownIcon aria-hidden="true" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-max max-w-(--available-width)">
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>{menuLabel}</DropdownMenuLabel>
+                      {localAppsLoading && localApps.length === 0 ? (
+                        <DropdownMenuItem disabled>
+                          <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" />
+                          {t("extensions.workspaceFile.loadingLocalApps")}
+                        </DropdownMenuItem>
+                      ) : null}
+                      <DropdownMenuRadioGroup
+                        value={primaryApp?.id ?? (allowSystemDefault ? SYSTEM_DEFAULT_APP_ID : "")}
+                      >
+                        {apps.map((app) => (
+                          <DropdownMenuRadioItem
+                            key={app.id}
+                            value={app.id}
+                            disabled={opening || (app.kind === "browser" && surface.dirty)}
+                            title={
+                              app.kind === "browser" && surface.dirty
+                                ? t("extensions.workspaceFile.saveBeforeBrowser")
+                                : undefined
+                            }
+                            onClick={() => void openWithLocalApp(app, openTarget, preferenceKey)}
+                          >
+                            <LocalAppIcon app={app} />
+                            {localAppName(app)}
+                          </DropdownMenuRadioItem>
+                        ))}
+                        {allowSystemDefault ? (
+                          <DropdownMenuRadioItem
+                            value={SYSTEM_DEFAULT_APP_ID}
+                            disabled={opening}
+                            onClick={() =>
+                              void openWithLocalApp(undefined, openTarget, preferenceKey)
+                            }
+                          >
+                            {path ? (
+                              <FileKindIcon kind={fileKind} />
+                            ) : (
+                              <FolderIcon aria-hidden="true" />
+                            )}
+                            {t(
+                              path
+                                ? "extensions.workspaceFile.openFile"
+                                : "extensions.workspaceFile.openFolder",
+                            )}
+                          </DropdownMenuRadioItem>
+                        ) : null}
+                        {!allowSystemDefault && !localAppsLoading && apps.length === 0 ? (
+                          <DropdownMenuItem disabled>
+                            {t("extensions.workspaceFile.noCompatibleApps")}
+                          </DropdownMenuItem>
+                        ) : null}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuGroup>
+                    {id === "file" && systemApps.length > 0 ? <DropdownMenuSeparator /> : null}
+                    {(id === "file" ? systemApps : []).map((app) => (
+                      <DropdownMenuItem
+                        key={app.id}
+                        onClick={() => void openWithLocalApp(app, folderPath)}
+                      >
+                        <LocalAppIcon app={app} />
+                        {localAppName(app)}
+                      </DropdownMenuItem>
+                    ))}
+                    {preferenceError ? (
+                      <DropdownMenuItem disabled>
+                        {t(
+                          preferenceError === "load"
+                            ? "extensions.workspaceFile.openPreferenceLoadFailed"
+                            : "extensions.workspaceFile.openPreferenceSaveFailed",
+                        )}
+                      </DropdownMenuItem>
+                    ) : null}
+                    {localAppsError ? (
+                      <DropdownMenuItem disabled>
+                        {t("extensions.workspaceFile.localAppsLoadError")}
+                      </DropdownMenuItem>
+                    ) : null}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            );
+          })
+        : null}
     </div>
   );
 }
