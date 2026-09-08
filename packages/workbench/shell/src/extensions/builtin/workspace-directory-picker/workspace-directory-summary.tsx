@@ -13,7 +13,6 @@ import {
   useWorkspaceSelection,
   type WorkbenchWorkspaceSummary,
 } from "@workbench/agent-runtime-client/workspaces";
-import { WorkbenchAgentCapabilityError } from "@workbench/agent-runtime-client";
 import {
   type WorkbenchRuntimeHostCapability,
   type WorkbenchWorkspaceCapability,
@@ -23,9 +22,7 @@ import {
   useWorkbenchWorkspaceCapability,
 } from "@workbench/agent-runtime-client/context";
 
-import { useRuntimeConnection } from "@workbench/shell/runtime-connection";
-import { shouldUseNativeDirectoryPicker } from "./directory-picker-capability";
-import { RemoteDirectoryPickerDialog } from "./remote-directory-picker-dialog";
+import { WorkspaceDirectoryPickerDialog } from "./workspace-directory-picker-dialog";
 import { ProjectTrustDialog } from "@workbench/shell/ui";
 import { useWorkspaceDirectoryAdmission } from "./use-workspace-directory-admission";
 import { workspaceProjectTrustDialogCopy } from "./project-trust-dialog-copy";
@@ -52,10 +49,9 @@ function WorkspaceDirectorySummaryContent({
 }) {
   const { t } = useI18n();
   const trustDialogCopy = workspaceProjectTrustDialogCopy(t);
-  const runtimeConnection = useRuntimeConnection();
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [picking, setPicking] = useState(false);
-  const [remotePickerOpen, setRemotePickerOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState(false);
   const isNewThread = useCurrentSession().isNewThread;
   const { activeWorkspace, draftWorkspace, workspaces } = useWorkspaceSelection();
@@ -71,30 +67,6 @@ function WorkspaceDirectorySummaryContent({
     [beginNewThreadWithCreatedWorkspace],
   );
   const admission = useWorkspaceDirectoryAdmission(selectWorkspace, hostClient, workspaceClient);
-
-  const pickDirectory = async () => {
-    if (picking) return;
-    setSelectorOpen(false);
-    if (!shouldUseNativeDirectoryPicker(runtimeConnection)) {
-      setError(false);
-      setRemotePickerOpen(true);
-      return;
-    }
-    setPicking(true);
-    setError(false);
-    try {
-      const path = await hostClient.pickDirectory();
-      if (path) await admission.selectPath(path);
-    } catch (cause) {
-      if (cause instanceof WorkbenchAgentCapabilityError && cause.code === "unavailable") {
-        setRemotePickerOpen(true);
-      } else {
-        setError(true);
-      }
-    } finally {
-      setPicking(false);
-    }
-  };
 
   return (
     <>
@@ -146,7 +118,11 @@ function WorkspaceDirectorySummaryContent({
               variant="ghost"
               disabled={picking}
               className="w-full justify-start gap-2.5 px-2.5 text-sm"
-              onClick={() => void pickDirectory()}
+              onClick={() => {
+                setSelectorOpen(false);
+                setError(false);
+                setPickerOpen(true);
+              }}
             >
               {picking ? (
                 <LoaderCircleIcon aria-hidden="true" className="size-4 animate-spin" />
@@ -158,12 +134,13 @@ function WorkspaceDirectorySummaryContent({
           </div>
         }
       />
-      <RemoteDirectoryPickerDialog
-        hostClient={hostClient}
-        open={remotePickerOpen}
-        onOpenChange={setRemotePickerOpen}
-        onSelectPath={admission.selectPath}
-      />
+      {pickerOpen ? (
+        <WorkspaceDirectoryPickerDialog
+          hostClient={hostClient}
+          onClose={() => setPickerOpen(false)}
+          onSelectPath={admission.selectPath}
+        />
+      ) : null}
       <ProjectTrustDialog
         copy={trustDialogCopy}
         open={admission.pendingPath !== undefined}

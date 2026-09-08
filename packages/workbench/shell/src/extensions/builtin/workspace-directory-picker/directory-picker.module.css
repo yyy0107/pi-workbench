@@ -1,0 +1,21 @@
+.dialog {
+  --directory-picker-unit: var(--text-base);
+  --directory-picker-width: calc(var(--directory-picker-unit) * 48);
+  --directory-picker-available-height: calc(100dvh - var(--directory-picker-unit) * 2);
+
+  max-width: min(calc(100vw - var(--directory-picker-unit) * 2), var(--directory-picker-width));
+  max-height: var(--directory-picker-available-height);
+}
+
+.remote {
+  --directory-picker-width: calc(var(--directory-picker-unit) * 42);
+
+  height: min(calc(var(--directory-picker-unit) * 32), var(--directory-picker-available-height));
+}
+
+.types {
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, calc(var(--directory-picker-unit) * 18)), 1fr)
+  );
+}

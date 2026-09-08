@@ -64,7 +64,7 @@ export class WorkbenchAgentCapabilityError extends Error {
 }
 
 export interface WorkbenchRuntimeHostCapability {
-  pickDirectory(): Promise<string | undefined>;
+  pickDirectory(options?: WorkbenchCapabilityRequestOptions): Promise<string | undefined>;
   listDirectory(path?: string): Promise<WorkbenchHostDirectoryListing>;
   createDirectory(path: string, name: string): Promise<string>;
   openPath(path: string): Promise<void>;

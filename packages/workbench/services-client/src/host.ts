@@ -56,7 +56,10 @@ export function createHostClient(
 ): WorkbenchServicesCapabilities["host"] {
   const options = Object.freeze({ ...rpcOptions });
   return Object.freeze({
-    pickDirectory: () => capabilityCall(() => pickHostDirectory(options)),
+    pickDirectory: (requestOptions) =>
+      capabilityCall(() =>
+        pickHostDirectory({ ...options, signal: requestOptions?.signal ?? options.signal }),
+      ),
     listDirectory: (path?: string) => capabilityCall(() => listHostDirectory(path, options)),
     createDirectory: async (path: string, name: string) =>
       (await capabilityCall(() => createHostDirectory(path, name, options))).path,
