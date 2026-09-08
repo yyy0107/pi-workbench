@@ -590,3 +590,92 @@ test("crawls every official page once and paginates the cached snapshot locally"
   );
   assert.equal(requestedUrls.length, 2);
 });
+
+test("restarts the whole snapshot when pages overlap or their totals change", async () => {
+  for (const changedPage of [generatedCatalogPage(50, 50, 51), generatedCatalogPage(51, 51, 52)]) {
+    const requestedPages: number[] = [];
+    const retryDelays: number[] = [];
+    const service = new PiPackageCatalogService({
+      fetch: async (input) => {
+        const page = Number(new URL(input).searchParams.get("page") ?? 1);
+        requestedPages.push(page);
+        return new Response(
+          page === 1
+            ? generatedCatalogPage(1, 50, 51)
+            : requestedPages.length === 2
+              ? changedPage
+              : generatedCatalogPage(51, 51, 51),
+        );
+      },
+      sleep: async (delayMs) => {
+        retryDelays.push(delayMs);
+      },
+    });
+
+    const refresh = service.refreshCatalog();
+    assert.equal(service.refreshCatalog(), refresh);
+    await refresh;
+
+    assert.deepEqual(requestedPages, [1, 2, 1, 2]);
+    assert.deepEqual(retryDelays, [250]);
+    const result = await service.search({ sort: "name", page: 2 });
+    assert.equal(result.total, 51);
+    assert.deepEqual(
+      result.packages.map(({ name }) => name),
+      ["pi-cache-051"],
+    );
+    await service.shutdown();
+  }
+});
+
+test("bounds inconsistent snapshot retries and keeps the previous complete snapshot", async () => {
+  let changed = false;
+  let requestCount = 0;
+  const retryDelays: number[] = [];
+  const service = new PiPackageCatalogService({
+    fetch: async () => {
+      requestCount += 1;
+      return new Response(changed ? generatedCatalogPage(1, 1, 2) : completeCatalogHtml);
+    },
+    sleep: async (delayMs) => {
+      retryDelays.push(delayMs);
+    },
+  });
+
+  await service.refreshCatalog();
+  changed = true;
+  await assert.rejects(service.refreshCatalog(), {
+    name: "PiPackageCatalogServiceError",
+    code: "catalog-unavailable",
+  });
+
+  assert.equal(requestCount, 4);
+  assert.deepEqual(retryDelays, [250, 500]);
+  const result = await service.search({ sort: "name" });
+  assert.equal(result.total, 2);
+  assert.deepEqual(
+    result.packages.map(({ name }) => name),
+    ["@example/pi-tools", "pi-theme"],
+  );
+  await service.shutdown();
+});
+
+test("shutdown cancels an inconsistent snapshot retry", async () => {
+  let requestCount = 0;
+  const service = new PiPackageCatalogService({
+    fetch: async () => {
+      requestCount += 1;
+      return new Response(generatedCatalogPage(1, 1, 2));
+    },
+    sleep: async () => {
+      void service.shutdown();
+    },
+  });
+
+  await assert.rejects(service.refreshCatalog(), {
+    name: "PiPackageCatalogServiceError",
+    code: "catalog-unavailable",
+  });
+  await service.shutdown();
+  assert.equal(requestCount, 1);
+});

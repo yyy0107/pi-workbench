@@ -15,6 +15,7 @@ const PI_PACKAGE_CATALOG_PAGE_SIZE = 50;
 const MAX_CATALOG_RESPONSE_BYTES = 2 * 1024 * 1024;
 const CATALOG_REQUEST_TIMEOUT_MS = 15_000;
 const CATALOG_REQUEST_MAX_ATTEMPTS = 3;
+const CATALOG_SNAPSHOT_MAX_ATTEMPTS = 3;
 const CATALOG_RETRY_BASE_DELAY_MS = 250;
 const CATALOG_RETRY_MAX_DELAY_MS = 2_000;
 const DEFAULT_CATALOG_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
@@ -630,7 +631,10 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
     return parsePiPackageCatalogPageHtml(html, payload.page ?? 1);
   }
 
-  private async loadCompleteSnapshot(signal: AbortSignal): Promise<PackageCatalogSnapshot> {
+  private async loadCompleteSnapshot(
+    signal: AbortSignal,
+    attempt = 1,
+  ): Promise<PackageCatalogSnapshot> {
     const controller = new AbortController();
     const refreshSignal = AbortSignal.any([signal, controller.signal]);
     const firstPage = await this.fetchCatalogPage(
@@ -691,12 +695,26 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
         entries.push(entry);
       }
     }
-    if (entries.length !== firstPage.value.total) {
-      throw new PiPackageCatalogServiceError(
-        "catalog-invalid-response",
-        "The Pi package catalog changed while its snapshot was being refreshed.",
-        {},
-      );
+    if (
+      entries.length !== firstPage.value.total ||
+      pages.some(
+        (page) =>
+          page?.value.total !== firstPage.value.total ||
+          page.value.filteredTotal !== firstPage.value.total,
+      )
+    ) {
+      // Offset pagination can shift during a crawl; retry from page one before publishing.
+      if (attempt < CATALOG_SNAPSHOT_MAX_ATTEMPTS) {
+        await this.waitBeforeRetry(attempt, signal);
+        return this.loadCompleteSnapshot(signal, attempt + 1);
+      }
+      throw catalogUnavailable({
+        cause: new PiPackageCatalogServiceError(
+          "catalog-invalid-response",
+          "The Pi package catalog changed while its snapshot was being refreshed.",
+          {},
+        ),
+      });
     }
     return { entries, total: entries.length };
   }
