@@ -4,13 +4,19 @@ import { act, isValidElement, type ComponentProps, type ReactElement, type React
 import { createRoot } from "react-dom/client";
 
 import { installMinimalReactDomEnvironment } from "../../test/react-dom-environment";
-import { DropdownMenu, DropdownMenuRadioGroup, DropdownMenuSubTrigger } from "./dropdown-menu";
+import { DropdownMenu, DropdownMenuRadioGroup, DropdownMenuItem } from "./dropdown-menu";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./collapsible";
+import { SelectorDropdownContent } from "./selector-dropdown";
 import { ModelSelector, type ModelSelectorOption } from "./model-selector";
 
 interface ElementProps {
   children?: ReactNode;
   render?: ReactNode;
   label?: string;
+  open?: boolean;
+  closeOnClick?: boolean;
+  side?: string;
+  collisionAvoidance?: { side: string; align: string };
   value?: string;
   model?: ModelSelectorOption;
   onChange?(value: string): void;
@@ -79,7 +85,7 @@ test("provider browsing scopes model search and effort menus follow the selected
     elements(tree).filter((element) => element.type === DropdownMenuRadioGroup);
   const menuLabels = () =>
     elements(tree)
-      .filter((element) => element.type === DropdownMenuSubTrigger)
+      .filter((element) => element.type === CollapsibleTrigger)
       .map(
         (element) =>
           elements(element.props.children).find((child) => child.type === "span")?.props.children,
@@ -97,11 +103,47 @@ test("provider browsing scopes model search and effort menus follow the selected
   try {
     await act(async () => root.render(<Probe />));
     assert.deepEqual(menuLabels(), ["Provider", "Model", "Effort"]);
+    const popup = elements(tree).find((element) => element.type === SelectorDropdownContent)!;
+    assert.equal(popup.props.side, "top");
+    assert.deepEqual(popup.props.collisionAvoidance, { side: "none", align: "shift" });
+    const sections = () => elements(tree).filter((element) => element.type === Collapsible);
+    assert.deepEqual(
+      sections().map((section) => section.props.open),
+      [false, false, false],
+    );
+    assert.equal(elements(tree).filter((element) => element.type === CollapsibleContent).length, 3);
+    for (const section of sections()) {
+      const children = elements(section.props.children);
+      assert.ok(
+        children.findIndex((child) => child.type === CollapsibleContent) <
+          children.findIndex((child) => child.type === CollapsibleTrigger),
+        "lists expand above their triggers to preserve the click position",
+      );
+    }
+    assert.ok(
+      elements(tree)
+        .filter((element) => element.type === DropdownMenuItem)
+        .every((element) => element.props.closeOnClick === false),
+    );
+    await act(async () => sections()[1]!.props.onOpenChange!(true));
+    assert.deepEqual(
+      sections().map((section) => section.props.open),
+      [false, true, false],
+    );
+    await act(async () => sections()[0]!.props.onOpenChange!(true));
+    assert.deepEqual(
+      sections().map((section) => section.props.open),
+      [true, false, false],
+    );
+    await act(async () => sections()[0]!.props.onOpenChange!(false));
+    assert.ok(sections().every((section) => !section.props.open));
     assert.deepEqual(visibleModels(), ["a/reason", "a/plain"]);
     await query("Shared");
     assert.deepEqual(visibleModels(), ["a/reason"]);
 
+    await act(async () => sections()[0]!.props.onOpenChange!(true));
     await browse("b");
+    assert.ok(sections().every((section) => !section.props.open));
     assert.deepEqual(changes, []);
     assert.equal(radioGroups()[1]!.props.value, "", "an unselected provider stays controlled");
     assert.equal(search().props.value, "");
@@ -128,6 +170,7 @@ test("provider browsing scopes model search and effort menus follow the selected
     await act(async () =>
       elements(tree).find((element) => element.type === DropdownMenu)!.props.onOpenChange!(true),
     );
+    assert.ok(sections().every((section) => !section.props.open));
     assert.equal(radioGroups()[0]!.props.value, "b");
     assert.equal(search().props.value, "");
     assert.deepEqual(visibleModels(), ["b/reason", "b/plain"]);

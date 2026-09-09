@@ -1,19 +1,19 @@
 "use client";
 
 import { ChevronDownIcon, SearchIcon } from "lucide-react";
-import { memo, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 
 import {
   DropdownMenu,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./dropdown-menu";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./collapsible";
 import { Input } from "./input";
 import { SelectorDropdownContent } from "./selector-dropdown";
+import { collapsePanel } from "./surface";
 import { cn } from "../utils";
 import {
   filterModelSelectorOptions,
@@ -89,7 +89,7 @@ function ModelSearch({
   onChange(value: string): void;
 }) {
   return (
-    <div className="bg-popover flex h-10 items-center px-1">
+    <div className="flex h-10 items-center px-1">
       <div className="relative w-full">
         <SearchIcon className="text-muted-foreground pointer-events-none absolute start-2.5 top-1/2 size-[var(--input-control-icon-size)] -translate-y-1/2" />
         <Input
@@ -143,8 +143,11 @@ export function ModelSelector({
 }) {
   const [modelQuery, setModelQuery] = useState("");
   const [browsedProviderId, setBrowsedProviderId] = useState<string>();
-  const [providerMenuOpen, setProviderMenuOpen] = useState(false);
-  const selectedModelRef = useRef<HTMLDivElement>(null);
+  const [expandedSection, setExpandedSection] = useState<"provider" | "model" | "effort">();
+  const selectedModelRef = useCallback((node: HTMLDivElement | null) => {
+    const list = node?.closest<HTMLElement>("[data-model-selector-scroll]");
+    if (list) list.scrollTop = node!.offsetTop;
+  }, []);
   const modelsByProvider = useMemo(() => groupModelSelectorOptions(models), [models]);
   const selectedModel = models.find((model) => model.id === selectedModelId) ?? models[0];
   const providerId =
@@ -175,7 +178,7 @@ export function ModelSelector({
           else {
             setModelQuery("");
             setBrowsedProviderId(undefined);
-            setProviderMenuOpen(false);
+            setExpandedSection(undefined);
           }
         }}
       >
@@ -196,10 +199,16 @@ export function ModelSelector({
               {selectedModel?.name ?? labels.select}
             </span>,
           )}
-          <ChevronDownIcon className="absolute end-2 size-3.5 shrink-0 opacity-0 transition-[opacity,transform] group-hover:opacity-50 group-focus-visible:opacity-50 group-data-popup-open:rotate-180 group-data-popup-open:opacity-50" />
+          <ChevronDownIcon className="absolute end-2 size-3.5 shrink-0 opacity-50 transition-transform group-data-popup-open:rotate-180" />
         </DropdownMenuTrigger>
 
-        <SelectorDropdownContent align="center" side="bottom" sideOffset={4}>
+        <SelectorDropdownContent
+          className="[&_[data-checked]]:bg-accent [&_[data-checked]]:font-medium [&_[data-checked]]:text-accent-foreground"
+          align="center"
+          side="top"
+          sideOffset={4}
+          collisionAvoidance={{ side: "none", align: "shift" }}
+        >
           {selectionFailed || currentUnavailable ? (
             <MenuStatus alert={selectionFailed}>
               {selectionFailed ? labels.selectFailed : labels.currentUnavailable}
@@ -212,120 +221,146 @@ export function ModelSelector({
             </MenuStatus>
           ) : null}
 
-          <DropdownMenuSub open={providerMenuOpen} onOpenChange={setProviderMenuOpen}>
-            <DropdownMenuSubTrigger
-              openOnHover={false}
+          <Collapsible
+            className="rounded-md data-open:bg-muted/40 data-open:ring-1 data-open:ring-border data-open:ring-inset"
+            open={expandedSection === "provider"}
+            onOpenChange={(open) => setExpandedSection(open ? "provider" : undefined)}
+          >
+            <CollapsibleContent className={collapsePanel}>
+              <div className="max-h-64 overflow-y-auto">
+                <DropdownMenuRadioGroup
+                  value={providerId ?? ""}
+                  onValueChange={(nextProviderId) => {
+                    setBrowsedProviderId(nextProviderId);
+                    setModelQuery("");
+                    setExpandedSection(undefined);
+                  }}
+                >
+                  {providers.map(([id, name]) => (
+                    <DropdownMenuRadioItem
+                      key={id}
+                      value={id}
+                      closeOnClick={false}
+                      disabled={selectionLocked}
+                      className="h-[var(--dropdown-control-height)] px-2 pe-8"
+                    >
+                      {withTooltip(
+                        <span className="min-w-0 flex-1 truncate" title={name}>
+                          {name}
+                        </span>,
+                      )}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </div>
+            </CollapsibleContent>
+            <CollapsibleTrigger
+              render={<DropdownMenuItem nativeButton render={<button />} closeOnClick={false} />}
               disabled={selectionLocked || !providers.length}
-              className="h-[var(--dropdown-control-height)] gap-3 px-2 [&>svg]:ml-1.5"
+              className="group h-[var(--dropdown-control-height)] w-full gap-3 px-2 data-panel-open:font-medium"
             >
               <span>{labels.provider}</span>
               <MenuCurrentValue>
                 {modelsByProvider.get(providerId ?? "")?.[0]?.providerName ?? "—"}
               </MenuCurrentValue>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="max-h-64 w-52 overflow-y-auto" sideOffset={4}>
-              <DropdownMenuRadioGroup
-                value={providerId ?? ""}
-                onValueChange={(nextProviderId) => {
-                  setBrowsedProviderId(nextProviderId);
-                  setModelQuery("");
-                  setProviderMenuOpen(false);
-                }}
-              >
-                {providers.map(([id, name]) => (
-                  <DropdownMenuRadioItem
-                    key={id}
-                    value={id}
-                    closeOnClick={false}
-                    disabled={selectionLocked}
-                    className="h-[var(--dropdown-control-height)] px-2 pe-8"
-                  >
-                    {withTooltip(
-                      <span className="min-w-0 flex-1 truncate" title={name}>
-                        {name}
-                      </span>,
-                    )}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
+              <ChevronDownIcon
+                aria-hidden="true"
+                className="ms-1.5 transition-transform duration-200 group-data-panel-open:rotate-180 motion-reduce:transition-none"
+              />
+            </CollapsibleTrigger>
+          </Collapsible>
 
-          <DropdownMenuSub
-            onOpenChangeComplete={(open) => {
-              if (open) selectedModelRef.current?.scrollIntoView({ block: "center" });
-            }}
+          <Collapsible
+            className="rounded-md data-open:bg-muted/40 data-open:ring-1 data-open:ring-border data-open:ring-inset"
+            open={expandedSection === "model"}
+            onOpenChange={(open) => setExpandedSection(open ? "model" : undefined)}
           >
-            <DropdownMenuSubTrigger
-              openOnHover={false}
+            <CollapsibleContent className={collapsePanel}>
+              <div data-model-selector-scroll className="relative max-h-80 overflow-y-auto">
+                {!loadFailed && models.length > 0 ? (
+                  <ModelSearch
+                    value={modelQuery}
+                    onChange={setModelQuery}
+                    label={labels.search}
+                    placeholder={labels.searchPlaceholder}
+                  />
+                ) : null}
+                <div className="min-h-0 overflow-y-auto">
+                  {!filteredModels.length ? (
+                    <MenuStatus>{labels.noSearchResults}</MenuStatus>
+                  ) : (
+                    <DropdownMenuRadioGroup
+                      value={providerModel?.id ?? ""}
+                      onValueChange={onModelChange}
+                    >
+                      {filteredModels.map((model) => (
+                        <ModelMenuItem
+                          key={model.id}
+                          model={model}
+                          disabled={selectionLocked}
+                          itemRef={model.id === providerModel?.id ? selectedModelRef : undefined}
+                        />
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  )}
+                </div>
+              </div>
+            </CollapsibleContent>
+            <CollapsibleTrigger
+              render={<DropdownMenuItem nativeButton render={<button />} closeOnClick={false} />}
               disabled={selectionLocked || !models.length}
-              className="h-[var(--dropdown-control-height)] gap-3 px-2 [&>svg]:ml-1.5"
+              className="group h-[var(--dropdown-control-height)] w-full gap-3 px-2 data-panel-open:font-medium"
             >
               <span>{labels.model}</span>
               <MenuCurrentValue>{providerModel?.name ?? labels.select}</MenuCurrentValue>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent
-              className="grid max-h-80 w-72 grid-rows-[auto_minmax(0,1fr)] overflow-hidden p-0"
-              sideOffset={4}
-            >
-              {!loadFailed && models.length > 0 ? (
-                <ModelSearch
-                  value={modelQuery}
-                  onChange={setModelQuery}
-                  label={labels.search}
-                  placeholder={labels.searchPlaceholder}
-                />
-              ) : null}
-              <div className="min-h-0 overflow-y-auto">
-                {!filteredModels.length ? (
-                  <MenuStatus>{labels.noSearchResults}</MenuStatus>
-                ) : (
-                  <DropdownMenuRadioGroup
-                    value={providerModel?.id ?? ""}
-                    onValueChange={onModelChange}
-                  >
-                    {filteredModels.map((model) => (
-                      <ModelMenuItem
-                        key={model.id}
-                        model={model}
-                        disabled={selectionLocked}
-                        itemRef={model.id === providerModel?.id ? selectedModelRef : undefined}
-                      />
-                    ))}
-                  </DropdownMenuRadioGroup>
-                )}
-              </div>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
+              <ChevronDownIcon
+                aria-hidden="true"
+                className="ms-1.5 transition-transform duration-200 group-data-panel-open:rotate-180 motion-reduce:transition-none"
+              />
+            </CollapsibleTrigger>
+          </Collapsible>
 
           {reasoningLevels.length > 0 ? (
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger
-                openOnHover={false}
+            <Collapsible
+              className="rounded-md data-open:bg-muted/40 data-open:ring-1 data-open:ring-border data-open:ring-inset"
+              open={expandedSection === "effort"}
+              onOpenChange={(open) => setExpandedSection(open ? "effort" : undefined)}
+            >
+              <CollapsibleContent className={collapsePanel}>
+                <div className="max-h-64 overflow-y-auto">
+                  <DropdownMenuRadioGroup
+                    value={selectedEffort ?? ""}
+                    onValueChange={onEffortChange}
+                  >
+                    {reasoningLevels.map((level) => (
+                      <DropdownMenuRadioItem
+                        key={level.id}
+                        value={level.id}
+                        closeOnClick={false}
+                        disabled={selectionLocked}
+                        className="h-[var(--dropdown-control-height)] px-2 pe-8"
+                      >
+                        <span className="min-w-0 flex-1 truncate">{getEffortLabel(level)}</span>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </div>
+              </CollapsibleContent>
+              <CollapsibleTrigger
+                render={<DropdownMenuItem nativeButton render={<button />} closeOnClick={false} />}
                 disabled={selectionLocked}
-                className="h-[var(--dropdown-control-height)] gap-3 px-2 [&>svg]:ml-1.5"
+                className="group h-[var(--dropdown-control-height)] w-full gap-3 px-2 data-panel-open:font-medium"
               >
                 <span>{labels.reasoningEffort}</span>
                 <MenuCurrentValue>
                   {selectedEffortOption ? getEffortLabel(selectedEffortOption) : "—"}
                 </MenuCurrentValue>
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-44" sideOffset={4}>
-                <DropdownMenuRadioGroup value={selectedEffort ?? ""} onValueChange={onEffortChange}>
-                  {reasoningLevels.map((level) => (
-                    <DropdownMenuRadioItem
-                      key={level.id}
-                      value={level.id}
-                      closeOnClick={false}
-                      disabled={selectionLocked}
-                      className="h-[var(--dropdown-control-height)] px-2 pe-8"
-                    >
-                      <span className="min-w-0 flex-1 truncate">{getEffortLabel(level)}</span>
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
+                <ChevronDownIcon
+                  aria-hidden="true"
+                  className="ms-1.5 transition-transform duration-200 group-data-panel-open:rotate-180 motion-reduce:transition-none"
+                />
+              </CollapsibleTrigger>
+            </Collapsible>
           ) : null}
         </SelectorDropdownContent>
       </DropdownMenu>
