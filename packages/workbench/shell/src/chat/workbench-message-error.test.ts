@@ -65,7 +65,7 @@ test("identifies a message as historical only after a later user turn", () => {
   assert.equal(isMessageInLatestTurn(messages, 99), false);
 });
 
-test("only the latest stopped attempt shows a card after repeated continuation", () => {
+test("only the latest terminal attempt shows a card after repeated continuation", () => {
   const messages: { role: "user" | "assistant" | "system"; terminationKind?: string }[] = [
     { role: "user" },
   ];
@@ -82,7 +82,16 @@ test("only the latest stopped attempt shows a card after repeated continuation",
         : [],
     );
 
-  for (const terminationKind of ["cancelled", "cancelled", "aborted"]) {
+  for (const terminationKind of [
+    "cancelled",
+    "aborted",
+    "provider-error",
+    "network-error",
+    "api-error",
+    "length",
+    "error",
+    undefined,
+  ]) {
     messages.push({ role: "assistant", terminationKind });
     const stoppedIndex = messages.length - 1;
     messages.push({ role: "system" });

@@ -215,6 +215,15 @@ Pi coding agent 的 `piVersion`、用户级资源根目录 `userResourceDir`，�
 后生效。`settings.openDocument` 会在文件不存在时创建最小的 `settings.json`，再交给本地主机的
 默认应用打开。
 
+Workbench 设置的「上下文管理 → 缓存缺失通知」映射 Pi 原生 `showCacheMissNotices`，默认关闭，
+与其他 Pi 设置一样在新会话或 `/reload` 后生效。启用后，助手消息完成时复用 Pi 的 `detectCacheMiss()`
+计算明显的缓存缺失，在助手消息操作栏中显示图标，点击查看重复处理的 token、估算额外美元费用，以及可观察到的模型切换和空闲提示。
+检测函数通过现有 pnpm 补丁从 Pi SDK 根入口导出，不复制计费算法。补丁还允许明确的缓存优惠价格
+作为缓存支持的依据，修复首次请求未报告缓存写入时，后续切换模型或空闲后的完全缺失被漏报的问题；
+首个请求、未知/零占位缓存价格且从未报告缓存的提供商，仍不产生通知。`workbenchCacheMiss` 只附加到
+canonical `message_end` 的消息投影并持久化到事件日志；Pi 原生模型消息不变。客户端将它转换为
+`pi-cache-miss` Data Block，由 Pi contribution 渲染，因此实时消息和冷历史使用同一份通知，且提示不进入模型上下文。
+
 `pi.agent` 快照还返回只读的 `builtinSystemPrompt` 预览，由 Pi 官方 SDK 的内存会话生成，
 保留静态正文和固定规则，移除当前工作目录，并将工具列表、工具相关建议和文档安装路径改为占位符；
 不发现用户或项目资源、不读取凭据或创建会话文件。系统提示词与追加提示词统一在工具箱的

@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@earendil-works/pi-coding-agent@0.85.1': 9f393b12f62c96d22a9b5697daac461e4bb70ab7bf50cc7398a7237807c3da7a
+  '@earendil-works/pi-coding-agent@0.85.1': 5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579
 
 importers:
 
@@ -168,7 +168,7 @@ importers:
     dependencies:
       '@earendil-works/pi-coding-agent':
         specifier: 0.85.1
-        version: 0.85.1(patch_hash=9f393b12f62c96d22a9b5697daac461e4bb70ab7bf50cc7398a7237807c3da7a)(ws@8.21.3)
+        version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(ws@8.21.3)
       '@workbench/agent-runtime-pi-protocol':
         specifier: workspace:*
         version: link:../../packages/agent-runtime/runtimes/pi/protocol
@@ -613,7 +613,7 @@ importers:
         version: 0.85.1(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
       '@earendil-works/pi-coding-agent':
         specifier: 0.85.1
-        version: 0.85.1(patch_hash=9f393b12f62c96d22a9b5697daac461e4bb70ab7bf50cc7398a7237807c3da7a)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
+        version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../../core/contracts
@@ -683,7 +683,7 @@ importers:
         version: 0.85.1(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
       '@earendil-works/pi-coding-agent':
         specifier: 0.85.1
-        version: 0.85.1(patch_hash=9f393b12f62c96d22a9b5697daac461e4bb70ab7bf50cc7398a7237807c3da7a)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
+        version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
@@ -1033,7 +1033,7 @@ importers:
     dependencies:
       '@earendil-works/pi-coding-agent':
         specifier: 0.85.1
-        version: 0.85.1(patch_hash=9f393b12f62c96d22a9b5697daac461e4bb70ab7bf50cc7398a7237807c3da7a)(ws@8.21.3)
+        version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(ws@8.21.3)
       '@workbench/terminal-contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -6925,7 +6925,7 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-coding-agent@0.85.1(patch_hash=9f393b12f62c96d22a9b5697daac461e4bb70ab7bf50cc7398a7237807c3da7a)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)':
+  '@earendil-works/pi-coding-agent@0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)':
     dependencies:
       '@earendil-works/chord': 0.85.1
       '@earendil-works/pi-agent-core': 0.85.1(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
@@ -6956,7 +6956,7 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-coding-agent@0.85.1(patch_hash=9f393b12f62c96d22a9b5697daac461e4bb70ab7bf50cc7398a7237807c3da7a)(ws@8.21.3)':
+  '@earendil-works/pi-coding-agent@0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(ws@8.21.3)':
     dependencies:
       '@earendil-works/chord': 0.85.1
       '@earendil-works/pi-agent-core': 0.85.1(ws@8.21.3)

@@ -350,3 +350,41 @@ test("delegates Agent Settings service failures to the shared error projector", 
   if (body.result.ok) assert.fail("Expected a projected Agent Settings failure.");
   assert.equal(body.result.error.code, "settings-failed");
 });
+
+test("validates the cache miss notice toggle as a boolean", async () => {
+  let received: unknown;
+  const routes = createAgentSettingsRpcRoutes({
+    service: protocol({
+      async update(payload) {
+        received = payload;
+        return {} as never;
+      },
+    }),
+    openDocument: async () => ({ opened: true }),
+    projectDomainError: unexpectedDomainError,
+  });
+  for (const enabled of [true, false]) {
+    const response = routes.handle(
+      rpcRequest("settings.update", {
+        ns: "pi.agent",
+        patch: { showCacheMissNotices: enabled },
+      }),
+      "settings.update",
+    );
+    assert.ok(response);
+    await successValue(await response);
+    assert.deepEqual(received, { ns: "pi.agent", patch: { showCacheMissNotices: enabled } });
+  }
+  received = undefined;
+  const response = routes.handle(
+    rpcRequest("settings.update", {
+      ns: "pi.agent",
+      patch: { showCacheMissNotices: "true" },
+    }),
+    "settings.update",
+  );
+  assert.ok(response);
+  const body = (await (await response).json()) as ServerResponse<never>;
+  assert.equal(body.result.ok, false);
+  assert.equal(received, undefined);
+});

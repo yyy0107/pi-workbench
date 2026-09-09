@@ -132,6 +132,20 @@ export const piExtensionsEnUS = {
       },
     },
     agentConfiguration: {
+      cacheMiss: {
+        title: "Cache miss notices",
+        description:
+          "Show significant prompt-cache misses and estimated extra costs in the message action bar. Disabled by default.",
+        noticeTitle: "Prompt cache miss",
+        tokens: ({ tokens }: { tokens: string }) =>
+          `${tokens} previously processed tokens were not read from cache.`,
+        cost: ({ cost }: { cost: string }) => `Estimated extra cost: ${cost}`,
+        costUnavailable: "Extra cost is unavailable or no price difference was reported.",
+        modelChanged: "The model changed since the previous request.",
+        idle: ({ minutes }: { minutes: string }) =>
+          `Idle for ${minutes} minutes; the provider cache may have expired.`,
+      },
+
       loading: "Loading agent configuration…",
       retry: "Retry",
       save: "Save",

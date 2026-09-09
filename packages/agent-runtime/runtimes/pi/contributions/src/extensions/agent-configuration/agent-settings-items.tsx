@@ -817,3 +817,61 @@ export function ContextManagementSettingsItem({ sectionId, itemId }: SettingsIte
     </div>
   );
 }
+
+export function CacheMissSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
+  const { t } = usePiI18n();
+  const configurationClient = usePiConfigurationClient();
+  const { view, setView, loadState, load } = useAgentSettingsNamespace();
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string>();
+
+  async function save(checked: boolean) {
+    if (!view || saving) return;
+    setSaving(true);
+    setSaved(false);
+    setError(undefined);
+    try {
+      setView(
+        await configurationClient.updateAgentSettings({
+          ns: PI_AGENT_SETTINGS_NAMESPACE,
+          patch: { showCacheMissNotices: checked },
+          expectedRevision: view.revision,
+        }),
+      );
+      setSaved(true);
+    } catch (error) {
+      setError(
+        saveErrorLabel(
+          error,
+          t("extensions.agentConfiguration.errors.conflict"),
+          t("extensions.agentConfiguration.errors.saveFailed"),
+        ),
+      );
+      load();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loadState === "failed") return <LoadFailure onRetry={load} />;
+  return (
+    <div data-settings-section={sectionId} data-settings-item={itemId} className="py-4">
+      <SettingsRow
+        label={t("extensions.agentConfiguration.cacheMiss.title")}
+        description={t("extensions.agentConfiguration.cacheMiss.description")}
+      >
+        <Switch
+          checked={view?.value.showCacheMissNotices ?? false}
+          disabled={saving || loadState !== "ready"}
+          aria-label={t("extensions.agentConfiguration.cacheMiss.title")}
+          onCheckedChange={(checked) => void save(checked)}
+        />
+      </SettingsRow>
+      <SaveFeedback saved={saved} error={error} />
+      <p className="text-muted-foreground mt-3 text-xs leading-5">
+        {t("extensions.agentConfiguration.appliesAfterReload")}
+      </p>
+    </div>
+  );
+}

@@ -23,18 +23,13 @@ export function isMessageInLatestTurn(
   return true;
 }
 
-/** A continuation supersedes earlier stopped cards without changing the stored messages. */
+/** A continuation supersedes earlier terminal cards without changing the stored messages. */
 export function shouldShowMessageError({
   isRunning,
   isInLatestTurn,
   isLastAssistantInTurn,
   terminationKind,
 }: MessageErrorVisibility): boolean {
-  if (
-    (terminationKind === "cancelled" || terminationKind === "aborted") &&
-    !isLastAssistantInTurn
-  ) {
-    return false;
-  }
+  if (!isLastAssistantInTurn) return false;
   return terminationKind !== "completed" && (!isRunning || !isInLatestTurn);
 }

@@ -285,14 +285,21 @@ export function WorkbenchMessagePresentation({ node: sourceNode }: MessageRender
   const now = Date.now();
   const completionTimestamp =
     turnTiming?.completedAt ?? node.createdAt ?? turnTiming?.startedAt ?? now;
-  const completedLabel = t("extensions.messagePresentation.completedTurn", {
-    completedAt: formatCompletedAt(completionTimestamp, now, { date }),
-    duration: formatCompletedDuration(
-      resolveWorkbenchTurnDuration(storedTurnTiming, undefined),
-      locale,
-    ),
-    kind: termination?.kind ?? "completed",
-  });
+  const completedLabel =
+    custom?.workbenchContinuation === true && termination?.kind === "completed"
+      ? t("extensions.messagePresentation.continuedTurn", {
+          continuedAt: formatCompletedAt(turnTiming?.startedAt ?? node.createdAt ?? now, now, {
+            date,
+          }),
+        })
+      : t("extensions.messagePresentation.completedTurn", {
+          completedAt: formatCompletedAt(completionTimestamp, now, { date }),
+          duration: formatCompletedDuration(
+            resolveWorkbenchTurnDuration(storedTurnTiming, undefined),
+            locale,
+          ),
+          kind: termination?.kind ?? "completed",
+        });
   const disclosurePhase = interruptedBySteering
     ? "steered"
     : turnStreaming

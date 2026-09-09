@@ -101,6 +101,7 @@ const AGENT_SETTINGS_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: false,
   properties: {
+    showCacheMissNotices: { type: "boolean", default: false },
     systemPrompt: {
       type: "string",
       description:
@@ -272,7 +273,12 @@ export class AgentSettingsService implements AgentSettingsProtocol {
       this.readOptional(this.appendSystemPromptFile),
     ]);
     const { settings, compaction } = parseSettings(settingsContent);
+    const showCacheMissNotices = settings.showCacheMissNotices;
+    if (showCacheMissNotices !== undefined && typeof showCacheMissNotices !== "boolean") {
+      throw new TypeError("showCacheMissNotices must be a boolean.");
+    }
     const user: PiAgentSettingsUserValue = {
+      ...(showCacheMissNotices === undefined ? {} : { showCacheMissNotices }),
       ...(systemPromptContent !== undefined ? { systemPrompt: systemPromptContent } : {}),
       ...(appendSystemPromptContent !== undefined
         ? { appendSystemPrompt: appendSystemPromptContent }
@@ -286,6 +292,7 @@ export class AgentSettingsService implements AgentSettingsProtocol {
       settings,
       user,
       value: {
+        showCacheMissNotices: showCacheMissNotices ?? false,
         systemPrompt: systemPromptContent ?? "",
         appendSystemPrompt: appendSystemPromptContent ?? "",
         compaction: { ...DEFAULT_COMPACTION_SETTINGS, ...compaction },
@@ -306,6 +313,7 @@ export class AgentSettingsService implements AgentSettingsProtocol {
       schema: AGENT_SETTINGS_SCHEMA,
       value: snapshot.value,
       base: {
+        showCacheMissNotices: false,
         systemPrompt: "",
         appendSystemPrompt: "",
         compaction: { ...DEFAULT_COMPACTION_SETTINGS },
@@ -389,10 +397,13 @@ export class AgentSettingsService implements AgentSettingsProtocol {
       );
     }
     if (payload.target?.scope === "project") {
-      if (payload.patch.compaction !== undefined) {
+      if (
+        payload.patch.compaction !== undefined ||
+        payload.patch.showCacheMissNotices !== undefined
+      ) {
         throw new AgentSettingsServiceError(
           "settings-rejected",
-          "Project prompt settings do not expose compaction settings.",
+          "Project prompt settings do not expose context settings.",
           { ns: payload.ns },
         );
       }
@@ -440,6 +451,19 @@ export class AgentSettingsService implements AgentSettingsProtocol {
         nextSettingsContent = serializedSettings({
           ...current.settings,
           compaction: { ...existingCompaction, ...patch.compaction },
+        });
+      }
+      if (patch.showCacheMissNotices !== undefined) {
+        if (typeof patch.showCacheMissNotices !== "boolean") {
+          throw new AgentSettingsServiceError(
+            "settings-rejected",
+            "showCacheMissNotices must be a boolean.",
+            { ns: payload.ns },
+          );
+        }
+        nextSettingsContent = serializedSettings({
+          ...parseSettings(nextSettingsContent).settings,
+          showCacheMissNotices: patch.showCacheMissNotices,
         });
       }
       if (patch.systemPrompt !== undefined) {

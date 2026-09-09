@@ -111,7 +111,18 @@ export interface PiUserMessage {
   workbenchSteering?: boolean;
 }
 
+export const PI_CACHE_MISS_DATA_NAME = "pi-cache-miss";
+
+/** Display-only estimate from Pi prompt-cache accounting. */
+export interface PiCacheMissNotice {
+  missedTokens: number;
+  missedCost: number;
+  idleMs: number;
+  modelChanged: boolean;
+}
+
 export interface PiAssistantMessage {
+  workbenchCacheMiss?: PiCacheMissNotice;
   role: "assistant";
   content: PiAssistantContent[];
   model?: string;

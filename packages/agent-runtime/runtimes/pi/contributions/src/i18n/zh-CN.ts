@@ -130,6 +130,19 @@ export const piExtensionsZhCN = {
       },
     },
     agentConfiguration: {
+      cacheMiss: {
+        title: "缓存缺失通知",
+        description: "在消息操作栏中提示明显的提示词缓存缺失，点击图标查看估算的额外费用。默认关闭。",
+        noticeTitle: "提示词缓存缺失",
+        tokens: ({ tokens }: { tokens: string }) =>
+          `之前已处理的 ${tokens} 个 token 未从缓存读取。`,
+        cost: ({ cost }: { cost: string }) => `估算额外费用：${cost}`,
+        costUnavailable: "额外费用不可用，或未报告价格差额。",
+        modelChanged: "与上一次请求相比，模型已切换。",
+        idle: ({ minutes }: { minutes: string }) =>
+          `已空闲 ${minutes} 分钟，提供商的缓存可能已过期。`,
+      },
+
       loading: "正在加载 Agent 配置…",
       retry: "重试",
       save: "保存",

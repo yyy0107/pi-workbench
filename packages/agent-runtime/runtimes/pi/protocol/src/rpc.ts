@@ -568,6 +568,7 @@ export interface PiCompactionSettingsValue {
 }
 
 export interface PiAgentSettingsValue {
+  showCacheMissNotices?: boolean;
   /** Empty removes this scope's override so Pi uses the inherited or bundled prompt. */
   systemPrompt: string;
   /** Appended by Pi from this scope's APPEND_SYSTEM.md; empty removes its override. */
@@ -576,6 +577,7 @@ export interface PiAgentSettingsValue {
 }
 
 export interface PiAgentSettingsUserValue {
+  showCacheMissNotices?: boolean;
   systemPrompt?: string;
   appendSystemPrompt?: string;
   compaction?: Partial<PiCompactionSettingsValue>;
@@ -651,6 +653,7 @@ export type ImageUnderstandingSettingsPatch = AttachmentUnderstandingSettingsPat
 export type ImageUnderstandingUpdatePayload = AttachmentUnderstandingUpdatePayload;
 
 export interface PiAgentSettingsPatch {
+  showCacheMissNotices?: boolean;
   systemPrompt?: string;
   appendSystemPrompt?: string;
   compaction?: Partial<PiCompactionSettingsValue>;

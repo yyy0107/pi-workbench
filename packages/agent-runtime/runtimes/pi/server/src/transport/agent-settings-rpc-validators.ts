@@ -2,6 +2,7 @@ import type { AgentSettingsUpdateRequest } from "../settings/agent-settings-serv
 import { compactionSettingsPatch } from "./compaction-rpc-validator";
 import { resourceCatalogTarget } from "./resource-rpc-validators";
 import {
+  rpcBoolean,
   rpcInteger,
   rpcObject,
   rpcOptional,
@@ -13,6 +14,7 @@ export const scopedDescribePayload = rpcObject({ target: resourceCatalogTarget }
 const settingsUpdateFields = {
   ns: rpcString({ minLength: 1 }),
   patch: rpcObject({
+    showCacheMissNotices: rpcOptional(rpcBoolean),
     systemPrompt: rpcOptional(rpcString({ maxLength: 500_000 })),
     appendSystemPrompt: rpcOptional(rpcString({ maxLength: 500_000 })),
     compaction: rpcOptional(compactionSettingsPatch),

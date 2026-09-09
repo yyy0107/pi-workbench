@@ -1345,6 +1345,7 @@ export const extensionsEnUS = {
       pdf: ({ index }: { index: number }, { number }: MessageFormatters) => `PDF ${number(index)}`,
     },
     elapsed: ({ duration }: { duration: string }) => `·${duration}·`,
+    continuedTurn: ({ continuedAt }: { continuedAt: string }) => `Continued at ${continuedAt}`,
     completedTurn: ({
       completedAt,
       duration,

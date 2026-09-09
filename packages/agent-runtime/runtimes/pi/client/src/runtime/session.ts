@@ -2750,7 +2750,10 @@ export class PiClientSession implements ConversationSession {
       {
         ...this.conversationPatch(messages),
         isRunning: running,
-        ...(running ? {} : { runTiming: undefined }),
+        runTiming: running
+          ? (this.snapshotValue.runTiming ??
+            clientRunTiming({ startedAt: Date.now(), elapsedMs: 0 }))
+          : undefined,
         autoRetry: undefined,
       },
       "immediate",

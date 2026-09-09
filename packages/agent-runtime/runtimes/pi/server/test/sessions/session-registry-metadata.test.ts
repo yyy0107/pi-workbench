@@ -12,7 +12,12 @@ import {
   type FauxResponseFactory,
 } from "@earendil-works/pi-ai/providers/faux";
 
-import { convertToLlm, getAgentDir, SessionManager } from "@earendil-works/pi-coding-agent";
+import {
+  convertToLlm,
+  detectCacheMiss,
+  getAgentDir,
+  SessionManager,
+} from "@earendil-works/pi-coding-agent";
 
 import type {
   HostStreamPayload,
@@ -4559,4 +4564,144 @@ test("Composer reads file references through the installed shared Workspace serv
   ]);
   assert.match(forwardedPrompt, /Shared workspace file content/);
   assert.match(forwardedPrompt, /untrusted-context/);
+});
+
+test("cache miss notices use Pi accounting, honor the setting, and persist only in the event projection", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-cache-miss-"));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  const hosts: Awaited<ReturnType<typeof createSession>>[] = [];
+  t.after(async () => {
+    for (const host of hosts) await host.shutdown();
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    await rm(root, { recursive: true, force: true });
+  });
+  const host = await createSession(root, "cache-miss-notices");
+  hosts.push(host);
+  const sink = host.session as unknown as {
+    _handleAgentEvent(event: Record<string, unknown>): Promise<void>;
+  };
+  let timestamp = Date.now();
+  async function complete(input: number, cacheRead: number, model = "test") {
+    const message = {
+      ...assistantMessage("response", timestamp),
+      model,
+      usage: {
+        input,
+        cacheRead,
+        cacheWrite: 0,
+        output: 1,
+        totalTokens: input + cacheRead + 1,
+        cost: {
+          input: input * 0.000003,
+          cacheRead: cacheRead * 0.0000003,
+          cacheWrite: 0,
+          output: 0,
+          total: input * 0.000003 + cacheRead * 0.0000003,
+        },
+      },
+    };
+    timestamp += 360_000;
+    await sink._handleAgentEvent({ type: "message_start", message });
+    await sink._handleAgentEvent({ type: "message_end", message });
+    assert.equal("workbenchCacheMiss" in message, false);
+    const event = (await getSessionEvents(host.id)).findLast(
+      (entry) => entry.type === "message_end",
+    );
+    const data = event?.data as {
+      message: {
+        workbenchCacheMiss?: {
+          missedTokens: number;
+          missedCost: number;
+          idleMs: number;
+          modelChanged: boolean;
+        };
+      };
+    };
+    return data.message.workbenchCacheMiss;
+  }
+  host.session.settingsManager.applyOverrides({ showCacheMissNotices: true });
+  assert.equal(await complete(0, 12_000), undefined, "first request is not a cache miss");
+  assert.equal(await complete(0, 12_000), undefined, "full cache hits do not warn");
+  assert.equal(await complete(500, 11_500), undefined, "breakpoint noise is ignored");
+  const miss = await complete(10_000, 2_000, "other-model");
+  assert.ok(miss);
+  assert.equal(miss.missedTokens, 10_000);
+  assert.ok(Math.abs(miss.missedCost - 0.027) < 1e-9);
+  assert.equal(miss.idleMs, 360_000);
+  assert.equal(miss.modelChanged, true);
+  host.session.settingsManager.applyOverrides({ showCacheMissNotices: false });
+  assert.equal(await complete(10_000, 2_000), undefined, "disabled notices stay hidden");
+  assert.equal(
+    host.session.sessionManager
+      .getBranch()
+      .some((entry) => entry.type === "message" && "workbenchCacheMiss" in entry.message),
+    false,
+  );
+  const before = await getSessionEvents(host.id);
+  await host.shutdown();
+  assert.deepEqual(
+    await getSessionEvents(host.id),
+    before,
+    "cold history preserves journal notices",
+  );
+});
+
+test("cache miss notices detect a cold model switch when caching has known discounted pricing", () => {
+  const session = SessionManager.inMemory();
+  const first = assistantMessage("First response", 1_000);
+  first.usage = {
+    input: 12_957,
+    output: 26,
+    cacheRead: 0,
+    cacheWrite: 0,
+    totalTokens: 12_983,
+    cost: { input: 0.0025914, output: 0.0000312, cacheRead: 0, cacheWrite: 0, total: 0.0026226 },
+  };
+  const next = {
+    ...assistantMessage("Switched response", 69_489),
+    model: "deepseek-v4-flash",
+    usage: {
+      input: 15_785,
+      output: 14,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 15_799,
+      cost: {
+        input: 0.0034727,
+        output: 0.00000924,
+        cacheRead: 0,
+        cacheWrite: 0,
+        total: 0.00348194,
+      },
+    },
+  };
+  const models = { getModel: () => ({ cost: { cacheRead: 0.007 } }) };
+  assert.equal(detectCacheMiss(session.getBranch(), first, models), undefined);
+  session.appendMessage(first);
+  const miss = detectCacheMiss(session.getBranch(), next, models);
+  assert.ok(miss, "a cold first request must not suppress a later cache miss");
+  assert.equal(miss.missedTokens, 12_957);
+  assert.ok(Math.abs(miss.missedCost - 0.002759841) < 1e-12);
+  assert.equal(miss.modelChanged, true);
+  const idle = detectCacheMiss(
+    session.getBranch(),
+    { ...next, model: first.model, timestamp: first.timestamp + 360_000 },
+    models,
+  );
+  assert.equal(idle?.modelChanged, false);
+  assert.equal(idle?.idleMs, 360_000);
+  assert.equal(
+    detectCacheMiss(session.getBranch(), next, { getModel: () => ({ cost: { cacheRead: 0.22 } }) }),
+    undefined,
+  );
+  assert.equal(
+    detectCacheMiss(session.getBranch(), next, { getModel: () => undefined }),
+    undefined,
+  );
+  assert.equal(
+    detectCacheMiss(session.getBranch(), next, { getModel: () => ({ cost: { cacheRead: 0 } }) }),
+    undefined,
+  );
 });

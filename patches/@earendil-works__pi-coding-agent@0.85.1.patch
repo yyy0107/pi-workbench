@@ -1,7 +1,57 @@
+diff --git a/dist/core/cache-stats.js b/dist/core/cache-stats.js
+index 12f32b46bb6c189250d1bb615fb73a79cadf59b8..de70b8f3455a727d426a0fd9a98c0e993b93202c 100644
+--- a/dist/core/cache-stats.js
++++ b/dist/core/cache-stats.js
+@@ -8,21 +8,13 @@ const NOISE_FLOOR_TOKENS = 1024;
+ /**
+  * Compute the cache miss for one assistant message relative to the previous
+  * request. Returns undefined when nothing is counted: first turn, after a
+- * reset, no cache activity ever reported (provider without cache support), or
++ * reset, no reported cache activity or discounted cache pricing, or
+  * miss below the noise floor.
+  */
+ function detectMiss(prev, message, models) {
+     const usage = message.usage;
+     const promptTokens = usage.input + usage.cacheRead + usage.cacheWrite;
+-    // A zero-cache turn only counts when cache activity was reported before:
+-    // on cache-read-only providers that is a total miss, while on providers
+-    // that never report caching it means nothing.
+-    if (!prev || promptTokens <= 0 || (usage.cacheRead + usage.cacheWrite === 0 && !prev.reportedCache)) {
+-        return undefined;
+-    }
+-    const missedTokens = Math.min(prev.promptTokens, promptTokens) - usage.cacheRead;
+-    if (missedTokens <= NOISE_FLOOR_TOKENS)
+-        return undefined;
++    if (!prev || promptTokens <= 0) return undefined;
+     // Extra cost = missed tokens billed at the actual paid rate (input/cacheWrite,
+     // incl. write premium) instead of the cache-read rate. Missed tokens can only
+     // land in the input or cacheWrite buckets, so the paid rate comes straight
+@@ -32,6 +24,15 @@ function detectMiss(prev, message, models) {
+     const readPerToken = usage.cacheRead > 0
+         ? usage.cost.cacheRead / usage.cacheRead
+         : (models.getModel(message.provider, message.model)?.cost.cacheRead ?? 0) / 1_000_000;
++    // Workbench: implicit cache writes may be unreported on the first request.
++    // Known discounted cache pricing also establishes caching support; unknown
++    // or zero placeholder prices must not turn an unsupported provider into a miss.
++    const hasCachePricing = readPerToken > 0 && paidPerToken > readPerToken;
++    if (usage.cacheRead + usage.cacheWrite === 0 && !prev.reportedCache && !hasCachePricing)
++        return undefined;
++    const missedTokens = Math.min(prev.promptTokens, promptTokens) - usage.cacheRead;
++    if (missedTokens <= NOISE_FLOOR_TOKENS)
++        return undefined;
+     return {
+         missedTokens,
+         missedCost: missedTokens * Math.max(0, paidPerToken - readPerToken),
 diff --git a/dist/index.d.ts b/dist/index.d.ts
+index e2b640b661a7712fa3f86ed5ecb494b98a6f9e4d..82236205cded8d28735ec452078043d1e8034ee3 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -13,6 +13,7 @@
+@@ -1,3 +1,4 @@
++export { detectCacheMiss } from "./core/cache-stats.ts";
+ export { type Args, parseArgs } from "./cli/args.ts";
+ export { CONFIG_DIR_NAME, getAgentDir, getDocsPath, getExamplesPath, getPackageDir, getReadmePath, VERSION, } from "./config.ts";
+ export { AgentSession, type AgentSessionConfig, type AgentSessionEvent, type AgentSessionEventListener, type ModelCycleResult, type ParsedSkillBlock, type PromptOptions, parseSkillBlock, type SessionStats, } from "./core/agent-session.ts";
+@@ -13,6 +14,7 @@ export { type ModelScopeDiagnostic, type ResolveCliModelResult, type ResolveMode
  export { type CreateModelRuntimeOptions, CredentialSynchronizationError, type CredentialSynchronizationOperation, ModelRuntime, type ModelRuntimeAuthOverrides, } from "./core/model-runtime.ts";
  export type { PackageManager, PathMetadata, ProgressCallback, ProgressEvent, ResolvedPaths, ResolvedResource, } from "./core/package-manager.ts";
  export { DefaultPackageManager } from "./core/package-manager.ts";
@@ -10,9 +60,15 @@ diff --git a/dist/index.d.ts b/dist/index.d.ts
  export { DefaultResourceLoader, loadProjectContextFiles } from "./core/resource-loader.ts";
  export { AgentSessionRuntime, type AgentSessionRuntimeDiagnostic, type AgentSessionServices, type CreateAgentSessionFromServicesOptions, type CreateAgentSessionOptions, type CreateAgentSessionResult, type CreateAgentSessionRuntimeFactory, type CreateAgentSessionRuntimeResult, type CreateAgentSessionServicesOptions, createAgentSession, createAgentSessionFromServices, createAgentSessionRuntime, createAgentSessionServices, createBashTool, createCodingTools, createEditTool, createFindTool, createGrepTool, createLsTool, createPowerShellTool, createReadOnlyTools, createReadTool, createWriteTool, type PromptTemplate, } from "./core/sdk.ts";
 diff --git a/dist/index.js b/dist/index.js
+index 01017cdbf6a26b3d36e236c7f9e835fbf0fa5c3a..93ef98de4d5704c7833a2ba990ee3dacbcfab785 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -13,6 +13,7 @@
+@@ -1,3 +1,4 @@
++export { detectCacheMiss } from "./core/cache-stats.js";
+ // Core session management
+ export { parseArgs } from "./cli/args.js";
+ // Config paths
+@@ -13,6 +14,7 @@ export { ModelRegistry } from "./core/model-registry.js";
  export { resolveCliModel, resolveModelScopeWithDiagnostics, } from "./core/model-resolver.js";
  export { CredentialSynchronizationError, ModelRuntime, } from "./core/model-runtime.js";
  export { DefaultPackageManager } from "./core/package-manager.js";

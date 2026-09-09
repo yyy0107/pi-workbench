@@ -523,6 +523,9 @@ test("continues a matching checkpoint without regenerating or truncating message
   assert.equal(session.getSnapshot().isRunning, false);
 
   await session.resume("checkpoint-1", "leaf-1");
+  const resumedTiming = session.getSnapshot().runTiming;
+  assert.ok(resumedTiming);
+  assert.equal(resumedTiming.elapsedMs, 0);
 
   assert.deepEqual(requests, [
     { method: "session.cancel", payload: { sessionId: "remote-session" } },
@@ -540,6 +543,7 @@ test("continues a matching checkpoint without regenerating or truncating message
 
   const assertRunning = () => {
     assert.equal(session.getSnapshot().isRunning, true);
+    assert.equal(session.getSnapshot().runTiming?.startedAt, resumedTiming.startedAt);
     assert.equal(manager.isRunning("remote-session"), true);
     assert.equal(manager.getThreadStateSnapshot("remote-session").metadata.running, true);
     assert.equal(manager.getThreadCustom("remote-session")?.piRunning, true);
@@ -576,8 +580,15 @@ test("continues a matching checkpoint without regenerating or truncating message
     1,
   );
   assertRunning();
+  internals.handleEvent({
+    type: "turn_start",
+    runTiming: { startedAt: 1_000, elapsedMs: 500 },
+  });
+  assert.equal(session.getSnapshot().runTiming?.startedAt, 1_000);
+  assert.equal(session.getSnapshot().runTiming?.elapsedMs, 500);
   internals.handleEvent({ type: "agent_settled", sequence: 10 });
   assert.equal(session.getSnapshot().isRunning, false);
+  assert.equal(session.getSnapshot().runTiming, undefined);
   assert.equal(manager.getThreadStateSnapshot("remote-session").metadata.running, false);
 });
 

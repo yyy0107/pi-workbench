@@ -5,7 +5,14 @@ import { defineMessage } from "@workbench/shell/i18n";
 
 import { definePiMessage } from "../../i18n";
 
-import { ContextManagementSettingsItem, SystemPromptMainView } from "./agent-settings-items";
+import { PI_CACHE_MISS_DATA_NAME } from "@workbench/agent-runtime-pi-protocol/messages";
+import { CacheMissAction, CacheMissBody } from "./cache-miss-notice";
+
+import {
+  CacheMissSettingsItem,
+  ContextManagementSettingsItem,
+  SystemPromptMainView,
+} from "./agent-settings-items";
 
 export const agentConfigurationExtension = defineExtension({
   id: "workbench.agent-configuration",
@@ -42,6 +49,30 @@ export const agentConfigurationExtension = defineExtension({
       component: ContextManagementSettingsItem,
     });
 
-    return [systemPrompt, contextSection, contextSettings];
+    const cacheMissSettings = context.settings.registerItem({
+      sectionId: "context-management",
+      id: "cache-miss-notices",
+      title: definePiMessage("extensions.agentConfiguration.cacheMiss.title"),
+      description: definePiMessage("extensions.agentConfiguration.cacheMiss.description"),
+      component: CacheMissSettingsItem,
+      order: 10,
+    });
+    const cacheMissRenderer = context.renderers.data.register(
+      PI_CACHE_MISS_DATA_NAME,
+      CacheMissBody,
+    );
+    const cacheMissAction = context.slots.register("message.actions", {
+      id: "workbench.agent-configuration.cache-miss",
+      order: 20,
+      component: CacheMissAction,
+    });
+    return [
+      systemPrompt,
+      contextSection,
+      contextSettings,
+      cacheMissSettings,
+      cacheMissRenderer,
+      cacheMissAction,
+    ];
   },
 });

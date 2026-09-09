@@ -2698,3 +2698,43 @@ test("reopens text attachment cards and applies edited canonical metadata withou
   assert.deepEqual(prompt.images, []);
   assert.deepEqual(prompt.documents, []);
 });
+
+test("cache miss notices are display data on completed messages and survive history reconciliation", () => {
+  const notice = { missedTokens: 10_000, missedCost: 0.027, idleMs: 360_000, modelChanged: true };
+  const source: PiAssistantMessage = { ...assistantMessage, workbenchCacheMiss: notice };
+  const live = piAssistantToThreadMessage(source, "cache-miss", { optimistic: true });
+  const history = piHistoryToThreadMessages({
+    sessionId: "cache-session",
+    context: {
+      entryIds: ["cache-miss"],
+      thinkingLevel: "off",
+      model: null,
+      messages: [source],
+    },
+  });
+  const expected = { type: "data", name: "pi-cache-miss", data: notice };
+  assert.deepEqual(live.content.at(-1), expected);
+  assert.deepEqual(history[0]?.content.at(-1), expected);
+  assert.deepEqual(
+    reconcileLiveMessagesAfterHistory([live], history, {
+      liveMessageIdsAtStart: new Set([live.id]),
+      baseMessageIdsAtStart: new Set(),
+      preserveUnpersistedOptimisticUsers: false,
+    }),
+    [],
+    "authoritative history replaces the live notice without duplication",
+  );
+  assert.equal(
+    piAssistantToThreadMessage(source, "stream", { streaming: true }).content.some(
+      (part) => part.type === "data" && part.name === "pi-cache-miss",
+    ),
+    false,
+  );
+  assert.equal(
+    piAssistantToThreadMessage(assistantMessage, "off").content.some(
+      (part) => part.type === "data" && part.name === "pi-cache-miss",
+    ),
+    false,
+  );
+  assert.deepEqual(source.content, assistantMessage.content);
+});

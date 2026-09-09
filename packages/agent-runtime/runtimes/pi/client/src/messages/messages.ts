@@ -1,3 +1,4 @@
+import { PI_CACHE_MISS_DATA_NAME } from "@workbench/agent-runtime-pi-protocol/messages";
 import type { PastedTextAttachment } from "@workbench/contracts/composer";
 import {
   parseAttachmentRecognitionSnapshot,
@@ -954,6 +955,12 @@ export function piAssistantToThreadMessage(
   });
   if (streaming && content.length === 0) {
     content = [{ type: "text", text: "", status: { type: "running" } }];
+  }
+  if (!streaming && message.workbenchCacheMiss) {
+    content = [
+      ...content,
+      { type: "data", name: PI_CACHE_MISS_DATA_NAME, data: message.workbenchCacheMiss },
+    ];
   }
   const usage = message.usage
     ? ({

@@ -1308,6 +1308,7 @@ export const extensionsZhCN = {
       pdf: ({ index }: { index: number }, { number }: MessageFormatters) => `PDF ${number(index)}`,
     },
     elapsed: ({ duration }: { duration: string }) => `·${duration}·`,
+    continuedTurn: ({ continuedAt }: { continuedAt: string }) => `在 ${continuedAt} 继续`,
     completedTurn: ({
       completedAt,
       duration,

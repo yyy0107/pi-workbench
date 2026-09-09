@@ -29,6 +29,7 @@ test("describes Pi defaults when no global agent settings exist", async (t) => {
     appendSystemPrompt: path.join(agentDir, "APPEND_SYSTEM.md"),
   });
   assert.deepEqual(described.namespaces[0]?.value, {
+    showCacheMissNotices: false,
     systemPrompt: "",
     appendSystemPrompt: "",
     compaction: {
@@ -111,6 +112,7 @@ test("updates the system prompt and compaction settings while preserving unrelat
   });
 
   assert.deepEqual(updated.value, {
+    showCacheMissNotices: false,
     systemPrompt: "You are a careful coding assistant.",
     appendSystemPrompt: "Keep responses concise.\n",
     compaction: { enabled: true, reserveTokens: 24_000, keepRecentTokens: 32_000 },
@@ -385,4 +387,41 @@ test("does not overwrite malformed global settings", async (t) => {
     return true;
   });
   assert.equal(await readFile(settingsFile, "utf8"), "{ invalid json");
+});
+
+test("cache miss notices persist with compaction, preserve other settings, and reload in Pi", async (t) => {
+  const { agentDir, service } = await fixture(t);
+  await writeFile(path.join(agentDir, "settings.json"), JSON.stringify({ theme: "dark" }));
+  const settings = await SettingsManager.create(path.join(agentDir, "project"), agentDir);
+  assert.equal(settings.getShowCacheMissNotices(), false);
+  const before = (await service.describe()).namespaces[0]!;
+  const enabled = await service.update({
+    ns: PI_AGENT_SETTINGS_NAMESPACE,
+    expectedRevision: before.revision,
+    patch: { showCacheMissNotices: true, compaction: { enabled: false } },
+  });
+  assert.equal(enabled.value.showCacheMissNotices, true);
+  assert.equal(enabled.user?.showCacheMissNotices, true);
+  assert.deepEqual(JSON.parse(await readFile(path.join(agentDir, "settings.json"), "utf8")), {
+    theme: "dark",
+    compaction: { enabled: false },
+    showCacheMissNotices: true,
+  });
+  await settings.reload();
+  assert.equal(settings.getShowCacheMissNotices(), true);
+  await service.update({
+    ns: PI_AGENT_SETTINGS_NAMESPACE,
+    expectedRevision: enabled.revision,
+    patch: { showCacheMissNotices: false },
+  });
+  await settings.reload();
+  assert.equal(settings.getShowCacheMissNotices(), false);
+  await assert.rejects(
+    service.update({
+      ns: PI_AGENT_SETTINGS_NAMESPACE,
+      patch: { showCacheMissNotices: "true" as unknown as boolean },
+    }),
+    (error: unknown) =>
+      error instanceof AgentSettingsServiceError && error.code === "settings-rejected",
+  );
 });

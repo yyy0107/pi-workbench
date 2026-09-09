@@ -9,6 +9,7 @@ import {
   AgentSessionRuntime,
   type AgentSessionServices,
   buildContextEntries,
+  detectCacheMiss,
   createAgentSessionFromServices,
   getAgentDir,
   sessionEntryToContextMessages,
@@ -1133,7 +1134,26 @@ class HostedPiSession {
         );
         this.publishQueueSnapshot();
       } else if (event.type !== "queue_update") {
-        this.publish(event as PiEvent, eventTime);
+        const cacheMiss =
+          event.type === "message_end" &&
+          event.message.role === "assistant" &&
+          this.session.settingsManager.getShowCacheMissNotices()
+            ? detectCacheMiss(
+                this.session.sessionManager.getBranch(),
+                event.message,
+                this.session.modelRuntime,
+              )
+            : undefined;
+        // Annotate only the journal projection; the model's message stays untouched.
+        this.publish(
+          cacheMiss && event.type === "message_end"
+            ? ({
+                ...event,
+                message: { ...event.message, workbenchCacheMiss: cacheMiss },
+              } as PiEvent)
+            : (event as PiEvent),
+          eventTime,
+        );
       }
       if (!transientMessageUpdate) this.notifyRunningChanged(eventTime);
     });
