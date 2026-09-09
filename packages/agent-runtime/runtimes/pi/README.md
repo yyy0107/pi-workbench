@@ -1085,7 +1085,7 @@ activation 时不订阅 live 增量，并使用 `hasMore` 分页。WebSocket con
 自动重试会重置 Pi `turnIndex`，但不会重置 UI 中同一用户 Turn 内的 Model Step 编号。
 
 内存中只保留最多 512 条/16 MiB 的轻量摘要 hot ring 以支持低延迟实时时间线；完整 system prompt、
-messages、tools 和 provider payload 不进入该 ring，而是完整转换为可序列化数据后同步追加到独立的磁盘审计
+messages、tools 和 provider payload 不进入该 ring，而是完整转换为可序列化数据后排队追加到独立的磁盘审计
 journal。只有磁盘 journal 初始化失败时，服务端才保留受限的完整事件内存降级缓存，并通过能力声明和
 界面错误明确提示。journal 不是 Pi canonical session JSONL 或 Workbench settings。默认根目录
 是 `~/.pi/agent/workbench-context-traces/v1`，也可用 `PI_WORKBENCH_CONTEXT_TRACE_DIR` 覆盖；session 目录名
@@ -1106,6 +1106,14 @@ Pi 目前的 `before_provider_request` 是“逻辑 provider 请求”钩子：�
 `providerTransportAttempts: "logical-request-only"` 和 `transportAttemptsObserved: false`，不要把
 `requestId` 误画成每次网络尝试。当前 scope 是 `agent-turn`；compaction/branch summary 或附件 OCR
 内部自行发起的辅助模型请求，并不保证经过这个 provider payload 钩子。
+
+`model-output.detail.timing` 在现有调用链记录上下文快照开始采集到 payload 钩子的 `preparationMs`、序列化 payload
+字节数，以及从 payload 钩子开始计时的响应头、首个模型事件、首个非空内容 delta 和结束时间。支持 fetch
+注入的 adapter 另外记录 `httpAttempts`：每次实际 HTTP 调用的起始偏移、到响应头或异常的耗时、可直接
+计算的请求 body 字节数、Content-Encoding、状态码或异常类型；压缩后的 body 大小与原始 payload 分开。
+观测复用原 fetch 和原 Response，不读取、克隆或缓冲响应流，不替换重试、代理、鉴权或取消策略。
+WebSocket 不经过 fetch，其回退原因继续保留在 Pi 原始 message diagnostics 中；HTTP 前的时间间隔不能
+直接解释成网络或模型推理耗时。内部重试的多个 response 保持相同的逻辑 requestId。
 
 token 级 `message_update` 使用 canonical durable chunk：服务端在 100 ms 窗口内合并相邻的
 text/reasoning/tool-args fragment，将一个 `SessionMessageChunkData` 作为有连续 durable `seq` 的

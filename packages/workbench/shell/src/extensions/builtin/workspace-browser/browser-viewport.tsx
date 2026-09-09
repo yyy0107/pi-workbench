@@ -238,6 +238,7 @@ export function BrowserViewport({
     const element = container.current;
     if (!element) return;
     const workspace = element.closest('[data-workbench-surface="right-workspace"]');
+    let controlled = browser.getSession(sessionId)?.agentControlled;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const resize = () => {
       repaint.current();
@@ -247,9 +248,17 @@ export function BrowserViewport({
       timer = setTimeout(() => {
         const { width, height } = element.getBoundingClientRect();
         if (!width || !height || !isVisible) return;
+        const session = browser.getSession(sessionId);
+        // Scale the existing frame locally during agent control; keep observed coordinates stable.
         viewportSize.current = {
-          width: Math.max(1, Math.min(7680, Math.round(width))),
-          height: Math.max(1, Math.min(7680, Math.round(height))),
+          width:
+            session?.agentControlled && session.width !== undefined
+              ? session.width
+              : Math.max(1, Math.min(7680, Math.round(width))),
+          height:
+            session?.agentControlled && session.height !== undefined
+              ? session.height
+              : Math.max(1, Math.min(7680, Math.round(height))),
         };
         void browser
           .command({
@@ -277,7 +286,14 @@ export function BrowserViewport({
       resize();
     };
     densityChanged();
+    const unsubscribe = browser.subscribe(() => {
+      const next = browser.getSession(sessionId)?.agentControlled;
+      if (next === controlled) return;
+      controlled = next;
+      resize();
+    });
     return () => {
+      unsubscribe();
       if (timer) clearTimeout(timer);
       observer.disconnect();
       dragObserver.disconnect();

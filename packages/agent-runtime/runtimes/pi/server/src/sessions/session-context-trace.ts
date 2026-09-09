@@ -45,6 +45,9 @@ type TracePublisher = (event: SessionContextTraceEventSummary) => void;
 type SystemPromptSourcesResolver = () => readonly SessionContextTraceSystemPromptSource[];
 type SystemPromptOptionsResolver = () => BuildSystemPromptOptions;
 type ExtensionsResolver = () => readonly SessionContextTraceExtension[];
+type RequestTiming = NonNullable<
+  Extract<SessionContextTraceDetail, { type: "model-output" }>["timing"]
+>;
 
 interface PendingSystemPromptHookMutation {
   source: SessionContextTraceSystemPromptSource;
@@ -343,7 +346,13 @@ export class SessionContextTrace {
   private turnId: string | undefined;
   private turnIndex: number | undefined;
   private requestIndex = -1;
-  private readonly pendingRequests: Array<{ requestId: string; requestIndex: number }> = [];
+  private contextStartedAt?: number;
+  private providerRequest?: {
+    requestId: string;
+    requestIndex: number;
+    startedAt: number;
+    timing: RequestTiming;
+  };
   private readonly messageTokenEstimateCache = new WeakMap<object, number | null>();
   private agentAttempt: number | undefined;
   private pendingTurnStartTimestamp: number | undefined;
@@ -512,7 +521,7 @@ export class SessionContextTrace {
     this.turnId = undefined;
     this.turnIndex = undefined;
     this.requestIndex = -1;
-    this.pendingRequests.length = 0;
+    this.providerRequest = undefined;
     this.agentAttempt = undefined;
     this.append({ type: "round-start", trigger }, this.coordinates());
   }
@@ -534,6 +543,7 @@ export class SessionContextTrace {
       >
     > = {},
   ): void {
+    this.contextStartedAt = performance.now();
     this.ensureRound("unknown");
     const estimates = messageTokenEstimates(messages, this.messageTokenEstimateCache);
     const estimatedTokens = estimates.tokens.every((tokens) => tokens !== null)
@@ -598,13 +608,28 @@ export class SessionContextTrace {
 
   observeProviderRequest(payload: unknown): void {
     this.ensureRound("unknown");
+    const startedAt = performance.now();
     const requestId = randomUUID();
     const requestIndex = ++this.requestIndex;
-    this.pendingRequests.push({ requestId, requestIndex });
+    const captured = captureSessionContextTraceJson(payload);
+    this.providerRequest = {
+      requestId,
+      requestIndex,
+      startedAt,
+      timing: {
+        ...(this.contextStartedAt === undefined
+          ? {}
+          : { preparationMs: Math.round(startedAt - this.contextStartedAt) }),
+        payloadBytes: captured.capture.originalBytes,
+        totalMs: 0,
+        httpAttempts: [],
+      },
+    };
+    this.contextStartedAt = undefined;
     this.append(
       {
         type: "provider-request",
-        payload: captureSessionContextTraceJson(payload),
+        payload: captured,
         transportAttemptsObserved: false,
       },
       this.coordinates({ requestId, requestIndex }),
@@ -613,7 +638,10 @@ export class SessionContextTrace {
 
   observeProviderResponse(status: number, headers: Record<string, string>): void {
     this.ensureRound("unknown");
-    const request = this.pendingRequests.shift();
+    // A logical payload may receive multiple HTTP responses during SDK retries.
+    const request = this.providerRequest;
+    if (request)
+      request.timing.responseHeadersMs = Math.round(performance.now() - request.startedAt);
     const requestId = request?.requestId ?? randomUUID();
     this.append(
       {
@@ -628,16 +656,42 @@ export class SessionContextTrace {
     );
   }
 
+  observeProviderHttpRequest(bodyBytes?: number, contentEncoding?: string) {
+    const request = this.providerRequest;
+    if (!request) return;
+    const startedAt = performance.now();
+    const attempt: RequestTiming["httpAttempts"][number] = {
+      startMs: Math.round(startedAt - request.startedAt),
+      ...(bodyBytes === undefined ? {} : { bodyBytes }),
+      ...(contentEncoding ? { contentEncoding } : {}),
+    };
+    request.timing.httpAttempts.push(attempt);
+    return (status?: number, error?: unknown) => {
+      attempt.durationMs = Math.round(performance.now() - startedAt);
+      if (status !== undefined) attempt.status = status;
+      if (error !== undefined) attempt.error = error instanceof Error ? error.name : "Error";
+    };
+  }
+
   observeModelOutput(
     message: AssistantMessage,
     model?: SessionContextTraceEventSummary["model"],
     thinkingLevel?: string,
   ): void {
+    const endedAt = performance.now();
     this.ensureRound("unknown");
     this.append({
       type: "model-output",
       message: captureSessionContextTraceJson(message),
       usage: tokenUsageView(message.usage),
+      ...(this.providerRequest
+        ? {
+            timing: {
+              ...this.providerRequest.timing,
+              totalMs: Math.round(endedAt - this.providerRequest.startedAt),
+            },
+          }
+        : {}),
       ...(model ? { model } : {}),
       ...(thinkingLevel ? { thinkingLevel } : {}),
     });
@@ -645,6 +699,22 @@ export class SessionContextTrace {
 
   observeAgentEvent(event: AgentSessionEvent): void {
     switch (event.type) {
+      case "message_start":
+        if (event.message.role === "assistant" && this.providerRequest)
+          this.providerRequest.timing.firstEventMs ??= Math.round(
+            performance.now() - this.providerRequest.startedAt,
+          );
+        return;
+      case "message_update":
+        if (
+          this.providerRequest &&
+          "delta" in event.assistantMessageEvent &&
+          event.assistantMessageEvent.delta
+        )
+          this.providerRequest.timing.firstDeltaMs ??= Math.round(
+            performance.now() - this.providerRequest.startedAt,
+          );
+        return;
       case "agent_start":
         this.ensureRound("continuation");
         this.runId = randomUUID();
@@ -652,7 +722,7 @@ export class SessionContextTrace {
         this.turnId = undefined;
         this.turnIndex = undefined;
         this.requestIndex = -1;
-        this.pendingRequests.length = 0;
+        this.providerRequest = undefined;
         this.append({ type: "run-start" });
         return;
       case "turn_start":
@@ -660,7 +730,7 @@ export class SessionContextTrace {
         this.turnIndex = (this.turnIndex ?? -1) + 1;
         this.turnId = randomUUID();
         this.requestIndex = -1;
-        this.pendingRequests.length = 0;
+        this.providerRequest = undefined;
         this.append({ type: "turn-start", timestamp: this.pendingTurnStartTimestamp });
         this.pendingTurnStartTimestamp = undefined;
         return;
@@ -674,7 +744,7 @@ export class SessionContextTrace {
           toolResults: captureSessionContextTraceJson(event.toolResults),
           ...(usage ? { usage } : {}),
         });
-        this.pendingRequests.length = 0;
+        this.providerRequest = undefined;
         return;
       }
       case "tool_execution_start":
@@ -711,7 +781,7 @@ export class SessionContextTrace {
       case "agent_end":
         this.turnId = undefined;
         this.turnIndex = undefined;
-        this.pendingRequests.length = 0;
+        this.providerRequest = undefined;
         this.append({
           type: "run-end",
           messageCount: event.messages.length,
@@ -727,7 +797,7 @@ export class SessionContextTrace {
         this.pendingSummarizationRetry = undefined;
         this.turnId = undefined;
         this.turnIndex = undefined;
-        this.pendingRequests.length = 0;
+        this.providerRequest = undefined;
         this.agentAttempt = undefined;
         return;
       case "auto_retry_start":

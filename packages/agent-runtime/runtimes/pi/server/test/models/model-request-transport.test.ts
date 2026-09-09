@@ -17,6 +17,12 @@ import {
 } from "@earendil-works/pi-coding-agent";
 
 import { createWorkbenchAgentSessionServices } from "../../src/agent-runtime/agent-session-services";
+import { contextTraceExtension } from "../../src/internal-extensions/context-trace";
+import {
+  activateSessionContextTrace,
+  getSessionContextTrace,
+  releaseSessionContextTrace,
+} from "../../src/sessions/session-context-trace";
 
 function sendEvent(response: ServerResponse, event: Record<string, unknown>) {
   response.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
@@ -87,6 +93,8 @@ test(
       for (const session of sessions) {
         await session.abort();
         session.dispose();
+        const trace = getSessionContextTrace(session.sessionId);
+        if (trace) await releaseSessionContextTrace(session.sessionId, trace);
       }
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -142,6 +150,7 @@ test(
           noPromptTemplates: true,
           noThemes: true,
           extensionFactories: [
+            contextTraceExtension,
             () => {
               globalThis.fetch = bufferingFetch;
             },
@@ -157,6 +166,8 @@ test(
         tools: [],
       });
       sessions.push(session);
+      const trace = await activateSessionContextTrace(session.sessionId);
+      session.subscribe((event) => trace.observeAgentEvent(event));
       await session.bindExtensions({ mode: "rpc" });
       return session;
     };
@@ -222,6 +233,21 @@ test(
             [abort ? "first " : "first second"],
           );
         }
+        const trace = getSessionContextTrace(session.sessionId)!;
+        const summary = trace
+          .list(-1, 100)
+          .events.findLast((event) => event.kind === "model-output");
+        assert.ok(summary);
+        const detail = trace.read(summary.traceId)?.detail;
+        assert.equal(detail?.type, "model-output");
+        if (detail?.type !== "model-output") assert.fail("Missing model output");
+        assert.ok(detail.timing);
+        assert.ok(detail.timing.payloadBytes > 0);
+        assert.equal(detail.timing.httpAttempts.length, 1);
+        assert.equal(detail.timing.httpAttempts[0]?.status, 200);
+        assert.ok(detail.timing.httpAttempts[0]!.bodyBytes! > 0);
+        assert.ok(detail.timing.firstDeltaMs! >= detail.timing.responseHeadersMs!);
+        assert.ok(detail.timing.totalMs >= detail.timing.firstDeltaMs!);
       }
     };
     await checkStreaming([first, second]);

@@ -103,7 +103,7 @@ test("Chrome searches beyond snapshot truncation and clicks once in zoomed CSS c
     "A filtered snapshot does not invalidate previous refs",
   );
   const screenshot = (await browser.handle(
-    { type: "screenshot", sessionId: "tab" },
+    { type: "screenshot", sessionId: "tab", format: "png" },
     agent,
   )) as BrowserFile;
   const png = Buffer.from(screenshot.data, "base64");
@@ -114,6 +114,13 @@ test("Chrome searches beyond snapshot truncation and clicks once in zoomed CSS c
   assert.deepEqual(screenshot.viewport, { width: 400, height: 300 });
   assert.deepEqual(screenshot.capture, screenshot.viewport);
   assert.deepEqual(screenshot.pixels, { width: 800, height: 600 });
+  const compact = (await browser.handle(
+    { type: "screenshot", sessionId: "tab", maxDim: 600 },
+    agent,
+  )) as BrowserFile;
+  assert.equal(compact.mimeType, "image/jpeg");
+  assert.deepEqual(compact.viewport, screenshot.viewport);
+  assert.deepEqual(compact.pixels, { width: 600, height: 450 });
   await assert.rejects(browser.handle({ type: "click", sessionId: "tab", x: 400, y: 80 }, agent), {
     code: "browser-invalid",
   });
@@ -131,3 +138,103 @@ test("Chrome searches beyond snapshot truncation and clicks once in zoomed CSS c
     "Filtered refs still support semantic clicks",
   );
 });
+
+test(
+  "background tabs deliver trusted clicks and prioritize dialog changes over changing text",
+  { timeout: 20_000 },
+  async (t) => {
+    try {
+      await findBrowserExecutable();
+    } catch {
+      t.skip("Chrome is not installed");
+      return;
+    }
+    const directory = await mkdtemp(path.join(tmpdir(), "browser-background-input-"));
+    const browser = new BrowserManager({ stateDirectory: directory });
+    const server = createServer((_request, response) =>
+      response.end(
+        "<!doctype html><title>Waiting</title>" +
+          Array.from({ length: 30 }, (_, i) => `<div class="noise">Timer ${i}</div>`).join("") +
+          '<div role="dialog" aria-label="Login" id="login"><div id="close" role="button" aria-label="Close login" style="position:fixed;left:667px;top:200px;width:37px;height:36px" onclick="document.title=event.isTrusted?\'Closed natively\':\'Synthetic\';document.querySelectorAll(\'.noise\').forEach(el=>el.remove());document.querySelector(\'#login\').remove()"><svg width="37" height="36"><path d="M13 12L24 23M24 12L13 23" stroke="black"/></svg></div></div>' +
+          "<button style=\"position:fixed;left:20px;top:60px;width:120px;height:40px\" onclick=\"document.title=event.isTrusted?'Next natively':'Synthetic'\">Next video</button>",
+      ),
+    );
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const control = new AbortController();
+    const agent = { source: "agent" as const, controlSignal: control.signal };
+    t.after(async () => {
+      control.abort();
+      browser.dispose();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    });
+    await browser.handle(
+      {
+        type: "attach",
+        sessionId: "background",
+        projectId: "project",
+        url: `http://127.0.0.1:${address.port}`,
+      },
+      agent,
+    );
+    await browser.handle({
+      type: "viewport",
+      sessionId: "background",
+      width: 691,
+      height: 839,
+      visible: true,
+    });
+    await browser.handle({ type: "snapshot", sessionId: "background" }, agent);
+    await browser.handle({ type: "attach", sessionId: "front", projectId: "project" });
+    await browser.handle({
+      type: "viewport",
+      sessionId: "front",
+      width: 1024,
+      height: 768,
+      visible: true,
+    });
+    const clicked = (await browser.handle(
+      { type: "click", sessionId: "background", selector: "#close" },
+      {
+        ...agent,
+        signal: AbortSignal.timeout(6000),
+      },
+    )) as {
+      target: { connected: boolean; visible: boolean };
+      pageChanges: { removed: BrowserSnapshot["nodes"]; truncated: boolean };
+    };
+    assert.equal(clicked.target.connected, false, "the target is verified after native dispatch");
+    assert.equal(clicked.target.visible, false);
+    assert.equal(clicked.pageChanges.removed[0]?.role, "dialog");
+    assert.ok(
+      clicked.pageChanges.truncated,
+      "more than eight removed text nodes cannot hide the dialog",
+    );
+    const observe = () =>
+      browser.handle(
+        { type: "snapshot", sessionId: "background" },
+        agent,
+      ) as Promise<BrowserSnapshot>;
+    assert.equal((await observe()).nodes[0]?.name, "Closed natively");
+    await browser.handle(
+      { type: "click", sessionId: "background", x: 80, y: 80 },
+      {
+        ...agent,
+        signal: AbortSignal.timeout(6000),
+      },
+    );
+    assert.equal((await observe()).nodes[0]?.name, "Next natively");
+    const capture = (await browser.handle(
+      { type: "snapshot", sessionId: "background", includeScreenshot: true },
+      agent,
+    )) as BrowserSnapshot & { screenshot: BrowserFile };
+    assert.equal(capture.screenshot.mimeType, "image/jpeg");
+    assert.ok(
+      Math.max(capture.screenshot.pixels!.width, capture.screenshot.pixels!.height) <= 1600,
+    );
+    assert.deepEqual(capture.screenshot.viewport, { width: 691, height: 839 });
+  },
+);

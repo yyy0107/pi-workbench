@@ -12,6 +12,7 @@ Use the focused `browser_*` tools; `workbench_browser` remains available for leg
 - Use Browser for an explicit request to open, inspect, or interact with a page. A URL alone is context. Prefer an available connector or API for semantic tasks that do not require the page UI.
 - Respect the user's browser choice. Existing Chrome and Profile selection are configured by the user in Workbench Browser settings. Standalone Pi defaults to its session browser. Report an unavailable connection instead of silently substituting another profile or starting a replacement automation server.
 - Call the browser tools directly; no JavaScript bootstrap or browser-client import is needed.
+- For a requested URL, `browser_navigate` creates the default tab if needed, waits for load and returns a snapshot in one call. Use `query` for a known target and `includeSnapshot:false` only when observation is unnecessary. A separate setup, wait and snapshot sequence is unnecessary when navigation already returned the observation. If the user identifies an existing tab, discover and select that tab first.
 
 ## Working flow
 
@@ -20,6 +21,7 @@ Use `browser_list_tabs`, `browser_switch_tab` or `browser_new_tab` to select the
 - For a known target or a truncated snapshot, use `snapshot` with `params: {"query":"target name"}`. It searches accessible names before the output limit; repeating the same unfiltered snapshot cannot reveal the omitted tail.
 - Use `click` with `params: {"ref":"observed-ref"}`, or `params: {"x":120,"y":80}` from a current viewport screenshot for an unlabeled target. The latter sends a complete left click. Keep the user's zoom and device settings; convert image coordinates using the screenshot's reported CSS coverage.
 - Match verification to the requested outcome. For media playback, check the current track and a pause control or advancing progress. A successful click, song title, or opened track page alone does not establish playback. If the state is unchanged, inspect the target or blocking UI before retrying.
+- Element clicks report the target's current `connected`/`visible` state; `pageChanges` prioritizes dialogs and controls. Use this result to decide the next action. If the same intended effect is still absent after one retry, inspect a focused snapshot or screenshot and change the approach instead of repeating equivalent clicks.
 
 | Operation                                                                                 | Read when needed                                                                                  |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |

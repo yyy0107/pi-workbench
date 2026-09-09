@@ -1,6 +1,7 @@
 # Screenshots, viewport, and coordinate input
 
 - Use `action: "screenshot"` for visual inspection or when a snapshot cannot represent the target. Search a truncated snapshot with `params.query` first when the target has a known name. For unlabeled controls or unavailable frames, use a screenshot when image input is supported by the current model.
+- Agent screenshots default to JPEG quality 80 and a 1600-pixel longest edge. Use `browser_screenshot` with explicit `format`, `quality`, or `maxDim` when fine detail requires it. This only scales the bitmap; it does not resize the webpage. Panel resizing preserves the webpage dimensions while the agent controls the tab.
 
 - `viewport` and `capture` report CSS dimensions; `pixels` reports the encoded bitmap dimensions. For a viewport image you inspected at W × H, click at `x = imageX * viewport.width / W`, `y = imageY * viewport.height / H`. Use W/H of the image actually displayed to you, or `pixels` when inspecting the original bitmap. Apply this ratio once; do not multiply by device density or zoom again. A full-page image includes content outside the viewport; scroll and take a viewport screenshot before clicking.
 

@@ -8,6 +8,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 
 import { ModelConfigStore } from "../models/model-config-store";
+import { getSessionContextTrace } from "../sessions/session-context-trace";
 
 // Capture during host module initialization, before any resource loader runs.
 // Capturing per session would inherit global fetch overrides from older sessions.
@@ -27,8 +28,38 @@ const fetchApis = new Set<Api>([
 ]);
 
 function requestOptions<T extends { fetch?: FetchFunction }>(api: Api, options?: T) {
-  if (options?.fetch || !fetchApis.has(api)) return options;
-  return { ...options, fetch: hostFetch };
+  if (!fetchApis.has(api)) return options;
+  const fetch = options?.fetch ?? hostFetch;
+  const sessionId = options && "sessionId" in options ? options.sessionId : undefined;
+  const trace = typeof sessionId === "string" ? getSessionContextTrace(sessionId) : undefined;
+  if (!trace) return options?.fetch ? options : { ...options, fetch };
+  const measuredFetch: FetchFunction = async (input, init) => {
+    const body = init?.body;
+    const bodyBytes =
+      typeof body === "string"
+        ? Buffer.byteLength(body)
+        : body instanceof ArrayBuffer || ArrayBuffer.isView(body)
+          ? body.byteLength
+          : body instanceof Blob
+            ? body.size
+            : undefined;
+    const headers = new Headers(
+      init?.headers ?? (input instanceof Request ? input.headers : undefined),
+    );
+    const finish = trace.observeProviderHttpRequest(
+      bodyBytes,
+      headers.get("content-encoding") ?? undefined,
+    );
+    try {
+      const response = await fetch(input, init);
+      finish?.(response.status);
+      return response;
+    } catch (error) {
+      finish?.(undefined, error);
+      throw error;
+    }
+  };
+  return { ...options, fetch: measuredFetch };
 }
 
 /** Keep model HTTP requests independent of tool extensions replacing global fetch. */

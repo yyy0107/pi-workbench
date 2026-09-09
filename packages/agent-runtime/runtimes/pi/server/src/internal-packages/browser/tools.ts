@@ -39,7 +39,7 @@ const definitions: Record<
   },
   browser_click: {
     description:
-      "Click an observed ref (preferred), a CSS selector, or viewport x/y. Ref geometry is resolved again before native input. Returns pageChanges when a prior full snapshot exists.",
+      "Click an observed ref (preferred), a CSS selector, or viewport x/y. Ref geometry is resolved again before native input. Element clicks report target.connected/visible after dispatch; pageChanges prioritizes controls and dialogs. Use this feedback before requesting another observation or retrying.",
     parameters: {
       ...target,
       x: Type.Optional(number(0, 16384)),
@@ -158,7 +158,7 @@ const definitions: Record<
   },
   browser_screenshot: {
     description:
-      "Capture a native image for visual verification. Returns CSS viewport/capture bounds and bitmap dimensions. Full-page coordinates are not viewport click coordinates.",
+      "Capture a native image for visual verification, default JPEG quality 80 with a 1600-pixel longest edge. Override format/quality/maxDim for fine detail. Returns CSS viewport/capture bounds and bitmap dimensions; scaling never changes the page viewport. Full-page coordinates are not viewport click coordinates.",
     parameters: {
       fullPage: Type.Optional(Type.Boolean()),
       format: Type.Optional(Type.Union([Type.Literal("png"), Type.Literal("jpeg")])),
@@ -169,8 +169,13 @@ const definitions: Record<
   },
   browser_navigate: {
     description:
-      "Navigate the current or specified controlled tab to an HTTP(S) URL. Wait for page conditions before acting.",
-    parameters: { url: text(8192) },
+      "Navigate to an HTTP(S) URL, wait for document load and return a snapshot in one call. Creates the default tab if needed; no setup call is required. includeSnapshot:false returns immediately after navigation. Use query to limit the returned accessible names.",
+    parameters: {
+      url: text(8192),
+      includeSnapshot: Type.Optional(Type.Boolean()),
+      query: optionalText(1024),
+      timeout,
+    },
   },
   browser_open_urls: {
     description:
@@ -468,6 +473,27 @@ export function registerHarnessTools(
             toX: params.endX,
             toY: params.endY,
           });
+        if (action === "navigate" && params.includeSnapshot !== false) {
+          const navigated = await call(action, { url: params.url });
+          try {
+            await call("wait-for-load", { timeout: params.timeout });
+            return await call("snapshot", { query: params.query });
+          } catch (error) {
+            signal?.throwIfAborted();
+            return {
+              ...navigated,
+              content: [
+                ...navigated.content,
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({
+                    observationUnavailable: error instanceof Error ? error.message : String(error),
+                  }),
+                },
+              ],
+            };
+          }
+        }
         if (action === "upload") {
           if (!path.isAbsolute(params.filePath)) throw new Error("filePath must be absolute.");
           const info = await stat(params.filePath);

@@ -1611,6 +1611,25 @@ export type SessionContextTraceDetail =
       type: "model-output";
       message: SessionContextTraceJsonCapture;
       usage: SessionContextTraceTokenUsage;
+      timing?: {
+        /** Context snapshot capture to provider payload hook; includes local request preparation. */
+        preparationMs?: number;
+        payloadBytes: number;
+        /** Offsets from the provider payload hook, measured with a monotonic clock. */
+        responseHeadersMs?: number;
+        firstEventMs?: number;
+        firstDeltaMs?: number;
+        totalMs: number;
+        /** HTTP only. WebSocket transport diagnostics remain on the original message. */
+        httpAttempts: Array<{
+          startMs: number;
+          durationMs?: number;
+          bodyBytes?: number;
+          contentEncoding?: string;
+          status?: number;
+          error?: string;
+        }>;
+      };
       model?: SessionContextTraceModel;
       thinkingLevel?: string;
     }

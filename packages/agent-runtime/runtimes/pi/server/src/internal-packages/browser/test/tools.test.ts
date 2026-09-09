@@ -25,6 +25,8 @@ test("all harness tools load with schemas and keep selection, batches, research 
     async command(command) {
       calls.push(command);
       if (command.type === "attach" && command.url === "bad://url") throw new Error("Invalid URL");
+      if (command.type === "wait-for-load" && command.timeout === 0.01)
+        throw new Error("Page still loading");
       if (command.type === "tabs.list") return [];
       if (command.type === "read-page") return { url: command.url, text: "Isolated article" };
       if (command.type === "print")
@@ -95,6 +97,25 @@ test("all harness tools load with schemas and keep selection, batches, research 
   assert.deepEqual((await execute("browser_list_tabs")).details, {});
   const snapshot = await execute("browser_snapshot", { includeScreenshot: true });
   assert.equal(snapshot.content.at(-1)?.type, "image");
+  const navigationStart = calls.length;
+  await execute("browser_navigate", { url: "https://next.example", query: "Login" });
+  assert.deepEqual(
+    calls.slice(navigationStart).map((call) => call.type),
+    ["navigate", "wait-for-load", "snapshot"],
+  );
+  assert.equal((calls.at(-1) as { query: string }).query, "Login");
+  await execute("browser_navigate", { url: "https://next.example", includeSnapshot: false });
+  assert.equal(calls.at(-1)?.type, "navigate");
+  const pending = await execute("browser_navigate", { url: "https://next.example", timeout: 0.01 });
+  assert.ok(
+    pending.content.some(
+      (part) => part.type === "text" && part.text.includes("Page still loading"),
+    ),
+  );
+  assert.equal(
+    (pending.details as { browserSessionId: string }).browserSessionId,
+    (snapshot.details as { browserSessionId: string }).browserSessionId,
+  );
   await writeFile(path.join(directory, "upload.txt"), "Upload content");
   await execute("browser_upload_file", {
     selector: "input[type=file]",

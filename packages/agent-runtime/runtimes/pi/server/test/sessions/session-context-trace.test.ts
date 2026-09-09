@@ -498,6 +498,64 @@ test("correlates round, retry run, turn, and logical provider request coordinate
   );
 });
 
+test("request timings distinguish preparation, retries, headers, and streamed tool output", (t) => {
+  let now = 100;
+  t.mock.method(performance, "now", () => now);
+  const trace = new SessionContextTrace("session-request-timing");
+  trace.observeContext([]);
+  now = 120;
+  trace.observeProviderRequest({ input: "测试" });
+  now = 130;
+  const failed = trace.observeProviderHttpRequest(10, "zstd")!;
+  now = 150;
+  failed(undefined, new TypeError("fetch failed"));
+  now = 200;
+  const retry = trace.observeProviderHttpRequest(10, "zstd")!;
+  now = 250;
+  retry(503);
+  trace.observeProviderResponse(503, {});
+  now = 300;
+  const success = trace.observeProviderHttpRequest(10, "zstd")!;
+  now = 350;
+  success(200);
+  trace.observeProviderResponse(200, {});
+  now = 360;
+  trace.observeAgentEvent({ type: "message_start", message: { role: "assistant" } } as never);
+  now = 375;
+  trace.observeAgentEvent({
+    type: "message_update",
+    assistantMessageEvent: { type: "toolcall_delta", delta: "{" },
+  } as never);
+  now = 400;
+  trace.observeModelOutput({
+    role: "assistant",
+    content: [],
+    usage: { input: 0, output: 0, totalTokens: 0, cost: {} },
+  } as never);
+  const events = trace.list(-1, 100).events;
+  const request = events.find((event) => event.kind === "provider-request")!;
+  const responses = events.filter((event) => event.kind === "provider-response");
+  assert.deepEqual(
+    responses.map((event) => event.requestId),
+    [request.requestId, request.requestId],
+  );
+  const detail = trace.read(events.find((event) => event.kind === "model-output")!.traceId)?.detail;
+  if (detail?.type !== "model-output") assert.fail("Missing output timing");
+  assert.deepEqual(detail.timing, {
+    preparationMs: 20,
+    payloadBytes: Buffer.byteLength(JSON.stringify({ input: "测试" })),
+    responseHeadersMs: 230,
+    firstEventMs: 240,
+    firstDeltaMs: 255,
+    totalMs: 280,
+    httpAttempts: [
+      { startMs: 10, durationMs: 20, bodyBytes: 10, contentEncoding: "zstd", error: "TypeError" },
+      { startMs: 80, durationMs: 50, bodyBytes: 10, contentEncoding: "zstd", status: 503 },
+      { startMs: 180, durationMs: 50, bodyBytes: 10, contentEncoding: "zstd", status: 200 },
+    ],
+  });
+});
+
 test("records summarization retry attempts and their source", () => {
   const trace = new SessionContextTrace("session-retry");
   trace.observeAgentEvent({

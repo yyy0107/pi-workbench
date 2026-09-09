@@ -626,6 +626,13 @@ test("real Chrome observes and operates scoped elements without unrestricted CDP
           agent,
         )) as BrowserSessionState[]
       ).map((tab) => tab.id),
+      [],
+      "Agent discovery without a conversation ID must fail closed",
+    );
+    assert.deepEqual(
+      (
+        (await browser.handle({ type: "tabs.list", projectId: "project" })) as BrowserSessionState[]
+      ).map((tab) => tab.id),
       ["form"],
     );
     await assert.rejects(
@@ -1055,7 +1062,7 @@ test("real Chrome moves the assistant pointer before acting and stops on cancell
           mimeType: string;
         }
       ).mimeType,
-      "image/png",
+      "image/jpeg",
     );
     await assert.rejects(browser.handle({ type: "reload", sessionId: "movement" }, agent), {
       code: "browser-user-active",
@@ -1798,7 +1805,7 @@ test("real Chrome navigates, streams, finds, copies, emulates and exports with n
           mimeType: string;
         }
       ).mimeType,
-      "image/png",
+      "image/jpeg",
     );
     await assert.rejects(manager.handle({ type: "back", sessionId: "tab" }, { source: "agent" }), {
       code: "browser-permission-denied",

@@ -99,6 +99,8 @@ test("browser viewport requests sharp frames and updates density without changin
     canGoBack: false,
     canGoForward: false,
     agentControlled: true,
+    width: 600,
+    height: 400,
   });
   const attributes = new Set<string>();
   const element = {
@@ -282,7 +284,11 @@ test("browser viewport requests sharp frames and updates density without changin
     dragChanged();
     await flushResize();
     assert.equal(viewportCount(), beforeDrag + 1, "release applies only the final preview width");
-    assert.equal((commands.at(-1) as Extract<BrowserCommand, { type: "viewport" }>).width, 680);
+    assert.equal(
+      (commands.at(-1) as Extract<BrowserCommand, { type: "viewport" }>).width,
+      600,
+      "agent control keeps the remote viewport stable after panel resizing",
+    );
     frameListener?.({ ...visibleFrame, width: 400, height: 800 });
     frameListener?.({ type: "cursor", sessionId: "tab", cursor: { x: 120, y: 100 } });
     paints.get(paintId)!(0);
@@ -306,6 +312,12 @@ test("browser viewport requests sharp frames and updates density without changin
     paints.get(paintId)!(0);
     paints.delete(paintId);
     assert.equal(cursor.hidden, true, "ending control or disconnecting hides the pointer");
+    await flushResize();
+    assert.equal(
+      (commands.at(-1) as Extract<BrowserCommand, { type: "viewport" }>).width,
+      680,
+      "ending control applies the latest panel size without another resize event",
+    );
     frameListener?.(visibleFrame);
     assert.equal(paints.size, 1);
   } finally {

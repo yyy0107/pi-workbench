@@ -739,6 +739,8 @@ export class BrowserManager {
     await Promise.all([
       this.send(tab, "Page.enable"),
       this.send(tab, "Runtime.enable"),
+      // Background tabs otherwise stall native input while waiting for compositor acknowledgements.
+      this.send(tab, "Emulation.setFocusEmulationEnabled", { enabled: true }),
       this.send(tab, "DOM.enable"),
       this.send(tab, "Network.enable", {
         maxTotalBufferSize: 8 * 1024 * 1024,
@@ -1207,6 +1209,19 @@ export class BrowserManager {
                 depth: _depth,
                 ...node
               }: BrowserSnapshotNode) => JSON.stringify(node);
+              // Keep controls and dialogs ahead of video timers, chat and other changing text.
+              const priority = (node: BrowserSnapshotNode) =>
+                "ref" in command && node.ref === command.ref
+                  ? 0
+                  : /^(dialog|alertdialog|alert)$/.test(node.role)
+                    ? 1
+                    : /^(button|link|checkbox|radio|textbox|combobox|menuitem|tab|switch)$/.test(
+                          node.role,
+                        )
+                      ? 2
+                      : 3;
+              const relevant = (nodes: BrowserSnapshotNode[]) =>
+                nodes.sort((a, b) => priority(a) - priority(b));
               const added = [...after.values()].filter((node) => !before.has(key(node)));
               const changed = [...after.values()].filter(
                 (node) =>
@@ -1217,9 +1232,9 @@ export class BrowserManager {
                 : [...before.values()].filter((node) => !after.has(key(node)));
               pageChanges = {
                 snapshotId: next.snapshotId,
-                added: added.slice(0, 12),
-                changed: changed.slice(0, 12),
-                removed: removed.slice(0, 8),
+                added: relevant(added).slice(0, 12),
+                changed: relevant(changed).slice(0, 12),
+                removed: relevant(removed).slice(0, 8),
                 truncated:
                   next.truncated || added.length > 12 || changed.length > 12 || removed.length > 8,
               };
@@ -2265,7 +2280,12 @@ export class BrowserManager {
     >,
     source: Source,
     signal?: AbortSignal,
-  ): Promise<BrowserSessionState & { field?: Record<string, unknown> }> {
+  ): Promise<
+    BrowserSessionState & {
+      field?: Record<string, unknown>;
+      target?: Record<string, unknown>;
+    }
+  > {
     const ref = await this.resolveElement(tab, command, signal);
     const snapshot = tab.snapshot;
     const reference = snapshot?.refs.get(ref);
@@ -2446,7 +2466,17 @@ export class BrowserManager {
         }
         await this.clickAt(tab, position, source, source === "agent" ? ready : current);
       }
-      return { ...tab.state };
+      if (tab.dialogPending || tab.snapshot !== snapshot)
+        return { ...tab.state, target: { ref, unavailable: true } };
+      const target = await call(
+        "function() { return { connected: this.isConnected, visible: this.isConnected && this.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}) }; }",
+      )
+        .then(({ result, exceptionDetails }) =>
+          exceptionDetails || !result?.value ? { unavailable: true } : result.value,
+        )
+        .catch(() => ({ unavailable: true }));
+      signal?.throwIfAborted();
+      return { ...tab.state, target: { ref, ...target } };
     } finally {
       void this.agentOperation
         .exit(() => this.send(tab, "Runtime.releaseObject", { objectId }))
@@ -2487,6 +2517,8 @@ export class BrowserManager {
     options: { format?: "png" | "jpeg"; quality?: number; maxDim?: number } = {},
   ): Promise<BrowserFile> {
     await tab.viewportOperation;
+    const agent = this.agentOperation.getStore()?.source === "agent";
+    const maxDim = options.maxDim ?? (agent ? 1600 : undefined);
     const metrics = await this.send(tab, "Page.getLayoutMetrics");
     const pageScale = metrics.cssVisualViewport?.scale ?? metrics.visualViewport?.scale ?? 1;
     const viewport = {
@@ -2500,11 +2532,8 @@ export class BrowserManager {
       clip = { x: 0, y: 0, width: size.width, height: size.height, scale: 1 };
       capture = { width: size.width, height: size.height };
     }
-    const scale = options.maxDim
-      ? Math.min(
-          1,
-          options.maxDim / (Math.max(capture.width, capture.height) * tab.deviceScaleFactor),
-        )
+    const scale = maxDim
+      ? Math.min(1, maxDim / (Math.max(capture.width, capture.height) * tab.deviceScaleFactor))
       : 1;
     if (scale < 1)
       clip = {
@@ -2519,7 +2548,7 @@ export class BrowserManager {
       capture.width * capture.height * (tab.deviceScaleFactor * scale) ** 2 > 50_000_000
     )
       throw new BrowserError("browser-file-too-large");
-    const format = options.format ?? "png";
+    const format = options.format ?? (agent ? "jpeg" : "png");
     const result = await this.send(tab, "Page.captureScreenshot", {
       format,
       ...(format === "jpeg" ? { quality: options.quality ?? 80 } : {}),
