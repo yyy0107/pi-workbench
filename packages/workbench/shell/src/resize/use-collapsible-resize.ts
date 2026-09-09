@@ -11,7 +11,7 @@ import {
 import { animateSpring, applyMagneticSnap, type SpringAnimation } from "./resize-spring";
 
 const DEFAULT_COLLAPSE_RATIO = 0.5;
-const MAX_COLLAPSE_DISTANCE = 120;
+const DEFAULT_COLLAPSE_THRESHOLD = 120;
 const DEFAULT_KEYBOARD_STEP = 16;
 const DEFAULT_RELEASE_DISTANCE = 24;
 const MAX_SPRING_VELOCITY = 2400;
@@ -58,10 +58,13 @@ export interface UseCollapsibleResizeOptions {
 
 export function resolveCollapsibleResizeThreshold(
   minimumWidth: number,
-  // Wider panels should not need a longer push past their minimum than the sidebar.
-  collapseRatio = Math.min(DEFAULT_COLLAPSE_RATIO, MAX_COLLAPSE_DISTANCE / minimumWidth),
+  collapseRatio?: number,
 ): number {
   const minimum = Number.isFinite(minimumWidth) ? Math.max(0, minimumWidth) : 0;
+  // Left and right panes use the same edge threshold, regardless of their content minimum.
+  if (collapseRatio === undefined) {
+    return Math.min(minimum * DEFAULT_COLLAPSE_RATIO, DEFAULT_COLLAPSE_THRESHOLD);
+  }
   const ratio = Number.isFinite(collapseRatio)
     ? Math.min(1, Math.max(0, collapseRatio))
     : DEFAULT_COLLAPSE_RATIO;
@@ -168,16 +171,21 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
       return;
     }
 
-    animationRef.current?.cancel();
-    animationRef.current = null;
     const committedWidth = clampExpandedWidth(
       session,
       snapReleasedWidth(session, session.rawWidth),
     );
+    const commit = () => {
+      optionsRef.current.onCommit(committedWidth);
+      optionsRef.current.onOpenChange(true);
+      optionsRef.current.onResizingChange(false);
+    };
+    if (animationRef.current) {
+      animatePreview(session, committedWidth, event.currentTarget, commit);
+      return;
+    }
     previewWidth(session, committedWidth, event.currentTarget);
-    optionsRef.current.onCommit(committedWidth);
-    optionsRef.current.onOpenChange(true);
-    optionsRef.current.onResizingChange(false);
+    commit();
   };
 
   useEffect(
@@ -251,13 +259,11 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
 
       session.collapsed = false;
       current.onOpenChange(true);
-      const rawWidth = clampPreviewWidth(session, requestedWidth);
-      session.rawWidth = rawWidth;
-      animationRef.current?.cancel();
-      animationRef.current = null;
-      session.currentWidth = rawWidth;
-      previewWidth(session, rawWidth, event.currentTarget);
-      return;
+      session.rawWidth = clampExpandedWidth(session, requestedWidth);
+      if (requestedWidth <= session.minimumWidth) {
+        animatePreview(session, session.rawWidth, event.currentTarget);
+        return;
+      }
     }
 
     if (requestedWidth < session.collapseThreshold) {
@@ -272,9 +278,10 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
       return;
     }
 
-    // Pointer previews stay 1:1, including the approach to the collapse threshold.
-    const rawWidth = clampPreviewWidth(session, requestedWidth);
+    // Hold at the rebound width until the pointer crosses it, without moving the drag origin.
+    const rawWidth = clampExpandedWidth(session, requestedWidth);
     session.rawWidth = rawWidth;
+    if (animationRef.current && requestedWidth <= session.minimumWidth) return;
     animationRef.current?.cancel();
     animationRef.current = null;
     session.currentWidth = rawWidth;

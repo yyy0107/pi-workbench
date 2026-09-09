@@ -9,17 +9,29 @@ import {
   useCollapsibleResize,
 } from "../../src/resize/use-collapsible-resize";
 
-test("follows every pointer move through snap points and the collapse approach without spring lag", (t) => {
+test("holds the rebound width until the pointer crosses it, then follows without lag", (t) => {
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
-  let cancelledFrames = 0;
+  let now = 0;
+  let nextFrame = 0;
+  const frames = new Map<number, FrameRequestCallback>();
+  t.mock.method(performance, "now", () => now);
+  const advance = (count: number) => {
+    for (let index = 0; index < count; index += 1) {
+      now += 16;
+      const pending = [...frames.values()];
+      frames.clear();
+      for (const callback of pending) callback(now);
+    }
+  };
   Object.defineProperty(globalThis, "window", {
     configurable: true,
     value: {
       matchMedia: () => ({ matches: false }),
-      requestAnimationFrame: () => 1,
-      cancelAnimationFrame: () => {
-        cancelledFrames += 1;
+      requestAnimationFrame: (callback: FrameRequestCallback) => {
+        frames.set(++nextFrame, callback);
+        return nextFrame;
       },
+      cancelAnimationFrame: (frame: number) => frames.delete(frame),
     },
   });
   t.after(() => {
@@ -30,6 +42,7 @@ test("follows every pointer move through snap points and the collapse approach w
     let resize!: ReturnType<typeof useCollapsibleResize>;
     let preview = 600;
     let committed = 0;
+    let resizing = false;
     function Probe() {
       resize = useCollapsibleResize({
         width: 600,
@@ -45,7 +58,9 @@ test("follows every pointer move through snap points and the collapse approach w
           committed = width;
         },
         onOpenChange() {},
-        onResizingChange() {},
+        onResizingChange(value) {
+          resizing = value;
+        },
       });
       return null;
     }
@@ -62,23 +77,68 @@ test("follows every pointer move through snap points and the collapse approach w
       },
     } as unknown as Parameters<typeof resize.onPointerDown>[0];
     resize.onPointerDown(event);
-    for (const width of [700, 710, 716, 720, 724, 730, 750, 380, 360, 330, 300, 250]) {
+    for (const width of [700, 710, 716, 720, 724, 730, 750, 380, 360, 330, 300, 250, 130]) {
       event.clientX = 1000 + direction * (width - 600);
       resize.onPointerMove(event);
-      assert.equal(preview, width, "preview must match the pointer before an animation frame");
+      assert.equal(
+        preview,
+        Math.max(360, width),
+        "hold at the minimum while awaiting the threshold",
+      );
     }
     event.clientX -= direction * 11;
-    resize.onPointerMove(event); // Starts a collapse spring; no animation frame has run.
-    const cancellations = cancelledFrames;
+    resize.onPointerMove(event);
+    advance(60);
+    assert.equal(preview, 0);
     event.clientX += direction * 25;
     resize.onPointerMove(event);
-    assert.equal(preview, 264, "reversal resumes at the pointer's absolute width");
-    assert.equal(cancelledFrames, cancellations + 1);
-    event.clientX += direction * 2;
-    resize.onPointerMove(event);
-    assert.equal(preview, 266, "the reopened divider stays at the original pointer offset");
+    assert.equal(preview, 0, "rebound starts from the rendered width instead of jumping");
+    advance(1);
+    assert.ok(preview > 0 && preview < 360, "rebound has intermediate animation frames");
+    for (const width of [266, 300, 359, 360]) {
+      const intermediate: number = preview;
+      event.clientX = 1000 + direction * (width - 600);
+      resize.onPointerMove(event);
+      assert.equal(
+        preview,
+        intermediate,
+        "movement below the threshold must not interrupt rebound",
+      );
+      assert.equal(frames.size, 1);
+    }
+    advance(60);
+    assert.equal(preview, 360);
+    for (const width of [361, 380, 362]) {
+      event.clientX = 1000 + direction * (width - 600);
+      resize.onPointerMove(event);
+      assert.equal(
+        preview,
+        Math.max(360, width),
+        "only crossing the rebound position resumes tracking",
+      );
+    }
     resize.onPointerUp(event);
     assert.equal(committed, 360, "snapping applies only after release");
+
+    // Releasing during rebound must also let the transition finish.
+    event.clientX = 1000;
+    resize.onPointerDown(event);
+    event.clientX += direction * (119 - 360);
+    resize.onPointerMove(event);
+    advance(60);
+    event.clientX += direction * 25;
+    resize.onPointerMove(event);
+    advance(1);
+    const intermediate: number = preview;
+    committed = 0;
+    resize.onPointerUp(event);
+    assert.equal(preview, intermediate, "release must not jump to the rebound target");
+    assert.equal(committed, 0);
+    assert.equal(resizing, true);
+    advance(60);
+    assert.equal(preview, 360);
+    assert.equal(committed, 360);
+    assert.equal(resizing, false);
   }
 });
 
@@ -185,16 +245,20 @@ test("keeps the original pointer anchor through repeated collapses and overshoot
       };
       resize.onPointerDown(event);
       for (let cycle = 0; cycle < 3; cycle += 1) {
-        moveToWidth(239);
+        moveToWidth(119);
         assert.equal(previews.at(-1), 0);
         moveToWidth(-261);
         moveToWidth(-237);
         assert.equal(previews.at(-1), 0, "a reversal outside the pane must not shift its anchor");
-        moveToWidth(263);
+        moveToWidth(143);
         assert.equal(previews.at(-1), 0, "reopening waits for the fixed release threshold");
-        for (const width of [264, 263, 300, 400]) {
+        for (const width of [144, 143, 300, 359, 360, 361, 400]) {
           moveToWidth(width);
-          assert.equal(previews.at(-1), width, `cycle ${cycle}: no accumulated pointer offset`);
+          assert.equal(
+            previews.at(-1),
+            Math.max(360, width),
+            `cycle ${cycle}: hold then track without accumulating offset`,
+          );
         }
       }
 
@@ -208,11 +272,11 @@ test("keeps the original pointer anchor through repeated collapses and overshoot
   }
 });
 
-test("caps the default collapse distance at the sidebar distance for wider panels", () => {
+test("shares the sidebar edge threshold with wider workspaces", () => {
   assert.equal(resolveCollapsibleResizeThreshold(240), 120);
   assert.equal(resolveCollapsibleResizeThreshold(220), 110);
-  assert.equal(resolveCollapsibleResizeThreshold(360), 240);
-  assert.equal(resolveCollapsibleResizeThreshold(720), 600);
+  assert.equal(resolveCollapsibleResizeThreshold(360), 120);
+  assert.equal(resolveCollapsibleResizeThreshold(720), 120);
   assert.equal(resolveCollapsibleResizeThreshold(0), 0);
 });
 

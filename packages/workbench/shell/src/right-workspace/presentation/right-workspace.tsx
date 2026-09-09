@@ -18,7 +18,7 @@ import { resolveRightWorkspaceMaximumWidth } from "../right-workspace-layout";
 
 function workspaceMaximum(element: HTMLElement | null): number {
   if (typeof window === "undefined") return DEFAULT_RIGHT_WORKSPACE_WIDTH;
-  const availableWidth = element?.parentElement?.clientWidth || window.innerWidth;
+  const availableWidth = element?.parentElement?.getBoundingClientRect().width ?? window.innerWidth;
   return resolveRightWorkspaceMaximumWidth(availableWidth);
 }
 

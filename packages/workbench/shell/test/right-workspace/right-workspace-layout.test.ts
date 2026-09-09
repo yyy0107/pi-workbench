@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   MIN_DOCKED_RIGHT_WORKSPACE_HOST_WIDTH,
+  MIN_CONVERSATION_WIDTH,
   resolveRightWorkspacePresentation,
   resolveRightWorkspaceMaximumWidth,
   shouldCollapseRightWorkspaceBeforeSidebar,
@@ -10,13 +11,14 @@ import {
 import {
   resolveExpandedThreadWidth,
   resolveThreadResponsiveLayout,
+  THREAD_SIDEBAR_AUTO_COLLAPSE_WIDTH_PX,
 } from "../../src/layout/thread-content-width";
 
 test("dragging the adjacent workspace reaches both responsive stages without resizing the page", () => {
   const availableWidth = 1400;
   const sidebarWidth = 268;
   const maximum = resolveRightWorkspaceMaximumWidth(availableWidth);
-  assert.equal(maximum, 1080);
+  assert.equal(maximum, 1060);
   for (const [workspaceWidth, indexHidden, sidebarCollapsed] of [
     [360, false, false],
     [440, true, false],
@@ -39,6 +41,15 @@ test("dragging the adjacent workspace reaches both responsive stages without res
         sidebarAutoCollapsed: sidebarCollapsed,
       });
     }
+  }
+});
+
+test("reserves the same conversation minimum with or without a right workspace", () => {
+  assert.equal(MIN_CONVERSATION_WIDTH, THREAD_SIDEBAR_AUTO_COLLAPSE_WIDTH_PX);
+  assert.equal(MIN_CONVERSATION_WIDTH, 340);
+  for (const availableWidth of [1400, 1172.00390625, 700, 680, 360, 340, 300]) {
+    const workspaceWidth = resolveRightWorkspaceMaximumWidth(availableWidth);
+    assert.equal(availableWidth - workspaceWidth, Math.min(availableWidth, MIN_CONVERSATION_WIDTH));
   }
 });
 
