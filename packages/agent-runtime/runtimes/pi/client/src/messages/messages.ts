@@ -144,11 +144,23 @@ export function reconcilePiContextTraceAssistantParts(
 ): ThreadAssistantMessage {
   const promptParts: ThreadAssistantMessage["content"][number][] = [];
   const seen = new Set<string>();
+  const presentations = new Map<string, string>();
+  const acceptedTraces = new Map<string, boolean>();
   for (const part of [...previous.content, ...message.content]) {
     const partId = piContextTracePartId(part);
     if (partId) {
       if (isPiContextTracePromptPart(part) && !seen.has(partId)) {
-        promptParts.push(part);
+        const parsed = part.type === "data" ? parsePiContextTraceData(part.data) : undefined;
+        if (parsed) {
+          const { event } = parsed;
+          if (!acceptedTraces.has(event.traceId)) {
+            acceptedTraces.set(
+              event.traceId,
+              recordPiContextTracePromptPresentation(event, presentations),
+            );
+          }
+          if (acceptedTraces.get(event.traceId)) promptParts.push(part);
+        }
       }
       seen.add(partId);
     }
@@ -1259,6 +1271,8 @@ export function coalesceConsecutiveAssistantMessages(
     }
     const turnTiming = assistantTurnTiming(assistantGroup, content, turnStartedAt);
     const turnStatistics = aggregatePiTurnStatistics(assistantGroup);
+    const previous = coalesced.findLast((message) => message.role !== "system");
+    const continuation = previous?.role === "assistant" && previous.status.type === "incomplete";
     appendMessage({
       ...merged,
       id: first.id,
@@ -1267,6 +1281,7 @@ export function coalesceConsecutiveAssistantMessages(
         ...merged.metadata,
         custom: {
           ...merged.metadata.custom,
+          ...(continuation ? { workbenchContinuation: true } : {}),
           ...(turnTiming ? { piTurnTiming: turnTiming } : {}),
           ...(turnTiming ? { workbenchTurnTiming: turnTiming } : {}),
           piTurnStatistics: turnStatistics,

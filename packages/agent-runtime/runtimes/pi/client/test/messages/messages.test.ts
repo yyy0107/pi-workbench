@@ -2699,6 +2699,86 @@ test("reopens text attachment cards and applies edited canonical metadata withou
   assert.deepEqual(prompt.documents, []);
 });
 
+test("deduplicates equivalent live and hydrated context summaries with different trace IDs", () => {
+  const assistant = piAssistantToThreadMessage(
+    { role: "assistant", content: [{ type: "text", text: "Done" }] },
+    "assistant",
+  );
+  const previous = appendPiContextTraceAssistantPart(assistant, {
+    ...contextTraceEvent("live", 1),
+    roundId: "round",
+  });
+  const hydrated = appendPiContextTraceAssistantPart(assistant, {
+    ...contextTraceEvent("history", 2),
+    roundId: "round",
+  });
+  const merged = reconcilePiContextTraceAssistantParts(hydrated, previous);
+  assert.equal(
+    merged.content.filter((part) => part.type === "data").length,
+    PROMPT_INJECTIONS.length,
+  );
+  const changed = appendPiContextTraceAssistantPart(assistant, {
+    ...contextTraceEvent("changed", 3),
+    roundId: "round",
+    promptResources: {
+      ...contextTraceEvent("changed", 3).promptResources!,
+      tools: { active: ["bash"], total: 1 },
+    },
+  });
+  assert.equal(
+    reconcilePiContextTraceAssistantParts(changed, merged).content.filter(
+      (part) => part.type === "data",
+    ).length,
+    PROMPT_INJECTIONS.length * 2,
+  );
+});
+
+test("marks a resumed response without treating a new user turn as continuation", () => {
+  const failed = piAssistantToThreadMessage(
+    {
+      role: "assistant",
+      content: [],
+      stopReason: "error",
+      errorMessage: "terminated",
+      timestamp: 1000,
+    },
+    "failed",
+  );
+  const completed = piAssistantToThreadMessage(
+    {
+      role: "assistant",
+      content: [{ type: "text", text: "Done" }],
+      stopReason: "stop",
+      timestamp: 2000,
+    },
+    "completed",
+  );
+  const resumed = coalesceConsecutiveAssistantMessages([failed, completed]);
+  assert.equal(resumed[1]?.metadata.custom.workbenchContinuation, true);
+  assert.equal(
+    coalesceConsecutiveAssistantMessages(resumed)[1]?.metadata.custom.workbenchContinuation,
+    true,
+  );
+  const user = optimisticUserMessage(
+    {
+      role: "user",
+      content: [{ type: "text", text: "New request" }],
+      attachments: [],
+      createdAt: new Date(1500),
+      metadata: { custom: {} },
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+    },
+    "user",
+  );
+  assert.equal(
+    coalesceConsecutiveAssistantMessages([failed, user, completed])[2]?.metadata.custom
+      .workbenchContinuation,
+    undefined,
+  );
+});
+
 test("cache miss notices are display data on completed messages and survive history reconciliation", () => {
   const notice = { missedTokens: 10_000, missedCost: 0.027, idleMs: 360_000, modelChanged: true };
   const source: PiAssistantMessage = { ...assistantMessage, workbenchCacheMiss: notice };
