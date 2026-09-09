@@ -26,8 +26,8 @@ export interface CollapsibleResizePreview {
 
 interface ResizeSession {
   pointerId: number;
-  startX: number;
-  startWidth: number;
+  readonly startX: number;
+  readonly startWidth: number;
   rawWidth: number;
   currentWidth: number;
   lastX: number;
@@ -100,7 +100,7 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
     Math.min(session.maximumWidth, Math.max(0, width));
   const clampExpandedWidth = (session: ResizeSession, width: number) =>
     Math.min(session.maximumWidth, Math.max(session.minimumWidth, width));
-  const snapDragWidth = (session: ResizeSession, width: number) =>
+  const snapReleasedWidth = (session: ResizeSession, width: number) =>
     width <= session.minimumWidth ? width : applyMagneticSnap(width, session.snapPoints);
 
   const previewWidth = (session: ResizeSession, width: number, handle: HTMLDivElement) => {
@@ -141,6 +141,7 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
   const finishResize = (event: ReactPointerEvent<HTMLDivElement>, cancelled: boolean) => {
     const session = sessionRef.current;
     if (!session || session.pointerId !== event.pointerId) return;
+    session.maximumWidth = Math.max(0, optionsRef.current.getMaximumWidth());
 
     sessionRef.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -169,7 +170,10 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
 
     animationRef.current?.cancel();
     animationRef.current = null;
-    const committedWidth = clampExpandedWidth(session, snapDragWidth(session, session.rawWidth));
+    const committedWidth = clampExpandedWidth(
+      session,
+      snapReleasedWidth(session, session.rawWidth),
+    );
     previewWidth(session, committedWidth, event.currentTarget);
     optionsRef.current.onCommit(committedWidth);
     optionsRef.current.onOpenChange(true);
@@ -229,6 +233,7 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
     if (!session || session.pointerId !== event.pointerId) return;
 
     const current = optionsRef.current;
+    session.maximumWidth = Math.max(0, current.getMaximumWidth());
     const now = performance.now();
     const elapsed = now - session.lastTime;
     if (elapsed > 0) {
@@ -241,20 +246,17 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
       session.startWidth + current.direction * (event.clientX - session.startX);
     const releaseDistance = current.releaseDistance ?? DEFAULT_RELEASE_DISTANCE;
     if (session.collapsed) {
-      session.rawWidth = Math.min(session.rawWidth, requestedWidth);
-      const expansionDistance = requestedWidth - session.rawWidth;
-      if (expansionDistance < releaseDistance) return;
+      // Reopen at a fixed boundary; rebasing on each reversal accumulates pointer drift.
+      if (requestedWidth < session.collapseThreshold + releaseDistance) return;
 
       session.collapsed = false;
       current.onOpenChange(true);
-      const rawWidth = clampExpandedWidth(
-        session,
-        session.minimumWidth + expansionDistance - releaseDistance,
-      );
-      // Continue from the reopened width while retaining the original width for cancellation.
-      session.startX = event.clientX - current.direction * (rawWidth - session.startWidth);
+      const rawWidth = clampPreviewWidth(session, requestedWidth);
       session.rawWidth = rawWidth;
-      animatePreview(session, snapDragWidth(session, rawWidth), event.currentTarget);
+      animationRef.current?.cancel();
+      animationRef.current = null;
+      session.currentWidth = rawWidth;
+      previewWidth(session, rawWidth, event.currentTarget);
       return;
     }
 
@@ -270,15 +272,13 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
       return;
     }
 
-    const rawWidth = clampExpandedWidth(session, requestedWidth);
+    // Pointer previews stay 1:1, including the approach to the collapse threshold.
+    const rawWidth = clampPreviewWidth(session, requestedWidth);
     session.rawWidth = rawWidth;
-    const nextWidth = snapDragWidth(session, rawWidth);
-    if (animationRef.current) {
-      animationRef.current.setTarget(nextWidth);
-    } else {
-      session.currentWidth = nextWidth;
-      previewWidth(session, nextWidth, event.currentTarget);
-    }
+    animationRef.current?.cancel();
+    animationRef.current = null;
+    session.currentWidth = rawWidth;
+    previewWidth(session, rawWidth, event.currentTarget);
   };
 
   const onKeyDown: KeyboardEventHandler<HTMLDivElement> = (event) => {

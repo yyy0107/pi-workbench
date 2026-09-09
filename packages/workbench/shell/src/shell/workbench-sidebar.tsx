@@ -270,7 +270,7 @@ export function WorkbenchSidebar({
         ref={sidebarLayoutRef}
         data-slot="workbench-sidebar-layout"
         data-state={desktopState}
-        className="relative h-full min-h-0 min-w-0 shrink-0 transition-[width,--workbench-sidebar-expansion] ease-(--layout-motion-ease) motion-reduce:transition-none data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width] data-[state=collapsed]:pointer-events-none"
+        className="relative h-full min-h-0 min-w-0 shrink-0 transition-[width,--workbench-sidebar-expansion] ease-(--layout-motion-ease) motion-reduce:transition-none in-data-[resizing=true]:transition-none data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width] data-[state=collapsed]:pointer-events-none"
         style={
           {
             "--workbench-sidebar-expansion": desktopState === "expanded" ? 1 : 0,

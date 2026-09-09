@@ -5,9 +5,6 @@ import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { useI18n } from "../../i18n";
 import {
   DEFAULT_RIGHT_WORKSPACE_WIDTH,
-  MAX_RIGHT_WORKSPACE_VIEWPORT_RATIO,
-  MIN_RIGHT_WORKSPACE_WIDTH,
-  MIN_CONVERSATION_WIDTH,
   applyRightWorkspaceResizePreview,
   resolveRightWorkspacePresentation,
 } from "../../right-workspace";
@@ -17,17 +14,12 @@ import { useRightWorkspaceState } from "../../right-workspace-react";
 import { WorkspaceHeader } from "./workspace-header";
 import { WorkspaceResizeHandle } from "./workspace-resize-handle";
 import { useWorkbenchDomIds } from "../../dom";
+import { resolveRightWorkspaceMaximumWidth } from "../right-workspace-layout";
 
 function workspaceMaximum(element: HTMLElement | null): number {
   if (typeof window === "undefined") return DEFAULT_RIGHT_WORKSPACE_WIDTH;
   const availableWidth = element?.parentElement?.clientWidth || window.innerWidth;
-  return Math.max(
-    MIN_RIGHT_WORKSPACE_WIDTH,
-    Math.min(
-      availableWidth * MAX_RIGHT_WORKSPACE_VIEWPORT_RATIO,
-      availableWidth - MIN_CONVERSATION_WIDTH,
-    ),
-  );
+  return resolveRightWorkspaceMaximumWidth(availableWidth);
 }
 
 export function RightWorkspace({ isVisible = true }: { isVisible?: boolean }) {

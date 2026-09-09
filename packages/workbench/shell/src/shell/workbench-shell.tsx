@@ -184,9 +184,13 @@ export function WorkbenchShell({
         return;
       }
 
-      if (shell.dataset.resizing === "true") return;
+      // Sidebar drags own their open state; right-workspace drags still drive responsiveness.
+      if (shell.dataset.sidebarResizing === "true" || conversationHidden) return;
 
-      const currentThreadWidth = observedThreadRoot.getBoundingClientRect().width;
+      const currentThreadWidth = Math.min(
+        observedThreadRoot.getBoundingClientRect().width,
+        conversationHost.getBoundingClientRect().width,
+      );
       const shellWidth = shell.getBoundingClientRect().width;
       const desktopSidebarParticipates = shellWidth >= MOBILE_BREAKPOINT;
       const sidebarOccupiedWidth = desktopSidebarParticipates
@@ -204,14 +208,12 @@ export function WorkbenchShell({
       const workspaceWidth =
         workspacePresentation === "closed"
           ? 0
-          : workspacePresentation === "maximized"
-            ? workspaceAvailableWidth
-            : Math.min(
-                workspaceAvailableWidth,
-                Number.parseFloat(
-                  workspaceLayout?.style.getPropertyValue("--right-workspace-layout-width") ?? "",
-                ) || workspaceOccupiedWidth,
-              );
+          : Math.min(
+              workspaceAvailableWidth,
+              Number.parseFloat(
+                workspaceLayout?.style.getPropertyValue("--right-workspace-layout-width") ?? "",
+              ) || workspaceOccupiedWidth,
+            );
       const expandedThreadWidth = resolveExpandedThreadWidth({
         currentThreadWidth,
         sidebarWidth,
@@ -236,10 +238,7 @@ export function WorkbenchShell({
       );
 
       const nextSidebarAutoCollapsed =
-        desktopSidebarParticipates &&
-        workspacePresentation === "closed" &&
-        sidebarOpen &&
-        layout.sidebarAutoCollapsed;
+        desktopSidebarParticipates && sidebarOpen && layout.sidebarAutoCollapsed;
       setSidebarAutoCollapsed((current) =>
         current === nextSidebarAutoCollapsed ? current : nextSidebarAutoCollapsed,
       );
@@ -250,7 +249,11 @@ export function WorkbenchShell({
     observer.observe(shell);
     observer.observe(conversationHost);
     resizeStateObserver = new MutationObserver(() => {
-      if (shell.dataset.resizing !== "true") update();
+      if (shell.dataset.resizing === "true" && shell.dataset.sidebarResizing !== "true") {
+        // Manually reopening a cramped sidebar only overrides the current layout, not a new drag.
+        setSidebarAutoCollapseSuppressed(false);
+      }
+      update();
     });
     resizeStateObserver.observe(shell, {
       attributes: true,
@@ -262,7 +265,13 @@ export function WorkbenchShell({
       observer.disconnect();
       resizeStateObserver.disconnect();
     };
-  }, [sidebarEffectivelyOpen, sidebarOpen, sidebarWidth, workspacePresentation]);
+  }, [
+    conversationHidden,
+    sidebarEffectivelyOpen,
+    sidebarOpen,
+    sidebarWidth,
+    workspacePresentation,
+  ]);
 
   const resizeSidebar = useCallback((width: number) => {
     const viewportMaximum = Math.floor((shellRef.current?.clientWidth ?? window.innerWidth) / 2);
