@@ -78,6 +78,7 @@ test("CDP errors retain the method, protocol diagnostic, and timeout without clo
       new BrowserError("browser-operation-failed", "x".repeat(10_000)).message.length < 2200,
     );
   } finally {
+    assert.ok(browser.process);
     const exited = once(browser.process, "exit");
     browser.dispose();
     await exited;

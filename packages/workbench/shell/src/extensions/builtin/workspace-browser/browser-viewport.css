@@ -1,0 +1,51 @@
+[data-browser-agent-cursor] {
+  --browser-cursor-size: calc(var(--icon-size-lg) * 1.5);
+  --browser-cursor-glow: color-mix(in oklab, var(--primary) 55%, transparent);
+}
+
+[data-browser-agent-cursor]::before {
+  content: "";
+  position: absolute;
+  width: calc(var(--browser-cursor-size) * 3);
+  height: calc(var(--browser-cursor-size) * 3);
+  top: calc(var(--browser-cursor-size) / 3);
+  left: calc(var(--browser-cursor-size) / 3);
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--browser-cursor-glow), transparent 70%);
+  opacity: 0.6;
+}
+
+[data-browser-agent-cursor] .browser-agent-pointer {
+  /* The glyph's existing offset places its tip exactly at this wrapper's origin. */
+  transform-origin: 0 0;
+  filter: drop-shadow(0 0 calc(var(--browser-cursor-size) / 6) var(--browser-cursor-glow));
+}
+
+[data-browser-agent-cursor][data-preparing-click="true"]::before {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-browser-agent-cursor][data-preparing-click="true"] .browser-agent-pointer {
+    animation: browser-pointer-prepare var(--browser-cursor-prepare-duration) ease-in-out both;
+  }
+}
+
+@keyframes browser-pointer-prepare {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  12.5% {
+    transform: rotate(-12deg);
+  }
+  37.5% {
+    transform: rotate(12deg);
+  }
+  62.5% {
+    transform: rotate(-9deg);
+  }
+  87.5% {
+    transform: rotate(9deg);
+  }
+}

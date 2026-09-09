@@ -23,6 +23,7 @@ export interface BrowserAnnotation {
 export interface BrowserSession {
   id: string;
   projectId: string;
+  threadId?: string;
   url: string;
   title: string;
   status: "loading" | "ready" | "error" | "disconnected" | "permission-required";
@@ -47,7 +48,7 @@ export interface BrowserScreenshot {
 }
 
 export interface BrowserSessionService {
-  create(context: { projectId: string; url?: string }): Promise<BrowserSession>;
+  create(context: { projectId: string; threadId?: string; url?: string }): Promise<BrowserSession>;
   attach(session: Omit<BrowserSession, "revision"> & { revision?: number }): BrowserSession;
   navigate(sessionId: string, url: string): Promise<void>;
   goBack(sessionId: string): Promise<void>;
@@ -131,13 +132,18 @@ export class MemoryBrowserSessionService implements BrowserSessionService {
     this.publish();
   }
 
-  async create(context: { projectId: string; url?: string }): Promise<BrowserSession> {
+  async create(context: {
+    projectId: string;
+    threadId?: string;
+    url?: string;
+  }): Promise<BrowserSession> {
     this.assertActive();
     const id = createSessionId();
     const url = normalizeUrl(context.url ?? "about:blank");
     const session: BrowserSession = {
       id,
       projectId: context.projectId,
+      ...(context.threadId ? { threadId: context.threadId } : {}),
       url,
       title: url,
       status: "ready",

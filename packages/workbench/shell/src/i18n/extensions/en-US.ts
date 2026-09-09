@@ -1654,6 +1654,34 @@ export const extensionsEnUS = {
         `${number(received, { style: "unit", unit: "byte", notation: "compact" })} / ${number(total, { style: "unit", unit: "byte", notation: "compact" })}`,
     },
     settings: {
+      browserConnection: "Browser connection",
+      connectionMode: "Browser to control",
+      connectionModeDescription:
+        "Use the persistent Workbench browser or connect to Chrome running on the runtime computer.",
+      chrome: "Existing Chrome",
+      chromeEndpoint: "Debugger endpoint",
+      chromeEndpointDescription:
+        "Enable remote debugging in Chrome and allow its connection prompt. Leave blank to discover a local endpoint, or enter its loopback HTTP/WebSocket debugger URL.",
+      chromeEndpointPlaceholder: "Automatic (localhost)",
+      chromeUserDataDirectory: "Chrome user data directory",
+      chromeUserDataDirectoryDescription:
+        "Optional absolute directory on the runtime computer. Leave blank to discover installed browser profiles.",
+      chromeUserDataDirectoryPlaceholder: "Discover installed browsers",
+      chromeProfile: "User profile",
+      chromeProfileDescription:
+        "New tabs use this profile’s existing logins and browsing data. Profile names come from Chrome.",
+      chromeProfileDefault: "Connected browser’s default profile",
+      refreshProfiles: "Refresh profiles",
+      connectionApply: "Apply and connect",
+      connectionApplyDescription:
+        "Close all Workbench browser tabs before changing the connection or profile.",
+      connectionReady: "Browser connected.",
+      connectionBusy: "Close all Workbench browser tabs before changing the connection or profile.",
+      connectionUnavailable:
+        "Could not connect to the browser. Check that Chrome is running with remote debugging enabled, allow its connection prompt, and verify the endpoint and profile.",
+      connectionInvalid:
+        "Check the loopback debugger URL, absolute user data directory, and selected profile.",
+
       title: "Browser",
       description:
         "Manage the built-in browser, browsing data, downloads, and website permissions.",

@@ -41,7 +41,7 @@ test("conversations share persistent login, site storage and history while tabs 
     };
   const stop = async () => {
     const browser = engine().browser;
-    const exited = browser ? once(browser.process, "exit") : Promise.resolve();
+    const exited = browser?.process ? once(browser.process, "exit") : Promise.resolve();
     manager.dispose();
     await exited;
   };

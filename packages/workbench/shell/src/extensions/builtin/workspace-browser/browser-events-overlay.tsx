@@ -76,7 +76,11 @@ function useBrowserLinkRouting(root: RefObject<HTMLElement | null>, settingsRead
           : undefined;
       void Promise.resolve(
         session ??
-          browser.create({ projectId: context.projectId ?? context.applicationId, url: url.href }),
+          browser.create({
+            projectId: context.projectId ?? context.applicationId,
+            threadId: context.threadId,
+            url: url.href,
+          }),
       )
         .then((current) =>
           controller.reveal({

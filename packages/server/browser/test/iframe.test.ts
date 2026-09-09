@@ -183,11 +183,7 @@ test("real Chrome observes and safely operates same-origin frame references", as
     await evaluate("document.querySelector('#overlay').style.display='none'");
 
     await evaluate("document.querySelector('#contentFrame').contentWindow.location.hash='changed'");
-    await eventually(
-      () => engine.tabs.get("frames")?.snapshot,
-      (value) => value === undefined,
-    );
-    await oldRefFails(button);
+    await browser.handle({ type: "click", sessionId: "frames", ref: button }, agent);
     snapshot = await observedForm();
     assert.equal(snapshot.session.url, url, "Child routes do not change the tab URL");
     const beforeNavigation = ref(snapshot, "Save frame name");

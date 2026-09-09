@@ -34,7 +34,8 @@ function validCursor(value: unknown): value is BrowserCursor {
     record(value) &&
     number(value.x) &&
     number(value.y) &&
-    (value.pressed === undefined || typeof value.pressed === "boolean")
+    (value.pressed === undefined || typeof value.pressed === "boolean") &&
+    (value.preparingClick === undefined || typeof value.preparingClick === "boolean")
   );
 }
 function validSettings(value: unknown): value is BrowserSettings {
@@ -51,6 +52,7 @@ function validSession(value: unknown): value is BrowserSessionState {
   return (
     record(value) &&
     ["id", "projectId", "url", "title"].every((key) => text(value[key])) &&
+    (value.threadId === undefined || (text(value.threadId) && !!value.threadId)) &&
     ["revision", "zoom", "width", "height"].every((key) => number(value[key])) &&
     ["canGoBack", "canGoForward"].every((key) => typeof value[key] === "boolean") &&
     ["loading", "ready", "error", "disconnected", "permission-required"].includes(
@@ -165,7 +167,7 @@ export class RemoteBrowserSessionService extends MemoryBrowserSessionService {
   readonly #sessionIds = new Set<string>();
   readonly #attaching = new Map<
     string,
-    { projectId: string; promise: Promise<BrowserSessionState> }
+    { projectId: string; threadId?: string; promise: Promise<BrowserSessionState> }
   >();
   #socket?: RuntimeWebSocket;
   #connecting?: Promise<void>;
@@ -278,7 +280,10 @@ export class RemoteBrowserSessionService extends MemoryBrowserSessionService {
   override async command<T = unknown>(command: BrowserCommand, source?: "agent"): Promise<T> {
     if (command.type === "attach") {
       const pending = this.#attaching.get(command.sessionId);
-      if (pending && pending.projectId !== command.projectId)
+      if (
+        pending &&
+        (pending.projectId !== command.projectId || pending.threadId !== command.threadId)
+      )
         throw new BrowserConnectionError("browser-invalid");
       if (pending) return pending.promise as Promise<T>;
       const promise = this.#request<BrowserSessionState>(command, source).then((state) => {
@@ -293,7 +298,11 @@ export class RemoteBrowserSessionService extends MemoryBrowserSessionService {
         }
         return state;
       });
-      this.#attaching.set(command.sessionId, { projectId: command.projectId, promise });
+      this.#attaching.set(command.sessionId, {
+        projectId: command.projectId,
+        threadId: command.threadId,
+        promise,
+      });
       void promise
         .finally(() => {
           if (this.#attaching.get(command.sessionId)?.promise === promise)
@@ -336,7 +345,11 @@ export class RemoteBrowserSessionService extends MemoryBrowserSessionService {
     });
   }
 
-  override async create(context: { projectId: string; url?: string }): Promise<BrowserSession> {
+  override async create(context: {
+    projectId: string;
+    threadId?: string;
+    url?: string;
+  }): Promise<BrowserSession> {
     const sessionId = crypto.randomUUID();
     const session = await this.command<BrowserSessionState>({
       type: "attach",
@@ -352,7 +365,13 @@ export class RemoteBrowserSessionService extends MemoryBrowserSessionService {
     const current = super.attach(session);
     this.#sessionIds.add(session.id);
     void this.command<BrowserSessionState>(
-      { type: "attach", sessionId: session.id, projectId: session.projectId, url: session.url },
+      {
+        type: "attach",
+        sessionId: session.id,
+        projectId: session.projectId,
+        threadId: session.threadId,
+        url: session.url,
+      },
       "agent",
     ).catch(
       (error: unknown) =>
@@ -382,6 +401,7 @@ export class RemoteBrowserSessionService extends MemoryBrowserSessionService {
         type: "attach",
         sessionId,
         projectId: session.projectId,
+        threadId: session.threadId,
         url: session.url,
       });
     }

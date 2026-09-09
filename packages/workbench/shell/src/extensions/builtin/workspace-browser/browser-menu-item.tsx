@@ -29,7 +29,10 @@ export function BrowserMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
         if (pending) return;
         setPending(true);
         void browser
-          .create({ projectId: context.projectId ?? context.applicationId })
+          .create({
+            projectId: context.projectId ?? context.applicationId,
+            threadId: context.threadId,
+          })
           .then((session) => {
             controller.reveal({
               kind: "browser",

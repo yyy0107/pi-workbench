@@ -8,6 +8,7 @@ test("browser sessions normalize web addresses and local development hosts", asy
   for (const [input, expected] of [
     [" ", "about:blank"],
     ["about:blank", "about:blank"],
+    ["file:///tmp/page.html", "file:///tmp/page.html"],
     [" example.com/path?q=test#section ", "https://example.com/path?q=test#section"],
     ["example.com:8080", "https://example.com:8080/"],
     ["https://EXAMPLE.COM", "https://example.com/"],
@@ -33,7 +34,7 @@ test("create, attach and navigate reject unsafe destinations without changing th
   for (const url of [
     "javascript:alert(1)",
     "data:text/html,<script>alert(1)</script>",
-    "file:///tmp/page.html",
+    "file://remote.example/page.html",
     "ftp://example.com",
     "workbench://app/",
     "about:config",

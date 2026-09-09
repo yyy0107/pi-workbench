@@ -33,33 +33,37 @@ export class BrowserCdp {
   private sequence = 0;
   private closed = false;
   private closing = false;
-  readonly process: ChildProcess;
-  private readonly input: Writable;
+  readonly process?: ChildProcess;
+  private readonly input?: Writable;
+  private readonly socket?: WebSocket;
 
-  constructor(executable: string, profileDirectory: string, onClose: () => void) {
-    this.process = spawn(
-      executable,
-      [
-        "--headless",
-        // Match the live stream's 2x density to bound compositor work.
-        "--force-device-scale-factor=2",
-        "--no-first-run",
-        "--no-default-browser-check",
-        "--disable-background-networking",
-        "--allow-chrome-scheme-url",
-        "--enable-features=WebMCP,WebMCPTesting",
-        "--remote-debugging-pipe",
-        `--user-data-dir=${profileDirectory}`,
-        "about:blank",
-      ],
-      {
-        stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"],
-        windowsHide: true,
-        env: childProcessEnvironment(process.env),
-      },
-    );
-    this.input = this.process.stdio[3] as Writable;
-    const output = this.process.stdio[4] as Readable;
+  constructor(executable: string | WebSocket, profileDirectory: string, onClose: () => void) {
+    let output: Readable | undefined;
+    if (typeof executable === "string") {
+      this.process = spawn(
+        executable,
+        [
+          "--headless",
+          // Match the live stream's 2x density to bound compositor work.
+          "--force-device-scale-factor=2",
+          "--no-first-run",
+          "--no-default-browser-check",
+          "--disable-background-networking",
+          "--allow-chrome-scheme-url",
+          "--enable-features=WebMCP,WebMCPTesting",
+          "--remote-debugging-pipe",
+          `--user-data-dir=${profileDirectory}`,
+          "about:blank",
+        ],
+        {
+          stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"],
+          windowsHide: true,
+          env: childProcessEnvironment(process.env),
+        },
+      );
+      this.input = this.process.stdio[3] as Writable;
+      output = this.process.stdio[4] as Readable;
+    } else this.socket = executable;
     const close = () => {
       if (this.closed) return;
       this.closed = true;
@@ -73,12 +77,14 @@ export class BrowserCdp {
       this.bufferedBytes = 0;
       onClose();
     };
-    this.process.once("error", close);
-    this.process.once("exit", close);
-    this.input.on("error", close);
-    output.on("error", close);
-    output.on("close", close);
-    output.on("data", (chunk: Buffer) => {
+    this.process?.once("error", close);
+    this.process?.once("exit", close);
+    this.input?.on("error", close);
+    output?.on("error", close);
+    output?.on("close", close);
+    this.socket?.addEventListener("close", close);
+    this.socket?.addEventListener("error", close);
+    const receive = (chunk: Buffer) => {
       if (this.closed || this.closing) return;
       let start = 0;
       while (start < chunk.length) {
@@ -128,6 +134,14 @@ export class BrowserCdp {
           return;
         }
       }
+    };
+    output?.on("data", receive);
+    this.socket?.addEventListener("message", (event) => {
+      if (typeof event.data !== "string") {
+        this.dispose();
+        return;
+      }
+      receive(Buffer.from(`${event.data}\0`));
     });
   }
 
@@ -160,15 +174,20 @@ export class BrowserCdp {
         reject(signal?.reason);
       };
       signal?.addEventListener("abort", abort, { once: true });
-      this.input.write(
-        `${JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })}\0`,
-        (error) => {
-          if (!error) return;
-          clearTimeout(timer);
-          this.pending.delete(id);
-          reject(new BrowserError("browser-unavailable"));
-        },
-      );
+      const payload = JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) });
+      const failed = (error?: Error | null) => {
+        if (!error) return;
+        clearTimeout(timer);
+        this.pending.delete(id);
+        reject(new BrowserError("browser-unavailable"));
+      };
+      if (this.socket) {
+        try {
+          this.socket.send(payload);
+        } catch (error) {
+          failed(error as Error);
+        }
+      } else this.input!.write(`${payload}\0`, failed);
     }).finally(() => {
       if (abort) signal?.removeEventListener("abort", abort);
     });
@@ -182,43 +201,131 @@ export class BrowserCdp {
   dispose(): void {
     if (this.closed || this.closing) return;
     this.closing = true;
+    if (this.socket) {
+      this.socket.close();
+      return;
+    }
     void this.send("Browser.close").catch(() => undefined);
     const process = this.process;
+    if (!process) return;
     const timer = setTimeout(() => process.kill(), 1_000);
     timer.unref();
     process.once("exit", () => clearTimeout(timer));
   }
 }
 
-export async function findBrowserExecutable(): Promise<string> {
+export function cdpEndpoint(value: string): URL {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new BrowserError("browser-invalid");
+  }
+  if (
+    !["http:", "https:", "ws:", "wss:"].includes(url.protocol) ||
+    !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
+    url.username ||
+    url.password ||
+    url.hash
+  )
+    throw new BrowserError(
+      "browser-invalid",
+      "Chrome debugging endpoints must use a loopback address without credentials.",
+    );
+  return url;
+}
+
+/** Disconnecting an external browser never sends Browser.close or terminates its process. */
+export async function connectBrowser(endpoint: string, onClose: () => void): Promise<BrowserCdp> {
+  let url = cdpEndpoint(endpoint);
+  if (url.protocol === "http:" || url.protocol === "https:") {
+    const response = await fetch(new URL("/json/version", url), {
+      signal: AbortSignal.timeout(5000),
+      redirect: "error",
+    });
+    if (!response.ok) throw new BrowserError("browser-unavailable");
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of response.body ?? []) {
+      size += chunk.byteLength;
+      if (size > 65536) throw new BrowserError("browser-invalid");
+      chunks.push(Buffer.from(chunk));
+    }
+    const version = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    if (typeof version.webSocketDebuggerUrl !== "string")
+      throw new BrowserError("browser-unavailable");
+    url = cdpEndpoint(version.webSocketDebuggerUrl);
+  }
+  if (!["ws:", "wss:"].includes(url.protocol) || !url.pathname.startsWith("/devtools/browser/"))
+    throw new BrowserError(
+      "browser-invalid",
+      "Use the browser debugger endpoint, not a page debugger URL.",
+    );
+  const socket = new WebSocket(url);
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      socket.close();
+      reject(new BrowserError("browser-unavailable"));
+    }, 15000);
+    socket.addEventListener(
+      "open",
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+    socket.addEventListener(
+      "error",
+      () => {
+        clearTimeout(timer);
+        reject(new BrowserError("browser-unavailable"));
+      },
+      { once: true },
+    );
+    socket.addEventListener(
+      "close",
+      () => {
+        clearTimeout(timer);
+        reject(new BrowserError("browser-unavailable"));
+      },
+      { once: true },
+    );
+  });
+  return new BrowserCdp(socket, "", onClose);
+}
+
+export async function findBrowserExecutable(preferred?: readonly string[]): Promise<string> {
   const explicit = process.env.WORKBENCH_BROWSER_EXECUTABLE?.trim();
-  const candidates = explicit
-    ? [explicit]
-    : process.platform === "darwin"
-      ? [
-          "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-          "/Applications/Chromium.app/Contents/MacOS/Chromium",
-          path.join(homedir(), "Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
-        ]
-      : process.platform === "win32"
+  const candidates =
+    preferred ??
+    (explicit
+      ? [explicit]
+      : process.platform === "darwin"
         ? [
-            ...[
-              process.env.PROGRAMFILES,
-              process.env["PROGRAMFILES(X86)"],
-              process.env.LOCALAPPDATA,
-            ]
-              .filter((directory): directory is string => Boolean(directory))
-              .map((directory) => path.join(directory, "Google/Chrome/Application/chrome.exe")),
-            "chrome.exe",
-            "chromium.exe",
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+            path.join(homedir(), "Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
           ]
-        : [
-            "google-chrome",
-            "google-chrome-stable",
-            "chromium",
-            "chromium-browser",
-            "/opt/google/chrome/chrome",
-          ];
+        : process.platform === "win32"
+          ? [
+              ...[
+                process.env.PROGRAMFILES,
+                process.env["PROGRAMFILES(X86)"],
+                process.env.LOCALAPPDATA,
+              ]
+                .filter((directory): directory is string => Boolean(directory))
+                .map((directory) => path.join(directory, "Google/Chrome/Application/chrome.exe")),
+              "chrome.exe",
+              "chromium.exe",
+            ]
+          : [
+              "google-chrome",
+              "google-chrome-stable",
+              "chromium",
+              "chromium-browser",
+              "/opt/google/chrome/chrome",
+            ]);
   for (const candidate of candidates) {
     const paths =
       path.isAbsolute(candidate) || /[\\/]/.test(candidate)

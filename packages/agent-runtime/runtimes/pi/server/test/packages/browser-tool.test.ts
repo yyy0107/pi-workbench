@@ -89,7 +89,12 @@ test("browser tool scopes tabs, projects snapshots, validates actions, and forwa
       {
         action: "attach",
         url: "https://example.test/",
-        params: { type: "permission.respond", sessionId: "other-tab", projectId: "/other" },
+        params: {
+          type: "permission.respond",
+          sessionId: "other-tab",
+          projectId: "/other",
+          threadId: "other-conversation",
+        },
       },
       controller.signal,
       undefined,
@@ -100,6 +105,7 @@ test("browser tool scopes tabs, projects snapshots, validates actions, and forwa
         type: "attach",
         sessionId: "workbench-conversation",
         projectId,
+        threadId: "conversation",
         url: "https://example.test/",
       },
       signal: controller.signal,
@@ -135,7 +141,7 @@ test("browser tool scopes tabs, projects snapshots, validates actions, and forwa
       ctx,
     );
     assert.deepEqual(calls.at(-1), {
-      command: { type: "tabs.list", projectId },
+      command: { type: "tabs.list", projectId, threadId: "conversation" },
       signal: controller.signal,
     });
     assert.deepEqual(tabs.details, {}, "listing tabs must not invent a default tab to reveal");
@@ -150,6 +156,7 @@ test("browser tool scopes tabs, projects snapshots, validates actions, and forwa
     assert.deepEqual(calls.at(-1)?.command, {
       type: "snapshot",
       sessionId: "workbench-conversation",
+      threadId: "conversation",
       query: "Search",
     });
     assert.deepEqual(observed.details, attached.details);
@@ -168,7 +175,7 @@ test("browser tool scopes tabs, projects snapshots, validates actions, and forwa
         ctx,
       );
       assert.deepEqual(calls.at(-1), {
-        command: { type: action, sessionId: "selected-tab", ...params },
+        command: { type: action, sessionId: "selected-tab", threadId: "conversation", ...params },
         signal: controller.signal,
       });
       assert.deepEqual(operated.details, {

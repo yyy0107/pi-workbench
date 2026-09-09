@@ -37,3 +37,10 @@ await writeFile(
 for (const entry of ["skills", "README.md"]) {
   await cp(path.join(packageRoot, entry), path.join(outputDirectory, entry), { recursive: true });
 }
+
+await cp(
+  fileURLToPath(
+    new URL("../../../../../../../server/browser/THIRD_PARTY_NOTICES.md", import.meta.url),
+  ),
+  path.join(outputDirectory, "THIRD_PARTY_NOTICES.md"),
+);

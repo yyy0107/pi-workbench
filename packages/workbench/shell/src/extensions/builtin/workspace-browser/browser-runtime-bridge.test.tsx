@@ -53,7 +53,7 @@ test("thread revisits preserve the browser page and history while new calls reus
     key: callId,
     kind: "tool-call",
     callId,
-    toolName: "browser_navigate",
+    toolName: "external_browser_navigate",
     argumentsText: "{}",
     arguments: { sessionId: "browser-1", url },
     status: "complete",
@@ -189,8 +189,8 @@ test("thread revisits preserve the browser page and history while new calls reus
           ...firstCalls,
           {
             ...tool("own-call", "https://user.example/"),
-            toolName: "workbench_browser",
-            arguments: { action: "attach" },
+            toolName: "browser_setup",
+            arguments: {},
             result: {
               text: "done",
               details: {
@@ -217,8 +217,8 @@ test("thread revisits preserve the browser page and history while new calls reus
         node([
           {
             ...tool("close-call", "https://user.example/"),
-            toolName: "workbench_browser",
-            arguments: { action: "close", sessionId: "browser-1" },
+            toolName: "browser_close_tab",
+            arguments: { sessionId: "browser-1" },
             result: { text: "done", details: { browserSessionId: "browser-1" } },
           },
         ]),
@@ -230,6 +230,44 @@ test("thread revisits preserve the browser page and history while new calls reus
       [],
       "closing an agent browser also closes its workspace surface",
     );
+    await act(async () => {
+      nodes.set(
+        "first",
+        node([
+          {
+            ...tool("multi-call", "https://ignored.example/"),
+            toolName: "browser_open_urls",
+            arguments: { urls: ["https://a.example/", "https://b.example/"] },
+            result: {
+              details: {
+                browserSessions: [
+                  { browserSessionId: "multi-a", url: "https://a.example/" },
+                  { browserSessionId: "multi-b", url: "https://b.example/" },
+                ],
+              },
+            },
+          },
+        ]),
+      );
+      for (const listener of listeners) listener();
+    });
+    assert.equal(workspace.surfaceOrder.length, 2);
+    assert.equal(browser.getSession("multi-a")?.url, "https://a.example/");
+    assert.equal(browser.getSession("multi-b")?.url, "https://b.example/");
+    await act(async () => {
+      nodes.set(
+        "first",
+        node(
+          ["multi-a", "multi-b"].map((sessionId) => ({
+            ...tool(`close-${sessionId}`, "about:blank"),
+            toolName: "browser_close_tab",
+            arguments: { sessionId },
+            result: { details: { browserSessionId: sessionId } },
+          })),
+        ),
+      );
+      for (const listener of listeners) listener();
+    });
     const listCall: ToolCallBlock = {
       ...tool("list-call", "https://ignored.example/"),
       toolName: "workbench_browser",

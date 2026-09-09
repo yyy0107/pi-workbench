@@ -55,6 +55,7 @@ test("remote browser orders initial attach, validates frames, and isolates recon
   const state: BrowserSessionState = {
     id: "tab",
     projectId: "project",
+    threadId: "thread",
     url: "https://first.example/",
     title: "First",
     status: "ready",
@@ -71,13 +72,19 @@ test("remote browser orders initial attach, validates frames, and isolates recon
       type: "attach",
       sessionId: state.id,
       projectId: state.projectId,
+      threadId: state.threadId,
     });
     await assert.rejects(
       browser.command({ type: "attach", sessionId: state.id, projectId: "other-project" }),
       { message: "browser-invalid" },
     );
     const navigate = browser.command(
-      { type: "navigate", sessionId: state.id, url: "https://next.example/" },
+      {
+        type: "navigate",
+        sessionId: state.id,
+        threadId: state.threadId,
+        url: "https://next.example/",
+      },
       "agent",
     );
     assert.equal(sockets.length, 1);
@@ -87,11 +94,13 @@ test("remote browser orders initial attach, validates frames, and isolates recon
     await settle();
     assert.equal(first.sent.length, 1);
     assert.equal(first.sent[0]!.command.type, "attach");
+    assert.equal(first.sent[0]!.command.threadId, "thread");
     assert.equal(first.sent[0]!.source, "agent");
     first.result(state);
     assert.deepEqual(await attached, state);
     await settle();
     assert.equal(first.sent[1]!.command.type, "navigate");
+    assert.equal(first.sent[1]!.command.threadId, "thread");
     assert.equal(first.sent[1]!.source, "agent");
     first.message({
       type: "state",
@@ -121,6 +130,7 @@ test("remote browser orders initial attach, validates frames, and isolates recon
       { type: "frame", sessionId: "tab", width: "800" },
       { type: "cursor", sessionId: "tab", cursor: { x: "10", y: 20 } },
       { type: "cursor", sessionId: "tab", cursor: { x: 10, y: 20, pressed: "yes" } },
+      { type: "cursor", sessionId: "tab", cursor: { x: 10, y: 20, preparingClick: "yes" } },
       { type: "state", session: { ...state, agentControlled: "yes" } },
       { type: "state", session: { ...state, agentCursor: { x: null, y: 20 } } },
       { type: "state", session: { ...state, userControlled: "yes" } },

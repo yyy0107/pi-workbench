@@ -8,9 +8,12 @@ export type BrowserErrorCode =
   | "browser-element-not-interactable"
   | "browser-operation-failed"
   | "browser-user-active"
-  | "browser-file-too-large";
+  | "browser-file-too-large"
+  | "browser-connection-active";
 
 const messages: Record<BrowserErrorCode, string> = {
+  "browser-connection-active":
+    "Close the existing browser tabs before changing the connection or profile.",
   "browser-unavailable":
     "Chrome or Chromium could not be started. Install Chrome or configure WORKBENCH_BROWSER_EXECUTABLE.",
   "browser-invalid": "The browser request is invalid.",

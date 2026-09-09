@@ -57,6 +57,16 @@ test("browser settings persist choices and website overrides, reuse management t
   class Browser extends MemoryBrowserSessionService {
     override async command<T>(command: BrowserCommand): Promise<T> {
       commands.push(command);
+      if (command.type === "profiles.list")
+        return [
+          {
+            id: "/chrome#Profile 1",
+            name: "Work",
+            browser: "Chrome",
+            userDataDirectory: "/chrome",
+            profileDirectory: "Profile 1",
+          },
+        ] as T;
       if (command.type === "open-page") {
         const session = this.getSession(command.sessionId)!;
         this.updateSession({ ...session, url: BROWSER_PAGES[command.page], title: command.page });
@@ -155,6 +165,27 @@ test("browser settings persist choices and website overrides, reuse management t
         </RuntimeConnectionProvider>,
       ),
     );
+    await act(async () =>
+      (choice("Browser to control", "embedded").props.onChange as (value: string) => void)(
+        "chrome",
+      ),
+    );
+    await act(async () =>
+      (choice("User profile", "").props.onChange as (value: string) => void)("/chrome#Profile 1"),
+    );
+    await act(async () => {
+      const form = find(
+        (element) =>
+          element.type === "form" &&
+          elements(element.props.children as ReactNode).some(
+            (child) => child.props.children === "Apply and connect",
+          ),
+      );
+      (form.props.onSubmit as (event: unknown) => void)({ preventDefault() {} });
+    });
+    assert.equal(browser.getSettings().connection, "chrome");
+    assert.equal(browser.getSettings().chromeProfile, "/chrome#Profile 1");
+    assert.equal(commands.at(-1)?.type, "connection.test");
     const updateSettings = browser.updateSettings.bind(browser);
     const patches: Partial<BrowserSettings>[] = [];
     let finishSave!: () => void;

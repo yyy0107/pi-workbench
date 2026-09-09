@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { BROWSER_TOOL_ACTIONS } from "@workbench/browser-contracts";
+
 import { DefaultPackageManager, SettingsManager } from "@earendil-works/pi-coding-agent";
 
 import { ExtensionService } from "../../src/extensions/extension-service";
@@ -71,9 +73,10 @@ test("the built-in browser loads once as a Pi package across reloads and native 
     resourceLoader.getExtensions().extensions,
   );
   assert.equal(details.find((resource) => resource.type === "skill")?.name, "browser-use");
-  assert.deepEqual(details.find((resource) => resource.type === "extension")?.toolNames, [
-    "workbench_browser",
-  ]);
+  assert.deepEqual(
+    details.find((resource) => resource.type === "extension")?.toolNames?.toSorted(),
+    [...Object.keys(BROWSER_TOOL_ACTIONS), "workbench_browser"].sort(),
+  );
   assert.deepEqual(details.find((resource) => resource.type === "extension")?.eventNames, [
     "agent_settled",
     "session_shutdown",

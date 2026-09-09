@@ -26,6 +26,7 @@ export function createBrowserFileOpener() {
       if (!browser) throw new Error("Browser runtime is not mounted");
       const session = await browser.create({
         projectId: context.projectId ?? context.applicationId,
+        threadId: scope?.type === "thread" ? scope.key : scope ? undefined : context.threadId,
         url: browserFileUrl(resource.path),
       });
       return surfaces.open({

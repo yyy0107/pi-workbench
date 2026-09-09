@@ -75,6 +75,7 @@ export function BrowserSurface({
   const reportError = useExtensionErrorReporter();
   useSyncExternalStore(browser.subscribe.bind(browser), browser.getRevision.bind(browser), () => 0);
   const sessionId = surface.params.browserSessionId;
+  const threadId = surface.scope.type === "thread" ? surface.scope.key : undefined;
   const session = browser.getSession(sessionId);
   const settings = browser.getSettings();
   const [address, setAddress] = useState(session?.url ?? surface.params.url ?? "about:blank");
@@ -103,6 +104,7 @@ export function BrowserSurface({
       type: "attach",
       sessionId,
       projectId: context.projectId ?? context.applicationId,
+      threadId,
       url: surface.params.url ?? "about:blank",
     });
   const restoreRef = useRef(restore);
@@ -110,7 +112,8 @@ export function BrowserSurface({
   const failureRef = useRef(fail);
   failureRef.current = fail;
   useEffect(() => {
-    if (browser.getSession(sessionId)) return;
+    const currentSession = browser.getSession(sessionId);
+    if (currentSession && currentSession.threadId === threadId) return;
     let current = true;
     void restoreRef.current().catch((cause: unknown) => {
       if (current) failureRef.current(cause);
@@ -118,7 +121,7 @@ export function BrowserSurface({
     return () => {
       current = false;
     };
-  }, [browser, sessionId]);
+  }, [browser, sessionId, threadId]);
   useEffect(() => {
     setDevice(session?.device);
   }, [session?.device?.width, session?.device?.height, session?.device?.mobile]);

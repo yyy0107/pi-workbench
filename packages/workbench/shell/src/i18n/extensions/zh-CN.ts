@@ -1609,6 +1609,32 @@ export const extensionsZhCN = {
         `${number(received, { style: "unit", unit: "byte", notation: "compact" })} / ${number(total, { style: "unit", unit: "byte", notation: "compact" })}`,
     },
     settings: {
+      browserConnection: "浏览器连接",
+      connectionMode: "控制的浏览器",
+      connectionModeDescription:
+        "使用持久化的 Workbench 浏览器，或连接运行时所在电脑上已运行的 Chrome。",
+      chrome: "现有 Chrome",
+      chromeEndpoint: "调试端点",
+      chromeEndpointDescription:
+        "在 Chrome 中启用远程调试并允许连接提示。留空可自动发现本机端点，也可填写本机回环地址的 HTTP/WebSocket 调试 URL。",
+      chromeEndpointPlaceholder: "自动发现（localhost）",
+      chromeUserDataDirectory: "Chrome 用户数据目录",
+      chromeUserDataDirectoryDescription:
+        "可选，填写运行时电脑上的绝对目录。留空可发现已安装浏览器的用户配置。",
+      chromeUserDataDirectoryPlaceholder: "发现已安装的浏览器",
+      chromeProfile: "用户 Profile",
+      chromeProfileDescription:
+        "新标签页使用该 Profile 已有的登录状态和浏览数据。配置名称来自 Chrome。",
+      chromeProfileDefault: "已连接浏览器的默认 Profile",
+      refreshProfiles: "刷新 Profile",
+      connectionApply: "应用并连接",
+      connectionApplyDescription: "更改连接或 Profile 前，请关闭所有 Workbench 浏览器标签页。",
+      connectionReady: "浏览器已连接。",
+      connectionBusy: "更改连接或 Profile 前，请关闭所有 Workbench 浏览器标签页。",
+      connectionUnavailable:
+        "无法连接浏览器。请确认 Chrome 已运行并启用远程调试，允许连接提示，再检查端点和 Profile。",
+      connectionInvalid: "请检查本机回环调试 URL、用户数据绝对目录和所选 Profile。",
+
       title: "浏览器",
       description: "管理内置浏览器、浏览数据、下载和网站权限。",
       general: "常规",

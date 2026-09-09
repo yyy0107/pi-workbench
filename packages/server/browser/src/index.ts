@@ -4,7 +4,9 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import {
+  BROWSER_CLICK_PREPARE_MS,
   BROWSER_PAGES,
   parseBrowserCommand,
   type BrowserCommand,
@@ -18,6 +20,7 @@ import {
   type BrowserSettings,
   type BrowserSnapshot,
   type BrowserSnapshotNode,
+  type BrowserElementTarget,
 } from "@workbench/browser-contracts";
 import { atomicReplaceFile } from "@workbench/server-core/file-persistence";
 
@@ -25,6 +28,16 @@ import { BrowserCdp, launchBrowser, type CdpEvent } from "./cdp";
 import { BrowserError } from "./errors";
 import { parseCookieJson, parsePasswordCsv } from "./imports";
 import { BrowserSettingsStore } from "./settings";
+import { connectExternalBrowser, listBrowserProfiles } from "./profiles";
+import { BrowserDiagnostics } from "./diagnostics";
+import { createPointerTrajectory } from "./pointer-motion";
+import {
+  elementAction,
+  keyEvent,
+  pageInfoExpression,
+  readPageExpression,
+  searchExpression,
+} from "./page-scripts";
 
 export { BrowserError } from "./errors";
 
@@ -38,6 +51,7 @@ interface Snapshot {
   id: string;
   frames: Map<string, number>;
   refs: Map<string, SnapshotReference>;
+  refsByNode: Map<string, string>;
 }
 interface Tab {
   state: BrowserSessionState;
@@ -61,6 +75,9 @@ interface Tab {
   deviceScaleFactor: number;
   documentReady: boolean;
   snapshot?: Snapshot;
+  observation?: BrowserSnapshot;
+  diagnostics: BrowserDiagnostics;
+  dialog?: Extract<BrowserEvent, { type: "dialog" }>;
   agentControl?: { signal: AbortSignal; dispose(): void };
   agentOperations: Set<AbortController>;
   agentReleases: Map<string, { method: string; params: Record<string, unknown> }>;
@@ -76,6 +93,13 @@ interface DownloadRecord {
 const MAX_FILE_BYTES = 64 * 1024 * 1024;
 const MAX_TABS = 32;
 const USER_ACTIVITY_MS = 1500;
+const MOUSE_BUTTONS: Record<string, number> = {
+  "mouse:left": 1,
+  "mouse:right": 2,
+  "mouse:middle": 4,
+  "mouse:back": 8,
+  "mouse:forward": 16,
+};
 const OBSERVATION_COMMANDS = new Set<BrowserCommand["type"]>([
   "attach",
   "snapshot",
@@ -83,6 +107,33 @@ const OBSERVATION_COMMANDS = new Set<BrowserCommand["type"]>([
   "copy",
   "print",
   "site-tools.list",
+  "page-info",
+  "tabs.current",
+  "console",
+  "network",
+  "read-page",
+  "web-search",
+  "wait",
+  "wait-for",
+  "wait-for-load",
+]);
+const PAGE_CHANGE_COMMANDS = new Set<BrowserCommand["type"]>([
+  "click",
+  "fill",
+  "fill-form",
+  "select",
+  "set-checked",
+  "type",
+  "press-key",
+  "dispatch-key",
+  "scroll",
+  "drag",
+  "navigate",
+  "back",
+  "forward",
+  "reload",
+  "dialog.respond",
+  "site-tools.call",
 ]);
 const MAIN_FRAME_SCHEMES = new Set(["http:", "https:", "about:", "chrome:"]);
 
@@ -129,7 +180,13 @@ export class BrowserManager {
   private readonly directory: string;
   private readonly settings: BrowserSettingsStore;
   private readonly tabs = new Map<string, Tab>();
-  private readonly agentOperation = new AsyncLocalStorage<{ tab: Tab; signal: AbortSignal }>();
+  private readonly agentOperation = new AsyncLocalStorage<{
+    tab: Tab;
+    signal?: AbortSignal;
+    source: Source;
+  }>();
+  private readonly mutations = new Map<string, Promise<unknown>>();
+  private referenceSequence = 0;
   private readonly listeners = new Set<(event: BrowserEvent) => void>();
   private readonly downloads = new Map<string, DownloadRecord>();
   private readonly permissions = new Map<
@@ -141,9 +198,12 @@ export class BrowserManager {
     }
   >();
   private browser?: BrowserCdp;
+  private external?: Awaited<ReturnType<typeof connectExternalBrowser>>;
+  private connectionGeneration = 0;
   private starting?: Promise<BrowserCdp>;
   private disposed = false;
   private passwordTarget?: Promise<{ targetId: string; sessionId: string }>;
+  private passwordTargetId?: string;
   private passwordImports: Promise<unknown> = Promise.resolve();
   private defaultUserAgent = "";
   private downloadDirectory = "";
@@ -205,13 +265,7 @@ export class BrowserManager {
       patch.status === "loading"
     )
       this.setAgentCursor(tab, null);
-    if (
-      (patch.url !== undefined && patch.url !== tab.state.url) ||
-      patch.status === "loading" ||
-      patch.status === "disconnected" ||
-      patch.status === "error"
-    )
-      tab.snapshot = undefined;
+    if (patch.status === "disconnected" || patch.status === "error") tab.snapshot = undefined;
     if (patch.status === "loading") tab.documentReady = false;
     tab.state = { ...tab.state, ...patch, revision: tab.state.revision + 1 };
     this.publish({ type: "state", session: { ...tab.state } });
@@ -273,6 +327,14 @@ export class BrowserManager {
     )
       return;
     if (!cursor && !tab.state.agentCursor) return;
+    if (
+      cursor &&
+      tab.state.agentCursor?.x === cursor.x &&
+      tab.state.agentCursor.y === cursor.y &&
+      !!tab.state.agentCursor.pressed === !!cursor.pressed &&
+      !!tab.state.agentCursor.preparingClick === !!cursor.preparingClick
+    )
+      return;
     tab.state = { ...tab.state, agentCursor: cursor ?? undefined };
     this.publish({ type: "cursor", sessionId: tab.state.id, cursor });
   }
@@ -280,48 +342,76 @@ export class BrowserManager {
   private async connection(): Promise<BrowserCdp> {
     if (this.disposed) throw new BrowserError("browser-unavailable");
     if (this.browser) return this.browser;
-    this.starting ??= (async () => {
-      const cdp = await launchBrowser(path.join(this.directory, "profile"), () => {
-        this.browser = undefined;
-        this.starting = undefined;
-        this.passwordTarget = undefined;
-        for (const tab of this.tabs.values()) {
-          tab.targetId = "";
-          tab.cdpSessionId = "";
-          tab.screencasting = false;
-          this.update(tab, { status: "disconnected", error: "browser-unavailable" });
-        }
-      });
-      if (this.disposed) {
-        cdp.dispose();
-        throw new BrowserError("browser-unavailable");
-      }
-      this.browser = cdp;
-      const version = await cdp.send("Browser.getVersion");
-      this.defaultUserAgent = version.userAgent;
-      cdp.subscribe((event) => {
-        void this.agentOperation
-          .exit(() => this.onEvent(event))
-          .catch((error) =>
-            this.publish({
-              type: "error",
-              code: error instanceof BrowserError ? error.code : "browser-operation-failed",
-            }),
+    if (!this.starting) {
+      const generation = ++this.connectionGeneration;
+      this.starting = (async () => {
+        const disconnected = () => {
+          if (this.connectionGeneration !== generation) return;
+          this.browser = undefined;
+          this.starting = undefined;
+          this.passwordTarget = undefined;
+          for (const tab of this.tabs.values()) {
+            if (!this.external) tab.targetId = "";
+            tab.cdpSessionId = "";
+            tab.snapshot = undefined;
+            tab.observation = undefined;
+            tab.screencasting = false;
+            this.update(tab, { status: "disconnected", error: "browser-unavailable" });
+          }
+        };
+        const settings = await this.settings.get();
+        let cdp: BrowserCdp;
+        let external: typeof this.external;
+        if (settings.connection === "chrome") {
+          external = await connectExternalBrowser(
+            settings,
+            disconnected,
+            this.external?.anchorTargetId,
           );
+          cdp = external.cdp;
+          if (this.passwordTargetId)
+            await cdp
+              .send("Target.closeTarget", { targetId: this.passwordTargetId })
+              .catch(() => undefined);
+          this.passwordTargetId = undefined;
+        } else cdp = await launchBrowser(path.join(this.directory, "profile"), disconnected);
+        if (this.disposed || generation !== this.connectionGeneration) {
+          cdp.dispose();
+          throw new BrowserError("browser-unavailable");
+        }
+        this.external = external;
+        this.browser = cdp;
+        const version = await cdp.send("Browser.getVersion");
+        this.defaultUserAgent = version.userAgent;
+        cdp.subscribe((event) => {
+          void this.agentOperation
+            .exit(() => this.onEvent(event))
+            .catch((error) =>
+              this.publish({
+                type: "error",
+                code: error instanceof BrowserError ? error.code : "browser-operation-failed",
+              }),
+            );
+        });
+        await cdp.send("Target.setDiscoverTargets", { discover: true });
+        if (!this.external)
+          await cdp.send("Target.setAutoAttach", {
+            autoAttach: true,
+            waitForDebuggerOnStart: true,
+            flatten: true,
+            filter: [{ type: "page" }],
+          });
+        if (!this.external) await this.configureDownloads(settings);
+        return cdp;
+      })().catch((error) => {
+        if (generation === this.connectionGeneration) {
+          this.browser?.dispose();
+          this.browser = undefined;
+          this.starting = undefined;
+        }
+        throw error;
       });
-      await cdp.send("Target.setDiscoverTargets", { discover: true });
-      await cdp.send("Target.setAutoAttach", {
-        autoAttach: true,
-        waitForDebuggerOnStart: true,
-        flatten: true,
-        filter: [{ type: "page" }],
-      });
-      await this.configureDownloads(await this.settings.get());
-      return cdp;
-    })().catch((error) => {
-      this.starting = undefined;
-      throw error;
-    });
+    }
     return this.starting;
   }
 
@@ -329,11 +419,64 @@ export class BrowserManager {
     tab: Tab,
     method: string,
     params: Record<string, unknown> = {},
+    smoothPointer = true,
+    beforeDispatch?: () => void | Promise<void>,
   ): Promise<T> {
     const operation = this.agentOperation.getStore();
     const signal = operation?.tab === tab ? operation.signal : undefined;
     signal?.throwIfAborted();
+    if (
+      smoothPointer &&
+      operation?.tab === tab &&
+      operation.source === "agent" &&
+      method === "Input.dispatchMouseEvent" &&
+      ["mouseMoved", "mousePressed", "mouseReleased"].includes(String(params.type)) &&
+      typeof params.x === "number" &&
+      Number.isFinite(params.x) &&
+      params.x >= 0 &&
+      typeof params.y === "number" &&
+      Number.isFinite(params.y) &&
+      params.y >= 0
+    ) {
+      const buttons = [...tab.agentReleases.keys()].reduce(
+        (mask, key) => mask | (MOUSE_BUTTONS[key] ?? 0),
+        0,
+      );
+      if (
+        params.type === "mouseMoved" ||
+        !tab.pointerPosition ||
+        tab.pointerPosition.x !== params.x ||
+        tab.pointerPosition.y !== params.y
+      ) {
+        const result = await this.moveAgentPointer(
+          tab,
+          { x: params.x, y: params.y },
+          () => signal?.throwIfAborted(),
+          {
+            ...params,
+            buttons: params.type === "mouseMoved" ? (params.buttons ?? buttons) : buttons,
+            button: params.type === "mouseMoved" ? params.button : "none",
+          },
+        );
+        if (params.type === "mouseMoved") return result as T;
+      }
+      if (params.type === "mousePressed" && !buttons && Number(params.clickCount ?? 1) <= 1) {
+        const pointer = { x: params.x, y: params.y, pressed: false, preparingClick: true };
+        this.setAgentCursor(tab, pointer);
+        try {
+          await delay(BROWSER_CLICK_PREPARE_MS, undefined, { signal });
+          signal?.throwIfAborted();
+          if (tab.state.agentCursor !== pointer) throw new BrowserError("browser-element-stale");
+          await beforeDispatch?.();
+          beforeDispatch = undefined;
+        } finally {
+          if (tab.state.agentCursor === pointer)
+            this.setAgentCursor(tab, { x: pointer.x, y: pointer.y, pressed: false });
+        }
+      }
+    }
     const cdp = await this.connection();
+    await beforeDispatch?.();
     signal?.throwIfAborted();
     if (
       signal &&
@@ -388,28 +531,38 @@ export class BrowserManager {
     tab: Tab,
     destination: { x: number; y: number },
     current: () => void,
-  ): Promise<void> {
+    event: Record<string, unknown> = {},
+  ): Promise<Record<string, unknown>> {
+    const operation = this.agentOperation.getStore();
+    const signal = operation?.tab === tab ? operation.signal : undefined;
     const move = async (point: { x: number; y: number }) => {
       current();
-      await this.send(tab, "Input.dispatchMouseEvent", {
-        type: "mouseMoved",
-        ...point,
-        buttons: 0,
-      });
+      const result = await this.send(
+        tab,
+        "Input.dispatchMouseEvent",
+        {
+          ...event,
+          type: "mouseMoved",
+          ...point,
+          buttons: event.buttons ?? 0,
+        },
+        false,
+      );
       current();
-      this.setAgentCursor(tab, { ...point, pressed: false });
+      this.setAgentCursor(tab, { ...point, pressed: Number(event.buttons ?? 0) > 0 });
+      return result;
     };
     const start = tab.pointerPosition ?? { x: 0, y: 0 };
     if (!tab.pointerPosition) await move(start);
-    if (start.x === destination.x && start.y === destination.y) return move(destination);
-    // Real native mouse events keep hover behavior and the displayed cursor on the same path.
-    for (let step = 1; step <= 8; step++) {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      await move({
-        x: start.x + ((destination.x - start.x) * step) / 8,
-        y: start.y + ((destination.y - start.y) * step) / 8,
-      });
+    const trajectory = createPointerTrajectory(start, destination, tab.viewport);
+    if (!trajectory.length) return move(destination);
+    let result: Record<string, unknown> = {};
+    for (const { x, y, delayMs } of trajectory) {
+      current();
+      await delay(delayMs, undefined, { signal });
+      result = await move({ x, y });
     }
+    return result;
   }
 
   private async evaluate(tab: Tab, expression: string): Promise<any> {
@@ -418,7 +571,11 @@ export class BrowserManager {
       awaitPromise: true,
       returnByValue: true,
     });
-    if (response.exceptionDetails) throw new BrowserError("browser-operation-failed");
+    if (response.exceptionDetails)
+      throw new BrowserError(
+        "browser-operation-failed",
+        response.exceptionDetails.exception?.description ?? response.exceptionDetails.text,
+      );
     return response.result?.value;
   }
 
@@ -480,6 +637,7 @@ export class BrowserManager {
     signal?: AbortSignal,
     controlSignal?: AbortSignal,
     target?: { targetId: string; sessionId: string },
+    threadId?: string,
   ): Promise<Tab> {
     const settings = await this.settings.get();
     signal?.throwIfAborted();
@@ -488,6 +646,7 @@ export class BrowserManager {
       state: {
         id: sessionId,
         projectId,
+        ...(threadId ? { threadId } : {}),
         url: "about:blank",
         title: "about:blank",
         status: "ready",
@@ -515,6 +674,7 @@ export class BrowserManager {
       viewport: { width: 1024, height: 768 },
       deviceScaleFactor: 2,
       documentReady: true,
+      diagnostics: new BrowserDiagnostics(),
       agentOperations: new Set(),
       agentReleases: new Map(),
     };
@@ -522,7 +682,8 @@ export class BrowserManager {
     if (controlSignal) this.beginAgentControl(tab, controlSignal);
     try {
       await this.connectTab(tab, target);
-      if (!target && url !== "about:blank") await this.navigate(tab, url, source);
+      if (!target && (url !== "about:blank" || this.external))
+        await this.navigate(tab, url, source);
       else this.update(tab, {});
       return tab;
     } catch (error) {
@@ -543,18 +704,32 @@ export class BrowserManager {
     const cdp = await this.connection();
     if (tab.cdpSessionId) return;
     tab.pointerPosition = undefined;
+    const restored =
+      this.external &&
+      tab.targetId &&
+      (await cdp.send("Target.getTargetInfo", { targetId: tab.targetId }).catch(() => undefined));
     const { targetId } =
       target ??
-      (await cdp.send<{ targetId: string }>("Target.createTarget", {
-        url: "about:blank",
-        // Unrevealed tabs must not background the page the user is currently operating.
-        background: [...this.tabs.values()].some((candidate) => candidate.visible),
-      }));
+      (restored
+        ? { targetId: tab.targetId }
+        : this.external
+          ? await this.external.createTarget()
+          : await cdp.send<{ targetId: string }>("Target.createTarget", {
+              url: "about:blank",
+              // Unrevealed tabs must not background the page the user is currently operating.
+              background: [...this.tabs.values()].some((candidate) => candidate.visible),
+            }));
     const { sessionId } =
       target ??
       (await cdp.send<{ sessionId: string }>("Target.attachToTarget", { targetId, flatten: true }));
     tab.targetId = targetId;
     tab.cdpSessionId = sessionId;
+    if (this.external)
+      await cdp.send("Target.autoAttachRelated", {
+        targetId,
+        waitForDebuggerOnStart: true,
+        filter: [{ type: "page" }],
+      });
     await this.send(tab, "Fetch.enable", {
       patterns: [
         { resourceType: "Document", requestStage: "Request" },
@@ -565,6 +740,11 @@ export class BrowserManager {
       this.send(tab, "Page.enable"),
       this.send(tab, "Runtime.enable"),
       this.send(tab, "DOM.enable"),
+      this.send(tab, "Network.enable", {
+        maxTotalBufferSize: 8 * 1024 * 1024,
+        maxResourceBufferSize: 512 * 1024,
+      }),
+      this.send(tab, "Log.enable"),
       this.send(tab, "Page.setInterceptFileChooserDialog", { enabled: true }),
       // A paused noopener popup cannot answer renderer commands until it resumes.
       ...(target ? [this.send(tab, "Runtime.runIfWaitingForDebugger")] : []),
@@ -579,8 +759,10 @@ export class BrowserManager {
     const tab = this.tabs.get(id);
     if (!tab) throw new BrowserError("browser-session-missing");
     if (!tab.cdpSessionId) {
+      const previousTarget = tab.targetId;
       await this.connectTab(tab);
-      if (tab.state.url !== "about:blank") await this.navigate(tab, tab.state.url, "user", true);
+      if (previousTarget !== tab.targetId && tab.state.url !== "about:blank")
+        await this.navigate(tab, tab.state.url, "user", true);
     }
     return tab;
   }
@@ -746,6 +928,7 @@ export class BrowserManager {
             opener.signal,
             opener.agentControl?.signal,
             { targetId: params.targetInfo.targetId, sessionId: params.sessionId },
+            opener.state.threadId,
           );
           this.publish({
             type: "popup",
@@ -786,6 +969,7 @@ export class BrowserManager {
       (candidate) => candidate.cdpSessionId === event.sessionId,
     );
     if (!tab) return;
+    tab.diagnostics.record(event);
     if (method === "Page.screencastFrame") {
       try {
         if (tab.visible && typeof params.data === "string") {
@@ -824,7 +1008,6 @@ export class BrowserManager {
         await this.history(tab);
       }
     } else if (method === "Page.navigatedWithinDocument") {
-      if (tab.snapshot?.frames.has(params.frameId)) tab.snapshot = undefined;
       if (params.frameId === tab.frameId) {
         this.update(tab, { url: params.url });
         await this.history(tab);
@@ -837,7 +1020,6 @@ export class BrowserManager {
     } else if (method === "Page.domContentEventFired") {
       tab.documentReady = true;
     } else if (method === "Page.frameStartedLoading") {
-      if (tab.snapshot?.frames.has(params.frameId)) tab.snapshot = undefined;
       if (params.frameId === tab.frameId && !tab.navigationBlocked)
         this.update(tab, { status: "loading", error: undefined });
     } else if (method === "Page.frameStoppedLoading" && params.frameId === tab.frameId) {
@@ -866,16 +1048,18 @@ export class BrowserManager {
       });
     } else if (method === "Page.javascriptDialogOpening") {
       tab.dialogPending = true;
-      this.publish({
+      tab.dialog = {
         type: "dialog",
         sessionId: tab.state.id,
         kind: params.type,
         message: String(params.message).slice(0, 65536),
         defaultPrompt: params.defaultPrompt,
         url: typeof params.url === "string" ? params.url : undefined,
-      });
+      };
+      this.publish(tab.dialog);
     } else if (method === "Page.javascriptDialogClosed") {
       tab.dialogPending = false;
+      tab.dialog = undefined;
     }
   }
 
@@ -889,6 +1073,7 @@ export class BrowserManager {
         );
         if (attachment && tab.source === "agent") {
           await this.authorize("download", params.request.url, tab.state.id, tab.source);
+          if (this.external) await this.configureDownloads(await this.settings.get());
           tab.allowedDownloads.add(params.request.url);
         }
         await this.send(tab, "Fetch.continueRequest", { requestId: params.requestId });
@@ -931,6 +1116,29 @@ export class BrowserManager {
     if (this.disposed) throw new BrowserError("browser-unavailable");
     const command = parseBrowserCommand(value);
     if (!command) throw new BrowserError("browser-invalid");
+    const run = () => this.perform(command, options);
+    if (
+      options.source !== "agent" ||
+      !("sessionId" in command) ||
+      (OBSERVATION_COMMANDS.has(command.type) && command.type !== "attach")
+    )
+      return run();
+    const key = command.sessionId;
+    const operation = (this.mutations.get(key) ?? Promise.resolve())
+      .catch(() => undefined)
+      .then(run);
+    this.mutations.set(key, operation);
+    try {
+      return await operation;
+    } finally {
+      if (this.mutations.get(key) === operation) this.mutations.delete(key);
+    }
+  }
+
+  private async perform(
+    command: BrowserCommand,
+    options: { source?: Source; signal?: AbortSignal; controlSignal?: AbortSignal },
+  ): Promise<unknown> {
     const source = options.source ?? "user";
     if (
       source !== "user" &&
@@ -940,6 +1148,8 @@ export class BrowserManager {
         "cookies.import",
         "passwords.import",
         "downloads.clear",
+        "profiles.list",
+        "connection.test",
       ].includes(command.type)
     ) {
       throw new BrowserError("browser-permission-denied");
@@ -957,6 +1167,11 @@ export class BrowserManager {
       if (tab && controlSignal) this.clearAgentControl(tab, controlSignal);
     };
     const tab = sessionId ? this.tabs.get(sessionId) : undefined;
+    if (source === "agent" && tab && tab.state.threadId !== command.threadId)
+      throw new BrowserError(
+        "browser-permission-denied",
+        "This tab belongs to another conversation. Use tabs.list to find this conversation's tabs.",
+      );
     const mutation =
       !!tab &&
       !OBSERVATION_COMMANDS.has(command.type) &&
@@ -975,10 +1190,55 @@ export class BrowserManager {
           ...(options.signal ? [options.signal] : []),
           ...(controlSignal ? [controlSignal] : []),
         ]);
-        return await this.agentOperation.run({ tab, signal }, () =>
-          this.execute(command, source, signal, controlSignal),
-        );
+        return await this.agentOperation.run({ tab, signal, source }, async () => {
+          const previous = tab.observation;
+          const result = await this.execute(command, source, signal, controlSignal);
+          if (!previous || !PAGE_CHANGE_COMMANDS.has(command.type)) return result;
+          let pageChanges: unknown;
+          try {
+            if (tab.dialogPending) pageChanges = { dialog: tab.dialog };
+            else {
+              const next = await this.snapshot(tab, signal);
+              const key = (node: BrowserSnapshotNode) => node.ref ?? `${node.role}:${node.name}`;
+              const before = new Map(previous.nodes.map((node) => [key(node), node]));
+              const after = new Map(next.nodes.map((node) => [key(node), node]));
+              const signature = ({
+                bounds: _bounds,
+                depth: _depth,
+                ...node
+              }: BrowserSnapshotNode) => JSON.stringify(node);
+              const added = [...after.values()].filter((node) => !before.has(key(node)));
+              const changed = [...after.values()].filter(
+                (node) =>
+                  before.has(key(node)) && signature(before.get(key(node))!) !== signature(node),
+              );
+              const removed = next.truncated
+                ? []
+                : [...before.values()].filter((node) => !after.has(key(node)));
+              pageChanges = {
+                snapshotId: next.snapshotId,
+                added: added.slice(0, 12),
+                changed: changed.slice(0, 12),
+                removed: removed.slice(0, 8),
+                truncated:
+                  next.truncated || added.length > 12 || changed.length > 12 || removed.length > 8,
+              };
+            }
+          } catch (error) {
+            signal.throwIfAborted();
+            pageChanges = {
+              unavailable: error instanceof BrowserError ? error.code : "browser-operation-failed",
+            };
+          }
+          return result && typeof result === "object" && !Array.isArray(result)
+            ? { ...result, pageChanges }
+            : { session: { ...tab.state }, result, pageChanges };
+        });
       }
+      if (tab)
+        return await this.agentOperation.run({ tab, signal: options.signal, source }, () =>
+          this.execute(command, source, options.signal, controlSignal),
+        );
       return await this.agentOperation.exit(() =>
         this.execute(command, source, options.signal, controlSignal),
       );
@@ -999,18 +1259,102 @@ export class BrowserManager {
     controlSignal?: AbortSignal,
   ): Promise<unknown> {
     switch (command.type) {
+      case "profiles.list":
+        return listBrowserProfiles(command.userDataDirectory || undefined);
+      case "connection.test": {
+        const cdp = await this.connection();
+        if (this.external) await this.external.profileSession();
+        const { product } = await cdp.send("Browser.getVersion");
+        return { connected: true, product };
+      }
       case "history.list":
         await this.authorize("history", "about:blank", "", source, signal);
         return this.listHistory(command.query ?? "", command.limit ?? 50, signal);
-      case "tabs.list":
-        return [...this.tabs.values()]
-          .filter((tab) => tab.state.projectId === command.projectId)
-          .map((tab) => ({ ...tab.state }));
+      case "tabs.list": {
+        const owned = [...this.tabs.values()]
+          .filter((tab) =>
+            source === "agent"
+              ? !!command.threadId && tab.state.threadId === command.threadId
+              : tab.state.projectId === command.projectId,
+          )
+          .filter(
+            (tab) => command.includeInternal !== false || !tab.state.url.startsWith("chrome:"),
+          );
+        if (source === "agent" || command.scope !== "all")
+          return owned.map((tab) => ({ ...tab.state, targetId: tab.state.id, owned: true }));
+        const { targetInfos } = await (await this.connection()).send("Target.getTargets");
+        return targetInfos
+          .filter(
+            (target: Record<string, any>) =>
+              target.type === "page" &&
+              target.targetId !== this.external?.anchorTargetId &&
+              (command.includeInternal !== false || !target.url.startsWith("chrome:")),
+          )
+          .map((target: Record<string, any>) => {
+            const tab = owned.find((candidate) => candidate.targetId === target.targetId);
+            return {
+              ...(tab?.state ?? {}),
+              id: tab?.state.id ?? target.targetId,
+              targetId: tab?.state.id ?? target.targetId,
+              url: target.url,
+              title: target.title,
+              owned: !!tab,
+            };
+          });
+      }
+      case "read-page":
+        if (command.url)
+          return this.research(
+            command.sessionId,
+            command.url,
+            readPageExpression,
+            source,
+            signal,
+            command.threadId,
+          );
+        break;
+      case "web-search": {
+        const url = new URL("https://www.google.com/search");
+        url.searchParams.set("q", command.query);
+        url.searchParams.set("num", String(command.limit ?? 10));
+        const result = await this.research(
+          command.sessionId,
+          url.href,
+          `${searchExpression}(${command.limit ?? 10})`,
+          source,
+          signal,
+          command.threadId,
+        );
+        return { ...result, query: command.query, engine: "google" };
+      }
       case "settings.get":
         return this.settings.get();
       case "settings.update": {
+        const previous = await this.settings.get();
+        const connectionChanged = (
+          ["connection", "chromeEndpoint", "chromeUserDataDirectory", "chromeProfile"] as const
+        ).some((key) => command.patch[key] !== undefined && command.patch[key] !== previous[key]);
+        if (connectionChanged && this.tabs.size)
+          throw new BrowserError("browser-connection-active");
         const settings = await this.settings.update(command.patch);
-        if (this.browser) await this.configureDownloads(settings);
+        if (connectionChanged) {
+          ++this.connectionGeneration;
+          if (this.passwordTargetId)
+            await this.browser
+              ?.send("Target.closeTarget", { targetId: this.passwordTargetId })
+              .catch(() => undefined);
+          if (this.external) await this.external.close();
+          else this.browser?.dispose();
+          this.external = undefined;
+          this.browser = undefined;
+          this.starting = undefined;
+          this.passwordTarget = undefined;
+          this.passwordTargetId = undefined;
+        } else if (
+          this.browser &&
+          (command.patch.downloadDirectory !== undefined || !this.external)
+        )
+          await this.configureDownloads(settings);
         this.publish({ type: "settings", settings });
         return settings;
       }
@@ -1024,7 +1368,10 @@ export class BrowserManager {
       }
       case "cookies.import": {
         const cookies = parseCookieJson(command.data);
-        await (await this.connection()).send("Storage.setCookies", { cookies });
+        const cdp = await this.connection();
+        if (this.external)
+          await cdp.send("Network.setCookies", { cookies }, await this.external.profileSession());
+        else await cdp.send("Storage.setCookies", { cookies });
         return { count: cookies.length };
       }
       case "passwords.import":
@@ -1064,6 +1411,13 @@ export class BrowserManager {
         if (existing && source === "agent" && controlSignal) existing.signal = signal;
         if (existing && existing.state.projectId !== command.projectId)
           throw new BrowserError("browser-invalid");
+        if (
+          existing &&
+          source === "user" &&
+          command.threadId !== undefined &&
+          existing.state.threadId !== command.threadId
+        )
+          this.update(existing, { threadId: command.threadId });
         const tab = existing
           ? await this.requireTab(command.sessionId)
           : await this.createTab(
@@ -1073,6 +1427,8 @@ export class BrowserManager {
               source,
               signal,
               controlSignal,
+              undefined,
+              command.threadId,
             );
         this.publish({ type: "state", session: { ...tab.state } });
         return { ...tab.state };
@@ -1088,8 +1444,103 @@ export class BrowserManager {
       await this.authorize("history", tab.state.url, tab.state.id, source);
     }
     switch (command.type) {
-      case "snapshot":
-        return this.snapshot(tab, signal, command.query);
+      case "snapshot": {
+        const snapshot = await this.snapshot(tab, signal, command.query);
+        return command.includeScreenshot
+          ? { ...snapshot, screenshot: await this.capture(tab, false) }
+          : snapshot;
+      }
+      case "page-info":
+        return tab.dialogPending
+          ? { session: { ...tab.state }, dialog: tab.dialog }
+          : { session: { ...tab.state }, ...(await this.evaluate(tab, pageInfoExpression)) };
+      case "tabs.current":
+        return { ...tab.state };
+      case "tabs.switch":
+        await this.send(tab, "Page.bringToFront");
+        return { ...tab.state };
+      case "wait":
+        await delay(command.seconds * 1000, undefined, { signal });
+        return { seconds: command.seconds };
+      case "wait-for":
+      case "wait-for-load": {
+        const expression =
+          command.type === "wait-for-load"
+            ? "document.readyState === 'complete'"
+            : command.selector !== undefined
+              ? `Boolean(document.querySelector(${JSON.stringify(command.selector)})) === ${!command.gone}`
+              : `(document.body?.innerText || '').includes(${JSON.stringify(command.text)}) === ${!command.gone}`;
+        return this.waitFor(
+          tab,
+          expression,
+          command.timeout ?? (command.type === "wait-for-load" ? 15 : 5),
+          signal,
+        );
+      }
+      case "console":
+        return tab.diagnostics.console(command);
+      case "network": {
+        const result = tab.diagnostics.network(command);
+        if (command.includeResponseBodies) {
+          const cdp = await this.connection();
+          let remaining = 200000;
+          for (const request of result.requests) {
+            signal?.throwIfAborted();
+            if (!request.finished || request.failed || request.redirected || remaining <= 0)
+              continue;
+            try {
+              const body = await cdp.send(
+                "Network.getResponseBody",
+                { requestId: request.requestId },
+                tab.cdpSessionId,
+                5000,
+                signal,
+              );
+              const text = body.base64Encoded
+                ? Buffer.from(body.body, "base64").toString("utf8")
+                : String(body.body);
+              request.body = text.slice(0, Math.min(50000, remaining));
+              request.bodyTruncated = text.length > request.body.length;
+              remaining -= request.body.length;
+            } catch {
+              signal?.throwIfAborted();
+              request.body = null;
+            }
+          }
+        }
+        return result;
+      }
+      case "read-page":
+        return { session: { ...tab.state }, ...(await this.evaluate(tab, readPageExpression)) };
+      case "evaluate": {
+        if (!(await this.settings.get()).fullCdpAccess)
+          throw new BrowserError("browser-permission-denied");
+        let contextId;
+        if (command.frameId) {
+          if (!tab.frameIds.has(command.frameId)) throw new BrowserError("browser-invalid");
+          ({ executionContextId: contextId } = await this.send(tab, "Page.createIsolatedWorld", {
+            frameId: command.frameId,
+            worldName: "workbench-browser-script",
+          }));
+        }
+        const result = await this.send(tab, "Runtime.evaluate", {
+          expression: /^\s*return\b/.test(command.expression)
+            ? `(() => { ${command.expression} })()`
+            : command.expression,
+          contextId,
+          awaitPromise: true,
+          returnByValue: true,
+        });
+        if (result.exceptionDetails)
+          throw new BrowserError(
+            "browser-operation-failed",
+            result.exceptionDetails.exception?.description ?? result.exceptionDetails.text,
+          );
+        return {
+          session: { ...tab.state },
+          value: result.result?.value ?? result.result?.unserializableValue,
+        };
+      }
       case "click":
         if ("x" in command) {
           await tab.viewportOperation;
@@ -1110,7 +1561,162 @@ export class BrowserManager {
         }
         return this.interact(tab, command, source, signal);
       case "fill":
+      case "select":
+      case "set-checked":
+      case "focus":
+      case "dispatch-key":
         return this.interact(tab, command, source, signal);
+      case "fill-form": {
+        const results = [];
+        for (const field of command.fields) {
+          signal?.throwIfAborted();
+          try {
+            const result = await this.interact(
+              tab,
+              typeof field.value === "boolean"
+                ? {
+                    type: "set-checked",
+                    sessionId: command.sessionId,
+                    ref: field.ref,
+                    checked: field.value,
+                  }
+                : { type: "fill", sessionId: command.sessionId, ref: field.ref, text: field.value },
+              source,
+              signal,
+            );
+            results.push({ ref: field.ref, ...result.field });
+          } catch (error) {
+            signal?.throwIfAborted();
+            results.push({
+              ref: field.ref,
+              ok: false,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+        return {
+          session: { ...tab.state },
+          results,
+          completed: results.filter((result) => result.ok).length,
+        };
+      }
+      case "type": {
+        const editable = await this.evaluate(
+          tab,
+          `(() => { let el = document.activeElement; while(el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement; return !!el && !el.matches(':disabled') && !el.readOnly && (el.isContentEditable || ['INPUT','TEXTAREA','IFRAME'].includes(el.tagName)); })()`,
+        );
+        if (!editable)
+          throw new BrowserError(
+            "browser-element-not-interactable",
+            "Focus an editable element before typing.",
+          );
+        tab.source = source;
+        await this.send(tab, "Input.insertText", { text: command.text });
+        return { ...tab.state };
+      }
+      case "press-key": {
+        tab.source = source;
+        const event = keyEvent(command.key, command.modifiers);
+        const text =
+          command.key.length === 1 && !((command.modifiers ?? 0) & 7) ? command.key : undefined;
+        await this.send(tab, "Input.dispatchKeyEvent", {
+          ...event,
+          type: "keyDown",
+          ...(text ? { text, unmodifiedText: text } : {}),
+        });
+        await this.send(tab, "Input.dispatchKeyEvent", { ...event, type: "keyUp" });
+        return { ...tab.state };
+      }
+      case "scroll": {
+        const { cssVisualViewport: viewport } = await this.send(tab, "Page.getLayoutMetrics");
+        const x = command.x ?? viewport.clientWidth / 2,
+          y = command.y ?? viewport.clientHeight / 2;
+        if (x >= viewport.clientWidth || y >= viewport.clientHeight)
+          throw new BrowserError("browser-invalid");
+        await this.send(tab, "Input.dispatchMouseEvent", {
+          type: "mouseWheel",
+          x,
+          y,
+          deltaX: command.deltaX ?? 0,
+          deltaY: command.deltaY,
+        });
+        return { ...tab.state };
+      }
+      case "drag": {
+        const { cssVisualViewport: viewport } = await this.send(tab, "Page.getLayoutMetrics");
+        if (
+          Math.max(command.fromX, command.toX) >= viewport.clientWidth ||
+          Math.max(command.fromY, command.toY) >= viewport.clientHeight
+        )
+          throw new BrowserError("browser-invalid");
+        const current = () => signal?.throwIfAborted();
+        tab.source = source;
+        await this.moveAgentPointer(tab, { x: command.fromX, y: command.fromY }, current);
+        await this.send(tab, "Input.dispatchMouseEvent", {
+          type: "mousePressed",
+          x: command.fromX,
+          y: command.fromY,
+          button: "left",
+          buttons: 1,
+          clickCount: 1,
+        });
+        const data = command.dataTransfer && {
+          items: Object.entries(command.dataTransfer).map(([mimeType, data]) => ({
+            mimeType,
+            data,
+          })),
+          dragOperationsMask: 1,
+        };
+        if (data)
+          await this.send(tab, "Input.dispatchDragEvent", {
+            type: "dragEnter",
+            x: command.fromX,
+            y: command.fromY,
+            data,
+          });
+        for (const { x, y, delayMs } of createPointerTrajectory(
+          { x: command.fromX, y: command.fromY },
+          { x: command.toX, y: command.toY },
+          { width: viewport.clientWidth, height: viewport.clientHeight },
+        )) {
+          await delay(delayMs, undefined, { signal });
+          const point = { x, y };
+          if (data)
+            await this.send(tab, "Input.dispatchDragEvent", { type: "dragOver", ...point, data });
+          else
+            await this.send(
+              tab,
+              "Input.dispatchMouseEvent",
+              {
+                type: "mouseMoved",
+                ...point,
+                button: "left",
+                buttons: 1,
+              },
+              false,
+            );
+          tab.pointerPosition = point;
+          if (source === "agent") this.setAgentCursor(tab, { ...point, pressed: true });
+        }
+        if (data)
+          await this.send(tab, "Input.dispatchDragEvent", {
+            type: "drop",
+            x: command.toX,
+            y: command.toY,
+            data,
+          });
+        await this.send(tab, "Input.dispatchMouseEvent", {
+          type: "mouseReleased",
+          x: command.toX,
+          y: command.toY,
+          button: "left",
+          buttons: 0,
+          clickCount: 1,
+        });
+        if (source === "agent")
+          this.setAgentCursor(tab, { x: command.toX, y: command.toY, pressed: false });
+        return { ...tab.state };
+      }
       case "navigate":
         return this.navigate(tab, command.url, source);
       case "open-page": {
@@ -1199,7 +1805,10 @@ export class BrowserManager {
           this.setAgentCursor(tab, {
             x: input.x,
             y: input.y,
-            pressed: input.type === "mousePressed" || (input.buttons ?? 0) > 0,
+            pressed:
+              input.type === "mousePressed" ||
+              (input.buttons ??
+                (input.type === "mouseMoved" && tab.state.agentCursor?.pressed ? 1 : 0)) > 0,
           });
         return;
       }
@@ -1221,7 +1830,7 @@ export class BrowserManager {
       }
       case "screenshot":
         try {
-          return await this.capture(tab, command.fullPage === true);
+          return await this.capture(tab, command.fullPage === true, command);
         } catch (error) {
           if (error instanceof BrowserError && error.code === "browser-operation-failed")
             this.update(tab, { status: "error", error: error.code });
@@ -1233,6 +1842,16 @@ export class BrowserManager {
           preferCSSPageSize: true,
         });
         return this.file(`${fileName(tab.state.title)}.pdf`, "application/pdf", result.data);
+      }
+      case "download.configure": {
+        await this.authorize("download", tab.state.url, tab.state.id, source, signal);
+        if (command.directory !== undefined && !path.isAbsolute(command.directory))
+          throw new BrowserError("browser-invalid");
+        await this.configureDownloads({
+          ...(await this.settings.get()),
+          ...(command.directory === undefined ? {} : { downloadDirectory: command.directory }),
+        });
+        return { session: { ...tab.state }, directory: this.downloadDirectory };
       }
       case "upload":
         await this.upload(tab, command, source);
@@ -1248,6 +1867,11 @@ export class BrowserManager {
       case "cdp": {
         if (!(await this.settings.get()).fullCdpAccess)
           throw new BrowserError("browser-permission-denied");
+        if (source === "agent" && /^(Browser|Target)\./.test(command.method))
+          throw new BrowserError(
+            "browser-permission-denied",
+            "Browser-wide CDP commands are unavailable to agents. Use this conversation's tab tools.",
+          );
         signal?.throwIfAborted();
         tab.source = source;
         const revision = tab.state.revision;
@@ -1265,7 +1889,9 @@ export class BrowserManager {
             y: command.params.y,
             pressed:
               command.params.type === "mousePressed" ||
-              (typeof command.params.buttons === "number" && command.params.buttons > 0),
+              (typeof command.params.buttons === "number"
+                ? command.params.buttons > 0
+                : command.params.type === "mouseMoved" && !!tab.state.agentCursor?.pressed),
           });
         return result;
       }
@@ -1292,6 +1918,72 @@ export class BrowserManager {
     }
   }
 
+  private async waitFor(tab: Tab, expression: string, seconds: number, signal?: AbortSignal) {
+    const start = Date.now();
+    const deadline = AbortSignal.timeout(Math.max(1, Math.round(seconds * 1000)));
+    const bounded = AbortSignal.any([deadline, ...(signal ? [signal] : [])]);
+    try {
+      return await this.agentOperation.run(
+        { tab, signal: bounded, source: this.agentOperation.getStore()?.source ?? "user" },
+        async () => {
+          while (true) {
+            bounded.throwIfAborted();
+            if (tab.dialogPending)
+              throw new BrowserError(
+                "browser-operation-failed",
+                "A page dialog is open. Use dialog.respond first.",
+              );
+            try {
+              if (await this.evaluate(tab, expression))
+                return { matched: true, elapsedMs: Date.now() - start };
+            } catch (error) {
+              bounded.throwIfAborted();
+              if (tab.state.status !== "loading") throw error;
+            }
+            await delay(50, undefined, { signal: bounded });
+          }
+        },
+      );
+    } catch (error) {
+      signal?.throwIfAborted();
+      if (deadline.aborted)
+        throw new BrowserError(
+          "browser-operation-failed",
+          `Timed out after ${seconds} seconds waiting for the page condition.`,
+        );
+      throw error;
+    }
+  }
+
+  private async research(
+    sessionId: string,
+    url: string,
+    expression: string,
+    source: Source,
+    signal?: AbortSignal,
+    threadId?: string,
+  ) {
+    const parent = this.tabs.get(sessionId);
+    const tab = await this.createTab(
+      randomUUID(),
+      parent?.state.projectId ?? sessionId,
+      normalizeBrowserUrl(url),
+      source,
+      signal,
+      undefined,
+      undefined,
+      threadId,
+    );
+    try {
+      return await this.agentOperation.run({ tab, signal, source }, async () => {
+        await this.waitFor(tab, "document.readyState === 'complete'", 15, signal);
+        return await this.evaluate(tab, expression);
+      });
+    } finally {
+      await this.agentOperation.exit(() => this.closeTab(tab));
+    }
+  }
+
   private async snapshot(tab: Tab, signal?: AbortSignal, query = ""): Promise<BrowserSnapshot> {
     const search = query.trim().toLowerCase();
     const until = Date.now() + 1000;
@@ -1304,8 +1996,13 @@ export class BrowserManager {
     const url = tab.state.url;
     signal?.throwIfAborted();
     if (!tab.frameId) throw new BrowserError("browser-page-loading");
-    const snapshot: Snapshot = { id: randomUUID(), frames: new Map(), refs: new Map() };
-    tab.snapshot = snapshot;
+    const snapshot = (tab.snapshot ??= {
+      id: randomUUID(),
+      frames: new Map(),
+      refs: new Map(),
+      refsByNode: new Map(),
+    });
+    const snapshotId = randomUUID();
     const current = () => {
       signal?.throwIfAborted();
       if (tab.snapshot !== snapshot || tab.state.url !== url)
@@ -1315,7 +2012,6 @@ export class BrowserManager {
       frameId: string,
       owner?: { backendNodeId: number; contextId: number },
     ) => {
-      if (snapshot.frames.has(frameId)) return;
       // Track the frame before awaiting CDP so navigation also invalidates an in-flight snapshot.
       snapshot.frames.set(frameId, 0);
       try {
@@ -1349,6 +2045,7 @@ export class BrowserManager {
           }),
         ]);
         current();
+        tab.frameIds.add(frameId);
         snapshot.frames.set(frameId, world.executionContextId);
         return { tree, contextId: world.executionContextId as number };
       } catch (error) {
@@ -1426,12 +2123,28 @@ export class BrowserManager {
             node.backendDOMNodeId &&
             !["RootWebArea", "StaticText", "LineBreak"].includes(role)
           ) {
-            item.ref = snapshot.id + ":" + nodes.length;
-            snapshot.refs.set(item.ref, {
+            item.ref = this.elementRef(snapshot, {
               backendNodeId: node.backendDOMNodeId,
               frameId,
               contextId,
             });
+            item.frameId = frameId;
+            if (properties.get("focusable") === true || properties.has("editable")) {
+              const boxes = await this.send(tab, "DOM.getBoxModel", {
+                backendNodeId: node.backendDOMNodeId,
+              }).catch(() => undefined);
+              const quad = boxes?.model?.content as number[] | undefined;
+              if (quad?.length === 8 && quad.every(Number.isFinite)) {
+                const xs = [quad[0]!, quad[2]!, quad[4]!, quad[6]!];
+                const ys = [quad[1]!, quad[3]!, quad[5]!, quad[7]!];
+                item.bounds = {
+                  x: Math.min(...xs),
+                  y: Math.min(...ys),
+                  width: Math.max(...xs) - Math.min(...xs),
+                  height: Math.max(...ys) - Math.min(...ys),
+                };
+              }
+            }
           }
           if (typeof node.value?.value === "string" && node.backendDOMNodeId && !frame) {
             const described = await this.send(tab, "DOM.describeNode", {
@@ -1476,17 +2189,86 @@ export class BrowserManager {
     };
     await visitFrame(tab.frameId, 0);
     current();
-    return { session: { ...tab.state }, snapshotId: snapshot.id, nodes, truncated };
+    const observation = { session: { ...tab.state }, snapshotId, nodes, truncated };
+    if (!search) tab.observation = observation;
+    return observation;
+  }
+
+  private elementRef(snapshot: Snapshot, reference: SnapshotReference): string {
+    const key = `${reference.frameId}:${reference.backendNodeId}`;
+    const ref = snapshot.refsByNode.get(key) ?? `e${++this.referenceSequence}`;
+    snapshot.refsByNode.set(key, ref);
+    snapshot.refs.set(ref, reference);
+    // ponytail: retain 10,000 refs per document; evicted refs require another observation.
+    if (snapshot.refs.size > 10000) {
+      const oldest = snapshot.refs.keys().next().value!;
+      const node = snapshot.refs.get(oldest)!;
+      snapshot.refs.delete(oldest);
+      snapshot.refsByNode.delete(`${node.frameId}:${node.backendNodeId}`);
+    }
+    return ref;
+  }
+
+  private async resolveElement(
+    tab: Tab,
+    target: BrowserElementTarget,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    if (target.ref) return target.ref;
+    const frameId = ("frameId" in target ? target.frameId : undefined) ?? tab.frameId;
+    if (!frameId || !tab.frameIds.has(frameId)) throw new BrowserError("browser-element-stale");
+    const snapshot = (tab.snapshot ??= {
+      id: randomUUID(),
+      frames: new Map(),
+      refs: new Map(),
+      refsByNode: new Map(),
+    });
+    const { executionContextId } = await this.send(tab, "Page.createIsolatedWorld", {
+      frameId,
+      worldName: "workbench-browser-observation",
+    });
+    snapshot.frames.set(frameId, executionContextId);
+    const resolved = await this.send(tab, "Runtime.evaluate", {
+      expression: `document.querySelector(${JSON.stringify(target.selector)})`,
+      contextId: executionContextId,
+    });
+    const objectId = resolved.result?.objectId;
+    if (!objectId)
+      throw new BrowserError(
+        "browser-element-not-interactable",
+        "The selector did not match an element.",
+      );
+    try {
+      const { node } = await this.send(tab, "DOM.describeNode", { objectId });
+      signal?.throwIfAborted();
+      if (tab.snapshot !== snapshot) throw new BrowserError("browser-element-stale");
+      return this.elementRef(snapshot, {
+        backendNodeId: node.backendNodeId,
+        frameId,
+        contextId: executionContextId,
+      });
+    } finally {
+      void this.agentOperation
+        .exit(() => this.send(tab, "Runtime.releaseObject", { objectId }))
+        .catch(() => undefined);
+    }
   }
 
   private async interact(
     tab: Tab,
-    command: Extract<BrowserCommand, { ref: string }>,
+    command: Exclude<
+      Extract<
+        BrowserCommand,
+        { type: "click" | "fill" | "select" | "set-checked" | "focus" | "dispatch-key" }
+      >,
+      { x: number }
+    >,
     source: Source,
     signal?: AbortSignal,
-  ): Promise<BrowserSessionState> {
+  ): Promise<BrowserSessionState & { field?: Record<string, unknown> }> {
+    const ref = await this.resolveElement(tab, command, signal);
     const snapshot = tab.snapshot;
-    const reference = snapshot?.refs.get(command.ref);
+    const reference = snapshot?.refs.get(ref);
     if (!snapshot || !reference) throw new BrowserError("browser-element-stale");
     const { backendNodeId, frameId, contextId } = reference;
     const controlOwner = tab.agentControl?.signal;
@@ -1611,60 +2393,11 @@ export class BrowserManager {
           "browser-element-not-interactable",
           "This element is disabled. Choose an enabled control.",
         );
-      if (command.type === "fill" && !result.value.editable)
-        throw new BrowserError(
-          "browser-element-not-interactable",
-          "This target is not a writable editable field. It may be read-only; use click for other controls.",
-        );
       current();
       await this.send(tab, "DOM.scrollIntoViewIfNeeded", { backendNodeId });
       current();
-      if (command.type === "fill") {
-        if (source === "agent") {
-          const { points } = await geometry();
-          await this.moveAgentPointer(tab, points[0]!, current);
-        }
-        current();
-        await this.send(tab, "DOM.focus", { backendNodeId });
-        const focused = await call(
-          "function() { return this.getRootNode().activeElement === this; }",
-        );
-        if (focused.result?.value !== true)
-          throw new BrowserError(
-            "browser-element-not-interactable",
-            "The field could not receive keyboard focus. Inspect the page before entering text.",
-          );
-        current();
-        await this.send(tab, "Input.dispatchKeyEvent", {
-          type: "keyDown",
-          key: "a",
-          code: "KeyA",
-          commands: ["selectAll"],
-        });
-        await this.send(tab, "Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA" });
-        const stillFocused = await call(
-          "function() { return this.getRootNode().activeElement === this; }",
-        );
-        if (stillFocused.result?.value !== true)
-          throw new BrowserError(
-            "browser-element-not-interactable",
-            "The page moved keyboard focus away from this field. Inspect the page before entering text.",
-          );
-        current();
-        if (command.text) await this.send(tab, "Input.insertText", { text: command.text });
-        else {
-          await this.send(tab, "Input.dispatchKeyEvent", {
-            type: "keyDown",
-            key: "Backspace",
-            code: "Backspace",
-          });
-          await this.send(tab, "Input.dispatchKeyEvent", {
-            type: "keyUp",
-            key: "Backspace",
-            code: "Backspace",
-          });
-        }
-      } else {
+      /* Native click remains compositor-driven, including hit testing and user takeover. */
+      {
         const { viewport, points } = await geometry();
         let position: { x: number; y: number } | undefined;
         for (const point of points) {
@@ -1678,16 +2411,40 @@ export class BrowserManager {
             "browser-element-not-interactable",
             "The target is covered by another element or clipped at the tested points. Inspect a screenshot or dismiss the covering UI before retrying.",
           );
-        if (source === "agent") {
-          await this.moveAgentPointer(tab, position, current);
+        const ready = async () => {
+          current();
           const metrics = await this.send(tab, "Page.getLayoutMetrics");
           if (!(await hitTest(position, metrics.cssVisualViewport)))
             throw new BrowserError(
               "browser-element-not-interactable",
               "Hovering changed or covered the target. Inspect a screenshot before retrying.",
             );
+        };
+        if (source === "agent") {
+          await this.moveAgentPointer(tab, position, current);
+          if (command.type !== "click") await ready();
         }
-        await this.clickAt(tab, position, source, current);
+        if (command.type !== "click") {
+          const response = await call(elementAction, [
+            {
+              value: {
+                ...command,
+                ...("key" in command ? keyEvent(command.key, command.modifiers) : {}),
+              },
+            },
+          ]);
+          current();
+          const field = response.result?.value;
+          if (response.exceptionDetails || !field?.ok)
+            throw new BrowserError(
+              "browser-element-not-interactable",
+              field?.error ??
+                response.exceptionDetails?.exception?.description ??
+                "The field did not accept the operation.",
+            );
+          return { ...tab.state, field };
+        }
+        await this.clickAt(tab, position, source, source === "agent" ? ready : current);
       }
       return { ...tab.state };
     } finally {
@@ -1701,18 +2458,17 @@ export class BrowserManager {
     tab: Tab,
     { x, y }: { x: number; y: number },
     source: Source,
-    current: () => void,
+    current: () => void | Promise<void>,
   ): Promise<void> {
-    current();
     const revision = tab.state.revision;
     for (const type of ["mousePressed", "mouseReleased"] as const) {
-      await this.send(tab, "Input.dispatchMouseEvent", {
-        type,
-        x,
-        y,
-        button: "left",
-        clickCount: 1,
-      });
+      await this.send(
+        tab,
+        "Input.dispatchMouseEvent",
+        { type, x, y, button: "left", clickCount: 1 },
+        true,
+        type === "mousePressed" ? current : undefined,
+      );
       if (source === "agent" && tab.state.revision === revision)
         this.setAgentCursor(tab, { x, y, pressed: type === "mousePressed" });
     }
@@ -1725,7 +2481,11 @@ export class BrowserManager {
     return { name, mimeType, data };
   }
 
-  private async capture(tab: Tab, fullPage: boolean): Promise<BrowserFile> {
+  private async capture(
+    tab: Tab,
+    fullPage: boolean,
+    options: { format?: "png" | "jpeg"; quality?: number; maxDim?: number } = {},
+  ): Promise<BrowserFile> {
     await tab.viewportOperation;
     const metrics = await this.send(tab, "Page.getLayoutMetrics");
     const pageScale = metrics.cssVisualViewport?.scale ?? metrics.visualViewport?.scale ?? 1;
@@ -1740,24 +2500,67 @@ export class BrowserManager {
       clip = { x: 0, y: 0, width: size.width, height: size.height, scale: 1 };
       capture = { width: size.width, height: size.height };
     }
+    const scale = options.maxDim
+      ? Math.min(
+          1,
+          options.maxDim / (Math.max(capture.width, capture.height) * tab.deviceScaleFactor),
+        )
+      : 1;
+    if (scale < 1)
+      clip = {
+        x: fullPage ? 0 : metrics.cssVisualViewport.pageX,
+        y: fullPage ? 0 : metrics.cssVisualViewport.pageY,
+        ...capture,
+        scale,
+      };
     if (
-      capture.width * tab.deviceScaleFactor > 16384 ||
-      capture.height * tab.deviceScaleFactor > 16384 ||
-      capture.width * capture.height * tab.deviceScaleFactor ** 2 > 50_000_000
+      capture.width * tab.deviceScaleFactor * scale > 16384 ||
+      capture.height * tab.deviceScaleFactor * scale > 16384 ||
+      capture.width * capture.height * (tab.deviceScaleFactor * scale) ** 2 > 50_000_000
     )
       throw new BrowserError("browser-file-too-large");
+    const format = options.format ?? "png";
     const result = await this.send(tab, "Page.captureScreenshot", {
-      format: "png",
+      format,
+      ...(format === "jpeg" ? { quality: options.quality ?? 80 } : {}),
       captureBeyondViewport: fullPage,
       ...(clip ? { clip } : {}),
     });
-    const file = this.file(`${fileName(tab.state.title)}.png`, "image/png", result.data);
-    const png = Buffer.from(file.data, "base64");
+    const file = this.file(
+      `${fileName(tab.state.title)}.${format}`,
+      `image/${format}`,
+      result.data,
+    );
+    const bytes = Buffer.from(file.data, "base64");
+    let pixels;
+    if (format === "png" && bytes.length >= 24)
+      pixels = { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+    else {
+      // Chrome emits baseline/progressive JPEG; read its SOF dimensions without recompressing it.
+      for (let offset = 2; offset + 9 < bytes.length;) {
+        const marker = bytes.readUInt16BE(offset);
+        const length = bytes.readUInt16BE(offset + 2);
+        if ([0xffc0, 0xffc1, 0xffc2].includes(marker)) {
+          pixels = {
+            width: bytes.readUInt16BE(offset + 7),
+            height: bytes.readUInt16BE(offset + 5),
+          };
+          break;
+        }
+        if (length < 2 || offset + 2 + length > bytes.length) break;
+        offset += 2 + length;
+      }
+    }
+    if (!pixels)
+      throw new BrowserError(
+        "browser-operation-failed",
+        "Chrome returned an unreadable screenshot.",
+      );
     return {
       ...file,
       viewport,
       capture,
-      pixels: { width: png.readUInt32BE(16), height: png.readUInt32BE(20) },
+      pixels,
     };
   }
 
@@ -1766,7 +2569,22 @@ export class BrowserManager {
     command: Extract<BrowserCommand, { type: "upload" }>,
     source: Source,
   ): Promise<void> {
-    const request = tab.fileRequests.get(command.requestId);
+    let request;
+    if ("requestId" in command) request = tab.fileRequests.get(command.requestId);
+    else {
+      const ref = await this.resolveElement(tab, command, tab.signal);
+      const reference = tab.snapshot?.refs.get(ref);
+      if (!reference) throw new BrowserError("browser-element-stale");
+      const { node } = await this.send(tab, "DOM.describeNode", {
+        backendNodeId: reference.backendNodeId,
+      });
+      const attributes: string[] = node.attributes ?? [];
+      const attribute = (name: string) =>
+        attributes.find((_, i) => i % 2 === 1 && attributes[i - 1] === name);
+      if (node.localName !== "input" || attribute("type")?.toLowerCase() !== "file")
+        throw new BrowserError("browser-element-not-interactable");
+      request = { nodeId: reference.backendNodeId, multiple: attribute("multiple") !== undefined };
+    }
     if (!request || (!request.multiple && command.files.length > 1))
       throw new BrowserError("browser-invalid");
     await this.authorize("upload", tab.state.url, tab.state.id, source);
@@ -1788,7 +2606,7 @@ export class BrowserManager {
       }
       if (source === "agent") tab.signal?.throwIfAborted();
       await this.send(tab, "DOM.setFileInputFiles", { files, backendNodeId: request.nodeId });
-      tab.fileRequests.delete(command.requestId);
+      if ("requestId" in command) tab.fileRequests.delete(command.requestId);
     } catch (error) {
       tab.uploadDirectories.delete(directory);
       await rm(directory, { recursive: true, force: true });
@@ -1803,10 +2621,12 @@ export class BrowserManager {
   ): Promise<BrowserHistoryEntry[]> {
     const cdp = await this.connection();
     signal?.throwIfAborted();
-    const { targetId } = await cdp.send("Target.createTarget", {
-      url: "about:blank",
-      background: true,
-    });
+    const { targetId } = this.external
+      ? await this.external.createTarget()
+      : await cdp.send("Target.createTarget", {
+          url: "about:blank",
+          background: true,
+        });
     const close = () => cdp.send("Target.closeTarget", { targetId }).catch(() => undefined);
     let loadTimer: ReturnType<typeof setTimeout> | undefined;
     let unsubscribeLoad: (() => void) | undefined;
@@ -1893,11 +2713,16 @@ export class BrowserManager {
   ): Promise<{ count: number }> {
     const cdp = await this.connection();
     this.passwordTarget ??= (async () => {
-      const { targetId } = await cdp.send("Target.createTarget", {
-        url: "chrome://password-manager/settings",
-        background: true,
-      });
+      const { targetId } = this.external
+        ? await this.external.createTarget()
+        : await cdp.send("Target.createTarget", {
+            url: "chrome://password-manager/settings",
+            background: true,
+          });
+      this.passwordTargetId = targetId;
       const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
+      if (this.external)
+        await cdp.send("Page.navigate", { url: "chrome://password-manager/settings" }, sessionId);
       await cdp.send(
         "Runtime.evaluate",
         {
@@ -1949,6 +2774,7 @@ export class BrowserManager {
     )
       return;
     const tab = [...this.tabs.values()].find((candidate) => candidate.frameIds.has(params.frameId));
+    if (this.external && !tab) return;
     const download: BrowserDownload = {
       id: params.guid,
       name: fileName(String(params.suggestedFilename)),
@@ -2055,7 +2881,7 @@ export class BrowserManager {
   }
 
   private async closeTab(tab: Tab): Promise<void> {
-    this.agentOperation.getStore()?.signal.throwIfAborted();
+    this.agentOperation.getStore()?.signal?.throwIfAborted();
     clearTimeout(tab.userActivityTimer);
     this.clearAgentControl(tab);
     this.tabs.delete(tab.state.id);
@@ -2081,6 +2907,8 @@ export class BrowserManager {
       pending.resolve(false);
     }
     this.permissions.clear();
+    const targets = [...this.tabs.values()].map((tab) => tab.targetId).filter(Boolean);
+    if (this.passwordTargetId) targets.push(this.passwordTargetId);
     for (const tab of this.tabs.values())
       for (const directory of tab.uploadDirectories)
         void rm(directory, { recursive: true, force: true }).catch(() => undefined);
@@ -2090,6 +2918,13 @@ export class BrowserManager {
     }
     this.tabs.clear();
     this.listeners.clear();
-    this.browser?.dispose();
+    if (this.external) {
+      const external = this.external;
+      void Promise.allSettled(
+        targets.map((targetId) => external.cdp.send("Target.closeTarget", { targetId })),
+      )
+        .then(() => external.close())
+        .catch(() => external.cdp.dispose());
+    } else this.browser?.dispose();
   }
 }

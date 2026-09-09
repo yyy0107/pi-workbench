@@ -6,6 +6,7 @@ import { WorkbenchAgentCapabilityError } from "@workbench/agent-runtime-client";
 import { useWorkbenchRuntimeHostCapability } from "@workbench/agent-runtime-client/context";
 import type {
   BrowserPage,
+  BrowserProfile,
   BrowserPermission,
   BrowserSettings,
   BrowserSitePermissions,
@@ -42,6 +43,7 @@ import {
 } from "../../../ui";
 import { useBrowserSessionService } from "./browser-session-service";
 import { BrowserDownloadsDialog } from "./browser-downloads-dialog";
+import { BrowserConnectionError } from "./remote-browser-session-service";
 
 type SettingsKey =
   keyof typeof import("../../../i18n/extensions/en-US").extensionsEnUS.workspaceBrowser.settings;
@@ -129,7 +131,14 @@ export function BrowserSettingsItem() {
   const [actionPending, setActionPending] = useState(false);
   const actionInFlight = useRef(false);
   const queue = useRef(Promise.resolve());
-  const [error, setError] = useState<"loadError" | "actionError" | "importTooLarge">();
+  const [error, setError] = useState<
+    | "loadError"
+    | "actionError"
+    | "importTooLarge"
+    | "connectionBusy"
+    | "connectionUnavailable"
+    | "connectionInvalid"
+  >();
   const [notice, setNotice] = useState<string>();
   const [importOpen, setImportOpen] = useState(false);
   const [downloadsOpen, setDownloadsOpen] = useState(false);
@@ -139,6 +148,42 @@ export function BrowserSettingsItem() {
   const [originalOrigin, setOriginalOrigin] = useState<string>();
   const [siteError, setSiteError] = useState<"invalidOrigin" | "duplicateOrigin">();
   const disabled = !loaded || actionPending;
+  const [browserConnection, setBrowserConnection] = useState(settings.connection);
+  const [endpoint, setEndpoint] = useState(settings.chromeEndpoint);
+  const [userDataDirectory, setUserDataDirectory] = useState(settings.chromeUserDataDirectory);
+  const [profile, setProfile] = useState(settings.chromeProfile);
+  const [profiles, setProfiles] = useState<BrowserProfile[]>([]);
+
+  useEffect(() => {
+    setBrowserConnection(settings.connection);
+    setEndpoint(settings.chromeEndpoint);
+    setUserDataDirectory(settings.chromeUserDataDirectory);
+    setProfile(settings.chromeProfile);
+  }, [
+    settings.connection,
+    settings.chromeEndpoint,
+    settings.chromeUserDataDirectory,
+    settings.chromeProfile,
+  ]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    let active = true;
+    void browser
+      .command<BrowserProfile[]>({
+        type: "profiles.list",
+        userDataDirectory: settings.chromeUserDataDirectory || undefined,
+      })
+      .then((items) => {
+        if (active) setProfiles(items);
+      })
+      .catch(() => {
+        /* Profile discovery can be retried independently of loading settings. */
+      });
+    return () => {
+      active = false;
+    };
+  }, [browser, loaded, settings.chromeUserDataDirectory]);
 
   useEffect(() => () => directoryRequest.current?.abort(), []);
 
@@ -157,7 +202,12 @@ export function BrowserSettingsItem() {
     };
   }, [browser]);
 
-  const run = (action: () => Promise<void>, success = text("saved"), lockControls = true) => {
+  const run = (
+    action: () => Promise<void>,
+    success = text("saved"),
+    lockControls = true,
+    invalidError: "actionError" | "connectionInvalid" = "actionError",
+  ) => {
     if (lockControls && actionInFlight.current) return Promise.resolve();
     if (lockControls) {
       actionInFlight.current = true;
@@ -170,8 +220,18 @@ export function BrowserSettingsItem() {
       try {
         await action();
         if (success) setNotice(success);
-      } catch {
-        setError(loaded ? "actionError" : "loadError");
+      } catch (cause) {
+        setError(
+          cause instanceof BrowserConnectionError && cause.code === "browser-connection-active"
+            ? "connectionBusy"
+            : cause instanceof BrowserConnectionError && cause.code === "browser-unavailable"
+              ? "connectionUnavailable"
+              : cause instanceof BrowserConnectionError && cause.code === "browser-invalid"
+                ? invalidError
+                : loaded
+                  ? "actionError"
+                  : "loadError",
+        );
       } finally {
         if (lockControls) {
           actionInFlight.current = false;
@@ -270,7 +330,10 @@ export function BrowserSettingsItem() {
         : undefined;
     const session =
       existingSession ??
-      (await browser.create({ projectId: context.projectId ?? context.applicationId }));
+      (await browser.create({
+        projectId: context.projectId ?? context.applicationId,
+        threadId: context.threadId,
+      }));
     await browser.command({ type: "open-page", sessionId: session.id, page });
     const current = browser.getSession(session.id) ?? session;
     controller.reveal({
@@ -370,6 +433,123 @@ export function BrowserSettingsItem() {
           {text("import")}
         </Button>
       </div>
+      {group(
+        "browserConnection",
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void run(
+              async () => {
+                await browser.updateSettings({
+                  connection: browserConnection,
+                  chromeEndpoint: endpoint.trim(),
+                  chromeUserDataDirectory: userDataDirectory.trim(),
+                  chromeProfile: profile,
+                });
+                await browser.command({ type: "connection.test" });
+              },
+              text("connectionReady"),
+              true,
+              "connectionInvalid",
+            );
+          }}
+        >
+          <Row label={text("connectionMode")} description={text("connectionModeDescription")}>
+            <Choice<BrowserSettings["connection"]>
+              label={text("connectionMode")}
+              value={browserConnection}
+              options={options(["embedded", "chrome"])}
+              disabled={disabled}
+              onChange={setBrowserConnection}
+            />
+          </Row>
+          {browserConnection === "chrome" ? (
+            <>
+              <Row
+                label={<label htmlFor={`${id}-endpoint`}>{text("chromeEndpoint")}</label>}
+                description={
+                  <span id={`${id}-endpoint-description`}>{text("chromeEndpointDescription")}</span>
+                }
+              >
+                <Input
+                  id={`${id}-endpoint`}
+                  value={endpoint}
+                  onChange={(event) => setEndpoint(event.currentTarget.value)}
+                  disabled={disabled}
+                  placeholder={text("chromeEndpointPlaceholder")}
+                  aria-describedby={`${id}-endpoint-description`}
+                />
+              </Row>
+              <Row
+                label={
+                  <label htmlFor={`${id}-profile-directory`}>
+                    {text("chromeUserDataDirectory")}
+                  </label>
+                }
+                description={text("chromeUserDataDirectoryDescription")}
+              >
+                <Input
+                  id={`${id}-profile-directory`}
+                  value={userDataDirectory}
+                  onChange={(event) => {
+                    setUserDataDirectory(event.currentTarget.value);
+                    setProfile("");
+                  }}
+                  disabled={disabled}
+                  placeholder={text("chromeUserDataDirectoryPlaceholder")}
+                />
+              </Row>
+              <Row label={text("chromeProfile")} description={text("chromeProfileDescription")}>
+                <div className="flex max-w-full flex-wrap items-center gap-2">
+                  <Choice
+                    label={text("chromeProfile")}
+                    value={profile}
+                    options={[
+                      { value: "", label: text("chromeProfileDefault") },
+                      ...profiles.map((item) => ({
+                        value: item.id,
+                        label: `${item.browser} · ${item.name} (${item.profileDirectory})`,
+                      })),
+                      ...(profile && !profiles.some((item) => item.id === profile)
+                        ? [{ value: profile, label: profile }]
+                        : []),
+                    ]}
+                    disabled={disabled}
+                    onChange={setProfile}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={disabled}
+                    onClick={() =>
+                      void run(
+                        async () => {
+                          setProfiles(
+                            await browser.command<BrowserProfile[]>({
+                              type: "profiles.list",
+                              userDataDirectory: userDataDirectory.trim() || undefined,
+                            }),
+                          );
+                        },
+                        "",
+                        true,
+                        "connectionInvalid",
+                      )
+                    }
+                  >
+                    {text("refreshProfiles")}
+                  </Button>
+                </div>
+              </Row>
+            </>
+          ) : null}
+          <Row label={text("connectionApplyDescription")}>
+            <Button type="submit" disabled={disabled}>
+              {text("connectionApply")}
+            </Button>
+          </Row>
+        </form>,
+      )}
       {group(
         "general",
         <>

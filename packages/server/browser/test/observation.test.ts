@@ -97,9 +97,11 @@ test("Chrome searches beyond snapshot truncation and clicks once in zoomed CSS c
     0,
     "Queries must not expose password values",
   );
-  await assert.rejects(browser.handle({ type: "click", sessionId: "tab", ref }, agent), {
-    code: "browser-element-stale",
-  });
+  assert.equal(
+    (await observe("Play target")).nodes.find((node) => node.role === "button")?.ref,
+    ref,
+    "A filtered snapshot does not invalidate previous refs",
+  );
   const screenshot = (await browser.handle(
     { type: "screenshot", sessionId: "tab" },
     agent,

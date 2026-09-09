@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { mock } from "node:test";
 import {
+  BROWSER_CLICK_PREPARE_MS,
   parseBrowserCommand,
   type BrowserEvent,
   type BrowserPermission,
@@ -469,17 +470,15 @@ test("real Chrome observes and operates scoped elements without unrestricted CDP
     assert.equal(snapshot.nodes.find((node) => node.name === "Password ")?.value, undefined);
     assert.ok(snapshot.nodes.some((node) => node.name === "Frame action" && node.ref));
     const name = ref(snapshot, "Name ");
-    await assert.rejects(
-      browser.handle(
-        {
-          type: "fill",
-          sessionId: "form",
-          ref: ref(snapshot, "Redirecting input "),
-          text: "wrong input",
-        },
-        agent,
-      ),
-      { code: "browser-element-not-interactable" },
+    // Native setters target the observed element even if its keyboard handler redirects focus.
+    await browser.handle(
+      {
+        type: "fill",
+        sessionId: "form",
+        ref: ref(snapshot, "Redirecting input "),
+        text: "Correct input",
+      },
+      agent,
     );
     await browser.handle(
       { type: "fill", sessionId: "form", ref: name, text: "Native form input" },
@@ -518,10 +517,7 @@ test("real Chrome observes and operates scoped elements without unrestricted CDP
     sent.mock.restore();
     snapshot = await observe();
     assert.ok(snapshot.nodes.some((node) => node.name === "Native form input"));
-    await assert.rejects(
-      browser.handle({ type: "fill", sessionId: "form", ref: name, text: "stale" }, agent),
-      { code: "browser-element-stale" },
-    );
+    assert.equal(ref(snapshot, "Name "), name, "Refs survive repeated snapshots within a document");
     await assert.rejects(
       browser.handle(
         { type: "click", sessionId: "form", ref: ref(snapshot, "Disabled action") },
@@ -601,9 +597,7 @@ test("real Chrome observes and operates scoped elements without unrestricted CDP
     const next = ref(snapshot, "Next section");
     await browser.handle({ type: "click", sessionId: "form", ref: next }, agent);
     await new Promise((resolve) => setTimeout(resolve, 20));
-    await assert.rejects(browser.handle({ type: "click", sessionId: "form", ref: next }, agent), {
-      code: "browser-element-stale",
-    });
+    await browser.handle({ type: "click", sessionId: "form", ref: next }, agent);
     snapshot = await observe();
     assert.ok(snapshot.session.url.endsWith("#next"));
     await browser.handle({ type: "attach", sessionId: "other", projectId: "other-project" });
@@ -748,21 +742,27 @@ test("real Chrome moves the assistant pointer before acting and stops on cancell
       }[];
     const checkMovement = (
       events: Awaited<ReturnType<typeof log>>,
-      after: string,
+      after: string | undefined,
       start: { x: number; y: number },
     ) => {
       const moved = events.filter((event) => event.type === "pointermove");
-      assert.equal(
-        moved.length,
-        8,
-        "Semantic actions must dispatch a paced path from the last actual mouse position",
+      assert.ok(
+        moved.length >= 12 && moved.length <= 45,
+        "Actions must dispatch a dense, paced path from the last actual mouse position",
       );
       assert.ok(
         moved.at(-1)!.at - moved[0]!.at >= 80,
         "Movement must be observable over time, not emitted in one burst",
       );
-      assert.ok(Math.abs(moved[0]!.x! - (start.x + (moved.at(-1)!.x! - start.x) / 8)) < 1);
-      assert.ok(Math.abs(moved[0]!.y! - (start.y + (moved.at(-1)!.y! - start.y) / 8)) < 1);
+      const distances = moved.map((event, index) => {
+        const previous = moved[index - 1] ?? start;
+        return Math.hypot(event.x! - previous.x!, event.y! - previous.y!);
+      });
+      assert.ok(distances[0]! < Math.max(...distances) / 4, "Movement accelerates gently");
+      assert.ok(
+        distances.at(-1)! < Math.max(...distances) / 4,
+        "Movement slows before reaching the target",
+      );
       for (let index = 0; index < moved.length; index++) {
         const cursor = cursors[index]?.cursor;
         assert.ok(cursor);
@@ -770,10 +770,11 @@ test("real Chrome moves the assistant pointer before acting and stops on cancell
         assert.ok(Math.abs(cursor.y - moved[index]!.y!) < 1);
         assert.equal(cursor.pressed, false);
       }
-      assert.ok(
-        events.findIndex((event) => event.type === after) >
-          events.findLastIndex((event) => event.type === "pointermove"),
-      );
+      if (after)
+        assert.ok(
+          events.findIndex((event) => event.type === after) >
+            events.findLastIndex((event) => event.type === "pointermove"),
+        );
     };
     let snapshot = await observe();
     await browser.handle({
@@ -826,6 +827,8 @@ test("real Chrome moves the assistant pointer before acting and stops on cancell
       false,
       "Fill must not add a synthetic click",
     );
+    const fieldPosition = cursors.at(-1)!.cursor!;
+    await reset();
     await browser.handle(
       {
         type: "cdp",
@@ -835,11 +838,7 @@ test("real Chrome moves the assistant pointer before acting and stops on cancell
       },
       agent,
     );
-    assert.equal(
-      (await log()).filter((event) => event.type === "pointermove").length,
-      9,
-      "Raw CDP must add exactly its requested move",
-    );
+    checkMovement(await log(), undefined, fieldPosition);
     await reset();
     await browser.handle(
       { type: "click", sessionId: "movement", ref: ref(snapshot, "Save") },
@@ -847,11 +846,67 @@ test("real Chrome moves the assistant pointer before acting and stops on cancell
     );
     const clicked = await log();
     checkMovement(clicked, "pointerdown", { x: 20, y: 20 });
+    const prepared = cursors.filter((event) => event.cursor?.preparingClick);
+    assert.equal(prepared.length, 1, "the click exposes one preparation phase at the target");
+    assert.deepEqual(prepared[0]!.cursor, {
+      ...cursors.at(-1)!.cursor,
+      preparingClick: true,
+    });
+    assert.ok(
+      clicked.find((event) => event.type === "pointerdown")!.at -
+        clicked.findLast((event) => event.type === "pointermove")!.at >=
+        BROWSER_CLICK_PREPARE_MS - 20,
+      "the native press waits for the visible sway without moving the hotspot",
+    );
     assert.ok(
       clicked.findIndex((event) => event.type === "pointerover" && event.target === "save") <
         clicked.findIndex((event) => event.type === "pointerdown"),
     );
     assert.equal(await evaluate("window.clicks"), 1);
+
+    for (const interrupted of ["cancel", "cover"] as const) {
+      await reset();
+      const cancellation = new AbortController();
+      let covered: Promise<unknown> | undefined;
+      const unsubscribe = browser.subscribe((event) => {
+        if (event.type !== "cursor" || !event.cursor?.preparingClick) return;
+        if (interrupted === "cancel") cancellation.abort();
+        else
+          covered = evaluate(`(() => {
+            const cover = document.createElement('div');
+            cover.id = 'late-cover';
+            cover.style = 'position:fixed;inset:0;z-index:99';
+            document.body.append(cover);
+          })()`);
+      });
+      try {
+        await assert.rejects(
+          browser.handle(
+            { type: "click", sessionId: "movement", ref: ref(snapshot, "Save") },
+            { ...agent, signal: cancellation.signal },
+          ),
+          {
+            code:
+              interrupted === "cancel"
+                ? "browser-operation-failed"
+                : "browser-element-not-interactable",
+          },
+        );
+        await covered;
+        assert.equal(await evaluate("window.clicks"), 0);
+        assert.equal(
+          (await log()).some((event) => event.type === "pointerdown"),
+          false,
+        );
+        assert.ok(
+          !cursors.at(-1)?.cursor?.preparingClick,
+          "interruption clears the preparation phase",
+        );
+      } finally {
+        unsubscribe();
+        await evaluate("document.querySelector('#late-cover')?.remove()");
+      }
+    }
 
     for (const takeover of [false, true]) {
       await browser.handle(
@@ -1827,6 +1882,7 @@ test("real Chrome navigates, streams, finds, copies, emulates and exports with n
     // Inject packets into this test's owned pipe to cover exact transport boundaries.
     const transport = (manager as unknown as { browser: BrowserCdp }).browser;
     const buffer = transport as unknown as { chunks: Buffer[]; bufferedBytes: number };
+    assert.ok(transport.process);
     const output = transport.process.stdio[4]!;
     await waitFor(() => buffer.bufferedBytes === 0);
     const received: string[] = [];

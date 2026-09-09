@@ -121,7 +121,11 @@ test("browser viewport requests sharp frames and updates density without changin
     },
   };
   const picture = { src: "" };
-  const cursor = { hidden: true, style: { transform: "" } };
+  const cursor = {
+    hidden: true,
+    style: { transform: "" },
+    dataset: { pressed: "false", preparingClick: "false" },
+  };
   const root = createRoot(dom.container);
   let tree!: ReturnType<typeof BrowserViewport>;
   function Probe() {
@@ -211,6 +215,24 @@ test("browser viewport requests sharp frames and updates density without changin
     paints.delete(paintId);
     assert.equal(cursor.hidden, false);
     assert.equal(cursor.style.transform, "translate(120px, 100px)", "DPR does not scale input");
+    for (const point of [
+      { x: 120, y: 100, pressed: false, preparingClick: true },
+      { x: 120, y: 100, pressed: true },
+      { x: 130, y: 110, pressed: true },
+      { x: 140, y: 116, pressed: true },
+      { x: 120, y: 100, pressed: false },
+    ]) {
+      frameListener?.({ type: "cursor", sessionId: "tab", cursor: point });
+      paints.get(paintId)!(0);
+      paints.delete(paintId);
+      assert.equal(
+        cursor.style.transform,
+        `translate(${point.x}px, ${point.y}px)`,
+        "paced samples render each actual position",
+      );
+      assert.equal(cursor.dataset.pressed, String(point.pressed));
+      assert.equal(cursor.dataset.preparingClick, String(!!point.preparingClick));
+    }
     tree.props.children[1].props.onFocus();
     assert.ok(attributes.has("data-focus-visible"), "keyboard entry keeps a visible focus cue");
     tree.props.onPointerDown({
@@ -347,6 +369,47 @@ test("browser input pipelines a bounded window while retaining order and coalesc
   assert.equal(sent.length, 12);
   assert.equal(completions.length, 8, "the window never exceeds eight pending RPCs");
   for (const complete of completions) complete();
+  await settle();
+});
+
+test("a failed pointer request preserves queued releases and subsequent clicks", async () => {
+  const sent: BrowserInput[] = [];
+  const pending: Array<{ resolve(): void; reject(error: Error): void }> = [];
+  const errors: unknown[] = [];
+  const queue = createBrowserInputQueue(
+    (event) => {
+      sent.push(event);
+      return new Promise<void>((resolve, reject) => pending.push({ resolve, reject }));
+    },
+    (error) => errors.push(error),
+  );
+  const down: BrowserInput = {
+    kind: "mouse",
+    type: "mousePressed",
+    x: 100,
+    y: 100,
+    button: "left",
+    buttons: 1,
+    clickCount: 1,
+  };
+  const up: BrowserInput = { ...down, type: "mouseReleased", buttons: 0 };
+  queue.push(down);
+  for (let index = 0; index < 7; index++)
+    queue.push({ kind: "mouse", type: "mouseMoved", x: 100 + index, y: 100, buttons: 1 });
+  queue.push(up);
+  queue.push(down);
+  queue.push(up);
+  await settle();
+  assert.equal(sent.length, 8);
+  pending[1]!.reject(new Error("A transient browser input failure"));
+  await settle();
+  assert.deepEqual(sent.at(-1), up, "a failed move must not leave the mouse held down");
+  pending[0]!.resolve();
+  pending[2]!.resolve();
+  await settle();
+  assert.deepEqual(sent.slice(-3), [up, down, up], "the next click retains both transitions");
+  assert.equal(errors.length, 1);
+  for (const request of pending) request.resolve();
   await settle();
 });
 

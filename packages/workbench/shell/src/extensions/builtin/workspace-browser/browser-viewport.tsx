@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { MousePointer2Icon } from "lucide-react";
-import type { BrowserDevice, BrowserEvent, BrowserInput } from "@workbench/browser-contracts";
+import {
+  BROWSER_CLICK_PREPARE_MS,
+  type BrowserDevice,
+  type BrowserEvent,
+  type BrowserInput,
+} from "@workbench/browser-contracts";
 import type { BrowserSessionService } from "./browser-session-service";
 import { useI18n } from "../../../i18n";
 
@@ -33,10 +38,8 @@ export function createBrowserInputQueue(
       running++;
       void Promise.resolve()
         .then(() => send(event))
-        .catch((error: unknown) => {
-          queued.length = 0;
-          onError(error);
-        })
+        // Keep queued key/button releases even when an earlier input fails.
+        .catch(onError)
         .finally(() => {
           running--;
           flush();
@@ -200,6 +203,8 @@ export function BrowserViewport({
         const scale = Math.min(width / frame.current.width, height / frame.current.height);
         const x = (width - frame.current.width * scale) / 2 + position.x * scale;
         const y = (height - frame.current.height * scale) / 2 + position.y * scale;
+        pointer.dataset.pressed = String(!!position.pressed);
+        pointer.dataset.preparingClick = String(!!position.preparingClick);
         pointer.style.transform = `translate(${x}px, ${y}px)`;
       });
     };
@@ -493,12 +498,17 @@ export function BrowserViewport({
         hidden
         aria-hidden="true"
         data-browser-agent-cursor=""
-        className="pointer-events-none absolute top-0 left-0 size-0"
+        style={
+          { "--browser-cursor-prepare-duration": `${BROWSER_CLICK_PREPARE_MS}ms` } as CSSProperties
+        }
+        className="group/browser-cursor pointer-events-none absolute top-0 left-0 size-0 will-change-transform"
       >
-        <MousePointer2Icon
-          className="size-[var(--icon-size-lg)] fill-primary text-primary-foreground drop-shadow-sm"
-          style={{ transform: "translate(-16.6667%, -16.6667%)" }}
-        />
+        <span className="browser-agent-pointer block size-[var(--browser-cursor-size)]">
+          <MousePointer2Icon
+            className="size-[var(--browser-cursor-size)] fill-primary text-primary-foreground group-data-[pressed=true]/browser-cursor:fill-foreground group-data-[pressed=true]/browser-cursor:text-background"
+            style={{ transform: "translate(-16.6667%, -16.6667%)" }}
+          />
+        </span>
       </div>
       {imageStatus !== "ready" ? (
         <div

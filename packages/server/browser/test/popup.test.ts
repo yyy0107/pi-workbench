@@ -107,7 +107,7 @@ test("native agent popups preserve opener preloads and remain observable browser
     );
   } finally {
     const browser = (manager as unknown as { browser?: BrowserCdp }).browser;
-    const exited = browser ? once(browser.process, "exit") : Promise.resolve();
+    const exited = browser?.process ? once(browser.process, "exit") : Promise.resolve();
     manager.dispose();
     await exited;
     server.closeAllConnections();

@@ -1,4 +1,5 @@
 import type { ExtensionContext, ExtensionFactory } from "@earendil-works/pi-coding-agent";
+import { defineTool } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import {
@@ -7,6 +8,7 @@ import {
   type BrowserFile,
 } from "@workbench/browser-contracts";
 import { createBrowserHostResolver } from "./standalone-host";
+import { registerHarnessTools } from "./tools";
 
 export interface BrowserHost {
   command(
@@ -43,6 +45,29 @@ const actions = [
   "site-tools.list",
   "site-tools.call",
   "cdp",
+  "focus",
+  "select",
+  "set-checked",
+  "fill-form",
+  "type",
+  "press-key",
+  "dispatch-key",
+  "scroll",
+  "drag",
+  "page-info",
+  "tabs.current",
+  "tabs.switch",
+  "wait",
+  "wait-for",
+  "wait-for-load",
+  "console",
+  "network",
+  "evaluate",
+  "read-page",
+  "web-search",
+  "print",
+  "download.read",
+  "download.configure",
 ] as const;
 
 export function createBrowserExtension(
@@ -55,14 +80,13 @@ export function createBrowserExtension(
       control = undefined;
     };
     pi.on("agent_settled", releaseControl);
-    pi.on("session_shutdown", releaseControl);
-    pi.registerTool({
+    const tool = defineTool({
       name: "workbench_browser",
       label: "workbench_browser",
       description:
-        "Control Workbench's in-app browser or this Pi session's isolated headless browser. Read the browser-use skill before browser work. Use tabs.list to discover tabs in the current project, then reuse the returned id as sessionId. Attach creates or reuses a tab; its optional HTTP(S) url applies only to a new tab. Use navigate to change an existing tab. Ordinary HTTP(S) navigation does not request browser permission; proceed within the user's task. Omitting sessionId uses this conversation's fixed default tab, not the user's focused tab. Snapshot returns {session,snapshotId,nodes,truncated}; params:{query} filters accessible names before the output limit, including later content in large pages. Use observed node refs with click params:{ref} or fill params:{ref,text}. Click also accepts params:{x,y} for one complete left click in viewport CSS coordinates; use a current screenshot and never mix ref with x/y. Refs belong to one tab and its latest snapshot; take another snapshot after navigation or a stale-ref error. Permissions and per-site overrides are enforced by the host, and approval requests use the host UI. Screenshot returns an image plus viewport/capture in CSS pixels and pixels:{width,height} for the encoded bitmap. Keep the user's viewport, zoom, and device settings when mapping coordinates. Input x/y are viewport-relative CSS pixels: for a viewport screenshot displayed at W×H, use x=imageX*viewport.width/W and y=imageY*viewport.height/H. Full-page screenshots use document coordinates; scroll and capture the viewport before coordinate input. Input params.event accepts {kind:'text',text}, {kind:'mouse',type:'mousePressed'|'mouseReleased'|'mouseMoved'|'mouseWheel',x,y,button?,deltaX?,deltaY?}, or {kind:'key',type:'keyDown'|'keyUp',key,code}. Find params: {text,backwards?}. Viewport params: {width,height,visible,zoom?,device?:{width,height,mobile}}. Ordinary pages reflow within the viewport at the selected zoom; fixed-width content may scroll horizontally. Open-page params.page may be history or downloads. History.list returns recent profile history as [{url,title,time}]; params:{query?,limit?} searches titles and URLs, with a default limit of 50 and maximum 100. History access remains subject to its browser permission. Upload params: {requestId,files:[{name,mimeType,data:base64}]}. Dialog.respond params: {accept,text?}, for page dialogs only. Download params.downloadId selects a prior download. Site-tools.call params: {name,arguments}; discover names with site-tools.list. CDP example params:{method:'Runtime.evaluate',expression:'document.title',returnByValue:true}; legacy {method,params:{...}} also works, but do not mix the two forms. CDP is available only when the user enables full access in Browser settings. Never change permissions or bypass a denied action.",
+        "Control Workbench's in-app browser or this Pi session's isolated headless browser. Read the browser-use skill before browser work. Use tabs.list to discover only this conversation's tabs, then reuse the returned id as sessionId. Other conversations' tabs cannot be listed or accessed, even with explicit IDs or scope:all. Attach creates or reuses a tab; its optional HTTP(S) url applies only to a new tab. Use navigate to change an existing tab. Ordinary HTTP(S) navigation does not request browser permission; proceed within the user's task. Omitting sessionId uses this conversation's fixed default tab, not the user's focused tab. Snapshot returns {session,snapshotId,nodes,truncated}; params:{query} filters accessible names before the output limit, including later content in large pages. Use observed node refs with click params:{ref} or fill params:{ref,text}. Click also accepts params:{x,y} for one complete left click in viewport CSS coordinates; use a current screenshot and never mix ref with x/y. Refs belong to one tab and document; repeated snapshots and same-document routes preserve them. Take another snapshot after document navigation or a stale-ref error. Permissions and per-site overrides are enforced by the host, and approval requests use the host UI. Screenshot returns an image plus viewport/capture in CSS pixels and pixels:{width,height} for the encoded bitmap. Keep the user's viewport, zoom, and device settings when mapping coordinates. Input x/y are viewport-relative CSS pixels: for a viewport screenshot displayed at W×H, use x=imageX*viewport.width/W and y=imageY*viewport.height/H. Full-page screenshots use document coordinates; scroll and capture the viewport before coordinate input. Input params.event accepts {kind:'text',text}, {kind:'mouse',type:'mousePressed'|'mouseReleased'|'mouseMoved'|'mouseWheel',x,y,button?,deltaX?,deltaY?}, or {kind:'key',type:'keyDown'|'keyUp',key,code}. Find params: {text,backwards?}. Viewport params: {width,height,visible,zoom?,device?:{width,height,mobile}}. Ordinary pages reflow within the viewport at the selected zoom; fixed-width content may scroll horizontally. Open-page params.page may be history or downloads. History.list returns recent profile history as [{url,title,time}]; params:{query?,limit?} searches titles and URLs, with a default limit of 50 and maximum 100. History access remains subject to its browser permission. Upload params: {requestId,files:[{name,mimeType,data:base64}]}. Dialog.respond params: {accept,text?}, for page dialogs only. Download params.downloadId selects a prior download. Site-tools.call params: {name,arguments}; discover names with site-tools.list. CDP example params:{method:'Runtime.evaluate',expression:'document.title',returnByValue:true}; legacy {method,params:{...}} also works, but do not mix the two forms. CDP is available only when the user enables full access in Browser settings. Never change permissions or bypass a denied action.",
       promptSnippet:
-        "Control the browser; read browser-use first. Search snapshots with query; use click with ref or screenshot-derived x/y, then verify the result.",
+        "Control the browser; prefer the browser_* tools and read browser-use first. Snapshot refs stay stable within the document; mutations report pageChanges.",
       parameters: Type.Object({
         action: StringEnum(actions),
         sessionId: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
@@ -166,6 +190,7 @@ export function createBrowserExtension(
         const command = parseBrowserCommand({
           ...commandParams,
           type: action,
+          threadId: ctx.sessionManager.getSessionId(),
           ...(action === "tabs.list" || action === "history.list" ? {} : { sessionId: id }),
           ...(url === undefined ? {} : { url }),
           ...(action === "attach" || action === "tabs.list" ? { projectId } : {}),
@@ -191,7 +216,10 @@ export function createBrowserExtension(
             ? session
             : undefined;
         const details =
-          action === "tabs.list" || action === "history.list"
+          action === "tabs.list" ||
+          action === "history.list" ||
+          action === "web-search" ||
+          (command.type === "read-page" && !!command.url)
             ? {}
             : {
                 browserSessionId: id,
@@ -230,17 +258,26 @@ export function createBrowserExtension(
               : "";
           throw new Error(`${command.method}${location}: ${message.slice(0, 2048)}`);
         }
-        if (action === "screenshot") {
-          const file = result as BrowserFile;
+        if (
+          action === "screenshot" ||
+          (action === "snapshot" && result && typeof result === "object" && "screenshot" in result)
+        ) {
+          const file = (
+            action === "screenshot" ? result : (result as { screenshot: BrowserFile }).screenshot
+          ) as BrowserFile;
+          const metadata =
+            action === "screenshot"
+              ? {
+                  viewport: file.viewport,
+                  capture: file.capture,
+                  pixels: file.pixels,
+                }
+              : { ...(result as object), screenshot: undefined };
           return {
             content: [
               {
                 type: "text",
-                text: JSON.stringify({
-                  viewport: file.viewport,
-                  capture: file.capture,
-                  pixels: file.pixels,
-                }),
+                text: JSON.stringify(metadata),
               },
               { type: "image", mimeType: file.mimeType, data: file.data },
             ],
@@ -255,6 +292,12 @@ export function createBrowserExtension(
         };
       },
     });
+    const resetSelection = registerHarnessTools(pi, tool, resolveHost);
+    pi.on("session_shutdown", () => {
+      releaseControl();
+      resetSelection();
+    });
+    pi.registerTool(tool);
   };
 }
 
