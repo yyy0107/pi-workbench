@@ -205,6 +205,11 @@ test("browser settings persist choices and website overrides, reuse management t
       )(true);
     });
     assert.equal(tree.props["aria-busy"], true);
+    assert.equal(
+      toggle("Ask where to save each download").props.checked,
+      true,
+      "show the change before the server responds",
+    );
     for (const control of elements(tree).filter(
       (element) =>
         element.type === Switch ||
@@ -219,6 +224,13 @@ test("browser settings persist choices and website overrides, reuse management t
       (choice("Downloads", "ask").props.onChange as (value: string) => void)("deny");
       (choice("History access", "ask").props.onChange as (value: string) => void)("allow");
     });
+    assert.equal(
+      toggle("Show full URL").props.checked,
+      false,
+      "keep the latest queued choice visible",
+    );
+    choice("Downloads", "deny");
+    choice("History access", "allow");
     assert.equal(patches.length, 1, "save requests must wait for the preceding request");
     await act(async () => finishSave());
     assert.equal(patches.length, 5, "continuous changes must all be saved");
@@ -230,6 +242,18 @@ test("browser settings persist choices and website overrides, reuse management t
       download: "deny",
       upload: "ask",
     });
+    browser.updateSettings = async () => {
+      throw new Error("Save failed");
+    };
+    await act(async () => {
+      (toggle("Show full URL").props.onCheckedChange as (checked: boolean) => void)(true);
+    });
+    assert.equal(
+      toggle("Show full URL").props.checked,
+      false,
+      "failed saves restore the confirmed setting",
+    );
+    assert.ok(elements(tree).some((element) => element.props.role === "alert"));
     browser.updateSettings = updateSettings;
 
     selectedDirectory = "/chosen/downloads";

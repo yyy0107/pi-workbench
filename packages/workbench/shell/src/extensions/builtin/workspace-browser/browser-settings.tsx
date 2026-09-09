@@ -124,7 +124,8 @@ export function BrowserSettingsItem() {
   const context = useWorkspaceContext();
   const surfaces = useRightWorkspaceState((state) => state.surfaces);
   useSyncExternalStore(browser.subscribe.bind(browser), browser.getRevision.bind(browser), () => 0);
-  const settings = browser.getSettings();
+  const [draftSettings, setDraftSettings] = useState<BrowserSettings>();
+  const settings = draftSettings ?? browser.getSettings();
   const id = useId();
   const [loaded, setLoaded] = useState(false);
   const [pending, setPending] = useState(false);
@@ -241,18 +242,26 @@ export function BrowserSettingsItem() {
     });
     queue.current = task;
     return task.then(() => {
-      if (queue.current === task) setPending(false);
+      if (queue.current === task) {
+        setPending(false);
+        setDraftSettings(undefined);
+      }
     });
   };
   const save = (
     patch: Partial<BrowserSettings> | ((current: BrowserSettings) => Partial<BrowserSettings>),
-  ) =>
+  ) => {
+    setDraftSettings((draft) => {
+      const current = draft ?? browser.getSettings();
+      return { ...current, ...(typeof patch === "function" ? patch(current) : patch) };
+    });
     void run(
       () =>
         browser.updateSettings(typeof patch === "function" ? patch(browser.getSettings()) : patch),
       text("saved"),
       false,
     );
+  };
   const changeDirectory = () => {
     if (!hostClient || disabled || directoryRequest.current) return;
     if (!shouldUseNativeDirectoryPicker(connection)) {

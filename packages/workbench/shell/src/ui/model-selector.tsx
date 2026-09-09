@@ -66,6 +66,7 @@ const ModelMenuItem = memo(function ModelMenuItem({
       value={model.id}
       closeOnClick={false}
       disabled={disabled || model.unavailable}
+      data-unavailable={model.unavailable || undefined}
       className="mx-1 h-[var(--dropdown-control-height)] gap-2 px-2 pe-8"
     >
       {withTooltip(
@@ -168,7 +169,7 @@ export function ModelSelector({
 
   return withTooltip(
     <fieldset
-      className="min-w-0 shrink-0 disabled:pointer-events-none disabled:opacity-50"
+      className="min-w-0 shrink-0 disabled:pointer-events-none"
       disabled={selectionLocked}
       title={selectionLocked ? labels.saving : undefined}
     >
@@ -203,7 +204,11 @@ export function ModelSelector({
         </DropdownMenuTrigger>
 
         <SelectorDropdownContent
-          className="[&_[data-checked]]:bg-accent [&_[data-checked]]:font-medium [&_[data-checked]]:text-accent-foreground"
+          aria-busy={selectionLocked}
+          className={cn(
+            "[&_[data-checked]]:bg-accent [&_[data-checked]]:font-medium [&_[data-checked]]:text-accent-foreground",
+            selectionLocked && "[&_[data-disabled]:not([data-unavailable])]:opacity-100",
+          )}
           align="center"
           side="top"
           sideOffset={4}
