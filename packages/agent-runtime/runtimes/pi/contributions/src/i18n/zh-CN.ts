@@ -741,6 +741,7 @@ export const piExtensionsZhCN = {
       packages: {
         openInstalledPackage: "打开 Pi Package",
         title: "Pi Packages",
+        browse: "浏览",
         installedTitle: "已安装的 Pi Packages",
         officialCatalog: "Pi 官方目录",
         sourceNote: "来自 Pi 官方 Package Catalog 的扩展、技能、提示模板和主题。",

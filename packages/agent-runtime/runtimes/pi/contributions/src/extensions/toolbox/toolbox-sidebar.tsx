@@ -1,14 +1,7 @@
 "use client";
 
-import {
-  BoxIcon,
-  DownloadIcon,
-  FileTextIcon,
-  PackageIcon,
-  StoreIcon,
-  PlugIcon,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { BoxIcon, FileTextIcon, PackageIcon, PlugIcon } from "lucide-react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 import { SidebarRow, SidebarStatus } from "@workbench/shell/ui";
 import { type LocalizableText } from "@workbench/shell/i18n";
@@ -19,7 +12,6 @@ import type { PiResourceCatalogTarget } from "@workbench/agent-runtime-pi-protoc
 import { definePiMessage, usePiI18n, type PiI18nRuntime } from "../../i18n";
 import { type ToolboxMainSection } from "./toolbox-capability";
 import { useToolboxCatalogs } from "./toolbox-catalog";
-import { usePiPackageUpdates } from "./use-pi-package-updates";
 import { toolboxScopeTarget } from "./toolbox-scope";
 import { ToolboxScopeSelect } from "./toolbox-scope-select";
 import { useToolboxScope } from "./toolbox-scope-store";
@@ -36,7 +28,7 @@ const TOOLBOX_SECTION_TITLES = {
   skills: definePiMessage("extensions.toolbox.skills.title"),
   extensions: definePiMessage("extensions.toolbox.extensions.title"),
   prompts: definePiMessage("extensions.toolbox.prompts.title"),
-  installed: definePiMessage("extensions.toolbox.packages.installedTitle"),
+  installed: definePiMessage("extensions.toolbox.packages.title"),
   packages: definePiMessage("extensions.toolbox.packages.title"),
   updates: definePiMessage("extensions.toolbox.updates"),
 } satisfies Readonly<Record<ToolboxMainSection, LocalizableText>>;
@@ -71,11 +63,6 @@ export function ToolboxSidebar({ onNavigate }: SidebarSectionComponentProps) {
     if (mainViews.getSnapshot()?.kind !== "toolbox") openSystemPrompts();
   }, [mainViews, openSystemPrompts]);
   const catalogs = useToolboxCatalogs(scope);
-  const updateTarget = useMemo(
-    () => (catalogs.packagesCatalog.hasTargets ? toolboxScopeTarget(scope) : undefined),
-    [catalogs.packagesCatalog.hasTargets, scope],
-  );
-  const updates = usePiPackageUpdates(updateTarget);
   const openSection = (section: ToolboxMainSection) => {
     mainViews.open({
       kind: "toolbox",
@@ -140,7 +127,12 @@ export function ToolboxSidebar({ onNavigate }: SidebarSectionComponentProps) {
               key={section}
               icon={<Icon />}
               label={text(TOOLBOX_SECTION_TITLES[section])}
-              active={activeView?.kind === "toolbox" && activeView.params.section === section}
+              active={
+                activeView?.kind === "toolbox" &&
+                (section === "installed"
+                  ? ["installed", "packages", "updates"].includes(String(activeView.params.section))
+                  : activeView.params.section === section)
+              }
               status={
                 <SidebarStatus aria-live="polite" aria-busy={catalog.loadState === "loading"}>
                   {formatToolboxCount(catalog.loadState, items.length, number)}
@@ -149,28 +141,6 @@ export function ToolboxSidebar({ onNavigate }: SidebarSectionComponentProps) {
               onActivate={() => openSection(section)}
             />
           ))}
-        </nav>
-        <nav
-          aria-label={t("extensions.toolbox.manage")}
-          className="mt-4 flex flex-col gap-[var(--sidebar-list-gap)] border-t pt-3"
-        >
-          <SidebarRow
-            icon={<StoreIcon />}
-            label={t("extensions.toolbox.browsePiPackages")}
-            active={activeView?.kind === "toolbox" && activeView.params.section === "packages"}
-            onActivate={() => openSection("packages")}
-          />
-          <SidebarRow
-            icon={<DownloadIcon />}
-            label={t("extensions.toolbox.updates")}
-            active={activeView?.kind === "toolbox" && activeView.params.section === "updates"}
-            status={
-              <SidebarStatus aria-live="polite" aria-busy={updates.loadState === "loading"}>
-                {formatToolboxCount(updates.loadState, updates.value.updates.length, number)}
-              </SidebarStatus>
-            }
-            onActivate={() => openSection("updates")}
-          />
         </nav>
       </div>
     </section>

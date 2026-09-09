@@ -21,7 +21,16 @@ import {
   type Ref,
 } from "react";
 
-import { Button, Progress, StatusBadge, TooltipIconButton } from "@workbench/shell/ui";
+import {
+  Button,
+  Progress,
+  StatusBadge,
+  TooltipIconButton,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@workbench/shell/ui";
 import { DropdownMenu, DropdownMenuRadioGroup } from "@workbench/shell/ui";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@workbench/shell/ui";
 import {
@@ -30,7 +39,8 @@ import {
   SettingsDropdownTrigger,
 } from "@workbench/shell/ui";
 import { Skeleton } from "@workbench/shell/ui";
-import { usePiI18n } from "../../i18n";
+import { useMainViewService } from "@workbench/extension-host";
+import { definePiMessage, usePiI18n } from "../../i18n";
 import { cn } from "@workbench/shell/utils";
 import type { MainViewProps } from "@workbench/extension-sdk";
 import { usePiResourceClient } from "@workbench/agent-runtime-pi-client/resources";
@@ -102,11 +112,11 @@ function CatalogSkeleton({ className = "space-y-1 p-2" }: { className?: string }
 function CatalogPaginationSkeleton() {
   return (
     <div
-      className="grid min-h-[calc(var(--button-height-default)+1rem)] shrink-0 grid-cols-1 items-center gap-2 px-3 py-2 @md/toolbox-market:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]"
+      className="grid min-h-[calc(var(--button-height-default)+1rem)] shrink-0 grid-cols-1 items-center gap-2 px-3 py-2 @md/toolbox-market:grid-cols-[minmax(0,1fr)_auto]"
       aria-hidden="true"
     >
-      <Skeleton className="h-3 w-20 justify-self-center @md/toolbox-market:col-start-2" />
-      <div className="flex items-center gap-2 justify-self-end @md/toolbox-market:col-start-3">
+      <Skeleton className="h-3 w-20 justify-self-start" />
+      <div className="flex items-center gap-2 justify-self-end @md/toolbox-market:col-start-2">
         <Skeleton className="size-(--icon-frame-size-default) rounded-(--button-radius)" />
         <Skeleton className="h-3 w-12" />
         <Skeleton className="size-(--icon-frame-size-default) rounded-(--button-radius)" />
@@ -632,7 +642,51 @@ function PackageUpdatesView() {
   );
 }
 
-export function ToolboxMainView({ close, view }: MainViewProps<ToolboxMainViewParams>) {
+export function ToolboxMainView(props: MainViewProps<ToolboxMainViewParams>) {
+  const { t } = usePiI18n();
+  const mainViews = useMainViewService();
+  const { section, detailOnly } = props.view.params;
+  if (detailOnly || !["installed", "packages", "updates"].includes(section)) {
+    return <ToolboxMainContent {...props} />;
+  }
+
+  return (
+    <Tabs
+      value={section}
+      className="h-full min-h-0 overflow-hidden"
+      onValueChange={(value) => {
+        if (value !== "installed" && value !== "packages" && value !== "updates") return;
+        mainViews.open({
+          kind: "toolbox",
+          title: definePiMessage("extensions.toolbox.packages.title"),
+          params: { section: value },
+        });
+      }}
+    >
+      <div className="shrink-0 px-3 pt-3">
+        <TabsList
+          aria-label={t("extensions.toolbox.packages.title")}
+          className="gap-0.5 bg-transparent p-0"
+        >
+          <TabsTrigger value="installed" className="data-active:bg-muted data-active:shadow-none">
+            {t("extensions.toolbox.packages.installed")}
+          </TabsTrigger>
+          <TabsTrigger value="packages" className="data-active:bg-muted data-active:shadow-none">
+            {t("extensions.toolbox.packages.browse")}
+          </TabsTrigger>
+          <TabsTrigger value="updates" className="data-active:bg-muted data-active:shadow-none">
+            {t("extensions.toolbox.updates")}
+          </TabsTrigger>
+        </TabsList>
+      </div>
+      <TabsContent value={section} className="min-h-0 overflow-hidden">
+        <ToolboxMainContent {...props} />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function ToolboxMainContent({ close, view }: MainViewProps<ToolboxMainViewParams>) {
   const { number, t } = usePiI18n();
   const scope = useToolboxScope();
   const detailOnly = view.params.detailOnly === true;
@@ -825,15 +879,15 @@ export function ToolboxMainView({ close, view }: MainViewProps<ToolboxMainViewPa
               <nav
                 aria-label={t("extensions.toolbox.packages.pagination")}
                 aria-busy={packageCatalog.loadState === "loading"}
-                className="grid min-h-[calc(var(--button-height-default)+1rem)] shrink-0 grid-cols-1 items-center gap-2 px-3 py-2 @md/toolbox-market:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]"
+                className="grid min-h-[calc(var(--button-height-default)+1rem)] shrink-0 grid-cols-1 items-center gap-2 px-3 py-2 @md/toolbox-market:grid-cols-[minmax(0,1fr)_auto]"
               >
-                <span className="text-muted-foreground justify-self-center text-xs tabular-nums @md/toolbox-market:col-start-2">
+                <span className="text-muted-foreground justify-self-start text-xs tabular-nums">
                   {t("extensions.toolbox.main.resultsCount", {
                     count: packageCatalog.value.filteredTotal,
                   })}
                 </span>
                 {packageCatalog.value.pageCount > 1 ? (
-                  <div className="flex items-center gap-2 justify-self-end @md/toolbox-market:col-start-3">
+                  <div className="flex items-center gap-2 justify-self-end @md/toolbox-market:col-start-2">
                     <TooltipIconButton
                       type="button"
                       size="icon"

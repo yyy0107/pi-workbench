@@ -802,6 +802,7 @@ export const piExtensionsEnUS = {
       packages: {
         openInstalledPackage: "Open Pi Package",
         title: "Pi Packages",
+        browse: "Browse",
         installedTitle: "Installed Pi Packages",
         officialCatalog: "Official Pi catalog",
         sourceNote: "Extensions, skills, prompts, and themes from the official Pi Package Catalog.",
