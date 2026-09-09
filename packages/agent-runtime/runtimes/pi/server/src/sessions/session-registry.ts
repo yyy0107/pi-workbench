@@ -3764,7 +3764,10 @@ function persistedMessageForkLeaf(
   if (typeof message.role !== "string") return undefined;
 
   if (message.role === "user" || message.role === "assistant" || message.role === "toolResult") {
-    return next?.type === "message" && jsonEqual(next.message, message) ? next : undefined;
+    // Cache notices belong to the Workbench projection, not Pi's durable model message.
+    const persistedMessage = { ...message };
+    if (message.role === "assistant") delete persistedMessage.workbenchCacheMiss;
+    return next?.type === "message" && jsonEqual(next.message, persistedMessage) ? next : undefined;
   }
   if (message.role !== "custom") return undefined;
   if (customMessageMatchesEntry(message, next)) return next;
@@ -4027,21 +4030,16 @@ export async function createScratchSession(
   const registry = state();
   const source = await sessionSourceFile(sourceSessionId);
   if (!source) throw new PiServerError("pi_session_not_found", 404);
-  if (atSeq === undefined && registry.sessions.get(sourceSessionId)?.isBusy) {
-    throw forkUnavailable();
-  }
 
   return serializeForkCreation(async () => {
     const sourceFile = await sessionSourceFile(sourceSessionId);
     if (!sourceFile || !existsSync(/* turbopackIgnore: true */ sourceFile.filePath)) {
       throw new PiServerError("pi_session_not_found", 404);
     }
-    if (atSeq === undefined && registry.sessions.get(sourceSessionId)?.isBusy) {
-      throw forkUnavailable();
-    }
 
     let child: SessionManager;
     try {
+      // Snapshot the last completed turn even while the source continues running.
       child = createDetachedSessionFork(sourceFile.filePath, atSeq, scratchSessionDirectory());
     } catch (error) {
       if (error instanceof PiServerError) throw error;

@@ -4223,6 +4223,28 @@ test("keeps scratch sessions hidden, releases their files, and promotes them exp
   );
   assert.deepEqual((await getSessionHistory(first.host.id)).context.messages, [user, assistant]);
 
+  appendSessionEventJournal(manager, { type: "turn_start", seq: 4, time: 5, data: {} });
+  const pendingUser = { role: "user" as const, content: "still running", timestamp: 6 };
+  appendSessionEventJournal(manager, {
+    type: "message_end",
+    seq: 5,
+    time: 6,
+    data: { message: pendingUser },
+  });
+  manager.appendMessage(pendingUser);
+  const sourcePath = manager.getSessionFile()!;
+  const sourceBefore = await readFile(sourcePath, "utf8");
+  const busy = t.mock.getter(source, "isBusy", () => true);
+  const runningScratch = await createScratchSession(source.id);
+  assert.deepEqual((await getSessionHistory(runningScratch.host.id)).context.messages, [
+    user,
+    assistant,
+  ]);
+  assert.equal(source.isBusy, true);
+  assert.equal(await readFile(sourcePath, "utf8"), sourceBefore);
+  busy.mock.restore();
+  await releaseScratchSession(runningScratch.host.id);
+
   await releaseScratchSession(first.host.id);
   assert.equal(existsSync(firstFile), false);
   assert.equal(getScratchSessionRecord(first.host.id), undefined);
@@ -4331,6 +4353,45 @@ test("forks sessions whose durable custom messages precede their lifecycle event
     sourceSessionId: "fork-custom-source",
     sourceEventSeq: 6,
   });
+});
+
+test("forks cache-miss projections while still rejecting changed message content", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-cache-miss-fork-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = SessionManager.create(root, root);
+  const assistant = assistantMessage("answer", 1);
+  appendSessionEventJournal(source, { type: "turn_start", seq: 0, time: 1, data: {} });
+  appendSessionEventJournal(source, {
+    type: "message_end",
+    seq: 1,
+    time: 2,
+    data: { message: { ...assistant, workbenchCacheMiss: { cacheMissTokens: 1000 } } },
+  });
+  source.appendMessage(assistant);
+  appendSessionEventJournal(source, { type: "turn_end", seq: 2, time: 3, data: {} });
+  const sourcePath = source.getSessionFile()!;
+  const before = await readFile(sourcePath, "utf8");
+  for (const atSeq of [undefined, 1]) {
+    const child = createDetachedSessionFork(sourcePath, atSeq, root);
+    assert.deepEqual(child.buildSessionContext().messages, [assistant]);
+    assert.notEqual(child.getSessionId(), source.getSessionId());
+  }
+  assert.equal(await readFile(sourcePath, "utf8"), before);
+
+  appendSessionEventJournal(source, { type: "turn_start", seq: 3, time: 4, data: {} });
+  appendSessionEventJournal(source, {
+    type: "message_end",
+    seq: 4,
+    time: 5,
+    data: { message: { ...assistant, workbenchCacheMiss: { cacheMissTokens: 1000 } } },
+  });
+  source.appendMessage(assistantMessage("different answer", 1));
+  appendSessionEventJournal(source, { type: "turn_end", seq: 5, time: 6, data: {} });
+  for (const atSeq of [undefined, 4]) {
+    assert.throws(() => createDetachedSessionFork(sourcePath, atSeq, root), {
+      code: "pi_fork_unavailable",
+    });
+  }
 });
 
 test("forks a regenerated branch after a new agent run completes", async (t) => {
