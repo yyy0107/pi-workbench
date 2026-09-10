@@ -191,7 +191,9 @@ export function NotesTrigger({ isRunning }: ComposerSlotContext) {
 这里使用 `ComposerSlotContext`，所以组件可以读取：
 
 - `isRunning`：当前 Thread 是否正在生成；
-- `isEmpty`：Composer 是否为空。
+- `isEmpty`：Composer 是否为空；
+- `submissionBlocked`：最近一次提交是否被前置校验拦截，可用于显示选择器提示；
+- `registerSubmissionGuard`：可选的同步提交校验注册函数。校验返回 `false` 时保留草稿并拦截发送；在 effect 中注册，并返回其注销函数作为 cleanup。
 
 组件通过 `usePanelService()` 操作已注册的 Panel。可用方法包括：
 

@@ -87,7 +87,11 @@ import {
 } from "./composer-directive";
 import { ComposerTokenIcon, type ComposerTokenKind } from "./composer-token-icon";
 import { MarkdownComposerInput } from "./markdown-composer-input";
-import { runningComposerMode, submitWorkbenchComposer } from "./composer-submit";
+import {
+  canSubmitWorkbenchComposer,
+  runningComposerMode,
+  submitWorkbenchComposer,
+} from "./composer-submit";
 import { useConversationPreferences } from "./conversation-preferences";
 import { ComposerTriggerEngine, excludeSlashPathOrCode } from "./composer-trigger-engine";
 import { formatAgentCommandLabel } from "./agent-command";
@@ -434,6 +438,13 @@ export function WorkbenchComposer({
   const [commandHighlightedIndex, setCommandHighlightedIndex] = useState(0);
   const [suppressedMatchKey, setSuppressedMatchKey] = useState<string>();
   const [submissionBlocked, setSubmissionBlocked] = useState(false);
+  const submissionGuards = useRef(new Set<() => boolean>());
+  const registerSubmissionGuard = useCallback((guard: () => boolean) => {
+    submissionGuards.current.add(guard);
+    return () => {
+      submissionGuards.current.delete(guard);
+    };
+  }, []);
   const [composerCommandError, setComposerCommandError] = useState(false);
   const [workspaceFileMentionSearch, setWorkspaceFileMentionSearch] =
     useState<WorkspaceFileMentionSearchState>(EMPTY_WORKSPACE_FILE_MENTION_SEARCH);
@@ -727,7 +738,7 @@ export function WorkbenchComposer({
   useEffect(() => setCommandHighlightedIndex(0), [slashCommandMatch?.key]);
   const hasDraftWorkspace = draftWorkspace !== undefined;
   const canSubmit = !isNewThread || hasDraftWorkspace;
-  const context = { isRunning, isEmpty, submissionBlocked };
+  const context = { isRunning, isEmpty, submissionBlocked, registerSubmissionGuard };
   const setComposerOverlayVisible = useCallback((visible: boolean) => {
     setComposerOverlayCount((count) => Math.max(0, count + (visible ? 1 : -1)));
   }, []);
@@ -915,7 +926,7 @@ export function WorkbenchComposer({
         )
       )
         return;
-      if (!canSubmit) {
+      if (!canSubmitWorkbenchComposer(canSubmit, submissionGuards.current)) {
         setSubmissionBlocked(true);
         return;
       }

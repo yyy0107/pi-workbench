@@ -22,6 +22,7 @@ import {
   type ModelSelectorOption,
 } from "./model-selector-models";
 import { withTooltip } from "./tooltip";
+import { selectorValidationErrorStyles } from "./menu-styles";
 
 export type { ModelSelectorEffort, ModelSelectorOption } from "./model-selector-models";
 
@@ -123,6 +124,7 @@ export function ModelSelector({
   selectedModelId,
   selectionFailed = false,
   selectionLocked = false,
+  validationError,
   getEffortLabel,
   onEffortChange,
   onModelChange,
@@ -137,6 +139,7 @@ export function ModelSelector({
   selectedModelId?: string;
   selectionFailed?: boolean;
   selectionLocked?: boolean;
+  validationError?: string;
   getEffortLabel(effort: ModelSelectorEffort): string;
   onEffortChange(effort: string): void;
   onModelChange(modelId: string): void;
@@ -171,7 +174,7 @@ export function ModelSelector({
     <fieldset
       className="min-w-0 shrink-0 disabled:pointer-events-none"
       disabled={selectionLocked}
-      title={selectionLocked ? labels.saving : undefined}
+      title={validationError ?? (selectionLocked ? labels.saving : undefined)}
     >
       <DropdownMenu
         onOpenChange={(open) => {
@@ -187,9 +190,11 @@ export function ModelSelector({
           openOnHover={false}
           disabled={selectionLocked}
           aria-label={labels.select}
+          aria-invalid={validationError ? true : undefined}
           className={cn(
             "group relative flex w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] font-sans [font-size:var(--workbench-ui-font-size,1rem)] leading-[var(--control-text-line-height)]! outline-none hover:[background:var(--button-background-hover)] focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48",
             compact ? "h-[var(--button-height-compact)]" : "h-[var(--dropdown-control-height)]",
+            validationError && selectorValidationErrorStyles,
           )}
         >
           {withTooltip(
@@ -197,7 +202,7 @@ export function ModelSelector({
               className="block max-w-full min-w-0 truncate pe-6 text-end font-medium"
               title={selectedModel?.name}
             >
-              {selectedModel?.name ?? labels.select}
+              {validationError ?? selectedModel?.name ?? labels.select}
             </span>,
           )}
           <ChevronDownIcon className="absolute end-2 size-3.5 shrink-0 opacity-50 transition-transform group-data-popup-open:rotate-180" />
