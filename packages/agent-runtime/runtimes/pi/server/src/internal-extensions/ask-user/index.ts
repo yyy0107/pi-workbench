@@ -175,7 +175,7 @@ function toolResult(
 
 export function createAskUserExtension(settings?: AskUserCapabilitySettings): ExtensionFactory {
   return (pi) => {
-    const readEnabled = bindToolAvailability(pi, ASK_USER_TOOL_NAME, settings);
+    const readEnabled = bindToolAvailability(pi, ASK_USER_TOOL_NAME, settings, false);
 
     pi.registerTool({
       name: ASK_USER_TOOL_NAME,

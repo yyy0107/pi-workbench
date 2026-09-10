@@ -90,7 +90,7 @@ export function workbenchSettingsExtension(
   toolSettings?: ToolCapabilitySettings,
 ): void {
   if (!getPiAgentHostBindings().workbenchSettings) return;
-  const readEnabled = bindToolAvailability(pi, "workbench_settings", toolSettings);
+  const readEnabled = bindToolAvailability(pi, "workbench_settings", toolSettings, false);
   const piSettings = new AgentSettingsService();
   pi.registerTool({
     name: "workbench_settings",

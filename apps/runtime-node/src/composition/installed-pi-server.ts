@@ -242,11 +242,11 @@ function createInstalledPiAgentHostBindings(
     },
     workbenchSettingsToolSettings: {
       async readEnabled() {
-        return (await settings.describe()).preferences.workbenchSettingsEnabled !== false;
+        return (await settings.describe()).preferences.workbenchSettingsEnabled === true;
       },
       subscribe(listener) {
         return subscribeWorkbenchSettingsPreferences(settings.stateFile, (preferences) => {
-          listener(preferences.workbenchSettingsEnabled !== false);
+          listener(preferences.workbenchSettingsEnabled === true);
         });
       },
     },
@@ -277,11 +277,11 @@ function createInstalledPiAgentHostBindings(
         };
       },
       async readEnabled() {
-        return (await settings.describe()).preferences.askUserEnabled !== false;
+        return (await settings.describe()).preferences.askUserEnabled === true;
       },
       subscribe(listener) {
         return subscribeWorkbenchSettingsPreferences(settings.stateFile, (preferences) => {
-          listener(preferences.askUserEnabled !== false);
+          listener(preferences.askUserEnabled === true);
         });
       },
     },

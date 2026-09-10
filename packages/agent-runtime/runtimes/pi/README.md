@@ -784,8 +784,8 @@ Workbench 自身依赖的 Pi 生命周期适配器通过 `DefaultResourceLoader`
 它们的源码与资源按扩展目录同步到用户目录的 `extensions/.builtin/`，执行仍由宿主的内联工厂负责；
 源码根目录的 `index.ts` 只负责宿主注册，不作为独立资源安装。
 `extension.list` 的可选 `builtins` 数组单独返回名称及工具、命令和事件
-声明，与用户安装的扩展一并显示在工具箱“Pi 扩展”列表与详情页。Todo 与 Ask User 可通过共享 Workbench 设置启停
-（`todoEnabled` 默认停用，`askUserEnabled` 默认启用），即时同步活动会话的可用工具，保留工具历史；纯生命周期
+声明，与用户安装的扩展一并显示在工具箱“Pi 扩展”列表与详情页。Todo、Ask User 与 Workbench Settings 可通过共享 Workbench 设置启停
+（`todoEnabled`、`askUserEnabled`、`workbenchSettingsEnabled` 均默认停用，保留显式设置），即时同步活动会话的可用工具，保留工具历史；纯生命周期
 扩展也使用共享设置开关，在每次事件分发时读取最新状态，默认启用。内置项不包含文件或 mutation 身份，不进入文件读取和
 Pi 资源启停/删除 RPC，也不会被同一 Pi agent 目录下的 TUI 或其他客户端自动加载。
 内部扩展初始化失败写入 Host 日志，不计入面向用户的扩展加载错误数量。当前消息终止原因

@@ -35,30 +35,32 @@ async function withLocalStorage<T>(
 }
 
 test("parses the persisted Ask User capability preference defensively", () => {
-  assert.equal(parseAskUserEnabled(null), true);
+  assert.equal(parseAskUserEnabled(null), false);
   assert.equal(parseAskUserEnabled('{"enabled":true}'), true);
   assert.equal(parseAskUserEnabled('{"enabled":false}'), false);
-  assert.equal(parseAskUserEnabled('{"enabled":"false"}'), true);
-  assert.equal(parseAskUserEnabled("not-json"), true);
+  assert.equal(parseAskUserEnabled('{"enabled":"false"}'), false);
+  assert.equal(parseAskUserEnabled("not-json"), false);
 });
 
-test("Todo starts disabled and respects saved choices after hydration", async () => {
-  for (const saved of [undefined, false, true, "read-error"] as const) {
-    const todo = createToolCapabilityPreferences(
-      {
-        load: async () => {
-          if (saved === "read-error") throw new Error("Settings unavailable");
-          return { todoEnabled: saved };
+test("opt-in tools start disabled and respect saved choices after hydration", async () => {
+  for (const key of ["todoEnabled", "askUserEnabled", "workbenchSettingsEnabled"] as const) {
+    for (const saved of [undefined, false, true, "read-error"] as const) {
+      const preferences = createToolCapabilityPreferences(
+        {
+          load: async () => {
+            if (saved === "read-error") throw new Error("Settings unavailable");
+            return { [key]: saved };
+          },
+          update: async () => {},
         },
-        update: async () => {},
-      },
-      "todoEnabled",
-    );
-    assert.equal(todo.getSnapshot().enabled, false);
-    assert.equal(todo.getServerSnapshot().enabled, false);
-    await todo.hydrate();
-    assert.equal(todo.getSnapshot().enabled, saved === true);
-    todo.dispose();
+        key,
+      );
+      assert.equal(preferences.getSnapshot().enabled, false);
+      assert.equal(preferences.getServerSnapshot().enabled, false);
+      await preferences.hydrate();
+      assert.equal(preferences.getSnapshot().enabled, saved === true);
+      preferences.dispose();
+    }
   }
 });
 

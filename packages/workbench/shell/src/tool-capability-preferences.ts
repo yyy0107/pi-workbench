@@ -62,14 +62,14 @@ const PREFERENCE_RESOURCES: Record<ToolCapabilityPreferenceKey, symbol> = {
 };
 
 export function parseAskUserEnabled(serialized: string | null): boolean {
-  if (!serialized) return true;
+  if (!serialized) return false;
   try {
     const value: unknown = JSON.parse(serialized);
     return typeof value === "object" && value !== null && "enabled" in value
-      ? (value as { enabled?: unknown }).enabled !== false
-      : true;
+      ? (value as { enabled?: unknown }).enabled === true
+      : false;
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -101,7 +101,10 @@ export function createToolCapabilityPreferences(
   );
   const defaultEnabled = builtinName
     ? builtinToolEnabled(builtinName, {})
-    : key !== "todoEnabled" && key !== "enhancedSearch";
+    : key !== "askUserEnabled" &&
+      key !== "workbenchSettingsEnabled" &&
+      key !== "todoEnabled" &&
+      key !== "enhancedSearch";
   const serverSnapshot: ToolCapabilityPreferenceSnapshot = Object.freeze({
     enabled: defaultEnabled,
     status: "loading",
