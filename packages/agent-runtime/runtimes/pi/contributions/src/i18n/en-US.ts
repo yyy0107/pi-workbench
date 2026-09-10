@@ -386,7 +386,7 @@ export const piExtensionsEnUS = {
       testMultimodalShort: "Test",
       testingMultimodal: "Testing…",
       multimodalTestHint:
-        "Tests text generation first, then image understanding using the saved configuration. This may incur a small charge.",
+        "Tests the API with a demo image; checks text separately only if images are rejected. Uses the saved configuration and may incur a small charge.",
       multimodalMetadataSupported: "Provider model metadata confirms image input support.",
       multimodalMetadataUnsupported:
         "Provider model metadata confirms image input is not supported.",
@@ -397,7 +397,7 @@ export const piExtensionsEnUS = {
       multimodalTestRuntimeUnavailable:
         "The current model runtime cannot run an image-input capability test.",
       multimodalTestUnexpectedResponse:
-        "The model responded but did not read the test image reliably.",
+        "The image request did not return a valid API completion status.",
       multimodalTestAuthentication:
         "Authentication failed. Save a valid API key or sign in to this provider, then try again.",
       multimodalTestQuotaExceeded: "The provider reports insufficient credits, balance, or quota.",
@@ -413,7 +413,7 @@ export const piExtensionsEnUS = {
         "The provider does not recognize the standard image request fields for the selected protocol. Choose the API protocol that matches this endpoint.",
       multimodalTestModelUnavailable:
         "The provider could not find or route this model ID. Refresh the model list or check the model ID.",
-      multimodalTestInvalidImage: "The provider could not decode the built-in RGB PNG test image.",
+      multimodalTestInvalidImage: "The provider could not decode the built-in JPEG test image.",
       multimodalTestSafety: "The provider blocked the image test with a safety or content filter.",
       multimodalTestProviderError:
         "The provider rejected the image test without explicitly reporting that image input is unsupported. Check the selected protocol and model ID.",
