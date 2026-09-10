@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
+const { execFileSync } = require("node:child_process");
 
 const DEFAULTS = Object.freeze({
   hardwareAcceleration: true,
@@ -15,6 +16,53 @@ const DEFAULTS = Object.freeze({
   noProxy: "",
 });
 const LOOPBACK_BYPASS = "localhost,127.0.0.1,::1";
+
+function applyDesktopMotionPreference(
+  app,
+  { platform = process.platform, environment = process.env, execute = execFileSync } = {},
+) {
+  const reduce = "force-prefers-reduced-motion";
+  const animate = "force-prefers-no-reduced-motion";
+  if (
+    platform !== "linux" ||
+    !environment.XDG_CURRENT_DESKTOP?.split(":").includes("KDE") ||
+    app.commandLine.hasSwitch(reduce) ||
+    app.commandLine.hasSwitch(animate)
+  )
+    return;
+
+  // GTK can retain GNOME's disabled animations under KDE Wayland. Read KDE's
+  // effective configuration with KConfig so its defaults/config layers are respected.
+  const commands =
+    environment.KDE_SESSION_VERSION === "5"
+      ? ["kreadconfig5", "kreadconfig6"]
+      : ["kreadconfig6", "kreadconfig5"];
+  for (const command of commands) {
+    let value;
+    try {
+      value = execute(
+        command,
+        ["--file", "kdeglobals", "--group", "KDE", "--key", "AnimationDurationFactor"],
+        {
+          encoding: "utf8",
+          timeout: 1000,
+          maxBuffer: 1024,
+          stdio: ["ignore", "pipe", "ignore"],
+        },
+      ).trim();
+    } catch (error) {
+      if (error.code === "ENOENT") continue;
+      return;
+    }
+    const factor = Number(value);
+    if (value && Number.isFinite(factor) && factor >= 0) {
+      // ponytail: startup snapshot; restart after KDE motion changes. Add live
+      // synchronization if Electron exposes a writable motion preference.
+      app.commandLine.appendSwitch(factor === 0 ? reduce : animate);
+    }
+    return;
+  }
+}
 
 function validatePreferences(value) {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -552,6 +600,7 @@ function createDesktopServices(
 }
 
 module.exports = {
+  applyDesktopMotionPreference,
   runtimeHasActiveTasks,
   DEFAULTS,
   readDesktopSettings,
