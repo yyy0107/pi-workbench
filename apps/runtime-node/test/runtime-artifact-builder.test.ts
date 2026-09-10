@@ -114,8 +114,8 @@ test("bundled resources install into the Pi directory after relocation and pruni
   );
   assert.ok(
     (
-      await readFile(path.join(directories.packages, "browser", "skills/browser/SKILL.md"), "utf8")
-    ).includes("name: browser"),
+      await readFile(path.join(directories.packages, "browser", "skills/browser-use/SKILL.md"), "utf8")
+    ).includes("name: browser-use"),
   );
   assert.ok(
     (await readFile(path.join(directories.extensions, "rpiv-todo", "index.ts"), "utf8")).includes(
@@ -152,7 +152,7 @@ test("bundled resources install into the Pi directory after relocation and pruni
   assert.equal(extension.sourceInfo.origin, "package");
   assert.equal(extension.tools.has("workbench_browser"), true);
   assert.equal(extension.handlers.has("session_shutdown"), true);
-  const browserSkill = loader.getSkills().skills.find((skill) => skill.name === "browser");
+  const browserSkill = loader.getSkills().skills.find((skill) => skill.name === "browser-use");
   assert.equal(browserSkill?.sourceInfo.origin, "package");
   assert.equal(browserSkill?.sourceInfo.source, extension.sourceInfo.source);
   const validation = spawnSync(
