@@ -3,7 +3,26 @@ import test from "node:test";
 
 import type { CompiledComposerRequest } from "@workbench/extension-sdk";
 
-import { runningComposerMode, submitWorkbenchComposer } from "./composer-submit";
+import {
+  canSubmitWorkbenchComposer,
+  runningComposerMode,
+  submitWorkbenchComposer,
+} from "./composer-submit";
+
+test("submission requires workspace and model readiness and recovers after selection", () => {
+  let modelReady = false;
+  const guard = () => modelReady;
+  const guards = new Set([guard]);
+  assert.equal(canSubmitWorkbenchComposer(false, guards), false);
+  assert.equal(canSubmitWorkbenchComposer(true, guards), false);
+  modelReady = true;
+  assert.equal(canSubmitWorkbenchComposer(false, guards), false);
+  assert.equal(canSubmitWorkbenchComposer(true, guards), true);
+  modelReady = false;
+  assert.equal(canSubmitWorkbenchComposer(true, guards), false);
+  guards.delete(guard);
+  assert.equal(canSubmitWorkbenchComposer(true, guards), true);
+});
 
 const request: CompiledComposerRequest = {
   version: 2,

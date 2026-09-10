@@ -15,6 +15,7 @@ import {
 } from "./searchable-selector";
 import { cn } from "../utils";
 import { withTooltip } from "./tooltip";
+import { selectorValidationErrorStyles } from "./menu-styles";
 
 export interface WorkspaceSelectorOption {
   id: string;
@@ -100,8 +101,7 @@ export function WorkspaceSelector({
             variant === "outline"
               ? "rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] hover:[background:var(--button-background-hover)] focus-within:[background:var(--button-background-hover)]"
               : "rounded-full bg-transparent hover:bg-muted focus-within:bg-muted",
-            error &&
-              "bg-destructive/5 text-destructive ring-3 ring-destructive/20 dark:ring-destructive/40",
+            error && selectorValidationErrorStyles,
             error && variant === "outline" && "border-destructive dark:border-destructive/50",
           )}
         >

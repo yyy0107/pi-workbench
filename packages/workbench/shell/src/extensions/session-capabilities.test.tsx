@@ -48,7 +48,7 @@ test("session entry points stay hidden without capabilities and restored surface
           />
           <SideChatThreadMenuItem threadId="thread" closeMenu={() => undefined} />
           <AutomationSidebar mobile={false} searchQuery="" />
-          <ModelSelector />
+          <ModelSelector isRunning={false} isEmpty submissionBlocked={false} />
           <TokenUsage />
         </>,
       ),

@@ -4,7 +4,12 @@ import { act, isValidElement, type ComponentProps, type ReactElement, type React
 import { createRoot } from "react-dom/client";
 
 import { installMinimalReactDomEnvironment } from "../../test/react-dom-environment";
-import { DropdownMenu, DropdownMenuRadioGroup, DropdownMenuItem } from "./dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuRadioGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./collapsible";
 import { SelectorDropdownContent } from "./selector-dropdown";
 import { ModelSelector, type ModelSelectorOption } from "./model-selector";
@@ -14,6 +19,7 @@ interface ElementProps {
   render?: ReactNode;
   label?: string;
   open?: boolean;
+  "aria-invalid"?: boolean;
   closeOnClick?: boolean;
   side?: string;
   collisionAvoidance?: { side: string; align: string };
@@ -177,8 +183,19 @@ test("provider browsing scopes model search and effort menus follow the selected
     props = { ...props, models: [], selectedModelId: undefined, selectedEffort: undefined };
     await act(async () => root.render(<Probe />));
     assert.equal(radioGroups()[0]!.props.value, "");
-    props = { ...props, models, selectedModelId: "a/reason" };
+    props = { ...props, validationError: "Configure and select a model first" };
     await act(async () => root.render(<Probe />));
+    assert.equal(
+      elements(tree).find((element) => element.type === DropdownMenuTrigger)!.props["aria-invalid"],
+      true,
+    );
+    assert.ok(elements(tree).some((element) => element.props.children === props.validationError));
+    props = { ...props, models, selectedModelId: "a/reason", validationError: undefined };
+    await act(async () => root.render(<Probe />));
+    assert.equal(
+      elements(tree).find((element) => element.type === DropdownMenuTrigger)!.props["aria-invalid"],
+      undefined,
+    );
     assert.deepEqual(
       radioGroups().map((group) => group.props.value),
       ["a", "a/reason", ""],

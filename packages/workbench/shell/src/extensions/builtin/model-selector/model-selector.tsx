@@ -1,10 +1,18 @@
 "use client";
 
 import type { ModelSelection } from "@workbench/contracts/model-selection";
+import type { ComposerSlotContext } from "@workbench/extension-sdk";
+import { useMainViewService } from "@workbench/extension-host";
+import { SettingsIcon } from "lucide-react";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useCurrentSession, useConversationSession } from "@workbench/agent-runtime-client";
-import { ModelSelector as ModelSelectorControl } from "@workbench/shell/ui";
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  ModelSelector as ModelSelectorControl,
+} from "@workbench/shell/ui";
+import { createSettingsMainViewRequest } from "@workbench/shell/settings";
 import { useI18n } from "@workbench/shell/i18n";
 import {
   useWorkbenchModelSelectionCapability,
@@ -39,11 +47,14 @@ interface OptimisticSelection {
 
 function AvailableModelSelector({
   modelsCapability,
+  submissionBlocked,
+  registerSubmissionGuard,
 }: {
   modelsCapability: WorkbenchModelSelectionCapability;
-}) {
+} & ComposerSlotContext) {
   useHydrateModelSelectorStore();
   const { t } = useI18n();
+  const mainViews = useMainViewService();
   const current = useCurrentSession();
   const localThreadId = useConversationSession().id;
   const remoteId = current.sessionId === localThreadId ? current.threadId : localThreadId;
@@ -287,10 +298,19 @@ function AvailableModelSelector({
 
   const currentUnavailable = catalog?.kind === "session" && !catalog.value.routable;
   const selectionLocked = savingSelection || contextPolicy.status === "saving";
+  const modelReady =
+    selectedModel !== undefined && !selectedModel.unavailable && !currentUnavailable;
+  useEffect(
+    () => registerSubmissionGuard?.(() => modelReady),
+    [modelReady, registerSubmissionGuard],
+  );
 
   return (
     <ModelSelectorControl
       compact
+      validationError={
+        submissionBlocked && !modelReady ? t("extensions.modelSelector.required") : undefined
+      }
       currentUnavailable={currentUnavailable}
       labels={{
         select: t("assistant.model.select"),
@@ -316,11 +336,23 @@ function AvailableModelSelector({
       onEffortChange={changeEffort}
       onModelChange={changeModel}
       onOpen={loadCatalog}
+      footer={
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => mainViews.open(createSettingsMainViewRequest("model-config"))}
+            className="h-[var(--dropdown-control-height)] gap-2 px-2"
+          >
+            <SettingsIcon aria-hidden="true" />
+            {t("extensions.modelSelector.manageModels")}
+          </DropdownMenuItem>
+        </>
+      }
     />
   );
 }
 
-export function ModelSelector() {
+export function ModelSelector(props: ComposerSlotContext) {
   const models = useWorkbenchModelSelectionCapability();
-  return models ? <AvailableModelSelector modelsCapability={models} /> : null;
+  return models ? <AvailableModelSelector {...props} modelsCapability={models} /> : null;
 }

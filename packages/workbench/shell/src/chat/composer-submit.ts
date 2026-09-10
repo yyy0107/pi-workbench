@@ -13,6 +13,14 @@ interface ComposerSubmitOptions {
   readonly steer?: boolean;
 }
 
+/** Check host and extension prerequisites before compiling or consuming the draft. */
+export function canSubmitWorkbenchComposer(
+  hostReady: boolean,
+  guards: Iterable<() => boolean>,
+): boolean {
+  return hostReady && Array.from(guards).every((guard) => guard());
+}
+
 export function runningComposerMode(
   actions: ComposerSubmitSession["actions"],
   preferred: "queue" | "steer",

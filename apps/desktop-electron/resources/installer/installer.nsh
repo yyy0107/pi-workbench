@@ -1,6 +1,15 @@
 ; Keep the native MUI pages, translations, elevation and update handling.
 !macro customHeader
   SetFont "Segoe UI" 9
+  LangString workbenchInstalled ${LANG_ENGLISH} "$(^NameDA) has been installed on your computer.$\r$\n$\r$\nInstallation folder:$\r$\n$INSTDIR$\r$\n$\r$\nClick Finish to close Setup."
+  LangString workbenchInstalled ${LANG_SIMPCHINESE} "$(^NameDA) 已安装到你的电脑。$\r$\n$\r$\n安装位置：$\r$\n$INSTDIR$\r$\n$\r$\n单击“完成”关闭安装向导。"
+!macroend
+
+; Configure the native finish page without replacing its Run checkbox or
+; electron-builder's launch-as-user and automatic-update handling. $INSTDIR
+; is expanded when the page is shown, after the directory page resolves it.
+!macro customPageAfterChangeDir
+  !define MUI_FINISHPAGE_TEXT "$(workbenchInstalled)"
 !macroend
 
 !macro customWelcomePage

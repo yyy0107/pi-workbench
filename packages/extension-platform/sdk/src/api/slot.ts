@@ -75,6 +75,8 @@ export interface ComposerSlotContext {
   isEmpty: boolean;
   /** 最近一次提交是否被宿主前置条件拦截。 */
   submissionBlocked: boolean;
+  /** 注册同步提交前置校验；返回注销函数，贡献卸载时必须调用。 */
+  registerSubmissionGuard?(guard: () => boolean): () => void;
 }
 
 /** `composer.overlay` Slot 用于接管 Composer 时收到的上下文。 */

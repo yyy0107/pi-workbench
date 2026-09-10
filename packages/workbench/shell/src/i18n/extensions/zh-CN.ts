@@ -374,6 +374,8 @@ export const extensionsZhCN = {
     },
   },
   modelSelector: {
+    manageModels: "管理模型",
+    required: "请先配置并选择模型",
     provider: "提供方",
     saving: "正在保存此会话的模型",
     noModels: "没有找到可用的 Pi 模型。",
