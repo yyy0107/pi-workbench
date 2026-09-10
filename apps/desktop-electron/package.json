@@ -81,7 +81,16 @@
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
+      "selectPerMachineByDefault": false,
+      "allowElevation": true,
       "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "installerLanguages": [
+        "en_US",
+        "zh_CN"
+      ],
       "installerHeader": "resources/installer/header.bmp",
       "installerSidebar": "resources/installer/sidebar.bmp",
       "uninstallerSidebar": "resources/installer/sidebar.bmp",

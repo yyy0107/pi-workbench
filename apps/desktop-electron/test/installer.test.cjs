@@ -17,25 +17,30 @@ function findCompiler() {
     .map((entry) => path.join(cache, entry))[0];
 }
 
-test("NSIS can copy deeply nested runtime files with the compact packaged layout", (t) => {
-  if (process.platform !== "win32") return t.skip("Windows NSIS integration test");
-  const compiler = findCompiler();
-  if (!compiler) return t.skip("Set NSIS_MAKENSIS or populate electron-builder's NSIS cache");
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "wb-copy-"));
-  t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
-  const relativeFile = path.join(
-    "resources/desktop-runtime/runtime-node/current",
-    "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/compaction-summary-message.js",
-  );
-  const sourceRoot = path.join(temp, "source");
-  const destination = path.join(temp, "default-install-location");
-  fs.mkdirSync(path.dirname(path.join(sourceRoot, relativeFile)), { recursive: true });
-  fs.writeFileSync(path.join(sourceRoot, relativeFile), "runtime fixture");
-  const executable = path.join(temp, "check.exe");
-  const source = path.join(temp, "check.nsi");
-  fs.writeFileSync(
-    source,
-    String.raw`
+for (const installFolder of [
+  "default-install-location",
+  "custom location",
+  "自定义目录\\Pi Workbench",
+]) {
+  test(`NSIS copies deeply nested runtime files into ${installFolder}`, (t) => {
+    if (process.platform !== "win32") return t.skip("Windows NSIS integration test");
+    const compiler = findCompiler();
+    if (!compiler) return t.skip("Set NSIS_MAKENSIS or populate electron-builder's NSIS cache");
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), "wb-copy-"));
+    t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
+    const relativeFile = path.join(
+      "resources/desktop-runtime/runtime-node/current",
+      "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/compaction-summary-message.js",
+    );
+    const sourceRoot = path.join(temp, "source");
+    const destination = path.join(temp, installFolder);
+    fs.mkdirSync(path.dirname(path.join(sourceRoot, relativeFile)), { recursive: true });
+    fs.writeFileSync(path.join(sourceRoot, relativeFile), "runtime fixture");
+    const executable = path.join(temp, "check.exe");
+    const source = path.join(temp, "check.nsi");
+    fs.writeFileSync(
+      source,
+      String.raw`
 Unicode true
 RequestExecutionLevel user
 SilentInstall silent
@@ -51,12 +56,48 @@ failed:
   SetErrorLevel 1
 SectionEnd
 `,
+    );
+    const compiled = spawnSync(compiler, ["/INPUTCHARSET", "UTF8", "/V2", source], {
+      encoding: "utf8",
+    });
+    assert.equal(compiled.status, 0, compiled.stdout + compiled.stderr);
+    const checked = spawnSync(executable, [], { encoding: "utf8", timeout: 30_000 });
+    assert.equal(checked.status, 0, checked.error?.message || checked.stdout + checked.stderr);
+    assert.equal(fs.readFileSync(path.join(destination, relativeFile), "utf8"), "runtime fixture");
+  });
+}
+
+test("native installer finish page compiles with both languages and the resolved directory", (t) => {
+  const { installerLanguages } = require("../package.json").build.nsis;
+  const languageNames = { en_US: "English", zh_CN: "SimpChinese" };
+  assert.deepEqual(installerLanguages, Object.keys(languageNames));
+  const compiler = findCompiler();
+  if (process.platform !== "win32" || !compiler) return t.skip("Windows NSIS compiler required");
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "wb-finish-"));
+  t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
+  const include = path.resolve(__dirname, "../resources/installer/installer.nsh");
+  const source = path.join(temp, "check.nsi");
+  fs.writeFileSync(
+    source,
+    String.raw`
+Unicode true
+RequestExecutionLevel user
+OutFile "${path.join(temp, "check.exe")}"
+!include MUI2.nsh
+!include "${include}"
+!insertmacro customPageAfterChangeDir
+!insertmacro MUI_PAGE_INSTFILES
+!insertmacro MUI_PAGE_FINISH
+${installerLanguages.map((language) => `!insertmacro MUI_LANGUAGE ${languageNames[language]}`).join("\n")}
+!insertmacro customHeader
+Section
+SectionEnd
+`,
   );
-  const compiled = spawnSync(compiler, ["/V2", source], { encoding: "utf8" });
+  const compiled = spawnSync(compiler, ["/INPUTCHARSET", "UTF8", "/V2", source], {
+    encoding: "utf8",
+  });
   assert.equal(compiled.status, 0, compiled.stdout + compiled.stderr);
-  const checked = spawnSync(executable, [], { encoding: "utf8", timeout: 30_000 });
-  assert.equal(checked.status, 0, checked.error?.message || checked.stdout + checked.stderr);
-  assert.equal(fs.readFileSync(path.join(destination, relativeFile), "utf8"), "runtime fixture");
 });
 
 test("NSIS clears only missing quoted uninstallers and preserves installation metadata", (t) => {
@@ -124,7 +165,9 @@ failed:
 SectionEnd
 `,
   );
-  const compiled = spawnSync(compiler, ["/V2", source], { encoding: "utf8" });
+  const compiled = spawnSync(compiler, ["/INPUTCHARSET", "UTF8", "/V2", source], {
+    encoding: "utf8",
+  });
   assert.equal(compiled.status, 0, compiled.stdout + compiled.stderr);
   const checked = spawnSync(executable, [], { encoding: "utf8", timeout: 30_000 });
   assert.equal(checked.status, 0, checked.error?.message || checked.stdout + checked.stderr);
