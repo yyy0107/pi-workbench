@@ -2,6 +2,7 @@ const path = require("node:path");
 
 const electron = require("electron");
 const {
+  applyDesktopMotionPreference,
   readDesktopSettings,
   createDesktopServices,
   applyRuntimeTerminalShell,
@@ -22,6 +23,8 @@ const {
 const { getSystemFontFamilies } = require("./system-fonts.cjs");
 const { copyTitleBarOverlayOptions } = require("./title-bar-overlay.cjs");
 const { resolveDesktopArtifactSupport } = require("./runtime-artifact-environment.cjs");
+
+applyDesktopMotionPreference(app);
 
 const RUNTIME_BOOTSTRAP_CHANNEL = "workbench:runtime-bootstrap";
 const RUNTIME_RESTART_CHANNEL = "workbench:runtime-restart";
