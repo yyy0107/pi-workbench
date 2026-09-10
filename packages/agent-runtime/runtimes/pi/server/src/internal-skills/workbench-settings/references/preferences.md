@@ -1,10 +1,10 @@
 # Workbench Preferences
 
-Use `domain: "workbench"` or omit `domain`. This domain does not accept `scope` or `expectedRevision`. Missing preferences use application defaults; top-level `null` removes an override, while `false` explicitly disables a boolean. Object and array preferences are replaced as a whole, so preserve other fields before sending an object patch. Open windows may need refreshing to show saved preferences.
+Use `domain: "workbench"` or omit `domain`. Scope is `user` (default); project scope and `expectedRevision` are Pi-only. Missing saved preferences use application defaults; top-level `null` removes an override, while `false` explicitly disables a boolean. Object and array preferences are replaced as a whole, so preserve other fields before sending an object patch. Open windows may need refreshing to show saved preferences.
 
 ## Preference fields
 
-`describe` returns the saved `revision` and `preferences`. Updates put these fields directly in `patch`, not under a `preferences` wrapper.
+`describe` returns the saved `revision` and selected `preferences`. Use `keys: ["locale"]` or `keys: ["appearance"]` to read only the needed top-level fields; unmatched fields are omitted. Without `keys`, window restoration state and values over 4,000 characters are excluded and listed in `omittedKeys`. An omitted value is not an unset value: request that key explicitly before editing its object. To list available settings, use this table without reading saved values. Updates put fields directly in `patch`, not under a `preferences` wrapper.
 
 | Request                                 | Field and supported values                                                                                                                  |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -23,13 +23,15 @@ Use `domain: "workbench"` or omit `domain`. This domain does not accept `scope` 
 
 Tool switches and lifecycle-extension switches are read by the running host. Session construction preferences such as enhanced search and retained model I/O may need a new session or an idle `/reload`. Changing `modelSelector` only changes the UI's remembered selection; it does not switch the current session's model, configure a provider, or change Pi's global defaults. Do not invent model IDs or supported reasoning levels.
 
-Other existing preferences include `toolboxPins`, `toolboxScope`, `backgroundImage`, `rightWorkspace`, and sidebar organization state. Preserve them unless requested. Workspace, thread, and toolbox IDs must come from the current host's catalog, not guessed names. `backgroundImage` reads omit image bytes; never write the returned metadata object back as if it were a complete image.
+Other existing preferences include `fileOpenApps`, `toolboxPins`, `toolboxScope`, `backgroundImage`, `rightWorkspace`, and sidebar organization state. Preserve them unless requested. `rightWorkspace`, `sidebarThreadOrderByScope`, `sidebarExpandedWorkspaceIds`, `sidebarSelectedThreadId` and `toolboxScope` require an explicit `keys` selection to read; they are window/organization state, not a settings catalog. Workspace, thread, and toolbox IDs must come from the current host's catalog, not guessed names. `backgroundImage` reads always omit image bytes, including explicit reads; never write the returned metadata object back as if it were a complete image.
 
 A language change needs only:
 
 ```json
 { "action": "update", "patch": { "locale": "zh-CN" } }
 ```
+
+The result reads back only the affected preferences, for example `{"revision":123,"preferences":{"locale":"zh-CN"},"omittedKeys":[],"resetKeys":[]}`. Removed overrides are listed in `resetKeys`. Use this confirmation without another describe call. After an uncertain failure or conflicting saved value, read only the affected keys before deciding whether to retry.
 
 ## Configuration domains and fallback
 

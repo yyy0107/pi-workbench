@@ -50,6 +50,7 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 - Use the event-specific return contract; returning an arbitrary object from a handler has no effect and may be incorrect.
 - Guard mode/UI assumptions with `ctx.mode`, `ctx.hasUI`, and the concrete bound `ExtensionUIContext` behavior.
 - Treat tool arguments and external data as untrusted. Use the SDK schema and result shapes rather than casts.
+- For every tool, design field selection/pagination and an output budget before returning data. Follow [Bound tool output](references/extensions.md#bound-tool-output): use Pi's public truncation utilities, retain complete oversized results through a readable source/file, and keep structured summaries valid JSON. Registration and compaction do not enforce this automatically.
 - Handle rejected promises in host callbacks and expose actionable extension-load errors to the server log or existing diagnostics surface.
 
 ### 5. Preserve the boundary
@@ -63,6 +64,7 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 
 - For type/import-only changes, inspect the resolved declarations and run the cheapest relevant TypeScript or targeted test check.
 - For extension behavior, add or update a focused test around the owning server module; simulate events and loader results without real provider calls.
+- For tool output handling, exercise small and oversized results, UTF-8 byte and line limits, and retrieval of complete data. For spill files, check permissions and failure/cancellation; confirm `details` does not retain the oversized snapshot and a committed mutation is still reported as saved.
 - For session creation, binding, reload, or resource discovery changes, run targeted Pi runtime tests plus `pnpm exec tsc --noEmit` when types cross modules.
 - Do not open a browser unless a concrete UI synchronization or interaction uncertainty remains.
 

@@ -6,6 +6,7 @@
 - [Register an internal Workbench extension](#register-an-internal-workbench-extension)
 - [Choose an event](#choose-an-event)
 - [Use ExtensionAPI capabilities](#use-extensionapi-capabilities)
+- [Bound tool output](#bound-tool-output)
 - [Load and inspect extensions](#load-and-inspect-extensions)
 - [Handle lifecycle and errors](#handle-lifecycle-and-errors)
 
@@ -124,6 +125,20 @@ Check `ctx.mode` and `ctx.hasUI` before using `ctx.ui`. Workbench binds RPC-mode
 Use `pi.registerTool()` when the tool belongs to extension lifecycle or is dynamically registered. Use the SDK's `defineTool()` plus session `customTools` when the host owns a standalone definition or needs an execution override.
 
 Do not register a Workbench frontend Renderer by calling Pi's TUI renderer APIs. Workbench message/tool rendering belongs to the assistant-ui extension platform.
+
+## Bound tool output
+
+Tool authors own this boundary: `registerTool()` does not automatically truncate arbitrary custom results. Compaction's summary-input limits do not bound normal tool turns. Read the installed SDK's `docs/extensions.md` section **Output Truncation** and `examples/extensions/truncated-tool.ts` before implementing file spill behavior.
+
+1. Select relevant fields or paginate at the source. Describe/list defaults should be an overview; updates should return changed fields and the committed revision/status. Reuse an existing builtin tool's output handling when it already covers the operation.
+2. Import `truncateHead`, `truncateTail`, `DEFAULT_MAX_BYTES`, and `DEFAULT_MAX_LINES` as needed from the public package root. Pi defaults are 50 KiB of UTF-8 and 2,000 lines, whichever is reached first. Budget the combined text blocks and any added notice, not just each field or JavaScript string length. Bound progress, errors, and persisted `details` too.
+3. Keep head/tail previews for plain text. For JSON, return a valid bounded summary with a truncation flag, essential metadata, and a source/file reference; never splice raw JSON into an invalid prefix. Do not stash the full omitted value in `details` or log it.
+4. Prefer an existing readable source with offset/limit or a cursor. Otherwise follow the SDK's temporary-file example using Node's filesystem APIs; retain the complete, already filtered/redacted result. Use a private directory and `0600` files for potentially sensitive settings. Return an absolute path and retrieval instructions; long JSON strings need field extraction or string slices because `read` is line based. Keep successful files available after the call; clean incomplete files on error/cancellation.
+5. Preserve mutation semantics: if persistence succeeded but output spill failed, report the committed revision/status and a bounded output error. Do not imply that repeating the update is necessary. Respect the operation's AbortSignal where cancellation is still possible.
+
+The Workbench settings implementation at `packages/agent-runtime/runtimes/pi/server/src/internal-extensions/workbench-settings/index.ts` demonstrates field selection and JSON offload for both describe and update. It reuses Pi's public budget checks without modifying the SDK or installing a parallel result middleware.
+
+Test the owning tool with ordinary data, byte-heavy Unicode, many short lines, and a single oversized line as relevant. Assert bounded model content/details, complete file contents, permissions, and a useful failure/cancellation result. A registration-only load check does not exercise these paths.
 
 ## Load and inspect extensions
 

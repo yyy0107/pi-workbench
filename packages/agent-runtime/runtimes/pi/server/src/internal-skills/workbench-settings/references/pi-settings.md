@@ -11,10 +11,12 @@ Use `workbench_settings` with `domain: "pi"`. It delegates to Workbench's existi
 Read the chosen scope first:
 
 ```json
-{ "action": "describe", "domain": "pi", "scope": "user" }
+{ "action": "describe", "domain": "pi", "scope": "user", "keys": ["compaction"] }
 ```
 
-The result contains `ns: "pi.agent"`, the resolved `target`, `revision`, `value`, `user`, `base`, and `applies`. `user` contains explicit overrides in the selected scope. `value` contains its prompt strings and compaction values; empty prompt strings mean no local prompt override. For a project, `base` contains inherited user settings. Do not mistake an empty project prompt for the absence of an inherited prompt.
+The result contains `ns: "pi.agent"`, the resolved `target`, `revision`, selected `value` and `base` fields, `overriddenKeys`, `omittedKeys`, and `applies`. `overriddenKeys` lists top-level fields explicitly set in the selected scope without duplicating their contents. `value` contains that scope's prompt strings and compaction values; empty prompt strings mean no local prompt override. For a project, `base` contains inherited user settings. Do not mistake an empty project prompt for the absence of an inherited prompt.
+
+Use top-level `keys` to read only relevant values: `["compaction"]`, `["showCacheMissNotices"]`, `["systemPrompt"]`, or `["appendSystemPrompt"]`. Before appending instructions, explicitly read `appendSystemPrompt` to preserve existing content. Without `keys`, prompt bodies and values over 4,000 characters are excluded and listed in `omittedKeys`; an omitted prompt is not an empty prompt. A settings catalog question needs only the table below, not a prompt read.
 
 ## Supported patches
 
@@ -22,6 +24,7 @@ The result contains `ns: "pi.agent"`, the resolved `target`, `revision`, `value`
 | ----------------------------- | -------------------------------------------------------------------------------- | --------------- |
 | `systemPrompt`                | String, at most 500,000 characters; replaces the scope's custom system prompt    | User or project |
 | `appendSystemPrompt`          | String, at most 500,000 characters; replaces the scope's additional instructions | User or project |
+| `showCacheMissNotices`        | Boolean; whether to show significant prompt-cache misses                         | User only       |
 | `compaction.enabled`          | Boolean                                                                          | User only       |
 | `compaction.reserveTokens`    | Integer, 1–10,000,000                                                            | User only       |
 | `compaction.keepRecentTokens` | Integer, 1–10,000,000                                                            | User only       |
@@ -60,4 +63,4 @@ After a project-scope read, set the project's additional instructions:
 
 A stale revision rejects the write. Read again, reconcile the user's requested change with the new content, and retry with that revision; never drop the revision to force an overwrite. Unknown fields, invalid values, and project compaction updates fail before saving. Never retry a failed project request as user scope.
 
-Read back with the same domain and scope to verify persistence. Pi settings report `applies: "restart"`: they take effect in a new session or after `/reload` in an idle session. Do not reload the currently running agent or claim its system prompt/compaction behavior has already changed. This tool does not change providers, credentials, model selection, skills/packages, or trust decisions; use `pi-docs` and the corresponding host capabilities for those tasks.
+Updates return persisted `value` and `base` for the patched top-level fields, plus the new revision; no extra describe is needed after success. Pi settings report `applies: "restart"`: they take effect in a new session or after `/reload` in an idle session. Do not reload the currently running agent or claim its system prompt/compaction behavior has already changed. This tool does not change providers, credentials, model selection, skills/packages, or trust decisions; use `pi-docs` and the corresponding host capabilities for those tasks.

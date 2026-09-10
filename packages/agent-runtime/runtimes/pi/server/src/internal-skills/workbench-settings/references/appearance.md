@@ -1,6 +1,6 @@
 # Workbench Appearance
 
-Read the current `preferences.appearance` and preserve its other fields before submitting a replacement. To reset one field, remove it from that object; use `appearance: null` only to reset all appearance settings.
+Read the current `preferences.appearance` with `{"action":"describe","keys":["appearance"]}` and preserve its other fields before submitting a replacement. To reset one field, remove it from that object; use `appearance: null` only to reset all appearance settings. The update result includes the saved appearance; no extra readback is needed.
 
 Set these fields within the merged `appearance` object:
 

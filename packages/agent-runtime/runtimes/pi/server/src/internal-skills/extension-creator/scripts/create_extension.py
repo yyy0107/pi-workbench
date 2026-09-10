@@ -36,7 +36,8 @@ export default function (pi: ExtensionAPI) {
     label: $title,
     description: $description,
     parameters: Type.Object({
-      text: Type.String({ description: "Text to echo." }),
+      // This input cap also keeps the echo below Pi's output byte and line limits.
+      text: Type.String({ maxLength: 1000, description: "Text to echo (up to 1000 characters)." }),
     }),
     async execute(_toolCallId, params) {
       return {

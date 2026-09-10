@@ -554,6 +554,15 @@ Browser Runtime Bridge 展示在右侧浏览器工作区，不创建另一套浏
 Workbench preferences，覆盖外观、语言、对话行为和内置工具开关。工具复用 Settings RPC 校验和
 同一设置服务的文件锁、原子写入及进程内通知，不暴露配置文件路径或其他 section 的凭据；未知顶层字段
 会报错。外观等对象仍按顶层替换，技能要求先读再合并；已经打开的 UI 缓存可能需要刷新。
+工具的 `describe` 支持顶层字段 `keys` 筛选；默认省略窗口恢复状态、Pi 提示词正文和超过 4,000 字符的
+单个字段，以 `omittedKeys` 标识，明确选择字段后才提供该字段的完整内容；背景图始终只返回元数据。
+读取和更新统一调用 Pi 公开的 `truncateHead` 检查完整 JSON；超过 50 KiB UTF-8 或 2,000 行时，
+模型文本与 `details` 都只返回合法 JSON 摘要（`truncated`、revision、大小和 `fullOutputPath`）。
+完整的已筛选结果保存到系统临时目录内的私有子目录，文件权限为 `0600`，可用 `read` 分段读取，
+超长 JSON 字符串用 `bash` 按字段/字符串切片提取。成功文件保留供后续读取，失败/取消写入清理残留；
+落盘失败通过 `outputError` 保留设置操作已完成的状态，不诱导重复更新。此机制不修改 Pi / pi-ai。
+Pi 用 `overriddenKeys` 表示显式覆盖，不重复返回同一份提示词。更新只返回受影响字段的保存值，
+Workbench 重置项由 `resetKeys` 标识，因此成功后无需额外完整回读。查询可配置项目直接使用技能参考表。
 同一工具的 `domain: "pi"` 复用 `AgentSettingsService` 和共享 RPC validator，支持用户/当前项目
 系统提示词及追加提示词、用户级 compaction。Pi 写入必须携带同一 scope 读取的 `expectedRevision`；
 项目 scope 由当前对话 cwd 匹配已登记 Workspace，不接受任意路径，也不回退全局。更新保留 Pi 的

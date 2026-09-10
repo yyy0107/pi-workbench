@@ -29,7 +29,7 @@ python3 <extension-creator-directory>/scripts/create_extension.py my-extension -
 ```
 
 - Names normalize to lowercase hyphen-case, at most 64 characters; the resulting directory and package name match. Tool IDs use underscores in place of hyphens.
-- `--kind command` (default) registers a command that echoes its arguments through a displayed custom message without triggering an LLM turn. `tool` registers a typed text-echo tool; `event` registers a guarded session-start notification.
+- `--kind command` (default) registers a command that echoes its arguments through a displayed custom message without triggering an LLM turn. `tool` registers a typed text-echo tool capped at 1,000 input characters to bound both output bytes and lines; `event` registers a guarded session-start notification.
 - `--description` supplies the generated command/tool and package description. Edit generated user-facing text to fit the requested language and repository i18n conventions before handoff.
 - Existing destinations are rejected, including symlinks. There is no overwrite switch; modify an existing extension deliberately. `.builtin` destinations are rejected.
 - `--package` adds a `package.json` with `pi.extensions: ["./index.ts"]`, `pi-package` keywords, and relevant Pi-provided peer dependencies. Its default parent is `<cwd>/pi-packages`, outside automatic extension discovery. It starts with `private: true`; remove that only when publication is requested. `--user` is for standalone discovery, so it cannot be combined with `--package`.
@@ -56,6 +56,14 @@ Keep factory initialization finite. Start timers, watchers, and connections in a
 
 Use `ctx.mode` and `ctx.hasUI` appropriately. Pi TUI renderers do not create Workbench React components, and RPC mode does not guarantee every UI method is implemented by the host. For a Workbench feature, check its actual exposed commands/tools and UI bridge. Keep browser contributions in the Workbench extension platform.
 
+## Bound every tool result
+
+- Choose fields, range, or pagination before reading/returning data. Default to summaries; return affected fields and saved status after mutations instead of whole state snapshots.
+- Read [Output Truncation](../pi-docs/references/extensions-tools.md#output-truncation) and compare its example with the installed SDK. Reuse public `truncateHead` / `truncateTail` and `DEFAULT_MAX_BYTES` / `DEFAULT_MAX_LINES` (50 KiB UTF-8 or 2,000 lines by default). Neither tool registration nor later compaction automatically bounds custom output. Do not modify Pi / pi-ai or deep-import a private output accumulator.
+- Apply the budget to the combined text and added notices. Keep progress, errors, and `details` bounded too; never copy an oversized result into `details` to hide it from the text. The scaffold's small echo input is bounded by schema; generated/external data needs its own output handling.
+- On overflow, return a marked preview/summary plus access to complete data through an existing readable source, pagination, or a private temporary file. Use valid JSON summaries for structured output, not broken JSON prefixes. Spill only the filtered, redacted result; protect sensitive files with a private directory and `0600` permissions. Give an absolute path and offset/limit guidance, or field/string-slice extraction for oversized single lines. Retain successful files after the call and clean incomplete writes on failure/cancellation.
+- If an action already committed, preserve that success and its revision/status even when saving the output fails; suggest a focused read instead of repeating the mutation.
+
 ## Validate and finish
 
 ```text
@@ -68,6 +76,8 @@ The default check verifies a nonempty `.ts`/`.js` entry (or a directory's `index
 After reviewing the extension you authored, use `--load` to check it with the exact SDK and Node executable recorded in this skill's `runtime.json`. It executes the selected module and factory in a subprocess with temporary cwd/agent directories, avoids automatic discovery of unrelated extensions, and reports registered tools, commands, and events. **This is not a security sandbox.** It does not dispatch session events, invoke tools, typecheck the full extension, or prove behavior. It times out after 30 seconds. `--runtime` selects an explicit descriptor when testing outside the installed skill.
 
 Run the smallest relevant behavior test for the feature, exercising its event/command/tool and an important failure case when applicable. Use the project's existing typecheck where available. Do not call model/provider services merely to validate registration.
+
+For tools with nontrivial output handling, invoke the tool with small and oversized data; check UTF-8 bytes, line limits, valid structured summaries, and retrieval of the complete result. For file spill paths, also check long single lines, permissions, and failure/cancellation. Confirm that output errors do not conceal a committed mutation. `--load` alone does not verify any of these behaviors.
 
 For auto-discovered extensions, a new session or `/reload` in an idle session picks up changes; never reload the currently running agent mid-task. For a package outside discovery directories, use the matching Workbench/Pi package installation flow in the authorized scope. Do not both auto-discover and package-install the same extension. A successful scaffold or load check does not mean the extension is installed or enabled in the user's session.
 
