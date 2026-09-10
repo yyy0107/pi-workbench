@@ -13,6 +13,7 @@ Use `domain: "workbench"` or omit `domain`. Scope is `user` (default); project s
 | Show reasoning or todos                 | `showReasoning`, `showTodos`: boolean                                                                                                       |
 | Group tool results                      | `groupParallelTools`, `groupExplorationTools`, `groupTerminalTools`, `groupFileChanges`: boolean                                            |
 | Ask User tool and timed continuation    | `askUserEnabled`, `askUserAutoContinue`: boolean                                                                                            |
+| Workbench settings tool                 | `workbenchSettingsEnabled`: boolean; absent defaults to enabled                                                                             |
 | Task management tool                    | `todoEnabled`: boolean; absent defaults to disabled                                                                                         |
 | Native tool availability                | `readToolEnabled`, `bashToolEnabled`, `editToolEnabled`, `writeToolEnabled`, `grepToolEnabled`, `findToolEnabled`, `lsToolEnabled`: boolean |
 | Enhanced search                         | `enhancedSearch`: boolean; also supplies defaults for grep/find when their explicit switches are absent                                     |

@@ -408,6 +408,8 @@ export function builtinToolPreferenceKey(params: ToolboxCapabilitySurfaceParams)
   }
   if (params.name === "workbench.ask-user" && params.toolNames?.includes("ask_user"))
     return "askUserEnabled" as const;
+  if (params.name === "workbench.settings" && params.toolNames?.includes("workbench_settings"))
+    return "workbenchSettingsEnabled" as const;
   if (params.name === "workbench.rpiv-todo" && params.toolNames?.includes("todo"))
     return "todoEnabled" as const;
   return undefined;

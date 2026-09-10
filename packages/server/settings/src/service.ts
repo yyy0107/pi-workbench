@@ -123,6 +123,12 @@ function parsePreferences(value: unknown): WorkbenchSettingsPreferences {
     }
     preferences.askUserEnabled = value.askUserEnabled;
   }
+  if (value.workbenchSettingsEnabled !== undefined) {
+    if (typeof value.workbenchSettingsEnabled !== "boolean") {
+      throw new TypeError("workbenchSettingsEnabled is invalid");
+    }
+    preferences.workbenchSettingsEnabled = value.workbenchSettingsEnabled;
+  }
   if (value.backgroundImage !== undefined) {
     preferences.backgroundImage = backgroundImage(value.backgroundImage);
   }

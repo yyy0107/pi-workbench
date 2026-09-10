@@ -64,6 +64,7 @@ export interface WorkbenchSettingsPreferences extends Partial<
 > {
   appearance?: Record<string, WorkbenchSettingsJsonValue>;
   askUserEnabled?: boolean;
+  workbenchSettingsEnabled?: boolean;
   todoEnabled?: boolean;
   readToolEnabled?: boolean;
   bashToolEnabled?: boolean;

@@ -39,6 +39,7 @@ test("persists and validates conversation preferences", async (t) => {
     runningMessageMode: "steer",
     showReasoning: false,
     groupParallelTools: false,
+    workbenchSettingsEnabled: false,
     todoEnabled: false,
   } as const;
   await service.update({ patch });
@@ -50,6 +51,7 @@ test("persists and validates conversation preferences", async (t) => {
     { runningMessageMode: "invalid" },
     { showReasoning: "false" },
     { groupParallelTools: 1 },
+    { workbenchSettingsEnabled: "false" },
     { todoEnabled: "false" },
   ]) {
     await assert.rejects(service.update({ patch: invalid as unknown as typeof patch }), {
@@ -60,6 +62,7 @@ test("persists and validates conversation preferences", async (t) => {
   assert.deepEqual((await service.describe()).preferences, {
     runningMessageMode: "steer",
     groupParallelTools: false,
+    workbenchSettingsEnabled: false,
     todoEnabled: false,
   });
 });

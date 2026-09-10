@@ -14,6 +14,7 @@ import { AgentSettingsService } from "../../settings/agent-settings-service";
 import { scopedUpdatePayload } from "../../transport/agent-settings-rpc-validators";
 import { getWorkspaceStore } from "../../workspaces/workspace-registry";
 import { validateWorkspace } from "../../workspaces/workspace-paths";
+import { bindToolAvailability, type ToolCapabilitySettings } from "../_shared/tool-availability";
 
 const WORKBENCH_STATE_KEYS = [
   "rightWorkspace",
@@ -84,8 +85,12 @@ async function settingsToolResult(
   return { content: [{ type: "text" as const, text: JSON.stringify(output) }], details: output };
 }
 
-export const workbenchSettingsExtension: ExtensionFactory = (pi) => {
+export function workbenchSettingsExtension(
+  pi: Parameters<ExtensionFactory>[0],
+  toolSettings?: ToolCapabilitySettings,
+): void {
   if (!getPiAgentHostBindings().workbenchSettings) return;
+  const readEnabled = bindToolAvailability(pi, "workbench_settings", toolSettings);
   const piSettings = new AgentSettingsService();
   pi.registerTool({
     name: "workbench_settings",
@@ -130,6 +135,9 @@ export const workbenchSettingsExtension: ExtensionFactory = (pi) => {
       ctx,
     ) {
       signal?.throwIfAborted();
+      if (!(await readEnabled())) {
+        throw new Error("The Workbench settings tool is disabled in Workbench settings.");
+      }
       const settings = getPiAgentHostBindings().workbenchSettings;
       if (!settings) throw new Error("Workbench settings are unavailable in this host.");
       if (action === "describe" && (patch !== undefined || expectedRevision !== undefined)) {
@@ -224,4 +232,10 @@ export const workbenchSettingsExtension: ExtensionFactory = (pi) => {
       return settingsToolResult(result, signal);
     },
   });
-};
+}
+
+export function createWorkbenchSettingsExtension(
+  toolSettings?: ToolCapabilitySettings,
+): ExtensionFactory {
+  return (pi) => workbenchSettingsExtension(pi, toolSettings);
+}

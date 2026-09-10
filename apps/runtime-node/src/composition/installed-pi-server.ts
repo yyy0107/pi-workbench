@@ -240,6 +240,16 @@ function createInstalledPiAgentHostBindings(
         });
       },
     },
+    workbenchSettingsToolSettings: {
+      async readEnabled() {
+        return (await settings.describe()).preferences.workbenchSettingsEnabled !== false;
+      },
+      subscribe(listener) {
+        return subscribeWorkbenchSettingsPreferences(settings.stateFile, (preferences) => {
+          listener(preferences.workbenchSettingsEnabled !== false);
+        });
+      },
+    },
     askUserSettings: {
       async readAutoContinue() {
         return (await settings.describe()).preferences.askUserAutoContinue !== false;

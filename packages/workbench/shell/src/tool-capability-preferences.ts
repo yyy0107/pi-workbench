@@ -37,6 +37,7 @@ export interface ToolCapabilityPreferences {
 
 export type ToolCapabilityPreferenceKey =
   | "askUserEnabled"
+  | "workbenchSettingsEnabled"
   | "todoEnabled"
   | "enhancedSearch"
   | BuiltinToolPreferenceKey
@@ -55,6 +56,7 @@ const PREFERENCE_RESOURCES: Record<ToolCapabilityPreferenceKey, symbol> = {
   lsToolEnabled: Symbol("workbench.ls-tool-preferences"),
 
   askUserEnabled: Symbol("workbench.ask-user-preferences"),
+  workbenchSettingsEnabled: Symbol("workbench.workbench-settings-preferences"),
   todoEnabled: Symbol("workbench.todo-preferences"),
   enhancedSearch: Symbol("workbench.enhanced-search-preferences"),
 };

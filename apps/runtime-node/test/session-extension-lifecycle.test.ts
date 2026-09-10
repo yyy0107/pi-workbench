@@ -36,6 +36,14 @@ test("host shutdown releases extension preference listeners before ctx becomes s
   const previousHostBindings = getPiAgentHostBindings();
   bindPiAgentHostBindings({
     ...previousHostBindings,
+    workbenchSettings: {
+      async describe() {
+        return { revision: 0, preferences: {} };
+      },
+      async update() {
+        return { revision: 0 };
+      },
+    },
     todoSettings: {
       async readEnabled() {
         return (await settings.describe()).preferences.todoEnabled === true;
@@ -59,6 +67,16 @@ test("host shutdown releases extension preference listeners before ctx becomes s
         );
       },
     },
+    workbenchSettingsToolSettings: {
+      async readEnabled() {
+        return (await settings.describe()).preferences.workbenchSettingsEnabled !== false;
+      },
+      subscribe(listener) {
+        return subscribeWorkbenchSettingsPreferences(settings.stateFile, (preferences) => {
+          listener(preferences.workbenchSettingsEnabled !== false);
+        });
+      },
+    },
   });
   t.after(() => bindPiAgentHostBindings(previousHostBindings));
 
@@ -66,6 +84,7 @@ test("host shutdown releases extension preference listeners before ctx becomes s
   await mkdir(cwd, { recursive: true });
   const host = await createSession(cwd, "extension-lifecycle");
   t.after(() => host.shutdown());
+  assert.equal(host.session.getActiveToolNames().includes("workbench_settings"), true);
   assert.equal(host.session.getActiveToolNames().includes("ask_user"), true);
 
   assert.equal(host.session.getActiveToolNames().includes("todo"), false);
@@ -88,6 +107,11 @@ test("host shutdown releases extension preference listeners before ctx becomes s
   await settings.update({ patch: { todoEnabled: false, askUserEnabled: true } });
   assert.equal(host.session.getActiveToolNames().includes("todo"), false);
   assert.equal(host.session.getActiveToolNames().includes("ask_user"), true);
+
+  await settings.update({ patch: { workbenchSettingsEnabled: false } });
+  assert.equal(host.session.getActiveToolNames().includes("workbench_settings"), false);
+  await settings.update({ patch: { workbenchSettingsEnabled: true } });
+  assert.equal(host.session.getActiveToolNames().includes("workbench_settings"), true);
 
   await host.shutdown();
   await settings.update({ patch: { askUserEnabled: false, todoEnabled: true } });

@@ -65,7 +65,6 @@ test("the installed settings tool validates and persists only current-host prefe
       .extensions.find((entry) => entry.path === "<inline:workbench.settings>")
       ?.tools.get("workbench_settings")?.definition;
     assert.ok(tool);
-    assert.ok(host.session.getActiveToolNames().includes(tool.name));
     return tool;
   };
   const invoke = (params: unknown, signal?: AbortSignal, cwd = root) =>
@@ -96,6 +95,7 @@ test("the installed settings tool validates and persists only current-host prefe
   );
   assert.ok(initialText.length < 1_000, "default describe must not dump persisted window state");
   const snapshot = JSON.parse(initialText);
+  assert.ok(host.session.getActiveToolNames().includes("workbench_settings"));
   assert.equal(snapshot.revision, 4);
   assert.equal(snapshot.preferences.locale, "en-US");
   assert.deepEqual(snapshot.preferences.backgroundImage, {
@@ -176,6 +176,7 @@ test("the installed settings tool validates and persists only current-host prefe
     { action: "update" },
     { action: "update", patch: { locale: "invalid" } },
     { action: "update", patch: { showReasoning: "false" } },
+    { action: "update", patch: { workbenchSettingsEnabled: "false" } },
     { action: "update", patch: { showReasoning: false, unknownPreference: true } },
     { action: "update", scope: "project", patch: { showReasoning: false } },
     { action: "update", expectedRevision: 5, patch: { showReasoning: false } },
@@ -396,6 +397,14 @@ test("the installed settings tool validates and persists only current-host prefe
   await host.session.reload();
   assert.ok(host.session.systemPrompt.includes("User base"));
   assert.ok(host.session.systemPrompt.includes("User addition"));
+
+  await invoke({ action: "update", patch: { workbenchSettingsEnabled: false } });
+  assert.ok(!host.session.getActiveToolNames().includes("workbench_settings"));
+  await assert.rejects(invoke({ action: "describe" }), /disabled/);
+  await getPiAgentHostBindings().workbenchSettings!.update({
+    patch: { workbenchSettingsEnabled: true },
+  });
+  assert.ok(host.session.getActiveToolNames().includes("workbench_settings"));
 
   const expandedIds = Array.from({ length: 2100 }, (_, index) => String(index));
   const largeUpdate = await readFullResult(

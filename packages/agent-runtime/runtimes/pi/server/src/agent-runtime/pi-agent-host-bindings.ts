@@ -32,6 +32,7 @@ export interface PiAgentHostBindings {
   readonly createBashToolOverride?: (input: PiBashToolFactoryInput) => ToolDefinition;
   readonly askUserSettings?: AskUserCapabilitySettings;
   readonly todoSettings?: ToolCapabilitySettings;
+  readonly workbenchSettingsToolSettings?: ToolCapabilitySettings;
   readonly readBuiltinResourceEnabled?: (key: BuiltinResourcePreferenceKey) => Promise<boolean>;
   readonly builtinToolSettings?: BuiltinToolSettings;
   readonly readSessionPreferences?: () => Promise<{

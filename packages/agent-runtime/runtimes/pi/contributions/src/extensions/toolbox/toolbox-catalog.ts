@@ -145,6 +145,7 @@ export function useToolboxCatalogs(
 ) {
   const { t } = usePiI18n();
   const askUserPreference = useToolCapabilityPreferences("askUserEnabled");
+  const workbenchSettingsPreference = useToolCapabilityPreferences("workbenchSettingsEnabled");
   const messageTerminationPreference = useToolCapabilityPreferences(
     "messageTerminationExtensionEnabled",
   );
@@ -346,6 +347,7 @@ export function useToolboxCatalogs(
             const preference = key
               ? {
                   askUserEnabled: askUserPreference,
+                  workbenchSettingsEnabled: workbenchSettingsPreference,
                   todoEnabled: todoPreference,
                   messageTerminationExtensionEnabled: messageTerminationPreference,
                   composerContextExtensionEnabled: composerContextPreference,
@@ -383,6 +385,7 @@ export function useToolboxCatalogs(
       extensionsCatalog.entries,
       t,
       askUserPreference,
+      workbenchSettingsPreference,
       todoPreference,
       messageTerminationPreference,
       composerContextPreference,

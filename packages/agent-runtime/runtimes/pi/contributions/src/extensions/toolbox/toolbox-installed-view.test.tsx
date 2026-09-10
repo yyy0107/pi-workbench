@@ -129,6 +129,14 @@ test("built-in tools and lifecycle extensions are switchable and disabled entrie
     builtinToolPreferenceKey({ ...params, name: "workbench.ask-user", toolNames: ["ask_user"] }),
     "askUserEnabled",
   );
+  assert.equal(
+    builtinToolPreferenceKey({
+      ...params,
+      name: "workbench.settings",
+      toolNames: ["workbench_settings"],
+    }),
+    "workbenchSettingsEnabled",
+  );
   assert.equal(builtinToolPreferenceKey({ ...params, builtin: false }), undefined);
   assert.equal(builtinToolPreferenceKey({ ...params, toolNames: [] }), undefined);
   assert.equal(

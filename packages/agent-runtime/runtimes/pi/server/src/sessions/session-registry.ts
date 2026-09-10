@@ -3567,6 +3567,7 @@ async function createHost(
         hostBindings.askUserSettings,
         hostBindings.todoSettings,
         hostBindings.builtinToolSettings,
+        hostBindings.workbenchSettingsToolSettings,
       ),
       extensionsOverride: prepareWorkbenchPiExtensions,
     },

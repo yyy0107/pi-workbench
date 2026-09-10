@@ -34,6 +34,7 @@ export const workbenchSettingsUpdatePayload = rpcObject({
     showReasoning: rpcOptional(rpcNullable(rpcBoolean)),
     groupParallelTools: rpcOptional(rpcNullable(rpcBoolean)),
     askUserEnabled: rpcOptional(rpcNullable(rpcBoolean)),
+    workbenchSettingsEnabled: rpcOptional(rpcNullable(rpcBoolean)),
     messageTerminationExtensionEnabled: rpcOptional(rpcNullable(rpcBoolean)),
     composerContextExtensionEnabled: rpcOptional(rpcNullable(rpcBoolean)),
     contextTraceExtensionEnabled: rpcOptional(rpcNullable(rpcBoolean)),
