@@ -52,6 +52,7 @@ test("desktop keeps the window on Runtime failure and retries through the truste
         };
       if (id === "./desktop-services.cjs")
         return {
+          applyDesktopMotionPreference() {},
           readDesktopSettings: () => ({ preferences: { hardwareAcceleration: true } }),
           createDesktopServices: () => ({
             environment: {},

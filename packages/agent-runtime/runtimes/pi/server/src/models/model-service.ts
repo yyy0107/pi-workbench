@@ -1,3 +1,5 @@
+import { createImageInputProbe } from "./image-input-probe";
+
 import type {
   Api,
   AssistantMessage,
@@ -6,6 +8,13 @@ import type {
   Model,
   ModelsApiStreamOptions,
 } from "@earendil-works/pi-ai";
+import {
+  createAgentSessionFromServices,
+  SessionManager,
+  SettingsManager,
+  type AgentSession,
+  type AgentSessionServices,
+} from "@earendil-works/pi-coding-agent";
 import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
 import { createWorkbenchAgentSessionServices } from "../agent-runtime/agent-session-services";
 
@@ -275,7 +284,12 @@ export interface ModelServiceDiagnostic {
   message: string;
 }
 
+type ModelTestSession = Pick<AgentSession, "prompt" | "messages" | "abort" | "dispose"> & {
+  agent: { state: Pick<AgentSession["agent"]["state"], "messages"> };
+};
+
 export interface ModelServiceServices {
+  createTestSession?(model: Model<Api>): Promise<ModelTestSession>;
   modelRuntime: ModelRuntimeLike;
   diagnostics?: readonly ModelServiceDiagnostic[];
 }
@@ -310,6 +324,7 @@ export interface ModelServiceOptions {
 }
 
 interface LoadedModelServices {
+  createTestSession?: ModelServiceServices["createTestSession"];
   runtime: ModelRuntimeLike;
   diagnostics: readonly ModelServiceDiagnostic[];
 }
@@ -328,9 +343,6 @@ const MODEL_LISTING_PAGE_LIMIT = 1000;
 const MODEL_LISTING_MAX_PAGES = 100;
 const MODEL_PROVIDER_CATALOG_REFRESH_TIMEOUT_MS = 15_000;
 const MODEL_IMAGE_INPUT_TEST_TIMEOUT_MS = 90_000;
-const MODEL_IMAGE_INPUT_TEST_CODE = "K7P3";
-const MODEL_IMAGE_INPUT_TEST_PNG =
-  "iVBORw0KGgoAAAANSUhEUgAAAWgAAACMCAIAAADeJaSiAAACBUlEQVR42u3dwY7CIBRA0WL4/1+uOxKDNTUi8OCc1WQ2I2puXo1vms7zPAC+8fAUAMIB/F0uP6WUPB3AB+WTDRMH4FIF6HmpUk8jAMe7zzFMHIBLFUA4AOEAhAMQDgDhAIQDEA5AOADhABAOQDgA4QCEAxAOAOEAhAMQDkA4AOEANpfH/vk7d4Hq+V/XWz2eiHe3iniuVu+NVc9l4gCEAxAOQDgAhAMQDkA4AOEAhANAOADhALrL+xy1517MbLsGPXcxIu4WRXy9xj5mEwcgHIBwAMIBCAcgHADCAQgHIByAcADCAXBhkV2V+b/b7+yYOADhABAOQDgA4QCEAxAOAOEAhAMQDkA4gA0E2FWxhxLr7DvfwyXiuUwcgHAAwgEIByAcAMIBCAcgHIBwAMIBIBxAUwF2Ve58b3/VnY6IOzir7g3Nthcz9nk2cQDCAQgHIByAcADCASAcgHAAwgEIByAcABfyGsdYdZ8FTByAcADCASAcgHAAwgEIByAcAMIBCAcgHEAoeZ+j2mfhl9d9tveqiQNwqQIIB4BwAMIBCAcgHIBwAAgHIByAcABTSuVb8eXr+nYxgJdMVHEwcQAuVQDhAIQDEA5AOACEAxAOQDgA4QCEA0A4AOEAhAMQDkA4AIQDEA5AOADhAIQD2Fyuf1X+ozGAiQMQDmCQ5PZLgIkDEA5gPk9w52oPijxtGwAAAABJRU5ErkJggg==";
 const ANTHROPIC_VERSION = "2023-06-01";
 const LISTABLE_MODEL_APIS = new Set([
   "anthropic-messages",
@@ -464,12 +476,10 @@ function modelImageInputTestResponse(response: AssistantMessage): TestModelImage
   if (response.stopReason === "aborted") {
     return { outcome: "inconclusive", reason: "timeout" };
   }
-  const normalized = response.content
-    .flatMap((part) => (part.type === "text" ? [part.text] : []))
-    .join("")
-    .toUpperCase()
-    .replaceAll(/[^A-Z0-9]/gu, "");
-  return normalized.includes(MODEL_IMAGE_INPUT_TEST_CODE)
+  // Capability is based on the provider accepting the image request, not answer accuracy.
+  return response.stopReason === "stop" ||
+    response.stopReason === "length" ||
+    response.stopReason === "toolUse"
     ? { outcome: "supported", reason: "verified" }
     : { outcome: "inconclusive", reason: "unexpected-response" };
 }
@@ -1108,6 +1118,37 @@ function discoveredModel(model: ModelRuntimeModel): DiscoveredModel {
   };
 }
 
+/** Use the same SDK send path as chat without loading user resources or saving a conversation. */
+export async function createModelTestSession(services: AgentSessionServices, model: Model<Api>) {
+  const isolated = await createWorkbenchAgentSessionServices({
+    cwd: services.cwd,
+    agentDir: services.agentDir,
+    modelRuntime: services.modelRuntime,
+    settingsManager: SettingsManager.inMemory({
+      compaction: { enabled: false },
+      retry: {
+        enabled: false,
+        provider: { maxRetries: 0, timeoutMs: MODEL_IMAGE_INPUT_TEST_TIMEOUT_MS },
+      },
+    }),
+    resourceLoaderOptions: {
+      noExtensions: true,
+      noSkills: true,
+      noPromptTemplates: true,
+      noThemes: true,
+      noContextFiles: true,
+    },
+  });
+  const { session } = await createAgentSessionFromServices({
+    services: isolated,
+    sessionManager: SessionManager.inMemory(services.cwd),
+    model,
+    thinkingLevel: "off",
+    noTools: "all",
+  });
+  return session;
+}
+
 export class ModelService implements ModelProviderProtocol, ModelContextWindowProtocol {
   private readonly cwd: string;
   private readonly serviceFactory: ModelServiceFactory;
@@ -1120,7 +1161,15 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
 
   constructor(options: ModelServiceOptions = {}) {
     this.cwd = options.cwd ?? process.cwd();
-    this.serviceFactory = options.serviceFactory ?? createWorkbenchAgentSessionServices;
+    this.serviceFactory =
+      options.serviceFactory ??
+      (async (input) => {
+        const services = await createWorkbenchAgentSessionServices(input);
+        return {
+          ...services,
+          createTestSession: (model) => createModelTestSession(services, model),
+        };
+      });
     this.injectedRuntime = options.runtime;
     this.fetcher = options.fetcher ?? fetch;
     this.settingsOverrides = options.providerSettings;
@@ -1139,6 +1188,7 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
       });
       return {
         runtime: services.modelRuntime,
+        createTestSession: services.createTestSession,
         diagnostics: services.diagnostics ?? [],
       };
     };
@@ -1801,8 +1851,8 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
   ): Promise<TestModelImageInputValue> {
     const { signal } = options;
     signal?.throwIfAborted();
-    const { runtime } = await this.load();
-    if (!runtime.getModel || !runtime.complete) {
+    const { runtime, createTestSession } = await this.load();
+    if (!runtime.getModel || !createTestSession) {
       return { outcome: "inconclusive", reason: "runtime-unavailable" };
     }
     const model = runtime.getModel(input.provider, input.model);
@@ -1831,18 +1881,36 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
     timeout.unref?.();
 
     let textSupported = false;
+    let session: ModelTestSession | undefined;
+    const abortSession = () => {
+      void session?.abort().catch(() => undefined);
+    };
+    controller.signal.addEventListener("abort", abortSession, { once: true });
     try {
-      if (input.testTextInput) {
-        const textResponse = await runtime.complete(
-          { ...testModel, input: ["text"] },
-          { messages: [{ role: "user", content: "Reply with OK.", timestamp: Date.now() }] },
-          {
-            signal: controller.signal,
-            maxRetries: 0,
-            timeoutMs: MODEL_IMAGE_INPUT_TEST_TIMEOUT_MS,
-          },
-        );
+      session = await createTestSession(testModel);
+      controller.signal.throwIfAborted();
+      const probe = createImageInputProbe();
+      await session.prompt(probe.prompt, {
+        expandPromptTemplates: false,
+        images: [{ type: "image", data: probe.data, mimeType: probe.mimeType }],
+      });
+      const response = session.messages.at(-1);
+      signal?.throwIfAborted();
+      const imageResult: TestModelImageInputValue = controller.signal.aborted
+        ? { outcome: "inconclusive", reason: "timeout" }
+        : response?.role === "assistant"
+          ? modelImageInputTestResponse(response)
+          : { outcome: "inconclusive", reason: "unexpected-response" };
+      textSupported = imageResult.outcome === "supported";
+      if (input.testTextInput && imageResult.outcome === "unsupported") {
+        // A text-only fallback must not resend the rejected image from this temporary context.
+        session.agent.state.messages = [];
+        await session.prompt("Reply with OK.", { expandPromptTemplates: false });
         signal?.throwIfAborted();
+        const textResponse = session.messages.at(-1);
+        if (textResponse?.role !== "assistant") {
+          return { outcome: "inconclusive", reason: "unexpected-response", textSupported: false };
+        }
         if (textResponse.stopReason === "error") {
           return {
             ...modelImageInputFailure(textResponse.errorMessage ?? ""),
@@ -1860,38 +1928,7 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
           return { outcome: "inconclusive", reason: "unexpected-response", textSupported: false };
         }
       }
-      const response = await runtime.complete(
-        testModel,
-        {
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: "Read the four-character code in this image. Reply with only the code.",
-                },
-                {
-                  type: "image",
-                  data: MODEL_IMAGE_INPUT_TEST_PNG,
-                  mimeType: "image/png",
-                },
-              ],
-              timestamp: Date.now(),
-            },
-          ],
-        },
-        {
-          signal: controller.signal,
-          maxRetries: 0,
-          timeoutMs: MODEL_IMAGE_INPUT_TEST_TIMEOUT_MS,
-        },
-      );
-      signal?.throwIfAborted();
-      return {
-        ...modelImageInputTestResponse(response),
-        ...(input.testTextInput ? { textSupported } : {}),
-      };
+      return { ...imageResult, ...(input.testTextInput ? { textSupported } : {}) };
     } catch (error) {
       if (signal?.aborted) throw error;
       const failure = controller.signal.aborted
@@ -1905,6 +1942,8 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
       };
     } finally {
       clearTimeout(timeout);
+      controller.signal.removeEventListener("abort", abortSession);
+      session?.dispose();
       signal?.removeEventListener("abort", forwardAbort);
     }
   }

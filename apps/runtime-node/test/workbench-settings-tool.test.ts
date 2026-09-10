@@ -42,6 +42,7 @@ test("the installed settings tool validates and persists only current-host prefe
     version: 1,
     revision: 4,
     preferences: {
+      workbenchSettingsEnabled: true,
       locale: "en-US",
       showReasoning: true,
       appearance: { colorMode: "light", uiFontSize: 16 },

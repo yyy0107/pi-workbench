@@ -41,10 +41,12 @@ test("sessions persist bundled skill switches through reload and cold reopen", a
     );
     assert.ok(current.session.systemPrompt.includes(skill!.filePath));
   };
+  assert.deepEqual(host.session.resourceLoader.getSkills().skills, []);
+  const service = new SkillService();
+  await service.setEnabled({ sessionId: host.id, name: "skill-creator", enabled: true });
   check(host);
   await host.session.reload();
   check(host);
-  const service = new SkillService();
   await service.setEnabled({ sessionId: host.id, name: "skill-creator", enabled: false });
   assert.equal(
     host.session.resourceLoader.getSkills().skills.some((skill) => skill.name === "skill-creator"),
@@ -80,7 +82,18 @@ for (const name of [
   test(`bundled ${name} can toggle while files remain read-only`, async (t) => {
     const root = await mkdtemp(path.join(tmpdir(), "workbench-builtin-skills-"));
     t.after(() => rm(root, { recursive: true, force: true }));
-    const settingsManager = SettingsManager.inMemory({}, { projectTrusted: false });
+    const settingsManager = SettingsManager.inMemory(
+      {
+        skills: [
+          "extension-creator",
+          "pi-docs",
+          "skill-creator",
+          "skill-installer",
+          "workbench-settings",
+        ].map((name) => `+skills/.builtin/${name}/SKILL.md`),
+      },
+      { projectTrusted: false },
+    );
     const agentDir = path.join(root, "agent");
     await ensureWorkbenchBuiltinResources(agentDir);
     const loader = new DefaultResourceLoader({
@@ -166,7 +179,9 @@ for (const name of [
       (error: unknown) => error instanceof SkillServiceError && error.code === "skill-read-only",
     );
     await service.setEnabled({ ...request, enabled: true });
-    assert.deepEqual(settingsManager.getGlobalSettings().skills, []);
+    assert.ok(
+      settingsManager.getGlobalSettings().skills?.includes(`+skills/.builtin/${name}/SKILL.md`),
+    );
     await loader.reload();
     assert.deepEqual(
       loader.getSkills().skills.map(({ name }) => name),
@@ -179,7 +194,12 @@ test("keeps an existing same-name skill and its diagnostics", async (t) => {
   const agentDir = await mkdtemp(path.join(tmpdir(), "workbench-skill-override-"));
   t.after(() => rm(agentDir, { recursive: true, force: true }));
   await ensureWorkbenchBuiltinResources(agentDir);
-  const builtins = withWorkbenchBuiltinSkills({ skills: [], diagnostics: [] }, agentDir).skills;
+  const builtins = withWorkbenchBuiltinSkills(
+    { skills: [], diagnostics: [] },
+    agentDir,
+    [],
+    true,
+  ).skills;
   const original = builtins[0];
   const custom = {
     ...original,
@@ -195,6 +215,7 @@ test("keeps an existing same-name skill and its diagnostics", async (t) => {
   const result = withWorkbenchBuiltinSkills(
     { skills: [custom], diagnostics: [diagnostic] },
     agentDir,
+    ["skills/.builtin"],
   );
   assert.deepEqual(result.skills, [custom, ...builtins.slice(1)]);
   assert.deepEqual(result.diagnostics, [diagnostic]);
@@ -204,7 +225,7 @@ test("bundled validator accepts a real skill and rejects missing descriptions an
   const root = await mkdtemp(path.join(tmpdir(), "workbench-skill-validator-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await ensureWorkbenchBuiltinResources(root);
-  const skills = withWorkbenchBuiltinSkills({ skills: [], diagnostics: [] }, root).skills;
+  const skills = withWorkbenchBuiltinSkills({ skills: [], diagnostics: [] }, root, [], true).skills;
   const builtin = skills.find(({ name }) => name === "skill-creator")!;
   const validator = path.join(builtin.baseDir, "scripts", "validate-skill.mjs");
   const run = (directory: string) =>
@@ -212,7 +233,7 @@ test("bundled validator accepts a real skill and rejects missing descriptions an
   const valid = run(builtin.baseDir);
   assert.equal(valid.status, 0, valid.stderr);
   const browserValidation = run(
-    path.join(root, "packages", ".builtin", "browser", "skills", "browser"),
+    path.join(root, "packages", ".builtin", "browser", "skills", "browser-use"),
   );
   assert.equal(browserValidation.status, 0, browserValidation.stderr);
   const piDocs = skills.find(({ name }) => name === "pi-docs")!;

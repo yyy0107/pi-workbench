@@ -6,6 +6,7 @@ import {
   SettingsManager,
   type LoadSkillsResult,
 } from "@earendil-works/pi-coding-agent";
+import { skillMatchesEnablePattern } from "./skill-enablement";
 
 export function withWorkbenchBuiltinSkills(
   base: LoadSkillsResult,
@@ -42,9 +43,12 @@ export function builtinSkillEnabled(
   agentDir: string,
   patterns: readonly string[],
 ) {
-  return !patterns.some(
-    (pattern) =>
-      pattern.startsWith("-") &&
-      [filePath, path.dirname(filePath)].includes(path.resolve(agentDir, pattern.slice(1))),
+  return (
+    skillMatchesEnablePattern(filePath, agentDir, patterns) &&
+    !patterns.some(
+      (pattern) =>
+        pattern.startsWith("-") &&
+        [filePath, path.dirname(filePath)].includes(path.resolve(agentDir, pattern.slice(1))),
+    )
   );
 }

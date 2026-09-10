@@ -56,24 +56,24 @@ test("host shutdown releases extension preference listeners before ctx becomes s
     },
     askUserSettings: {
       async readEnabled() {
-        return (await settings.describe()).preferences.askUserEnabled !== false;
+        return (await settings.describe()).preferences.askUserEnabled === true;
       },
       subscribe(listener: (enabled: boolean) => void) {
         return subscribeWorkbenchSettingsPreferences(
           settings.stateFile,
           (preferences: WorkbenchSettingsPreferences) => {
-            listener(preferences.askUserEnabled !== false);
+            listener(preferences.askUserEnabled === true);
           },
         );
       },
     },
     workbenchSettingsToolSettings: {
       async readEnabled() {
-        return (await settings.describe()).preferences.workbenchSettingsEnabled !== false;
+        return (await settings.describe()).preferences.workbenchSettingsEnabled === true;
       },
       subscribe(listener) {
         return subscribeWorkbenchSettingsPreferences(settings.stateFile, (preferences) => {
-          listener(preferences.workbenchSettingsEnabled !== false);
+          listener(preferences.workbenchSettingsEnabled === true);
         });
       },
     },
@@ -84,8 +84,8 @@ test("host shutdown releases extension preference listeners before ctx becomes s
   await mkdir(cwd, { recursive: true });
   const host = await createSession(cwd, "extension-lifecycle");
   t.after(() => host.shutdown());
-  assert.equal(host.session.getActiveToolNames().includes("workbench_settings"), true);
-  assert.equal(host.session.getActiveToolNames().includes("ask_user"), true);
+  assert.equal(host.session.getActiveToolNames().includes("workbench_settings"), false);
+  assert.equal(host.session.getActiveToolNames().includes("ask_user"), false);
 
   assert.equal(host.session.getActiveToolNames().includes("todo"), false);
 

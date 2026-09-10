@@ -3,10 +3,17 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { once } from "node:events";
+import { createServer } from "node:http";
+import { InMemoryCredentialStore } from "@earendil-works/pi-ai";
+import { ModelRuntime, SettingsManager } from "@earendil-works/pi-coding-agent";
+import { createWorkbenchAgentSessionServices } from "../../src/agent-runtime/agent-session-services";
+import { createImageInputProbe } from "../../src/models/image-input-probe";
 
-const { ModelService, ModelServiceError, toModelCatalogModel } = (await import(
-  new URL("../../src/models/model-service.ts", import.meta.url).href
-)) as typeof import("../../src/models/model-service");
+const { ModelService, ModelServiceError, toModelCatalogModel, createModelTestSession } =
+  (await import(
+    new URL("../../src/models/model-service.ts", import.meta.url).href
+  )) as typeof import("../../src/models/model-service");
 const { ModelConfigStore } = (await import(
   new URL("../../src/models/model-config-store.ts", import.meta.url).href
 )) as typeof import("../../src/models/model-config-store");
@@ -77,8 +84,49 @@ function memoryModelConfigStore(
 }
 
 function modelService(options: ConstructorParameters<typeof ModelService>[0] = {}) {
+  const mockedRuntime = options.runtime;
   return new ModelService({
     ...options,
+    ...(mockedRuntime?.complete && !(mockedRuntime instanceof ModelRuntime)
+      ? {
+          runtime: undefined,
+          serviceFactory: async () => ({
+            modelRuntime: mockedRuntime,
+            createTestSession: async (model) => {
+              const state = {
+                messages: [] as import("@earendil-works/pi-coding-agent").AgentSession["messages"],
+              };
+              const controller = new AbortController();
+              return {
+                agent: { state },
+                get messages() {
+                  return state.messages;
+                },
+                prompt: async (text, promptOptions) => {
+                  const images = promptOptions?.images ?? [];
+                  state.messages.push(
+                    await mockedRuntime.complete!(
+                      { ...model, input: images.length ? ["text", "image"] : ["text"] },
+                      {
+                        messages: [
+                          {
+                            role: "user",
+                            content: images.length ? [{ type: "text", text }, ...images] : text,
+                            timestamp: Date.now(),
+                          },
+                        ],
+                      },
+                      { signal: controller.signal },
+                    ),
+                  );
+                },
+                abort: async () => controller.abort(),
+                dispose: () => undefined,
+              };
+            },
+          }),
+        }
+      : {}),
     modelConfigStore: options.modelConfigStore ?? memoryModelConfigStore(),
   });
 }
@@ -175,7 +223,7 @@ test("verifies image input with a real multimodal model request", async () => {
         received.model = model;
         received.context = context;
         received.options = options;
-        return imageTestAssistantMessage("K7P3");
+        return imageTestAssistantMessage("OK");
       },
     }),
   });
@@ -192,12 +240,15 @@ test("verifies image input with a real multimodal model request", async () => {
   const content = received.context?.messages[0]?.content;
   assert.ok(Array.isArray(content));
   const image = content.find((part) => part.type === "image");
-  assert.equal(image?.mimeType, "image/png");
+  assert.equal(image?.mimeType, "image/jpeg");
   assert.ok((image?.data.length ?? 0) > 0);
-  assert.equal(Buffer.from(image?.data ?? "", "base64")[25], 2);
-  assert.equal(received.options?.maxTokens, undefined);
-  assert.equal(received.options?.maxRetries, 0);
-  assert.equal(received.options?.timeoutMs, 90_000);
+  assert.equal(image?.data, createImageInputProbe().data);
+  assert.equal(
+    Buffer.from(image?.data ?? "", "base64")
+      .subarray(0, 3)
+      .toString("hex"),
+    "ffd8ff",
+  );
 });
 
 test("marks image input unsupported only when the provider explicitly rejects it", async () => {
@@ -223,7 +274,7 @@ test("marks image input unsupported only when the provider explicitly rejects it
   }
 });
 
-test("keeps image input inconclusive for authentication and unexpected model responses", async () => {
+test("separates API authentication failures from successful responses regardless of answer text", async () => {
   const authentication = modelService({
     runtime: runtime({
       getModel: () => imageTestModel,
@@ -248,7 +299,7 @@ test("keeps image input inconclusive for authentication and unexpected model res
   );
   assert.deepEqual(
     await unexpected.testModelImageInput({ provider: "openai", model: imageTestModel.id }),
-    { outcome: "inconclusive", reason: "unexpected-response" },
+    { outcome: "supported", reason: "verified" },
   );
 });
 
@@ -291,7 +342,7 @@ test("asks the user to save before testing a model missing from the runtime", as
   const service = modelService({
     runtime: runtime({
       getModel: () => undefined,
-      complete: async () => imageTestAssistantMessage("K7P3"),
+      complete: async () => imageTestAssistantMessage("OK"),
     }),
   });
 
@@ -301,44 +352,56 @@ test("asks the user to save before testing a model missing from the runtime", as
   });
 });
 
-test("connection checks require text generation before probing images", async () => {
+test("one image request verifies connectivity; only image rejection triggers a text fallback", async () => {
   for (const scenario of [
     "images",
     "text-only",
     "image-network",
     "auth",
-    "empty",
+    "quota",
     "aborted",
-    "text-network",
+    "fallback-network",
+    "fallback-auth",
+    "fallback-empty",
   ] as const) {
     const requests: import("@earendil-works/pi-ai").Context[] = [];
-    const textSupported = ["images", "text-only", "image-network"].includes(scenario);
+    const needsFallback = scenario === "text-only" || scenario.startsWith("fallback-");
     const service = modelService({
       runtime: runtime({
         getModel: () => imageTestModel,
         complete: async (model, context) => {
           requests.push(context);
           if (requests.length === 1) {
-            assert.deepEqual(model.input, ["text"]);
-            assert.equal(typeof context.messages[0]?.content, "string");
-            if (scenario === "text-network") throw new Error("fetch failed");
-            if (scenario === "auth")
-              return imageTestAssistantMessage("", {
-                stopReason: "error",
-                errorMessage: "401 Unauthorized",
-              });
+            assert.deepEqual(model.input, ["text", "image"]);
+            const content = context.messages[0]?.content;
+            assert.ok(Array.isArray(content));
+            assert.ok(content.some((part) => part.type === "image"));
+            assert.ok(
+              content.some((part) => part.type === "text" && part.text === "Reply with OK."),
+            );
+            if (scenario === "image-network") throw new Error("fetch failed");
             if (scenario === "aborted")
               return imageTestAssistantMessage("", { stopReason: "aborted" });
-            return imageTestAssistantMessage(scenario === "empty" ? "" : "OK");
-          }
-          assert.deepEqual(model.input, ["text", "image"]);
-          if (scenario === "image-network") throw new Error("fetch failed");
-          return scenario === "text-only"
-            ? imageTestAssistantMessage("", {
+            if (scenario === "auth" || scenario === "quota" || needsFallback)
+              return imageTestAssistantMessage("", {
                 stopReason: "error",
-                errorMessage: "This model does not support image input.",
-              })
-            : imageTestAssistantMessage("K7P3");
+                errorMessage:
+                  scenario === "auth"
+                    ? "401 Unauthorized"
+                    : scenario === "quota"
+                      ? "402 Insufficient credits"
+                      : "This model does not support image input.",
+              });
+            return imageTestAssistantMessage("OK");
+          }
+          assert.equal(typeof context.messages[0]?.content, "string");
+          if (scenario === "fallback-network") throw new Error("fetch failed");
+          if (scenario === "fallback-auth")
+            return imageTestAssistantMessage("", {
+              stopReason: "error",
+              errorMessage: "401 Unauthorized",
+            });
+          return imageTestAssistantMessage(scenario === "fallback-empty" ? "" : "OK");
         },
       }),
     });
@@ -347,8 +410,8 @@ test("connection checks require text generation before probing images", async ()
       model: imageTestModel.id,
       testTextInput: true,
     });
-    assert.equal(result.textSupported, textSupported, scenario);
-    assert.equal(requests.length, textSupported ? 2 : 1, scenario);
+    assert.equal(result.textSupported, scenario === "images" || scenario === "text-only", scenario);
+    assert.equal(requests.length, needsFallback ? 2 : 1, scenario);
     assert.equal(
       result.outcome,
       scenario === "images"
@@ -360,6 +423,234 @@ test("connection checks require text generation before probing images", async ()
     );
     assert.deepEqual(imageTestModel.input, ["text"]);
   }
+});
+
+test("image capability follows API completion status rather than recognition accuracy", async () => {
+  for (const stopReason of ["stop", "length", "toolUse", "aborted"] as const) {
+    for (const text of ["", "OK", "I cannot view images.", "An unrelated answer."]) {
+      const service = modelService({
+        runtime: runtime({
+          getModel: () => imageTestModel,
+          complete: async () => imageTestAssistantMessage(text, { stopReason }),
+        }),
+      });
+      assert.deepEqual(
+        await service.testModelImageInput({ provider: "openai", model: imageTestModel.id }),
+        stopReason === "aborted"
+          ? { outcome: "inconclusive", reason: "timeout" }
+          : { outcome: "supported", reason: "verified" },
+      );
+    }
+  }
+});
+
+test("cancellation and timeout abort and dispose the temporary test session", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  for (const mode of ["cancel", "timeout"] as const) {
+    const controller = new AbortController();
+    let started!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    let finish!: () => void;
+    let aborted = false;
+    let disposed = false;
+    const messages: import("@earendil-works/pi-ai").AssistantMessage[] = [];
+    const service = modelService({
+      serviceFactory: async () => ({
+        modelRuntime: runtime({ getModel: () => imageTestModel }),
+        createTestSession: async () => ({
+          agent: { state: { messages } },
+          messages,
+          prompt: async () => {
+            await new Promise<void>((resolve) => {
+              finish = resolve;
+              started();
+            });
+          },
+          abort: async () => {
+            aborted = true;
+            messages.push(imageTestAssistantMessage("", { stopReason: "aborted" }));
+            finish();
+          },
+          dispose: () => {
+            disposed = true;
+          },
+        }),
+      }),
+    });
+    const pending = service.testModelImageInput(
+      { provider: "openai", model: imageTestModel.id, testTextInput: true },
+      { signal: controller.signal },
+    );
+    await ready;
+    if (mode === "cancel") {
+      controller.abort();
+      await assert.rejects(pending, { name: "AbortError" });
+    } else {
+      t.mock.timers.tick(90_000);
+      assert.deepEqual(await pending, {
+        outcome: "inconclusive",
+        reason: "timeout",
+        textSupported: false,
+      });
+    }
+    assert.equal(aborted, true, mode);
+    assert.equal(disposed, true, mode);
+  }
+});
+
+test("sends the demo through the SDK and classifies HTTP and stream responses", async (t) => {
+  let scenario: "success" | "rejected" | "stream-error" | "auth" = "success";
+  const requests: {
+    messages: { role: string; content: { type: string; image_url?: { url: string } }[] }[];
+  }[] = [];
+  const sessionHeaders: (string | string[] | undefined)[] = [];
+  const server = createServer(async (request, response) => {
+    sessionHeaders.push(request.headers["x-opencode-session"]);
+    const chunks: Buffer[] = [];
+    for await (const chunk of request) chunks.push(Buffer.from(chunk));
+    requests.push(JSON.parse(Buffer.concat(chunks).toString()));
+    const hasImage = JSON.stringify(requests.at(-1)).includes("image_url");
+    if (scenario === "auth" || (scenario === "rejected" && hasImage)) {
+      response.writeHead(scenario === "auth" ? 401 : 400, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          error: {
+            message:
+              scenario === "auth" ? "Unauthorized" : "This model does not support image input.",
+          },
+        }),
+      );
+      return;
+    }
+    response.writeHead(200, { "content-type": "text/event-stream" });
+    const event =
+      scenario === "stream-error"
+        ? { error: { message: "This model does not support image input." } }
+        : {
+            id: "test",
+            object: "chat.completion.chunk",
+            model: "demo",
+            choices: [
+              { index: 0, delta: { role: "assistant", content: "OK" }, finish_reason: "stop" },
+            ],
+          };
+    response.end(`data: ${JSON.stringify(event)}\n\ndata: [DONE]\n\n`);
+  });
+  t.after(async () => {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const sdk = await ModelRuntime.create({
+    credentials: new InMemoryCredentialStore(),
+    modelsPath: null,
+    refreshOnCreate: false,
+  });
+  sdk.registerProvider("opencode-go", {
+    api: "openai-completions",
+    baseUrl: `http://127.0.0.1:${address.port}/v1`,
+    apiKey: "test-key",
+    models: [
+      {
+        id: "demo",
+        name: "Demo",
+        reasoning: false,
+        input: ["text"],
+        cost: imageTestModel.cost,
+        contextWindow: 4096,
+        maxTokens: 512,
+      },
+    ],
+  });
+  const agentDir = await mkdtemp(path.join(tmpdir(), "workbench-probe-headers-"));
+  t.after(() => rm(agentDir, { recursive: true, force: true }));
+  const services = await createWorkbenchAgentSessionServices({
+    cwd: agentDir,
+    agentDir,
+    modelRuntime: sdk,
+    settingsManager: SettingsManager.inMemory(),
+    resourceLoaderOptions: {
+      noExtensions: true,
+      noSkills: true,
+      noPromptTemplates: true,
+      noThemes: true,
+    },
+  });
+  const service = modelService({
+    serviceFactory: async () => ({
+      ...services,
+      createTestSession: async (model) => {
+        const session = await createModelTestSession(services, model);
+        assert.equal(session.sessionFile, undefined);
+        assert.deepEqual(session.agent.state.tools, []);
+        return session;
+      },
+    }),
+  });
+  for (const value of ["success", "rejected", "stream-error", "auth"] as const) {
+    scenario = value;
+    const result = await service.testModelImageInput({ provider: "opencode-go", model: "demo" });
+    assert.deepEqual(
+      result,
+      value === "success"
+        ? { outcome: "supported", reason: "verified" }
+        : value === "auth"
+          ? { outcome: "inconclusive", reason: "authentication" }
+          : { outcome: "unsupported", reason: "provider-rejected-image" },
+      value,
+    );
+    assert.match(String(sessionHeaders.at(-1)), /^[0-9a-f-]{36}$/);
+    const body = requests.at(-1)!;
+    const image = body.messages
+      .findLast((message) => message.role === "user")!
+      .content.find((part: { type: string }) => part.type === "image_url");
+    assert.equal(image?.image_url?.url, `data:image/jpeg;base64,${createImageInputProbe().data}`);
+  }
+  scenario = "success";
+  const before = requests.length;
+  const result = await service.testModelImageInput({
+    provider: "opencode-go",
+    model: "demo",
+    testTextInput: true,
+  });
+  assert.equal(result.outcome, "supported");
+  assert.equal(result.textSupported, true);
+  assert.equal(requests.length, before + 1, "success uses one model request");
+  const fallbackStart = requests.length;
+  scenario = "rejected";
+  const textOnly = await service.testModelImageInput({
+    provider: "opencode-go",
+    model: "demo",
+    testTextInput: true,
+  });
+  assert.deepEqual(textOnly, {
+    outcome: "unsupported",
+    reason: "provider-rejected-image",
+    textSupported: true,
+  });
+  assert.equal(requests.length, fallbackStart + 2);
+  assert.match(JSON.stringify(requests.at(-2)), /image_url/);
+  assert.doesNotMatch(
+    JSON.stringify(requests.at(-1)),
+    /image_url/,
+    "fallback context must not retain the rejected image",
+  );
+  assert.equal(sessionHeaders.at(-1), sessionHeaders.at(-2), "fallback keeps the same session");
+  assert.notEqual(
+    sessionHeaders.at(-1),
+    sessionHeaders.at(-3),
+    "separate tests use separate sessions",
+  );
+  assert.equal(
+    sdk.getModel("opencode-go", "demo")?.input.includes("image"),
+    false,
+    "probe does not mutate configured capability",
+  );
 });
 
 test("reads and updates a model context-window override", async () => {
