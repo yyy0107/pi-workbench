@@ -10,6 +10,7 @@ import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
 import { getProjectTrustService } from "../trust/project-trust-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 import { withWorkbenchBuiltinSkills } from "../skills/builtin-skills";
+import { requireSkillOptIn } from "../skills/skill-enablement";
 import { ensureWorkbenchBuiltinResources } from "../builtin-resources";
 import {
   prepareWorkbenchPiExtensions,
@@ -150,6 +151,7 @@ export class ScopedResourceContextService {
         extensionFactories: workbenchInternalPiExtensions,
         extensionsOverride: prepareWorkbenchPiExtensions,
       });
+      requireSkillOptIn(resourceLoader, settingsManager);
       const reload = () =>
         resourceLoader.reload({
           resolveProjectTrust: async () => projectTrusted,

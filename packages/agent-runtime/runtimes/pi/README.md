@@ -502,16 +502,19 @@ API/运行时来源会随自定义模型配置写入 Workbench 自有的来源�
 `reason`，并在 HTTP 失败时返回 `httpStatus`；设置页据此区分凭据、地址、限流、提供方故障、
 协议、响应格式和网络错误，不解析服务端英文错误文本。
 
-设置页的单模型测试先通过 `llm.discoverModels` 直接读取提供方模型元数据；若目标模型的图片输入能力
-为明确的 `supported` 或 `unsupported`，则以 `provider-api` 来源更新草稿且不发送推理请求。只有元数据
-未知、模型未列出或模型列表请求失败时，才回退到 `llm.testModelImageInput`。该 RPC 使用已保存的
-provider、凭据和模型配置发送一张内置的小型 PNG，要求模型
-读出图中的固定验证码。只有验证码匹配才返回 `supported`，只有提供方明确拒绝图片输入才返回
-`unsupported`；认证、网络、限流、超时或模型未可靠读图都返回 `inconclusive`。探测会临时强制
-图片进入 provider 适配器，但不修改运行时模型对象；设置页仅在明确结果时以 `test` 来源更新草稿，
-仍需用户保存后才持久化。探测图使用标准 RGB PNG；请求最多等待 90 秒并禁用重试。为避免兼容 API
-因无关参数拒绝探测，请求不发送 system prompt 或显式输出上限，并在临时模型副本中关闭 reasoning
-与 sampling 参数。服务端将鉴权、额度、限流、超时、网络、协议不匹配、模型不可用、图片解码、
+设置页的单模型连接测试通过 `llm.testModelImageInput` 使用已保存的 provider、凭据和模型配置，
+先发送内置 JPEG 示例图片，只要求回复 OK；成功即可确认连接和图片请求，只有明确拒绝图片时才清空
+临时会话的消息上下文并补测纯文本，避免重新携带被拒绝的图片。判定只依据 API 返回的完成状态与
+错误类型，不比对模型回答或识别准确率：成功完成（包括输出达到上限）返回 `supported`；只有提供方
+明确拒绝图片输入才返回 `unsupported`；认证、网络、限流、超时等返回 `inconclusive`。
+这里的 `supported` 表示 API 接受了图片请求，不保证模型实际理解图片。探测会临时强制图片进入
+provider 适配器，但不修改运行时模型对象；设置页仅在明确结果时以 `test` 来源更新草稿。
+文本与图片探测复用一个临时内存 AgentSession，通过公开的 `session.prompt()` 走正常会话发送流程，
+由 SDK 统一处理认证、提供方请求头和 session ID；Workbench 不维护 OpenCode 专用请求头分支。
+测试会话关闭工具、用户扩展、技能、提示词模板、上下文文件、自动压缩和重试，不写入用户会话记录；
+完成、失败或取消后释放。请求最多等待 90 秒，取消和超时会中止测试会话。
+请求参数遵循 SDK 的会话流程，在临时模型副本中关闭 reasoning 与 sampling 参数。
+服务端将鉴权、额度、限流、超时、网络、协议不匹配、模型不可用、图片解码、
 安全过滤和提供方不可用归一化为稳定 reason，并识别 OpenRouter 的“没有支持图片输入的 endpoint”等
 明确拒绝；它属于可能计费的推理请求，因此 UI 必须在按钮附近明确提示。
 
@@ -538,6 +541,10 @@ Workbench 将完整内置包部署到 Pi 用户目录的 `packages/.builtin/brow
 `package`；不再注册 `workbench.browser` 内联扩展或单独安装 Browser 技能。
 工具箱在 Pi Packages 中显示带内置标记的 Browser，详情展示包内技能及扩展注册的工具、事件；
 包随 Workbench 更新，不单独卸载或更新，包内资源沿用 Pi 原生过滤规则启停。
+Browser 扩展默认关闭；注册时仅为没有扩展开关的配置补上空过滤列表，保留已保存的启用和关闭选择。
+Workbench 的所有技能（内置、用户、项目和安装包来源，包括后续新增技能）默认关闭。
+加载、技能目录和安装包详情统一要求所属范围的显式启用规则；用户可在工具箱中启用，
+继续使用 Pi 原生 `+path` / `-path` 持久化和重载机制，关闭的资源仍可查看文档和重新启用。
 Workbench 与使用同一 Pi 用户目录的独立 Pi CLI 消费同一份包，技能唯一源码位于包的 `skills/browser-use/`。
 独立 Pi CLI 惰性启动同一 BrowserManager 引擎，通过 Pi UI 处理权限确认，并在会话结束时释放浏览器；
 Workbench 则继续使用应用的共享浏览器与权限 UI。
@@ -547,7 +554,7 @@ Workbench 则继续使用应用的共享浏览器与权限 UI。
 当前对话的 cwd 解析为已登记的 workspaceId，确保工具能发现和复用用户打开的标签。导航、截图、键盘和
 鼠标输入继续复用共享 BrowserManager，普通操作不要求开启完整 CDP 权限。工具结果沿现有
 Browser Runtime Bridge 展示在右侧浏览器工作区，不创建另一套浏览器进程或会话协议。
-该技能默认可发现，支持 `/skill:browser` 与现有技能启停、文档查看流程；本地站点和 HTML
+该技能默认在工具箱中可见，启用后支持 `/skill:browser-use` 与现有技能启停、文档查看流程；本地站点和 HTML
 通过项目的开发或静态 HTTP 服务打开，直接 `file:` 导航不在此工具范围内。
 
 `workbench-settings` 内置技能通过宿主工具 `workbench_settings` 读取和修改当前 Runtime 的
@@ -571,7 +578,7 @@ Workbench 重置项由 `resetKeys` 标识，因此成功后无需额外完整回
 
 Workbench 随 Runtime 内置 `skill-creator`，用于创建和更新技能。会话与 Toolbox 通过 Pi 的
 `skillsOverride` 加入同一份资源，复用技能详情、文件浏览、自动发现和 `/skill:skill-creator` 调用。
-内置项在用户范围显示，来源为 `builtin`，默认启用且不可删除；已有同名用户或受信任项目技能优先。
+内置项在用户范围显示，来源为 `builtin`，默认关闭且不可删除；已有同名用户或受信任项目技能优先。
 启停复用 `skill.setEnabled` 与用户级 Pi 设置中的精确资源路径开关。停用后目录和文档仍可查看，
 技能不再进入模型提示词和命令列表；所有受影响会话按现有资源变更流程重载，重启后保持设置。
 Runtime 会将内置资源同步到 Pi 用户目录（默认 `~/.pi/agent`，遵循 `PI_CODING_AGENT_DIR`）：
@@ -784,8 +791,8 @@ Workbench 自身依赖的 Pi 生命周期适配器通过 `DefaultResourceLoader`
 它们的源码与资源按扩展目录同步到用户目录的 `extensions/.builtin/`，执行仍由宿主的内联工厂负责；
 源码根目录的 `index.ts` 只负责宿主注册，不作为独立资源安装。
 `extension.list` 的可选 `builtins` 数组单独返回名称及工具、命令和事件
-声明，与用户安装的扩展一并显示在工具箱“Pi 扩展”列表与详情页。Todo 与 Ask User 可通过共享 Workbench 设置启停
-（`todoEnabled` 默认停用，`askUserEnabled` 默认启用），即时同步活动会话的可用工具，保留工具历史；纯生命周期
+声明，与用户安装的扩展一并显示在工具箱“Pi 扩展”列表与详情页。Todo、Ask User 与 Workbench Settings 可通过共享 Workbench 设置启停
+（`todoEnabled`、`askUserEnabled`、`workbenchSettingsEnabled` 均默认停用，保留显式设置），即时同步活动会话的可用工具，保留工具历史；纯生命周期
 扩展也使用共享设置开关，在每次事件分发时读取最新状态，默认启用。内置项不包含文件或 mutation 身份，不进入文件读取和
 Pi 资源启停/删除 RPC，也不会被同一 Pi agent 目录下的 TUI 或其他客户端自动加载。
 内部扩展初始化失败写入 Host 日志，不计入面向用户的扩展加载错误数量。当前消息终止原因

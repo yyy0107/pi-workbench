@@ -35,6 +35,33 @@ test("the built-in browser loads once as a Pi package across reloads and native 
   });
   const context = await service.get({ scope: "user" });
   const { settingsManager, resourceLoader } = context;
+  assert.equal(
+    resourceLoader
+      .getExtensions()
+      .extensions.some((extension) => extension.tools.has("workbench_browser")),
+    false,
+  );
+  assert.deepEqual(resourceLoader.getSkills().skills, []);
+  const initialHost = {
+    session: { resourceLoader, settingsManager, sessionManager: { getCwd: () => root } },
+  };
+  const extensionService = new ExtensionService({ getScopedResourceHost: async () => initialHost });
+  const target = { scope: "user" as const };
+  const initialExtension = (await extensionService.list({ target })).extensions.find(
+    (entry) => entry.source === WORKBENCH_BROWSER_PACKAGE_SOURCE,
+  )!;
+  assert.equal(initialExtension.enabled, false);
+  await extensionService.setEnabled({ target, ...initialExtension, enabled: true });
+  const skillService = new SkillService({
+    agentDir: () => agentDir,
+    getScopedResourceHost: async () => initialHost,
+  });
+  assert.equal(
+    (await skillService.list({ target })).skills.find((skill) => skill.name === "browser-use")
+      ?.enabled,
+    false,
+  );
+  await skillService.setEnabled({ target, name: "browser-use", enabled: true });
   const packageManager = new DefaultPackageManager({ cwd: root, agentDir, settingsManager });
   const browserExtensions = () =>
     resourceLoader
@@ -71,6 +98,7 @@ test("the built-in browser loads once as a Pi package across reloads and native 
     WORKBENCH_BROWSER_PACKAGE_SOURCE,
     "user",
     resourceLoader.getExtensions().extensions,
+    settingsManager,
   );
   assert.equal(details.find((resource) => resource.type === "skill")?.name, "browser-use");
   assert.deepEqual(
@@ -168,7 +196,11 @@ test("registration migrates the retired browser skill switch and preserves exist
   const settings = SettingsManager.create(agentDir, agentDir, { projectTrusted: false });
   assert.deepEqual(settings.getGlobalSettings().packages, [
     customPackage,
-    { source: WORKBENCH_BROWSER_PACKAGE_SOURCE, skills: ["-skills/browser-use/SKILL.md"] },
+    {
+      source: WORKBENCH_BROWSER_PACKAGE_SOURCE,
+      extensions: [],
+      skills: ["-skills/browser-use/SKILL.md"],
+    },
   ]);
   assert.deepEqual(settings.getGlobalSettings().skills, ["-skills/custom"]);
   assert.equal(settings.getGlobalSettings().defaultModel, "preserved-model");

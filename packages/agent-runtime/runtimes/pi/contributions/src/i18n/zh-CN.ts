@@ -132,7 +132,8 @@ export const piExtensionsZhCN = {
     agentConfiguration: {
       cacheMiss: {
         title: "缓存缺失通知",
-        description: "在消息操作栏中提示明显的提示词缓存缺失，点击图标查看估算的额外费用。默认关闭。",
+        description:
+          "在消息操作栏中提示明显的提示词缓存缺失，点击图标查看估算的额外费用。默认关闭。",
         noticeTitle: "提示词缓存缺失",
         tokens: ({ tokens }: { tokens: string }) =>
           `之前已处理的 ${tokens} 个 token 未从缓存读取。`,
@@ -372,14 +373,15 @@ export const piExtensionsZhCN = {
       testMultimodal: ({ name }: { name: string }) => `测试${name || "此模型"}的图片输入能力`,
       testMultimodalShort: "测试",
       testingMultimodal: "测试中…",
-      multimodalTestHint: "先使用已保存的配置测试文本生成，再测试图片理解，可能产生少量费用。",
+      multimodalTestHint:
+        "使用已保存的配置发送示例图片；仅在图片被拒绝时补测文本。可能产生少量费用。",
       multimodalMetadataSupported: "提供方模型元数据确认支持图片输入。",
       multimodalMetadataUnsupported: "提供方模型元数据确认不支持图片输入。",
       multimodalTestSupported: "已验证支持图片输入。",
       multimodalTestUnsupported: "提供方已明确拒绝图片输入。",
       multimodalTestSaveFirst: "此模型尚未进入已保存的运行时配置，请等待自动保存完成后再测试。",
       multimodalTestRuntimeUnavailable: "当前模型运行时无法执行图片输入能力测试。",
-      multimodalTestUnexpectedResponse: "模型有响应，但没有可靠读出测试图片。",
+      multimodalTestUnexpectedResponse: "图片请求未返回有效的 API 完成状态。",
       multimodalTestAuthentication: "认证失败，请保存有效的 API Key 或重新登录此提供方后再试。",
       multimodalTestQuotaExceeded: "提供方提示额度、余额或配额不足。",
       multimodalTestRateLimited: "提供方限制了请求频率，请稍后重试。",
@@ -390,7 +392,7 @@ export const piExtensionsZhCN = {
         "提供方不识别当前协议的标准图片请求字段，请选择与此接口匹配的 API 协议。",
       multimodalTestModelUnavailable:
         "提供方找不到或无法路由此模型 ID，请刷新模型列表或检查模型 ID。",
-      multimodalTestInvalidImage: "提供方无法解码内置的 RGB PNG 测试图片。",
+      multimodalTestInvalidImage: "提供方无法解码内置的 JPEG 测试图片。",
       multimodalTestSafety: "提供方通过安全策略或内容过滤拦截了图片测试。",
       multimodalTestProviderError:
         "提供方拒绝了图片测试，但没有明确说明不支持图片输入；请检查所选协议和模型 ID。",

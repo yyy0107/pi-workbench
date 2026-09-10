@@ -211,6 +211,7 @@ test("persists the official exact Skill filter and reloads an idle session", asy
     "---\nname: review\ndescription: Review the current changes.\n---\n\n# Review\n",
   );
   const settingsManager = SettingsManager.inMemory({}, { projectTrusted: true });
+  settingsManager.setProjectSkillPaths(["+skills/review/SKILL.md"]);
   let reloadCount = 0;
   const service = new SkillService({
     getSession: async () => ({

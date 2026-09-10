@@ -5,10 +5,12 @@ import {
   parseFrontmatter,
   type Extension,
   type ResolvedPaths,
+  type SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import type { PiPackageResourceView } from "@workbench/agent-runtime-pi-protocol/rpc";
 import { pathWithin } from "../resources/resource-mutations";
 import { readResourceTextFile } from "../resources/resource-text-file";
+import { skillExplicitlyEnabled } from "../skills/skill-enablement";
 
 /** Read declarations only; never import or execute an extension to inspect a package. */
 export async function readPackageResourceDetails(
@@ -17,6 +19,7 @@ export async function readPackageResourceDetails(
   source: string,
   scope: "user" | "project",
   extensions: readonly Extension[],
+  settingsManager: SettingsManager,
 ): Promise<PiPackageResourceView[]> {
   const root = await realpath(installedPath);
   const resources: PiPackageResourceView[] = [];
@@ -36,7 +39,10 @@ export async function readPackageResourceDetails(
           type === "skill" && basename(path) === "SKILL.md"
             ? basename(dirname(path))
             : basename(path, extname(path)),
-        enabled: resource.enabled,
+        enabled:
+          resource.enabled &&
+          (type !== "skill" ||
+            skillExplicitlyEnabled(resource.path, resource.metadata, settingsManager)),
       };
       if (type === "extension") {
         if (item.name === "index") item.name = basename(dirname(path));

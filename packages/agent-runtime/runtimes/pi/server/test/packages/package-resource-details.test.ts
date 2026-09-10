@@ -28,23 +28,31 @@ test("resolves package directories into named resources, includes disabled promp
       "---\ndescription: Plan the implementation\n---\nPlan $ARGUMENTS",
     );
     await writeFile(join(root, "index.ts"), "throw new Error('Must never execute package code');");
+    const settingsManager = SettingsManager.inMemory({
+      packages: [{ source: root, prompts: ["!prompts/plan.md"] }],
+    });
     const manager = new DefaultPackageManager({
       cwd: directory,
       agentDir: join(directory, "agent"),
-      settingsManager: SettingsManager.inMemory({
-        packages: [{ source: root, prompts: ["!prompts/plan.md"] }],
-      }),
+      settingsManager,
     });
     const paths = await manager.resolve(async () => {
       throw new Error("Must never install a package");
     });
-    const resources = await readPackageResourceDetails(paths, root, root, "user", []);
+    const resources = await readPackageResourceDetails(
+      paths,
+      root,
+      root,
+      "user",
+      [],
+      settingsManager,
+    );
     assert.deepEqual(resources, [
       {
         type: "skill",
         name: "review-code",
         description: "Review code for regressions",
-        enabled: true,
+        enabled: false,
       },
       { type: "prompt", name: "plan", description: "Plan the implementation", enabled: false },
       { type: "extension", name: "workflow", enabled: true },
@@ -55,12 +63,22 @@ test("resolves package directories into named resources, includes disabled promp
     );
     await symlink(join(directory, "outside.md"), join(root, "prompts", "outside.md"));
     const linkedPaths = await manager.resolve(async () => "skip");
-    const safe = await readPackageResourceDetails(linkedPaths, root, root, "user", []);
+    const safe = await readPackageResourceDetails(
+      linkedPaths,
+      root,
+      root,
+      "user",
+      [],
+      settingsManager,
+    );
     assert.equal(
       safe.some((item) => item.description?.includes("Private file")),
       false,
     );
-    assert.deepEqual(await readPackageResourceDetails(paths, root, root, "project", []), []);
+    assert.deepEqual(
+      await readPackageResourceDetails(paths, root, root, "project", [], settingsManager),
+      [],
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

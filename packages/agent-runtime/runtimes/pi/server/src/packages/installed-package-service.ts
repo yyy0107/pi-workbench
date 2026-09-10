@@ -284,6 +284,7 @@ async function describeInstalledPackage(
       request.source,
       request.target.scope,
       context.resourceLoader.getExtensions().extensions,
+      context.settingsManager,
     );
     return details;
   } catch (error) {
