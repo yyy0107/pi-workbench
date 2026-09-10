@@ -7,6 +7,7 @@ import { ArrowUpRightIcon, MessagesSquareIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import {
   siBaseui,
+  siDeepseek,
   siElectron,
   siElectronbuilder,
   siLucide,
@@ -65,6 +66,12 @@ const OPEN_SOURCE_PROJECTS = [
     license: "MIT",
     href: "https://www.assistant-ui.com",
     icon: null,
+  },
+  {
+    name: "DeepSeek Harness",
+    license: "MIT",
+    href: "https://github.com/deepseek-ai/deepseek-harness",
+    icon: siDeepseek.path,
   },
   {
     name: "thinking-orbs",
