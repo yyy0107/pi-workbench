@@ -257,10 +257,10 @@ function ReviewFile({
               deletions: file.deletions,
             })}
           >
-            <span className="text-success-foreground" aria-hidden>
+            <span className="text-success-foreground/80" aria-hidden>
               +{number(file.additions)}
             </span>
-            <span className="text-danger-foreground" aria-hidden>
+            <span className="text-danger-foreground/80" aria-hidden>
               −{number(file.deletions)}
             </span>
           </span>
@@ -358,10 +358,10 @@ function ReviewComparison({ surface, refresh }: ReviewProps & { refresh: () => v
                 : undefined
             }
           >
-            <span className="text-success-foreground" aria-hidden>
+            <span className="text-success-foreground/80" aria-hidden>
               +{number(totals.additions)}
             </span>
-            <span className="text-danger-foreground" aria-hidden>
+            <span className="text-danger-foreground/80" aria-hidden>
               −{number(totals.deletions)}
             </span>
           </span>

@@ -25,13 +25,13 @@
 }
 
 [data-workspace-review] [data-review-row][data-kind="added"] {
-  --review-row-background: color-mix(in oklab, var(--success) 10%, var(--background));
-  --review-word-background: color-mix(in oklab, var(--success) 28%, transparent);
+  --review-row-background: color-mix(in oklab, var(--success) 6%, var(--background));
+  --review-word-background: color-mix(in oklab, var(--success) 16%, transparent);
 }
 
 [data-workspace-review] [data-review-row][data-kind="removed"] {
-  --review-row-background: color-mix(in oklab, var(--danger) 10%, var(--background));
-  --review-word-background: color-mix(in oklab, var(--danger) 28%, transparent);
+  --review-row-background: color-mix(in oklab, var(--danger) 6%, var(--background));
+  --review-word-background: color-mix(in oklab, var(--danger) 16%, transparent);
 }
 
 [data-workspace-review] [data-review-row] > code {
