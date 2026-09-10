@@ -76,6 +76,7 @@ export function ToolboxResourceList({
         {
           id: "package",
           title: t("extensions.toolbox.extensions.groups.package"),
+          description: t("extensions.toolbox.extensions.groupDescriptions.package"),
           items: visibleItems.filter(
             (item) => !item.params.builtin && item.params.origin === "package",
           ),
@@ -83,24 +84,39 @@ export function ToolboxResourceList({
         {
           id: "custom",
           title: t("extensions.toolbox.extensions.groups.custom"),
+          description: t("extensions.toolbox.extensions.groupDescriptions.custom"),
           items: visibleItems.filter(
             (item) => !item.params.builtin && item.params.origin !== "package",
           ),
         },
         {
+          id: "workbench",
+          title: t("extensions.toolbox.extensions.groups.workbench"),
+          description: t("extensions.toolbox.extensions.groupDescriptions.workbench"),
+          items: visibleItems.filter(
+            (item) => item.params.builtin && item.params.provenance?.kind === "workbench",
+          ),
+        },
+        {
           id: "builtin",
           title: t("extensions.toolbox.extensions.groups.builtin"),
-          items: visibleItems.filter((item) => item.params.builtin),
+          description: t("extensions.toolbox.extensions.groupDescriptions.builtin"),
+          items: visibleItems.filter(
+            (item) => item.params.builtin && item.params.provenance?.kind !== "workbench",
+          ),
         },
       ]
-    : [{ id: "all", title: undefined, items: visibleItems }];
+    : [{ id: "all", title: undefined, description: undefined, items: visibleItems }];
 
   return groups
     .filter((group) => group.items.length > 0)
     .map((group) => (
       <Fragment key={group.id}>
         {group.title ? (
-          <h2 className="mt-8 mb-3 border-b px-3 pb-4 text-base font-medium">{group.title}</h2>
+          <div className="mt-8 mb-3 border-b border-border px-3 pb-4">
+            <h2 className="text-base font-medium">{group.title}</h2>
+            <p className="text-muted-foreground mt-1 text-sm leading-5">{group.description}</p>
+          </div>
         ) : null}
         <ToolboxResourceGroup
           items={group.items}
@@ -164,7 +180,10 @@ export function ToolboxResourceList({
                       ? withTooltip(
                           <span
                             title={description}
-                            className="text-muted-foreground mt-0.5 block truncate text-sm leading-5"
+                            className={cn(
+                              "text-muted-foreground mt-0.5 text-sm leading-5",
+                              item.kind === "extension" ? "line-clamp-3" : "block truncate",
+                            )}
                           >
                             {description}
                           </span>,

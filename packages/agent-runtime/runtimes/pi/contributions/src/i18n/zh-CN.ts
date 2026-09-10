@@ -522,7 +522,8 @@ export const piExtensionsZhCN = {
         descriptions: {
           packages: "为智能体发现技能、扩展、提示模板和主题。",
           skills: "通过任务专用技能扩展智能体的能力。",
-          extensions: "管理内置和已安装的 Pi 扩展提供的工具、命令和事件。",
+          extensions:
+            "按来源浏览 Pi Package、自建扩展、Workbench 扩展和内置工具。查看各项用途、注册的工具、命令与事件，并在详情中管理可用的开关和安装资源。",
           prompts: "保存可复用的提示模板，随时用于下一项任务。",
           installed: "管理当前范围内已安装的 Pi 包。",
         },
@@ -620,13 +621,26 @@ export const piExtensionsZhCN = {
           "Find 和 Grep 共用此设置。一次调用可搜索最多 8 个目录，Grep 默认显示两行上下文。在新会话或重启后恢复的会话中生效；Windows 的 Find 保持不变。",
         enhancedSearchError: "无法读取或保存增强搜索设置，请重试。",
         tools: {
-          read: "读取文件和图片。",
-          bash: "在工作区执行 Shell 命令。",
-          edit: "精确修改已有文件。",
-          write: "创建或覆盖文件。",
+          read: "读取文本文件或图片，将内容提供给模型；支持分段读取较长的文本文件。",
+          bash: "在当前工作区执行 Shell 命令，返回命令输出和退出状态，用于构建、测试及其他命令行任务。",
+          edit: "在已有文件中查找并精确替换指定文本，适合修改局部代码或配置。",
+          write: "将完整内容写入指定路径，可创建新文件或覆盖已有文件，用于生成代码、文档和配置。",
           grep: "搜索文件内容；增强搜索支持多个目录和上下文行。",
           find: "按名称或模式查找文件；增强搜索支持多个目录。",
-          ls: "列出目录内容。",
+          ls: "列出指定目录中的文件和子目录，帮助模型了解项目结构并定位需要读取的文件。",
+        },
+        extensions: {
+          settings:
+            "让模型通过 workbench_settings 读取和修改 Workbench 界面偏好，以及 Pi 系统提示词和压缩设置；不管理模型凭据或项目信任。",
+          todo: "提供 todo 工具，用于创建、更新、查询和清理任务，记录状态、依赖与负责人，并在恢复会话时重建当前分支的任务列表。",
+          askUser:
+            "提供 ask_user 工具，让模型在需要补充信息或确认选择时展示结构化问题，支持单选、多选和自定义回答，并等待你的答复后继续。",
+          messageTermination:
+            "记录每次模型回复的结束原因，区分正常完成、长度限制、主动取消、网络故障和服务错误，帮助界面准确展示中断状态。",
+          composerContext:
+            "在发送给模型前，将输入框附带的上下文与用户正文分别组织，保留文件、技能等补充信息，并过滤仅供界面使用的空消息。",
+          contextTrace:
+            "记录系统提示词、消息上下文、可用工具和压缩过程的快照，为上下文追踪页面提供数据，帮助排查模型实际收到的内容。",
         },
         scope: "所有工作区",
         toggleDescription:
@@ -636,7 +650,16 @@ export const piExtensionsZhCN = {
         groups: {
           package: "Pi Package",
           custom: "自建扩展",
+          workbench: "Workbench 扩展",
           builtin: "内置扩展",
+        },
+        groupDescriptions: {
+          package: "由 Pi Package 提供的扩展，包括随应用附带的包；其工具、命令和事件随包加载。",
+          custom: "从本地扩展文件或目录加载，可为当前用户或工作区添加自定义工具、命令和事件处理。",
+          workbench:
+            "由 Workbench 提供的工具实现和会话集成，负责交互提问、任务管理、设置、上下文处理及运行诊断。",
+          builtin:
+            "Pi 原生工具及其他宿主内置项。工具若被自建扩展或 Package 替换，可在详情中查看实际提供方和覆盖关系。",
         },
         title: "Pi 扩展",
         browse: "浏览 Pi 扩展",

@@ -567,7 +567,7 @@ export const piExtensionsEnUS = {
           packages: "Discover skills, extensions, prompts, and themes for your agent.",
           skills: "Extend your agent with task-specific skills.",
           extensions:
-            "Manage the tools, commands, and events provided by built-in and installed Pi extensions.",
+            "Browse Pi Packages, custom extensions, Workbench extensions, and built-in tools by source. Explore their purpose, tools, commands, and events, then open details to manage available switches and installed resources.",
           prompts: "Keep reusable prompts ready for your next task.",
           installed: "Manage the Pi packages installed in this scope.",
         },
@@ -671,13 +671,27 @@ export const piExtensionsEnUS = {
           "Find and Grep share this setting. Search up to 8 directories in one call; Grep includes 2 context lines by default. Applies to new sessions and sessions restored after restart. Find on Windows is unchanged.",
         enhancedSearchError: "Could not load or save enhanced search settings. Try again.",
         tools: {
-          read: "Read files and images.",
-          bash: "Run shell commands in the workspace.",
-          edit: "Apply precise edits to existing files.",
-          write: "Create or replace files.",
+          read: "Read text files or images into the model context, with partial reads for longer text files.",
+          bash: "Run shell commands in the current workspace and return their output and exit status for builds, tests, and other command-line tasks.",
+          edit: "Find and precisely replace specified text in an existing file to update selected code or configuration.",
+          write:
+            "Write complete content to a path, creating a new file or replacing an existing one to generate code, documents, and configuration.",
           grep: "Search file contents. Enhanced search adds multiple directories and context lines.",
           find: "Find files by name or pattern. Enhanced search adds multiple directories.",
-          ls: "List directory contents.",
+          ls: "List files and subdirectories at a given path so the model can explore project structure and locate files to read.",
+        },
+        extensions: {
+          settings:
+            "Let the model use workbench_settings to read and update Workbench UI preferences, Pi system prompts, and compaction settings. Does not manage model credentials or project trust.",
+          todo: "Provide the todo tool to create, update, query, and clear tasks with status, dependencies, and owners. Restore the current branch's task list when resuming a session.",
+          askUser:
+            "Provide the ask_user tool for structured questions when the model needs more information or a choice. Support single selections, multiple selections, and custom answers, then wait for your reply before continuing.",
+          messageTermination:
+            "Record why each model reply ended, distinguishing completion, length limits, cancellation, network failures, and service errors so the UI can explain interruptions.",
+          composerContext:
+            "Organize composer context separately from user text before sending it to the model, preserving file and skill context while filtering empty messages used only by the UI.",
+          contextTrace:
+            "Capture snapshots of system prompts, message context, available tools, and compaction for the context trace view, helping you inspect what the model actually received.",
         },
         scope: "All workspaces",
         toggleDescription:
@@ -687,7 +701,18 @@ export const piExtensionsEnUS = {
         groups: {
           package: "Pi Packages",
           custom: "Custom extensions",
+          workbench: "Workbench extensions",
           builtin: "Built-in extensions",
+        },
+        groupDescriptions: {
+          package:
+            "Extensions provided by Pi Packages, including packages bundled with the app. Their tools, commands, and events load with the package.",
+          custom:
+            "Extensions loaded from local files or directories to add custom tools, commands, and event handlers for the current user or workspace.",
+          workbench:
+            "Tool implementations and session integrations supplied by Workbench for questions, task management, settings, context processing, and runtime diagnostics.",
+          builtin:
+            "Pi's native tools and other host built-ins. When a custom extension or Package replaces a tool, open its details to see the actual provider and override relationship.",
         },
         title: "Pi Extensions",
         browse: "Browse Pi extensions",

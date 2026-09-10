@@ -4,14 +4,18 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { I18nProvider, type Locale } from "@workbench/shell/i18n";
 import { WorkbenchSettingsProvider } from "@workbench/shell/settings";
-import { piTranslationBundle } from "../../i18n";
+import { createPiI18n, piTranslationBundle } from "../../i18n";
 import type { ToolboxCapabilityItem } from "./toolbox-catalog";
 import {
   CapabilityMetadataFields,
   ExtensionControls,
   SkillControls,
 } from "./toolbox-capability-presentation";
-import { builtinExtensionSurfaceParams, builtinToolPreferenceKey } from "./toolbox-capability";
+import {
+  builtinExtensionDescription,
+  builtinExtensionSurfaceParams,
+  builtinToolPreferenceKey,
+} from "./toolbox-capability";
 import { ToolboxResourceList } from "./toolbox-installed-view";
 import { ToolboxResourceGroup } from "./toolbox-resource-group";
 
@@ -174,7 +178,22 @@ test("Pi extensions group by source after search while keeping disabled entries"
     params: { capabilityId: name, capabilityKind: "extension", name, ...params },
   });
   const resources = [
-    extension("Builtin Todo", { builtin: true }),
+    extension("Workbench Todo", {
+      builtin: true,
+      enabled: false,
+      provenance: { kind: "workbench", source: "workbench.rpiv-todo" },
+    }),
+    extension("Native read", {
+      builtin: true,
+      extensionName: "workbench.tool.read",
+      provenance: { kind: "pi-builtin", source: "@earendil-works/pi-coding-agent" },
+    }),
+    extension("Enhanced find", {
+      builtin: true,
+      extensionName: "workbench.tool.find",
+      provenance: { kind: "workbench", source: "enhanced-search", overridesPiBuiltin: true },
+    }),
+    extension("Legacy builtin", { builtin: true }),
     extension("Own review", { origin: "top-level", source: "auto", enabled: false }),
     extension("Package search", { origin: "package", source: "npm:pi-search", enabled: true }),
     extension("Browser package", {
@@ -187,18 +206,27 @@ test("Pi extensions group by source after search while keeping disabled entries"
   const groups = [...html.matchAll(/<h2\b[^>]*>([^<]*)<\/h2>([\s\S]*?)(?=<h2\b|$)/g)];
   assert.deepEqual(
     groups.map((group) => group[1]),
-    ["Pi Packages", "Custom extensions", "Built-in extensions"],
+    ["Pi Packages", "Custom extensions", "Workbench extensions", "Built-in extensions"],
   );
   assert.match(groups[0][2], /Package search/);
   assert.match(groups[0][2], /Browser package/);
   assert.doesNotMatch(groups[2][2], /Browser package/);
   assert.match(groups[1][2], /Own review/);
   assert.match(groups[1][2], />Disabled</);
-  assert.match(groups[2][2], /Builtin Todo/);
+  assert.match(groups[2][2], /Workbench Todo/);
+  assert.match(groups[2][2], /Enhanced find/);
+  assert.match(groups[2][2], />Disabled</);
+  assert.doesNotMatch(groups[2][2], /Native read|Legacy builtin/);
+  assert.match(groups[3][2], /Native read/);
+  assert.match(groups[3][2], /Legacy builtin/);
+  assert.doesNotMatch(groups[3][2], /Workbench Todo|Enhanced find/);
   assert.equal((html.match(/<li\b/g) ?? []).length, resources.length);
   const filtered = render("OWN", "zh-CN", resources, true);
   assert.match(filtered, />自建扩展<[\s\S]*Own review/);
-  assert.doesNotMatch(filtered, /Pi Package|内置扩展|Builtin Todo|Package search/);
+  assert.doesNotMatch(filtered, /Pi Package|内置扩展|Workbench 扩展|Workbench Todo|Package search/);
+  const workbenchOnly = render("TODO", "zh-CN", resources, true);
+  assert.match(workbenchOnly, />Workbench 扩展<[\s\S]*Workbench Todo/);
+  assert.equal((workbenchOnly.match(/<h2\b/g) ?? []).length, 1);
   const localized = render("", "zh-CN", resources, true);
   assert.match(localized, />Pi Package</);
   assert.match(localized, />内置扩展</);
@@ -209,12 +237,54 @@ test("Pi extensions group by source after search while keeping disabled entries"
 
 test("bundled package resources retain enabled switches and directories without removal controls", () => {
   const props = {
+  assert.match(localized, />Workbench 扩展</);
     packageBuiltin: true,
     name: "browser",
     enabled: true,
     canToggle: true,
     canDelete: false,
     canOpenDirectory: true,
+test("built-in descriptions resolve Workbench and native entries with a fallback for unknown hosts", () => {
+  const extension = {
+    name: "workbench.ask-user",
+    toolNames: ["ask_user"],
+    eventNames: [],
+    commandNames: [],
+    toolDetails: [],
+    eventDetails: [],
+    commandDetails: [],
+  };
+  for (const locale of ["en-US", "zh-CN"] as const) {
+    const { t } = createPiI18n(locale);
+    const description = builtinExtensionDescription(extension, t);
+    assert.match(description, /ask_user/);
+    const params = { ...builtinExtensionSurfaceParams(extension), description };
+    const html = render("ask_user", locale, [
+      {
+        id: params.capabilityId,
+        kind: "extension",
+        name: params.name,
+        description,
+        searchText: description,
+        params,
+      },
+    ]);
+    assert.match(html, /line-clamp-3/);
+    assert.match(html, /ask_user/);
+    assert.equal(
+      builtinExtensionDescription(
+        { ...extension, name: "workbench.tool.read", toolNames: ["read"] },
+        t,
+      ),
+      t("extensions.toolbox.builtins.tools.read"),
+    );
+    assert.equal(
+      builtinExtensionDescription({ ...extension, name: "unknown-extension" }, t),
+      t("extensions.toolbox.extensions.capabilitySummary", { events: 0, tools: 1, commands: 0 }),
+    );
+  }
+});
+
     mutationState: "idle" as const,
     removed: false,
     onToggle: () => undefined,

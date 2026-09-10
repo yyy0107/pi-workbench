@@ -1,6 +1,7 @@
 import {
   BUILTIN_TOOL_PREFERENCE_KEYS,
   BUILTIN_EXTENSION_PREFERENCE_KEYS,
+  type BuiltinToolName,
 } from "@workbench/agent-runtime-contracts/settings";
 
 import type {
@@ -17,7 +18,7 @@ import type {
   SkillView,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type { OpenableResource } from "@workbench/extension-sdk";
-import type { PiTranslate } from "../../i18n";
+import type { PiStaticMessageKey, PiTranslate } from "../../i18n";
 
 export type ToolboxCapabilityKind = "skill" | "extension" | "prompt" | "package";
 export type ToolboxMainSection =
@@ -262,6 +263,31 @@ export function extensionSurfaceParams(extension: ExtensionView): ToolboxCapabil
     packageTypes: ["extension"],
     ...(packageName ? { packageName } : {}),
   };
+}
+
+const BUILTIN_EXTENSION_DESCRIPTIONS = new Map<string, PiStaticMessageKey>([
+  ["workbench.settings", "extensions.toolbox.builtins.extensions.settings"],
+  ["workbench.rpiv-todo", "extensions.toolbox.builtins.extensions.todo"],
+  ["workbench.ask-user", "extensions.toolbox.builtins.extensions.askUser"],
+  ["workbench.message-termination", "extensions.toolbox.builtins.extensions.messageTermination"],
+  ["workbench.composer-context", "extensions.toolbox.builtins.extensions.composerContext"],
+  ["workbench.context-trace", "extensions.toolbox.builtins.extensions.contextTrace"],
+]);
+
+export function builtinExtensionDescription(extension: BuiltinExtensionView, t: PiTranslate) {
+  const nativeTool = (Object.keys(BUILTIN_TOOL_PREFERENCE_KEYS) as BuiltinToolName[]).find(
+    (name) => extension.name === `workbench.tool.${name}`,
+  );
+  const descriptionKey = BUILTIN_EXTENSION_DESCRIPTIONS.get(extension.name);
+  return nativeTool
+    ? t(`extensions.toolbox.builtins.tools.${nativeTool}`)
+    : descriptionKey
+      ? t(descriptionKey)
+      : t("extensions.toolbox.extensions.capabilitySummary", {
+          events: extension.eventNames.length,
+          tools: extension.toolNames.length,
+          commands: extension.commandNames.length,
+        });
 }
 
 export function builtinExtensionSurfaceParams(

@@ -12,15 +12,12 @@ import type {
   ExtensionView,
   PiResourceCatalogTarget,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
-import {
-  BUILTIN_TOOL_PREFERENCE_KEYS,
-  type BuiltinToolName,
-  type WorkbenchToolboxScopePreference,
-} from "@workbench/agent-runtime-contracts/settings";
+import type { WorkbenchToolboxScopePreference } from "@workbench/agent-runtime-contracts/settings";
 
 import {
   bindCapabilityToCatalogTarget,
   browserCapabilityPresentation,
+  builtinExtensionDescription,
   builtinExtensionSurfaceParams,
   builtinToolPreferenceKey,
   extensionSurfaceParams,
@@ -363,17 +360,8 @@ export function useToolboxCatalogs(
                 }[key]
               : undefined;
             if (preference && preference.status !== "loading") params.enabled = preference.enabled;
-            const nativeTool = (
-              Object.keys(BUILTIN_TOOL_PREFERENCE_KEYS) as BuiltinToolName[]
-            ).find((name) => extension.name === `workbench.tool.${name}`);
-            const description = nativeTool
-              ? t(`extensions.toolbox.builtins.tools.${nativeTool}`)
-              : t("extensions.toolbox.extensions.capabilitySummary", {
-                  events: extension.eventNames.length,
-                  tools: extension.toolNames.length,
-                  commands: extension.commandNames.length,
-                });
-            if (nativeTool) params.description = description;
+            const description = builtinExtensionDescription(extension, t);
+            params.description = description;
             return {
               id: params.capabilityId,
               kind: "extension" as const,
