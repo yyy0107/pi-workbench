@@ -237,21 +237,13 @@ test("Pi extensions group by source after search while keeping disabled entries"
   assert.equal((workbenchOnly.match(/<h2\b/g) ?? []).length, 1);
   const localized = render("", "zh-CN", resources, true);
   assert.match(localized, />Pi Package</);
+  assert.match(localized, />Workbench 扩展</);
   assert.match(localized, />内置扩展</);
   const empty = render("missing", "zh-CN", resources, true);
   assert.match(empty, /没有匹配的能力/);
   assert.doesNotMatch(empty, /<h2|<li/);
 });
 
-test("bundled package resources retain enabled switches and directories without removal controls", () => {
-  const props = {
-  assert.match(localized, />Workbench 扩展</);
-    packageBuiltin: true,
-    name: "browser",
-    enabled: true,
-    canToggle: true,
-    canDelete: false,
-    canOpenDirectory: true,
 test("built-in descriptions resolve Workbench and native entries with a fallback for unknown hosts", () => {
   const extension = {
     name: "workbench.ask-user",
@@ -293,6 +285,14 @@ test("built-in descriptions resolve Workbench and native entries with a fallback
   }
 });
 
+test("bundled package resources retain enabled switches and directories without removal controls", () => {
+  const props = {
+    packageBuiltin: true,
+    name: "browser",
+    enabled: true,
+    canToggle: true,
+    canDelete: false,
+    canOpenDirectory: true,
     mutationState: "idle" as const,
     removed: false,
     onToggle: () => undefined,
