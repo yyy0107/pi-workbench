@@ -1,6 +1,6 @@
 {
   "name": "@workbench/desktop-renderer",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "private": true,
   "license": "MIT",
   "scripts": {
