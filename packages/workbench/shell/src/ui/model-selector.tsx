@@ -125,6 +125,7 @@ export function ModelSelector({
   selectionFailed = false,
   selectionLocked = false,
   validationError,
+  footer,
   getEffortLabel,
   onEffortChange,
   onModelChange,
@@ -140,6 +141,7 @@ export function ModelSelector({
   selectionFailed?: boolean;
   selectionLocked?: boolean;
   validationError?: string;
+  footer?: React.ReactNode;
   getEffortLabel(effort: ModelSelectorEffort): string;
   onEffortChange(effort: string): void;
   onModelChange(modelId: string): void;
@@ -372,6 +374,7 @@ export function ModelSelector({
               </CollapsibleTrigger>
             </Collapsible>
           ) : null}
+          {footer}
         </SelectorDropdownContent>
       </DropdownMenu>
     </fieldset>,
