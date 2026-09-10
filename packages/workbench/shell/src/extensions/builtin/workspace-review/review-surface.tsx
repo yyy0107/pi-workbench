@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDownIcon, ChevronRightIcon, FileDiffIcon, GitBranchIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, FileDiffIcon } from "lucide-react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 import type {
@@ -347,39 +347,12 @@ function ReviewComparison({ surface, refresh }: ReviewProps & { refresh: () => v
   };
   return (
     <section data-workspace-review="" className="flex h-full min-h-0 flex-col text-foreground">
-      <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border px-2 py-1">
-        {totals && (
-          <span
-            className="flex shrink-0 gap-1 font-mono text-xs tabular-nums"
-            aria-label={t("extensions.workspaceReview.lineChanges", totals)}
-            title={
-              repository?.nextOffset !== undefined
-                ? t("extensions.workspaceReview.partial")
-                : undefined
-            }
-          >
-            <span className="text-success-foreground/80" aria-hidden>
-              +{number(totals.additions)}
-            </span>
-            <span className="text-danger-foreground/80" aria-hidden>
-              −{number(totals.deletions)}
-            </span>
-          </span>
-        )}
-        <GitBranchIcon
-          aria-hidden
-          className="size-(--icon-size-md) shrink-0 text-muted-foreground"
-        />
-        <span
-          className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground"
-          title={repository?.branch}
-        >
-          {repository?.branch ?? t("extensions.workspaceReview.title")}
-        </span>
+      <div className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-1">
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={<Button variant="ghost" className="order-first max-w-full text-xs" />}
+            render={<Button variant="ghost" className="min-w-0 shrink px-0 font-normal" />}
             aria-label={t("extensions.workspaceReview.scopeLabel")}
+            title={repository?.branch}
           >
             <span className="truncate">
               {t(`extensions.workspaceReview.scope.${surface.params.reviewScope}`)}
@@ -426,10 +399,51 @@ function ReviewComparison({ surface, refresh }: ReviewProps & { refresh: () => v
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-        {request.scope === "branch" && (
+        {totals && (
+          <span
+            className="flex shrink-0 gap-1 text-sm tabular-nums"
+            aria-label={t("extensions.workspaceReview.lineChanges", totals)}
+            title={
+              repository?.nextOffset !== undefined
+                ? t("extensions.workspaceReview.partial")
+                : undefined
+            }
+          >
+            <span className="text-success-foreground/80" aria-hidden>
+              +{number(totals.additions)}
+            </span>
+            <span className="text-danger-foreground/80" aria-hidden>
+              −{number(totals.deletions)}
+            </span>
+          </span>
+        )}
+        <div className="ml-auto flex min-w-0 items-center gap-1 text-muted-foreground">
+          <ReviewToolbar
+            request={request}
+            options={options}
+            refresh={refresh}
+            canCopy={Boolean(repository?.files.length) && !query.loading && !query.error}
+            onChange={(displayOptions) =>
+              controller.update(surface.id, { params: { ...surface.params, displayOptions } })
+            }
+          />
+        </div>
+      </div>
+      {request.scope === "branch" && (
+        <div className="flex min-w-0 items-center border-b border-border px-2 py-1">
+          <span
+            className="min-w-0 truncate text-xs text-muted-foreground"
+            title={repository?.branch}
+          >
+            {repository?.branch}
+          </span>
+          <ChevronRightIcon
+            aria-hidden
+            className="size-(--icon-size-sm) shrink-0 text-muted-foreground"
+          />
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={<Button variant="ghost" className="max-w-full text-xs" />}
+              render={<Button variant="ghost" className="min-w-0 shrink text-xs" />}
               aria-label={t("extensions.workspaceReview.compareBranch")}
             >
               <span className="truncate">{request.revision}</span>
@@ -448,17 +462,8 @@ function ReviewComparison({ surface, refresh }: ReviewProps & { refresh: () => v
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-        )}
-        <ReviewToolbar
-          request={request}
-          options={options}
-          refresh={refresh}
-          canCopy={Boolean(repository?.files.length) && !query.loading && !query.error}
-          onChange={(displayOptions) =>
-            controller.update(surface.id, { params: { ...surface.params, displayOptions } })
-          }
-        />
-      </div>
+        </div>
+      )}
       {isCommit && (
         <div className="flex flex-wrap border-b border-border px-2 py-1">
           {surface.params.reviewScope === "range" && (

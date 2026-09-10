@@ -67,7 +67,7 @@ export function ReviewToolbar({
   return (
     <>
       {(pending || status !== "idle") && (
-        <span role="status" className="text-xs text-muted-foreground">
+        <span role="status" className="truncate text-xs text-muted-foreground">
           {t(
             pending
               ? "extensions.workspaceReview.copying"
