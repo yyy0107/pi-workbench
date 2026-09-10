@@ -1540,7 +1540,7 @@ export const extensionsEnUS = {
       commit: "One commit",
       range: "Commit range",
       session: "Entire session",
-      "last-turn": "Agent response",
+      "last-turn": "Recent",
     },
     firstCommit: "First commit (inclusive)",
     lastCommit: "Last commit (inclusive)",

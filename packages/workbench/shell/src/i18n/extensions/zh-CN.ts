@@ -1496,7 +1496,7 @@ export const extensionsZhCN = {
       commit: "一次提交",
       range: "多次提交",
       session: "整个会话",
-      "last-turn": "一次 Agent 回复",
+      "last-turn": "最近",
     },
     firstCommit: "起始提交（含）",
     lastCommit: "结束提交（含）",
