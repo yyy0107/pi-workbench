@@ -264,6 +264,12 @@ export function WorkbenchSystemMessage() {
   const commandResponse = parseWorkbenchComposerCommandResponseDetails(
     custom?.workbenchComposerCommandResponse,
   );
+  const compactionReason =
+    conversationEvent?.kind === "compaction"
+      ? t("workbench.chat.separators.contextCompactionReason", {
+          reason: conversationEvent.reason,
+        })
+      : undefined;
   const compactionDetail =
     conversationEvent?.kind === "compaction" &&
     conversationEvent.tokensBefore !== undefined &&
@@ -323,11 +329,21 @@ export function WorkbenchSystemMessage() {
         ) : (
           <CompactionSeparator
             label={t("workbench.chat.separators.contextCompacted")}
-            detail={compactionDetail}
-            aria-label={t("workbench.chat.separators.contextCompactedAnnouncement", {
-              before: conversationEvent.tokensBefore,
-              after: conversationEvent.estimatedTokensAfter,
-            })}
+            detail={
+              <>
+                {compactionDetail ? <span>{compactionDetail}</span> : null}
+                <span>{compactionReason}</span>
+              </>
+            }
+            aria-label={[
+              t("workbench.chat.separators.contextCompactedAnnouncement", {
+                before: conversationEvent.tokensBefore,
+                after: conversationEvent.estimatedTokensAfter,
+              }),
+              compactionReason,
+            ]
+              .filter(Boolean)
+              .join(" ")}
           />
         )}
         <MessageSlot name="message.after" />

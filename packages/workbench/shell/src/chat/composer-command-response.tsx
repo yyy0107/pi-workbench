@@ -129,12 +129,16 @@ export function WorkbenchComposerCommandResponse({
   const reloadConfiguration = response.reloadConfiguration;
 
   if (response.commandId === "compact") {
+    const compactionReason = t("workbench.chat.separators.contextCompactionReason", {
+      reason: "manual",
+    });
     return (
       <CompactionSeparator
         label={message}
         detail={
           <>
             {compactionDetail ? <span>{compactionDetail}</span> : null}
+            <span>{compactionReason}</span>
             {failureDetail ? (
               <span className="max-w-full font-sans tracking-normal whitespace-normal">
                 {failureDetail}
@@ -157,7 +161,9 @@ export function WorkbenchComposerCommandResponse({
         role={failed ? "alert" : "status"}
         aria-orientation={undefined}
         aria-live={failed ? "assertive" : "polite"}
-        aria-label={[message, compactionDetail, failureDetail].filter(Boolean).join(" ")}
+        aria-label={[message, compactionDetail, compactionReason, failureDetail]
+          .filter(Boolean)
+          .join(" ")}
         data-command={response.commandId}
         data-status={response.status}
       />

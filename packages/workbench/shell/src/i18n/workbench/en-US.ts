@@ -193,6 +193,18 @@ export const workbenchEnUS = {
           ? `Model switched from ${previousModel} to ${model}`
           : `Model switched to ${model}`,
       contextCompacted: "Context compacted",
+      contextCompactionReason: ({ reason }: { reason: string }) => {
+        switch (reason) {
+          case "manual":
+            return "Compaction reason: Manual request";
+          case "threshold":
+            return "Compaction reason: Context threshold reached";
+          case "overflow":
+            return "Compaction reason: Runtime detected context overflow or output truncation";
+          default:
+            return "Compaction reason: Not recorded";
+        }
+      },
       contextCompactedTokens: (
         { before, after }: { before: number; after: number },
         { number }: MessageFormatters,

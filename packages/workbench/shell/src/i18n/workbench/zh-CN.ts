@@ -174,6 +174,18 @@ export const workbenchZhCN = {
         model: string;
       }) => (previousModel ? `模型已从 ${previousModel} 切换为 ${model}` : `模型已切换为 ${model}`),
       contextCompacted: "会话上下文已压缩",
+      contextCompactionReason: ({ reason }: { reason: string }) => {
+        switch (reason) {
+          case "manual":
+            return "压缩原因：手动触发";
+          case "threshold":
+            return "压缩原因：上下文达到压缩阈值";
+          case "overflow":
+            return "压缩原因：运行时判定上下文溢出或输出截断";
+          default:
+            return "压缩原因：未记录";
+        }
+      },
       contextCompactedTokens: (
         { before, after }: { before: number; after: number },
         { number }: MessageFormatters,

@@ -81,6 +81,31 @@ test("selects locale-aware plural categories", () => {
   assert.equal(chinese.plural(2), "other");
 });
 
+test("localizes recorded compaction reasons without treating every compaction as a threshold", () => {
+  const english = createI18n("en-US");
+  const chinese = createI18n("zh-CN");
+  for (const [reason, en, zh] of [
+    ["manual", "Manual request", "手动触发"],
+    ["threshold", "Context threshold reached", "上下文达到压缩阈值"],
+    [
+      "overflow",
+      "Runtime detected context overflow or output truncation",
+      "运行时判定上下文溢出或输出截断",
+    ],
+    ["unknown", "Not recorded", "未记录"],
+    ["future-reason", "Not recorded", "未记录"],
+  ]) {
+    assert.equal(
+      english.t("workbench.chat.separators.contextCompactionReason", { reason }),
+      `Compaction reason: ${en}`,
+    );
+    assert.equal(
+      chinese.t("workbench.chat.separators.contextCompactionReason", { reason }),
+      `压缩原因：${zh}`,
+    );
+  }
+});
+
 test("opaque descriptors survive plain JSON persistence and resolve after catalog validation", () => {
   const descriptor = defineMessage("extensions.archivedChats.totalCount", { count: 2 });
 

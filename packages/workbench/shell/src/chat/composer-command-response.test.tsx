@@ -77,6 +77,8 @@ test("keeps successful compaction token counts in the lifecycle separator", () =
   assert.match(markup, /role="status"/);
   assert.match(markup, /会话上下文已压缩/);
   assert.match(markup, /42K → 12K tokens/);
+  assert.match(markup, /<span>压缩原因：手动触发<\/span>/);
+  assert.match(markup, /aria-label="[^"]*压缩原因：手动触发/);
   assert.doesNotMatch(markup, /data-slot="composer-command-token"/);
 });
 
