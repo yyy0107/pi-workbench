@@ -61,6 +61,25 @@ test("claims only the Workspace Git subdomain and forwards sanitized payloads", 
       expected: { workspaceId: "workspace-1" },
     },
     {
+      method: "workspace.git.diff",
+      payload: {
+        workspaceId: "workspace-1",
+        scope: "branch",
+        revision: "main",
+        path: "a.ts",
+        offset: 100,
+        ignored: true,
+      },
+      operation: "diff",
+      expected: {
+        workspaceId: "workspace-1",
+        scope: "branch",
+        revision: "main",
+        path: "a.ts",
+        offset: 100,
+      },
+    },
+    {
       method: "workspace.git.log",
       payload: { workspaceId: "workspace-1", offset: 500, ignored: true },
       operation: "log",
@@ -114,6 +133,20 @@ test("validates bounded Workspace Git identities before invoking the service", a
   });
   const cases = [
     ["workspace.git.describe", { workspaceId: "" }],
+    ["workspace.git.diff", { workspaceId: "workspace-1", scope: "unstaged", fullContext: "true" }],
+    ["workspace.git.diff", { workspaceId: "workspace-1", scope: "unstaged", exportPatch: 1 }],
+    ...[undefined, "unknown-scope", "--cached"].map(
+      (scope) => ["workspace.git.diff", { workspaceId: "workspace-1", scope }] as const,
+    ),
+    ...[-1, 0.5, "100", Number.MAX_SAFE_INTEGER + 1].map(
+      (offset) =>
+        ["workspace.git.diff", { workspaceId: "workspace-1", scope: "unstaged", offset }] as const,
+    ),
+    [
+      "workspace.git.diff",
+      { workspaceId: "workspace-1", scope: "unstaged", path: "x".repeat(4097) },
+    ],
+    ["workspace.git.diff", { workspaceId: "workspace-1", scope: "unstaged", patchVersion: "bad" }],
     ["workspace.git.log", { workspaceId: "" }],
     ...[-1, 0.5, "500", Number.MAX_SAFE_INTEGER + 1].map(
       (offset) => ["workspace.git.log", { workspaceId: "workspace-1", offset }] as const,
@@ -147,6 +180,7 @@ test("keeps Git reads available to trusted hosts but restricts mutations to loop
     else process.env.PI_WORKBENCH_TRUSTED_HOSTS = previousTrustedHosts;
   });
   const service = {
+    diff: async () => ({ repository: false as const }),
     describe: async () => ({ repository: false as const }),
     log: async () => ({ commits: [], truncated: false }),
     switchBranch: async () => ({ repository: false as const }),
@@ -188,6 +222,9 @@ test("keeps Git reads available to trusted hosts but restricts mutations to loop
 test("delegates Workspace Git domain failures to the shared projector", async () => {
   const failure = new Error("git failed");
   const service = {
+    async diff() {
+      throw new Error("Unexpected diff call");
+    },
     async describe() {
       throw failure;
     },

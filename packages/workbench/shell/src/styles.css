@@ -1,5 +1,6 @@
 @import "./code-highlighting/workbench-code-editor.css";
 @import "./elements/reviewable-diff.css";
+@import "./extensions/builtin/workspace-review/review.css";
 @import "./extensions/builtin/appearance/appearance-background.css";
 @import "./extensions/builtin/user-message-index/user-message-index.css";
 @import "./extensions/builtin/workspace-browser/browser-viewport.css";

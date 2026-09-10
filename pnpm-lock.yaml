@@ -1304,6 +1304,9 @@ importers:
       cronstrue:
         specifier: ^3.24.0
         version: 3.24.0
+      diff:
+        specifier: 8.0.4
+        version: 8.0.4
       get-east-asian-width:
         specifier: 1.6.0
         version: 1.6.0

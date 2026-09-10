@@ -137,3 +137,37 @@ contribution 的公开 extension groups 静态组合；Explorer、Review、Termi
 Bridge 和 `extensions.*` i18n 文案；禁用任一扩展不影响核心聊天或其他 Surface 能力。
 Surface 实现模块在实例首次激活时懒加载，切走后按 `keep-alive` 保留；注册元数据与轻量 Runtime
 bridge 仍在启动时同步激活。
+
+## Workspace Review
+
+The built-in `workbench.workspace-review` surface opens from the right workspace menu. Files start
+collapsed and load real unified patches on expansion, with old/new line numbers, syntax highlighting,
+line feedback, and bounded continuation pages. Scope changes replace the comparison resource and
+cancel outstanding reads. The more menu contains refresh, wrapping, full-file context, Markdown rich-text preview, word-level
+highlights, whitespace markers, and a copyable `git apply` command. Display options are saved with the
+surface. Disabling full-file context also disables rich-text preview; enabling rich-text preview loads
+complete context for the selected version. Word matching uses the existing jsdiff dependency with a
+bounded whole-line fallback for very large pairs. Exported patches preserve binary changes and rename
+metadata and use a quoted here-document to prevent shell interpolation. Conflicted worktree patches
+cannot be exported. Completed file tools and Agent runs also
+invalidate the open review.
+
+Comparison scopes are unstaged (index → worktree, including untracked files), staged (HEAD → index),
+uncommitted (HEAD → worktree, including untracked files), branch (merge-base → HEAD), a single commit
+(first parent → commit), and an inclusive ancestral commit range (first commit's first parent → last
+commit). Root commits compare with the empty tree. Local and remote branch targets are supported.
+
+Pi records workspace trees before and after each Agent run through its public extension lifecycle.
+Trees live in a private Git object store under the active Pi agent directory's `workbench-review/v1`;
+only tree identities and timestamps enter custom session entries. Capturing uses a temporary index
+and never updates the project's index, refs, or stash. Ignored untracked files are excluded; tracked
+ignored files are included. Git submodules remain Git links. Non-Git workspaces can also use recorded
+session/response reviews. Failed captures are recorded as unavailable rather than reusing an older run.
+
+Response scope selects a recorded run by completion time. Session scope shows the net difference
+between the first recorded start and latest recorded end on the active Pi session branch. Edits by
+other processes in that shared workspace interval are included; this is a snapshot comparison, not
+per-process attribution. Old/imported sessions have no retrospective snapshots. Snapshots currently
+remain on disk indefinitely. File lists page at 200 entries and patches at 32,768 UTF-16 units without
+splitting surrogate pairs; version hashes reject stale continuation pages. Git's 16 MiB command-output
+ceiling still applies and is reported explicitly, including on exports. Review is read-only: staging, reverting, committing and pushing are separate work.

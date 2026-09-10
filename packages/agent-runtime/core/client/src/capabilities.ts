@@ -20,6 +20,8 @@ import type {
   WorkbenchWorkspaceFileTextChunk,
   WorkbenchWorkspaceFileTextResult,
   WorkbenchWorkspaceFileWriteRequest,
+  WorkbenchWorkspaceGitDiff,
+  WorkbenchWorkspaceGitDiffRequest,
   WorkbenchWorkspaceGitLog,
   WorkbenchWorkspaceGitStatus,
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
@@ -128,6 +130,10 @@ export interface WorkbenchWorkspaceCapability {
     workspaceId: string,
     options?: WorkbenchCapabilityRequestOptions,
   ): Promise<WorkbenchWorkspaceGitStatus>;
+  readGitDiff(
+    request: WorkbenchWorkspaceGitDiffRequest,
+    options?: WorkbenchCapabilityRequestOptions,
+  ): Promise<WorkbenchWorkspaceGitDiff>;
   readGitLog(
     workspaceId: string,
     options?: WorkbenchCapabilityRequestOptions & { offset?: number },

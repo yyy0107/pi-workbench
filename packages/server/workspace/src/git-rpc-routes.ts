@@ -13,6 +13,8 @@ import {
   rpcOptional,
   rpcNumber,
   rpcString,
+  rpcEnum,
+  rpcBoolean,
   type RpcValidator,
 } from "@workbench/host-server/rpc";
 import type { RpcRouteGroup } from "@workbench/host-server/rpc";
@@ -31,6 +33,27 @@ const branchName = rpcString({
 const describePayload = rpcObject({
   workspaceId: nonEmptyString,
 }) as RpcValidator<WorkspaceGitDescribePayload>;
+const diffPayload = rpcObject({
+  workspaceId: nonEmptyString,
+  scope: rpcEnum([
+    "uncommitted",
+    "unstaged",
+    "staged",
+    "branch",
+    "commit",
+    "range",
+    "session",
+    "last-turn",
+  ]),
+  fullContext: rpcOptional(rpcBoolean),
+  exportPatch: rpcOptional(rpcBoolean),
+  revision: rpcOptional(branchName),
+  baseRevision: rpcOptional(branchName),
+  sessionId: rpcOptional(rpcString({ minLength: 1, maxLength: 256 })),
+  path: rpcOptional(rpcString({ minLength: 1, maxLength: 4096 })),
+  offset: rpcOptional(rpcNumber({ integer: true, minimum: 0, maximum: Number.MAX_SAFE_INTEGER })),
+  patchVersion: rpcOptional(rpcString({ minLength: 64, maxLength: 64 })),
+});
 const logPayload = rpcObject({
   workspaceId: nonEmptyString,
   offset: rpcOptional(rpcNumber({ integer: true, minimum: 0, maximum: Number.MAX_SAFE_INTEGER })),
@@ -77,6 +100,17 @@ export function createWorkspaceGitRpcRoutes({
             handler: (payload, context) =>
               invokeService(
                 () => service.describe(payload, context.signal),
+                context.signal,
+                projectDomainError,
+              ),
+          });
+        case "workspace.git.diff":
+          return handleRpcPost(request, {
+            method,
+            payload: diffPayload,
+            handler: (payload, context) =>
+              invokeService(
+                () => service.diff(payload, context.signal),
                 context.signal,
                 projectDomainError,
               ),

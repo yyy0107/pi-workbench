@@ -24,3 +24,5 @@ export {
   resolvePiWorkspaceId,
   mutatePiWorkspace,
 } from "../workspaces/workspace-service-bindings";
+
+export { resolvePiReviewSnapshots } from "../sessions/session-registry";

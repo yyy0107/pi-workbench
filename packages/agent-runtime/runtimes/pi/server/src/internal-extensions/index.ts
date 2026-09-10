@@ -1,3 +1,4 @@
+import { workspaceReviewExtension } from "./workspace-review";
 import { BUILTIN_EXTENSION_PREFERENCE_KEYS } from "@workbench/agent-runtime-contracts/settings";
 import { isBuiltinResourceEnabled } from "../agent-runtime/pi-agent-host-bindings";
 import type { InlineExtension, LoadExtensionsResult } from "@earendil-works/pi-coding-agent";
@@ -22,6 +23,7 @@ export function createWorkbenchInternalPiExtensions(
 ) {
   return [
     ...createBuiltinToolExtensions(builtinToolSettings),
+    { name: "workbench.workspace-review", factory: workspaceReviewExtension, hidden: true },
     {
       name: "workbench.settings",
       factory: createWorkbenchSettingsExtension(workbenchSettingsToolSettings),

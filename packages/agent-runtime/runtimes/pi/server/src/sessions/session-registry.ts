@@ -1,3 +1,5 @@
+import { REVIEW_ENTRY_TYPE, getReviewSnapshots } from "../internal-extensions/workspace-review";
+import type { GitReviewSnapshot } from "@workbench/workspace-server/git";
 import { getComposerTextAttachmentStore } from "../attachments/composer-text-attachments";
 import { existsSync, mkdtempSync, rmdirSync, statSync, unlinkSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -5360,3 +5362,30 @@ registerWorkbenchShutdownHook("pi-sessions", async () => {
   }
   registry.scratchDirectory = undefined;
 });
+
+export async function resolvePiReviewSnapshots(cwd: string, id: string) {
+  const live = state().sessions.get(id);
+  const info = live?.isAlive ? undefined : await persistedSession(id);
+  const manager = live?.isAlive
+    ? live.session.sessionManager
+    : info
+      ? SessionManager.open(info.path)
+      : undefined;
+  if (!manager) throw new PiServerError("pi_session_not_found", 404);
+  const reviewSnapshots = getReviewSnapshots();
+  const directory = await reviewSnapshots.directory(cwd);
+  if (directory !== (await reviewSnapshots.directory(manager.getCwd())))
+    throw new PiServerError("pi_session_not_found", 404);
+  const snapshots = manager.getBranch().flatMap((entry): GitReviewSnapshot[] => {
+    if (entry.type !== "custom" || entry.customType !== REVIEW_ENTRY_TYPE) return [];
+    const value = entry.data as GitReviewSnapshot | undefined;
+    return value &&
+      typeof value.id === "string" &&
+      Number.isFinite(value.timestamp) &&
+      (value.before === undefined || /^[a-f0-9]{40,64}$/.test(value.before)) &&
+      (value.after === undefined || /^[a-f0-9]{40,64}$/.test(value.after))
+      ? [value]
+      : [];
+  });
+  return { gitDir: path.join(directory, "objects.git"), snapshots };
+}

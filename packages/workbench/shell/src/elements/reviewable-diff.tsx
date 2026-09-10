@@ -25,9 +25,11 @@ export function numberedHunkLines(hunk: DiffHunk) {
 
   return hunk.lines.map((line) => {
     const lineNumber = line.kind === "removed" ? oldLine : newLine;
+    const oldLineNumber = line.kind === "added" ? undefined : oldLine;
+    const newLineNumber = line.kind === "removed" ? undefined : newLine;
     if (line.kind !== "added") oldLine += 1;
     if (line.kind !== "removed") newLine += 1;
-    return { line, lineNumber };
+    return { line, lineNumber, oldLine: oldLineNumber, newLine: newLineNumber };
   });
 }
 
