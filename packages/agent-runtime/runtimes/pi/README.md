@@ -541,6 +541,10 @@ Workbench 将完整内置包部署到 Pi 用户目录的 `packages/.builtin/brow
 `package`；不再注册 `workbench.browser` 内联扩展或单独安装 Browser 技能。
 工具箱在 Pi Packages 中显示带内置标记的 Browser，详情展示包内技能及扩展注册的工具、事件；
 包随 Workbench 更新，不单独卸载或更新，包内资源沿用 Pi 原生过滤规则启停。
+Browser 扩展默认关闭；注册时仅为没有扩展开关的配置补上空过滤列表，保留已保存的启用和关闭选择。
+Workbench 的所有技能（内置、用户、项目和安装包来源，包括后续新增技能）默认关闭。
+加载、技能目录和安装包详情统一要求所属范围的显式启用规则；用户可在工具箱中启用，
+继续使用 Pi 原生 `+path` / `-path` 持久化和重载机制，关闭的资源仍可查看文档和重新启用。
 Workbench 与使用同一 Pi 用户目录的独立 Pi CLI 消费同一份包，技能唯一源码位于包的 `skills/browser-use/`。
 独立 Pi CLI 惰性启动同一 BrowserManager 引擎，通过 Pi UI 处理权限确认，并在会话结束时释放浏览器；
 Workbench 则继续使用应用的共享浏览器与权限 UI。
@@ -550,7 +554,7 @@ Workbench 则继续使用应用的共享浏览器与权限 UI。
 当前对话的 cwd 解析为已登记的 workspaceId，确保工具能发现和复用用户打开的标签。导航、截图、键盘和
 鼠标输入继续复用共享 BrowserManager，普通操作不要求开启完整 CDP 权限。工具结果沿现有
 Browser Runtime Bridge 展示在右侧浏览器工作区，不创建另一套浏览器进程或会话协议。
-该技能默认可发现，支持 `/skill:browser` 与现有技能启停、文档查看流程；本地站点和 HTML
+该技能默认在工具箱中可见，启用后支持 `/skill:browser-use` 与现有技能启停、文档查看流程；本地站点和 HTML
 通过项目的开发或静态 HTTP 服务打开，直接 `file:` 导航不在此工具范围内。
 
 `workbench-settings` 内置技能通过宿主工具 `workbench_settings` 读取和修改当前 Runtime 的
@@ -574,7 +578,7 @@ Workbench 重置项由 `resetKeys` 标识，因此成功后无需额外完整回
 
 Workbench 随 Runtime 内置 `skill-creator`，用于创建和更新技能。会话与 Toolbox 通过 Pi 的
 `skillsOverride` 加入同一份资源，复用技能详情、文件浏览、自动发现和 `/skill:skill-creator` 调用。
-内置项在用户范围显示，来源为 `builtin`，默认启用且不可删除；已有同名用户或受信任项目技能优先。
+内置项在用户范围显示，来源为 `builtin`，默认关闭且不可删除；已有同名用户或受信任项目技能优先。
 启停复用 `skill.setEnabled` 与用户级 Pi 设置中的精确资源路径开关。停用后目录和文档仍可查看，
 技能不再进入模型提示词和命令列表；所有受影响会话按现有资源变更流程重载，重启后保持设置。
 Runtime 会将内置资源同步到 Pi 用户目录（默认 `~/.pi/agent`，遵循 `PI_CODING_AGENT_DIR`）：

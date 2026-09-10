@@ -25,6 +25,7 @@ import {
 } from "./system-prompt-placeholders";
 import { createWorkbenchAgentSessionServices } from "../agent-runtime/agent-session-services";
 import { withWorkbenchBuiltinSkills } from "../skills/builtin-skills";
+import { requireSkillOptIn } from "../skills/skill-enablement";
 import { ensureWorkbenchBuiltinResources } from "../builtin-resources";
 import { workbenchToolOverrides } from "../internal-extensions/builtin-tools";
 
@@ -3575,6 +3576,7 @@ async function createHost(
       resolveProjectTrust: async () => getProjectTrustService().isTrusted(cwd),
     },
   });
+  requireSkillOptIn(services.resourceLoader, services.settingsManager);
   const modelSelection = resolveInitialSessionModel(
     initialModel,
     services.modelRuntime.getAvailableSnapshot(),

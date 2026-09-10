@@ -52,6 +52,7 @@ import {
 import { getOrStartSession } from "../sessions/session-registry";
 
 import { builtinSkillEnabled, withWorkbenchBuiltinSkills } from "./builtin-skills";
+import { skillExplicitlyEnabled } from "./skill-enablement";
 import { isWorkbenchBuiltinPackage } from "../packages/builtin-packages";
 
 export const MAX_SKILL_DOCUMENT_BYTES = 1024 * 1024;
@@ -325,16 +326,21 @@ export class SkillService implements SkillProtocol {
 
     const packageManager = new DefaultPackageManager({
       cwd,
-      agentDir: getAgentDir(),
+      agentDir: this.dependencies.agentDir(),
       settingsManager,
     });
-    return (await packageManager.resolve(async () => "skip")).skills;
+    return (await packageManager.resolve(async () => "skip")).skills.map((resource) => ({
+      ...resource,
+      enabled:
+        resource.enabled &&
+        skillExplicitlyEnabled(resource.path, resource.metadata, settingsManager),
+    }));
   }
 
   private parseResolvedSkill(resource: ResolvedResource, cwd: string): LoadedSkill | undefined {
     const parsed = loadSkills({
       cwd,
-      agentDir: getAgentDir(),
+      agentDir: this.dependencies.agentDir(),
       skillPaths: [resource.path],
       includeDefaults: false,
     }).skills.at(0);
@@ -491,8 +497,6 @@ export class SkillService implements SkillProtocol {
           ? settingsManager.getProjectSettings()
           : settingsManager.getGlobalSettings();
       const skills = withResourceEnabled(settings.skills ?? [], resourcePath, enabled);
-      // Builtins are injected separately; enabling restores that default without duplicate discovery.
-      if (skill.sourceInfo.source === "builtin" && enabled) skills.pop();
       if (skill.sourceInfo.scope === "project") settingsManager.setProjectSkillPaths(skills);
       else settingsManager.setSkillPaths(skills);
     }

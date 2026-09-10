@@ -24,6 +24,9 @@ export async function registerWorkbenchBuiltinPackages(agentDir: string): Promis
     isWorkbenchBuiltinPackage(typeof entry === "string" ? entry : entry.source),
   );
   let browser: PackageSource = packages[index] ?? WORKBENCH_BROWSER_PACKAGE_SOURCE;
+  if (typeof browser === "string" || browser.extensions === undefined) {
+    browser = { ...(typeof browser === "string" ? { source: browser } : browser), extensions: [] };
+  }
   if (typeof browser !== "string" && browser.skills) {
     const previousSkills = browser.skills;
     const skills = previousSkills.map((pattern) =>
