@@ -3192,6 +3192,7 @@ test("recovers completed message timing when reconnect missed message_start", (t
     startedAt: 1_000,
     completedAt: 601_000,
   });
+  assert.equal(session.getSnapshot().messages.at(-1)?.metadata.timing?.firstTokenTime, undefined);
 });
 
 test("keeps the optimistic assistant id from stream start through completion", (t) => {

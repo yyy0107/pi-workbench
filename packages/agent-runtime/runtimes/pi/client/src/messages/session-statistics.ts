@@ -3,16 +3,18 @@ import type {
   PiConversationMessage as ThreadMessage,
 } from "../conversation/pi-conversation-message";
 
-import { readPiUsage } from "./pi-usage";
+import { readPiUsage, visibleOutputTokens } from "./pi-usage";
 
 export interface PiTurnStatistics {
   readonly steps: number;
   readonly llmDurationMs: number;
+  readonly decodeDurationMs: number;
   readonly toolDurationMs: number;
   readonly firstTokenDurationMs: number;
   readonly firstTokenSamples: number;
   readonly inputTokens: number;
   readonly outputTokens: number;
+  readonly reasoningTokens: number;
   readonly cacheReadTokens: number;
   readonly cacheWriteTokens: number;
 }
@@ -29,11 +31,13 @@ export function mergeMonotonicPiSessionStatistics(
     turns: Math.max(previous.turns, current.turns),
     steps: Math.max(previous.steps, current.steps),
     llmDurationMs: Math.max(previous.llmDurationMs, current.llmDurationMs),
+    decodeDurationMs: Math.max(previous.decodeDurationMs, current.decodeDurationMs),
     toolDurationMs: Math.max(previous.toolDurationMs, current.toolDurationMs),
     firstTokenDurationMs: Math.max(previous.firstTokenDurationMs, current.firstTokenDurationMs),
     firstTokenSamples: Math.max(previous.firstTokenSamples, current.firstTokenSamples),
     inputTokens: Math.max(previous.inputTokens, current.inputTokens),
     outputTokens: Math.max(previous.outputTokens, current.outputTokens),
+    reasoningTokens: Math.max(previous.reasoningTokens, current.reasoningTokens),
     cacheReadTokens: Math.max(previous.cacheReadTokens, current.cacheReadTokens),
     cacheWriteTokens: Math.max(previous.cacheWriteTokens, current.cacheWriteTokens),
   };
@@ -42,11 +46,13 @@ export function mergeMonotonicPiSessionStatistics(
 const EMPTY_TURN_STATISTICS: PiTurnStatistics = {
   steps: 0,
   llmDurationMs: 0,
+  decodeDurationMs: 0,
   toolDurationMs: 0,
   firstTokenDurationMs: 0,
   firstTokenSamples: 0,
   inputTokens: 0,
   outputTokens: 0,
+  reasoningTokens: 0,
   cacheReadTokens: 0,
   cacheWriteTokens: 0,
 };
@@ -65,21 +71,31 @@ export function readPiTurnStatistics(value: unknown): PiTurnStatistics | undefin
   const statistics = value as Record<string, unknown>;
   const steps = nonNegativeInteger(statistics.steps);
   const llmDurationMs = nonNegativeNumber(statistics.llmDurationMs);
+  const decodeDurationMs =
+    statistics.decodeDurationMs === undefined
+      ? llmDurationMs === undefined
+        ? undefined
+        : Math.max(0, llmDurationMs - (nonNegativeNumber(statistics.firstTokenDurationMs) ?? 0))
+      : nonNegativeNumber(statistics.decodeDurationMs);
   const toolDurationMs = nonNegativeNumber(statistics.toolDurationMs);
   const firstTokenDurationMs = nonNegativeNumber(statistics.firstTokenDurationMs);
   const firstTokenSamples = nonNegativeInteger(statistics.firstTokenSamples);
   const inputTokens = nonNegativeNumber(statistics.inputTokens);
   const outputTokens = nonNegativeNumber(statistics.outputTokens);
+  const reasoningTokens =
+    statistics.reasoningTokens === undefined ? 0 : nonNegativeNumber(statistics.reasoningTokens);
   const cacheReadTokens = nonNegativeNumber(statistics.cacheReadTokens);
   const cacheWriteTokens = nonNegativeNumber(statistics.cacheWriteTokens);
   if (
     steps === undefined ||
     llmDurationMs === undefined ||
+    decodeDurationMs === undefined ||
     toolDurationMs === undefined ||
     firstTokenDurationMs === undefined ||
     firstTokenSamples === undefined ||
     inputTokens === undefined ||
     outputTokens === undefined ||
+    reasoningTokens === undefined ||
     cacheReadTokens === undefined ||
     cacheWriteTokens === undefined
   ) {
@@ -88,11 +104,13 @@ export function readPiTurnStatistics(value: unknown): PiTurnStatistics | undefin
   return {
     steps,
     llmDurationMs,
+    decodeDurationMs,
     toolDurationMs,
     firstTokenDurationMs,
     firstTokenSamples,
     inputTokens,
     outputTokens,
+    reasoningTokens,
     cacheReadTokens,
     cacheWriteTokens,
   };
@@ -127,6 +145,22 @@ function activeLlmDuration(message: ThreadAssistantMessage, currentTime?: number
   return currentTime - streamStartTime;
 }
 
+function activeDecodeDuration(message: ThreadAssistantMessage, currentTime?: number): number {
+  if (currentTime === undefined || message.status.type !== "running") return 0;
+  const timing = message.metadata.timing;
+  const streamStartTime = nonNegativeNumber(timing?.streamStartTime);
+  const firstTokenTime = nonNegativeNumber(timing?.firstTokenTime);
+  if (
+    streamStartTime === undefined ||
+    firstTokenTime === undefined ||
+    timing?.totalStreamTime !== undefined ||
+    currentTime < streamStartTime + firstTokenTime
+  ) {
+    return 0;
+  }
+  return currentTime - streamStartTime - firstTokenTime;
+}
+
 function assistantStatistics(
   message: ThreadAssistantMessage,
   currentTime?: number,
@@ -136,6 +170,7 @@ function assistantStatistics(
     return {
       ...stored,
       llmDurationMs: stored.llmDurationMs + activeLlmDuration(message, currentTime),
+      decodeDurationMs: stored.decodeDurationMs + activeDecodeDuration(message, currentTime),
       // Tool timings can complete after an assistant message was first coalesced.
       toolDurationMs: toolDuration(message, currentTime),
     };
@@ -145,15 +180,21 @@ function assistantStatistics(
   const llmDurationMs =
     nonNegativeNumber(timing?.totalStreamTime) ?? activeLlmDuration(message, currentTime);
   const firstTokenTime = nonNegativeNumber(timing?.firstTokenTime);
+  const decodeDurationMs =
+    timing?.totalStreamTime === undefined
+      ? activeDecodeDuration(message, currentTime)
+      : Math.max(0, llmDurationMs - (firstTokenTime ?? 0));
   const usage = readPiUsage(message.metadata.custom.piUsage);
   return {
     steps: 1,
     llmDurationMs,
+    decodeDurationMs,
     toolDurationMs: toolDuration(message, currentTime),
     firstTokenDurationMs: firstTokenTime ?? 0,
     firstTokenSamples: firstTokenTime === undefined ? 0 : 1,
     inputTokens: usage?.input ?? 0,
-    outputTokens: usage?.output ?? 0,
+    outputTokens: usage ? visibleOutputTokens(usage) : 0,
+    reasoningTokens: usage?.reasoning ?? 0,
     cacheReadTokens: usage?.cacheRead ?? 0,
     cacheWriteTokens: usage?.cacheWrite ?? 0,
   };
@@ -163,11 +204,13 @@ function addStatistics(total: PiTurnStatistics, addition: PiTurnStatistics): PiT
   return {
     steps: total.steps + addition.steps,
     llmDurationMs: total.llmDurationMs + addition.llmDurationMs,
+    decodeDurationMs: total.decodeDurationMs + addition.decodeDurationMs,
     toolDurationMs: total.toolDurationMs + addition.toolDurationMs,
     firstTokenDurationMs: total.firstTokenDurationMs + addition.firstTokenDurationMs,
     firstTokenSamples: total.firstTokenSamples + addition.firstTokenSamples,
     inputTokens: total.inputTokens + addition.inputTokens,
     outputTokens: total.outputTokens + addition.outputTokens,
+    reasoningTokens: total.reasoningTokens + addition.reasoningTokens,
     cacheReadTokens: total.cacheReadTokens + addition.cacheReadTokens,
     cacheWriteTokens: total.cacheWriteTokens + addition.cacheWriteTokens,
   };

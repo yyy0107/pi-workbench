@@ -50,6 +50,7 @@ import {
   tokenQuantitiesEqual,
   type TokenQuantities,
 } from "./token-animation";
+import { sessionTokensPerSecond } from "./token-throughput";
 
 import { TokenUsageSection } from "./token-usage-section";
 import { withTooltip } from "../../../ui/tooltip";
@@ -257,10 +258,7 @@ function ThreadTokenUsage() {
     statistics.firstTokenSamples > 0
       ? statistics.firstTokenDurationMs / statistics.firstTokenSamples
       : undefined;
-  const tokensPerSecond =
-    statistics.llmDurationMs > 0
-      ? statistics.outputTokens / (statistics.llmDurationMs / 1_000)
-      : undefined;
+  const tokensPerSecond = sessionTokensPerSecond(statistics, isRunning);
   const cacheHitRate = promptTokens > 0 ? statistics.cacheReadTokens / promptTokens : undefined;
   const compactTokens = (tokens: number) =>
     number(Math.round(tokens), {

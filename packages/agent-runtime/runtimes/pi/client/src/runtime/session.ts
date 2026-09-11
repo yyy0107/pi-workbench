@@ -111,6 +111,7 @@ import {
   workbenchComposerCommandResponseId,
 } from "../messages/messages";
 import { PiMessageQueue, queueItemAppendMessage } from "../messages/queue";
+import { hasPiGeneratedContent, PiLiveTokenMeter } from "../messages/live-token-meter";
 import {
   BACKFILL_SESSION_HISTORY_MESSAGES,
   INITIAL_SESSION_HISTORY_MESSAGES,
@@ -374,14 +375,7 @@ interface ActiveMessageTiming {
   streamStartTime: number;
   firstTokenTime?: number;
   totalChunks: number;
-}
-
-function hasOutputToken(message: PiAssistantMessage): boolean {
-  return message.content.some(
-    (part) =>
-      (part.type === "text" && part.text.length > 0) ||
-      (part.type === "thinking" && !part.redacted && part.thinking.length > 0),
-  );
+  tokenMeter: PiLiveTokenMeter;
 }
 
 function countToolCalls(message: PiAssistantMessage): number {
@@ -1124,8 +1118,26 @@ export class PiClientSession implements ConversationSession {
       activeAssistant &&
       this.streamingMessage === streamingMessageAtStart
     ) {
+      const streamStartTime = activeAssistant.message.timestamp ?? activeAssistant.updatedAt;
+      const firstTokenTime =
+        activeAssistant.firstTokenAt === undefined
+          ? hasPiGeneratedContent(activeAssistant.message, activeAssistant.rawToolArgsText)
+            ? 0
+            : undefined
+          : Math.max(0, activeAssistant.firstTokenAt - streamStartTime);
+      this.activeMessageTiming = {
+        streamStartTime,
+        ...(firstTokenTime === undefined ? {} : { firstTokenTime }),
+        totalChunks: 0,
+        tokenMeter: new PiLiveTokenMeter(),
+      };
       let projected = piAssistantToThreadMessage(activeAssistant.message, activeAssistant.entryId, {
         streaming: true,
+        timing: this.currentMessageTiming(
+          activeAssistant.message,
+          undefined,
+          activeAssistant.rawToolArgsText,
+        ),
         rawToolArgsText: activeAssistant.rawToolArgsText,
         createdAt: activeAssistant.updatedAt,
         eventSeq: activeAssistant.lastSeq,
@@ -2002,9 +2014,12 @@ export class PiClientSession implements ConversationSession {
       if (message?.role === "user") {
         this.publishLiveUserMessage(message, sequence, undefined, false);
       } else if (message?.role === "assistant") {
+        const assistantMessage = message as PiAssistantMessage;
         this.activeMessageTiming = {
           streamStartTime: message.timestamp ?? eventTime,
+          ...(hasPiGeneratedContent(assistantMessage) ? { firstTokenTime: 0 } : {}),
           totalChunks: 0,
+          tokenMeter: new PiLiveTokenMeter(),
         };
         const assistantMessageId =
           this.activeAssistantMessageId ??
@@ -2012,10 +2027,10 @@ export class PiClientSession implements ConversationSession {
           createClientMessageId("pi-assistant");
         this.activeAssistantMessageId = assistantMessageId;
         this.streamingMessage = this.preserveActiveAssistantRecognition(
-          piAssistantToThreadMessage(message as PiAssistantMessage, assistantMessageId, {
+          piAssistantToThreadMessage(assistantMessage, assistantMessageId, {
             optimistic: true,
             streaming: true,
-            timing: this.currentMessageTiming(message as PiAssistantMessage),
+            timing: this.currentMessageTiming(assistantMessage),
             toolTimingById: this.toolTimingById,
           }),
         );
@@ -2029,11 +2044,12 @@ export class PiClientSession implements ConversationSession {
       const message = eventMessage(event);
       if (message?.role === "assistant") {
         const assistantMessage = message as PiAssistantMessage;
+        const rawToolArgsText = rawToolArgsTextFromEvent(event);
         if (this.activeMessageTiming) {
           this.activeMessageTiming.totalChunks += 1;
           if (
             this.activeMessageTiming.firstTokenTime === undefined &&
-            hasOutputToken(assistantMessage)
+            hasPiGeneratedContent(assistantMessage, rawToolArgsText)
           ) {
             this.activeMessageTiming.firstTokenTime = Math.max(
               0,
@@ -2050,9 +2066,9 @@ export class PiClientSession implements ConversationSession {
           piAssistantToThreadMessage(assistantMessage, assistantMessageId, {
             optimistic: true,
             streaming: true,
-            timing: this.currentMessageTiming(assistantMessage),
+            timing: this.currentMessageTiming(assistantMessage, undefined, rawToolArgsText),
             toolTimingById: this.toolTimingById,
-            rawToolArgsText: rawToolArgsTextFromEvent(event),
+            rawToolArgsText,
           }),
         );
         this.scheduleMessagesPublish();
@@ -2554,10 +2570,11 @@ export class PiClientSession implements ConversationSession {
   private currentMessageTiming(
     message: PiAssistantMessage,
     totalStreamTime?: number,
+    rawToolArgsText?: Readonly<Record<string, string>>,
   ): MessageTiming | undefined {
     const active = this.activeMessageTiming;
     if (!active) return undefined;
-    const tokenCount = message.usage?.output;
+    const tokenCount = active.tokenMeter.observe(message, rawToolArgsText);
 
     return {
       streamStartTime: active.streamStartTime,
@@ -2577,14 +2594,15 @@ export class PiClientSession implements ConversationSession {
     completedAt: number,
   ): MessageTiming | undefined {
     if (!this.activeMessageTiming && message.timestamp !== undefined) {
-      this.activeMessageTiming = { streamStartTime: message.timestamp, totalChunks: 0 };
+      this.activeMessageTiming = {
+        streamStartTime: message.timestamp,
+        totalChunks: 0,
+        tokenMeter: new PiLiveTokenMeter(),
+      };
     }
     const active = this.activeMessageTiming;
     if (!active) return undefined;
     const totalStreamTime = Math.max(0, completedAt - active.streamStartTime);
-    if (active.firstTokenTime === undefined && hasOutputToken(message)) {
-      active.firstTokenTime = totalStreamTime;
-    }
     return this.currentMessageTiming(message, totalStreamTime);
   }
 

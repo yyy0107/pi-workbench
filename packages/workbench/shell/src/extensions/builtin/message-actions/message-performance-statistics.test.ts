@@ -6,11 +6,13 @@ import { messageCacheHitRate, messageTokensPerSecond } from "./message-performan
 const TURN_STATISTICS = {
   steps: 2,
   llmDurationMs: 10_000,
+  decodeDurationMs: 9_500,
   toolDurationMs: 100,
   firstTokenDurationMs: 500,
   firstTokenSamples: 2,
   inputTokens: 9_800,
   outputTokens: 198,
+  reasoningTokens: 20,
   cacheReadTokens: 10_200,
   cacheWriteTokens: 0,
 } as const;
@@ -50,13 +52,13 @@ test("omits the rate when no prompt tokens were reported", () => {
   );
 });
 
-test("uses aggregate output throughput for the whole assistant turn", () => {
+test("uses aggregate generated-token throughput after the first token", () => {
   assert.equal(
     messageTokensPerSecond({
       turnStatistics: TURN_STATISTICS,
       timingTokensPerSecond: 16.3,
     }),
-    19.8,
+    218 / 9.5,
   );
 });
 
@@ -67,7 +69,7 @@ test("falls back to message timing throughput for legacy messages", () => {
 test("omits throughput when the turn has no measured LLM duration", () => {
   assert.equal(
     messageTokensPerSecond({
-      turnStatistics: { ...TURN_STATISTICS, llmDurationMs: 0 },
+      turnStatistics: { ...TURN_STATISTICS, llmDurationMs: 0, decodeDurationMs: 0 },
       timingTokensPerSecond: 16.3,
     }),
     undefined,

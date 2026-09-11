@@ -40,6 +40,7 @@ test("keeps the assistant turn running between model output and tool execution",
     return tool.status;
   };
   assert.equal(currentAssistant().status, "running");
+  assert.equal(currentAssistant().presentation?.timing?.firstTokenTime, 0);
   assert.equal(currentToolStatus(), "running");
 
   await emit({ type: "message_end", message: toolMessage });
@@ -74,6 +75,7 @@ test("keeps the assistant turn running between model output and tool execution",
   };
   await emit({ type: "message_update", message: answer });
   assert.equal(currentAssistant().status, "running");
+  assert.equal(currentAssistant().presentation?.timing?.tokenCount, 5);
   await emit({ type: "message_end", message: answer });
   assert.equal(session.snapshot.getSnapshot().isRunning, false);
   assert.equal(currentAssistant().status, "complete");
