@@ -422,6 +422,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background-color: var(--workbench-window-background, var(--background));
   }
 }

@@ -50,6 +50,13 @@
   --layout-motion-duration: 0ms;
 }
 
+/* Native edge resizing already supplies the motion. Do not let responsive content transitions
+   queue a second animation for every intermediate viewport width. */
+[data-workbench-shell][data-window-resizing="true"] :where(*, *::before, *::after) {
+  animation: none !important;
+  transition: none !important;
+}
+
 /* A full-height navigation rail already reserves the shared toggle's column. */
 [data-workbench-shell]:has([data-main-view-sidebar-rail])
   [data-workbench-surface="header"]

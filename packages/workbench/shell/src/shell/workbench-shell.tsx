@@ -142,6 +142,35 @@ export function WorkbenchShell({
   }, []);
 
   useLayoutEffect(() => {
+    const shell = shellRef.current;
+    const body = shell?.ownerDocument.body;
+    if (!shell || !body) return;
+
+    const previousWindowBackground = body.style.getPropertyValue("--workbench-window-background");
+    const syncWindowBackground = () => {
+      const style = getComputedStyle(shell);
+      const canvasBackground = style.getPropertyValue("--workbench-canvas-background").trim();
+      const background = canvasBackground || style.backgroundColor;
+      if (background) body.style.setProperty("--workbench-window-background", background);
+    };
+
+    const observer = new MutationObserver(syncWindowBackground);
+    observer.observe(shell, {
+      attributes: true,
+      attributeFilter: ["class", "style", "data-workbench-appearance"],
+    });
+    syncWindowBackground();
+    return () => {
+      observer.disconnect();
+      if (previousWindowBackground) {
+        body.style.setProperty("--workbench-window-background", previousWindowBackground);
+      } else {
+        body.style.removeProperty("--workbench-window-background");
+      }
+    };
+  }, []);
+
+  useLayoutEffect(() => {
     const workspaceHost = workspaceHostRef.current;
     if (!workspaceHost) return;
 
