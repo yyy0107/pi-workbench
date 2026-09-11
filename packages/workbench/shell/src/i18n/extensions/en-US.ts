@@ -1494,6 +1494,14 @@ export const extensionsEnUS = {
     truncated: "Some entries are not shown because this folder is very large.",
   },
   workspaceReview: {
+    fileActions: {
+      copyPath: "Copy file path",
+      pathCopied: "File path copied",
+      pathCopyFailed: "Could not copy the file path. Try again.",
+      expand: "Expand file changes",
+      collapse: "Collapse file changes",
+      openInFileTab: "Open file in a file tab",
+    },
     enableWrap: "Enable word wrap",
     disableWrap: "Disable word wrap",
     enableFullFile: "Load full file",

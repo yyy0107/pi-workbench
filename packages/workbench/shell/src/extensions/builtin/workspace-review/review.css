@@ -1,6 +1,5 @@
 [data-workspace-review] {
   --review-line-height: var(--button-height-compact);
-  --button-icon-frame-size: var(--button-height-compact);
 }
 
 [data-workspace-review] [data-review-code] {
@@ -90,4 +89,10 @@
 }
 [data-workspace-review] [data-review-space="tab"]::before {
   content: "→";
+}
+
+[data-workspace-review] .review-line-feedback {
+  --button-icon-size: var(--icon-size-sm);
+  --button-icon-frame-size: var(--icon-frame-size-sm);
+  --button-icon-radius: var(--icon-frame-radius-sm);
 }

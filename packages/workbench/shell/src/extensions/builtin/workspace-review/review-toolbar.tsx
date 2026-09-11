@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  ClipboardIcon,
+  CopyIcon,
   EllipsisIcon,
+  FileDiffIcon,
   FileIcon,
   PilcrowIcon,
   RefreshCwIcon,
@@ -79,7 +80,7 @@ export function ReviewToolbar({
       )}
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={<Button variant="ghost" size="icon" />}
+          render={<Button variant="ghost" size="icon-sm" />}
           aria-label={t("extensions.workspaceReview.more")}
         >
           <EllipsisIcon />
@@ -89,31 +90,7 @@ export function ReviewToolbar({
             <RefreshCwIcon />
             {t("extensions.workspaceReview.refresh")}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => toggle("wrap")}>
-            <WrapTextIcon />
-            {t(
-              options.wrap
-                ? "extensions.workspaceReview.disableWrap"
-                : "extensions.workspaceReview.enableWrap",
-            )}
-          </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => toggle("fullFile")}>
-            <FileIcon />
-            {t(
-              options.fullFile
-                ? "extensions.workspaceReview.disableFullFile"
-                : "extensions.workspaceReview.enableFullFile",
-            )}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => toggle("richText")}>
-            <FileIcon />
-            {t(
-              options.richText
-                ? "extensions.workspaceReview.disableRichText"
-                : "extensions.workspaceReview.enableRichText",
-            )}
-          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => toggle("wordDiff")}>
             <TextCursorInputIcon />
             {t(
@@ -130,12 +107,72 @@ export function ReviewToolbar({
                 : "extensions.workspaceReview.showWhitespace",
             )}
           </DropdownMenuItem>
-          <DropdownMenuItem disabled={!canCopy || pending} onClick={copy}>
-            <ClipboardIcon />
-            {t("extensions.workspaceReview.copyApply")}
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={t(
+          options.wrap
+            ? "extensions.workspaceReview.disableWrap"
+            : "extensions.workspaceReview.enableWrap",
+        )}
+        title={t(
+          options.wrap
+            ? "extensions.workspaceReview.disableWrap"
+            : "extensions.workspaceReview.enableWrap",
+        )}
+        aria-pressed={options.wrap}
+        onClick={() => toggle("wrap")}
+      >
+        <WrapTextIcon />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={t(
+          options.fullFile
+            ? "extensions.workspaceReview.disableFullFile"
+            : "extensions.workspaceReview.enableFullFile",
+        )}
+        title={t(
+          options.fullFile
+            ? "extensions.workspaceReview.disableFullFile"
+            : "extensions.workspaceReview.enableFullFile",
+        )}
+        aria-pressed={options.fullFile}
+        onClick={() => toggle("fullFile")}
+      >
+        <FileIcon />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={t(
+          options.richText
+            ? "extensions.workspaceReview.disableRichText"
+            : "extensions.workspaceReview.enableRichText",
+        )}
+        title={t(
+          options.richText
+            ? "extensions.workspaceReview.disableRichText"
+            : "extensions.workspaceReview.enableRichText",
+        )}
+        aria-pressed={options.richText}
+        onClick={() => toggle("richText")}
+      >
+        <FileDiffIcon />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={t("extensions.workspaceReview.copyApply")}
+        title={t("extensions.workspaceReview.copyApply")}
+        disabled={!canCopy || pending}
+        onClick={copy}
+      >
+        <CopyIcon />
+      </Button>
     </>
   );
 }

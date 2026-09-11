@@ -1451,6 +1451,14 @@ export const extensionsZhCN = {
     truncated: "此文件夹内容较多，部分条目未显示。",
   },
   workspaceReview: {
+    fileActions: {
+      copyPath: "复制文件路径",
+      pathCopied: "已复制文件路径",
+      pathCopyFailed: "无法复制文件路径，请重试。",
+      expand: "展开文件变更",
+      collapse: "收起文件变更",
+      openInFileTab: "在文件标签中打开文件",
+    },
     enableWrap: "启用自动换行",
     disableWrap: "禁用自动换行",
     enableFullFile: "加载完整文件",

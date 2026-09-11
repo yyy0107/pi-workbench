@@ -23,11 +23,7 @@ const iconButtonInteractionStyles = [
 ].join(" ");
 
 const iconButtonStyles = cn(
-  "aui-button-icon size-[var(--button-icon-frame-size,var(--icon-frame-size-default))]! min-h-[var(--button-icon-frame-size,var(--icon-frame-size-default))] min-w-[var(--button-icon-frame-size,var(--icon-frame-size-default))] p-0! [&_svg]:size-[var(--button-icon-size,var(--icon-size-md))]!",
-  iconButtonInteractionStyles,
-);
-const compactIconButtonStyles = cn(
-  "aui-button-icon size-[var(--button-icon-frame-size,var(--icon-frame-size-compact))]! min-h-[var(--button-icon-frame-size,var(--icon-frame-size-compact))] min-w-[var(--button-icon-frame-size,var(--icon-frame-size-compact))] p-0! [&_svg]:size-[var(--button-icon-size,var(--icon-size-md))]!",
+  "aui-button-icon size-[var(--button-icon-frame-size,var(--icon-button-profile-frame))]! min-h-[var(--button-icon-frame-size,var(--icon-button-profile-frame))] min-w-[var(--button-icon-frame-size,var(--icon-button-profile-frame))] rounded-[var(--button-icon-radius,var(--icon-button-profile-radius))] p-0! [&_svg]:size-[var(--button-icon-size,var(--icon-button-profile-size))]!",
   iconButtonInteractionStyles,
 );
 
@@ -78,8 +74,13 @@ const buttonVariants = cva(
         xs: "h-[var(--button-height-compact)] min-h-[var(--button-height-compact)] min-w-[var(--button-height-compact)] gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-[var(--icon-size-sm)]",
         sm: "h-[var(--button-height-default)] min-h-[var(--button-height-default)] min-w-[var(--button-height-compact)] gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[length:calc(var(--text-base)*0.8)] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-[var(--icon-size-sm)]",
         lg: "h-[var(--button-height-large)] min-h-[var(--button-height-default)] min-w-[var(--button-height-compact)] gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        icon: iconButtonStyles,
-        "icon-sm": compactIconButtonStyles,
+        icon: cn(iconButtonStyles, "aui-icon-profile-md"),
+        "icon-xs": cn(iconButtonStyles, "aui-icon-profile-xs"),
+        "icon-sm": cn(iconButtonStyles, "aui-icon-profile-sm"),
+        "icon-md": cn(iconButtonStyles, "aui-icon-profile-md"),
+        "icon-lg": cn(iconButtonStyles, "aui-icon-profile-lg"),
+        "icon-xl": cn(iconButtonStyles, "aui-icon-profile-xl"),
+        "icon-xxl": cn(iconButtonStyles, "aui-icon-profile-xxl"),
       },
     },
     defaultVariants: {
@@ -93,7 +94,7 @@ function Button({
   className,
   variant = "default",
   size = "default",
-  tooltipDelay = size === "icon" || size === "icon-sm" ? 0 : undefined,
+  tooltipDelay = size?.startsWith("icon") ? 0 : undefined,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & { tooltipDelay?: number }) {
   return withTooltip(

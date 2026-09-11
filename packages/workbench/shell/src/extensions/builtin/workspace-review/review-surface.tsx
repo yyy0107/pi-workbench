@@ -1,6 +1,13 @@
 "use client";
 
-import { ChevronDownIcon, ChevronRightIcon, FileDiffIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CopyIcon,
+  FileCode2Icon,
+  FileDiffIcon,
+} from "lucide-react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 import type {
@@ -10,7 +17,11 @@ import type {
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
 import { defineMessage, useI18n } from "../../../i18n";
-import { useRightWorkspace, useWorkspaceContext } from "../../../right-workspace-react";
+import {
+  useOpenerService,
+  useRightWorkspace,
+  useWorkspaceContext,
+} from "../../../right-workspace-react";
 import {
   Button,
   Collapsible,
@@ -21,17 +32,16 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
+  PathEllipsis,
+  useToastManager,
 } from "../../../ui";
+import { useClipboardCopy } from "../../../hooks/use-clipboard-copy";
 import { FileTypeIcon } from "../../../workspace-file-tree";
+import { workspaceAbsolutePath } from "../../../workspace-files";
 import type { DiffHunk } from "../../../elements/reviewable-diff";
 import { MarkdownPreview } from "../../../chat/markdown-preview";
 import { isMarkdownFile } from "../workspace-file/file-view-mode";
 import { ReviewDiffHunk } from "./review-diff-hunk";
-import { ReviewToolbar } from "./review-toolbar";
 import { defaultReviewDisplayOptions, type ReviewDisplayOptions } from "./review-options";
 import { parseUnifiedPatch } from "../../../elements/unified-patch";
 import { useGitReviewService } from "./git-review-service";
@@ -212,60 +222,121 @@ function ReviewFile({
   surface,
   request,
   options,
+  context,
 }: {
   options: ReviewDisplayOptions;
   file: WorkbenchWorkspaceGitChangedFile;
   surface: ReviewProps["surface"];
   request: WorkbenchWorkspaceGitDiffRequest;
+  context: ReviewProps["context"];
 }) {
   const { t, number } = useI18n();
+  const openers = useOpenerService();
+  const notifications = useToastManager();
+  const { copy, status: copyStatus } = useClipboardCopy();
   const [open, setOpen] = useState(false);
-  const slash = file.path.lastIndexOf("/") + 1;
+  const fileName = file.path.split(/[\\/]/).filter(Boolean).at(-1) ?? file.path;
+  const displayPath = workspaceAbsolutePath(context.rootPath, file.path);
+  const copyPathLabel =
+    copyStatus === "copied"
+      ? t("extensions.workspaceReview.fileActions.pathCopied")
+      : copyStatus === "failed"
+        ? t("extensions.workspaceReview.fileActions.pathCopyFailed")
+        : t("extensions.workspaceReview.fileActions.copyPath");
+  const expandLabel = t(
+    open
+      ? "extensions.workspaceReview.fileActions.collapse"
+      : "extensions.workspaceReview.fileActions.expand",
+  );
+  const openFileTab = () => {
+    void openers
+      .open({
+        resource: { scheme: "workspace-file", path: file.path, label: fileName },
+        context,
+        scope: surface.scope,
+        policy: "force-focus",
+      })
+      .catch(() => {
+        notifications.add({
+          id: "workspace-review-file-open-error",
+          type: "error",
+          priority: "high",
+          title: t("extensions.shared.fileTree.openError", { name: fileName }),
+        });
+      });
+  };
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger
-        render={
+      <div className="group flex min-w-0 items-center">
+        <CollapsibleTrigger
+          render={
+            <Button
+              variant="ghost"
+              className="min-w-0 flex-1 justify-start gap-2 text-xs font-normal"
+            />
+          }
+          title={displayPath}
+        >
+          <FileTypeIcon path={file.path} className="size-(--icon-size-md) shrink-0" />
+          <PathEllipsis text={displayPath} mode="filename" className="shrink text-left" />
+          {file.binary ? (
+            <span className="shrink-0 text-muted-foreground">
+              {t("extensions.workspaceReview.binaryShort")}
+            </span>
+          ) : file.additions !== undefined && file.deletions !== undefined ? (
+            <span
+              className="flex shrink-0 gap-1 font-mono tabular-nums"
+              aria-label={t("extensions.workspaceReview.lineChanges", {
+                additions: file.additions,
+                deletions: file.deletions,
+              })}
+            >
+              <span className="text-success-foreground" aria-hidden>
+                +{number(file.additions)}
+              </span>
+              <span className="text-danger-foreground" aria-hidden>
+                −{number(file.deletions)}
+              </span>
+            </span>
+          ) : null}
+        </CollapsibleTrigger>
+        <div className="[--button-icon-frame-size:var(--icon-frame-size-sm)] [--button-icon-size:var(--icon-size-sm)] [--button-icon-radius:var(--icon-frame-radius-sm)] flex shrink-0 items-center gap-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none">
           <Button
+            type="button"
             variant="ghost"
-            className="w-full min-w-0 justify-start gap-2 text-xs font-normal"
-          />
-        }
-        title={file.path}
-      >
-        {open ? <ChevronDownIcon aria-hidden /> : <ChevronRightIcon aria-hidden />}
-        <FileTypeIcon path={file.path} className="size-(--icon-size-md) shrink-0" />
-        <span className="flex min-w-0 flex-1 font-mono text-left">
-          <span className="min-w-0 truncate text-muted-foreground">
-            {file.path.slice(0, slash)}
-          </span>
-          <span className="max-w-full shrink-0 truncate text-foreground">
-            {file.path.slice(slash)}
-          </span>
-        </span>
-        <span className="shrink-0 text-muted-foreground">
-          {t(`extensions.workspaceReview.change.${file.kind}`)}
-        </span>
-        {file.binary ? (
-          <span className="shrink-0 text-muted-foreground">
-            {t("extensions.workspaceReview.binaryShort")}
-          </span>
-        ) : file.additions !== undefined && file.deletions !== undefined ? (
-          <span
-            className="flex shrink-0 gap-1 font-mono tabular-nums"
-            aria-label={t("extensions.workspaceReview.lineChanges", {
-              additions: file.additions,
-              deletions: file.deletions,
-            })}
+            size="icon-sm"
+            aria-label={copyPathLabel}
+            title={copyPathLabel}
+            onClick={() => void copy(file.path)}
           >
-            <span className="text-success-foreground/80" aria-hidden>
-              +{number(file.additions)}
-            </span>
-            <span className="text-danger-foreground/80" aria-hidden>
-              −{number(file.deletions)}
-            </span>
-          </span>
-        ) : null}
-      </CollapsibleTrigger>
+            {copyStatus === "copied" ? <CheckIcon /> : <CopyIcon />}
+          </Button>
+          <CollapsibleTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={expandLabel}
+                title={expandLabel}
+              />
+            }
+          >
+            {open ? <ChevronDownIcon /> : <ChevronRightIcon />}
+          </CollapsibleTrigger>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t("extensions.workspaceReview.fileActions.openInFileTab")}
+            title={t("extensions.workspaceReview.fileActions.openInFileTab")}
+            disabled={!context.rootPath || !(context.worktreeId ?? context.projectId)}
+            onClick={openFileTab}
+          >
+            <FileCode2Icon />
+          </Button>
+        </div>
+      </div>
       <CollapsibleContent>
         {open && (
           <FilePatch
@@ -281,8 +352,8 @@ function ReviewFile({
   );
 }
 
-function ReviewComparison({ surface, refresh }: ReviewProps & { refresh: () => void }) {
-  const { t, date, number } = useI18n();
+function ReviewComparison({ surface }: ReviewProps) {
+  const { t, date } = useI18n();
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const isCommit =
@@ -313,14 +384,6 @@ function ReviewComparison({ surface, refresh }: ReviewProps & { refresh: () => v
   );
   const query = useGitDiff(request, supported);
   const repository = query.data?.repository ? query.data : undefined;
-  const totals = repository?.files.reduce(
-    (sum, file) => ({
-      additions: sum.additions + (file.additions ?? 0),
-      deletions: sum.deletions + (file.deletions ?? 0),
-    }),
-    { additions: 0, deletions: 0 },
-  );
-  const selection = surface.params.reviewScope;
   const reveal = (params: ReviewSurfaceParams) => {
     const id = controller.reveal({
       kind: "review",
@@ -330,105 +393,8 @@ function ReviewComparison({ surface, refresh }: ReviewProps & { refresh: () => v
     });
     if (id !== surface.id) controller.close(surface.id, context);
   };
-  const select = (value: string) => {
-    const branch = value === "branch" || value.startsWith("branch:");
-    const target =
-      value === "branch"
-        ? (repository?.branches.find((name) => name !== repository.branch) ??
-          repository?.branches[0])
-        : value.slice(7);
-    reveal({
-      repositoryId: surface.params.repositoryId,
-      reviewScope: branch ? "branch" : (value as WorkbenchWorkspaceGitReviewScope),
-      sessionId: context.threadId,
-      displayOptions: options,
-      ...(branch ? { revision: target } : {}),
-    });
-  };
   return (
     <section data-workspace-review="" className="flex h-full min-h-0 flex-col text-foreground">
-      <div className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-1">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="ghost" className="min-w-0 shrink px-0 font-normal" />}
-            aria-label={t("extensions.workspaceReview.scopeLabel")}
-            title={repository?.branch}
-          >
-            <span className="truncate">
-              {t(`extensions.workspaceReview.scope.${surface.params.reviewScope}`)}
-            </span>
-            <ChevronDownIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="max-h-80 overflow-y-auto" data-workspace-review="">
-            <DropdownMenuRadioGroup value={selection} onValueChange={select}>
-              <DropdownMenuRadioItem value="last-turn" disabled={!context.threadId}>
-                {t("extensions.workspaceReview.scope.last-turn")}
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="session" disabled={!context.threadId}>
-                {t("extensions.workspaceReview.scope.session")}
-              </DropdownMenuRadioItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuRadioItem value="uncommitted">
-                {t("extensions.workspaceReview.scope.uncommitted")}
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="unstaged">
-                {t("extensions.workspaceReview.scope.unstaged")}
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="staged">
-                {t("extensions.workspaceReview.scope.staged")}
-              </DropdownMenuRadioItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  {t("extensions.workspaceReview.committed")}
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent data-workspace-review="">
-                  <DropdownMenuRadioGroup value={selection} onValueChange={select}>
-                    <DropdownMenuRadioItem value="commit">
-                      {t("extensions.workspaceReview.scope.commit")}
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="range">
-                      {t("extensions.workspaceReview.scope.range")}
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-              <DropdownMenuRadioItem value="branch" disabled={!repository?.branches.length}>
-                {t("extensions.workspaceReview.scope.branch")}
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        {totals && (
-          <span
-            className="flex shrink-0 gap-1 text-sm tabular-nums"
-            aria-label={t("extensions.workspaceReview.lineChanges", totals)}
-            title={
-              repository?.nextOffset !== undefined
-                ? t("extensions.workspaceReview.partial")
-                : undefined
-            }
-          >
-            <span className="text-success-foreground/80" aria-hidden>
-              +{number(totals.additions)}
-            </span>
-            <span className="text-danger-foreground/80" aria-hidden>
-              −{number(totals.deletions)}
-            </span>
-          </span>
-        )}
-        <div className="ml-auto flex min-w-0 items-center gap-1 text-muted-foreground">
-          <ReviewToolbar
-            request={request}
-            options={options}
-            refresh={refresh}
-            canCopy={Boolean(repository?.files.length) && !query.loading && !query.error}
-            onChange={(displayOptions) =>
-              controller.update(surface.id, { params: { ...surface.params, displayOptions } })
-            }
-          />
-        </div>
-      </div>
       {request.scope === "branch" && (
         <div className="flex min-w-0 items-center border-b border-border px-2 py-1">
           <span
@@ -526,6 +492,7 @@ function ReviewComparison({ surface, refresh }: ReviewProps & { refresh: () => v
                 surface={surface}
                 request={request}
                 options={options}
+                context={context}
               />
             ))}
             {!query.loading && !query.error && repository?.files.length === 0 && (
@@ -565,12 +532,10 @@ export function ReviewSurface(props: ReviewProps) {
     () => changes.getRevision(props.surface.params.repositoryId),
     () => 0,
   );
-  const [refresh, setRefresh] = useState(0);
   return (
     <ReviewComparison
-      key={`${props.surface.resourceKey}:${revision}:${props.retryToken ?? 0}:${refresh}`}
+      key={`${props.surface.resourceKey}:${revision}:${props.retryToken ?? 0}`}
       {...props}
-      refresh={() => setRefresh((value) => value + 1)}
     />
   );
 }

@@ -16,6 +16,7 @@ export {
 } from "./model-selector-models";
 export * from "./model-selector";
 export * from "./popover";
+export * from "./path-ellipsis";
 export * from "./progress";
 export * from "./project-trust-dialog";
 export * from "./select";

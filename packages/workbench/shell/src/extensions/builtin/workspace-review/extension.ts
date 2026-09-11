@@ -8,6 +8,7 @@ import {
 
 import { ReviewMenuItem } from "./review-menu-item";
 import { ReviewRuntimeBridge } from "./review-runtime-bridge";
+import { ReviewSurfaceHeader } from "./review-surface-header";
 import type { ReviewSurfaceParams } from "./review-surface";
 
 const ReviewSurface = createLazyWorkspaceSurface(async () => {
@@ -34,6 +35,7 @@ export const reviewSurfaceDefinition = {
     type: context.threadId ? "thread" : "application",
     key: context.threadId ?? context.applicationId,
   }),
+  header: ReviewSurfaceHeader,
   render: ReviewSurface,
   menuItem: ReviewMenuItem,
   runtime: ReviewRuntimeBridge,
