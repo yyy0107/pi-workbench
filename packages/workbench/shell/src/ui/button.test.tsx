@@ -8,3 +8,7 @@ test("Button has no press movement", () => {
   assert.doesNotMatch(defaultClasses, /scale|translate/u);
   assert.match(defaultClasses, /focus-visible:outline-ring/u);
 });
+
+test("Button text uses the Workbench UI font", () => {
+  assert.match(buttonVariants(), /font-sans/u);
+});

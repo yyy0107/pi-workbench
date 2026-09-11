@@ -1,3 +1,7 @@
+[data-surface-header="review"] {
+  border-bottom-width: 0;
+}
+
 [data-workspace-review] {
   --review-line-height: var(--button-height-compact);
 }
