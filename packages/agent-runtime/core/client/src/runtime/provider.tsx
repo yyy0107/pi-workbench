@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import type { AgentRuntime } from "@workbench/agent-runtime-core";
 
-import { RuntimeContext } from "./runtime-context";
+import { RuntimeContext } from "./context";
 
 /** Install one stable Headless Runtime without copying its changing snapshots into Context. */
 export function RuntimeProvider({

@@ -4,8 +4,8 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import type { WorkbenchAgentRuntimeCapabilities } from "../src/capabilities";
-import { WorkbenchAgentCapabilityError } from "../src/capabilities";
+import type { WorkbenchAgentRuntimeCapabilities } from "../src/environment/capabilities";
+import { WorkbenchAgentCapabilityError } from "../src/environment/capabilities";
 import {
   WorkbenchAgentRuntimeEnvironmentProvider,
   WorkbenchBoundSessionProvider,
@@ -21,7 +21,7 @@ import {
   useWorkbenchRuntimeHostCapability,
   useWorkbenchScratchSessionCapability,
   useWorkbenchWorkspaceCapability,
-} from "../src/agent-runtime-context";
+} from "../src/environment/context";
 
 function readCapabilities(capabilities?: WorkbenchAgentRuntimeCapabilities) {
   let observed: WorkbenchAgentRuntimeCapabilities | undefined;

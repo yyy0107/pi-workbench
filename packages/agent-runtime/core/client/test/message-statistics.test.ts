@@ -10,7 +10,7 @@ import type {
 import {
   aggregateWorkbenchSessionStatistics,
   mergeMonotonicWorkbenchSessionStatistics,
-} from "../src/message-statistics";
+} from "../src/conversation/statistics";
 
 function assistant(custom: Record<string, ConversationData>): AssistantMessageNode {
   return {

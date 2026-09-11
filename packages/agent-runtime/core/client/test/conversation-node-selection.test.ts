@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ConversationNode } from "@workbench/agent-runtime-contracts/conversation";
-import { createConversationNodeSelection } from "../src/conversation-node-selection";
+import { createConversationNodeSelection } from "../src/runtime/node-selection";
 
 test("node selections cache unchanged fields, follow missing/reordered nodes, and release subscriptions", () => {
   function source(key: string) {

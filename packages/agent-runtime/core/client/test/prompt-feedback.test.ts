@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   appendWorkspaceFeedbackContext,
   stripWorkspaceFeedbackContext,
-} from "../src/prompt-feedback";
+} from "../src/conversation/prompt-feedback";
 
 test("serializes only the prompt feedback contract", () => {
   const uiFeedback = {

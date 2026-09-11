@@ -22,7 +22,7 @@ import type {
   WorkbenchAgentThreadSnapshot,
   WorkbenchAgentThreadStore,
   WorkbenchWorkspaceFileSearchPort,
-} from "./agent-runtime-environment";
+} from "./ports";
 import type {
   WorkbenchAgentRuntimeCapabilities,
   WorkbenchAttachmentUnderstandingCapability,

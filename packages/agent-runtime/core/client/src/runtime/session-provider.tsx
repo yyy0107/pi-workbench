@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 
 import { useCurrentSession } from "./hooks";
-import { SessionContext, useRuntimeContext } from "./runtime-context";
+import { SessionContext, useRuntimeContext } from "./context";
 
 export interface SessionProviderProps {
   readonly children: ReactNode;

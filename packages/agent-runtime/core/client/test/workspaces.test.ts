@@ -5,7 +5,7 @@ import {
   acceptCreatedWorkspaceAndBeginThread,
   addedWorkspaceIdsForReconciliation,
   resolveWorkspaceSelection,
-} from "../src/workspaces";
+} from "../src/workspace/selection";
 
 test("skips workspace UI reconciliation when only the authoritative order changes", () => {
   assert.equal(
