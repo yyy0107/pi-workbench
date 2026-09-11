@@ -886,6 +886,7 @@ export function AutomationTaskForm({
                       loadFailed={modelState === "error"}
                       currentUnavailable={selectedModel?.unavailable}
                       models={selectableModels}
+                      showFullModelName
                       selectedEffort={selectedEffort}
                       selectedModelId={selectedModel?.id}
                       getEffortLabel={(effort) => reasoningEffortLabel(effort, t)}

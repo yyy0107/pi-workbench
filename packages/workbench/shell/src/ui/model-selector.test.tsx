@@ -25,6 +25,8 @@ interface ElementProps {
   collisionAvoidance?: { side: string; align: string };
   value?: string;
   model?: ModelSelectorOption;
+  className?: string;
+  title?: string;
   onChange?(value: string): void;
   onValueChange?(value: string): void;
   onOpenChange?(open: boolean): void;
@@ -200,6 +202,62 @@ test("provider browsing scopes model search and effort menus follow the selected
       radioGroups().map((group) => group.props.value),
       ["a", "a/reason", ""],
     );
+  } finally {
+    await act(async () => root.unmount());
+    environment.restore();
+  }
+});
+
+test("can show the selected model name without a trigger width limit", async () => {
+  const environment = installMinimalReactDomEnvironment();
+  const root = createRoot(environment.container);
+  const models: ModelSelectorOption[] = [
+    {
+      id: "provider/long-model",
+      model: "long-model",
+      provider: "provider",
+      providerName: "Provider",
+      name: "A model name that should remain fully visible",
+    },
+  ];
+  const props: ComponentProps<typeof ModelSelector> = {
+    labels: {
+      select: "Select model",
+      provider: "Provider",
+      model: "Model",
+      reasoningEffort: "Effort",
+      search: "Search models",
+      searchPlaceholder: "Search models",
+      loadFailed: "Load failed",
+      noModels: "No models",
+      noSearchResults: "No matching models",
+      selectFailed: "Selection failed",
+      currentUnavailable: "Unavailable",
+      saving: "Saving",
+    },
+    models,
+    selectedModelId: models[0]!.id,
+    showFullModelName: true,
+    getEffortLabel: (effort) => effort.name,
+    onEffortChange: () => undefined,
+    onModelChange: () => undefined,
+  };
+  let tree: ReactNode;
+  function Probe() {
+    tree = ModelSelector(props);
+    return null;
+  }
+
+  try {
+    await act(async () => root.render(<Probe />));
+    const trigger = elements(tree).find((element) => element.type === DropdownMenuTrigger)!;
+    const modelName = elements(trigger.props.children).find(
+      (element) => element.type === "span" && element.props.children === models[0]!.name,
+    );
+
+    assert.match(trigger.props.className ?? "", /max-w-none/);
+    assert.ok(modelName);
+    assert.doesNotMatch(modelName!.props.className ?? "", /truncate/);
   } finally {
     await act(async () => root.unmount());
     environment.restore();

@@ -328,6 +328,7 @@ function AvailableModelSelector({
       }}
       loadFailed={loadFailed}
       models={models}
+      showFullModelName
       selectedEffort={selectedEffort}
       selectedModelId={selectedModel?.id}
       selectionFailed={selectionFailed}
