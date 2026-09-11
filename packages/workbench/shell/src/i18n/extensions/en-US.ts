@@ -1556,14 +1556,14 @@ export const extensionsEnUS = {
     chooseCommitsHint: "Choose commits above. A range must follow ancestry from first to last.",
     unrecorded:
       "No recorded snapshots for this response or session. Snapshots are captured for new Agent runs.",
-    snapshotHint:
-      "Recorded workspace snapshots at Agent run boundaries (ignored files excluded). Session view compares the first start with the latest end; shared-workspace edits during that interval are included.",
     compareBranch: "Compare with branch (merge base)",
     unsupported: "This comparison mode is not supported. Choose another scope.",
     binary: "Binary file — textual diff is unavailable.",
     binaryShort: "Binary",
     noTextChanges: "No textual changes. The file may have been renamed or its mode changed.",
     renamedFrom: ({ path }: { path: string }) => `Previous path: ${path}`,
+    unmodifiedLines: ({ count }: { count: number }, { number, plural }: MessageFormatters) =>
+      `${number(count)} unmodified ${plural(count) === "one" ? "line" : "lines"}`,
     lineChanges: (
       { additions, deletions }: { additions: number; deletions: number },
       { number }: MessageFormatters,

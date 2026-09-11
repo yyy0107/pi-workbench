@@ -17,6 +17,10 @@ test("Workspace File owns its surface and opener bridge for one extension lifecy
   const activation = manager.activate(workspaceFileExtension);
 
   assert.equal(manager.workspace.get("file") !== undefined, true);
+  assert.deepEqual(manager.workspace.get("file")?.tabPolicy, {
+    maxTabs: 2,
+    replacement: "most-recent",
+  });
   assert.equal(
     manager.workspace.get("file")?.runtime,
     undefined,

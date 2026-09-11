@@ -18,7 +18,7 @@ export const TooltipIconButton = forwardRef<HTMLButtonElement, TooltipIconButton
         <Tooltip>
           <TooltipTrigger
             render={
-              <Button variant="ghost" size="icon-sm" {...rest} className={className} ref={ref} />
+              <Button variant="ghost" size="icon" {...rest} className={className} ref={ref} />
             }
           >
             <Slot.Slottable>{children}</Slot.Slottable>

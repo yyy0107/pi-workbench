@@ -1,4 +1,8 @@
-import { parseUnifiedPatch, type ParsedPatchHunk } from "../../../elements/unified-patch";
+import {
+  parseUnifiedPatch,
+  visiblePatchHunks,
+  type ParsedPatchHunk,
+} from "../../../elements/unified-patch";
 import type { DiffLine } from "../../../elements/code-diff";
 import type { DiffHunk } from "../../../elements/reviewable-diff";
 
@@ -17,11 +21,6 @@ export interface ToolDiffModel {
   deletions: number;
   lines: readonly DiffLine[];
   hunks: readonly DiffHunk[];
-}
-
-interface LineRange {
-  start: number;
-  end: number;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -64,72 +63,22 @@ function hunkRange(oldStart: number, oldCount: number, newStart: number, newCoun
   return `@@ -${unifiedRange(oldStart, oldCount)} +${unifiedRange(newStart, newCount)} @@`;
 }
 
-function changedLineRanges(lines: readonly DiffLine[]): readonly LineRange[] {
-  const ranges: LineRange[] = [];
-  let changeStart: number | undefined;
-
-  const appendRange = (changeEnd: number) => {
-    if (changeStart === undefined) return;
-
-    const next = {
-      start: Math.max(0, changeStart - 1),
-      end: Math.min(lines.length, changeEnd + 1),
-    };
-    const previous = ranges.at(-1);
-    if (previous && next.start < previous.end) {
-      previous.end = Math.max(previous.end, next.end);
-    } else {
-      ranges.push(next);
-    }
-    changeStart = undefined;
-  };
-
-  for (let index = 0; index < lines.length; index += 1) {
-    if (lines[index]?.kind !== "context") {
-      changeStart ??= index;
-    } else {
-      appendRange(index);
-    }
-  }
-  appendRange(lines.length);
-
-  return ranges;
-}
-
 function reviewHunks(
   toolCallId: string,
   parsedHunks: readonly ParsedPatchHunk[],
 ): readonly DiffHunk[] {
-  return parsedHunks.flatMap((hunk, hunkIndex) => {
-    const oldPositions = Array.from({ length: hunk.lines.length }, () => 0);
-    const newPositions = Array.from({ length: hunk.lines.length }, () => 0);
-    let oldLine = hunk.oldStart;
-    let newLine = hunk.newStart;
+  return visiblePatchHunks(parsedHunks).map((hunk) => {
+    const oldCount = hunk.lines.filter((line) => line.kind !== "added").length;
+    const newCount = hunk.lines.filter((line) => line.kind !== "removed").length;
 
-    hunk.lines.forEach((line, lineIndex) => {
-      oldPositions[lineIndex] = oldLine;
-      newPositions[lineIndex] = newLine;
-      if (line.kind !== "added") oldLine += 1;
-      if (line.kind !== "removed") newLine += 1;
-    });
-
-    return changedLineRanges(hunk.lines).map((range, blockIndex) => {
-      const lines = hunk.lines.slice(range.start, range.end);
-      const oldCount = lines.filter((line) => line.kind !== "added").length;
-      const newCount = lines.filter((line) => line.kind !== "removed").length;
-
-      return {
-        id: `${toolCallId}:patch:${hunkIndex}:${blockIndex}`,
-        range: hunkRange(
-          oldPositions[range.start] ?? hunk.oldStart,
-          oldCount,
-          newPositions[range.start] ?? hunk.newStart,
-          newCount,
-        ),
-        decision: "pending" as const,
-        lines,
-      };
-    });
+    return {
+      id: `${toolCallId}:patch:${hunk.sourceHunkIndex}:${hunk.sourceBlockIndex}`,
+      range: hunkRange(hunk.oldStart, oldCount, hunk.newStart, newCount),
+      decision: "pending" as const,
+      lines: hunk.lines,
+      hiddenContextBefore: hunk.hiddenContextBefore,
+      hiddenContextAfter: hunk.hiddenContextAfter,
+    };
   });
 }
 

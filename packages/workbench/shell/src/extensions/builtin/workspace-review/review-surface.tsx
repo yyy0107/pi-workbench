@@ -43,7 +43,7 @@ import { MarkdownPreview } from "../../../chat/markdown-preview";
 import { isMarkdownFile } from "../workspace-file/file-view-mode";
 import { ReviewDiffHunk } from "./review-diff-hunk";
 import { defaultReviewDisplayOptions, type ReviewDisplayOptions } from "./review-options";
-import { parseUnifiedPatch } from "../../../elements/unified-patch";
+import { parseUnifiedPatch, visiblePatchHunks } from "../../../elements/unified-patch";
 import { useGitReviewService } from "./git-review-service";
 import { CommitSelection } from "./commit-selection";
 import { useGitDiff } from "./use-git-diff";
@@ -135,15 +135,18 @@ function FilePatch({
   );
   const query = useGitDiff(fileRequest);
   const patch = query.data?.repository ? (query.data.patch ?? "") : "";
+  const parsedHunks = useMemo(() => parseUnifiedPatch(patch), [patch]);
   const hunks = useMemo(
     () =>
-      parseUnifiedPatch(patch).map((hunk, index): DiffHunk => ({
-        id: String(index),
+      visiblePatchHunks(parsedHunks).map((hunk): DiffHunk => ({
+        id: `${hunk.sourceHunkIndex}:${hunk.sourceBlockIndex}`,
         decision: "pending",
         range: `@@ -${hunk.oldStart},${hunk.lines.filter((line) => line.kind !== "added").length} +${hunk.newStart},${hunk.lines.filter((line) => line.kind !== "removed").length} @@`,
         lines: hunk.lines,
+        hiddenContextBefore: hunk.hiddenContextBefore,
+        hiddenContextAfter: hunk.hiddenContextAfter,
       })),
-    [patch],
+    [parsedHunks],
   );
   return (
     <div className="border-y border-border" aria-busy={query.loading}>
@@ -174,7 +177,7 @@ function FilePatch({
                     ? "extensions.workspaceReview.before"
                     : "extensions.workspaceReview.after",
                 )}
-                content={hunks
+                content={parsedHunks
                   .flatMap((hunk) =>
                     hunk.lines
                       .filter((line) => line.kind !== (side === "old" ? "added" : "removed"))
@@ -267,12 +270,12 @@ function ReviewFile({
   };
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="group flex min-w-0 items-center">
+      <div className="group flex min-w-0 items-center bg-transparent pe-3 hover:[background:var(--button-background-hover)] focus-within:[background:var(--button-background-hover)] dark:[background:var(--button-background-hover)]">
         <CollapsibleTrigger
           render={
             <Button
               variant="ghost"
-              className="min-w-0 flex-1 justify-start gap-2 text-xs font-normal"
+              className="min-w-0 max-w-full shrink justify-start gap-2 text-xs font-normal"
             />
           }
           title={displayPath}
@@ -300,11 +303,11 @@ function ReviewFile({
             </span>
           ) : null}
         </CollapsibleTrigger>
-        <div className="[--button-icon-frame-size:var(--icon-frame-size-sm)] [--button-icon-size:var(--icon-size-sm)] [--button-icon-radius:var(--icon-frame-radius-sm)] flex shrink-0 items-center gap-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none">
+        <div className="[--button-icon-frame-size:var(--icon-frame-size-xs)] [--button-icon-size:var(--icon-size-xs)] [--button-icon-radius:var(--icon-frame-radius-xs)] flex shrink-0 items-center gap-1 self-stretch text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 dark:opacity-100 motion-reduce:transition-none">
           <Button
             type="button"
             variant="ghost"
-            size="icon-sm"
+            size="icon-xs"
             aria-label={copyPathLabel}
             title={copyPathLabel}
             onClick={() => void copy(file.path)}
@@ -316,7 +319,7 @@ function ReviewFile({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon-sm"
+                size="icon-xs"
                 aria-label={expandLabel}
                 title={expandLabel}
               />
@@ -327,7 +330,7 @@ function ReviewFile({
           <Button
             type="button"
             variant="ghost"
-            size="icon-sm"
+            size="icon-xs"
             aria-label={t("extensions.workspaceReview.fileActions.openInFileTab")}
             title={t("extensions.workspaceReview.fileActions.openInFileTab")}
             disabled={!context.rootPath || !(context.worktreeId ?? context.projectId)}
@@ -451,11 +454,6 @@ function ReviewComparison({ surface }: ReviewProps) {
             onChange={(revision) => reveal({ ...surface.params, revision })}
           />
         </div>
-      )}
-      {(request.scope === "session" || request.scope === "last-turn") && (
-        <p className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
-          {t("extensions.workspaceReview.snapshotHint")}
-        </p>
       )}
       {request.scope === "last-turn" && Boolean(repository?.turns?.length) && (
         <DropdownMenu>

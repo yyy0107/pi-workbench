@@ -1511,14 +1511,14 @@ export const extensionsZhCN = {
     chooseCommit: "选择提交",
     chooseCommitsHint: "请在上方选择提交；结束提交必须是起始提交的后代。",
     unrecorded: "此回复或会话尚无文件快照；新 Agent 运行会自动记录。",
-    snapshotHint:
-      "比较已记录的 Agent 运行前后工作区文件（排除忽略文件）。会话视图比较首次开始与最近结束，此期间共享工作区的其他修改也会包含在内。",
     compareBranch: "与分支比较（共同祖先）",
     unsupported: "暂不支持此比较模式，请选择其他范围。",
     binary: "二进制文件，无法显示文本差异。",
     binaryShort: "二进制",
     noTextChanges: "没有文本变更，文件可能被重命名或修改了权限。",
     renamedFrom: ({ path }: { path: string }) => `原路径：${path}`,
+    unmodifiedLines: ({ count }: { count: number }, { number }: MessageFormatters) =>
+      `未修改 ${number(count)} 行`,
     lineChanges: (
       { additions, deletions }: { additions: number; deletions: number },
       { number }: MessageFormatters,

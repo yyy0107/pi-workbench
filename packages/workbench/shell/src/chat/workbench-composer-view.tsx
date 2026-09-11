@@ -31,8 +31,7 @@ import {
 import type { ComposerTriggerItem } from "./composer-directive";
 import { withTooltip } from "../ui/tooltip";
 
-const COMPOSER_PRIMARY_ACTION_CLASS_NAME =
-  "aui-composer-primary-action rounded-[var(--button-radius)] hover:bg-primary";
+const COMPOSER_PRIMARY_ACTION_CLASS_NAME = "aui-composer-primary-action hover:bg-primary";
 export type WorkbenchComposerSuggestionGroup =
   | "builtin"
   | "extension"

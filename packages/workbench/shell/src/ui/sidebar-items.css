@@ -11,8 +11,8 @@
   --sidebar-status-dot-size: calc(var(--icon-size-md) / 2);
   --sidebar-action-frame-size: var(--icon-frame-size-compact);
   --sidebar-action-touch-frame-size: var(--sidebar-row-height);
-  --sidebar-icon-size: var(--icon-size-md);
-  --sidebar-action-icon-size: var(--sidebar-icon-size);
+  --sidebar-icon-size: var(--icon-size-sm);
+  --sidebar-action-icon-size: var(--icon-size-sm);
   --sidebar-action-edge-offset: 4px;
 }
 
@@ -304,6 +304,7 @@
 
     :where([data-sidebar-actions]) .aui-button-icon {
       --button-icon-size: var(--sidebar-action-icon-size);
+      --button-icon-radius: var(--icon-frame-radius-sm);
     }
 
     @media (max-width: 39.999rem) {

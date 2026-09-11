@@ -119,6 +119,8 @@ test("splits a completed unified patch into review hunks with one context line",
         { kind: "added", text: "new first" },
         { kind: "context", text: "shared one" },
       ],
+      hiddenContextBefore: 0,
+      hiddenContextAfter: 0,
     },
     {
       id: "edit-patch:patch:0:1",
@@ -130,6 +132,8 @@ test("splits a completed unified patch into review hunks with one context line",
         { kind: "added", text: "new second" },
         { kind: "context", text: "after" },
       ],
+      hiddenContextBefore: 1,
+      hiddenContextAfter: 0,
     },
   ]);
   assert.equal(model?.additions, 2);

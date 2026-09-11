@@ -29,6 +29,10 @@ export const fileSurfaceDefinition = {
   icon: FileCode2Icon,
   cachePolicy: "preserve-dirty",
   allowDuplicateResources: false,
+  tabPolicy: {
+    maxTabs: 2,
+    replacement: "most-recent",
+  },
   getResourceKey: (params, context) => {
     const contextKey = encodeURIComponent(context.threadId ?? "application");
     const session = resolveFileWorkspaceSession(params);

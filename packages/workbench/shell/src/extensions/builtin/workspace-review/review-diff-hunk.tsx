@@ -5,7 +5,11 @@ import { useWorkbenchHighlightedLines } from "../../../code-highlighting/use-wor
 import { languageForFilename } from "../../../code-highlighting/shiki-catalog";
 import { shouldHighlightWorkbenchCode } from "../../../code-highlighting/code-highlight-policy";
 import { tokenStyle } from "../../../code-highlighting/shiki-token-style";
-import { numberedHunkLines, type DiffHunk } from "../../../elements/reviewable-diff";
+import {
+  DiffContextSummary,
+  numberedHunkLines,
+  type DiffHunk,
+} from "../../../elements/reviewable-diff";
 import { InlineFeedbackForm } from "../../../right-workspace/presentation";
 import { useI18n } from "../../../i18n";
 import type { WorkspaceSurfaceInstance } from "@workbench/extension-sdk";
@@ -74,6 +78,7 @@ export function ReviewDiffHunk({
   return (
     <div data-review-hunk="" data-wrap={options.wrap || undefined}>
       <div className="bg-muted px-3 py-1 font-mono text-xs text-muted-foreground">{hunk.range}</div>
+      <DiffContextSummary count={hunk.hiddenContextBefore} />
       <div className="overflow-x-auto">
         <div data-review-code="">
           {lines.map(({ line, oldLine, newLine }, index) => {
@@ -124,6 +129,7 @@ export function ReviewDiffHunk({
           })}
         </div>
       </div>
+      <DiffContextSummary count={hunk.hiddenContextAfter} />
     </div>
   );
 }
