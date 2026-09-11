@@ -275,7 +275,9 @@ function ReviewFile({
           render={
             <Button
               variant="ghost"
-              className="min-w-0 max-w-full shrink justify-start gap-2 text-xs font-normal"
+              data-frame="none"
+              data-selection="none"
+              className="min-w-0 max-w-full shrink justify-start gap-2 text-xs font-normal aria-expanded:[background:transparent]! aria-expanded:text-foreground active:[background:transparent]!"
             />
           }
           title={displayPath}
