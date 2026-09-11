@@ -16,6 +16,9 @@
 
 /* Only the frame consumes its parent's preview values; surfaces do not inherit them. */
 [data-slot="right-workspace-layout"] > [data-workbench-surface="right-workspace"] {
+  --workbench-panel-share: inherit;
+  --workbench-panel-maximization: inherit;
+  --workbench-panel-width: inherit;
   --right-workspace-content-width: inherit;
   --right-workspace-resize-translate-x: inherit;
 }

@@ -1,56 +1,52 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useLayoutEffect, useRef, type CSSProperties } from "react";
 
 import { useI18n } from "../../i18n";
 import {
-  DEFAULT_RIGHT_WORKSPACE_WIDTH,
-  applyRightWorkspaceResizePreview,
+  MIN_RIGHT_WORKSPACE_WIDTH,
   resolveRightWorkspacePresentation,
 } from "../../right-workspace";
 import { WorkspaceFeedbackLayer } from "./feedback/feedback-layer";
 import { SurfaceHost } from "./surface-host";
-import { useRightWorkspaceState } from "../../right-workspace-react";
+import { useRightWorkspace, useRightWorkspaceState } from "../../right-workspace-react";
 import { WorkspaceHeader } from "./workspace-header";
 import { WorkspaceResizeHandle } from "./workspace-resize-handle";
 import { useWorkbenchDomIds } from "../../dom";
-import { resolveRightWorkspaceMaximumWidth } from "../right-workspace-layout";
-
-function workspaceMaximum(element: HTMLElement | null): number {
-  if (typeof window === "undefined") return DEFAULT_RIGHT_WORKSPACE_WIDTH;
-  const availableWidth = element?.parentElement?.getBoundingClientRect().width ?? window.innerWidth;
-  return resolveRightWorkspaceMaximumWidth(availableWidth);
-}
+import { MIN_CONVERSATION_WIDTH } from "../right-workspace-layout";
+import { proportionalPanelWidthCss } from "../../resize/proportional-panel-size";
+import { useProportionalPanelSize } from "../../resize/use-proportional-panel-size";
 
 export function RightWorkspace({ isVisible = true }: { isVisible?: boolean }) {
   const { t } = useI18n();
   const domIds = useWorkbenchDomIds();
+  const controller = useRightWorkspace();
   const workspaceOpen = useRightWorkspaceState((state) => state.open);
   const open = isVisible && workspaceOpen;
   const width = useRightWorkspaceState((state) => state.width);
   const maximized = useRightWorkspaceState((state) => state.maximized);
-  const [maximum, setMaximum] = useState(DEFAULT_RIGHT_WORKSPACE_WIDTH);
   const workspaceLayoutRef = useRef<HTMLDivElement>(null);
   const presentation = resolveRightWorkspacePresentation(open, maximized);
 
-  useLayoutEffect(() => {
-    const update = () => setMaximum(workspaceMaximum(workspaceLayoutRef.current));
-    update();
-    // The parent observer already covers native resizing, after layout is available.
-    const parent = workspaceLayoutRef.current?.parentElement;
-    const observer = parent ? new ResizeObserver(update) : undefined;
-    if (parent) observer?.observe(parent);
-    return () => {
-      observer?.disconnect();
-    };
-  }, []);
-
-  const renderedWidth = Math.min(maximum, width);
+  const [size, captureWidth] = useProportionalPanelSize(workspaceLayoutRef, width);
+  const { share } = size;
+  const proportionalWidth = proportionalPanelWidthCss({
+    minimum: MIN_RIGHT_WORKSPACE_WIDTH,
+    remainingMinimum: MIN_CONVERSATION_WIDTH,
+  });
 
   useLayoutEffect(() => {
-    if (workspaceLayoutRef.current?.dataset.resizing === "true") return;
-    applyRightWorkspaceResizePreview(workspaceLayoutRef.current, renderedWidth);
-  }, [open, renderedWidth]);
+    const layout = workspaceLayoutRef.current;
+    if (!open || !layout || layout.dataset.resizing === "true") return;
+    // A committed drag returns to the shared proportional geometry. Parent animation
+    // never writes pixel targets or starts a second width transition.
+    for (const property of [
+      "--right-workspace-layout-width",
+      "--right-workspace-content-width",
+      "--right-workspace-resize-translate-x",
+    ])
+      layout.style.removeProperty(property);
+  }, [open, width, size]);
 
   return (
     <div
@@ -58,15 +54,16 @@ export function RightWorkspace({ isVisible = true }: { isVisible?: boolean }) {
       data-slot="right-workspace-layout"
       data-state={open ? "open" : "closed"}
       data-maximized={maximized ? "true" : undefined}
-      className="relative h-full min-h-0 min-w-0 shrink-0 transition-[width] duration-(--layout-motion-duration) ease-(--layout-motion-ease) motion-reduce:transition-none data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width] data-[state=closed]:pointer-events-none"
+      data-panel-share={share}
+      className="relative h-full min-h-0 min-w-0 shrink-0 transition-[--workbench-panel-expansion,--workbench-panel-maximization] duration-(--layout-motion-duration) ease-(--layout-motion-ease) motion-reduce:transition-none data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width] data-[state=closed]:pointer-events-none"
       style={
         {
+          "--workbench-panel-share": share,
+          "--workbench-panel-maximization": maximized ? 1 : 0,
+          "--workbench-panel-expansion": open ? 1 : 0,
+          "--workbench-panel-width": proportionalWidth,
           width:
-            presentation === "closed"
-              ? 0
-              : presentation === "maximized"
-                ? "100%"
-                : `min(var(--right-workspace-layout-width, ${renderedWidth}px), 100%)`,
+            "calc(var(--right-workspace-layout-width, var(--workbench-panel-width)) * var(--workbench-panel-expansion))",
           maxWidth: "100%",
         } as CSSProperties
       }
@@ -80,13 +77,10 @@ export function RightWorkspace({ isVisible = true }: { isVisible?: boolean }) {
         data-workbench-glass-surface=""
         data-state={open ? "open" : "closed"}
         data-maximized={maximized ? "true" : undefined}
-        className="bg-background absolute inset-y-0 right-0 flex min-h-0 min-w-0 flex-col overflow-hidden border-l transition-[width,transform,border-color] duration-(--layout-motion-duration) ease-(--layout-motion-ease) motion-reduce:transition-none in-data-[resizing=true]:transition-none in-data-[resizing=true]:will-change-[width,transform] data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width,transform] data-[state=closed]:border-transparent"
+        className="bg-background absolute inset-y-0 right-0 flex min-h-0 min-w-0 flex-col overflow-hidden border-l transition-[transform,border-color] duration-(--layout-motion-duration) ease-(--layout-motion-ease) motion-reduce:transition-none in-data-[resizing=true]:transition-none in-data-[resizing=true]:will-change-[width,transform] data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width,transform] data-[state=closed]:border-transparent"
         style={
           {
-            width:
-              presentation === "maximized"
-                ? "100%"
-                : `min(var(--right-workspace-content-width, ${renderedWidth}px), 100vw)`,
+            width: "var(--right-workspace-content-width, var(--workbench-panel-width))",
             maxWidth: "100vw",
             transform: open
               ? maximized
@@ -106,9 +100,12 @@ export function RightWorkspace({ isVisible = true }: { isVisible?: boolean }) {
         </div>
         {presentation === "panel" ? (
           <WorkspaceResizeHandle
-            width={renderedWidth}
-            maximum={maximum}
+            width={width}
             workspaceRef={workspaceLayoutRef}
+            onCommit={(nextWidth) => {
+              captureWidth(nextWidth);
+              controller.setWidth(nextWidth);
+            }}
           />
         ) : null}
       </section>

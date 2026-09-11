@@ -1,3 +1,5 @@
+@import "../resize/proportional-panel.css";
+
 @property --thread-content-inline-gutter {
   syntax: "<length>";
   inherits: false;

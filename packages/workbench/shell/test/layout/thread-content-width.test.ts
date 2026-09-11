@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   resolveExpandedThreadWidth,
+  resolveTargetThreadWidth,
   resolveThreadResponsiveLayout,
   THREAD_CONTENT_MIN_WIDTH_PX,
   THREAD_INDEX_HIDE_WIDTH_PX,
@@ -94,4 +95,28 @@ test("rejects invalid responsive measurements", () => {
     }),
     undefined,
   );
+});
+
+test("index gutter uses final widths from the first frame of either panel closing", () => {
+  for (const sidebarTargetWidth of [0, 268]) {
+    for (const workspaceTargetWidth of [0, 360]) {
+      const expected = 1280 - sidebarTargetWidth - workspaceTargetWidth;
+      for (const sidebarOccupiedWidth of [0, 67, 134, 268]) {
+        for (const workspaceOccupiedWidth of [0, 90, 180, 360]) {
+          const target = resolveTargetThreadWidth({
+            currentThreadWidth: 1280 - sidebarOccupiedWidth - workspaceOccupiedWidth,
+            sidebarOccupiedWidth,
+            sidebarTargetWidth,
+            workspaceOccupiedWidth,
+            workspaceTargetWidth,
+          });
+          assert.equal(target, expected);
+          assert.equal(
+            resolveThreadResponsiveLayout(target!)?.conversationIndexHidden,
+            expected <= 960,
+          );
+        }
+      }
+    }
+  }
 });

@@ -1,5 +1,7 @@
 "use client";
 
+import type { Ref } from "react";
+
 import { useCollapsibleResize, type UseCollapsibleResizeOptions } from "../resize";
 import { cn } from "../utils";
 
@@ -9,6 +11,8 @@ export type CollapsibleResizeHandleProps = Omit<UseCollapsibleResizeOptions, "ge
   maximumWidth: number;
   className?: string;
   dataSlot?: string;
+  ref?: Ref<HTMLDivElement>;
+  getMaximumWidth?: UseCollapsibleResizeOptions["getMaximumWidth"];
 };
 
 export function CollapsibleResizeHandle({
@@ -17,15 +21,18 @@ export function CollapsibleResizeHandle({
   dataSlot = "collapsible-resize-handle",
   edge,
   maximumWidth,
+  getMaximumWidth,
+  ref,
   ...resizeOptions
 }: CollapsibleResizeHandleProps) {
   const resize = useCollapsibleResize({
     ...resizeOptions,
-    getMaximumWidth: () => maximumWidth,
+    getMaximumWidth: getMaximumWidth ?? (() => maximumWidth),
   });
 
   return (
     <div
+      ref={ref}
       role="separator"
       tabIndex={0}
       aria-label={ariaLabel}

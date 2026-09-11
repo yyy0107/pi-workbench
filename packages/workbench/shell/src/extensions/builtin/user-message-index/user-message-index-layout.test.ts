@@ -86,3 +86,59 @@ test("detects user messages intersecting the scroll viewport", () => {
   assert.equal(isMessageInViewport({ top: 299, bottom: 350 }, viewport), true);
   assert.equal(isMessageInViewport({ top: 300, bottom: 350 }, viewport), false);
 });
+
+test("a hidden index waits until panel and gutter motion end, even after crossing the gap threshold", () => {
+  for (const gap of [24, 36, 40, 52, 64, 100]) {
+    assert.equal(
+      shouldShowUserMessageIndex({
+        composerStart: gap,
+        threadStart: 0,
+        layoutAllowsIndex: true,
+        layoutMoving: true,
+        previouslyVisible: false,
+      }),
+      false,
+    );
+  }
+  assert.equal(
+    shouldShowUserMessageIndex({
+      composerStart: 64,
+      threadStart: 0,
+      layoutAllowsIndex: true,
+      layoutMoving: false,
+      previouslyVisible: false,
+    }),
+    true,
+  );
+});
+
+test("an existing index remains usable during motion but hides if its space disappears", () => {
+  assert.equal(
+    shouldShowUserMessageIndex({
+      composerStart: 64,
+      threadStart: 0,
+      layoutMoving: true,
+      previouslyVisible: true,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldShowUserMessageIndex({
+      composerStart: 24,
+      threadStart: 0,
+      layoutMoving: true,
+      previouslyVisible: true,
+    }),
+    false,
+  );
+  assert.equal(
+    shouldShowUserMessageIndex({
+      composerStart: 64,
+      threadStart: 0,
+      layoutMoving: true,
+      previouslyVisible: true,
+      layoutAllowsIndex: false,
+    }),
+    false,
+  );
+});

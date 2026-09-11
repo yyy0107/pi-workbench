@@ -53,7 +53,12 @@ import { useSidebarSettingsHydration } from "./use-sidebar-settings-hydration";
 import { SidebarDragSessionProvider } from "../hooks/use-sidebar-pointer-reorder";
 import { WorkbenchDomIdsProvider } from "../dom";
 import { observeWindowResize } from "./window-resize";
+import { observeLayoutMotion } from "./layout-motion";
+import { resolveTargetThreadWidth } from "../layout/thread-content-width";
 import { MOBILE_BREAKPOINT } from "../hooks/use-mobile";
+import { resolveProportionalPanelWidth } from "../resize/proportional-panel-size";
+import { MIN_CONVERSATION_WIDTH } from "../right-workspace/right-workspace-layout";
+import { MIN_RIGHT_WORKSPACE_WIDTH } from "../right-workspace/workspace-store";
 
 export type { WorkbenchInstallationEffectsProps } from "./workbench-global-layer";
 
@@ -128,7 +133,12 @@ export function WorkbenchShell({
   useLayoutEffect(() => {
     const shell = shellRef.current;
     if (!shell) return;
-    return observeWindowResize(shell);
+    const stopWindowResize = observeWindowResize(shell);
+    const stopLayoutMotion = observeLayoutMotion(shell);
+    return () => {
+      stopWindowResize();
+      stopLayoutMotion();
+    };
   }, []);
 
   useLayoutEffect(() => {
@@ -142,6 +152,7 @@ export function WorkbenchShell({
       if (previousAvailableWidth === undefined) return;
 
       if (
+        shellRef.current?.dataset.windowResizing === "true" &&
         shouldCollapseRightWorkspaceBeforeSidebar(
           workspacePresentation,
           previousAvailableWidth,
@@ -202,18 +213,26 @@ export function WorkbenchShell({
         '[data-slot="right-workspace-layout"]',
       );
       const workspaceOccupiedWidth = workspaceLayout?.getBoundingClientRect().width ?? 0;
-      const workspaceAvailableWidth = workspaceLayout?.parentElement?.clientWidth ?? 0;
+      const workspaceAvailableWidth =
+        workspaceLayout?.parentElement?.getBoundingClientRect().width ?? 0;
       // Use the panel's final width so gutters and panel motion start together, instead of
       // changing the gutter target halfway through the panel's CSS transition.
       const workspaceWidth =
         workspacePresentation === "closed"
           ? 0
-          : Math.min(
-              workspaceAvailableWidth,
-              Number.parseFloat(
-                workspaceLayout?.style.getPropertyValue("--right-workspace-layout-width") ?? "",
-              ) || workspaceOccupiedWidth,
-            );
+          : workspaceLayout?.dataset.resizing === "true"
+            ? workspaceOccupiedWidth
+            : resolveProportionalPanelWidth(
+                Math.max(
+                  0,
+                  workspaceAvailableWidth - Math.max(0, sidebarWidth - sidebarOccupiedWidth),
+                ),
+                {
+                  share: Number(workspaceLayout?.dataset.panelShare ?? 0),
+                  minimum: MIN_RIGHT_WORKSPACE_WIDTH,
+                  remainingMinimum: MIN_CONVERSATION_WIDTH,
+                },
+              );
       const expandedThreadWidth = resolveExpandedThreadWidth({
         currentThreadWidth,
         sidebarWidth,
@@ -227,7 +246,34 @@ export function WorkbenchShell({
           : resolveThreadResponsiveLayout(expandedThreadWidth);
       if (!layout) return;
 
-      const nextConversationIndexHidden = layout.conversationIndexHidden;
+      const sidebarTargetWidth =
+        desktopSidebarParticipates && sidebarEffectivelyOpen ? sidebarWidth : 0;
+      const indexWorkspaceWidth =
+        workspacePresentation === "closed"
+          ? 0
+          : workspaceLayout?.dataset.resizing === "true"
+            ? workspaceOccupiedWidth
+            : resolveProportionalPanelWidth(
+                workspaceAvailableWidth +
+                  (desktopSidebarParticipates ? sidebarOccupiedWidth : 0) -
+                  sidebarTargetWidth,
+                {
+                  share: Number(workspaceLayout?.dataset.panelShare ?? 0),
+                  minimum: MIN_RIGHT_WORKSPACE_WIDTH,
+                  remainingMinimum: MIN_CONVERSATION_WIDTH,
+                },
+              );
+      const targetThreadWidth = resolveTargetThreadWidth({
+        currentThreadWidth,
+        sidebarOccupiedWidth: desktopSidebarParticipates ? sidebarOccupiedWidth : 0,
+        sidebarTargetWidth,
+        workspaceOccupiedWidth,
+        workspaceTargetWidth: indexWorkspaceWidth,
+      });
+      const nextConversationIndexHidden =
+        targetThreadWidth === undefined
+          ? layout.conversationIndexHidden
+          : resolveThreadResponsiveLayout(targetThreadWidth)!.conversationIndexHidden;
       // Synchronize index visibility before paint; content widths follow the container in CSS.
       const nextIndexState = nextConversationIndexHidden ? "hidden" : "visible";
       if (shell.dataset.conversationIndex !== nextIndexState) {
@@ -330,7 +376,10 @@ export function WorkbenchShell({
                     className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
                   >
                     <WorkbenchHeader />
-                    <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+                    <div
+                      className="flex min-h-0 min-w-0 flex-1 overflow-hidden"
+                      style={{ containerType: "inline-size" }}
+                    >
                       <div
                         ref={conversationHostRef}
                         aria-hidden={conversationHidden ? true : undefined}

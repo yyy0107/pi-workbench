@@ -25,6 +25,38 @@ export interface ThreadResponsiveLayout {
   sidebarAutoCollapsed: boolean;
 }
 
+/** Resolve gutter space from the final panel geometry, independently of auto-collapse policy. */
+export function resolveTargetThreadWidth({
+  currentThreadWidth,
+  sidebarOccupiedWidth,
+  sidebarTargetWidth,
+  workspaceOccupiedWidth,
+  workspaceTargetWidth,
+}: {
+  currentThreadWidth: number;
+  sidebarOccupiedWidth: number;
+  sidebarTargetWidth: number;
+  workspaceOccupiedWidth: number;
+  workspaceTargetWidth: number;
+}): number | undefined {
+  const widths = [
+    currentThreadWidth,
+    sidebarOccupiedWidth,
+    sidebarTargetWidth,
+    workspaceOccupiedWidth,
+    workspaceTargetWidth,
+  ];
+  if (!widths.every(Number.isFinite)) return undefined;
+  return Math.max(
+    0,
+    currentThreadWidth +
+      sidebarOccupiedWidth -
+      sidebarTargetWidth +
+      workspaceOccupiedWidth -
+      workspaceTargetWidth,
+  );
+}
+
 export function resolveExpandedThreadWidth({
   currentThreadWidth,
   sidebarWidth,
