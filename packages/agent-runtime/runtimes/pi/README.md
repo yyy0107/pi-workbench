@@ -182,10 +182,16 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
   `session.delete`、`session.prompt`、`session.attachment`、`session.updateQueue`、
   `session.cancel`。
 - External session import：`sessionImport.scan`、`sessionImport.import`；
-- Usage statistics：`usage.statistics({ timeZone })` 按指定时区汇总已保存会话（含归档）的每日助手
+- Usage statistics：`usage.statistics({ timeZone, preferCached? })` 按指定时区汇总已保存会话（含归档）的每日助手
   Token、分模型用量与聊天连续天数；读取复用会话目录，不启动空闲 AgentSession，不向浏览器返回消息正文。
   分支继承消息只计一次，Token 包含输入、输出及缓存用量；峰值为单日最高值，最长聊天时长为会话首末消息跨度（含空闲）。
-  统计字段按会话文件指纹缓存在内存中，刷新只重读变化的文件，删除的文件同时移出缓存；消息正文和工具结果不进入缓存。
+  默认读取等待文件校验；`preferCached: true` 优先返回同一时区、当天的完整快照，不等待会话目录扫描。
+  设置页先显示快照，再发起默认读取更新结果；刷新失败保留已显示的数据。并发刷新合并执行，单个请求取消不影响其他调用者。
+  Pi agent 目录下 `workbench-usage-v1/index.json` 保存文件指纹与精简消息统计，`snapshots.json` 独立保存最多四个时区的汇总，
+  两者均通过原子替换以 mode-0600 写入。重启可以直接展示快照，再从索引恢复统计字段；未变化的文件不重读，未变化的数据不重新聚合。
+  文件追加或重写仍完整重读该文件，删除文件移出索引；分叉继承按消息标识去重，跨日、时区变化和未来消息到期会重新投影。
+  索引缺失、损坏或版本不兼容时从会话文件重建；持久化失败保留内存结果并在后续刷新重试。消息正文和工具结果不进入统计索引。
+  首次建立索引仍需扫描历史；聚合每处理 2,000 条消息让出事件循环并检查取消。
 
 另外还提供：
 

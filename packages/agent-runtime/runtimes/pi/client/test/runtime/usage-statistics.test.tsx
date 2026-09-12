@@ -76,3 +76,54 @@ test("reopening statistics immediately reuses its runtime snapshot while refresh
     "failed refresh keeps the last snapshot",
   );
 });
+
+test("publishes the persisted snapshot before reconciliation finishes and keeps it on refresh failure", async (t) => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const requests: unknown[] = [];
+  const manager = new PiSessionManager({
+    transport: {
+      http: async (_path, init) => {
+        const request = JSON.parse(String(init?.body));
+        requests.push(request.payload);
+        if (!request.payload.preferCached) {
+          await gate;
+          throw new Error("offline");
+        }
+        return Response.json({
+          type: "server-response",
+          rpcId: request.rpcId,
+          result: {
+            ok: true,
+            value: {
+              generatedAt: "2026-09-06T12:00:00Z",
+              today: "2026-09-06",
+              timeZone: "UTC",
+              totalTokens: 100,
+              peakDailyTokens: 100,
+              longestChatMs: 0,
+              currentStreak: 1,
+              longestStreak: 1,
+              days: [],
+            } satisfies UsageStatisticsValue,
+          },
+        });
+      },
+    },
+  });
+  t.after(() => manager.dispose());
+  const client = mountedClient(manager);
+  let publish!: (value: UsageStatisticsValue) => void;
+  const published = new Promise<UsageStatisticsValue>((resolve) => {
+    publish = resolve;
+  });
+  const pending = client.read("UTC", new AbortController().signal, publish);
+  assert.equal((await published).totalTokens, 100);
+  assert.equal(client.getSnapshot("UTC")!.totalTokens, 100);
+  release();
+  await assert.rejects(pending, /offline/);
+  assert.deepEqual(requests, [{ timeZone: "UTC", preferCached: true }, { timeZone: "UTC" }]);
+  assert.equal(client.getSnapshot("UTC")!.totalTokens, 100);
+});

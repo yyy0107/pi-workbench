@@ -415,7 +415,9 @@ export function UsageStatisticsSettingsItem({ sectionId, itemId }: SettingsItemC
     setLoading(true);
     setFailed(false);
     void client
-      .read(timeZone, controller.signal)
+      .read(timeZone, controller.signal, (value) => {
+        if (!controller.signal.aborted) setResult({ client, value });
+      })
       .then(
         (value) => {
           if (!controller.signal.aborted) setResult({ client, value });

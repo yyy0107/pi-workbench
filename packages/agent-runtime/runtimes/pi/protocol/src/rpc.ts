@@ -32,6 +32,8 @@ import type { PiRunTiming } from "./messages";
 
 export interface UsageStatisticsPayload {
   timeZone: string;
+  /** Return the last complete snapshot without waiting for file reconciliation. */
+  preferCached?: boolean;
 }
 
 export interface UsageStatisticsDay {
