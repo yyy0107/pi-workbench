@@ -19,6 +19,11 @@
   width: 100%;
 }
 
+[data-workspace-review] [data-review-hunk] {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 240px;
+}
+
 [data-workspace-review] [data-review-row] {
   --review-row-background: var(--background);
   display: grid;

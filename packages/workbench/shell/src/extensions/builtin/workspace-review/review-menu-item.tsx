@@ -14,6 +14,16 @@ export function ReviewMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
   const { t } = useI18n();
   const repositoryId = context.worktreeId ?? context.projectId;
   if (!workspace?.readGitDiff) return null;
+
+  const revealReview = (reviewScope: "unstaged" | "last-turn") => {
+    controller.reveal({
+      kind: "review",
+      title: defineMessage("extensions.workspaceReview.title"),
+      params: { repositoryId: repositoryId!, reviewScope },
+      context,
+    });
+  };
+
   return (
     <Button
       variant="ghost"
@@ -21,13 +31,11 @@ export function ReviewMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
       disabled={!repositoryId}
       onClick={() => {
         if (!repositoryId) return;
-        controller.reveal({
-          kind: "review",
-          title: defineMessage("extensions.workspaceReview.title"),
-          params: { repositoryId, reviewScope: "unstaged" },
-          context,
-        });
         closeMenu();
+        void workspace.describeGit(repositoryId).then(
+          (status) => revealReview(status.repository ? "unstaged" : "last-turn"),
+          () => revealReview("unstaged"),
+        );
       }}
     >
       <FileDiffIcon />

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { act } from "react";
+import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { WorkbenchAgentRuntimeEnvironmentProvider } from "@workbench/agent-runtime-client/context";
 import type {
@@ -80,6 +80,58 @@ test("ignores old scope requests even if cancellation is ignored; paginates and 
   } finally {
     await act(async () => root.unmount());
     assert.equal(calls.at(-1)?.signal?.aborted, true);
+    dom.restore();
+  }
+});
+
+test("deduplicates concurrent and recently completed review reads", async () => {
+  const dom = installMinimalReactDomEnvironment();
+  const root = createRoot(dom.container);
+  const calls: Array<{
+    resolve(value: WorkbenchWorkspaceGitDiff): void;
+    signal?: AbortSignal;
+  }> = [];
+  const readGitDiff: WorkbenchWorkspaceCapability["readGitDiff"] = (_request, options) =>
+    new Promise((resolve) => calls.push({ resolve, signal: options?.signal }));
+  const capabilities = { workspace: { readGitDiff } } as WorkbenchAgentRuntimeCapabilities;
+  const request: WorkbenchWorkspaceGitDiffRequest = { workspaceId: "one", scope: "unstaged" };
+  const value: WorkbenchWorkspaceGitDiff = {
+    repository: true,
+    branches: ["main"],
+    files: [{ path: "current", kind: "modified" }],
+    patchVersion: "version",
+  };
+  function Probe() {
+    useGitDiff(request, true, "review:0");
+    return null;
+  }
+  const render = (children: ReactNode) =>
+    act(async () =>
+      root.render(
+        <WorkbenchAgentRuntimeEnvironmentProvider
+          id="review-dedupe-test"
+          commands={[]}
+          capabilities={capabilities}
+        >
+          {children}
+        </WorkbenchAgentRuntimeEnvironmentProvider>,
+      ),
+    );
+  try {
+    await render(
+      <>
+        <Probe />
+        <Probe />
+      </>,
+    );
+    assert.equal(calls.length, 1);
+    await act(async () => calls[0]!.resolve(value));
+    await act(async () => root.render(null));
+    await render(<Probe />);
+    assert.equal(calls.length, 1);
+  } finally {
+    await act(async () => root.unmount());
+    assert.equal(calls[0]?.signal?.aborted, false);
     dom.restore();
   }
 });

@@ -1,9 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { useWorkbenchHighlightedLines } from "../../../code-highlighting/use-workbench-highlighted-lines";
-import { languageForFilename } from "../../../code-highlighting/shiki-catalog";
-import { shouldHighlightWorkbenchCode } from "../../../code-highlighting/code-highlight-policy";
+import { memo, useMemo } from "react";
+import type { WorkbenchHighlightedTokens } from "../../../code-highlighting/shiki-highlighter";
 import { tokenStyle } from "../../../code-highlighting/shiki-token-style";
 import {
   DiffContextSummary,
@@ -51,24 +49,22 @@ function decoratedText(
   });
 }
 
-export function ReviewDiffHunk({
+export const ReviewDiffHunk = memo(function ReviewDiffHunk({
   hunk,
   filename,
   surface,
   request,
   options,
+  tokens,
 }: {
   hunk: DiffHunk;
   filename: string;
   surface: WorkspaceSurfaceInstance;
   request: WorkbenchWorkspaceGitDiffRequest;
   options: ReviewDisplayOptions;
+  tokens?: WorkbenchHighlightedTokens;
 }) {
   const { t } = useI18n();
-  const code = useMemo(() => hunk.lines.map((line) => line.text).join("\n"), [hunk.lines]);
-  const { tokens } = useWorkbenchHighlightedLines(code, languageForFilename(filename), {
-    enabled: shouldHighlightWorkbenchCode(code),
-  });
   const words = useMemo(
     () =>
       options.wordDiff ? reviewWordRanges(hunk.lines) : new Map<number, readonly WordRange[]>(),
@@ -132,4 +128,4 @@ export function ReviewDiffHunk({
       <DiffContextSummary count={hunk.hiddenContextAfter} />
     </div>
   );
-}
+});

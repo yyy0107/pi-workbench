@@ -8,7 +8,7 @@ import {
   FileCode2Icon,
   FileDiffIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { memo, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 import type {
   WorkbenchWorkspaceGitChangedFile,
@@ -40,6 +40,9 @@ import { FileTypeIcon } from "../../../workspace-file-tree";
 import { workspaceAbsolutePath } from "../../../workspace-files";
 import type { DiffHunk } from "../../../elements/reviewable-diff";
 import { MarkdownPreview } from "../../../chat/markdown-preview";
+import { shouldHighlightWorkbenchCode } from "../../../code-highlighting/code-highlight-policy";
+import { languageForFilename } from "../../../code-highlighting/shiki-catalog";
+import { useWorkbenchHighlightedLines } from "../../../code-highlighting/use-workbench-highlighted-lines";
 import { isMarkdownFile } from "../workspace-file/file-view-mode";
 import { ReviewDiffHunk } from "./review-diff-hunk";
 import { defaultReviewDisplayOptions, type ReviewDisplayOptions } from "./review-options";
@@ -55,6 +58,7 @@ export interface ReviewSurfaceParams extends Record<string, unknown> {
   baseRevision?: string;
   sessionId?: string;
   displayOptions?: ReviewDisplayOptions;
+  filesExpanded?: boolean;
 }
 
 type ReviewProps = WorkspaceSurfaceProps<ReviewSurfaceParams>;
@@ -116,16 +120,18 @@ function MoreDiff({ query }: { query: ReturnType<typeof useGitDiff> }) {
   ) : null;
 }
 
-function FilePatch({
+const FilePatch = memo(function FilePatch({
   surface,
   request,
   file,
   options,
+  cacheKey,
 }: {
   options: ReviewDisplayOptions;
   surface: ReviewProps["surface"];
   request: WorkbenchWorkspaceGitDiffRequest;
   file: WorkbenchWorkspaceGitChangedFile;
+  cacheKey: string;
 }) {
   const { t } = useI18n();
   const richText = options.richText && isMarkdownFile(file.path);
@@ -133,7 +139,7 @@ function FilePatch({
     () => ({ ...request, path: file.path, fullContext: options.fullFile || richText }),
     [request, file.path, options.fullFile, richText],
   );
-  const query = useGitDiff(fileRequest);
+  const query = useGitDiff(fileRequest, true, cacheKey);
   const patch = query.data?.repository ? (query.data.patch ?? "") : "";
   const parsedHunks = useMemo(() => parseUnifiedPatch(patch), [patch]);
   const hunks = useMemo(
@@ -148,6 +154,31 @@ function FilePatch({
       })),
     [parsedHunks],
   );
+  const highlightCode = useMemo(
+    () => (richText ? "" : hunks.flatMap((hunk) => hunk.lines.map((line) => line.text)).join("\n")),
+    [hunks, richText],
+  );
+  const highlightEnabled = useMemo(
+    () => Boolean(highlightCode) && shouldHighlightWorkbenchCode(highlightCode),
+    [highlightCode],
+  );
+  const highlightLanguage = useMemo(() => languageForFilename(file.path), [file.path]);
+  const { tokens: highlightedTokens } = useWorkbenchHighlightedLines(
+    highlightCode,
+    highlightLanguage,
+    {
+      enabled: highlightEnabled,
+    },
+  );
+  const tokensByHunk = useMemo(() => {
+    if (!highlightedTokens) return undefined;
+    let lineOffset = 0;
+    return hunks.map((hunk) => {
+      const tokens = highlightedTokens.slice(lineOffset, lineOffset + hunk.lines.length);
+      lineOffset += hunk.lines.length;
+      return tokens;
+    });
+  }, [hunks, highlightedTokens]);
   return (
     <div className="border-y border-border" aria-busy={query.loading}>
       {file.previousPath && (
@@ -189,7 +220,7 @@ function FilePatch({
           ))}
         </div>
       ) : (
-        hunks.map((hunk) => (
+        hunks.map((hunk, index) => (
           <ReviewDiffHunk
             key={hunk.id}
             hunk={hunk}
@@ -197,6 +228,7 @@ function FilePatch({
             surface={surface}
             request={request}
             options={options}
+            tokens={tokensByHunk?.[index]}
           />
         ))
       )}
@@ -218,26 +250,34 @@ function FilePatch({
       <MoreDiff query={query} />
     </div>
   );
-}
+});
 
-function ReviewFile({
+const ReviewFile = memo(function ReviewFile({
   file,
   surface,
   request,
   options,
   context,
+  filesExpanded,
+  cacheKey,
 }: {
   options: ReviewDisplayOptions;
   file: WorkbenchWorkspaceGitChangedFile;
   surface: ReviewProps["surface"];
   request: WorkbenchWorkspaceGitDiffRequest;
   context: ReviewProps["context"];
+  filesExpanded: boolean;
+  cacheKey: string;
 }) {
   const { t, number } = useI18n();
   const openers = useOpenerService();
   const notifications = useToastManager();
   const { copy, status: copyStatus } = useClipboardCopy();
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!filesExpanded) setOpen(false);
+  }, [filesExpanded]);
+  const isOpen = filesExpanded || open;
   const fileName = file.path.split(/[\\/]/).filter(Boolean).at(-1) ?? file.path;
   const displayPath = workspaceAbsolutePath(context.rootPath, file.path);
   const copyPathLabel =
@@ -247,7 +287,7 @@ function ReviewFile({
         ? t("extensions.workspaceReview.fileActions.pathCopyFailed")
         : t("extensions.workspaceReview.fileActions.copyPath");
   const expandLabel = t(
-    open
+    isOpen
       ? "extensions.workspaceReview.fileActions.collapse"
       : "extensions.workspaceReview.fileActions.expand",
   );
@@ -269,7 +309,7 @@ function ReviewFile({
       });
   };
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
+    <Collapsible open={isOpen} onOpenChange={setOpen}>
       <div className="group flex min-w-0 items-center bg-transparent pe-3 hover:[background:var(--button-background-hover)] focus-within:[background:var(--button-background-hover)] dark:[background:var(--button-background-hover)]">
         <CollapsibleTrigger
           render={
@@ -327,7 +367,7 @@ function ReviewFile({
               />
             }
           >
-            {open ? <ChevronDownIcon /> : <ChevronRightIcon />}
+            {isOpen ? <ChevronDownIcon /> : <ChevronRightIcon />}
           </CollapsibleTrigger>
           <Button
             type="button"
@@ -343,27 +383,32 @@ function ReviewFile({
         </div>
       </div>
       <CollapsibleContent>
-        {open && (
+        {isOpen && (
           <FilePatch
             key={`${options.fullFile}:${options.richText}`}
             surface={surface}
             request={request}
             file={file}
             options={options}
+            cacheKey={cacheKey}
           />
         )}
       </CollapsibleContent>
     </Collapsible>
   );
-}
+});
 
-function ReviewComparison({ surface }: ReviewProps) {
-  const { t, date } = useI18n();
+function ReviewComparison({ surface, reviewRevision }: ReviewProps & { reviewRevision: number }) {
+  const { t } = useI18n();
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const isCommit =
     surface.params.reviewScope === "commit" || surface.params.reviewScope === "range";
-  const options = { ...defaultReviewDisplayOptions, ...surface.params.displayOptions };
+  const options = useMemo(
+    () => ({ ...defaultReviewDisplayOptions, ...surface.params.displayOptions }),
+    [surface.params.displayOptions],
+  );
+  const diffCacheKey = `${surface.resourceKey}:${reviewRevision}`;
   const supported =
     !isCommit ||
     Boolean(
@@ -374,7 +419,7 @@ function ReviewComparison({ surface }: ReviewProps) {
     () => ({
       workspaceId: surface.params.repositoryId,
       scope: surface.params.reviewScope,
-      revision: surface.params.revision,
+      revision: surface.params.reviewScope === "last-turn" ? undefined : surface.params.revision,
       baseRevision: surface.params.baseRevision,
       sessionId: surface.params.sessionId ?? context.threadId,
     }),
@@ -387,7 +432,7 @@ function ReviewComparison({ surface }: ReviewProps) {
       context.threadId,
     ],
   );
-  const query = useGitDiff(request, supported);
+  const query = useGitDiff(request, supported, diffCacheKey);
   const repository = query.data?.repository ? query.data : undefined;
   const reveal = (params: ReviewSurfaceParams) => {
     const id = controller.reveal({
@@ -457,31 +502,6 @@ function ReviewComparison({ surface }: ReviewProps) {
           />
         </div>
       )}
-      {request.scope === "last-turn" && Boolean(repository?.turns?.length) && (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="ghost" className="w-full justify-start text-xs" />}
-          >
-            {date(
-              repository!.turns!.find((turn) => turn.id === request.revision)?.timestamp ??
-                repository!.turns!.at(-1)!.timestamp,
-              { dateStyle: "short", timeStyle: "medium" },
-            )}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent data-workspace-review="" className="max-h-80 overflow-y-auto">
-            <DropdownMenuRadioGroup
-              value={request.revision ?? repository!.turns!.at(-1)!.id}
-              onValueChange={(revision) => reveal({ ...surface.params, revision })}
-            >
-              {repository?.turns?.toReversed().map((turn) => (
-                <DropdownMenuRadioItem key={turn.id} value={turn.id}>
-                  {date(turn.timestamp, { dateStyle: "short", timeStyle: "medium" })}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
       <div className="min-h-0 flex-1 overflow-y-auto py-1" aria-busy={query.loading}>
         {supported ? (
           <>
@@ -493,6 +513,8 @@ function ReviewComparison({ surface }: ReviewProps) {
                 request={request}
                 options={options}
                 context={context}
+                filesExpanded={surface.params.filesExpanded === true}
+                cacheKey={diffCacheKey}
               />
             ))}
             {!query.loading && !query.error && repository?.files.length === 0 && (
@@ -535,6 +557,7 @@ export function ReviewSurface(props: ReviewProps) {
   return (
     <ReviewComparison
       key={`${props.surface.resourceKey}:${revision}:${props.retryToken ?? 0}`}
+      reviewRevision={revision}
       {...props}
     />
   );

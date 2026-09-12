@@ -1463,6 +1463,8 @@ export const extensionsZhCN = {
     },
     enableWrap: "启用自动换行",
     disableWrap: "禁用自动换行",
+    expandAllFiles: "展开所有文件变更",
+    collapseAllFiles: "收起所有文件变更",
     enableFullFile: "加载完整文件",
     disableFullFile: "不加载完整文件",
     enableRichText: "启用富文本预览",

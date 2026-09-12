@@ -2,14 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
   CopyIcon,
   EllipsisIcon,
-  FileDiffIcon,
-  FileIcon,
+  GitCommitIcon,
   PilcrowIcon,
   RefreshCwIcon,
   TextCursorInputIcon,
   WrapTextIcon,
+  UploadIcon,
 } from "lucide-react";
 import { useWorkbenchWorkspaceCapability } from "@workbench/agent-runtime-client/context";
 import type { WorkbenchWorkspaceGitDiffRequest } from "@workbench/agent-runtime-contracts/runtime-capabilities";
@@ -32,12 +34,16 @@ export function ReviewToolbar({
   onChange,
   refresh,
   canCopy,
+  filesExpanded,
+  onToggleFiles,
 }: {
   request: WorkbenchWorkspaceGitDiffRequest;
   options: ReviewDisplayOptions;
   onChange: (options: ReviewDisplayOptions) => void;
   refresh: () => void;
   canCopy: boolean;
+  filesExpanded: boolean;
+  onToggleFiles: () => void;
 }) {
   const { t } = useI18n();
   const workspace = useWorkbenchWorkspaceCapability();
@@ -90,6 +96,14 @@ export function ReviewToolbar({
             <RefreshCwIcon />
             {t("extensions.workspaceReview.refresh")}
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => toggle("wrap")}>
+            <WrapTextIcon />
+            {t(
+              options.wrap
+                ? "extensions.workspaceReview.disableWrap"
+                : "extensions.workspaceReview.enableWrap",
+            )}
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => toggle("wordDiff")}>
             <TextCursorInputIcon />
@@ -113,19 +127,19 @@ export function ReviewToolbar({
         variant="ghost"
         size="icon-sm"
         aria-label={t(
-          options.wrap
-            ? "extensions.workspaceReview.disableWrap"
-            : "extensions.workspaceReview.enableWrap",
+          filesExpanded
+            ? "extensions.workspaceReview.collapseAllFiles"
+            : "extensions.workspaceReview.expandAllFiles",
         )}
         title={t(
-          options.wrap
-            ? "extensions.workspaceReview.disableWrap"
-            : "extensions.workspaceReview.enableWrap",
+          filesExpanded
+            ? "extensions.workspaceReview.collapseAllFiles"
+            : "extensions.workspaceReview.expandAllFiles",
         )}
-        aria-pressed={options.wrap}
-        onClick={() => toggle("wrap")}
+        aria-expanded={filesExpanded}
+        onClick={onToggleFiles}
       >
-        <WrapTextIcon />
+        {filesExpanded ? <ChevronsDownUpIcon /> : <ChevronsUpDownIcon />}
       </Button>
       <Button
         variant="ghost"
@@ -143,7 +157,7 @@ export function ReviewToolbar({
         aria-pressed={options.fullFile}
         onClick={() => toggle("fullFile")}
       >
-        <FileIcon />
+        <GitCommitIcon />
       </Button>
       <Button
         variant="ghost"
@@ -161,7 +175,7 @@ export function ReviewToolbar({
         aria-pressed={options.richText}
         onClick={() => toggle("richText")}
       >
-        <FileDiffIcon />
+        <UploadIcon />
       </Button>
       <Button
         variant="ghost"

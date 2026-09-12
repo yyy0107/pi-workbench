@@ -31,7 +31,8 @@ function ReviewSurfaceHeaderContent({
   surface,
   context,
   refresh,
-}: ReviewProps & { refresh(): void }) {
+  reviewRevision,
+}: ReviewProps & { refresh(): void; reviewRevision: number }) {
   const { t, number } = useI18n();
   const controller = useRightWorkspace();
   const isCommit =
@@ -41,7 +42,7 @@ function ReviewSurfaceHeaderContent({
     () => ({
       workspaceId: surface.params.repositoryId,
       scope: surface.params.reviewScope,
-      revision: surface.params.revision,
+      revision: surface.params.reviewScope === "last-turn" ? undefined : surface.params.revision,
       baseRevision: surface.params.baseRevision,
       sessionId: surface.params.sessionId ?? context.threadId,
     }),
@@ -60,8 +61,9 @@ function ReviewSurfaceHeaderContent({
       surface.params.revision &&
       (surface.params.reviewScope !== "range" || surface.params.baseRevision),
     );
-  const query = useGitDiff(request, supported);
+  const query = useGitDiff(request, supported, `${surface.resourceKey}:${reviewRevision}`);
   const repository = query.data?.repository ? query.data : undefined;
+  const filesExpanded = surface.params.filesExpanded === true;
   const totals = repository?.files.reduce(
     (sum, file) => ({
       additions: sum.additions + (file.additions ?? 0),
@@ -102,7 +104,7 @@ function ReviewSurfaceHeaderContent({
     >
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={<Button variant="ghost" className="min-w-0 shrink px-0 font-normal" />}
+          render={<Button variant="ghost" className="w-fit min-w-0 shrink px-2.5 font-normal" />}
           aria-label={t("extensions.workspaceReview.scopeLabel")}
           title={repository?.branch}
         >
@@ -175,6 +177,12 @@ function ReviewSurfaceHeaderContent({
           options={options}
           refresh={refresh}
           canCopy={Boolean(repository?.files.length) && !query.loading && !query.error}
+          filesExpanded={filesExpanded}
+          onToggleFiles={() =>
+            controller.update(surface.id, {
+              params: { ...surface.params, filesExpanded: !filesExpanded },
+            })
+          }
           onChange={(displayOptions) =>
             controller.update(surface.id, { params: { ...surface.params, displayOptions } })
           }
@@ -195,6 +203,7 @@ export function ReviewSurfaceHeader(props: ReviewProps) {
     <ReviewSurfaceHeaderContent
       key={`${props.surface.resourceKey}:${revision}`}
       {...props}
+      reviewRevision={revision}
       refresh={() => changes.noteChanged(props.surface.params.repositoryId)}
     />
   );

@@ -1506,6 +1506,8 @@ export const extensionsEnUS = {
     },
     enableWrap: "Enable word wrap",
     disableWrap: "Disable word wrap",
+    expandAllFiles: "Expand all file changes",
+    collapseAllFiles: "Collapse all file changes",
     enableFullFile: "Load full file",
     disableFullFile: "Don't load full file",
     enableRichText: "Enable rich text preview",
