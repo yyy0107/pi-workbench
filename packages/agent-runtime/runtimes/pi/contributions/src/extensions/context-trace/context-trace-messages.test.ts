@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { SessionContextTraceJsonValue } from "@workbench/agent-runtime-pi-protocol/rpc";
+
 import {
   groupContextTraceMessages,
+  listContextTraceAttachments,
   listContextTraceMessages,
   listContextTraceOutputBlocks,
 } from "./context-trace-messages";
@@ -106,4 +109,66 @@ test("keeps finalized assistant output blocks in source order", () => {
   );
   assert.equal(blocks[2]?.toolCallId, "call-1");
   assert.match(blocks[2]?.text ?? "", /"command": "pwd"/);
+});
+
+test("keeps attachments with their user message and only previews safe inline images", () => {
+  const message: SessionContextTraceJsonValue = {
+    role: "user",
+    content: [
+      { type: "text", text: "Compare these files" },
+      {
+        type: "image",
+        data: "iVBORw0KGgo=",
+        mimeType: "image/png",
+        name: "diagram.png",
+      },
+      {
+        type: "file",
+        data: "JVBERi0=",
+        mimeType: "application/pdf",
+        name: "notes.pdf",
+      },
+      {
+        type: "image",
+        data: "data:image/svg+xml;base64,PHN2Zz4=",
+        mimeType: "image/svg+xml",
+      },
+    ],
+  };
+
+  const [entry] = listContextTraceMessages([message]);
+  assert.equal(entry?.text, "Compare these files");
+  assert.deepEqual(
+    entry?.attachments.map(({ contentIndex, kind, mediaType, name, source }) => ({
+      contentIndex,
+      kind,
+      mediaType,
+      name,
+      source,
+    })),
+    [
+      {
+        contentIndex: 1,
+        kind: "image",
+        mediaType: "image/png",
+        name: "diagram.png",
+        source: "data:image/png;base64,iVBORw0KGgo=",
+      },
+      {
+        contentIndex: 2,
+        kind: "file",
+        mediaType: "application/pdf",
+        name: "notes.pdf",
+        source: undefined,
+      },
+      {
+        contentIndex: 3,
+        kind: "image",
+        mediaType: "image/svg+xml",
+        name: undefined,
+        source: undefined,
+      },
+    ],
+  );
+  assert.equal(listContextTraceAttachments(message).length, 3);
 });

@@ -908,12 +908,6 @@ export function ContextTraceSurface({
             title: t("extensions.contextTrace.toolSchemas"),
             tone: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
           };
-        case "attachments":
-          return {
-            badge: t("extensions.contextTrace.tree.runtime"),
-            title: t("extensions.contextTrace.images"),
-            tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-          };
       }
     }
     if (selectedContextFocus?.type === "system-prompt-source") {

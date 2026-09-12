@@ -1021,8 +1021,6 @@ export const piExtensionsZhCN = {
         contextFiles: "CONTEXT FILES",
         tools: "TOOLS",
         conversation: "CONVERSATION",
-        runtime: "RUNTIME",
-        attachments: "ATTACHMENTS",
         text: "TEXT",
         reasoningSummary: "REASONING SUMMARY",
         toolCall: ({ name }: { name: string }) => `TOOL CALL · ${name}`,
@@ -1085,6 +1083,11 @@ export const piExtensionsZhCN = {
       },
       turnNumber: ({ index }: { index: number }, { number }: MessageFormatters) =>
         `Turn ${number(index)}`,
+      attachmentNumber: ({ index }: { index: number }, { number }: MessageFormatters) =>
+        `附件 ${number(index)}`,
+      attachmentPreviewAlt: ({ name }: { name: string }) => `${name} 的预览`,
+      attachmentPreviewUnavailable: "图片预览不可用",
+      fileAttachment: "文件附件",
       modelContext: "模型实际看到的上下文",
       turnTokenTotal: ({ value }: { value: string }) => `${value} tokens`,
       tokenCount: ({ value }: { value: string }) => `${value} t`,

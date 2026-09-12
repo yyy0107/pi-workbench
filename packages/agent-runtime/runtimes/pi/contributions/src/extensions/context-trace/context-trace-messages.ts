@@ -9,8 +9,20 @@ export interface ContextTraceMessageEntry {
   value: SessionContextTraceJsonValue;
   text: string;
   preview: string;
+  attachments: readonly ContextTraceMessageAttachment[];
   estimatedTokens?: number;
   toolName?: string;
+}
+
+export interface ContextTraceMessageAttachment {
+  id: string;
+  attachmentIndex: number;
+  contentIndex: number;
+  kind: "image" | "file";
+  value: SessionContextTraceJsonValue;
+  mediaType?: string;
+  name?: string;
+  source?: string;
 }
 
 export type ContextTraceOutputBlockKind = "text" | "reasoning" | "tool-call";
@@ -79,6 +91,96 @@ function contentText(value: SessionContextTraceJsonValue): string {
   return "";
 }
 
+const SAFE_INLINE_IMAGE_MEDIA_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+]);
+
+function attachmentMediaType(part: {
+  [key: string]: SessionContextTraceJsonValue;
+}): string | undefined {
+  const value =
+    typeof part.mimeType === "string"
+      ? part.mimeType
+      : typeof part.mediaType === "string"
+        ? part.mediaType
+        : undefined;
+  return value?.toLowerCase();
+}
+
+function inlineImageSource(
+  value: string | undefined,
+  mediaType: string | undefined,
+): string | undefined {
+  if (!value) return undefined;
+  if (value.startsWith("data:")) {
+    const match = /^data:(image\/(?:png|jpeg|webp|gif));base64,[a-z\d+/=\s]+$/iu.exec(value);
+    return match && SAFE_INLINE_IMAGE_MEDIA_TYPES.has(match[1]!.toLowerCase()) ? value : undefined;
+  }
+  if (!mediaType || !SAFE_INLINE_IMAGE_MEDIA_TYPES.has(mediaType)) return undefined;
+  return /^[a-z\d+/]*={0,2}$/iu.test(value) ? `data:${mediaType};base64,${value}` : undefined;
+}
+
+/** Extracts attachment parts without exposing arbitrary captured values as image URLs. */
+export function listContextTraceAttachments(
+  value: SessionContextTraceJsonValue,
+): readonly ContextTraceMessageAttachment[] {
+  const parts = Array.isArray(value)
+    ? value
+    : isJsonObject(value) && Array.isArray(value.content)
+      ? value.content
+      : [];
+
+  const attachments = parts.flatMap<Omit<ContextTraceMessageAttachment, "attachmentIndex">>(
+    (part, contentIndex) => {
+      if (!isJsonObject(part) || typeof part.type !== "string") return [];
+      const type = part.type.toLowerCase();
+      const mediaType = attachmentMediaType(part);
+      const kind =
+        type === "image" || mediaType?.startsWith("image/")
+          ? ("image" as const)
+          : type === "file" || type === "attachment" || type === "document"
+            ? ("file" as const)
+            : undefined;
+      if (!kind) return [];
+
+      const name =
+        typeof part.name === "string"
+          ? part.name
+          : typeof part.filename === "string"
+            ? part.filename
+            : undefined;
+      const data =
+        typeof part.data === "string"
+          ? part.data
+          : typeof part.image === "string"
+            ? part.image
+            : typeof part.source === "string"
+              ? part.source
+              : undefined;
+      const source = kind === "image" ? inlineImageSource(data, mediaType) : undefined;
+
+      return [
+        {
+          id: `attachment:${contentIndex}`,
+          contentIndex,
+          kind,
+          value: part,
+          ...(mediaType ? { mediaType } : {}),
+          ...(name ? { name } : {}),
+          ...(source ? { source } : {}),
+        },
+      ];
+    },
+  );
+  return attachments.map((attachment, attachmentIndex) => ({
+    ...attachment,
+    attachmentIndex,
+  }));
+}
+
 function messageEntry(
   role: ContextTraceMessageRole,
   sourceIndex: number,
@@ -93,6 +195,7 @@ function messageEntry(
     value,
     text,
     preview: previewText(text),
+    attachments: role === "user" ? listContextTraceAttachments(value) : [],
     ...(estimatedTokens === null || estimatedTokens === undefined ? {} : { estimatedTokens }),
   };
 }
@@ -112,6 +215,7 @@ function toolCallEntry(
     value: part,
     text,
     preview: previewText(text),
+    attachments: [],
     ...(toolName ? { toolName } : {}),
   };
 }

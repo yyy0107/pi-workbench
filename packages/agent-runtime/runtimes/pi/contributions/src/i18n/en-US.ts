@@ -1100,8 +1100,6 @@ export const piExtensionsEnUS = {
         contextFiles: "CONTEXT FILES",
         tools: "TOOLS",
         conversation: "CONVERSATION",
-        runtime: "RUNTIME",
-        attachments: "ATTACHMENTS",
         text: "TEXT",
         reasoningSummary: "REASONING SUMMARY",
         toolCall: ({ name }: { name: string }) => `TOOL CALL · ${name}`,
@@ -1165,6 +1163,11 @@ export const piExtensionsEnUS = {
       },
       turnNumber: ({ index }: { index: number }, { number }: MessageFormatters) =>
         `Turn ${number(index)}`,
+      attachmentNumber: ({ index }: { index: number }, { number }: MessageFormatters) =>
+        `Attachment ${number(index)}`,
+      attachmentPreviewAlt: ({ name }: { name: string }) => `Preview of ${name}`,
+      attachmentPreviewUnavailable: "Image preview unavailable",
+      fileAttachment: "File attachment",
       modelContext: "Context seen by the model",
       turnTokenTotal: ({ value }: { value: string }) => `${value} tokens`,
       tokenCount: ({ value }: { value: string }) => `${value} t`,
