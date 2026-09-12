@@ -123,7 +123,7 @@ function AttachmentTile({
             type="button"
             data-frame="none"
             data-selection="none"
-            className="aui-composer-attachment-remove absolute end-0.5 top-0.5 bg-black/60 text-white hover:text-white! active:bg-black/60! active:text-white! after:absolute after:-inset-1 motion-reduce:transition-none"
+            className="aui-composer-attachment-remove absolute end-1 top-1 bg-black/60 text-white hover:text-white! active:bg-black/60! active:text-white! after:absolute after:-inset-1 motion-reduce:transition-none"
             side="top"
             onClick={() => onRemove(attachment.key)}
           >
