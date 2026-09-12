@@ -20,7 +20,11 @@ import {
 } from "./agent-command";
 import { ComposerCommandArguments } from "./composer-command-arguments";
 import { parseComposerDocument } from "./composer-document";
-import { ComposerTokenIcon, type ComposerTokenKind } from "./composer-token-icon";
+import {
+  ComposerCommandIcon,
+  ComposerTokenIcon,
+  type ComposerCommandIconKind,
+} from "./composer-token-icon";
 import { useConversationMessageContext } from "./conversation-message-context";
 
 import { UserMessageTextBubble } from "./user-message-text-bubble";
@@ -81,11 +85,7 @@ export function WorkbenchComposerMessageTextContent({
                   </span>
                 );
               case "command": {
-                const DefinitionIcon =
-                  node.source === "workbench"
-                    ? composerCommandRegistry.get(node.commandId)?.icon
-                    : undefined;
-                const tokenKind: ComposerTokenKind | undefined =
+                const commandIconKind: ComposerCommandIconKind | undefined =
                   node.source === "workbench"
                     ? "workbench"
                     : agentCommandKindsById.get(node.commandId);
@@ -96,12 +96,9 @@ export function WorkbenchComposerMessageTextContent({
                   >
                     <ComposerCommandToken
                       icon={
-                        DefinitionIcon ? (
-                          <DefinitionIcon />
-                        ) : tokenKind ? (
-                          <ComposerTokenIcon kind={tokenKind} />
-                        ) : undefined
+                        commandIconKind ? <ComposerCommandIcon kind={commandIconKind} /> : undefined
                       }
+                      iconSize="md-lg"
                       label={node.label}
                       className="align-baseline"
                     />
@@ -154,7 +151,8 @@ export function WorkbenchComposerMessageTextContent({
       <UserMessageTextBubble key={text}>
         <p className="whitespace-pre-wrap">
           <ComposerCommandToken
-            icon={<ComposerTokenIcon kind={commandText.command.kind} />}
+            icon={<ComposerCommandIcon kind={commandText.command.kind} />}
+            iconSize="md-lg"
             label={formatAgentCommandLabel(commandText.command.name)}
             className="me-1 align-baseline"
           />

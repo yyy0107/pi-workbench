@@ -61,11 +61,18 @@ export const workbenchEnUS = {
         },
       },
       commandGroups: {
-        builtin: ({ runtimeName }: { runtimeName: string }) => `${runtimeName} built-ins`,
-        extension: "Extensions",
-        prompt: "Prompt templates",
-        skill: "Skills",
-        workbench: "Workbench",
+        builtin: (
+          { runtimeName, count }: { runtimeName: string; count: number },
+          { number }: MessageFormatters,
+        ) => `${runtimeName} built-ins (${number(count)})`,
+        extension: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `Extensions (${number(count)})`,
+        prompt: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `Prompt templates (${number(count)})`,
+        skill: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `Skills (${number(count)})`,
+        workbench: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `Workbench (${number(count)})`,
       },
       commandScopes: {
         user: "User",

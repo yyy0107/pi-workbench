@@ -47,6 +47,40 @@
     stroke-width: 1.5;
   }
 
+  .aui-composer-icon-size-md-lg {
+    --button-icon-size: var(--icon-size-md-lg);
+    width: var(--button-icon-size);
+    height: var(--button-icon-size);
+  }
+
+  .aui-composer-command-icon-teal {
+    color: color-mix(
+      in oklab,
+      var(--aui-accent) 45%,
+      color-mix(in oklab, var(--info-foreground) 45%, var(--success-foreground) 55%) 55%
+    );
+  }
+
+  .aui-composer-command-icon-blue {
+    color: color-mix(in oklab, var(--aui-accent) 45%, var(--info-foreground) 55%);
+  }
+
+  .aui-composer-command-icon-purple {
+    color: color-mix(
+      in oklab,
+      var(--aui-accent) 45%,
+      color-mix(in oklab, var(--info-foreground) 55%, var(--danger-foreground) 45%) 55%
+    );
+  }
+
+  .aui-composer-command-icon-muted {
+    color: color-mix(in oklab, var(--aui-accent) 35%, var(--muted-foreground) 65%);
+  }
+
+  .aui-composer-command-token-icon-accent {
+    color: var(--aui-accent);
+  }
+
   :where([data-slot="workbench-composer-shell"], [data-workbench-composer-popup])
     :where(button[data-slot]) {
     --button-icon-size: var(--composer-icon-size, var(--icon-size-md));

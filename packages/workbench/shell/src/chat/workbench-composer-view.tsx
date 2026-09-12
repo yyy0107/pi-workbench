@@ -29,6 +29,8 @@ import {
   COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
 } from "@workbench/contracts/composer";
 import type { ComposerTriggerItem } from "./composer-directive";
+import { composerCommandIconColorClassName } from "./composer-command-icon-color";
+import { ComposerCommandIcon } from "./composer-token-icon";
 import { withTooltip } from "../ui/tooltip";
 
 const COMPOSER_PRIMARY_ACTION_CLASS_NAME = "aui-composer-primary-action hover:bg-primary";
@@ -71,11 +73,13 @@ function ScrollingComposerCommandItem({
   suggestion,
   item,
   active,
+  iconColorClassName,
   onSelect,
 }: Readonly<{
   suggestion: WorkbenchComposerMenuSuggestion;
   item: ComposerTriggerItem;
   active: boolean;
+  iconColorClassName: string;
   onSelect(item: ComposerTriggerItem): void;
 }>) {
   const ref = useRef<HTMLButtonElement>(null);
@@ -87,6 +91,9 @@ function ScrollingComposerCommandItem({
     <ComposerCommandItem
       ref={ref}
       command={suggestion.command}
+      icon={<ComposerCommandIcon kind={suggestion.group} className={iconColorClassName} />}
+      iconClassName={iconColorClassName}
+      iconSize="md-lg"
       active={active}
       role="option"
       aria-selected={active}
@@ -103,6 +110,7 @@ export function WorkbenchComposerCommandMenuView({
   items,
   highlightedIndex,
   suggestions,
+  iconColorBySuggestionKey,
   groupLabel,
   ariaLabel,
   onSelect,
@@ -111,10 +119,17 @@ export function WorkbenchComposerCommandMenuView({
   items: readonly ComposerTriggerItem[];
   highlightedIndex: number;
   suggestions: ReadonlyMap<string, WorkbenchComposerMenuSuggestion>;
-  groupLabel(group: WorkbenchComposerSuggestionGroup): string;
+  iconColorBySuggestionKey: ReadonlyMap<string, string>;
+  groupLabel(group: WorkbenchComposerSuggestionGroup, count: number): string;
   ariaLabel: string;
   onSelect(item: ComposerTriggerItem): void;
 }>) {
+  const groupCounts = new Map<WorkbenchComposerSuggestionGroup, number>();
+  for (const item of items) {
+    const suggestion = suggestions.get(suggestionKey(item));
+    if (!suggestion) continue;
+    groupCounts.set(suggestion.group, (groupCounts.get(suggestion.group) ?? 0) + 1);
+  }
   let previousGroup: WorkbenchComposerSuggestionGroup | undefined;
 
   return (
@@ -122,7 +137,7 @@ export function WorkbenchComposerCommandMenuView({
       open={open && items.length > 0}
       role="listbox"
       aria-label={ariaLabel}
-      className="max-h-[min(24rem,50vh)] w-full gap-2 overflow-y-auto p-1.5 pt-0 scroll-py-2"
+      className="max-h-[min(24rem,50vh)] w-full overflow-y-auto p-1.5 pt-0 scroll-py-2"
     >
       {items.map((item, index) => {
         const suggestion = suggestions.get(suggestionKey(item));
@@ -136,13 +151,17 @@ export function WorkbenchComposerCommandMenuView({
                 role="presentation"
                 className="bg-popover/95 text-muted-foreground sticky top-0 z-10 px-3 py-2 text-[11px] leading-4 font-medium backdrop-blur-sm"
               >
-                {groupLabel(suggestion.group)}
+                {groupLabel(suggestion.group, groupCounts.get(suggestion.group) ?? 0)}
               </div>
             ) : null}
             <ScrollingComposerCommandItem
               suggestion={suggestion}
               item={item}
               active={index === highlightedIndex}
+              iconColorClassName={
+                iconColorBySuggestionKey.get(suggestionKey(item)) ??
+                composerCommandIconColorClassName(item.id)
+              }
               onSelect={onSelect}
             />
           </Fragment>
