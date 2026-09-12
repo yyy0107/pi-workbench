@@ -44,14 +44,14 @@ test("resets disclosure defaults across phases without remounting message conten
       root.render(renderPhase("streaming"));
       await flushReactMicrotasks();
     });
-    assert.equal(stepsOpen, true);
+    assert.equal(stepsOpen, false);
     assert.equal(mounts, 1);
 
     await act(async () => {
-      setStepsOpen?.(false);
+      setStepsOpen?.(true);
       await flushReactMicrotasks();
     });
-    assert.equal(stepsOpen, false);
+    assert.equal(stepsOpen, true);
 
     await act(async () => {
       root.render(renderPhase("completed"));
@@ -65,9 +65,15 @@ test("resets disclosure defaults across phases without remounting message conten
       root.render(renderPhase("streaming"));
       await flushReactMicrotasks();
     });
-    assert.equal(stepsOpen, true);
+    assert.equal(stepsOpen, false);
     assert.equal(mounts, 1);
     assert.equal(unmounts, 0);
+
+    await act(async () => {
+      setStepsOpen?.(true);
+      await flushReactMicrotasks();
+    });
+    assert.equal(stepsOpen, true);
 
     await act(async () => {
       root.unmount();
@@ -129,6 +135,7 @@ test("closing a disclosure resets nested overrides without closing sibling group
       );
       await flushReactMicrotasks();
     });
+    await toggle("timeline", true);
     await toggle("a", true);
     await toggle("a-tool", true);
     await toggle("b", true);

@@ -1393,6 +1393,8 @@ export const extensionsEnUS = {
           ? `Working · ${number(steps)} ${stepLabel} · ${number(files)} ${fileLabel} changed`
           : `Working · ${number(steps)} ${stepLabel}`;
       },
+      activeLatest: ({ latest }: { latest: string }) => `Working · ${latest}`,
+      planningNextStep: "Planning next step",
       summary: (
         { steps, files }: { steps: number; files: number },
         { number }: MessageFormatters,

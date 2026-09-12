@@ -68,7 +68,7 @@ const DEFAULT_OPEN: Readonly<
 > = {
   streaming: {
     "completed-turn": false,
-    steps: true,
+    steps: false,
     reasoning: false,
     tool: false,
     "parallel-tools": false,

@@ -1353,6 +1353,8 @@ export const extensionsZhCN = {
         files > 0
           ? `正在工作 · ${number(steps)} 个步骤 · ${number(files)} 个文件已更改`
           : `正在工作 · ${number(steps)} 个步骤`,
+      activeLatest: ({ latest }: { latest: string }) => `正在工作 · ${latest}`,
+      planningNextStep: "正在规划下一步",
       summary: (
         { steps, files }: { steps: number; files: number },
         { number }: MessageFormatters,

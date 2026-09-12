@@ -1,5 +1,6 @@
 import type {
   DataBlock,
+  MessageBlock,
   ReasoningBlock,
   ToolCallBlock,
 } from "@workbench/agent-runtime-contracts/conversation";
@@ -84,6 +85,33 @@ export function dataTimelineState(
   }
 }
 
+export function timelineBlockIsActive(
+  block: TimelineSourceBlock,
+  dataPresentations: Readonly<Record<string, DataPresentationDefinition>>,
+): boolean {
+  return block.kind === "data"
+    ? dataTimelineState(block, dataPresentations)?.active === true
+    : block.status === "running";
+}
+
+export function timelineHasActiveWork(
+  blocks: readonly TimelineSourceBlock[],
+  dataPresentations: Readonly<Record<string, DataPresentationDefinition>>,
+  messageRunning = false,
+): boolean {
+  return messageRunning || blocks.some((block) => timelineBlockIsActive(block, dataPresentations));
+}
+
+export function hasTrailingTextBlock(
+  blocks: readonly MessageBlock[],
+  lastTimelineIndex: number | undefined,
+): boolean {
+  return (
+    lastTimelineIndex !== undefined &&
+    blocks.slice(lastTimelineIndex + 1).some((block) => block.kind === "text" && block.text.trim())
+  );
+}
+
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -94,7 +122,7 @@ function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
 
-function compact(value: string, maxLength = 68): string {
+export function compactTimelineText(value: string, maxLength = 68): string {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (normalized.length <= maxLength) return normalized;
   return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
@@ -224,7 +252,7 @@ function registeredToolChip(
 
   try {
     const summary = presentation.summarize(block);
-    if (typeof summary === "string") return compact(summary);
+    if (typeof summary === "string") return compactTimelineText(summary);
     return summary;
   } catch {
     // A presentation is optional chrome. Keep the message readable if an extension summary fails.
@@ -248,11 +276,13 @@ function toolChip(
     case "read":
     case "write":
     case "edit":
-      return compact(path ? fileName(path) : block.toolName);
+      return compactTimelineText(path ? fileName(path) : block.toolName);
     case "web_crawl":
-      return compact(firstString(args?.start_urls) ?? asString(args?.url) ?? block.toolName);
+      return compactTimelineText(
+        firstString(args?.start_urls) ?? asString(args?.url) ?? block.toolName,
+      );
     default:
-      return compact(
+      return compactTimelineText(
         path ??
           asString(args?.query) ??
           asString(args?.pattern) ??
