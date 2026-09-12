@@ -136,10 +136,15 @@ test("bundled resources install into the Pi directory after relocation and pruni
   const browserCode = await readFile(browserEntry, "utf8");
   assert.doesNotMatch(browserCode, /file:\/\/|from ["']@workbench\//);
   assert.ok(browserCode.length > 1_000);
+  const loaderSettings = SettingsManager.create(agentDir, agentDir, { projectTrusted: false });
+  loaderSettings.setPackages([
+    { source: "./packages/.builtin/browser", extensions: ["+./index.js"] },
+  ]);
+  await loaderSettings.flush();
   const loader = new DefaultResourceLoader({
     cwd: agentDir,
     agentDir,
-    settingsManager: SettingsManager.create(agentDir, agentDir, { projectTrusted: false }),
+    settingsManager: loaderSettings,
     noThemes: true,
     noContextFiles: true,
   });
