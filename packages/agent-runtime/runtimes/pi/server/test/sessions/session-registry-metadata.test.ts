@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -12,18 +13,14 @@ import {
   type FauxResponseFactory,
 } from "@earendil-works/pi-ai/providers/faux";
 
-import {
-  convertToLlm,
-  detectCacheMiss,
-  getAgentDir,
-  SessionManager,
-} from "@earendil-works/pi-coding-agent";
+import { convertToLlm, detectCacheMiss, SessionManager } from "@earendil-works/pi-coding-agent";
 
 import type {
   HostStreamPayload,
   MuxStreamPayload,
   ServerRequest,
 } from "@workbench/agent-runtime-pi-protocol/stream";
+import type { PiImageContent } from "@workbench/agent-runtime-pi-protocol/messages";
 
 const {
   cancelSession,
@@ -41,7 +38,6 @@ const {
   getScratchSessionRecord,
   listSessions,
   messagesHaveImages,
-  queuePrompt,
   promoteScratchSession,
   regenerateSession,
   renameSession,
@@ -67,7 +63,6 @@ const { appendSessionEventJournal, initializeSessionEventJournal, SESSION_EVENT_
 const { createStreamHub, STREAM_HUB_SYMBOL } = (await import(
   new URL("../../src/streams/stream-hub.ts", import.meta.url).href
 )) as typeof import("../../src/streams/stream-hub");
-import { ImageUnderstandingSettingsStore } from "@workbench/attachment-understanding-server/settings";
 import { createWorkspaceFileService } from "@workbench/workspace-server/files";
 import {
   bindPiAgentHostBindings,
@@ -77,18 +72,9 @@ import { resolvePiWorkspaceRoot } from "../../src/workspaces/workspace-service-b
 import { projectPiComposerContext } from "../../src/internal-extensions/composer-context";
 import { createPiAutomationRuntimeBindings } from "../../src/automations/pi-automation-service";
 import { getWorkspaceStore } from "../../src/workspaces/workspace-registry";
-
-function getImageUnderstandingSettingsStore() {
-  return new ImageUnderstandingSettingsStore({
-    stateFile: path.join(
-      process.env.PI_WORKBENCH_STATE_DIR ?? path.join(getAgentDir(), "workbench"),
-      "image-understanding.json",
-    ),
-  });
-}
+import { getComposerTextAttachmentStore } from "../../src/attachments/composer-text-attachments";
 
 bindPiAgentHostBindings({
-  attachmentUnderstandingSettings: getImageUnderstandingSettingsStore,
   workspaceFiles: createWorkspaceFileService({ resolveWorkspaceRoot: resolvePiWorkspaceRoot }),
 });
 
@@ -1069,144 +1055,6 @@ test("keeps a durable token-only user message when its built-in command fails", 
   );
 });
 
-test("keeps the model turn alive when attachment preprocessing fails", async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), "workbench-image-understanding-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
-  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
-  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
-  t.after(() => {
-    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
-    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
-    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
-  });
-
-  await getImageUnderstandingSettingsStore().update({
-    patch: { routing: "always-preprocess", engine: "ocr", ocrProvider: "glm-ocr" },
-  });
-  const cwd = path.join(root, "project");
-  await mkdir(cwd, { recursive: true });
-  const host = await createSession(cwd, "image-understanding-missing-credential");
-  const fakeAgent = host.session as unknown as {
-    model?: unknown;
-    modelRuntime: { getAvailableSnapshot(): unknown[] };
-    prompt(
-      message: string,
-      options: { images?: unknown[]; preflightResult?: (accepted: boolean) => void },
-    ): Promise<void>;
-  };
-  const originalPrompt = fakeAgent.prompt;
-  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
-  let forwardedPrompt = "";
-  let forwardedImages: unknown[] | undefined;
-  fakeAgent.modelRuntime.getAvailableSnapshot = () =>
-    fakeAgent.model === undefined ? [] : [fakeAgent.model];
-  fakeAgent.prompt = async (message, options) => {
-    forwardedPrompt = message;
-    forwardedImages = options.images;
-    options.preflightResult?.(true);
-  };
-  t.after(() => {
-    fakeAgent.prompt = originalPrompt;
-    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
-    return host.shutdown();
-  });
-
-  await submitPrompt(
-    host.id,
-    "followUp",
-    {
-      message: "Read the image",
-      images: [
-        {
-          type: "image",
-          mimeType: "image/png",
-          data: "iVBORw0KGgo=",
-          name: "scan.png",
-        },
-      ],
-    },
-    { rpcId: "image-recognition-rpc" },
-  );
-  await new Promise<void>((resolve) => setImmediate(resolve));
-
-  const history = await getSessionHistory(host.id);
-  const marker = history.context.messages.find(
-    (message) => message.role === "custom" && message.customType === "workbench.composer-user.v3",
-  );
-  assert.ok(marker && marker.role === "custom");
-  assert.deepEqual((marker.details as { attachments?: unknown }).attachments, [
-    { data: "iVBORw0KGgo=", mimeType: "image/png", name: "scan.png" },
-  ]);
-  const events = await getSessionEvents(host.id);
-  const recognitionStates = events.flatMap((event) => {
-    const data = event.data as {
-      customType?: string;
-      details?: { status?: string; errorCode?: string; rpcId?: string };
-    };
-    return event.type === "message" &&
-      data.customType === "workbench.attachment-recognition.v1" &&
-      data.details?.status
-      ? [data.details]
-      : [];
-  });
-  assert.deepEqual(
-    recognitionStates.map(({ status }) => status),
-    ["pending", "running", "failed"],
-  );
-  assert.equal(recognitionStates.at(-1)?.errorCode, "preprocessor-not-configured");
-  assert.equal(recognitionStates.at(-1)?.rpcId, "image-recognition-rpc");
-  assert.equal(
-    events.some((event) => event.type === "command_error"),
-    false,
-    "a recoverable attachment failure must not settle the whole prompt as failed",
-  );
-  assert.equal(forwardedImages, undefined, "unrecognized attachments must not reach a text model");
-  assert.match(forwardedPrompt, /Read the image/);
-  assert.match(forwardedPrompt, /"source":"workbench\.attachment-understanding-status"/);
-  assert.match(forwardedPrompt, /"status":"failed"/);
-  assert.match(forwardedPrompt, /"errorCode":"preprocessor-not-configured"/);
-  assert.match(forwardedPrompt, /"attachmentId":"image-1","kind":"image","sequence":1/);
-  assert.equal(forwardedPrompt.includes("iVBORw0KGgo="), false);
-  assert.equal(host.isRunning, false);
-  assert.equal(
-    host.session.sessionManager
-      .buildSessionContext()
-      .messages.some(
-        (message) =>
-          message.role === "custom" && message.customType === "workbench.attachment-recognition.v1",
-      ),
-    false,
-  );
-
-  forwardedPrompt = "";
-  forwardedImages = undefined;
-  await submitPrompt(
-    host.id,
-    "followUp",
-    { message: "Hello after the failed attachment" },
-    { rpcId: "text-after-failed-recognition-rpc" },
-  );
-  await new Promise<void>((resolve) => setImmediate(resolve));
-
-  assert.equal(forwardedImages, undefined);
-  assert.match(forwardedPrompt, /Hello after the failed attachment/);
-  assert.equal(
-    host.session.sessionManager
-      .buildSessionContext()
-      .messages.some(
-        (message) =>
-          message.role === "user" &&
-          Array.isArray(message.content) &&
-          message.content.some((part) => part.type === "image"),
-      ),
-    false,
-    "a failed preprocessing turn must not leave a durable image in model context",
-  );
-});
-
 test("executes session commands once and sends only remaining text to the model", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-composer-command-context-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -1294,7 +1142,7 @@ test("executes session commands once and sends only remaining text to the model"
   );
 });
 
-test("bypasses attachment understanding for model-native image inputs", async (t) => {
+test("forwards image-only managed attachments to a vision model", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-native-image-references-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -1308,7 +1156,6 @@ test("bypasses attachment understanding for model-native image inputs", async (t
     else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
   });
 
-  await getImageUnderstandingSettingsStore().update({ patch: { routing: "native-only" } });
   const cwd = path.join(root, "project");
   await mkdir(cwd, { recursive: true });
   const host = await createSession(cwd, "native-image-references");
@@ -1317,7 +1164,7 @@ test("bypasses attachment understanding for model-native image inputs", async (t
     modelRuntime: { getAvailableSnapshot(): unknown[] };
     prompt(
       message: string,
-      options: { images?: unknown[]; preflightResult?: (accepted: boolean) => void },
+      options: { images?: PiImageContent[]; preflightResult?: (accepted: boolean) => void },
     ): Promise<void>;
   };
   const originalModel = fakeAgent.model;
@@ -1328,7 +1175,7 @@ test("bypasses attachment understanding for model-native image inputs", async (t
   Object.defineProperty(fakeAgent, "model", { configurable: true, value: visionModel });
   fakeAgent.modelRuntime.getAvailableSnapshot = () => [visionModel];
   let forwardedPrompt = "";
-  let forwardedImages: unknown[] | undefined;
+  let forwardedImages: PiImageContent[] | undefined;
   fakeAgent.prompt = async (message, options) => {
     forwardedPrompt = message;
     forwardedImages = options.images;
@@ -1341,23 +1188,34 @@ test("bypasses attachment understanding for model-native image inputs", async (t
     await host.shutdown();
   });
 
+  const imageStore = getComposerTextAttachmentStore();
+  const one = await imageStore.createImage({
+    id: randomUUID(),
+    name: "one.png",
+    mediaType: "image/png",
+    data: "iVBORw0KGgo=",
+  });
+  const two = await imageStore.createImage({
+    id: randomUUID(),
+    name: "two.jpg",
+    mediaType: "image/jpeg",
+    data: "/9j/",
+  });
+
   const admission = await submitPrompt(
     host.id,
     "followUp",
     {
-      message: "Compare image one with image two",
-      images: [
-        { type: "image", mimeType: "image/png", data: "iVBORw0KGgo=", name: "one.png" },
-        { type: "image", mimeType: "image/jpeg", data: "/9j/", name: "two.jpg" },
-      ],
+      message: "",
+      fileAttachmentIds: [one.id, two.id],
     },
     {
       rpcId: "native-image-reference-rpc",
       composer: {
         version: 2,
-        document: [{ type: "text", text: "Compare image one with image two" }],
-        sourceText: "Compare image one with image two",
-        text: "Compare image one with image two",
+        document: [],
+        sourceText: "",
+        text: "",
         context: [],
         metadata: {},
         commands: [],
@@ -1367,18 +1225,146 @@ test("bypasses attachment understanding for model-native image inputs", async (t
   await new Promise<void>((resolve) => setImmediate(resolve));
 
   assert.deepEqual(admission, { queued: false });
-  assert.equal(forwardedImages?.length, 2);
-  assert.match(forwardedPrompt, /"attachmentId":"image-1","kind":"image","sequence":1/);
-  assert.match(forwardedPrompt, /"attachmentId":"image-2","kind":"image","sequence":2/);
-  const recognitionStates = (await getSessionEvents(host.id)).flatMap((event) => {
-    const data = event.data as { customType?: string; details?: { status?: string } };
-    return event.type === "message" &&
-      data.customType === "workbench.attachment-recognition.v1" &&
-      data.details?.status
-      ? [data.details.status]
-      : [];
+  assert.deepEqual(forwardedImages, [
+    { type: "image", mimeType: "image/png", data: "iVBORw0KGgo=", name: "one.png" },
+    { type: "image", mimeType: "image/jpeg", data: "/9j/", name: "two.jpg" },
+  ]);
+  const projected = projectPiComposerContext(
+    [
+      {
+        role: "user",
+        content: [{ type: "text", text: forwardedPrompt }, ...(forwardedImages ?? [])],
+        timestamp: 1,
+      },
+    ],
+    host.session.sessionManager.getBranch(),
+  );
+  assert.deepEqual(
+    projected[0]?.role === "user" && Array.isArray(projected[0].content)
+      ? projected[0].content.map((part) =>
+          part.type === "text" ? part.text : `${part.type}:${part.mimeType}`,
+        )
+      : [],
+    [
+      "image:image/png",
+      "image:image/jpeg",
+      `[Image: source: ${one.path}]`,
+      `[Image: source: ${two.path}]`,
+    ],
+  );
+});
+
+test("sends persisted image paths instead of native media to a text-only model", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-managed-image-text-only-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
+    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
   });
-  assert.deepEqual(recognitionStates, []);
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const host = await createSession(cwd, "managed-image-text-only");
+  const fakeAgent = host.session as unknown as {
+    model?: { provider: string; id: string; input: readonly string[] } & Record<string, unknown>;
+    modelRuntime: { getAvailableSnapshot(): unknown[] };
+    prompt(
+      message: string,
+      options: { images?: PiImageContent[]; preflightResult?: (accepted: boolean) => void },
+    ): Promise<void>;
+  };
+  const originalModel = fakeAgent.model;
+  const originalPrompt = fakeAgent.prompt;
+  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
+  assert.ok(originalModel);
+  const textModel = { ...originalModel, input: ["text"] };
+  Object.defineProperty(fakeAgent, "model", { configurable: true, value: textModel });
+  fakeAgent.modelRuntime.getAvailableSnapshot = () => [textModel];
+  let forwardedPrompt = "";
+  let forwardedImages: PiImageContent[] | undefined;
+  fakeAgent.prompt = async (message, options) => {
+    forwardedPrompt = message;
+    forwardedImages = options.images;
+    options.preflightResult?.(true);
+  };
+  t.after(async () => {
+    Reflect.deleteProperty(fakeAgent, "model");
+    fakeAgent.prompt = originalPrompt;
+    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
+    await host.shutdown();
+  });
+
+  const image = await getComposerTextAttachmentStore().createImage({
+    id: randomUUID(),
+    name: "image.png",
+    mediaType: "image/png",
+    data: "iVBORw0KGgo=",
+  });
+  const document = await getComposerTextAttachmentStore().createFile({
+    id: randomUUID(),
+    name: "spec.pdf",
+    mediaType: "application/pdf",
+    data: Buffer.from("%PDF-1.7\n").toString("base64"),
+  });
+  const admission = await submitPrompt(
+    host.id,
+    "followUp",
+    {
+      message: "你好 ",
+      fileAttachmentIds: [image.id, document.id],
+    },
+    {
+      composer: {
+        version: 2,
+        document: [{ type: "text", text: "你好 " }],
+        sourceText: "你好 ",
+        text: "你好 ",
+        context: [],
+        metadata: {},
+        commands: [],
+      },
+    },
+  );
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(admission, { queued: false });
+  assert.equal(forwardedImages, undefined);
+  const projected = projectPiComposerContext(
+    [{ role: "user", content: forwardedPrompt, timestamp: 1 }],
+    host.session.sessionManager.getBranch(),
+  );
+  assert.deepEqual(projected, [
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "你好 " },
+        {
+          type: "text",
+          text: "[Attached image/png: image.png] [Media omitted from provider request because the selected model does not support image input.]",
+        },
+        { type: "text", text: `[Image: source: ${image.path}]` },
+        { type: "text", text: "[Attached application/pdf: spec.pdf]" },
+        { type: "text", text: `[File: source: ${document.path}]` },
+      ],
+      timestamp: 1,
+    },
+  ]);
+  const history = await getSessionHistory(host.id);
+  const marker = history.context.messages.find(
+    (message) => message.role === "custom" && message.customType === "workbench.composer-user.v3",
+  );
+  assert.equal(marker?.role, "custom");
+  if (marker?.role === "custom") {
+    const details = marker.details as { fileAttachments?: unknown[]; attachments?: unknown[] };
+    assert.deepEqual(details.fileAttachments, [image, document]);
+    assert.equal(details.attachments, undefined);
+  }
 });
 
 test("records a durable in-thread failure when a text-only model receives a native image", async (t) => {
@@ -1395,7 +1381,6 @@ test("records a durable in-thread failure when a text-only model receives a nati
     else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
   });
 
-  await getImageUnderstandingSettingsStore().update({ patch: { routing: "native-only" } });
   const cwd = path.join(root, "project");
   await mkdir(cwd, { recursive: true });
   const host = await createSession(cwd, "native-image-unsupported");
@@ -1480,15 +1465,6 @@ test("records a durable in-thread failure when a text-only model receives a nati
   }
 
   const events = await getSessionEvents(host.id);
-  const recognitionStates = events.flatMap((event) => {
-    const data = event.data as { customType?: string; details?: { status?: string } };
-    return event.type === "message" &&
-      data.customType === "workbench.attachment-recognition.v1" &&
-      data.details?.status
-      ? [data.details.status]
-      : [];
-  });
-  assert.deepEqual(recognitionStates, []);
   assert.equal(
     events.some((event) => {
       const data = event.data as {
@@ -1561,322 +1537,6 @@ test("records a durable in-thread failure when a text-only model receives a nati
     "retry must reuse the original user node so only assistant answers branch",
   );
   assert.equal(persistedComposerUsers[0]?.id, persistedUserEntryId);
-});
-
-test("injects image and PDF OCR as isolated context without forwarding attachments to the text model", async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), "workbench-image-understanding-success-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
-  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
-  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
-  t.after(() => {
-    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
-    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
-    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
-  });
-
-  const credential = "private-glm-credential";
-  const resultCacheDirectory = path.join(root, "ocr cache");
-  await getImageUnderstandingSettingsStore().update({
-    patch: {
-      resultCacheDirectory,
-      routing: "always-preprocess",
-      engine: "ocr",
-      ocrProvider: "glm-ocr",
-      glm: {
-        endpoint: "https://ocr.example/layout",
-        model: "glm-ocr",
-        apiKey: credential,
-      },
-    },
-  });
-
-  const originalFetch = globalThis.fetch;
-  const submittedFiles: string[] = [];
-  globalThis.fetch = async (input, init) => {
-    assert.equal(String(input), "https://ocr.example/layout");
-    assert.equal(new Headers(init?.headers).get("Authorization"), `Bearer ${credential}`);
-    const body = JSON.parse(String(init?.body)) as { file?: string; model?: string };
-    assert.equal(body.model, "glm-ocr");
-    assert.ok(body.file);
-    submittedFiles.push(body.file);
-    if (body.file.startsWith("data:application/pdf;base64,")) {
-      return new Response(JSON.stringify({ md_results: "PDF reference: A-17" }));
-    }
-    assert.match(body.file, /^data:image\/png;base64,/);
-    return new Response(JSON.stringify({ md_results: "Image total: 42" }));
-  };
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  const cwd = path.join(root, "project");
-  await mkdir(cwd, { recursive: true });
-  const host = await createSession(cwd, "image-understanding-success");
-  const fakeAgent = host.session as unknown as {
-    model?: unknown;
-    modelRuntime: { getAvailableSnapshot(): unknown[] };
-    prompt(
-      message: string,
-      options: {
-        images?: unknown[];
-        preflightResult?: (accepted: boolean) => void;
-      },
-    ): Promise<void>;
-  };
-  const originalPrompt = fakeAgent.prompt;
-  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
-  let forwardedPrompt = "";
-  let forwardedImages: unknown[] | undefined;
-  fakeAgent.modelRuntime.getAvailableSnapshot = () =>
-    fakeAgent.model === undefined ? [] : [fakeAgent.model];
-  fakeAgent.prompt = async (message, options) => {
-    forwardedPrompt = message;
-    forwardedImages = options.images;
-    options.preflightResult?.(true);
-  };
-  t.after(() => {
-    fakeAgent.prompt = originalPrompt;
-    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
-    return host.shutdown();
-  });
-
-  const admission = await submitPrompt(
-    host.id,
-    "followUp",
-    {
-      message: "Read the invoice",
-      images: [
-        {
-          type: "image",
-          mimeType: "image/png",
-          data: "iVBORw0KGgo=",
-          name: "invoice.png",
-        },
-      ],
-      documents: [
-        {
-          type: "file",
-          mimeType: "application/pdf",
-          data: Buffer.from("%PDF-1.7\ninvoice fixture").toString("base64"),
-          name: "invoice.pdf",
-        },
-      ],
-    },
-    {
-      rpcId: "image-recognition-success-rpc",
-      composer: {
-        version: 2,
-        document: [{ type: "text", text: "Read the invoice" }],
-        sourceText: "Read the invoice",
-        text: "Read the invoice",
-        context: [],
-        metadata: {},
-        commands: [],
-      },
-    },
-  );
-  await new Promise<void>((resolve) => setImmediate(resolve));
-
-  assert.deepEqual(admission, { queued: false });
-  assert.equal(forwardedImages, undefined, "a text-model prompt must not retain attachment parts");
-  assert.match(forwardedPrompt, /<workbench-untrusted-context>/);
-  assert.match(forwardedPrompt, /"source":"workbench\.attachment-references"/);
-  assert.match(forwardedPrompt, /"attachmentId":"image-1","kind":"image","sequence":1/);
-  assert.match(forwardedPrompt, /"attachmentId":"pdf-1","kind":"pdf","sequence":1/);
-  assert.match(forwardedPrompt, /<workbench-attachment-results>/);
-  assert.doesNotMatch(forwardedPrompt, /Image total: 42|PDF reference: A-17/);
-  const resultPaths = [...forwardedPrompt.matchAll(/<attachment [^>]*path="([^"]+)"/gu)].map(
-    (match) => match[1]!,
-  );
-  assert.equal(resultPaths.length, 2);
-  assert.ok(resultPaths.every((file) => file.startsWith(`${resultCacheDirectory}${path.sep}`)));
-  assert.deepEqual(await Promise.all(resultPaths.map((file) => readFile(file, "utf8"))), [
-    "Image total: 42",
-    "PDF reference: A-17",
-  ]);
-  assert.match(forwardedPrompt, /Read the invoice/);
-  assert.equal(forwardedPrompt.includes(credential), false);
-  assert.deepEqual(
-    submittedFiles.map((file) => file.slice(5, file.indexOf(";"))),
-    ["image/png", "application/pdf"],
-  );
-
-  const events = await getSessionEvents(host.id);
-  const recognitionStates = events.flatMap((event) => {
-    const data = event.data as {
-      customType?: string;
-      details?: {
-        status?: string;
-        stage?: string;
-        rpcId?: string;
-        results?: unknown;
-      };
-    };
-    return event.type === "message" &&
-      data.customType === "workbench.attachment-recognition.v1" &&
-      data.details?.status
-      ? [data.details]
-      : [];
-  });
-  assert.equal(recognitionStates[0]?.status, "pending");
-  assert.equal(recognitionStates.at(-1)?.status, "succeeded");
-  assert.ok(recognitionStates.some((state) => state.stage === "recognizing"));
-  assert.equal(recognitionStates.at(-2)?.stage, "normalizing");
-  assert.equal(recognitionStates.at(-1)?.rpcId, "image-recognition-success-rpc");
-  assert.deepEqual(recognitionStates.at(-1)?.results, [
-    {
-      attachmentId: "image-1",
-      format: "markdown",
-      text: "Image total: 42",
-    },
-    {
-      attachmentId: "pdf-1",
-      format: "markdown",
-      text: "PDF reference: A-17",
-    },
-  ]);
-  assert.equal(JSON.stringify(recognitionStates).includes(credential), false);
-});
-
-test("routes exported sendPrompt images through recognition before calling a text-only agent", async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), "workbench-legacy-direct-image-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
-  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
-  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
-  t.after(() => {
-    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
-    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
-    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
-  });
-
-  await getImageUnderstandingSettingsStore().update({
-    patch: {
-      routing: "always-preprocess",
-      engine: "ocr",
-      ocrProvider: "glm-ocr",
-      glm: { apiKey: "legacy-direct-private-credential" },
-    },
-  });
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ md_results: "Recognized by the legacy direct path" }));
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  const cwd = path.join(root, "project");
-  await mkdir(cwd, { recursive: true });
-  const host = await createSession(cwd, "legacy-direct-image");
-  const fakeAgent = host.session as unknown as {
-    model?: { input?: string[] };
-    modelRuntime: { getAvailableSnapshot(): unknown[] };
-    prompt(
-      message: string,
-      options: {
-        images?: unknown[];
-        preflightResult?: (accepted: boolean) => void;
-      },
-    ): Promise<void>;
-    followUp(message: string, images?: unknown[]): Promise<void>;
-  };
-  assert.equal(fakeAgent.model?.input?.includes("image") ?? false, false);
-  const originalPrompt = fakeAgent.prompt;
-  const originalFollowUp = fakeAgent.followUp;
-  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
-  let releaseRun: (() => void) | undefined;
-  let forwardedPrompt = "";
-  let forwardedImages: unknown[] | undefined;
-  fakeAgent.modelRuntime.getAvailableSnapshot = () =>
-    fakeAgent.model === undefined ? [] : [fakeAgent.model];
-  fakeAgent.prompt = async (message, options) => {
-    forwardedPrompt = message;
-    forwardedImages = options.images;
-    options.preflightResult?.(true);
-  };
-  t.after(() => {
-    releaseRun?.();
-    fakeAgent.prompt = originalPrompt;
-    fakeAgent.followUp = originalFollowUp;
-    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
-    return host.shutdown();
-  });
-
-  await sendPrompt(host.id, "Read this legacy image", [
-    {
-      type: "image",
-      mimeType: "image/png",
-      data: "iVBORw0KGgo=",
-      name: "legacy.png",
-    },
-  ]);
-  await new Promise<void>((resolve) => setImmediate(resolve));
-
-  assert.equal(forwardedImages, undefined, "the text-only agent must never receive image parts");
-  assert.match(forwardedPrompt, /<workbench-attachment-results>/);
-  assert.doesNotMatch(forwardedPrompt, /Recognized by the legacy direct path/);
-  const resultPath = forwardedPrompt.match(/<attachment [^>]*path="([^"]+)"/u)?.[1];
-  assert.ok(resultPath);
-  assert.equal(await readFile(resultPath, "utf8"), "Recognized by the legacy direct path");
-  assert.match(forwardedPrompt, /Read this legacy image/);
-  const recognitionStates = (await getSessionEvents(host.id)).flatMap((event) => {
-    const data = event.data as {
-      customType?: string;
-      details?: { status?: string };
-    };
-    return event.type === "message" &&
-      data.customType === "workbench.attachment-recognition.v1" &&
-      data.details?.status
-      ? [data.details.status]
-      : [];
-  });
-  assert.equal(recognitionStates[0], "pending");
-  assert.equal(recognitionStates.at(-1), "succeeded");
-  assert.ok(recognitionStates.slice(1, -1).every((status) => status === "running"));
-
-  let queuedPrompt = "";
-  let queuedImages: unknown[] | undefined;
-  fakeAgent.prompt = async (_message, options) => {
-    options.preflightResult?.(true);
-    await new Promise<void>((resolve) => {
-      releaseRun = resolve;
-    });
-  };
-  fakeAgent.followUp = async (message, images) => {
-    queuedPrompt = message;
-    queuedImages = images;
-  };
-  await sendPrompt(host.id, "Hold an active text-only turn");
-  await queuePrompt(host.id, "followUp", {
-    message: "Read this queued legacy image",
-    images: [{ type: "image", mimeType: "image/png", data: "iVBORw0KGgo=" }],
-  });
-  assert.equal(queuedImages, undefined, "a queued text-only turn must not receive image parts");
-  assert.match(queuedPrompt, /<workbench-attachment-results>/);
-  assert.doesNotMatch(queuedPrompt, /Recognized by the legacy direct path/);
-  const queuedResultPath = queuedPrompt.match(/<attachment [^>]*path="([^"]+)"/u)?.[1];
-  assert.ok(queuedResultPath);
-  assert.notEqual(queuedResultPath, resultPath);
-  assert.equal(await readFile(queuedResultPath, "utf8"), "Recognized by the legacy direct path");
-  assert.match(queuedPrompt, /Read this queued legacy image/);
-  const queuedRecognitionStates = (await getSessionEvents(host.id)).flatMap((event) => {
-    const data = event.data as {
-      customType?: string;
-      details?: { status?: string };
-    };
-    return event.type === "message" &&
-      data.customType === "workbench.attachment-recognition.v1" &&
-      data.details?.status
-      ? [data.details.status]
-      : [];
-  });
-  assert.deepEqual(queuedRecognitionStates.slice(-recognitionStates.length), recognitionStates);
-  releaseRun?.();
 });
 
 test("rejects image-bearing legacy queue snapshots before mutating a text-only agent queue", async (t) => {
@@ -2263,262 +1923,6 @@ test("cold history repairs a crashed first turn and the next hosted session sees
   assert.equal(host.session.agent.state.messages.at(-1)?.role, "assistant");
 });
 
-test("cancels in-flight recognition and retries it with freshly loaded routing", async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), "workbench-image-understanding-cancel-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
-  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
-  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
-  t.after(() => {
-    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
-    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
-    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
-  });
-
-  await getImageUnderstandingSettingsStore().update({
-    patch: {
-      routing: "always-preprocess",
-      engine: "ocr",
-      ocrProvider: "glm-ocr",
-      glm: { apiKey: "private-glm-credential" },
-    },
-  });
-
-  let reportFetchStarted!: () => void;
-  const fetchStarted = new Promise<void>((resolve) => {
-    reportFetchStarted = resolve;
-  });
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (_input, init) => {
-    reportFetchStarted();
-    return new Promise<Response>((_resolve, reject) => {
-      const abort = () => reject(new DOMException("aborted", "AbortError"));
-      if (init?.signal?.aborted) abort();
-      else init?.signal?.addEventListener("abort", abort, { once: true });
-    });
-  };
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  const cwd = path.join(root, "project");
-  await mkdir(cwd, { recursive: true });
-  const host = await createSession(cwd, "image-understanding-cancel");
-  const fakeAgent = host.session as unknown as {
-    agent: { state: { model?: { provider: string; id: string; input: string[] } } };
-    model?: { provider: string; id: string; input: string[] };
-    modelRuntime: { getAvailableSnapshot(): unknown[] };
-    prompt(
-      message: string,
-      options: {
-        images?: unknown[];
-        preflightResult?: (accepted: boolean) => void;
-      },
-    ): Promise<void>;
-  };
-  const originalPrompt = fakeAgent.prompt;
-  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
-  fakeAgent.prompt = async () => assert.fail("cancelled recognition must not start the model");
-  t.after(() => {
-    fakeAgent.prompt = originalPrompt;
-    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
-    return host.shutdown();
-  });
-
-  const submission = submitPrompt(
-    host.id,
-    "followUp",
-    {
-      message: "Read the image",
-      images: [{ type: "image", mimeType: "image/png", data: "iVBORw0KGgo=" }],
-    },
-    {
-      rpcId: "image-recognition-cancel-rpc",
-      composer: {
-        version: 2,
-        document: [{ type: "text", text: "Read the image" }],
-        sourceText: "Read the image",
-        text: "Read the image",
-        context: [],
-        metadata: {},
-        commands: [],
-      },
-    },
-  );
-  await fetchStarted;
-  await cancelSession(host.id);
-  assert.deepEqual(await submission, { queued: false });
-
-  const events = await getSessionEvents(host.id);
-  const recognitionStates = events.flatMap((event) => {
-    const data = event.data as {
-      customType?: string;
-      details?: { status?: string; rpcId?: string };
-    };
-    return event.type === "message" &&
-      data.customType === "workbench.attachment-recognition.v1" &&
-      data.details?.status
-      ? [data.details]
-      : [];
-  });
-  assert.equal(recognitionStates.at(-1)?.status, "cancelled");
-  assert.equal(recognitionStates.at(-1)?.rpcId, "image-recognition-cancel-rpc");
-  assert.equal(events.at(-1)?.type, "command_error");
-  assert.equal(host.isRunning, false);
-
-  const cancelledMarker = host.session.sessionManager
-    .getBranch()
-    .find(
-      (entry) =>
-        entry.type === "custom_message" && entry.customType === "workbench.composer-user.v3",
-    );
-  assert.ok(cancelledMarker);
-  const cancelledUserEvent = events.find((event) => {
-    const data = event.data as { message?: { customType?: string } };
-    return (
-      event.type === "message_end" && data.message?.customType === "workbench.composer-user.v3"
-    );
-  });
-  assert.ok(cancelledUserEvent?.entryId);
-  assert.notEqual(cancelledUserEvent.entryId, cancelledMarker.id);
-  assert.ok(fakeAgent.model);
-  const visionModel = { ...fakeAgent.model, input: ["text", "image"] };
-  fakeAgent.modelRuntime.getAvailableSnapshot = () => [visionModel];
-  fakeAgent.agent.state.model = visionModel;
-  await getImageUnderstandingSettingsStore().update({ patch: { routing: "native-only" } });
-
-  let retriedImages: unknown[] | undefined;
-  fakeAgent.prompt = async (_message, options) => {
-    retriedImages = options.images;
-    options.preflightResult?.(true);
-  };
-  let retriedOcr = false;
-  globalThis.fetch = async () => {
-    retriedOcr = true;
-    throw new Error("native retry must not call the old OCR provider");
-  };
-
-  await regenerateSession(host.id, cancelledUserEvent.entryId, "attachment-native-retry-rpc");
-  await new Promise<void>((resolve) => setImmediate(resolve));
-
-  assert.equal(retriedOcr, false);
-  assert.equal(retriedImages?.length, 1);
-  const retriedRecognitionStates = (await getSessionEvents(host.id)).flatMap((event) => {
-    const data = event.data as {
-      customType?: string;
-      details?: { status?: string; method?: string; rpcId?: string };
-    };
-    return event.type === "message" &&
-      data.customType === "workbench.attachment-recognition.v1" &&
-      data.details?.rpcId === "attachment-native-retry-rpc"
-      ? [data.details]
-      : [];
-  });
-  assert.deepEqual(retriedRecognitionStates, []);
-});
-
-test("keeps cancellation authoritative during the recognition-to-prompt handoff", async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), "workbench-image-handoff-cancel-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
-  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
-  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
-  t.after(() => {
-    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
-    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
-    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
-  });
-
-  await getImageUnderstandingSettingsStore().update({
-    patch: {
-      routing: "always-preprocess",
-      engine: "ocr",
-      ocrProvider: "glm-ocr",
-      glm: { apiKey: "private-glm-credential" },
-    },
-  });
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response(JSON.stringify({ md_results: "handoff OCR result" }));
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  const cwd = path.join(root, "project");
-  await mkdir(cwd, { recursive: true });
-  const host = await createSession(cwd, "image-understanding-handoff-cancel");
-  let reportResolutionReached!: () => void;
-  let releaseResolution!: () => void;
-  const resolutionReached = new Promise<void>((resolve) => {
-    reportResolutionReached = resolve;
-  });
-  const resolutionGate = new Promise<void>((resolve) => {
-    releaseResolution = resolve;
-  });
-  const fakeAgent = host.session as unknown as {
-    prompt(): Promise<void>;
-    sendCustomMessage(
-      message: { customType: string; content: unknown; display: boolean; details?: unknown },
-      options?: { triggerTurn?: boolean },
-    ): Promise<void>;
-  };
-  const originalPrompt = fakeAgent.prompt;
-  const originalSendCustomMessage = fakeAgent.sendCustomMessage;
-  let promptCalled = false;
-  fakeAgent.prompt = async () => {
-    promptCalled = true;
-  };
-  fakeAgent.sendCustomMessage = async (message, options) => {
-    if (message.customType === "workbench.composer-resolution.v2") {
-      reportResolutionReached();
-      await resolutionGate;
-    }
-    await originalSendCustomMessage.call(host.session, message, options);
-  };
-  t.after(() => {
-    fakeAgent.prompt = originalPrompt;
-    fakeAgent.sendCustomMessage = originalSendCustomMessage;
-    releaseResolution?.();
-    return host.shutdown();
-  });
-
-  const submission = submitPrompt(
-    host.id,
-    "followUp",
-    {
-      message: "Read the image",
-      images: [{ type: "image", mimeType: "image/png", data: "iVBORw0KGgo=" }],
-    },
-    {
-      rpcId: "image-handoff-cancel-rpc",
-      composer: {
-        version: 2,
-        document: [{ type: "text", text: "Read the image" }],
-        sourceText: "Read the image",
-        text: "Read the image",
-        context: [],
-        metadata: {},
-        commands: [],
-      },
-    },
-  );
-  await resolutionReached;
-  assert.equal(host.isRunning, false, "attachment preparation is not a Pi agent run");
-  assert.equal(host.isBusy, true, "the Workbench host still owns the in-flight submission");
-  const cancellation = cancelSession(host.id);
-  releaseResolution();
-  await Promise.all([cancellation, submission]);
-
-  assert.equal(promptCalled, false);
-  assert.equal(host.isRunning, false);
-  assert.equal(host.isBusy, false);
-  const events = await getSessionEvents(host.id);
-  assert.equal(events.at(-1)?.type, "command_error");
-});
-
 test("validates every Pi command before executing any Composer command", async () => {
   let promptCount = 0;
   const session = {
@@ -2769,18 +2173,6 @@ test("keeps Composer correlation when branch history falls back to Pi context en
     images: [{ data: "iVBORw0KGgo=", mimeType: "image/png", name: "scan.png" }],
     status: "accepted",
   });
-  manager.appendCustomEntry("workbench.attachment-recognition.v1", {
-    version: 1,
-    operationId: "operation-context-branch",
-    submissionId: "submission-context-branch",
-    revision: 1,
-    status: "succeeded",
-    method: "ocr",
-    providerId: "glm-ocr",
-    attachmentCount: 1,
-    completedCount: 1,
-    progress: 1,
-  });
   manager.appendCustomMessageEntry("workbench.composer-resolution.v1", "", false, {
     version: 1,
     submissionId: "submission-context-branch",
@@ -2788,7 +2180,7 @@ test("keeps Composer correlation when branch history falls back to Pi context en
     commandTrace: [],
   });
   const compiledPrompt =
-    "<workbench-untrusted-context>OCR 42</workbench-untrusted-context>\n<user-request>Read the image</user-request>";
+    "<workbench-untrusted-context>Reference 42</workbench-untrusted-context>\n<user-request>Read the image</user-request>";
   manager.appendMessage({ role: "user", content: compiledPrompt, timestamp: 2_000 });
   manager.appendMessage(assistantMessage("Done", 2_001));
   initializeSessionEventJournal(manager, [
@@ -2811,152 +2203,6 @@ test("keeps Composer correlation when branch history falls back to Pi context en
     submissionId: "submission-context-branch",
     sourceText: "Read the image",
     document: [{ type: "text", text: "Read the image" }],
-    hidden: true,
-  });
-});
-
-test("reconciles an interrupted image-recognition operation when a session reopens", async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), "workbench-interrupted-recognition-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
-  t.after(() => {
-    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
-  });
-
-  const cwd = path.join(root, "project");
-  await mkdir(cwd, { recursive: true });
-  const manager = SessionManager.create(cwd, undefined, { id: "interrupted-recognition" });
-  const user = { role: "user" as const, content: "Read", timestamp: 1_000 };
-  const assistant = assistantMessage("Previous answer", 1_001);
-  manager.appendMessage(user);
-  manager.appendMessage(assistant);
-  manager.appendCustomMessageEntry("workbench.composer-user.v2", "", false, {
-    version: 2,
-    submissionId: "interrupted-submission",
-    sourceText: "Old image request",
-    text: "Old image request",
-    document: [{ type: "text", text: "Old image request" }],
-    commands: [],
-    status: "accepted",
-  });
-  initializeSessionEventJournal(manager, [
-    { type: "message", seq: 0, time: 1_000, data: user },
-    { type: "message", seq: 1, time: 1_001, data: assistant },
-    {
-      type: "message",
-      seq: 2,
-      time: 1_002,
-      data: {
-        role: "custom",
-        customType: "workbench.attachment-recognition.v1",
-        content: "",
-        display: true,
-        details: {
-          version: 1,
-          operationId: "interrupted-operation",
-          submissionId: "interrupted-submission",
-          revision: 0,
-          status: "pending",
-          method: "ocr",
-          providerId: "glm-ocr",
-          attachmentCount: 1,
-          completedCount: 0,
-          progress: 0,
-          timestamps: { createdAt: 1_002, updatedAt: 1_002 },
-        },
-      },
-    },
-  ]);
-
-  const host = await getOrStartSession("interrupted-recognition");
-  t.after(() => host.shutdown());
-  const events = await getSessionEvents(host.id);
-  const snapshots = events.flatMap((event) => {
-    const data = event.data as {
-      customType?: string;
-      details?: { status?: string; stage?: string; errorCode?: string };
-    };
-    return event.type === "message" &&
-      data.customType === "workbench.attachment-recognition.v1" &&
-      data.details?.status
-      ? [data.details]
-      : [];
-  });
-  assert.deepEqual(
-    snapshots.map(({ status, stage, errorCode }) => ({ status, stage, errorCode })),
-    [
-      { status: "pending", stage: undefined, errorCode: undefined },
-      { status: "running", stage: "fallback", errorCode: undefined },
-      { status: "failed", stage: undefined, errorCode: "recognition-interrupted" },
-    ],
-  );
-
-  const resolutions = events.flatMap((event) => {
-    const data = event.data as {
-      customType?: string;
-      details?: { submissionId?: string; status?: string; commandTrace?: unknown[] };
-    };
-    return event.type === "message" &&
-      data.customType === "workbench.composer-resolution.v2" &&
-      data.details?.submissionId === "interrupted-submission"
-      ? [data.details]
-      : [];
-  });
-  assert.deepEqual(resolutions, [
-    {
-      version: 2,
-      submissionId: "interrupted-submission",
-      status: "command_error",
-      commandTrace: [],
-    },
-  ]);
-
-  await host.shutdown();
-  const sessionFile = manager.getSessionFile();
-  assert.ok(sessionFile);
-  const reopened = SessionManager.open(sessionFile);
-  reopened.appendCustomMessageEntry("workbench.composer-user.v2", "", false, {
-    version: 2,
-    submissionId: "next-command-submission",
-    sourceText: "New command request",
-    text: "New command request",
-    document: [{ type: "text", text: "New command request" }],
-    commands: [],
-    status: "accepted",
-  });
-  reopened.appendMessage({
-    role: "user",
-    content: "/plan New command request",
-    timestamp: 2_000,
-  });
-  reopened.appendMessage(assistantMessage("New command answer", 2_001));
-  reopened.appendCustomMessageEntry("workbench.composer-resolution.v1", "", false, {
-    version: 1,
-    submissionId: "next-command-submission",
-    status: "completed",
-    commandTrace: [],
-  });
-
-  const branches = await getSessionEventBranches("interrupted-recognition");
-  const projectedNextUser = branches.items[0]?.events.find(({ event }) => {
-    const data = event.data as { role?: string; content?: string };
-    return (
-      event.type === "message" &&
-      data.role === "user" &&
-      data.content === "/plan New command request"
-    );
-  })?.event.data as
-    | {
-        workbenchComposer?: { submissionId?: string; sourceText?: string };
-      }
-    | undefined;
-  assert.deepEqual(projectedNextUser?.workbenchComposer, {
-    version: 2,
-    submissionId: "next-command-submission",
-    sourceText: "New command request",
-    document: [{ type: "text", text: "New command request" }],
     hidden: true,
   });
 });

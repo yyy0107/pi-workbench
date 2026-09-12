@@ -1,4 +1,4 @@
-import type { ComposerTextAttachmentService } from "@workbench/agent-runtime-contracts/composer-attachments";
+import type { ComposerAttachmentService } from "@workbench/agent-runtime-contracts/composer-attachments";
 import { getComposerTextAttachmentStore } from "../attachments/composer-text-attachments";
 import { createComposerAttachmentRpcRoutes } from "./routes/composer-attachment-rpc-routes";
 import type { WorkbenchAgentServerAdapter } from "@workbench/agent-runtime-server/adapter";
@@ -78,7 +78,7 @@ import { projectRpcDomainError } from "@workbench/host-server/rpc";
 
 /** Injectable dependencies for the ordered Pi RPC route-group composition. */
 export interface PiRpcRouteGroupsDependencies {
-  readonly composerAttachments: ComposerTextAttachmentService;
+  readonly composerAttachments: ComposerAttachmentService;
   readonly usageStatistics: Parameters<typeof createUsageStatisticsRpcRoutes>[0];
   readonly session: SessionRpcRoutesDependencies;
   readonly sessionContextTrace: SessionContextTraceRpcRoutesDependencies;

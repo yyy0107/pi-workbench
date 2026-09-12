@@ -41,10 +41,6 @@ function stateEnvironment(stateRoot) {
   return {
     PI_CODING_AGENT_DIR: path.join(stateRoot, "agent"),
     PI_WORKBENCH_CONTEXT_TRACE_DIR: path.join(stateRoot, "context-trace"),
-    PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE: path.join(
-      stateRoot,
-      "image-understanding-state.json",
-    ),
     PI_WORKBENCH_SESSION_INDEX_FILE: path.join(stateRoot, "session-index.json"),
     PI_WORKBENCH_SETTINGS_FILE: path.join(stateRoot, "workbench-settings.json"),
     PI_WORKBENCH_STATE_DIR: path.join(stateRoot, "state"),

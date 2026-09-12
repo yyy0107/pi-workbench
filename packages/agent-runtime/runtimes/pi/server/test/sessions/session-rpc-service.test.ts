@@ -42,7 +42,6 @@ type SessionRpcScratchStore =
   import("../../src/sessions/session-rpc-service").SessionRpcScratchStore;
 
 const PNG_BASE64 = "iVBORw0KGgo=";
-const PDF_BASE64 = Buffer.from("%PDF-1.7\nfixture").toString("base64");
 
 const workspace: WorkspaceView = {
   workspaceId: "workspace-1",
@@ -805,12 +804,12 @@ test("renames, prompts, queues, and cancels supported session operations", async
         clientTimeZone: "US/Pacific",
         content: [
           { type: "text", text: "hello" },
-          { type: "image", mediaType: "image/png", data: PNG_BASE64, name: "screen.png" },
           {
-            type: "file",
-            mediaType: "application/pdf",
-            data: PDF_BASE64,
-            name: "notes.pdf",
+            type: "image",
+            mediaType: "image/png",
+            data: PNG_BASE64,
+            name: "screen.png",
+            attachmentId: "8b95d58b-3189-45f0-9be6-f7a9e4de7248",
           },
         ],
       },
@@ -834,12 +833,7 @@ test("renames, prompts, queues, and cancels supported session operations", async
           data: PNG_BASE64,
           mediaType: "image/png",
           name: "screen.png",
-        },
-        {
-          kind: "document",
-          data: PDF_BASE64,
-          mediaType: "application/pdf",
-          name: "notes.pdf",
+          attachmentId: "8b95d58b-3189-45f0-9be6-f7a9e4de7248",
         },
       ],
     },
@@ -1001,63 +995,6 @@ test("strictly admits inline image base64, signatures, media types, and count", 
   assert.equal(
     calls.some(({ name }) => name === "submit-prompt"),
     false,
-  );
-});
-
-test("strictly admits PDF base64, signatures, media types, and mixed attachment count", async () => {
-  const { service, calls } = harness();
-  await service.prompt({
-    sessionId: "session-1",
-    mode: "queue",
-    content: [
-      { type: "file", mediaType: "application/pdf", data: PDF_BASE64, name: "invoice.pdf" },
-    ],
-  });
-  assert.deepEqual(calls.at(-1), {
-    name: "submit-prompt",
-    value: {
-      threadId: "session-1",
-      mode: "follow-up",
-      prompt: {
-        text: "",
-        attachments: [
-          {
-            kind: "document",
-            mediaType: "application/pdf",
-            data: PDF_BASE64,
-            name: "invoice.pdf",
-          },
-        ],
-      },
-      provenance: {},
-    },
-  });
-
-  await assert.rejects(
-    service.prompt({
-      sessionId: "session-1",
-      mode: "queue",
-      content: [
-        {
-          type: "file",
-          mediaType: "application/pdf",
-          data: Buffer.from("not a PDF").toString("base64"),
-        },
-      ],
-    }),
-    { code: "attachment-error", details: { reason: "UNRECOGNIZED_DOCUMENT_FORMAT" } },
-  );
-  await assert.rejects(
-    service.prompt({
-      sessionId: "session-1",
-      mode: "queue",
-      content: Array.from({ length: 21 }, () => ({
-        type: "file" as const,
-        mediaType: "application/pdf" as const,
-        data: PDF_BASE64,
-      })),
-    }),
-    { code: "attachment-error", details: { reason: "TOO_MANY_INLINE_ATTACHMENTS" } },
   );
 });
 
@@ -1421,7 +1358,7 @@ test("edits, removes, and steers stable queue ids and translates queue races", a
   );
 });
 
-test("admits text references independently of inline image and PDF inputs", async () => {
+test("admits text references independently of inline images", async () => {
   const { service, calls } = harness();
   const attachmentId = "8b95d58b-3189-45f0-9be6-f7a9e4de7248";
   await service.prompt({
@@ -1455,6 +1392,25 @@ test("admits text references independently of inline image and PDF inputs", asyn
       threadId: "session-1",
       itemId: "text-queue",
       mutation: { kind: "edit", text: "new text", textAttachmentIds: [attachmentId] },
+    },
+  });
+});
+
+test("admits managed file references without treating them as inline images", async () => {
+  const { service, calls } = harness();
+  const attachmentId = "d719e248-b35d-4e37-b60f-b9040527c27a";
+  await service.prompt({
+    sessionId: "session-1",
+    mode: "queue",
+    content: [{ type: "file", attachmentId }],
+  });
+  assert.deepEqual(calls.at(-1), {
+    name: "submit-prompt",
+    value: {
+      threadId: "session-1",
+      mode: "follow-up",
+      prompt: { text: "", attachments: [{ kind: "file-reference", attachmentId }] },
+      provenance: {},
     },
   });
 });

@@ -1,8 +1,5 @@
 import { RPC_REQUEST_BODY_LIMITS } from "../rpc-request-budgets";
-import {
-  INLINE_DOCUMENT_MEDIA_TYPES,
-  INLINE_IMAGE_MEDIA_TYPES,
-} from "@workbench/agent-runtime-pi-protocol/attachments";
+import { INLINE_IMAGE_MEDIA_TYPES } from "@workbench/agent-runtime-pi-protocol/attachments";
 import {
   parseWorkbenchComposerSubmission,
   type WorkbenchComposerJsonValue,
@@ -102,20 +99,18 @@ const promptAttachmentContent = rpcObject({
   type: rpcLiteral("attachment"),
   attachmentId: rpcString({ minLength: 36, maxLength: 36 }),
 });
+const promptFileContent = rpcObject({
+  type: rpcLiteral("file"),
+  attachmentId: rpcString({ minLength: 36, maxLength: 36 }),
+});
 const promptTextContent = rpcObject({ type: rpcLiteral("text"), text: rpcString() });
 const promptImageContent = rpcObject({
   type: rpcLiteral("image"),
   mediaType: rpcEnum(INLINE_IMAGE_MEDIA_TYPES),
   data: rpcString(),
   name: rpcOptional(rpcString()),
+  attachmentId: rpcOptional(rpcString({ minLength: 36, maxLength: 36 })),
 });
-const promptDocumentContent = rpcObject({
-  type: rpcLiteral("file"),
-  mediaType: rpcEnum(INLINE_DOCUMENT_MEDIA_TYPES),
-  data: rpcString(),
-  name: rpcOptional(rpcString()),
-});
-
 function isComposerJsonValue(value: unknown, depth = 0): value is WorkbenchComposerJsonValue {
   if (depth > 32) return false;
   if (
@@ -234,12 +229,7 @@ const sessionPromptPayload = rpcObject({
   sessionId: nonEmptyString,
   mode: rpcEnum(["queue", "steer"]),
   content: rpcArray(
-    rpcUnion([
-      promptTextContent,
-      promptImageContent,
-      promptDocumentContent,
-      promptAttachmentContent,
-    ]),
+    rpcUnion([promptTextContent, promptImageContent, promptAttachmentContent, promptFileContent]),
   ),
   clientTimeZone: rpcOptional(rpcString()),
   composer: rpcOptional(composerSubmission),

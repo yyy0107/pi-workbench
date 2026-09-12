@@ -43,7 +43,14 @@ export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) 
         </p>
       </div>
 
-      <div className={`relative z-10 ${NEW_THREAD_COMPOSER_WIDTH_CLASS_NAME}`}>{children}</div>
+      {children ? (
+        <div
+          data-slot="empty-composer"
+          className={`relative z-10 ${NEW_THREAD_COMPOSER_WIDTH_CLASS_NAME}`}
+        >
+          {children}
+        </div>
+      ) : null}
 
       <div className="relative z-10 mt-5 flex flex-wrap justify-center gap-2">
         {starterPrompts.map((prompt) => (

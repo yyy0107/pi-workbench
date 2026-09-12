@@ -44,7 +44,10 @@ const promptEvent = {
       contextFiles: [],
       skills: [{ name: "example" }],
     },
-    images: { value: [], capture },
+    images: {
+      value: [{ type: "image", data: "iVBORw0KGgo=", mimeType: "image/png" }],
+      capture,
+    },
     tools: [
       {
         name: "bash",
@@ -81,6 +84,17 @@ test("projects the exact system prompt and one selected loading source", () => {
   );
 });
 
+test("projects a prompt attachment as part of the user message", () => {
+  assert.deepEqual(
+    contextTraceSelectedRawValue(promptEvent, {
+      type: "message-attachment",
+      source: "prompt",
+      attachmentIndex: 0,
+    }),
+    { type: "image", data: "iVBORw0KGgo=", mimeType: "image/png" },
+  );
+});
+
 test("projects one selected tool instead of every prompt resource", () => {
   assert.deepEqual(
     contextTraceSelectedRawValue(promptEvent, { type: "prompt-tool", toolName: "bash" }),
@@ -111,8 +125,14 @@ test("projects one context message and one output block by their source indexes"
       messages: {
         value: [
           { role: "system", content: "System" },
-          { role: "user", content: "Selected message" },
-        ],
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Selected message" },
+              { type: "image", data: "iVBORw0KGgo=", mimeType: "image/png" },
+            ],
+          },
+        ] as SessionContextTraceJsonValue,
         capture,
       },
     },
@@ -137,7 +157,22 @@ test("projects one context message and one output block by their source indexes"
       type: "context-message",
       sourceIndex: 1,
     }),
-    { role: "user", content: "Selected message" },
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "Selected message" },
+        { type: "image", data: "iVBORw0KGgo=", mimeType: "image/png" },
+      ],
+    },
+  );
+  assert.deepEqual(
+    contextTraceSelectedRawValue(contextEvent, {
+      type: "message-attachment",
+      source: "context",
+      sourceIndex: 1,
+      contentIndex: 1,
+    }),
+    { type: "image", data: "iVBORw0KGgo=", mimeType: "image/png" },
   );
   assert.deepEqual(
     contextTraceSelectedRawValue(contextEvent, {

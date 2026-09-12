@@ -100,8 +100,8 @@
   }
 
   .aui-composer-attachment-remove {
-    --button-icon-frame-size: var(--icon-frame-size-xs);
-    --button-icon-size: var(--icon-size-xs);
-    --button-icon-radius: var(--icon-frame-radius-xs);
+    --button-icon-frame-size: calc(var(--icon-frame-size-xs) - 2px);
+    --button-icon-size: calc(var(--icon-size-xs) - 2px);
+    --button-icon-radius: var(--button-radius);
   }
 }

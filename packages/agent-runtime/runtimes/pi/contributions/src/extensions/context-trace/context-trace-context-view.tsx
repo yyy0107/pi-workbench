@@ -24,7 +24,6 @@ import { cn } from "@workbench/shell/utils";
 import type {
   SessionContextTraceEvent,
   SessionContextTraceEventSummary,
-  SessionContextTraceJsonValue,
   SessionContextTraceContextUsage,
   SessionContextTraceTokenUsage,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
@@ -32,6 +31,7 @@ import type {
 import type { ContextTraceDetailFocus, ContextTraceDetailState } from "./context-trace-detail";
 import {
   listContextTraceMessages,
+  listContextTraceAttachments,
   listContextTraceOutputBlocks,
   type ContextTraceMessageRole,
 } from "./context-trace-messages";
@@ -75,10 +75,6 @@ function readyEvent(
   if (!traceId) return undefined;
   const detail = details.get(traceId);
   return detail?.status === "ready" ? detail.event : undefined;
-}
-
-function jsonArrayLength(value: SessionContextTraceJsonValue): number {
-  return Array.isArray(value) ? value.length : 0;
 }
 
 function outputMessageCapture(event: SessionContextTraceEvent | undefined) {
@@ -133,7 +129,6 @@ const EVENT_TONES = {
   skills: "text-teal-700 dark:text-teal-300",
   toolSchema: "text-cyan-700 dark:text-cyan-300",
   conversation: "text-indigo-700 dark:text-indigo-300",
-  runtime: "text-lime-700 dark:text-lime-300",
   tool: "text-orange-700 dark:text-orange-300",
   systemEvent: "text-amber-700 dark:text-amber-300",
 } as const;
@@ -160,6 +155,10 @@ export function contextTraceDetailFocusKey(focus: ContextTraceDetailFocus | unde
       return `message-role:${focus.role}`;
     case "context-message":
       return `context-message:${focus.sourceIndex}`;
+    case "message-attachment":
+      return focus.source === "prompt"
+        ? `prompt-attachment:${focus.attachmentIndex}`
+        : `context-attachment:${focus.sourceIndex}:${focus.contentIndex}`;
     case "trace-node":
       return `trace-node:${focus.node}`;
     case "output-message":
@@ -557,10 +556,10 @@ export function ContextTraceContextView({
         value: match.snippet,
         text: match.snippet,
         preview: match.snippet,
+        attachments: [],
         estimatedTokens: undefined,
         ...(match.toolName ? { toolName: match.toolName } : {}),
       }));
-    const attachments = composition ? jsonArrayLength(composition.detail.images.value) : undefined;
     const systemPromptSources =
       context?.detail.systemPromptSources ??
       (snapshot?.callContextCaptured ? undefined : composition?.detail.systemPromptSources);
@@ -656,6 +655,25 @@ export function ContextTraceContextView({
       ? messages !== undefined || conversationMessages.length > 0
         ? conversationMessages.map((message) => {
             const match = searchMatch(snapshot.traceId, `context-message:${message.sourceIndex}`);
+            const attachmentChildren = message.attachments.map((attachment) => ({
+              id: `conversation:${step.id}:${message.sourceIndex}:attachment:${attachment.contentIndex}`,
+              label:
+                attachment.name ??
+                t("extensions.contextTrace.attachmentNumber", {
+                  index: attachment.attachmentIndex + 1,
+                }),
+              icon: attachment.kind === "image" ? ImageIcon : FileTextIcon,
+              tone: EVENT_TONES.user,
+              meta: attachment.mediaType,
+              event: snapshot,
+              focus: {
+                type: "message-attachment" as const,
+                source: "context" as const,
+                sourceIndex: message.sourceIndex,
+                contentIndex: attachment.contentIndex,
+              },
+              loadTraceIds: [snapshot.traceId],
+            }));
             return {
               id: `conversation:${step.id}:${message.sourceIndex}`,
               label:
@@ -686,34 +704,13 @@ export function ContextTraceContextView({
                 sourceIndex: message.sourceIndex,
                 role: message.role,
               },
+              expandable: attachmentChildren.length > 0,
               loadTraceIds: [snapshot.traceId],
+              children: attachmentChildren,
             };
           })
         : [loadingNode(`conversation:${step.id}:loading`)]
       : [];
-
-    const runtimeChildren: TraceTreeNode[] = prompt
-      ? composition
-        ? attachments && attachments > 0
-          ? [
-              {
-                id: `runtime:${step.id}:attachments`,
-                label: t("extensions.contextTrace.tree.attachments"),
-                icon: ImageIcon,
-                tone: EVENT_TONES.runtime,
-                trailing: number(attachments),
-                event: prompt,
-                focus: { type: "prompt-section", section: "attachments" },
-                loadTraceIds: [prompt.traceId],
-              },
-            ]
-          : []
-        : [loadingNode(`runtime:${step.id}:loading`)]
-      : [];
-
-    const contextLoadIds = [prompt?.traceId, snapshot?.traceId].filter((value): value is string =>
-      Boolean(value),
-    );
     return [
       {
         id: `instructions:${step.id}`,
@@ -760,23 +757,6 @@ export function ContextTraceContextView({
         expandable: Boolean(snapshot),
         loadTraceIds: snapshot ? [snapshot.traceId] : [],
         children: conversationChildren,
-      },
-      {
-        id: `runtime:${step.id}`,
-        label: t("extensions.contextTrace.tree.runtime"),
-        icon: PackageIcon,
-        tone: EVENT_TONES.runtime,
-        trailing:
-          attachments === undefined
-            ? prompt
-              ? t("extensions.contextTrace.contextCountPending")
-              : "0"
-            : number(attachments),
-        event: prompt,
-        focus: { type: "prompt-section", section: "attachments" },
-        expandable: Boolean(prompt && (composition === undefined || runtimeChildren.length > 0)),
-        loadTraceIds: contextLoadIds,
-        children: runtimeChildren,
       },
     ] satisfies readonly TraceTreeNode[];
   };
@@ -844,8 +824,30 @@ export function ContextTraceContextView({
     const promptDetail = readyEvent(detailByTraceId, prompt?.traceId);
     const promptText =
       promptDetail?.kind === "prompt-composition" ? promptDetail.detail.prompt.text : undefined;
+    const promptAttachments =
+      promptDetail?.kind === "prompt-composition"
+        ? listContextTraceAttachments(promptDetail.detail.images.value)
+        : [];
     const children: TraceTreeNode[] = [];
     if (prompt) {
+      const attachmentChildren = promptAttachments.map((attachment) => ({
+        id: `user:${turn.id}:attachment:${attachment.contentIndex}`,
+        label:
+          attachment.name ??
+          t("extensions.contextTrace.attachmentNumber", {
+            index: attachment.attachmentIndex + 1,
+          }),
+        icon: attachment.kind === "image" ? ImageIcon : FileTextIcon,
+        tone: EVENT_TONES.user,
+        meta: attachment.mediaType,
+        event: prompt,
+        focus: {
+          type: "message-attachment" as const,
+          source: "prompt" as const,
+          attachmentIndex: attachment.attachmentIndex,
+        },
+        loadTraceIds: [prompt.traceId],
+      }));
       children.push({
         id: `user:${turn.id}`,
         label: t("extensions.contextTrace.tree.userMessage"),
@@ -855,7 +857,9 @@ export function ContextTraceContextView({
         searchText: promptText ?? promptMatch?.snippet ?? promptPreview,
         event: prompt,
         focus: { type: "prompt-section", section: "user-prompt" },
+        expandable: attachmentChildren.length > 0,
         loadTraceIds: [prompt.traceId],
+        children: attachmentChildren,
       });
     }
     for (const item of turn.items) {

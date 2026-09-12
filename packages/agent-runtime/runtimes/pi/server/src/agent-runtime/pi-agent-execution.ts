@@ -1,5 +1,4 @@
 import type {
-  PiDocumentContent,
   PiImageContent,
   PiQueuedPrompt,
   PiQueueMode,
@@ -74,6 +73,12 @@ const PI_EXECUTION_ERROR_CODE_MAP: Readonly<Record<string, AgentExecutionErrorCo
   "text-attachment-unavailable": "prompt-rejected",
   "text-attachment-invalid": "prompt-rejected",
   "text-attachment-discarded": "prompt-rejected",
+  "image-attachment-unavailable": "prompt-rejected",
+  "image-attachment-invalid": "prompt-rejected",
+  "image-attachment-discarded": "prompt-rejected",
+  "file-attachment-unavailable": "prompt-rejected",
+  "file-attachment-invalid": "prompt-rejected",
+  "file-attachment-discarded": "prompt-rejected",
 };
 
 function translatePiExecutionError(error: unknown): never {
@@ -88,13 +93,17 @@ function translatePiExecutionError(error: unknown): never {
 }
 
 function piPrompt(prompt: AgentExecutionPrompt): PiQueuedPrompt {
+  const fileAttachmentIds: string[] = [];
   const textAttachmentIds: string[] = [];
   const images: PiImageContent[] = [];
-  const documents: PiDocumentContent[] = [];
 
   for (const attachment of prompt.attachments) {
     if (attachment.kind === "text-reference") {
       textAttachmentIds.push(attachment.attachmentId);
+      continue;
+    }
+    if (attachment.kind === "file-reference") {
+      fileAttachmentIds.push(attachment.attachmentId);
       continue;
     }
     if (attachment.kind === "image") {
@@ -103,28 +112,18 @@ function piPrompt(prompt: AgentExecutionPrompt): PiQueuedPrompt {
         data: attachment.data,
         mimeType: attachment.mediaType,
         ...(attachment.name === undefined ? {} : { name: attachment.name }),
+        ...(attachment.attachmentId === undefined ? {} : { attachmentId: attachment.attachmentId }),
       });
       continue;
     }
-    if (attachment.mediaType !== "application/pdf") {
-      throw new AgentExecutionError(
-        "prompt-rejected",
-        "Pi accepts PDF documents only at this execution boundary.",
-      );
-    }
-    documents.push({
-      type: "file",
-      data: attachment.data,
-      mimeType: attachment.mediaType,
-      ...(attachment.name === undefined ? {} : { name: attachment.name }),
-    });
+    throw new AgentExecutionError("prompt-rejected", "Pi does not accept this attachment type.");
   }
 
   return {
     message: prompt.text,
+    ...(fileAttachmentIds.length ? { fileAttachmentIds } : {}),
     ...(textAttachmentIds.length ? { textAttachmentIds } : {}),
     ...(images.length ? { images } : {}),
-    ...(documents.length ? { documents } : {}),
   };
 }
 

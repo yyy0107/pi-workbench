@@ -4,7 +4,7 @@ interface ClipboardFileItem {
   getAsFile(): File | null;
 }
 
-interface ComposerImagePasteEvent {
+interface ComposerFilePasteEvent {
   readonly clipboardData: {
     readonly files?: ArrayLike<File>;
     readonly items?: ArrayLike<ClipboardFileItem>;
@@ -13,47 +13,48 @@ interface ComposerImagePasteEvent {
   stopPropagation(): void;
 }
 
-interface ComposerImagePasteTarget {
+interface ComposerFilePasteTarget {
   readonly attachmentsEnabled: boolean;
   addAttachment(file: File): Promise<void>;
 }
 
-function isImage(file: File): boolean {
-  return file.type.startsWith("image/");
+function isClipboardAttachment(file: File): boolean {
+  // Clipboard text/HTML representations must remain available to Lexical as ordinary paste.
+  return !file.type.startsWith("text/");
 }
 
-export function composerClipboardImages(
-  clipboardData: ComposerImagePasteEvent["clipboardData"],
+export function composerClipboardFiles(
+  clipboardData: ComposerFilePasteEvent["clipboardData"],
 ): File[] {
   if (!clipboardData) return [];
 
-  const files = Array.from(clipboardData.files ?? []).filter(isImage);
+  const files = Array.from(clipboardData.files ?? []).filter(isClipboardAttachment);
   if (files.length > 0) return files;
 
   return Array.from(clipboardData.items ?? []).flatMap((item) => {
-    if (item.kind !== "file" || !item.type.startsWith("image/")) return [];
+    if (item.kind !== "file" || item.type.startsWith("text/")) return [];
     const file = item.getAsFile();
-    return file && isImage(file) ? [file] : [];
+    return file && isClipboardAttachment(file) ? [file] : [];
   });
 }
 
-export async function addComposerImagesFromPaste(
-  event: ComposerImagePasteEvent,
-  target: ComposerImagePasteTarget,
+export async function addComposerFilesFromPaste(
+  event: ComposerFilePasteEvent,
+  target: ComposerFilePasteTarget,
 ): Promise<boolean> {
   if (!target.attachmentsEnabled) return false;
 
-  const images = composerClipboardImages(event.clipboardData);
-  if (images.length === 0) return false;
+  const files = composerClipboardFiles(event.clipboardData);
+  if (files.length === 0) return false;
 
   event.preventDefault();
-  // Lexical handles paste in its own root listener. Stop the image paste here
-  // so it does not also insert a clipboard text/HTML representation.
+  // Lexical handles paste in its own root listener. Stop the file paste here so it does not also
+  // insert a clipboard text/HTML representation.
   event.stopPropagation();
   await Promise.all(
-    images.map(async (image) => {
+    files.map(async (file) => {
       try {
-        await target.addAttachment(image);
+        await target.addAttachment(file);
       } catch {
         // The runtime publishes the attachment error before rejecting.
       }
@@ -61,3 +62,7 @@ export async function addComposerImagesFromPaste(
   );
   return true;
 }
+
+/** @deprecated Compatibility aliases for the previous image-only API names. */
+export const composerClipboardImages = composerClipboardFiles;
+export const addComposerImagesFromPaste = addComposerFilesFromPaste;

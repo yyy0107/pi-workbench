@@ -287,8 +287,10 @@ function ImageZoom({ src, alt, children, className }: ImageZoomProps) {
       <DialogContent
         closeLabel={t("assistant.image.closeZoom")}
         closeButtonFrame="none"
+        closeButtonInteraction="static"
+        closeButtonClassName="top-0 end-0 bg-black/65 text-white"
         overlayClassName="bg-black/80 supports-backdrop-filter:backdrop-blur-sm"
-        className="aui-image-zoom-dialog max-h-[calc(100dvh-2rem)] w-auto max-w-[calc(100vw-2rem)] bg-transparent p-0 shadow-none ring-0 sm:max-w-[calc(100vw-2rem)] [&>button]:bg-black/65 [&>button]:text-white [&>button]:hover:bg-black/85"
+        className="aui-image-zoom-dialog h-fit w-fit max-w-[calc(100vw-2rem)] gap-0 rounded-none bg-transparent p-0 pt-[calc(var(--icon-frame-size-sm)+0.5rem)] shadow-none ring-0 sm:max-w-[calc(100vw-2rem)]"
       >
         <DialogTitle className="sr-only">{t("assistant.image.zoom")}</DialogTitle>
         <img

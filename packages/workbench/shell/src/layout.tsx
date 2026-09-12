@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 export { isWorkbenchLayoutMoving } from "./shell/layout-motion";
+export { useNewThreadLayout } from "./layout/new-thread-layout";
 
 export {
   NEW_THREAD_COMPOSER_WIDTH,

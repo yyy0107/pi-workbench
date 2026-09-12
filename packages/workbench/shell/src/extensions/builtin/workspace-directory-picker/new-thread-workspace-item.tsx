@@ -5,6 +5,7 @@ import { MessageCirclePlusIcon } from "lucide-react";
 import { Button } from "@workbench/shell/ui";
 import { useAgentRuntime } from "@workbench/agent-runtime-client";
 import { useWorkbenchNavigation } from "@workbench/shell/navigation";
+import { useNewThreadLayout } from "@workbench/shell/layout";
 import { useI18n } from "@workbench/shell/i18n";
 import {
   useWorkspaceCapabilities,
@@ -16,6 +17,7 @@ export function NewThreadWorkspaceItem() {
   const { t } = useI18n();
   const runtime = useAgentRuntime();
   const navigation = useWorkbenchNavigation();
+  const { setDockComposerWhenEmpty } = useNewThreadLayout();
   const { activeWorkspaceId, workspaces } = useWorkspaceSelection();
   const targetWorkspaceId = preferredNewThreadWorkspaceId(
     activeWorkspaceId,
@@ -32,6 +34,8 @@ export function NewThreadWorkspaceItem() {
         if (targetWorkspaceId) beginNewThread(targetWorkspaceId);
         else destroyNewThread();
         runtime.createDraft(targetWorkspaceId ? { workspaceId: targetWorkspaceId } : undefined);
+        // The Runtime may reuse the project's draft; this entry still starts in the center.
+        setDockComposerWhenEmpty(false);
         navigation.openHome();
       }}
     >

@@ -9,9 +9,13 @@ import type {
   ConversationSnapshot,
 } from "@workbench/agent-runtime-contracts/conversation";
 import {
+  MANAGED_IMAGE_MEDIA_TYPES,
   PASTED_TEXT_MAX_BYTES,
   PASTED_TEXT_MAX_COUNT,
+  type ManagedFileAttachment,
   type PastedTextAttachment,
+  type ReadManagedFileAttachmentRequest,
+  type ReadManagedFileAttachmentResult,
   type ReadPastedTextAttachmentRequest,
   type ReadPastedTextAttachmentResult,
 } from "@workbench/agent-runtime-contracts/composer-attachments";
@@ -28,17 +32,6 @@ import {
   WORKBENCH_PROMPT_FAILURE_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_RUN_CONFIG_KEY,
 } from "@workbench/contracts/composer/request";
-import {
-  parseAttachmentRecognitionSnapshot,
-  reconcileAttachmentRecognitionSnapshot,
-  reduceAttachmentRecognitionSnapshot,
-  WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
-  WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
-  WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
-  WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
-  type AttachmentRecognitionSnapshot,
-} from "@workbench/attachment-understanding-contracts/state-machine";
-
 import type {
   PiAssistantMessage,
   PiEvent,
@@ -85,29 +78,20 @@ import {
   applyToolExecutionUpdate,
   appendMessageToPiPrompt,
   appendPiContextTraceAssistantPart,
-  attachmentRecognitionSnapshotFromMessage,
-  attachmentRecognitionSubmissionIdFromMessage,
   coalesceConsecutiveAssistantMessages,
   eventMessage,
   hasRunningWorkbenchCompactCommandResponse,
-  isAttachmentRecognitionOnlyAssistant,
-  isAttachmentRecognitionRetrySource,
   isPiContextTraceOnlyAssistant,
   mergePiContextTracePartsFromMessages,
   optimisticUserMessage,
   piAssistantToThreadMessage,
   piHistoryToThreadMessages,
   piUserMessageContent,
-  reconcileAttachmentRecognitionAssistantPart,
-  reconcileAttachmentRecognitionInMessages,
   reconcileLiveMessagesAfterHistory,
   reconcilePiContextTraceAssistantParts,
   sameUserPrompt,
-  upsertAttachmentRecognitionAssistantPart,
-  upsertAttachmentRecognitionInMessages,
   upsertWorkbenchComposerCommandResponse,
   upsertWorkbenchPromptFailure,
-  withoutAttachmentRecognitionUserParts,
   workbenchComposerCommandResponseId,
 } from "../messages/messages";
 import { PiMessageQueue, queueItemAppendMessage } from "../messages/queue";
@@ -193,23 +177,45 @@ function submissionMessage(
           status: { type: "complete" as const },
         };
       }
+      if (attachment.kind === "managed-file") {
+        if (attachment.status !== "ready") throw new Error("File attachment is not ready.");
+        const isImage = MANAGED_IMAGE_MEDIA_TYPES.some(
+          (mediaType) => mediaType === attachment.mediaType,
+        );
+        return {
+          id: attachment.key,
+          type: "image" as const,
+          name: attachment.name,
+          contentType: attachment.mediaType,
+          content: [
+            isImage
+              ? {
+                  type: "image" as const,
+                  image: attachment.source,
+                  filename: attachment.name,
+                  fileAttachment: attachment.attachment,
+                }
+              : {
+                  type: "file" as const,
+                  data: attachment.attachment.id,
+                  mimeType: attachment.mediaType,
+                  sourceType: "id" as const,
+                  filename: attachment.name,
+                  fileAttachment: attachment.attachment,
+                },
+          ],
+          status: { type: "complete" as const },
+        };
+      }
       const mediaType = attachment.mediaType ?? /^data:([^;,]+)/u.exec(attachment.source)?.[1];
       const isImage = mediaType?.startsWith("image/") === true;
+      if (!isImage) throw new TypeError("Unsupported Composer attachment");
       return {
         id: attachment.key,
-        type: isImage ? ("image" as const) : ("document" as const),
+        type: "image" as const,
         name: attachment.name,
         ...(mediaType ? { contentType: mediaType } : {}),
-        content: isImage
-          ? [{ type: "image" as const, image: attachment.source }]
-          : [
-              {
-                type: "file" as const,
-                data: attachment.source,
-                mimeType: mediaType ?? "application/pdf",
-                filename: attachment.name,
-              },
-            ],
+        content: [{ type: "image" as const, image: attachment.source }],
         status: { type: "complete" as const },
       };
     }),
@@ -278,13 +284,6 @@ function rawToolArgsTextFromEvent(event: PiEvent): Readonly<Record<string, strin
     (entry): entry is [string, string] => typeof entry[1] === "string",
   );
   return entries.length === 0 ? undefined : Object.fromEntries(entries);
-}
-
-function isRecognitionDataName(name: string): boolean {
-  return (
-    name === WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME ||
-    name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME
-  );
 }
 
 function livePiUserMessage(
@@ -478,10 +477,6 @@ export class PiClientSession implements ConversationSession {
   private terminalResponseReceived = false;
   private stopRequest?: Promise<void>;
   private readonly pendingPromptRpcIds = new Set<string>();
-  private readonly attachmentRecognitionSnapshots = new Map<
-    string,
-    AttachmentRecognitionSnapshot
-  >();
   private promptStartTimer?: ReturnType<typeof setTimeout>;
   private activeMessageTiming?: ActiveMessageTiming;
   private messagePublishScheduled = false;
@@ -648,6 +643,7 @@ export class PiClientSession implements ConversationSession {
       addPastedTextAttachment: (text) => this.addPastedTextAttachment(text),
       retryPastedTextAttachment: (key) => this.uploadPastedTextAttachment(key),
       readPastedTextAttachment: (input) => this.readPastedTextAttachment(input),
+      readManagedFileAttachment: (input) => this.readManagedFileAttachment(input),
       removeComposerAttachment: (key) => this.removeComposerAttachment(key),
       dismissComposerError: () => this.dismissComposerError(),
       send: (input) => this.submitComposer("send", input),
@@ -746,13 +742,10 @@ export class PiClientSession implements ConversationSession {
   }
 
   private async addComposerAttachment(attachment: ComposerAttachment): Promise<void> {
-    if (attachment.kind === "pasted-text")
-      throw new TypeError("Use addPastedTextAttachment to upload text.");
+    if (attachment.kind === "pasted-text" || attachment.kind === "managed-file")
+      throw new TypeError("Use the managed Composer attachment APIs.");
     const mediaType = attachment.mediaType ?? /^data:([^;,]+)/u.exec(attachment.source)?.[1];
-    if (
-      (!mediaType?.startsWith("image/") && mediaType !== "application/pdf") ||
-      !attachment.source.startsWith("data:")
-    ) {
+    if (!mediaType || !attachment.source.startsWith("data:")) {
       const error = Object.freeze({
         code: "attachment-invalid",
         message: "Unsupported Composer attachment",
@@ -762,9 +755,18 @@ export class PiClientSession implements ConversationSession {
       throw new TypeError(error.message);
     }
     if (this.composerValue.attachments.some(({ key }) => key === attachment.key)) return;
-    this.replaceComposer({
-      attachments: Object.freeze([...this.composerValue.attachments, Object.freeze(attachment)]),
+    const managed = Object.freeze({
+      kind: "managed-file" as const,
+      key: attachment.key,
+      name: attachment.name,
+      source: attachment.source,
+      mediaType,
+      status: "saving" as const,
     });
+    this.replaceComposer({
+      attachments: Object.freeze([...this.composerValue.attachments, managed]),
+    });
+    await this.uploadManagedFileAttachment(managed.key);
   }
 
   private removeComposerAttachment(key: string): void {
@@ -774,12 +776,13 @@ export class PiClientSession implements ConversationSession {
     );
     if (attachments.length === this.composerValue.attachments.length) return;
     this.replaceComposer({ attachments: Object.freeze(attachments) });
-    if (removed?.kind === "pasted-text") this.discardPastedTextAttachment(key);
+    if (removed?.kind === "pasted-text" || removed?.kind === "managed-file")
+      this.discardComposerAttachment(key);
   }
 
-  private discardPastedTextAttachment(id: string): void {
+  private discardComposerAttachment(id: string): void {
     void callPiRpc("composer.attachments.discard", { id }, this.manager.rpcTransportOptions).catch(
-      (error) => console.warn("[workbench] discard text attachment failed", error),
+      (error) => console.warn("[workbench] discard Composer attachment failed", error),
     );
   }
 
@@ -802,18 +805,14 @@ export class PiClientSession implements ConversationSession {
     await this.uploadPastedTextAttachment(key);
   }
 
-  private readonly pastedTextUploads = new Set<string>();
+  private readonly pastedTextUploads = new Map<string, Promise<void>>();
 
-  private async uploadPastedTextAttachment(key: string): Promise<void> {
+  private uploadPastedTextAttachment(key: string): Promise<void> {
+    const activeUpload = this.pastedTextUploads.get(key);
+    if (activeUpload) return activeUpload;
     const item = this.composerValue.attachments.find((attachment) => attachment.key === key);
-    if (
-      this.disposed ||
-      this.pastedTextUploads.has(key) ||
-      item?.kind !== "pasted-text" ||
-      item.status === "ready"
-    )
-      return;
-    this.pastedTextUploads.add(key);
+    if (this.disposed || item?.kind !== "pasted-text" || item.status === "ready")
+      return Promise.resolve();
     const saving = Object.freeze({ ...item, status: "saving" as const, error: undefined });
     this.replaceComposer({
       attachments: Object.freeze(
@@ -822,54 +821,126 @@ export class PiClientSession implements ConversationSession {
         ),
       ),
     });
-    try {
-      if (new TextEncoder().encode(item.text).length > PASTED_TEXT_MAX_BYTES)
-        throw new PiApiError("attachment-too-large", 400);
-      if (this.composerValue.attachments.length > PASTED_TEXT_MAX_COUNT)
-        throw new PiApiError("too-many-attachments", 400);
-      const attachment = await callPiRpc<{ id: string; text: string }, PastedTextAttachment>(
-        "composer.attachments.create",
-        { id: key, text: item.text },
-        this.manager.rpcTransportOptions,
-      );
-      if (this.disposed || !this.composerValue.attachments.includes(saving)) {
-        this.discardPastedTextAttachment(key);
-        return;
+    const upload = (async () => {
+      try {
+        if (new TextEncoder().encode(item.text).length > PASTED_TEXT_MAX_BYTES)
+          throw new PiApiError("attachment-too-large", 400);
+        if (this.composerValue.attachments.length > PASTED_TEXT_MAX_COUNT)
+          throw new PiApiError("too-many-attachments", 400);
+        const attachment = await callPiRpc<{ id: string; text: string }, PastedTextAttachment>(
+          "composer.attachments.create",
+          { id: key, text: item.text },
+          this.manager.rpcTransportOptions,
+        );
+        if (this.disposed || !this.composerValue.attachments.includes(saving)) {
+          this.discardComposerAttachment(key);
+          return;
+        }
+        this.replaceComposer({
+          attachments: Object.freeze(
+            this.composerValue.attachments.map((entry) =>
+              entry === saving
+                ? Object.freeze({
+                    kind: "pasted-text" as const,
+                    key,
+                    name: attachment.name,
+                    mediaType: "text/plain" as const,
+                    status: "ready" as const,
+                    attachment,
+                  })
+                : entry,
+            ),
+          ),
+        });
+      } catch (error) {
+        if (this.disposed || !this.composerValue.attachments.includes(saving)) return;
+        this.replaceComposer({
+          attachments: Object.freeze(
+            this.composerValue.attachments.map((entry) =>
+              entry === saving
+                ? Object.freeze({
+                    ...saving,
+                    status: "error" as const,
+                    error: error instanceof PiApiError ? error.code : "text-attachment-failed",
+                  })
+                : entry,
+            ),
+          ),
+        });
       }
-      this.replaceComposer({
-        attachments: Object.freeze(
-          this.composerValue.attachments.map((entry) =>
-            entry === saving
-              ? Object.freeze({
-                  kind: "pasted-text" as const,
-                  key,
-                  name: attachment.name,
-                  mediaType: "text/plain" as const,
-                  status: "ready" as const,
-                  attachment,
-                })
-              : entry,
-          ),
+    })().finally(() => this.pastedTextUploads.delete(key));
+    this.pastedTextUploads.set(key, upload);
+    return upload;
+  }
+
+  private readonly managedFileUploads = new Map<string, Promise<void>>();
+
+  private uploadManagedFileAttachment(key: string): Promise<void> {
+    const activeUpload = this.managedFileUploads.get(key);
+    if (activeUpload) return activeUpload;
+    const item = this.composerValue.attachments.find((attachment) => attachment.key === key);
+    if (this.disposed || item?.kind !== "managed-file" || item.status === "ready")
+      return Promise.resolve();
+    const saving = Object.freeze({ ...item, status: "saving" as const, error: undefined });
+    this.replaceComposer({
+      attachments: Object.freeze(
+        this.composerValue.attachments.map((attachment) =>
+          attachment === item ? saving : attachment,
         ),
-      });
-    } catch (error) {
-      if (this.disposed || !this.composerValue.attachments.includes(saving)) return;
-      this.replaceComposer({
-        attachments: Object.freeze(
-          this.composerValue.attachments.map((entry) =>
-            entry === saving
-              ? Object.freeze({
-                  ...saving,
-                  status: "error" as const,
-                  error: error instanceof PiApiError ? error.code : "text-attachment-failed",
-                })
-              : entry,
+      ),
+    });
+    const upload = (async () => {
+      try {
+        const match = /^data:([^;,]+);base64,([\s\S]*)$/u.exec(item.source);
+        if (!match || match[1] !== item.mediaType) throw new PiApiError("attachment-invalid", 400);
+        const attachment = await callPiRpc<
+          { id: string; name: string; mediaType: string; data: string },
+          ManagedFileAttachment
+        >(
+          "composer.attachments.createFile",
+          { id: key, name: item.name, mediaType: item.mediaType, data: match[2]! },
+          this.manager.rpcTransportOptions,
+        );
+        if (this.disposed || !this.composerValue.attachments.includes(saving)) {
+          this.discardComposerAttachment(key);
+          return;
+        }
+        this.replaceComposer({
+          attachments: Object.freeze(
+            this.composerValue.attachments.map((entry) =>
+              entry === saving
+                ? Object.freeze({
+                    kind: "managed-file" as const,
+                    key,
+                    name: attachment.name,
+                    source: `data:${attachment.mediaType};base64,${match[2]!}`,
+                    mediaType: attachment.mediaType,
+                    status: "ready" as const,
+                    attachment,
+                  })
+                : entry,
+            ),
           ),
-        ),
-      });
-    } finally {
-      this.pastedTextUploads.delete(key);
-    }
+        });
+      } catch (error) {
+        if (this.disposed || !this.composerValue.attachments.includes(saving)) return;
+        this.replaceComposer({
+          attachments: Object.freeze(
+            this.composerValue.attachments.map((entry) =>
+              entry === saving
+                ? Object.freeze({
+                    ...saving,
+                    status: "error" as const,
+                    error: error instanceof PiApiError ? error.code : "file-attachment-failed",
+                  })
+                : entry,
+            ),
+          ),
+        });
+      }
+    })().finally(() => this.managedFileUploads.delete(key));
+    this.managedFileUploads.set(key, upload);
+    return upload;
   }
 
   private readPastedTextAttachment(
@@ -878,9 +949,37 @@ export class PiClientSession implements ConversationSession {
     return callPiRpc("composer.attachments.read", input, this.manager.rpcTransportOptions);
   }
 
+  private readManagedFileAttachment(
+    input: ReadManagedFileAttachmentRequest,
+  ): Promise<ReadManagedFileAttachmentResult> {
+    return callPiRpc("composer.attachments.readFile", input, this.manager.rpcTransportOptions);
+  }
+
   private dismissComposerError(): void {
     if (!this.composerValue.error && this.composerValue.phase !== "error") return;
     this.replaceComposer({ phase: "idle", error: undefined });
+  }
+
+  private async prepareComposerAttachments(
+    attachments: readonly ComposerAttachment[],
+  ): Promise<readonly ComposerAttachment[] | undefined> {
+    await Promise.all(
+      attachments.map((attachment) => {
+        if (attachment.kind === "pasted-text" && attachment.status !== "ready")
+          return this.uploadPastedTextAttachment(attachment.key);
+        if (attachment.kind === "managed-file" && attachment.status !== "ready")
+          return this.uploadManagedFileAttachment(attachment.key);
+        return Promise.resolve();
+      }),
+    );
+    if (this.disposed) return undefined;
+    const currentByKey = new Map(
+      this.composerValue.attachments.map((attachment) => [attachment.key, attachment]),
+    );
+    const prepared = attachments.map((attachment) => currentByKey.get(attachment.key));
+    return prepared.every((attachment) => attachment !== undefined)
+      ? (prepared as ComposerAttachment[])
+      : undefined;
   }
 
   private async submitComposer(
@@ -888,14 +987,8 @@ export class PiClientSession implements ConversationSession {
     submission: ComposerSubmission,
   ): Promise<void> {
     if (this.disposed || this.composerValue.phase === "submitting") return;
-    if (
-      this.composerValue.attachments.some(
-        (attachment) => attachment.kind === "pasted-text" && attachment.status !== "ready",
-      )
-    )
-      return;
     // Delivery mode belongs to dispatch; submission.mode is model-facing request configuration.
-    const submitted = Object.freeze({ ...this.composerValue, mode });
+    let submitted = Object.freeze({ ...this.composerValue, mode });
     if (
       !submission.sourceText.trim() &&
       !submission.text.trim() &&
@@ -905,10 +998,49 @@ export class PiClientSession implements ConversationSession {
       return;
     }
 
+    if (
+      submitted.attachments.some(
+        (attachment) =>
+          (attachment.kind === "pasted-text" || attachment.kind === "managed-file") &&
+          attachment.status !== "ready",
+      )
+    ) {
+      this.replaceComposer({ phase: "submitting", error: undefined });
+      const prepared = await this.prepareComposerAttachments(submitted.attachments);
+      if (!prepared) {
+        this.replaceComposer({ phase: "idle" });
+        return;
+      }
+      const failed = prepared.find(
+        (attachment) =>
+          (attachment.kind === "pasted-text" || attachment.kind === "managed-file") &&
+          attachment.status !== "ready",
+      );
+      if (failed) {
+        const error = Object.freeze({
+          code:
+            failed.error === "attachment-too-large" ||
+            failed.error === "too-many-attachments" ||
+            failed.error === "attachment-invalid"
+              ? failed.error
+              : "attachment-invalid",
+          message: failed.error ?? "Attachment upload failed.",
+          recoverable: true,
+        });
+        this.replaceComposer({ phase: "error", error });
+        throw new Error(error.message);
+      }
+      submitted = Object.freeze({ ...submitted, attachments: Object.freeze(prepared) });
+    }
+
+    const submittedKeys = new Set(submitted.attachments.map((attachment) => attachment.key));
+    const current = this.composerValue;
     this.composerValue = Object.freeze({
-      ...this.composerValue,
-      text: "",
-      attachments: EMPTY_COMPOSER_ATTACHMENTS,
+      ...current,
+      text: current.text === submitted.text ? "" : current.text,
+      attachments: Object.freeze(
+        current.attachments.filter((attachment) => !submittedKeys.has(attachment.key)),
+      ),
       mode,
       phase: "submitting",
       error: undefined,
@@ -932,10 +1064,10 @@ export class PiClientSession implements ConversationSession {
     if (!item) return undefined;
     for (const attachment of this.composerValue.attachments) {
       if (
-        attachment.kind === "pasted-text" &&
+        (attachment.kind === "pasted-text" || attachment.kind === "managed-file") &&
         !item.attachments.some((entry) => entry.key === attachment.key)
       )
-        this.discardPastedTextAttachment(attachment.key);
+        this.discardComposerAttachment(attachment.key);
     }
     this.replaceComposer({
       text: item.text,
@@ -975,7 +1107,8 @@ export class PiClientSession implements ConversationSession {
   dispose(): void {
     if (this.disposed) return;
     for (const attachment of this.composerValue.attachments) {
-      if (attachment.kind === "pasted-text") this.discardPastedTextAttachment(attachment.key);
+      if (attachment.kind === "pasted-text" || attachment.kind === "managed-file")
+        this.discardComposerAttachment(attachment.key);
     }
     this.disposed = true;
     this.historyRebaselineGeneration += 1;
@@ -1007,7 +1140,6 @@ export class PiClientSession implements ConversationSession {
     this.historyHasMore = false;
     this.branchSwitchTask = undefined;
     this.pendingPromptRpcIds.clear();
-    this.attachmentRecognitionSnapshots.clear();
     this.activeMessageTiming = undefined;
     this.messageTimingByTimestamp.clear();
     this.toolTimingById.clear();
@@ -1089,10 +1221,7 @@ export class PiClientSession implements ConversationSession {
       historyMessages = coalesceConsecutiveAssistantMessages(historyMessages);
     }
     const projectedBaseMessages = mergePiContextTracePartsFromMessages(
-      this.stabilizeAuthoritativeMessageIds(
-        this.mergeAttachmentRecognitionHistory(historyMessages),
-        baseMessageIdsAtStart,
-      ),
+      this.stabilizeAuthoritativeMessageIds(historyMessages, baseMessageIdsAtStart),
       previousMessages,
     );
     const authoritativeStreamingMessage =
@@ -1148,7 +1277,7 @@ export class PiClientSession implements ConversationSession {
       ) {
         projected = { ...projected, id: streamingMessageAtStart.id };
       }
-      this.streamingMessage = this.preserveActiveAssistantRecognition(projected);
+      this.streamingMessage = this.preserveActiveAssistantPresentation(projected);
       this.activeAssistantMessageId = this.streamingMessage.id;
       this.terminalResponseReceived = false;
     }
@@ -1407,8 +1536,8 @@ export class PiClientSession implements ConversationSession {
           content: piPromptContent(
             prompt.text,
             prompt.images,
-            prompt.documents,
             prompt.textAttachments.map((attachment) => attachment.id),
+            prompt.fileAttachments.map((attachment) => attachment.id),
             workspaceFeedbackClaim?.items,
           ),
           ...(prompt.composer === undefined ? {} : { composer: prompt.composer }),
@@ -1473,9 +1602,6 @@ export class PiClientSession implements ConversationSession {
     if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
     await this.manager.waitForPendingSessionModelSelection(this.remoteIdValue);
     if (this.disposed) return;
-    const attachmentRetryRpcId = isAttachmentRecognitionRetrySource(source)
-      ? createPiRpcId("session.regenerate-attachment")
-      : undefined;
     const sourceEntryId =
       [source.metadata.custom.piResolvedEntryId, source.metadata.custom.piEntryId].find(
         (id): id is string => typeof id === "string" && id.length > 0,
@@ -1504,18 +1630,6 @@ export class PiClientSession implements ConversationSession {
       optimisticAssistantId,
       { optimistic: true, streaming: true, createdAt: Date.now() },
     );
-    if (attachmentRetryRpcId) {
-      this.streamingMessage = {
-        ...this.streamingMessage,
-        metadata: {
-          ...this.streamingMessage.metadata,
-          custom: {
-            ...this.streamingMessage.metadata.custom,
-            workbenchPromptRpcId: attachmentRetryRpcId,
-          },
-        },
-      };
-    }
     if (typeof sourceSequence === "number") this.lastSequence = sourceSequence;
     this.promptRequestPending = true;
     this.localRunLeaseActive = true;
@@ -1530,7 +1644,6 @@ export class PiClientSession implements ConversationSession {
         {
           sessionId: this.remoteIdValue,
           messageId: sourceEntryId,
-          ...(attachmentRetryRpcId === undefined ? {} : { requestId: attachmentRetryRpcId }),
         },
         this.manager.rpcTransportOptions,
       );
@@ -1729,8 +1842,8 @@ export class PiClientSession implements ConversationSession {
           content: piPromptContent(
             prompt.message,
             prompt.images,
-            prompt.documents,
             prompt.textAttachmentIds,
+            prompt.fileAttachmentIds,
             workspaceFeedbackClaim?.items,
           ),
           ...(prompt.composer === undefined ? {} : { composer: prompt.composer }),
@@ -1973,19 +2086,6 @@ export class PiClientSession implements ConversationSession {
       return;
     }
 
-    if (
-      customMessage?.role === "custom" &&
-      (customMessage.customType === WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE ||
-        customMessage.customType === WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE)
-    ) {
-      const snapshot = parseAttachmentRecognitionSnapshot(customMessage.details);
-      if (snapshot) {
-        this.markPromptStarted();
-        this.applyAttachmentRecognitionSnapshot(snapshot);
-      }
-      return;
-    }
-
     const conversationEvent = conversationEventFromSessionEvent(event.type, event);
     if (conversationEvent) {
       if (
@@ -2026,7 +2126,7 @@ export class PiClientSession implements ConversationSession {
           this.streamingMessage?.id ??
           createClientMessageId("pi-assistant");
         this.activeAssistantMessageId = assistantMessageId;
-        this.streamingMessage = this.preserveActiveAssistantRecognition(
+        this.streamingMessage = this.preserveActiveAssistantPresentation(
           piAssistantToThreadMessage(assistantMessage, assistantMessageId, {
             optimistic: true,
             streaming: true,
@@ -2062,7 +2162,7 @@ export class PiClientSession implements ConversationSession {
           this.streamingMessage?.id ??
           createClientMessageId("pi-assistant");
         this.activeAssistantMessageId = assistantMessageId;
-        this.streamingMessage = this.preserveActiveAssistantRecognition(
+        this.streamingMessage = this.preserveActiveAssistantPresentation(
           piAssistantToThreadMessage(assistantMessage, assistantMessageId, {
             optimistic: true,
             streaming: true,
@@ -2155,7 +2255,7 @@ export class PiClientSession implements ConversationSession {
           this.streamingMessage?.id ??
           createClientMessageId("pi-assistant");
         this.insertCompletedAssistantMessage(
-          this.preserveActiveAssistantRecognition(
+          this.preserveActiveAssistantPresentation(
             piAssistantToThreadMessage(assistantMessage, assistantMessageId, {
               optimistic: true,
               timing,
@@ -2210,7 +2310,7 @@ export class PiClientSession implements ConversationSession {
       .catch((error) => console.error("[workbench-pi] stream rebaseline failed", error));
   }
 
-  private preserveActiveAssistantRecognition(message: ThreadMessage): ThreadMessage {
+  private preserveActiveAssistantPresentation(message: ThreadMessage): ThreadMessage {
     if (message.role !== "assistant") return message;
 
     const previous =
@@ -2218,7 +2318,6 @@ export class PiClientSession implements ConversationSession {
     let projected: ThreadAssistantMessage = message;
     if (previous) {
       const promptRpcId = previous.metadata.custom.workbenchPromptRpcId;
-      const submissionId = attachmentRecognitionSubmissionIdFromMessage(previous);
       projected = {
         ...message,
         metadata: {
@@ -2226,17 +2325,10 @@ export class PiClientSession implements ConversationSession {
           custom: {
             ...message.metadata.custom,
             ...(typeof promptRpcId === "string" ? { workbenchPromptRpcId: promptRpcId } : {}),
-            ...(typeof submissionId === "string"
-              ? { workbenchAttachmentRecognitionSubmissionId: submissionId }
-              : {}),
           },
         },
       };
       projected = reconcilePiContextTraceAssistantParts(projected, previous);
-      const recognition = attachmentRecognitionSnapshotFromMessage(previous);
-      if (recognition) {
-        projected = upsertAttachmentRecognitionAssistantPart(projected, recognition);
-      }
     }
     if (this.pendingContextTraceEvents.length > 0) {
       for (const event of this.pendingContextTraceEvents) {
@@ -2275,9 +2367,7 @@ export class PiClientSession implements ConversationSession {
               candidate.role === "user" &&
               candidate.metadata.custom.piOptimistic === true &&
               candidate.metadata.custom.piUserMessageStarted !== true &&
-              (attachmentRecognitionSnapshotFromMessage(candidate)?.submissionId ===
-                workbenchComposer?.submissionId ||
-                sameUserPrompt(candidate, rawUserMessage) ||
+              (sameUserPrompt(candidate, rawUserMessage) ||
                 sameUserPrompt(candidate, projectedUserMessage)),
           );
 
@@ -2316,12 +2406,7 @@ export class PiClientSession implements ConversationSession {
       );
       this.liveMessages[optimisticIndex] = {
         ...optimistic,
-        content: [
-          ...authoritativeContent.filter(
-            (part) => part.type !== "data" || !isRecognitionDataName(part.name),
-          ),
-          ...optimisticDisplayAttachments,
-        ],
+        content: [...authoritativeContent, ...optimisticDisplayAttachments],
         createdAt: projectedUserMessage.createdAt,
         metadata: {
           ...optimistic.metadata,
@@ -2437,115 +2522,6 @@ export class PiClientSession implements ConversationSession {
       return true;
     };
     if (!bind(this.liveMessages)) bind(this.baseMessages);
-  }
-
-  private applyAttachmentRecognitionSnapshot(incoming: AttachmentRecognitionSnapshot): void {
-    const current = this.attachmentRecognitionSnapshots.get(incoming.operationId);
-    let next = incoming;
-    if (current) {
-      try {
-        next = reduceAttachmentRecognitionSnapshot(current, incoming);
-      } catch {
-        return;
-      }
-      if (next === current) return;
-    }
-    this.attachmentRecognitionSnapshots.set(next.operationId, next);
-    this.baseMessages = withoutAttachmentRecognitionUserParts(this.baseMessages);
-    this.liveMessages = withoutAttachmentRecognitionUserParts(this.liveMessages);
-    const streamingRecognition = this.streamingMessage
-      ? attachmentRecognitionSnapshotFromMessage(this.streamingMessage)
-      : undefined;
-    const streamingPromptRpcId = this.streamingMessage?.metadata.custom.workbenchPromptRpcId;
-    const streamingSubmissionId = this.streamingMessage
-      ? attachmentRecognitionSubmissionIdFromMessage(this.streamingMessage)
-      : undefined;
-    const belongsToStreamingAssistant =
-      this.streamingMessage?.role === "assistant" &&
-      (streamingRecognition?.operationId === next.operationId ||
-        (next.rpcId !== undefined && streamingPromptRpcId === next.rpcId) ||
-        streamingSubmissionId === next.submissionId);
-    if (belongsToStreamingAssistant && this.streamingMessage?.role === "assistant") {
-      this.streamingMessage = upsertAttachmentRecognitionAssistantPart(this.streamingMessage, next);
-    } else {
-      const baseMessageIds = new Set(this.baseMessages.map((message) => message.id));
-      const projectedBaseMessages = upsertAttachmentRecognitionInMessages(this.baseMessages, next);
-      const detachedBaseStatus = projectedBaseMessages.find(
-        (message) =>
-          !baseMessageIds.has(message.id) && isAttachmentRecognitionOnlyAssistant(message),
-      );
-      const projectedLiveMessages = upsertAttachmentRecognitionInMessages(this.liveMessages, next);
-      const liveStatus = projectedLiveMessages.find(
-        (message) =>
-          message.role === "assistant" &&
-          attachmentRecognitionSnapshotFromMessage(message)?.operationId === next.operationId,
-      );
-      if (detachedBaseStatus && (!liveStatus || isAttachmentRecognitionOnlyAssistant(liveStatus))) {
-        // A status projected from an older base user has to remain interleaved with that base
-        // history. Moving it into liveMessages puts it after every base turn, where consecutive
-        // assistant coalescing can incorrectly attach it to the currently streaming response.
-        this.baseMessages = projectedBaseMessages;
-        this.liveMessages = projectedLiveMessages.filter(
-          (message) =>
-            !isAttachmentRecognitionOnlyAssistant(message) ||
-            attachmentRecognitionSnapshotFromMessage(message)?.operationId !== next.operationId,
-        );
-      } else {
-        this.baseMessages = projectedBaseMessages.filter((message) =>
-          baseMessageIds.has(message.id),
-        );
-        this.liveMessages = projectedLiveMessages;
-      }
-    }
-    this.publishMessages();
-  }
-
-  private mergeAttachmentRecognitionHistory(messages: readonly ThreadMessage[]): ThreadMessage[] {
-    for (const message of messages) {
-      const incoming = attachmentRecognitionSnapshotFromMessage(message);
-      if (!incoming) continue;
-      const current = this.attachmentRecognitionSnapshots.get(incoming.operationId);
-      if (!current) {
-        this.attachmentRecognitionSnapshots.set(incoming.operationId, incoming);
-        continue;
-      }
-      try {
-        const next = reconcileAttachmentRecognitionSnapshot(current, incoming);
-        if (next !== current) this.attachmentRecognitionSnapshots.set(next.operationId, next);
-      } catch {
-        // Keep the last valid live snapshot when persisted history conflicts at one revision.
-      }
-    }
-
-    let reconciled = withoutAttachmentRecognitionUserParts(messages);
-    for (const snapshot of this.attachmentRecognitionSnapshots.values()) {
-      const streamingRecognition = this.streamingMessage
-        ? attachmentRecognitionSnapshotFromMessage(this.streamingMessage)
-        : undefined;
-      const streamingPromptRpcId = this.streamingMessage?.metadata.custom.workbenchPromptRpcId;
-      const streamingSubmissionId = this.streamingMessage
-        ? attachmentRecognitionSubmissionIdFromMessage(this.streamingMessage)
-        : undefined;
-      const belongsToStreamingAssistant =
-        this.streamingMessage?.role === "assistant" &&
-        (streamingRecognition?.operationId === snapshot.operationId ||
-          (snapshot.rpcId !== undefined && streamingPromptRpcId === snapshot.rpcId) ||
-          streamingSubmissionId === snapshot.submissionId);
-      if (belongsToStreamingAssistant && this.streamingMessage?.role === "assistant") {
-        this.streamingMessage = reconcileAttachmentRecognitionAssistantPart(
-          this.streamingMessage,
-          snapshot,
-        );
-        reconciled = reconciled.filter(
-          (message) =>
-            !isAttachmentRecognitionOnlyAssistant(message) ||
-            attachmentRecognitionSnapshotFromMessage(message)?.operationId !== snapshot.operationId,
-        );
-      } else {
-        reconciled = reconcileAttachmentRecognitionInMessages(reconciled, snapshot);
-      }
-    }
-    return reconciled;
   }
 
   private startToolTiming(toolCallId: string, startedAt: number): ToolCallTiming {
@@ -2679,48 +2655,6 @@ export class PiClientSession implements ConversationSession {
 
   private discardEmptyOptimisticAssistant(): boolean {
     const message = this.streamingMessage;
-    const recognition = message ? attachmentRecognitionSnapshotFromMessage(message) : undefined;
-    const recognitionOnly =
-      message?.role === "assistant" &&
-      recognition !== undefined &&
-      message.content.every(
-        (part) =>
-          (part.type === "text" && part.text === "") ||
-          (part.type === "data" && isRecognitionDataName(part.name)),
-      );
-    if (
-      message?.role === "assistant" &&
-      recognitionOnly &&
-      recognition?.status === "skipped" &&
-      recognition.method === "native"
-    ) {
-      this.streamingMessage = undefined;
-      if (this.activeAssistantMessageId === message.id) {
-        this.activeAssistantMessageId = undefined;
-      }
-      return true;
-    }
-    if (message?.role === "assistant" && recognitionOnly && recognition !== undefined) {
-      this.insertCompletedAssistantMessage({
-        ...message,
-        content: message.content.filter(
-          (part) => part.type === "data" && isRecognitionDataName(part.name),
-        ),
-        status: { type: "complete", reason: "unknown" },
-        metadata: {
-          ...message.metadata,
-          custom: {
-            ...message.metadata.custom,
-            workbenchAttachmentRecognitionOnly: true,
-          },
-        },
-      });
-      this.streamingMessage = undefined;
-      if (this.activeAssistantMessageId === message.id) {
-        this.activeAssistantMessageId = undefined;
-      }
-      return true;
-    }
     if (message?.role === "assistant" && isPiContextTraceOnlyAssistant(message)) {
       this.insertCompletedAssistantMessage({
         ...message,

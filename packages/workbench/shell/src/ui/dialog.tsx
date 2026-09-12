@@ -4,7 +4,7 @@ import * as React from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 
 import { cn } from "../utils";
-import { Button } from "./button";
+import { Button, type ButtonInteraction } from "./button";
 import { useWorkbenchPortalContainer } from "./workbench-portal-container";
 import { XIcon } from "lucide-react";
 
@@ -43,14 +43,18 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
 function DialogContent({
   className,
   children,
+  closeButtonClassName,
   closeButtonFrame = "default",
+  closeButtonInteraction = "default",
   closeLabel,
   keepMounted = false,
   overlayClassName,
   showCloseButton = true,
   ...props
 }: DialogPrimitive.Popup.Props & {
+  closeButtonClassName?: string;
   closeButtonFrame?: "default" | "none";
+  closeButtonInteraction?: ButtonInteraction;
   closeLabel: string;
   keepMounted?: boolean;
   overlayClassName?: string;
@@ -74,9 +78,11 @@ function DialogContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-2 right-2"
+                interaction={closeButtonInteraction}
+                className={cn("absolute top-2 end-2", closeButtonClassName)}
                 size="icon-sm"
                 data-frame={closeButtonFrame === "none" ? "none" : undefined}
+                data-selection="none"
               />
             }
           >

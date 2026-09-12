@@ -6,11 +6,13 @@ export type AgentExecutionMode = "steer" | "follow-up";
 
 export type AgentExecutionAttachment =
   | { readonly kind: "text-reference"; readonly attachmentId: string }
+  | { readonly kind: "file-reference"; readonly attachmentId: string }
   | {
       readonly kind: "image";
       readonly data: string;
       readonly mediaType: string;
       readonly name?: string;
+      readonly attachmentId?: string;
     }
   | {
       readonly kind: "document";

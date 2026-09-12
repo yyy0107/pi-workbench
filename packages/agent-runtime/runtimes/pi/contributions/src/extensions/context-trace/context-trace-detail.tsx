@@ -6,6 +6,7 @@ import {
   ChevronRightIcon,
   DatabaseIcon,
   FileTextIcon,
+  ImageIcon,
   LockKeyholeIcon,
   RotateCwIcon,
   ShieldIcon,
@@ -13,7 +14,7 @@ import {
   UserIcon,
   WrenchIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { MarkdownTextContent } from "@workbench/shell/chat";
 import { WorkbenchCodeView } from "@workbench/shell/code-highlighting";
@@ -34,8 +35,10 @@ import type {
 import {
   CONTEXT_TRACE_MESSAGE_ROLES,
   groupContextTraceMessages,
+  listContextTraceAttachments,
   listContextTraceMessages,
   listContextTraceOutputBlocks,
+  type ContextTraceMessageAttachment,
   type ContextTraceMessageRole,
 } from "./context-trace-messages";
 import { contextTraceSelectedRawValue } from "./context-trace-detail-selection";
@@ -64,13 +67,7 @@ export type ContextTraceDetailView =
 export type ContextTraceDetailFocus =
   | {
       type: "prompt-section";
-      section:
-        | "user-prompt"
-        | "system-prompt"
-        | "skills"
-        | "context-files"
-        | "tool-schema"
-        | "attachments";
+      section: "user-prompt" | "system-prompt" | "skills" | "context-files" | "tool-schema";
     }
   | { type: "system-prompt-source"; index: number }
   | { type: "prompt-tool"; toolName: string }
@@ -78,6 +75,17 @@ export type ContextTraceDetailFocus =
       type: "context-message";
       sourceIndex: number;
       role?: ContextTraceMessageRole;
+    }
+  | {
+      type: "message-attachment";
+      source: "prompt";
+      attachmentIndex: number;
+    }
+  | {
+      type: "message-attachment";
+      source: "context";
+      sourceIndex: number;
+      contentIndex: number;
     }
   | {
       type: "trace-node";
@@ -115,7 +123,8 @@ export function contextTraceDetailVariant(
   }
   if (
     (focus?.type === "prompt-section" && focus.section === "user-prompt") ||
-    (focus?.type === "context-message" && focus.role === "user")
+    (focus?.type === "context-message" && focus.role === "user") ||
+    focus?.type === "message-attachment"
   ) {
     return "user-message";
   }
@@ -276,6 +285,73 @@ function TextBlock({ children }: { children: string }) {
   );
 }
 
+function MessageAttachmentPreview({ attachment }: { attachment: ContextTraceMessageAttachment }) {
+  const { t } = usePiI18n();
+  const [failed, setFailed] = useState(false);
+  const label =
+    attachment.name ??
+    t("extensions.contextTrace.attachmentNumber", { index: attachment.attachmentIndex + 1 });
+  const showImage = attachment.kind === "image" && attachment.source && !failed;
+
+  return (
+    <figure className="bg-muted/20 overflow-hidden rounded-lg border">
+      <div className="bg-muted/35 flex min-h-32 items-center justify-center overflow-hidden">
+        {showImage ? (
+          <img
+            src={attachment.source}
+            alt={t("extensions.contextTrace.attachmentPreviewAlt", { name: label })}
+            className="block max-h-80 w-full object-contain"
+            loading="lazy"
+            decoding="async"
+            onError={() => setFailed(true)}
+          />
+        ) : (
+          <div className="text-muted-foreground flex flex-col items-center gap-2 p-4 text-center text-xs">
+            {attachment.kind === "image" ? (
+              <ImageIcon className="size-[var(--icon-size-xl)]" aria-hidden="true" />
+            ) : (
+              <FileTextIcon className="size-[var(--icon-size-xl)]" aria-hidden="true" />
+            )}
+            <span>
+              {attachment.kind === "image"
+                ? t("extensions.contextTrace.attachmentPreviewUnavailable")
+                : t("extensions.contextTrace.fileAttachment")}
+            </span>
+          </div>
+        )}
+      </div>
+      <figcaption className="flex min-w-0 items-center gap-2 border-t px-2.5 py-2 text-xs">
+        <span className="min-w-0 flex-1 truncate font-medium" title={label}>
+          {label}
+        </span>
+        {attachment.mediaType ? (
+          <span className="text-muted-foreground shrink-0 font-mono text-[10px]">
+            {attachment.mediaType}
+          </span>
+        ) : null}
+      </figcaption>
+    </figure>
+  );
+}
+
+function MessageAttachmentGallery({
+  attachments,
+}: {
+  attachments: readonly ContextTraceMessageAttachment[];
+}) {
+  if (attachments.length === 0) return null;
+  return (
+    <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2">
+      {attachments.map((attachment) => (
+        <MessageAttachmentPreview
+          key={`${attachment.id}:${attachment.source ?? attachment.mediaType ?? attachment.name ?? "file"}`}
+          attachment={attachment}
+        />
+      ))}
+    </div>
+  );
+}
+
 function TextCaptureView({ capture }: { capture: SessionContextTraceTextCapture }) {
   return (
     <>
@@ -403,21 +479,54 @@ function UserMessagePreview({
 }) {
   const { t } = usePiI18n();
   if (event.kind === "prompt-composition") {
+    const attachments = listContextTraceAttachments(event.detail.images.value);
+    const visibleAttachments =
+      focus?.type === "message-attachment" && focus.source === "prompt"
+        ? attachments.filter((attachment) => attachment.attachmentIndex === focus.attachmentIndex)
+        : attachments;
     return (
       <>
         <CaptureMetadata capture={event.detail.prompt} />
-        <TextBlock>
-          {event.detail.prompt.text || t("extensions.contextTrace.contextContentUnavailable")}
-        </TextBlock>
+        <CaptureMetadata capture={event.detail.images.capture} />
+        {focus?.type === "message-attachment" && focus.source === "prompt" ? null : (
+          <TextBlock>
+            {event.detail.prompt.text ||
+              (attachments.length === 0
+                ? t("extensions.contextTrace.contextContentUnavailable")
+                : "")}
+          </TextBlock>
+        )}
+        <MessageAttachmentGallery attachments={visibleAttachments} />
       </>
     );
   }
-  if (event.kind === "context-snapshot" && focus?.type === "context-message") {
+  if (
+    event.kind === "context-snapshot" &&
+    (focus?.type === "context-message" ||
+      (focus?.type === "message-attachment" && focus.source === "context"))
+  ) {
+    const sourceIndex = focus.sourceIndex;
     const entry = listContextTraceMessages(event.detail.messages.value).find(
-      (candidate) => candidate.sourceIndex === focus.sourceIndex,
+      (candidate) => candidate.sourceIndex === sourceIndex,
     );
+    const attachments =
+      focus.type === "message-attachment"
+        ? (entry?.attachments.filter(
+            (attachment) => attachment.contentIndex === focus.contentIndex,
+          ) ?? [])
+        : (entry?.attachments ?? []);
     return (
-      <TextBlock>{entry?.text || t("extensions.contextTrace.contextContentUnavailable")}</TextBlock>
+      <>
+        {focus.type === "context-message" ? (
+          <TextBlock>
+            {entry?.text ||
+              (attachments.length === 0
+                ? t("extensions.contextTrace.contextContentUnavailable")
+                : "")}
+          </TextBlock>
+        ) : null}
+        <MessageAttachmentGallery attachments={attachments} />
+      </>
     );
   }
   return <DetailStateMessage state={{ status: "idle" }} />;
@@ -747,9 +856,12 @@ function MessageList({
                         </span>
                       </summary>
                       <div className="border-t p-2">
-                        <TextBlock>
-                          {entry.text || t("extensions.contextTrace.contextContentUnavailable")}
-                        </TextBlock>
+                        {entry.text || entry.attachments.length === 0 ? (
+                          <TextBlock>
+                            {entry.text || t("extensions.contextTrace.contextContentUnavailable")}
+                          </TextBlock>
+                        ) : null}
+                        <MessageAttachmentGallery attachments={entry.attachments} />
                       </div>
                     </details>
                   ))
@@ -1433,12 +1545,6 @@ function FocusedContextDetail({
         );
       case "tool-schema":
         return <ToolSchemasView metadata={metadata} activeOnly />;
-      case "attachments":
-        return event.kind === "prompt-composition" ? (
-          <Section title={t("extensions.contextTrace.images")}>
-            <JsonCaptureView capture={event.detail.images} />
-          </Section>
-        ) : null;
     }
   }
   if (focus.type === "system-prompt-source" && metadata) {
@@ -1817,12 +1923,6 @@ function selectPromptSources(
           resources: tools.filter((tool) => tool.active),
           scoped: true,
           title: t("extensions.contextTrace.toolSchemas"),
-        };
-      case "attachments":
-        return {
-          resources: [],
-          scoped: true,
-          title: t("extensions.contextTrace.images"),
         };
       case "user-prompt":
         return {

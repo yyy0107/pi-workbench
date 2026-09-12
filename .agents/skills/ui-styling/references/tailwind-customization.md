@@ -1,5 +1,7 @@
 # Tailwind CSS Customization
 
+Standalone examples below must be adapted to the owning project. In Workbench, reuse Shell components, semantic tokens, and the existing i18n/theme system. Install only a missing dependency or primitive needed by the request; do not initialize a second UI system or copy a rich selector already provided by Shell.
+
 Config file structure, custom utilities, plugins, and theme extensions.
 
 ## @theme Directive
@@ -278,7 +280,7 @@ Extract repeated utility patterns:
 ### Official Plugins
 
 ```bash
-npm install -D @tailwindcss/typography @tailwindcss/forms @tailwindcss/container-queries
+pnpm add -D @tailwindcss/typography @tailwindcss/forms @tailwindcss/container-queries
 ```
 
 ```javascript

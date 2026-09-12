@@ -16,7 +16,7 @@ Linux 使用 `linux/*.sh`，Windows 使用 `windows/*.cmd`。所有脚本都会�
 
 `dev`、`electron-dev`、`build` 和 `electron-build` 使用冻结锁文件安装依赖，包含开发依赖。构建产物位于 `.desktop-build/`，安装包位于 `dist-electron/`。请在目标操作系统上打包，架构默认采用本机架构。
 
-Windows 打包使用 `electron:dist:artifact`，会验证产物文件，但不运行仅支持 Linux 的完整应用启动检查。Web 和 Electron 开发均使用端口 `3000`，请勿同时启动。
+Windows 打包使用 `electron:dist:artifact`，会验证产物文件，但不运行仅支持 Linux 的完整应用启动检查。Web 和 Electron 开发默认使用端口 `3000`；可向 `dev` 或 `electron-dev` 传入 `--port <端口>` 指定其他端口。
 
 ## 使用示例
 
@@ -24,6 +24,8 @@ Linux：
 
 ```bash
 ./run_scripts/linux/dev.sh
+./run_scripts/linux/dev.sh --port 3001
+./run_scripts/linux/electron-dev.sh --port 3002
 ./run_scripts/linux/electron-build.sh
 ./run_scripts/linux/release.sh
 ```
@@ -32,6 +34,8 @@ Windows PowerShell 或 CMD：
 
 ```powershell
 .\run_scripts\windows\dev.cmd
+.\run_scripts\windows\dev.cmd --port 3001
+.\run_scripts\windows\electron-dev.cmd --port 3002
 .\run_scripts\windows\electron-build.cmd
 .\run_scripts\windows\release.cmd
 ```

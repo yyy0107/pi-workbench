@@ -5,15 +5,13 @@ import path from "node:path";
 import test from "node:test";
 
 import { WorkbenchSettingsService } from "@workbench/settings-server/service";
-import { ImageUnderstandingSettingsStore } from "@workbench/attachment-understanding-server/settings";
 import { WorkspaceStore } from "../../src/workspaces/workspace-store";
 
-test("unifies preferences, workspaces, and image understanding with atomic legacy migration", async (t) => {
+test("unifies preferences and workspaces with atomic legacy migration", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-settings-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const stateFile = path.join(root, "agent", "workbench-settings.json");
   const legacyWorkspaceFile = path.join(root, "legacy", "workspaces.json");
-  const legacyImageFile = path.join(root, "legacy", "image-understanding.json");
   const workspaceId = "workspace-1";
   await mkdir(path.dirname(legacyWorkspaceFile), { recursive: true });
   await writeFile(
@@ -38,11 +36,6 @@ test("unifies preferences, workspaces, and image understanding with atomic legac
     })}\n`,
   );
 
-  const legacyImageStore = new ImageUnderstandingSettingsStore({ stateFile: legacyImageFile });
-  await legacyImageStore.update({
-    patch: { routing: "always-preprocess", glm: { apiKey: "migration-secret" } },
-  });
-
   const settings = new WorkbenchSettingsService({ stateFile });
   await settings.update({
     patch: {
@@ -55,22 +48,12 @@ test("unifies preferences, workspaces, and image understanding with atomic legac
     documentSection: "workspaces",
     legacyStateFile: legacyWorkspaceFile,
   });
-  const image = new ImageUnderstandingSettingsStore({
-    stateFile,
-    documentSection: "imageUnderstanding",
-    legacyStateFile: legacyImageFile,
-  });
-
   assert.deepEqual((await workspaces.list()).archivedSessionIds, ["session-1"]);
-  assert.equal((await image.describe()).value.routing, "always-preprocess");
-  assert.equal(await image.resolveCredential("glm-ocr"), "migration-secret");
   await assert.rejects(readFile(legacyWorkspaceFile, "utf8"), { code: "ENOENT" });
-  await assert.rejects(readFile(legacyImageFile, "utf8"), { code: "ENOENT" });
 
   await Promise.all([
     settings.update({ patch: { sidebarOpen: false } }),
     workspaces.rename(workspaceId, "Unified workspace"),
-    image.update({ patch: { routing: "native-only" } }),
   ]);
 
   const document = JSON.parse(await readFile(stateFile, "utf8")) as Record<string, unknown>;
@@ -83,11 +66,6 @@ test("unifies preferences, workspaces, and image understanding with atomic legac
       (document.workspaces as Record<string, unknown>).workspaces as Array<Record<string, unknown>>
     )[0].title,
     "Unified workspace",
-  );
-  assert.equal(
-    ((document.imageUnderstanding as Record<string, unknown>).settings as Record<string, unknown>)
-      .routing,
-    "native-only",
   );
   assert.equal((await stat(stateFile)).mode & 0o777, 0o600);
 });

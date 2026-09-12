@@ -54,7 +54,7 @@ function MarkdownIndexPreview({
       inert
       className={cn(
         "min-w-0 max-w-full text-start leading-5",
-        "[&>.aui-streamdown>*]:my-0! [&>.aui-streamdown>*]:text-[inherit]! [&>.aui-streamdown>*]:leading-[inherit]!",
+        "[&>.aui-markdown>*]:my-0! [&>.aui-markdown>*]:text-[inherit]! [&>.aui-markdown>*]:leading-[inherit]!",
         "[&_.aui-codex-code-header]:hidden!",
         lines === 1
           ? "[&>*]:line-clamp-1 [&_pre]:line-clamp-1"

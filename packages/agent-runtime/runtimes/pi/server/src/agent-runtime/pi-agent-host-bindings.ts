@@ -21,10 +21,6 @@ export interface PiAgentHostBindings {
   readonly browser?: BrowserHost;
   readonly workbenchSettings?: Pick<WorkbenchSettingsProtocol, "describe" | "update">;
   readonly getDefaultTerminalShell?: () => string;
-  readonly attachmentUnderstandingSettings?: () => Pick<
-    import("@workbench/attachment-understanding-server/settings").ImageUnderstandingSettingsStore,
-    "resolveRuntimeSettings"
-  >;
   readonly workspaceFiles?: Pick<
     import("@workbench/workspace-server/files").WorkspaceFileService,
     "readFile"

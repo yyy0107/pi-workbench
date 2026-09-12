@@ -78,7 +78,6 @@ Core、Shell 和 Extension SDK/Host 的 Pi package 直接依赖仍为 0。Web 31
 | Model Selector                                                       | Workbench                  | 使用通用 `ModelSelection` 与 model capability               |
 | Interactive Requests                                                 | Workbench                  | 使用通用 interaction capability                             |
 | Side Chat                                                            | Workbench                  | 使用通用 scratch-session capability                         |
-| Attachment / Image Understanding                                     | Workbench                  | 复用 attachment-understanding contracts                     |
 | Token Usage / Context Policy                                         | Workbench                  | 使用通用 context capability                                 |
 | Agent Configuration                                                  | Pi                         | 保留在 Pi Contributions                                     |
 | Provider / Model Configuration                                       | Pi                         | 保留在 Pi Contributions                                     |
@@ -106,7 +105,6 @@ interface WorkbenchAgentRuntimeCapabilities {
   readonly scratchSessions?: WorkbenchScratchSessionCapability;
   readonly context?: WorkbenchContextCapability;
   readonly automation?: AutomationProtocol;
-  readonly attachmentUnderstanding?: WorkbenchAttachmentUnderstandingCapability;
 }
 ```
 
@@ -169,8 +167,8 @@ Pi 实现内部已完成的结构性命名调整（旧名称仅用于迁移对�
 | `ExternalSessionSourceAdapter`     | `ExternalSessionImporter`                 |
 | Codex/Claude/Cursor source adapter | 对应 `*SessionImporter`                   |
 
-以下名称不改：Workbench 的 `WorkbenchAgentServerAdapter`、attachment-understanding 的 OCR Adapter
-概念，以及 wire/persistence 中的既有字面量（例如 `modelsSource: "adapter"`）。
+以下名称不改：Workbench 的 `WorkbenchAgentServerAdapter`，以及 wire/persistence 中的既有字面量
+（例如 `modelsSource: "adapter"`）。
 
 ## 6. 实施状态
 
@@ -242,7 +240,6 @@ workbench.interactive-requests
 workbench.side-chat
 workbench.setting-model-config
 workbench.pi.settings-action
-workbench.image-understanding
 workbench.toolbox
 workbench.automations
 workbench.model-selector
@@ -283,8 +280,8 @@ Desktop 使用同一序列，并在末尾追加 `workbench.desktop-runtime-lifec
   `quick_validate.py`。
 - `@workbench/runtime-node` artifact 构建通过；输出仍正确 externalize Pi coding-agent、PTY、parser 与
   WebSocket 依赖。
-- `rg --hidden` 确认原目录字面引用为零；结构命名测试确认 Pi Runtime 仅保留明确允许的 OCR Adapter
-  文件与 Workbench-owned `WorkbenchAgentServerAdapter` contract。
+- `rg --hidden` 确认原目录字面引用为零；结构命名测试确认 Pi Runtime 仅保留 Workbench-owned
+  `WorkbenchAgentServerAdapter` contract。
 - 按验证策略未运行 Browser/E2E、全量 `pnpm check` 或完整 Web/Desktop 构建：本阶段没有 UI 行为或
   Runtime wire/state 变化，相关最终验证留在阶段 8。
 
@@ -381,7 +378,6 @@ Desktop 使用同一序列，并在末尾追加 `workbench.desktop-runtime-lifec
 - [x] Side Chat 的 create/restore/release/promote 生命周期。
 - [x] Automation，直接复用 `AutomationProtocol`。
 - [x] Model Selector；Provider Configuration 留在 Pi。
-- [x] Image Understanding，复用 attachment-understanding contracts。
 - [x] Token Usage / Context Policy；Context Trace 留在 Pi。
 - [x] 所有 Pi error 在实现边界映射。
 
@@ -471,7 +467,7 @@ Trace、External Session Import、Pi Version/Connection Status、Running Indicat
 - 隐藏的 `extend-workbench-ui` 与 `pi-coding-agent-sdk` 引用改为当前 Workbench/Pi 入口，删除
   assistant-ui adapter 路径；Pi browser copy 注释改称 implementation。
 - `rg --hidden` 扫描包含相对链接和隐藏技能，旧 Pi 目录与已删除 client adapter 路径无命中。
-  重命名表仅保留明确标为历史对照的旧标识符；Workbench-owned Adapter、OCR、model wire 字段和
+  重命名表仅保留明确标为历史对照的旧标识符；Workbench-owned Adapter、model wire 字段和
   第三方 `pi-mcp-adapter` 测试数据保持原值。
 
 验证记录（2026-09-04）：

@@ -27,6 +27,29 @@ test("restores project drafts across navigation and keeps them out of the catalo
     transport: {
       http: async (_path, init) => {
         const request = JSON.parse(String(init?.body));
+        if (request.method === "composer.attachments.createFile") {
+          return Response.json({
+            type: "server-response",
+            rpcId: request.rpcId,
+            result: {
+              ok: true,
+              value: {
+                id: request.payload.id,
+                name: request.payload.name,
+                mediaType: request.payload.mediaType,
+                path: `/attachments/${request.payload.id}/${request.payload.name}`,
+                bytes: Buffer.from(request.payload.data, "base64").length,
+              },
+            },
+          });
+        }
+        if (request.method === "composer.attachments.discard") {
+          return Response.json({
+            type: "server-response",
+            rpcId: request.rpcId,
+            result: { ok: true, value: { discarded: true } },
+          });
+        }
         requests.push(request.method);
         assert.equal(request.method, "session.create");
         assert.equal(request.payload.workspaceId, "a");
@@ -72,7 +95,7 @@ test("restores project drafts across navigation and keeps them out of the catalo
     await openDraft("a");
     const a = activeSession();
     a.actions.setComposerText!("项目 A 的草稿\n保留换行和空格  ");
-    a.actions.addComposerAttachment!({
+    await a.actions.addComposerAttachment!({
       key: "image-a",
       kind: "inline",
       name: "a.png",

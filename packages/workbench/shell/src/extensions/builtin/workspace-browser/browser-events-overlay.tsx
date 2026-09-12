@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import type { BrowserEvent, BrowserFile, BrowserSettings } from "@workbench/browser-contracts";
 
+import { parseLocalFileHref } from "../../../workspace-files/file-link";
 import { defineMessage, useI18n } from "../../../i18n";
 import {
   useRightWorkspace,
@@ -110,7 +111,7 @@ function useBrowserLinkRouting(root: RefObject<HTMLElement | null>, settingsRead
       const target = event.target as Element | null;
       if (!target || typeof target.closest !== "function") return;
       const anchor = target.closest<HTMLAnchorElement>(
-        'a[href][target="_blank"], a[href][data-streamdown="link"]',
+        'a[href][target="_blank"], a[href][data-markdown="link"]',
       );
       if (
         !anchor ||
@@ -119,6 +120,10 @@ function useBrowserLinkRouting(root: RefObject<HTMLElement | null>, settingsRead
         anchor.closest("[data-browser-external]")
       )
         return;
+      // The native shell listener runs before React's FileLink handler. Inspect the
+      // authored href: anchor.href resolves local paths against the app's HTTP origin.
+      const href = anchor.getAttribute("href");
+      if (!href || parseLocalFileHref(href)) return;
       const url = resolveEmbeddedBrowserUrl(anchor.href, browser.getSettings());
       if (!url) return;
       event.preventDefault();

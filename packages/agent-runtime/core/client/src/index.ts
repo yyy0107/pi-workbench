@@ -9,12 +9,12 @@ export { bindSnapshotSelector, type SnapshotSelectorHook } from "./runtime/snaps
 export {
   WORKBENCH_COMPOSER_ATTACHMENT_ACCEPT,
   composerAttachmentFromFile,
+  inferComposerAttachmentMediaType,
 } from "./browser/composer-attachment";
 export {
   WorkbenchAgentCapabilityError,
   type WorkbenchAgentCapabilityErrorCode,
   type WorkbenchAgentRuntimeCapabilities,
-  type WorkbenchAttachmentUnderstandingCapability,
   type WorkbenchCapabilityRequestOptions,
   type WorkbenchContextCapability,
   type WorkbenchContextCapabilitySnapshot,

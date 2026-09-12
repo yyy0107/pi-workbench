@@ -9,6 +9,7 @@ import type {
 import type { ContextTraceDetailFocus } from "./context-trace-detail";
 import {
   groupContextTraceMessages,
+  listContextTraceAttachments,
   listContextTraceMessages,
   listContextTraceOutputBlocks,
 } from "./context-trace-messages";
@@ -109,8 +110,6 @@ export function contextTraceSelectedRawValue(
         return metadata.systemPromptOptions.contextFiles;
       case "tool-schema":
         return metadata.tools.filter((tool) => tool.active);
-      case "attachments":
-        return event.kind === "prompt-composition" ? event.detail.images : null;
     }
   }
 
@@ -122,11 +121,35 @@ export function contextTraceSelectedRawValue(
     return metadata.tools.find((tool) => tool.name === focus.toolName) ?? null;
   }
 
+  if (
+    focus.type === "message-attachment" &&
+    focus.source === "prompt" &&
+    event.kind === "prompt-composition"
+  ) {
+    return (
+      listContextTraceAttachments(event.detail.images.value)[focus.attachmentIndex]?.value ?? null
+    );
+  }
+
   if (focus.type === "context-message" && event.kind === "context-snapshot") {
     return (
       listContextTraceMessages(event.detail.messages.value).find(
         (message) => message.sourceIndex === focus.sourceIndex,
       )?.value ?? null
+    );
+  }
+
+  if (
+    focus.type === "message-attachment" &&
+    focus.source === "context" &&
+    event.kind === "context-snapshot"
+  ) {
+    const message = listContextTraceMessages(event.detail.messages.value).find(
+      (candidate) => candidate.sourceIndex === focus.sourceIndex,
+    );
+    return (
+      message?.attachments.find((attachment) => attachment.contentIndex === focus.contentIndex)
+        ?.value ?? null
     );
   }
 

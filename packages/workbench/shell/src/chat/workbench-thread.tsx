@@ -11,6 +11,7 @@ import {
 
 import { resolvePromotedThreadRouteId, shouldProjectNewThreadRoute } from "../new-thread-policy";
 import { useWorkbenchNavigation } from "../navigation";
+import { useNewThreadLayout } from "../layout/new-thread-layout";
 
 import { WorkbenchComposer } from "./workbench-composer";
 import { WorkbenchConversationContent } from "./workbench-conversation";
@@ -106,6 +107,7 @@ export function MainConversationHost() {
 
 function MainConversationSessionHost({ threadId }: { threadId?: string }) {
   const current = useCurrentSession();
+  const { dockComposerWhenEmpty } = useNewThreadLayout();
   const activeThreadId = current.sessionId;
 
   return (
@@ -114,6 +116,7 @@ function MainConversationSessionHost({ threadId }: { threadId?: string }) {
       hostContent={<ThreadRouteSync threadId={threadId} />}
       emptyComposer={<WorkbenchComposer />}
       composerDock={<WorkbenchComposer />}
+      dockComposerWhenEmpty={current.isNewThread && dockComposerWhenEmpty}
       showHistoryLoading={Boolean(threadId)}
       autoScroll
     />

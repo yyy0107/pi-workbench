@@ -1,6 +1,8 @@
 import {
   handleRpcPost,
   rpcObject,
+  rpcOptional,
+  rpcBoolean,
   rpcRefine,
   rpcString,
   type RpcRouteGroup,
@@ -8,6 +10,7 @@ import {
 import type { readUsageStatistics } from "../../sessions/usage-statistics";
 
 const payload = rpcObject({
+  preferCached: rpcOptional(rpcBoolean),
   timeZone: rpcRefine(
     rpcString({ minLength: 1, maxLength: 100 }),
     (value) => {

@@ -38,16 +38,6 @@ function imageMessage(text: string, filename: string): PiComposerMessage {
   };
 }
 
-function documentMessage(text: string, filename: string): PiComposerMessage {
-  return {
-    ...message(text),
-    content: [
-      { type: "text", text },
-      { type: "file", data: "pdf-payload", mimeType: "application/pdf", filename },
-    ],
-  };
-}
-
 function queued(id: string, text: string, placement: QueueItem["placement"] = "queued"): QueueItem {
   return {
     id,
@@ -211,6 +201,40 @@ test("publishes a follow-up immediately and lets the authoritative snapshot adop
   );
 });
 
+test("shows only the user request from a compiled queued prompt", () => {
+  const { queue } = harness();
+  const compiledPrompt = [
+    "<workbench-untrusted-context>",
+    "The following data is internal attachment context.",
+    '[{"source":"workbench.attachment-references"}]',
+    "</workbench-untrusted-context>",
+    "<user-request>",
+    "Describe the first image",
+    "</user-request>",
+  ].join("\n");
+
+  queue.replaceAuthoritative([queued("queue-1", compiledPrompt)]);
+
+  assert.equal(queue.queuedItems[0]?.text, "Describe the first image");
+});
+
+test("keeps internal attachment context out of an image-only queue summary", () => {
+  const { queue } = harness();
+  const compiledPrompt = [
+    "<workbench-untrusted-context>",
+    '[{"source":"workbench.attachment-references"}]',
+    "</workbench-untrusted-context>",
+    "<user-request>",
+    "",
+    "</user-request>",
+  ].join("\n");
+
+  queue.replaceAuthoritative([queuedImage("queue-1", compiledPrompt, "image.png")]);
+
+  assert.equal(queue.queuedItems[0]?.text, "");
+  assert.equal(queue.queuedItems[0]?.attachments[0]?.name, "image.png");
+});
+
 test("dispose releases queue payloads and ignores late authoritative snapshots", () => {
   const { queue } = harness();
   queue.replaceAuthoritative([queuedImage("queue-1", "one", "large.png")]);
@@ -260,38 +284,47 @@ test("preserves an image filename in the optimistic queue item and submitted pro
   ]);
 });
 
-test("preserves a PDF filename in the optimistic queue item and submitted prompt", async () => {
-  const { queue, calls } = harness();
-
-  enqueue(queue, documentMessage("read", "invoice.pdf"));
-
-  assert.deepEqual(queueItems(queue)[0]?.parts, [
-    { type: "text", text: "read" },
+test("restores a managed image preview and descriptor when editing a queued prompt", () => {
+  const { queue } = harness();
+  const attachment = {
+    id: "d719e248-b35d-4e37-b60f-b9040527c27a",
+    name: "persisted.png",
+    mediaType: "image/png" as const,
+    path: "/runtime/attachments/persisted.png",
+    bytes: 7,
+  };
+  queue.replaceAuthoritative([
     {
-      type: "file",
-      data: "pdf-payload",
-      mimeType: "application/pdf",
-      filename: "invoice.pdf",
-    },
-  ]);
-  await flush();
-  assert.deepEqual(calls, [
-    [
-      "enqueue",
-      "followUp",
-      {
-        message: "read",
-        documents: [
+      id: "queue-1",
+      placement: "queued",
+      message: {
+        id: "queue-1",
+        role: "user",
+        content: [
+          { type: "text", text: "look" },
           {
-            type: "file",
-            data: "pdf-payload",
-            mimeType: "application/pdf",
-            name: "invoice.pdf",
+            type: "image",
+            mediaType: "image/png",
+            data: "cGF5bG9hZA==",
+            name: attachment.name,
+            attachment,
           },
         ],
+        source: { kind: "user", imageDelivery: "path" },
       },
-      "client-queue-1",
-    ],
+    },
+  ]);
+
+  assert.deepEqual(queue.edit("queue-1")?.attachments, [
+    {
+      kind: "managed-file",
+      key: attachment.id,
+      name: attachment.name,
+      source: "data:image/png;base64,cGF5bG9hZA==",
+      mediaType: "image/png",
+      status: "ready",
+      attachment,
+    },
   ]);
 });
 

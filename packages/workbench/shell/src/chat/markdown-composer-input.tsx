@@ -1,7 +1,9 @@
 "use client";
 
 import { CodeNode } from "@lexical/code-core";
-import { LinkNode } from "@lexical/link";
+import { AutoLinkNode, autoLinkUrlMatcher, LinkNode } from "@lexical/link";
+import { AutoLinkPlugin } from "@lexical/react/LexicalAutoLinkPlugin";
+import { ComposerLinkIconsPlugin } from "./composer-link-icons";
 import { ListItemNode, ListNode } from "@lexical/list";
 import {
   $convertFromMarkdownString,
@@ -53,6 +55,7 @@ import {
 } from "./composer-directive";
 
 const MARKDOWN_TRANSFORMERS = TRANSFORMERS;
+const LINK_MATCHERS = [autoLinkUrlMatcher];
 const SYNC_TAG = "workbench-markdown-composer-sync";
 
 const MARKDOWN_COMPOSER_THEME = {
@@ -361,7 +364,16 @@ export const MarkdownComposerInput = forwardRef<HTMLDivElement, MarkdownComposer
     const initialConfig = useMemo(
       () => ({
         namespace: "workbench-markdown-composer",
-        nodes: [DirectiveNode, HeadingNode, QuoteNode, ListNode, ListItemNode, CodeNode, LinkNode],
+        nodes: [
+          DirectiveNode,
+          HeadingNode,
+          QuoteNode,
+          ListNode,
+          ListItemNode,
+          CodeNode,
+          LinkNode,
+          AutoLinkNode,
+        ],
         onError: (error: Error) => console.error("[MarkdownComposerInput]", error),
         theme: MARKDOWN_COMPOSER_THEME,
       }),
@@ -385,6 +397,8 @@ export const MarkdownComposerInput = forwardRef<HTMLDivElement, MarkdownComposer
               ErrorBoundary={LexicalErrorBoundary}
             />
             <HistoryPlugin />
+            <AutoLinkPlugin matchers={LINK_MATCHERS} />
+            <ComposerLinkIconsPlugin />
             <MarkdownSyncPlugin formatter={formatter} value={value} onChange={onChange} />
             <ComposerDirectivePlugin />
             <MarkdownShortcutPlugin transformers={MARKDOWN_TRANSFORMERS} />

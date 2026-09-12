@@ -1,11 +1,12 @@
 "use client";
 
-import { ChevronRightIcon, FileTextIcon, ScanTextIcon, XIcon } from "lucide-react";
+import { ChevronRightIcon, ScanTextIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 import type {
   ComposerAttachment,
   InlineComposerAttachment,
+  ManagedFileComposerAttachment,
   PastedTextComposerAttachment,
 } from "@workbench/agent-runtime-contracts/conversation";
 
@@ -14,11 +15,11 @@ import { Button } from "../ui/button";
 import { PastedTextAttachmentPreview } from "./pasted-text-attachment-preview";
 
 import { TooltipIconButton } from "../ui/tooltip-icon-button";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { useI18n } from "../i18n";
 import { cn } from "../utils";
+import { FileTypeIcon } from "../workspace-file-tree";
 
 function AttachmentPreview({ source }: Readonly<{ source: string }>) {
   const { t } = useI18n();
@@ -40,12 +41,28 @@ function AttachmentTile({
   attachment,
   onRemove,
 }: Readonly<{
-  attachment: InlineComposerAttachment;
+  attachment: InlineComposerAttachment | ManagedFileComposerAttachment;
   onRemove(key: string): void;
 }>) {
   const { t } = useI18n();
-  const isImage = attachment.mediaType?.startsWith("image/") === true;
+  const sourceMediaType = /^data:([^;,]+)/u.exec(attachment.source)?.[1];
+  const isImage =
+    attachment.mediaType?.startsWith("image/") === true ||
+    sourceMediaType?.startsWith("image/") === true;
+  const [failedPreviewSource, setFailedPreviewSource] = useState<string>();
+  const previewSource =
+    isImage && attachment.source && attachment.source !== failedPreviewSource
+      ? attachment.source
+      : undefined;
   const typeLabel = isImage ? t("assistant.attachment.image") : t("assistant.attachment.document");
+  const statusLabel =
+    attachment.kind === "managed-file"
+      ? attachment.status === "saving"
+        ? t("assistant.attachment.statusUploading")
+        : attachment.status === "error"
+          ? t("assistant.attachment.statusFailed")
+          : ""
+      : "";
   const tile = (
     <div
       className={cn(
@@ -55,18 +72,26 @@ function AttachmentTile({
       )}
       role={isImage ? "button" : "group"}
       tabIndex={isImage ? 0 : undefined}
-      aria-label={t("assistant.attachment.accessibleLabel", { type: typeLabel, status: "" })}
+      aria-label={t("assistant.attachment.accessibleLabel", {
+        type: typeLabel,
+        status: statusLabel,
+      })}
     >
-      <Avatar className="h-full w-full rounded-none after:hidden">
-        <AvatarImage
-          src={isImage ? attachment.source : undefined}
+      {previewSource ? (
+        <img
+          src={previewSource}
           alt={t("assistant.attachment.previewAlt")}
-          className="rounded-none object-cover"
+          className="block h-full w-full object-cover"
+          onError={() => setFailedPreviewSource(previewSource)}
         />
-        <AvatarFallback>
-          <FileTextIcon className="text-muted-foreground/80 aui-composer-icon-size-attachment" />
-        </AvatarFallback>
-      </Avatar>
+      ) : (
+        <div className="flex h-full w-full items-center justify-center">
+          <FileTypeIcon
+            path={attachment.name}
+            className="size-[var(--icon-size-xxl)] [&>img]:size-full"
+          />
+        </div>
+      )}
     </div>
   );
 
@@ -80,12 +105,14 @@ function AttachmentTile({
               <DialogContent
                 closeLabel={t("assistant.common.close")}
                 closeButtonFrame="none"
-                className="[&>button]:bg-foreground/60 [&>button]:hover:bg-foreground/80 [&_svg]:text-background p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0!"
+                closeButtonInteraction="static"
+                closeButtonClassName="top-0 end-0 bg-black/65 text-white"
+                className="h-fit w-fit max-w-[calc(100vw-2rem)] gap-0 rounded-none bg-transparent p-0 pt-[calc(var(--icon-frame-size-sm)+0.5rem)] ring-0 sm:max-w-[calc(100vw-2rem)]"
               >
                 <DialogTitle className="sr-only">
                   {t("assistant.attachment.previewTitle")}
                 </DialogTitle>
-                <div className="bg-background relative mx-auto flex max-h-[80dvh] w-full items-center justify-center overflow-hidden rounded-sm">
+                <div className="relative mx-auto flex w-fit max-w-full items-center justify-center">
                   <AttachmentPreview source={attachment.source} />
                 </div>
               </DialogContent>
@@ -98,14 +125,18 @@ function AttachmentTile({
             type="button"
             data-frame="none"
             data-selection="none"
-            className="aui-composer-attachment-remove absolute end-0.5 top-0.5 bg-foreground/60 text-background hover:text-background! active:bg-foreground/60! active:text-background! after:absolute after:-inset-1 motion-reduce:transition-none"
+            className="aui-composer-attachment-remove absolute end-1 top-1 bg-black/60 text-white hover:text-white! active:bg-black/60! active:text-white! after:absolute after:-inset-1 motion-reduce:transition-none"
             side="top"
             onClick={() => onRemove(attachment.key)}
           >
             <XIcon />
           </TooltipIconButton>
         </div>
-        <TooltipContent side="top">{attachment.name}</TooltipContent>
+        <TooltipContent side="top">
+          {attachment.kind === "managed-file" && attachment.status === "error"
+            ? t("assistant.attachment.uploadFailed")
+            : attachment.name}
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
@@ -237,7 +268,7 @@ function PastedTextTile({
         tooltip={t("chatContent.textAttachment.remove")}
         data-frame="none"
         data-selection="none"
-        className="aui-composer-attachment-remove absolute end-1 top-1 bg-foreground/60 text-background hover:text-background! active:bg-foreground/60! active:text-background!"
+        className="aui-composer-attachment-remove absolute end-1 top-1 bg-black/60 text-white hover:text-white! active:bg-black/60! active:text-white!"
         onClick={() => onRemove(attachment.key)}
         disabled={restoring}
       >

@@ -32,6 +32,7 @@ export const assistantEnUS = {
     copyFailed: "Couldn't copy",
     refresh: "Refresh",
   },
+  markdown: { footnotes: "Footnotes", backToReference: "Back to reference" },
   codeBlock: {
     expand: "Expand code block",
     collapse: "Collapse code block",

@@ -19,13 +19,6 @@ const SEND_ERROR_BY_ATTACHMENT_REASON = {
   INLINE_IMAGES_TOTAL_TOO_LARGE: "attachment-too-large",
   UNRECOGNIZED_IMAGE_FORMAT: "attachment-invalid",
   IMAGE_MEDIA_TYPE_MISMATCH: "attachment-invalid",
-  TOO_MANY_INLINE_ATTACHMENTS: "too-many-attachments",
-  UNSUPPORTED_DOCUMENT_MEDIA_TYPE: "attachment-invalid",
-  INVALID_DOCUMENT_BASE64: "attachment-invalid",
-  INLINE_DOCUMENT_TOO_LARGE: "attachment-too-large",
-  INLINE_ATTACHMENTS_TOTAL_TOO_LARGE: "attachment-too-large",
-  UNRECOGNIZED_DOCUMENT_FORMAT: "attachment-invalid",
-  DOCUMENT_MEDIA_TYPE_MISMATCH: "attachment-invalid",
 } as const satisfies Record<SessionAttachmentErrorReason, PiComposerSendError>;
 
 export function piComposerSendError(error: unknown): PiComposerSendError | undefined {

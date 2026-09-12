@@ -26,15 +26,31 @@
   }
 }
 
+:where([data-slot="workbench-conversation"]) [data-workbench-composer-dock][data-animate-dock] {
+  transform-origin: top left;
+  animation: composer-dock-enter var(--layout-state-motion-duration) var(--layout-motion-ease)
+    backwards;
+}
+
+@keyframes composer-dock-enter {
+  from {
+    transform: var(--composer-dock-enter-transform);
+  }
+  to {
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :where([data-slot="workbench-conversation"])
-    [data-slot="user-message-content"][data-animate-enter] {
+    [data-slot="user-message-content"][data-animate-enter],
+  :where([data-slot="workbench-conversation"]) [data-workbench-composer-dock][data-animate-dock] {
     animation: none;
   }
 }
 
 :where([data-slot="workbench-conversation"])
-  :where(.aui-streamdown, [data-slot="user-message-bubble"]) {
+  :where(.aui-markdown, [data-slot="user-message-bubble"]) {
   font-family: var(--workbench-content-font, var(--font-sans));
   font-weight: var(--workbench-content-font-weight, 400);
 }
@@ -134,4 +150,21 @@
   to {
     --composer-flow-angle: 360deg;
   }
+}
+
+.aui-lexical-editor .aui-composer-web-link::before {
+  content: "";
+  display: inline-block;
+  width: var(--icon-size-sm);
+  height: var(--icon-size-sm);
+  margin-inline-end: 0.25em;
+  vertical-align: calc(0.5ex - var(--icon-size-sm) / 2);
+  background-color: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+.aui-lexical-editor .aui-composer-web-link-loaded::before {
+  mask: none;
+  background: var(--website-icon) center / contain no-repeat;
 }

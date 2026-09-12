@@ -22,6 +22,110 @@ export interface PastedTextAttachment {
   readonly preview: string;
 }
 
+export const MANAGED_IMAGE_MEDIA_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+] as const;
+
+export type ManagedImageMediaType = (typeof MANAGED_IMAGE_MEDIA_TYPES)[number];
+
+/** Detects the supported raster image type from its binary signature. */
+export function detectManagedImageMediaType(
+  bytes: ArrayLike<number>,
+): ManagedImageMediaType | undefined {
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    bytes.length >= 6 &&
+    bytes[0] === 0x47 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x38 &&
+    (bytes[4] === 0x37 || bytes[4] === 0x39) &&
+    bytes[5] === 0x61
+  ) {
+    return "image/gif";
+  }
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+  return undefined;
+}
+
+/** A Runtime-owned file. The persisted descriptor and path are the source of truth. */
+export interface ManagedFileAttachment {
+  readonly id: string;
+  readonly name: string;
+  readonly mediaType: string;
+  readonly path: string;
+  readonly bytes: number;
+}
+
+export type ManagedImageAttachment = ManagedFileAttachment & {
+  readonly mediaType: ManagedImageMediaType;
+};
+
+export function parseManagedFileAttachment(value: unknown): ManagedFileAttachment | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const item = value as Partial<ManagedFileAttachment>;
+  if (
+    typeof item.id !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(item.id) ||
+    typeof item.name !== "string" ||
+    !item.name ||
+    typeof item.mediaType !== "string" ||
+    !item.mediaType ||
+    typeof item.path !== "string" ||
+    !item.path ||
+    typeof item.bytes !== "number" ||
+    !Number.isSafeInteger(item.bytes) ||
+    item.bytes < 0
+  ) {
+    return undefined;
+  }
+  return {
+    id: item.id,
+    name: item.name,
+    mediaType: item.mediaType,
+    path: item.path,
+    bytes: item.bytes,
+  };
+}
+
+export function parseManagedImageAttachment(value: unknown): ManagedImageAttachment | undefined {
+  const attachment = parseManagedFileAttachment(value);
+  const mediaType = MANAGED_IMAGE_MEDIA_TYPES.find(
+    (candidate) => candidate === attachment?.mediaType,
+  );
+  return attachment && mediaType ? { ...attachment, mediaType } : undefined;
+}
+
 export function parsePastedTextAttachment(value: unknown): PastedTextAttachment | undefined {
   if (!value || typeof value !== "object") return undefined;
   const item = value as Partial<PastedTextAttachment>;

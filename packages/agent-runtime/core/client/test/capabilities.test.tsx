@@ -13,7 +13,6 @@ import {
   useWorkbenchAgentCommands,
   useWorkbenchSessionContextPolicy,
   type WorkbenchBoundSessionProps,
-  useWorkbenchAttachmentUnderstandingCapability,
   useWorkbenchAutomationCapability,
   useWorkbenchContextCapability,
   useWorkbenchInteractionCapability,
@@ -35,7 +34,6 @@ function readCapabilities(capabilities?: WorkbenchAgentRuntimeCapabilities) {
       scratchSessions: useWorkbenchScratchSessionCapability(),
       context: useWorkbenchContextCapability(),
       automation: useWorkbenchAutomationCapability(),
-      attachmentUnderstanding: useWorkbenchAttachmentUnderstandingCapability(),
     };
     return null;
   }
@@ -65,7 +63,6 @@ test("keeps every Runtime capability optional and exposes only installed fields"
     scratchSessions: { marker: "scratchSessions" },
     context: { marker: "context" },
     automation: { marker: "automation" },
-    attachmentUnderstanding: { marker: "attachmentUnderstanding" },
   } as unknown as WorkbenchAgentRuntimeCapabilities;
 
   assert.deepEqual(readCapabilities(capabilities), capabilities);

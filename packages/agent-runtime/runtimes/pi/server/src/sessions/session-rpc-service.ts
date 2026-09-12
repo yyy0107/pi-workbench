@@ -53,6 +53,7 @@ import {
 } from "@workbench/contracts/composer/request";
 import {
   AgentExecutionError,
+  type AgentExecutionAttachment,
   type AgentExecutionPort,
   type AgentQueueMutation,
 } from "@workbench/agent-runtime-server/execution";
@@ -70,7 +71,7 @@ import {
   PiSessionModelContextServiceError,
   type PiSessionModelContextService,
 } from "./pi-session-model-context-service";
-import { admitInlineAttachments, InlineAttachmentAdmissionError } from "./inline-image-admission";
+import { admitInlineImages, InlineImageAdmissionError } from "./inline-image-admission";
 import { workspaceFromCwd } from "../workspaces/workspace-paths";
 
 export type SessionListInput = SessionListPayload;
@@ -253,13 +254,13 @@ function attachmentError(
   return new SessionRpcServiceError("attachment-error", message, { reason });
 }
 
-function admitSessionInlineAttachments(
-  parts: readonly Extract<SessionPromptContent, { type: "image" | "file" }>[],
+function admitSessionInlineImages(
+  parts: readonly Extract<SessionPromptContent, { type: "image" }>[],
 ) {
   try {
-    return admitInlineAttachments(parts);
+    return admitInlineImages(parts);
   } catch (error) {
-    if (error instanceof InlineAttachmentAdmissionError) {
+    if (error instanceof InlineImageAdmissionError) {
       throw attachmentError(error.reason, error.message);
     }
     throw error;
@@ -1182,12 +1183,10 @@ export class SessionRpcService {
       )
       .map((part) => part.text)
       .join("\n\n");
-    const attachments = admitSessionInlineAttachments(
-      input.content.filter(
-        (part): part is Extract<SessionPromptContent, { type: "image" | "file" }> =>
-          part.type === "image" || part.type === "file",
-      ),
+    const imageParts = input.content.filter(
+      (part): part is Extract<SessionPromptContent, { type: "image" }> => part.type === "image",
     );
+    const images = admitSessionInlineImages(imageParts);
     const composerHasSemantics = Boolean(
       input.composer && hasWorkbenchComposerSemantics(input.composer),
     );
@@ -1200,32 +1199,31 @@ export class SessionRpcService {
     }
     if (
       !message.trim() &&
-      attachments.images.length === 0 &&
-      attachments.documents.length === 0 &&
-      !input.content.some((part) => part.type === "attachment") &&
+      images.length === 0 &&
+      !input.content.some((part) => part.type === "attachment" || part.type === "file") &&
       !composerHasSemantics
     ) {
       throw new SessionRpcServiceError("command-error", "The prompt has no content.", {});
     }
-    const executionAttachments = [
-      ...input.content.flatMap((part) =>
-        part.type === "attachment"
-          ? [{ kind: "text-reference" as const, attachmentId: part.attachmentId }]
-          : [],
-      ),
-      ...attachments.images.map((image) => ({
+    const executionAttachments: AgentExecutionAttachment[] = [];
+    for (const part of input.content) {
+      if (part.type === "attachment") {
+        executionAttachments.push({ kind: "text-reference", attachmentId: part.attachmentId });
+      } else if (part.type === "file") {
+        executionAttachments.push({ kind: "file-reference", attachmentId: part.attachmentId });
+      }
+    }
+    executionAttachments.push(
+      ...images.map((image, index) => ({
         kind: "image" as const,
         data: image.data,
         mediaType: image.mimeType,
         ...(image.name === undefined ? {} : { name: image.name }),
+        ...(imageParts[index]?.attachmentId === undefined
+          ? {}
+          : { attachmentId: imageParts[index].attachmentId }),
       })),
-      ...attachments.documents.map((document) => ({
-        kind: "document" as const,
-        data: document.data,
-        mediaType: document.mimeType,
-        ...(document.name === undefined ? {} : { name: document.name }),
-      })),
-    ];
+    );
     let admission: Awaited<ReturnType<AgentExecutionPort["submit"]>>;
     try {
       admission = await this.execution.submit({

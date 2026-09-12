@@ -70,7 +70,6 @@ test("Shell extension groups preserve immutable semantic activation order", () =
       ...SHELL_WORKSPACE_EXTENSION_IDS,
       "workbench.interactive-requests",
       "workbench.side-chat",
-      "workbench.image-understanding",
       "workbench.automations",
       "workbench.model-selector",
       "workbench.token-usage",

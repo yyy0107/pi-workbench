@@ -1,24 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { addComposerImagesFromPaste, composerClipboardImages } from "./composer-image-paste";
+import { addComposerFilesFromPaste, composerClipboardFiles } from "./composer-image-paste";
 
 function file(name: string, type: string): File {
   return { name, type } as File;
 }
 
-test("extracts pasted images without treating clipboard text files as attachments", () => {
+test("extracts pasted binary files without treating clipboard text as attachments", () => {
   const image = file("screenshot.png", "image/png");
+  const pdf = file("spec.pdf", "application/pdf");
   const text = file("notes.txt", "text/plain");
 
-  assert.deepEqual(composerClipboardImages({ files: [image, text], items: [] }), [image]);
+  assert.deepEqual(composerClipboardFiles({ files: [image, pdf, text], items: [] }), [image, pdf]);
 });
 
 test("falls back to clipboard items when the browser does not populate files", () => {
   const image = file("pasted.webp", "image/webp");
 
   assert.deepEqual(
-    composerClipboardImages({
+    composerClipboardFiles({
       files: [],
       items: [
         { kind: "string", type: "text/plain", getAsFile: () => null },
@@ -29,14 +30,14 @@ test("falls back to clipboard items when the browser does not populate files", (
   );
 });
 
-test("adds every pasted image and claims the native paste", async () => {
+test("adds every pasted file and claims the native paste", async () => {
   const first = file("first.png", "image/png");
   const second = file("second.jpeg", "image/jpeg");
   const added: File[] = [];
   let prevented = false;
   let propagationStopped = false;
 
-  const handled = await addComposerImagesFromPaste(
+  const handled = await addComposerFilesFromPaste(
     {
       clipboardData: { files: [first, second], items: [] },
       preventDefault: () => {
@@ -65,7 +66,7 @@ test("leaves paste untouched when attachments are unavailable", async () => {
   let propagationStopped = false;
   let addCount = 0;
 
-  const handled = await addComposerImagesFromPaste(
+  const handled = await addComposerFilesFromPaste(
     {
       clipboardData: { files: [file("screen.png", "image/png")], items: [] },
       preventDefault: () => {
@@ -89,12 +90,12 @@ test("leaves paste untouched when attachments are unavailable", async () => {
   assert.equal(addCount, 0);
 });
 
-test("continues adding remaining pasted images after one attachment is rejected", async () => {
+test("continues adding remaining pasted files after one attachment is rejected", async () => {
   const first = file("first.png", "image/png");
   const second = file("second.png", "image/png");
   const attempted: File[] = [];
 
-  const handled = await addComposerImagesFromPaste(
+  const handled = await addComposerFilesFromPaste(
     {
       clipboardData: { files: [first, second], items: [] },
       preventDefault: () => {},

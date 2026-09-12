@@ -5,9 +5,6 @@
 
 @source "../../../../packages/workbench/shell/src/**/*.{ts,tsx}";
 @source "../../../../packages/agent-runtime/runtimes/pi/contributions/src/**/*.{ts,tsx}";
-@source "../../node_modules/streamdown/dist/*.js";
-@source "../../node_modules/@streamdown/code/dist/*.js";
-@source "../../node_modules/@streamdown/math/dist/*.js";
 
 /* Web and Desktop use system fonts; Shell owns user-selected font preferences. */
 @theme inline {

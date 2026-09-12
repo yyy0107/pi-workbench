@@ -20,7 +20,7 @@ test("Shell keeps a public entry and colocates scoped renderer styles", async ()
   assert.match(styles, /@import "\.\/chat\/conversation\.css"/);
   assert.match(styles, /@import "\.\/chat\/markdown\/markdown\.css"/);
   const markdown = await readFile(new URL("src/chat/markdown/markdown.css", packageRoot), "utf8");
-  assert.match(markdown, /\.aui-streamdown/);
+  assert.match(markdown, /\.aui-markdown/);
   assert.match(markdown, /\.aui-codex-code-header/);
   assert.doesNotMatch(styles, /pi-logo|Pi Working|agent-runtime\/adapters\/pi/i);
 });

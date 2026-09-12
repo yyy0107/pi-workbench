@@ -45,18 +45,6 @@ test("classifies recoverable attachment admission failures for the composer", ()
   );
   assert.equal(
     piComposerSendError(
-      new PiApiError("attachment-error", 200, { reason: "INLINE_DOCUMENT_TOO_LARGE" }),
-    ),
-    "attachment-too-large",
-  );
-  assert.equal(
-    piComposerSendError(
-      new PiApiError("attachment-error", 200, { reason: "UNRECOGNIZED_DOCUMENT_FORMAT" }),
-    ),
-    "attachment-invalid",
-  );
-  assert.equal(
-    piComposerSendError(
       new PiApiError("attachment-error", 200, { reason: "FUTURE_ATTACHMENT_REASON" }),
     ),
     "attachment-invalid",

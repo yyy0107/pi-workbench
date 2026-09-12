@@ -1,6 +1,6 @@
 # Common Rules for Professional UI + Pre-Delivery Checklist
 
-Load this file before final delivery of native/mobile app UI (iOS/Android/React Native/Flutter), or when the user reports the UI "doesn't look professional" and the cause isn't obvious from the priority table in SKILL.md.
+Consult relevant sections for native/mobile app UI (iOS/Android/React Native/Flutter) when the requested change or review leaves a concrete quality or verification question. Do not load the full checklist for routine edits already covered by project conventions.
 
 **Scope notice:** everything below targets native/mobile app UI. For web/desktop interaction patterns, use `references/quick-reference.md` (stack-agnostic) instead — these tables assume touch targets, safe areas, and platform gesture conventions that don't apply 1:1 to desktop web.
 
@@ -63,11 +63,11 @@ These are frequently overlooked issues that make UI look unprofessional.
 
 ## Pre-Delivery Checklist (canonical — the only one)
 
-Before delivering app UI code, verify every item below. Start with the process steps, then the per-area checkboxes.
+Select checks affected by the requested change and supported target platforms. This is a reference for coverage, not a requirement to run every check for each edit. Use runtime/device checks when a concrete rendering or interaction uncertainty remains; reuse still-valid evidence and skip unrelated areas.
 
 ### Process
 - [ ] Ran only searches relevant to the interface, such as `"keyboard focus modal" --domain ux` for modal keyboard behavior
-- [ ] Reviewed `quick-reference.md` §1–§3 (CRITICAL + HIGH) as a final pass
+- [ ] Consulted relevant guidance only where the changed behavior left an unresolved question
 - [ ] Tested on 375px (small phone) and in landscape orientation
 - [ ] Verified behavior with **reduced-motion** enabled and **Dynamic Type**/largest system text size
 - [ ] Checked dark mode contrast independently (never assume light-mode values carry over)
@@ -93,7 +93,7 @@ Before delivering app UI code, verify every item below. Start with the process s
 - [ ] Normal primary and secondary text contrast >=4.5:1 in both light and dark mode
 - [ ] Dividers/borders and interaction states are distinguishable in both modes
 - [ ] Modal/drawer scrim is measured against the real background and preserves foreground legibility
-- [ ] Both themes are tested before delivery (not inferred from a single theme)
+- [ ] For changed theme behavior with rendering uncertainty, checked affected states in each supported theme (one theme does not establish the other)
 
 ### Layout
 - [ ] Safe areas are respected for headers, tab bars, and bottom CTA bars

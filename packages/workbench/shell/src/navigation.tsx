@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { NewThreadLayoutProvider } from "./layout/new-thread-layout";
 
 export interface WorkbenchNavigationOptions {
   readonly replace?: boolean;
@@ -28,7 +29,7 @@ export function WorkbenchNavigationProvider({
 
   return (
     <WorkbenchNavigationContext.Provider value={installedNavigation}>
-      {children}
+      <NewThreadLayoutProvider>{children}</NewThreadLayoutProvider>
     </WorkbenchNavigationContext.Provider>
   );
 }

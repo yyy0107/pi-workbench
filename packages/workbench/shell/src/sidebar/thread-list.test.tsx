@@ -19,6 +19,9 @@ import { WorkbenchNavigationProvider, type WorkbenchNavigationPort } from "../na
 import { SidebarRow } from "../ui/sidebar-items";
 import { WorkbenchThreadList } from "./thread-list";
 import { WorkbenchThreadListItem } from "./thread-list-item";
+import { NewThreadButton } from "./new-thread-button";
+import { NewThreadWorkspaceItem } from "../extensions/builtin/workspace-directory-picker/new-thread-workspace-item";
+import { useNewThreadLayout } from "../layout/new-thread-layout";
 import {
   WorkspaceSidebarProvider,
   useWorkspaceSidebar,
@@ -75,8 +78,9 @@ test("workspace conversations isolate selection updates and paginate independent
     async createThread() {
       throw new Error("Unexpected createThread");
     },
-    createDraft() {
-      throw new Error("Unexpected createDraft");
+    createDraft(options) {
+      assert.equal(options?.workspaceId, "project");
+      return "local-draft";
     },
     switchToThread() {},
     switchToNewThread() {},
@@ -119,6 +123,15 @@ test("workspace conversations isolate selection updates and paginate independent
   const routedRows = new Map<string, boolean>();
   let model: unknown;
   let fallbackWorkspaceId: string | undefined;
+  let dockComposerWhenEmpty = false;
+  let openProjectDraft: () => void;
+  let openStandaloneDraft: () => void;
+  function NewThreadProbe() {
+    dockComposerWhenEmpty = useNewThreadLayout().dockComposerWhenEmpty;
+    openProjectDraft = NewThreadButton({ workspaceId: "project" }).props.onActivate;
+    openStandaloneDraft = NewThreadWorkspaceItem().props.onClick;
+    return null;
+  }
   // Exercise the shared subscriptions without mounting unrelated DOM controls.
   const RowProbe = memo(function RowProbe({ id }: { id: string }) {
     activeRows.set(
@@ -156,6 +169,7 @@ test("workspace conversations isolate selection updates and paginate independent
                 <WorkbenchNavigationProvider navigation={navigation}>
                   <SidebarDragSessionProvider>
                     <WorkspaceSidebarProvider searchQuery={searchQuery}>
+                      <NewThreadProbe />
                       <Probe workspaceId="project" />
                       <Probe workspaceId="pinned-project" />
                       <Probe pinnedOnly />
@@ -274,6 +288,37 @@ test("workspace conversations isolate selection updates and paginate independent
     await render();
     assert.equal(rowCount(), 1);
     assert.equal(more(), undefined);
+    assert.equal(dockComposerWhenEmpty, false, "new conversations start centered by default");
+    await act(async () => openProjectDraft());
+    assert.equal(dockComposerWhenEmpty, true, "the project entry docks its draft composer");
+
+    draftWorkspaceId = undefined;
+    await act(async () => {
+      current = { sessionId: "unscoped-draft", isNewThread: true };
+      currentListeners.forEach((listener) => listener());
+    });
+    await render();
+    assert.equal(
+      dockComposerWhenEmpty,
+      true,
+      "clearing the project preserves the dock when the runtime switches to an unscoped draft",
+    );
+
+    draftWorkspaceId = "project";
+    await act(async () => {
+      current = { sessionId: "local-draft", isNewThread: true };
+      currentListeners.forEach((listener) => listener());
+    });
+    await render();
+    assert.equal(dockComposerWhenEmpty, true, "selecting a project again preserves the dock");
+    await act(async () => openStandaloneDraft());
+    assert.equal(
+      dockComposerWhenEmpty,
+      false,
+      "the standalone entry stays centered even when the runtime reuses the same project draft",
+    );
+    await act(async () => openProjectDraft());
+    assert.equal(dockComposerWhenEmpty, true, "returning through the project entry docks again");
   } finally {
     await act(async () => root.unmount());
     environment.restore();

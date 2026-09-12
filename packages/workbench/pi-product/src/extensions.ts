@@ -16,7 +16,6 @@ export const piWorkbenchExtensions = Object.freeze([
   ...piAgentRuntimeExtensionGroups.agentConfiguration,
   ...shellExtensionGroups.interactions,
   ...piAgentRuntimeExtensionGroups.configuration,
-  ...shellExtensionGroups.attachments,
   ...piAgentRuntimeExtensionGroups.toolbox,
   ...shellExtensionGroups.automations,
   ...shellExtensionGroups.models,

@@ -1,4 +1,8 @@
-import type { PastedTextAttachment } from "@workbench/contracts/composer";
+import type {
+  ManagedFileAttachment,
+  ManagedImageAttachment,
+  PastedTextAttachment,
+} from "@workbench/contracts/composer";
 /** JSON-compatible provider metadata carried by a canonical Pi conversation part. */
 export type PiConversationJsonValue =
   | null
@@ -87,12 +91,18 @@ export interface PiImageMessagePart {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly fileAttachment?: ManagedFileAttachment;
+  /** @deprecated Read-only compatibility for image-only history. */
+  readonly imageAttachment?: ManagedImageAttachment;
   readonly status?: PiMessagePartStatus;
   readonly providerMetadata?: PiPartProviderMetadata;
 }
 
 export interface PiFileMessagePart {
   readonly textAttachment?: PastedTextAttachment;
+  readonly fileAttachment?: ManagedFileAttachment;
+  /** @deprecated Read-only compatibility for image-only history. */
+  readonly imageAttachment?: ManagedImageAttachment;
   readonly type: "file";
   readonly filename?: string;
   readonly data: string;

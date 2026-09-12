@@ -39,19 +39,11 @@ test("preserves occurrence ids across snapshots, edits, lane moves, and duplicat
   );
 });
 
-test("projects complete text and attachment messages without losing full content on Pi text snapshots", () => {
+test("projects complete text and image messages without losing full content on Pi text snapshots", () => {
   const queue = new SessionQueueProjection({ createId: ids() });
   queue.append("followUp", {
     message: "look",
     images: [{ type: "image", mimeType: "image/png", data: "base64-data", name: "diagram.png" }],
-    documents: [
-      {
-        type: "file",
-        mimeType: "application/pdf",
-        data: "pdf-data",
-        name: "spec.pdf",
-      },
-    ],
   });
   queue.reconcile([], [{ message: "look" }]);
 
@@ -69,12 +61,6 @@ test("projects complete text and attachment messages without losing full content
             mediaType: "image/png",
             data: "base64-data",
             name: "diagram.png",
-          },
-          {
-            type: "file",
-            mediaType: "application/pdf",
-            data: "pdf-data",
-            name: "spec.pdf",
           },
         ],
         source: { kind: "user" },
@@ -152,4 +138,33 @@ test("retains text attachment cards and model paths across queue snapshots, stee
   queue.reconcile([{ message: "edited model path" }], []);
   assert.equal(queue.items()[0]!.message.content[0]!.text, "edited");
   assert.equal(queue.items()[0]!.message.content[1]!.attachmentId, attachment.id);
+});
+
+test("retains managed files across Pi text-only queue snapshots", () => {
+  const attachment = {
+    id: "d719e248-b35d-4e37-b60f-b9040527c27a",
+    name: "slides.pptx",
+    mediaType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    path: "/runtime/attachments/2026-09-12/pptx/id/slides.pptx",
+    bytes: 1024,
+  };
+  const queue = new SessionQueueProjection({ createId: ids() });
+  queue.append("followUp", {
+    message: "compiled model path",
+    sourceText: "review slides",
+    fileAttachmentIds: [attachment.id],
+    fileAttachments: [attachment],
+  });
+  queue.reconcile([], [{ message: "compiled model path" }]);
+
+  assert.deepEqual(queue.items()[0]!.message.content, [
+    { type: "text", text: "review slides" },
+    {
+      type: "file",
+      mediaType: attachment.mediaType,
+      data: attachment.id,
+      name: attachment.name,
+      attachment,
+    },
+  ]);
 });

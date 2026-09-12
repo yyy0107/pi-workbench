@@ -4,7 +4,6 @@ import { createWorkbenchSettingsClient } from "@workbench/services-client/settin
 import { createHostClient } from "@workbench/services-client/host";
 import { createWorkspaceClient } from "@workbench/services-client/workspace";
 import { createAutomationClient } from "@workbench/services-client/automation";
-import { createAttachmentUnderstandingClient } from "@workbench/services-client/attachment-understanding";
 
 import type { WorkbenchAgentRuntimeInstallation } from "@workbench/agent-runtime-client/installation";
 import type { PromptFeedbackPort } from "@workbench/agent-runtime-client/prompt-feedback";
@@ -53,7 +52,6 @@ export function createInstalledAgentRuntime(
       host: createHostClient(rpcOptions),
       workspace: createWorkspaceClient(rpcOptions),
       automation: createAutomationClient(rpcOptions),
-      attachmentUnderstanding: createAttachmentUnderstandingClient(rpcOptions),
       settings: options.settings ?? createWorkbenchSettingsClient(rpcOptions),
     }),
     copy: options.copy,

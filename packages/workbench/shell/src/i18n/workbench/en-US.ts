@@ -231,7 +231,7 @@ export const workbenchEnUS = {
     },
     errors: {
       sessionBusy: "This conversation is already generating a response.",
-      emptyPrompt: "Enter a message or attach an image or PDF before sending.",
+      emptyPrompt: "Enter a message or attach an image before sending.",
       sessionNotFound: "This conversation is no longer available.",
       invalidWorkingDirectory: "The runtime working directory is not available.",
       invalidWorkspace: "Select a valid workspace before starting a conversation.",
@@ -239,7 +239,7 @@ export const workbenchEnUS = {
       modelDoesNotSupportAttachments:
         "The current route cannot accept this attachment. Remove it or choose a compatible recognition route.",
       invalidAttachment:
-        "This attachment could not be sent. Use a valid PNG, JPEG, GIF, WebP, or PDF file.",
+        "This attachment could not be sent. Use a valid PNG, JPEG, GIF, or WebP file.",
       attachmentTooLarge: "This attachment is too large to send. Choose a smaller file.",
       tooManyAttachments:
         "There are too many attachments to send at once. Remove some files and try again.",

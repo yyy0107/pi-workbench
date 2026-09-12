@@ -15,7 +15,20 @@ export function usePiUsageStatisticsClient() {
         const value = snapshots.get(manager);
         return value?.timeZone === timeZone ? value : undefined;
       },
-      read: async (timeZone: string, signal: AbortSignal) => {
+      read: async (
+        timeZone: string,
+        signal: AbortSignal,
+        onSnapshot?: (value: UsageStatisticsValue) => void,
+      ) => {
+        if (onSnapshot && snapshots.get(manager)?.timeZone !== timeZone) {
+          const cached = await fetchUsageStatistics(
+            { timeZone, preferCached: true },
+            { ...manager.rpcTransportOptions, signal },
+          );
+          signal.throwIfAborted();
+          snapshots.set(manager, cached);
+          onSnapshot(cached);
+        }
         const value = await fetchUsageStatistics(
           { timeZone },
           {

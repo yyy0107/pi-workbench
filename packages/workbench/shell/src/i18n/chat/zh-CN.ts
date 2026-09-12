@@ -32,6 +32,7 @@ export const assistantZhCN = {
     copyFailed: "复制失败",
     refresh: "重新生成",
   },
+  markdown: { footnotes: "脚注", backToReference: "返回引用" },
   codeBlock: {
     expand: "展开代码块",
     collapse: "收起代码块",

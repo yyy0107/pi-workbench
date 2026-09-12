@@ -25,7 +25,6 @@ import type {
 } from "./ports";
 import type {
   WorkbenchAgentRuntimeCapabilities,
-  WorkbenchAttachmentUnderstandingCapability,
   WorkbenchContextCapability,
   WorkbenchInteractionCapability,
   WorkbenchModelSelectionCapability,
@@ -218,12 +217,6 @@ export function useWorkbenchSessionContextPolicy(sessionId?: string) {
 
 export function useWorkbenchAutomationCapability(): WorkbenchAgentRuntimeCapabilities["automation"] {
   return useWorkbenchAgentRuntimeEnvironment().capabilities.automation;
-}
-
-export function useWorkbenchAttachmentUnderstandingCapability():
-  | WorkbenchAttachmentUnderstandingCapability
-  | undefined {
-  return useWorkbenchAgentRuntimeEnvironment().capabilities.attachmentUnderstanding;
 }
 
 /** Subscribe to the selected implementation's live presentation state for one thread. */

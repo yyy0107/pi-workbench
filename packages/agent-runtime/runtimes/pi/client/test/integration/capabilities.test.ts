@@ -57,10 +57,6 @@ function fixtureManager(transportOverride?: PiHttpTransport): PiSessionManager {
     },
     "llm.models": { groups: [], failures: [] },
     "automation.list": { items: [] },
-    "imageUnderstanding.describe": {
-      revision: 4,
-      value: { routing: "disabled" },
-    },
   });
   const interaction = {
     kind: "question" as const,
@@ -127,7 +123,6 @@ test("projects every Pi implementation capability through the Workbench contract
   assert.ok(capabilities.scratchSessions);
   assert.ok(capabilities.context);
   assert.ok(capabilities.automation);
-  assert.ok(capabilities.attachmentUnderstanding);
 
   assert.equal((await capabilities.host.listDirectory()).path, "/workspace");
   assert.deepEqual(await capabilities.workspace.createWorkspace("/workspace"), {
@@ -156,7 +151,6 @@ test("projects every Pi implementation capability through the Workbench contract
   );
   assert.equal((await capabilities.context.load("session-1")).usage.tokens, 300);
   assert.deepEqual(await capabilities.automation.list({}), { items: [] });
-  assert.equal((await capabilities.attachmentUnderstanding.describe()).revision, 4);
 });
 
 test("host, trust, files, and Git preserve RPC payloads while projecting results and failures", async () => {

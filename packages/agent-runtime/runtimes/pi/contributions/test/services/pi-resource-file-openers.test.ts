@@ -2,7 +2,6 @@ import { createHostClient } from "@workbench/services-client/host";
 import { createWorkspaceClient } from "@workbench/services-client/workspace";
 import { createWorkbenchSettingsClient } from "@workbench/services-client/settings";
 import { createAutomationClient } from "@workbench/services-client/automation";
-import { createAttachmentUnderstandingClient } from "@workbench/services-client/attachment-understanding";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { FileCode2Icon } from "lucide-react";
@@ -188,7 +187,6 @@ function fileOpenHandlers() {
       workspace: createWorkspaceClient(rpc),
       settings: createWorkbenchSettingsClient(rpc),
       automation: createAutomationClient(rpc),
-      attachmentUnderstanding: createAttachmentUnderstandingClient(rpc),
     },
     copy: {
       titles: { attachment: "Attachment", image: "Image" },

@@ -12,7 +12,10 @@ function modelInput(value: unknown): PiComposerModelInput | undefined {
     typeof input.prompt === "string" &&
     typeof input.userText === "string" &&
     Array.isArray(input.context) &&
-    input.context.every((text) => typeof text === "string")
+    input.context.every((text) => typeof text === "string") &&
+    (input.trailingUserText === undefined ||
+      (Array.isArray(input.trailingUserText) &&
+        input.trailingUserText.every((text) => typeof text === "string")))
     ? (input as PiComposerModelInput)
     : undefined;
 }
@@ -45,13 +48,16 @@ export function projectPiComposerContext(
     const input = promptPart?.type === "text" ? inputs.get(promptPart.text) : undefined;
     if (!input) return [message];
 
-    const userContent = content.flatMap((part) =>
-      part === promptPart
-        ? input.userText
-          ? [{ type: "text" as const, text: input.userText }]
-          : []
-        : [part],
-    );
+    const userContent = [
+      ...content.flatMap((part) =>
+        part === promptPart
+          ? input.userText
+            ? [{ type: "text" as const, text: input.userText }]
+            : []
+          : [part],
+      ),
+      ...(input.trailingUserText ?? []).map((text) => ({ type: "text" as const, text })),
+    ];
     return [
       ...input.context.map((text) => ({
         role: "custom" as const,

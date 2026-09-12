@@ -15,10 +15,6 @@ const REPOSITORY_ROOT = new URL("../../../../../../../", import.meta.url);
 
 const EXPOSED_DOMAIN_ERRORS = [
   [
-    "packages/server/attachment-understanding/src/settings-store.ts",
-    "ImageUnderstandingSettingsStoreError",
-  ],
-  [
     "packages/agent-runtime/runtimes/pi/server/src/commands/command-service.ts",
     "CommandServiceError",
   ],

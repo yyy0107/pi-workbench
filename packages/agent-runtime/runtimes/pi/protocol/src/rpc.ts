@@ -4,16 +4,6 @@ import type {
   ComposerCommandEffect as WorkbenchComposerCommandEffect,
   ComposerSubmission as WorkbenchComposerSubmission,
 } from "@workbench/contracts/composer";
-import type {
-  AttachmentUnderstandingDescribeValue,
-  AttachmentUnderstandingEngine,
-  AttachmentUnderstandingOcrAdapterSettingsValue,
-  AttachmentUnderstandingOcrProvider,
-  AttachmentUnderstandingRouting,
-  AttachmentUnderstandingSettingsPatch,
-  AttachmentUnderstandingSettingsValue,
-  AttachmentUnderstandingUpdatePayload,
-} from "@workbench/attachment-understanding-contracts/settings";
 import type { ModelSelection } from "@workbench/contracts/model-selection";
 
 export type { ModelSelection } from "@workbench/contracts/model-selection";
@@ -27,11 +17,13 @@ export type {
   WorkbenchToolboxScopePreference,
 } from "@workbench/agent-runtime-contracts/settings";
 
-import type { InlineDocumentMediaType, InlineImageMediaType } from "./attachments";
+import type { InlineImageMediaType } from "./attachments";
 import type { PiRunTiming } from "./messages";
 
 export interface UsageStatisticsPayload {
   timeZone: string;
+  /** Return the last complete snapshot without waiting for file reconciliation. */
+  preferCached?: boolean;
 }
 
 export interface UsageStatisticsDay {
@@ -629,28 +621,6 @@ export type WorkbenchSettingsUpdatePayload =
 
 export type WorkbenchSettingsUpdateValue =
   import("@workbench/agent-runtime-contracts/settings").WorkbenchSettingsUpdateResult;
-
-export type {
-  AttachmentUnderstandingDescribeValue,
-  AttachmentUnderstandingEngine,
-  AttachmentUnderstandingOcrAdapterSettingsValue,
-  AttachmentUnderstandingOcrProvider,
-  AttachmentUnderstandingRouting,
-  AttachmentUnderstandingSettingsPatch,
-  AttachmentUnderstandingSettingsValue,
-  AttachmentUnderstandingUpdatePayload,
-};
-
-/** Legacy image-specific names retained on the unchanged Pi wire contract. */
-export type ImageUnderstandingRouting = AttachmentUnderstandingRouting;
-export type ImageUnderstandingEngine = AttachmentUnderstandingEngine;
-export type ImageUnderstandingOcrProvider = AttachmentUnderstandingOcrProvider;
-export type ImageUnderstandingOcrAdapterSettingsValue =
-  AttachmentUnderstandingOcrAdapterSettingsValue;
-export type ImageUnderstandingSettingsValue = AttachmentUnderstandingSettingsValue;
-export type ImageUnderstandingDescribeValue = AttachmentUnderstandingDescribeValue;
-export type ImageUnderstandingSettingsPatch = AttachmentUnderstandingSettingsPatch;
-export type ImageUnderstandingUpdatePayload = AttachmentUnderstandingUpdatePayload;
 
 export interface PiAgentSettingsPatch {
   showCacheMissNotices?: boolean;
@@ -2014,18 +1984,14 @@ export interface SessionScratchPromoteValue {
 
 export type SessionPromptContent =
   | { type: "attachment"; attachmentId: string }
+  | { type: "file"; attachmentId: string }
   | { type: "text"; text: string }
   | {
       type: "image";
       mediaType: InlineImageMediaType;
       data: string;
       name?: string;
-    }
-  | {
-      type: "file";
-      mediaType: InlineDocumentMediaType;
-      data: string;
-      name?: string;
+      attachmentId?: string;
     };
 
 export interface SessionPromptPayload {

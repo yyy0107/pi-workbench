@@ -53,8 +53,17 @@ test("maps the neutral prompt and provenance to Pi without leaking Pi into the p
       prompt: {
         text: "inspect",
         attachments: [
-          { kind: "image", data: "image-data", mediaType: "image/png", name: "input.png" },
-          { kind: "document", data: "pdf-data", mediaType: "application/pdf" },
+          {
+            kind: "file-reference",
+            attachmentId: "d719e248-b35d-4e37-b60f-b9040527c27a",
+          },
+          {
+            kind: "image",
+            data: "image-data",
+            mediaType: "image/png",
+            name: "input.png",
+            attachmentId: "8b95d58b-3189-45f0-9be6-f7a9e4de7248",
+          },
         ],
         composer,
       },
@@ -70,15 +79,16 @@ test("maps the neutral prompt and provenance to Pi without leaking Pi into the p
         mode: "followUp",
         prompt: {
           message: "inspect",
+          fileAttachmentIds: ["d719e248-b35d-4e37-b60f-b9040527c27a"],
           images: [
             {
               type: "image",
               data: "image-data",
               mimeType: "image/png",
               name: "input.png",
+              attachmentId: "8b95d58b-3189-45f0-9be6-f7a9e4de7248",
             },
           ],
-          documents: [{ type: "file", data: "pdf-data", mimeType: "application/pdf" }],
         },
         provenance: {
           rpcId: "rpc-1",
@@ -178,7 +188,7 @@ test("normalizes Pi execution failures to stable Agent error codes", async () =>
   }
 });
 
-test("rejects a non-PDF document before entering Pi", async () => {
+test("rejects document attachments before entering Pi", async () => {
   const { adapter, calls } = harness();
 
   await assert.rejects(
