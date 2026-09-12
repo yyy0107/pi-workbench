@@ -158,18 +158,19 @@ function suggestionGroupLabel(
   group: WorkbenchComposerSuggestionGroup,
   t: ReturnType<typeof useI18n>["t"],
   runtimeName: string,
+  count: number,
 ): string {
   switch (group) {
     case "builtin":
-      return t("workbench.chat.composer.commandGroups.builtin", { runtimeName });
+      return t("workbench.chat.composer.commandGroups.builtin", { runtimeName, count });
     case "extension":
-      return t("workbench.chat.composer.commandGroups.extension");
+      return t("workbench.chat.composer.commandGroups.extension", { count });
     case "prompt":
-      return t("workbench.chat.composer.commandGroups.prompt");
+      return t("workbench.chat.composer.commandGroups.prompt", { count });
     case "skill":
-      return t("workbench.chat.composer.commandGroups.skill");
+      return t("workbench.chat.composer.commandGroups.skill", { count });
     case "workbench":
-      return t("workbench.chat.composer.commandGroups.workbench");
+      return t("workbench.chat.composer.commandGroups.workbench", { count });
   }
 }
 
@@ -178,12 +179,7 @@ function commandSourceMeta(
   t: ReturnType<typeof useI18n>["t"],
 ): string | undefined {
   if (command.kind === "builtin") return undefined;
-  const parts = [t(`workbench.chat.composer.commandScopes.${command.source.scope}`)];
-  if (command.source.label) parts.push(command.source.label);
-  if (command.kind === "skill" && !command.modelInvocable) {
-    parts.push(t("workbench.chat.composer.commandScopes.manualOnly"));
-  }
-  return parts.join(" · ");
+  return t(`workbench.chat.composer.commandScopes.${command.source.scope}`);
 }
 
 function builtinCommandPresentation(
@@ -1240,7 +1236,7 @@ export function WorkbenchComposer({
           items={slashCommandItems}
           highlightedIndex={commandHighlightedIndex}
           suggestions={composerSuggestionsByKey}
-          groupLabel={(group) => suggestionGroupLabel(group, t, runtimeName)}
+          groupLabel={(group, count) => suggestionGroupLabel(group, t, runtimeName, count)}
           ariaLabel={t("workbench.chat.composer.commandSuggestions")}
           onSelect={(item) => handleDirectiveSelect(item, "/")}
         />

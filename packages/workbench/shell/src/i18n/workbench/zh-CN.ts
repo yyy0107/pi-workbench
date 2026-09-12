@@ -57,15 +57,22 @@ export const workbenchZhCN = {
         },
       },
       commandGroups: {
-        builtin: ({ runtimeName }: { runtimeName: string }) => `${runtimeName} 内置命令`,
-        extension: "扩展命令",
-        prompt: "提示词模板",
-        skill: "Skills",
-        workbench: "Workbench",
+        builtin: (
+          { runtimeName, count }: { runtimeName: string; count: number },
+          { number }: MessageFormatters,
+        ) => `${runtimeName} 内置命令 (${number(count)})`,
+        extension: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `扩展命令 (${number(count)})`,
+        prompt: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `提示词模板 (${number(count)})`,
+        skill: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `Skills (${number(count)})`,
+        workbench: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `Workbench (${number(count)})`,
       },
       commandScopes: {
-        user: "用户级",
-        project: "项目级",
+        user: "用户",
+        project: "项目",
         temporary: "临时",
         manualOnly: "仅手动调用",
       },

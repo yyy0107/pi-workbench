@@ -5,6 +5,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { cn } from "../utils";
 
 import { field, floating } from "../ui/surface";
+import { StatusBadge } from "../ui/status-badge";
 import { withTooltip } from "../ui/tooltip";
 
 export interface ComposerCommand {
@@ -49,7 +50,7 @@ function ComposerMenuItem({
       data-slot="composer-menu-item"
       data-active={active || undefined}
       className={cn(
-        "flex w-full items-center gap-2.5 rounded-[var(--button-radius)] px-2.5 py-2 text-[13.5px] transition-colors",
+        "flex w-full items-center gap-2.5 rounded-[var(--button-radius)] px-2.5 pt-[var(--control-content-padding-block-compact-start)] pb-[var(--control-content-padding-block-compact-end)] text-[13.5px] transition-colors",
         active ? field : "hover:bg-foreground/[0.04]",
         className,
       )}
@@ -67,18 +68,27 @@ export function ComposerCommandItem({
   command: ComposerCommand;
   active: boolean;
 }) {
+  const triggerLabel = command.label ?? command.name;
+
   return (
     <ComposerMenuItem
       active={active}
       className={cn(
-        "grid min-h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-lg px-3 py-2 text-start",
+        "min-w-0 gap-3 rounded-lg px-3 text-start",
         active ? "bg-muted/80 dark:bg-muted/60" : "hover:bg-muted/50 dark:hover:bg-muted/35",
         className,
       )}
       {...props}
     >
-      <span className="flex min-w-0 items-baseline gap-2 leading-5">
-        <code className="text-primary shrink-0 text-[13px] font-medium">/{command.name}</code>
+      <span className="flex min-w-0 flex-1 items-baseline gap-2 leading-5">
+        {withTooltip(
+          <code
+            className="text-primary min-w-0 truncate text-[13px] font-medium"
+            title={`/${triggerLabel}`}
+          >
+            /{triggerLabel}
+          </code>,
+        )}
         {command.argumentHint
           ? withTooltip(
               <code
@@ -89,26 +99,6 @@ export function ComposerCommandItem({
               </code>,
             )
           : null}
-      </span>
-      {command.meta
-        ? withTooltip(
-            <span
-              className="text-foreground/40 max-w-48 shrink-0 truncate text-end text-xs! leading-5"
-              title={command.meta}
-            >
-              {command.meta}
-            </span>,
-          )
-        : null}
-      <span className="col-span-2 flex min-w-0 items-baseline gap-1.5 leading-5">
-        {withTooltip(
-          <span
-            className="shrink-0 truncate text-xs! font-medium"
-            title={command.label ?? `/${command.name}`}
-          >
-            {command.label ?? `/${command.name}`}
-          </span>,
-        )}
         {command.description !== command.label
           ? withTooltip(
               <span
@@ -120,6 +110,11 @@ export function ComposerCommandItem({
             )
           : null}
       </span>
+      {command.meta ? (
+        <StatusBadge className="max-w-48 shrink-0 truncate" title={command.meta}>
+          {command.meta}
+        </StatusBadge>
+      ) : null}
     </ComposerMenuItem>
   );
 }

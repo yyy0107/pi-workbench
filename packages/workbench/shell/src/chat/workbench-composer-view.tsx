@@ -111,10 +111,16 @@ export function WorkbenchComposerCommandMenuView({
   items: readonly ComposerTriggerItem[];
   highlightedIndex: number;
   suggestions: ReadonlyMap<string, WorkbenchComposerMenuSuggestion>;
-  groupLabel(group: WorkbenchComposerSuggestionGroup): string;
+  groupLabel(group: WorkbenchComposerSuggestionGroup, count: number): string;
   ariaLabel: string;
   onSelect(item: ComposerTriggerItem): void;
 }>) {
+  const groupCounts = new Map<WorkbenchComposerSuggestionGroup, number>();
+  for (const item of items) {
+    const suggestion = suggestions.get(suggestionKey(item));
+    if (!suggestion) continue;
+    groupCounts.set(suggestion.group, (groupCounts.get(suggestion.group) ?? 0) + 1);
+  }
   let previousGroup: WorkbenchComposerSuggestionGroup | undefined;
 
   return (
@@ -136,7 +142,7 @@ export function WorkbenchComposerCommandMenuView({
                 role="presentation"
                 className="bg-popover/95 text-muted-foreground sticky top-0 z-10 px-3 py-2 text-[11px] leading-4 font-medium backdrop-blur-sm"
               >
-                {groupLabel(suggestion.group)}
+                {groupLabel(suggestion.group, groupCounts.get(suggestion.group) ?? 0)}
               </div>
             ) : null}
             <ScrollingComposerCommandItem
