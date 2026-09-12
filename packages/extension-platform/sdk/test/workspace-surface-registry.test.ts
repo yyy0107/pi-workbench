@@ -43,6 +43,35 @@ test("workspace surface definitions validate auxiliary placement", () => {
   );
 });
 
+test("workspace surface definitions validate tab policies", () => {
+  const registry = new WorkspaceSurfaceRegistryImpl();
+  registry.register({
+    ...definition,
+    tabPolicy: { maxTabs: 2, replacement: "most-recent" },
+  });
+
+  assert.deepEqual(registry.get("fixture")?.tabPolicy, {
+    maxTabs: 2,
+    replacement: "most-recent",
+  });
+  assert.throws(
+    () =>
+      new WorkspaceSurfaceRegistryImpl().register({
+        ...definition,
+        tabPolicy: { maxTabs: 0, replacement: "most-recent" },
+      }),
+    /invalid maximum tab count/,
+  );
+  assert.throws(
+    () =>
+      new WorkspaceSurfaceRegistryImpl().register({
+        ...definition,
+        tabPolicy: { maxTabs: 2, replacement: "unknown" as never },
+      }),
+    /invalid tab replacement/,
+  );
+});
+
 test("extension deactivation removes its workspace capabilities", () => {
   const manager = new ExtensionManager();
   manager.activate({

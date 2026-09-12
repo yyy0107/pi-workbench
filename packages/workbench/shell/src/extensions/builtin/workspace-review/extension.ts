@@ -6,7 +6,9 @@ import {
   type WorkspaceSurfaceDefinition,
 } from "@workbench/extension-sdk";
 
+import { ReviewMenuItem } from "./review-menu-item";
 import { ReviewRuntimeBridge } from "./review-runtime-bridge";
+import { ReviewSurfaceHeader } from "./review-surface-header";
 import type { ReviewSurfaceParams } from "./review-surface";
 
 const ReviewSurface = createLazyWorkspaceSurface(async () => {
@@ -26,12 +28,16 @@ export const reviewSurfaceDefinition = {
       encodeURIComponent(params.repositoryId),
       encodeURIComponent(params.reviewScope),
       encodeURIComponent(params.revision ?? "current"),
+      encodeURIComponent(params.baseRevision ?? ""),
+      encodeURIComponent(params.sessionId ?? context.threadId ?? ""),
     ].join(":"),
   getDefaultScope: (_params, context) => ({
     type: context.threadId ? "thread" : "application",
     key: context.threadId ?? context.applicationId,
   }),
+  header: ReviewSurfaceHeader,
   render: ReviewSurface,
+  menuItem: ReviewMenuItem,
   runtime: ReviewRuntimeBridge,
 } satisfies WorkspaceSurfaceDefinition<ReviewSurfaceParams>;
 

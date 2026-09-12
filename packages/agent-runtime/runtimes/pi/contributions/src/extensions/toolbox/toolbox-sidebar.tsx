@@ -102,7 +102,7 @@ export function ToolboxSidebar({ onNavigate }: SidebarSectionComponentProps) {
     <section aria-label={t("extensions.toolbox.title")} className="flex h-full min-h-0 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
         <div className="mb-4 flex items-center gap-2 px-2">
-          <span className="text-muted-foreground shrink-0 text-sm">
+          <span className="text-muted-foreground shrink-0 text-base">
             {t("extensions.toolbox.scope.label")}
           </span>
           <div className="min-w-0 flex-1">

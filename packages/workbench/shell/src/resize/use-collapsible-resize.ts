@@ -98,6 +98,24 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
   optionsRef.current = options;
   const sessionRef = useRef<ResizeSession | null>(null);
   const animationRef = useRef<SpringAnimation | null>(null);
+  const moveFrameRef = useRef<number | null>(null);
+  const pendingMoveRef = useRef<{
+    clientX: number;
+    time: number;
+    handle: HTMLDivElement;
+  } | null>(null);
+
+  const cancelPendingMove = () => {
+    if (moveFrameRef.current !== null) window.cancelAnimationFrame(moveFrameRef.current);
+    moveFrameRef.current = null;
+    pendingMoveRef.current = null;
+  };
+
+  const flushPendingMove = () => {
+    const move = pendingMoveRef.current;
+    cancelPendingMove();
+    if (move) applyPointerMove(move.clientX, move.time, move.handle);
+  };
 
   const clampPreviewWidth = (session: ResizeSession, width: number) =>
     Math.min(session.maximumWidth, Math.max(0, width));
@@ -144,6 +162,9 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
   const finishResize = (event: ReactPointerEvent<HTMLDivElement>, cancelled: boolean) => {
     const session = sessionRef.current;
     if (!session || session.pointerId !== event.pointerId) return;
+    // Commit the final input even when pointerup arrives before its scheduled paint.
+    if (cancelled) cancelPendingMove();
+    else flushPendingMove();
     session.maximumWidth = Math.max(0, optionsRef.current.getMaximumWidth());
 
     sessionRef.current = null;
@@ -190,6 +211,7 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
 
   useEffect(
     () => () => {
+      cancelPendingMove();
       animationRef.current?.cancel();
       optionsRef.current.onResizingChange(false);
     },
@@ -200,6 +222,7 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
     if (event.button !== 0) return;
 
     const current = optionsRef.current;
+    cancelPendingMove();
     animationRef.current?.cancel();
     animationRef.current = null;
     const maximumWidth = Math.max(0, current.getMaximumWidth());
@@ -236,22 +259,20 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const onPointerMove: PointerEventHandler<HTMLDivElement> = (event) => {
+  const applyPointerMove = (clientX: number, now: number, handle: HTMLDivElement) => {
     const session = sessionRef.current;
-    if (!session || session.pointerId !== event.pointerId) return;
+    if (!session) return;
 
     const current = optionsRef.current;
     session.maximumWidth = Math.max(0, current.getMaximumWidth());
-    const now = performance.now();
     const elapsed = now - session.lastTime;
     if (elapsed > 0) {
-      session.velocity = (current.direction * (event.clientX - session.lastX)) / elapsed;
+      session.velocity = (current.direction * (clientX - session.lastX)) / elapsed;
     }
-    session.lastX = event.clientX;
+    session.lastX = clientX;
     session.lastTime = now;
 
-    const requestedWidth =
-      session.startWidth + current.direction * (event.clientX - session.startX);
+    const requestedWidth = session.startWidth + current.direction * (clientX - session.startX);
     const releaseDistance = current.releaseDistance ?? DEFAULT_RELEASE_DISTANCE;
     if (session.collapsed) {
       // Reopen at a fixed boundary; rebasing on each reversal accumulates pointer drift.
@@ -261,7 +282,7 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
       current.onOpenChange(true);
       session.rawWidth = clampExpandedWidth(session, requestedWidth);
       if (requestedWidth <= session.minimumWidth) {
-        animatePreview(session, session.rawWidth, event.currentTarget);
+        animatePreview(session, session.rawWidth, handle);
         return;
       }
     }
@@ -269,7 +290,7 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
     if (requestedWidth < session.collapseThreshold) {
       session.collapsed = true;
       session.rawWidth = requestedWidth;
-      animatePreview(session, 0, event.currentTarget, () => {
+      animatePreview(session, 0, handle, () => {
         if (!session.collapsed || sessionRef.current === session) return;
         optionsRef.current.onCommit(session.minimumWidth);
         optionsRef.current.onOpenChange(false);
@@ -285,7 +306,21 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
     animationRef.current?.cancel();
     animationRef.current = null;
     session.currentWidth = rawWidth;
-    previewWidth(session, rawWidth, event.currentTarget);
+    previewWidth(session, rawWidth, handle);
+  };
+
+  const onPointerMove: PointerEventHandler<HTMLDivElement> = (event) => {
+    if (sessionRef.current?.pointerId !== event.pointerId) return;
+    pendingMoveRef.current = {
+      clientX: event.clientX,
+      time: performance.now(),
+      handle: event.currentTarget,
+    };
+    // Coalesce high-frequency mouse input before measuring limits or writing layout.
+    moveFrameRef.current ??= window.requestAnimationFrame(() => {
+      moveFrameRef.current = null;
+      flushPendingMove();
+    });
   };
 
   const onKeyDown: KeyboardEventHandler<HTMLDivElement> = (event) => {
@@ -298,7 +333,7 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
     const minimumWidth = Math.min(maximumWidth, Math.max(0, current.minimumWidth));
     const nextWidth = Math.min(
       maximumWidth,
-      Math.max(minimumWidth, current.width + current.direction * movement),
+      Math.max(minimumWidth, current.getRenderedWidth() + current.direction * movement),
     );
     current.onCommit(nextWidth);
     current.onOpenChange(true);

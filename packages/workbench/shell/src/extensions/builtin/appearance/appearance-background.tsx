@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, type CSSProperties } from "react";
 
-import { type BackgroundBlur, type CornerRadiusStyle, type GlassBlur } from "../../../appearance";
+import {
+  userMessageColorForTheme,
+  type BackgroundBlur,
+  type CornerRadiusStyle,
+  type GlassBlur,
+} from "../../../appearance";
 import { useAppearancePreferences } from "../../../appearance";
 import { uiFontStack, codeFontStack } from "../../../appearance/font-families";
 import { useMediaQuery } from "../../../hooks/use-media-query";
@@ -33,7 +38,6 @@ const SURFACE_COLOR_PROPERTIES = [
   "--sidebar-accent",
   "--aui-background",
   "--aui-composer",
-  "--aui-user-message",
 ] as const;
 
 const MIN_FLOATING_SURFACE_OPACITY = 88;
@@ -171,12 +175,20 @@ export function AppearanceBackground() {
       "--workbench-light-ui-font": uiFontStack(preferences.uiFont),
       "--workbench-light-code-font": codeFontStack(preferences.codeFont),
       "--workbench-light-contrast": `${preferences.lightContrast}%`,
+      "--workbench-light-user-message": userMessageColorForTheme(
+        preferences.lightAccentColor,
+        "light",
+      ),
       "--workbench-dark-accent": preferences.darkAccentColor,
       "--workbench-dark-background": preferences.darkBackgroundColor,
       "--workbench-dark-foreground": preferences.darkForegroundColor,
       "--workbench-dark-ui-font": uiFontStack(preferences.uiFont),
       "--workbench-dark-code-font": codeFontStack(preferences.codeFont),
       "--workbench-dark-contrast": `${preferences.darkContrast}%`,
+      "--workbench-dark-user-message": userMessageColorForTheme(
+        preferences.darkAccentColor,
+        "dark",
+      ),
       "--workbench-ui-font-size": `${preferences.uiFontSize}px`,
       "--workbench-code-font-size": `${preferences.codeFontSize}px`,
       "--workbench-ui-font-weight": String(preferences.uiFontWeight),

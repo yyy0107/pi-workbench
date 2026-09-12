@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../
 import { useI18n } from "../../../i18n";
 import { useReducedMotion } from "../../../hooks/use-reduced-motion";
 import { cn } from "../../../utils";
+import { isWorkbenchLayoutMoving } from "../../../layout";
 
 import {
   getMessageElements,
@@ -119,14 +120,22 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
     const shell = threadRoot?.closest<HTMLElement>("[data-workbench-shell]");
     if (!nav || !threadRoot || !composerDock) return;
 
+    let visible = nav.dataset.state === "visible";
     const updateVisibility = () => {
+      const layoutMoving = isWorkbenchLayoutMoving(shell);
+      // Revealing the index installs message measurements. Defer that work until
+      // panel and gutter motion settle, while keeping an existing index usable.
+      if (layoutMoving && !visible) return;
       const threadBounds = threadRoot.getBoundingClientRect();
       const composerBounds = composerDock.getBoundingClientRect();
       const nextVisible = shouldShowUserMessageIndex({
         composerStart: composerBounds.left,
         threadStart: threadBounds.left,
         layoutAllowsIndex: shell?.dataset.conversationIndex !== "hidden",
+        layoutMoving,
+        previouslyVisible: visible,
       });
+      visible = nextVisible;
       setIndexVisible((current) => (current === nextVisible ? current : nextVisible));
     };
 
@@ -138,7 +147,12 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
       layoutObserver = new MutationObserver(updateVisibility);
       layoutObserver.observe(shell, {
         attributes: true,
-        attributeFilter: ["data-conversation-index"],
+        attributeFilter: [
+          "data-conversation-index",
+          "data-layout-animating",
+          "data-resizing",
+          "data-window-resizing",
+        ],
       });
     }
     updateVisibility();

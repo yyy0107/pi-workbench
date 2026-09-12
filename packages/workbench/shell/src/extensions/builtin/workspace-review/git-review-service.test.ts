@@ -1,25 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { GitReviewChanges } from "./git-review-service";
 
-import { MemoryGitReviewService } from "./git-review-service";
-
-test("keeps review changes isolated between Workbench installations", async () => {
-  const first = new MemoryGitReviewService();
-  const second = new MemoryGitReviewService();
-
-  first.noteChanged("same-repository", "first.ts");
-  second.noteChanged("same-repository", "second.ts");
-
-  assert.deepEqual(
-    (await first.getDiff({ repositoryId: "same-repository", scope: "unstaged" })).files.map(
-      ({ path }) => path,
-    ),
-    ["first.ts"],
-  );
-  assert.deepEqual(
-    (await second.getDiff({ repositoryId: "same-repository", scope: "unstaged" })).files.map(
-      ({ path }) => path,
-    ),
-    ["second.ts"],
-  );
+test("invalidates only the changed repository and installation, and stops after disposal", () => {
+  const first = new GitReviewChanges();
+  const second = new GitReviewChanges();
+  let notifications = 0;
+  const unsubscribe = first.subscribe(() => notifications++);
+  first.noteChanged("one");
+  assert.equal(first.getRevision("one"), 1);
+  assert.equal(first.getRevision("two"), 0);
+  assert.equal(second.getRevision("one"), 0);
+  assert.equal(notifications, 1);
+  unsubscribe();
+  first.noteChanged("one");
+  assert.equal(first.getRevision("one"), 2);
+  assert.equal(notifications, 1);
+  first.dispose();
+  first.noteChanged("one");
+  assert.equal(first.getRevision("one"), 0);
 });

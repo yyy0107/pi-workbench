@@ -4,6 +4,7 @@ import { useLayoutEffect, useMemo, useRef, type ComponentProps } from "react";
 
 import { languageForFilename } from "../code-highlighting/shiki-catalog";
 import { useWorkbenchHighlightedCode } from "../code-highlighting/use-workbench-highlighted-code";
+import { useI18n } from "../i18n";
 import { cn } from "../utils";
 
 import { DiffHeader, type DiffLine } from "./code-diff";
@@ -16,6 +17,25 @@ export interface DiffHunk {
   range: string;
   decision: HunkDecision;
   lines: readonly DiffLine[];
+  hiddenContextBefore?: number;
+  hiddenContextAfter?: number;
+}
+
+export function DiffContextSummary({ count = 0 }: { count?: number }) {
+  const { t } = useI18n();
+  if (count <= 0) return null;
+  const label = t("extensions.workspaceReview.unmodifiedLines", { count });
+
+  return (
+    <div
+      data-slot="diff-context-summary"
+      role="separator"
+      aria-label={label}
+      className="border-border/60 bg-muted/70 text-muted-foreground flex min-h-(--button-height-compact) items-center border-y px-3 py-1 font-sans text-xs"
+    >
+      {label}
+    </div>
+  );
 }
 
 export function numberedHunkLines(hunk: DiffHunk) {
@@ -25,9 +45,11 @@ export function numberedHunkLines(hunk: DiffHunk) {
 
   return hunk.lines.map((line) => {
     const lineNumber = line.kind === "removed" ? oldLine : newLine;
+    const oldLineNumber = line.kind === "added" ? undefined : oldLine;
+    const newLineNumber = line.kind === "removed" ? undefined : newLine;
     if (line.kind !== "added") oldLine += 1;
     if (line.kind !== "removed") newLine += 1;
-    return { line, lineNumber };
+    return { line, lineNumber, oldLine: oldLineNumber, newLine: newLineNumber };
   });
 }
 
@@ -54,6 +76,7 @@ function ReviewableDiffHunkCode({ filename, hunk }: { filename: string; hunk: Di
 
   return (
     <div data-reviewable-diff-code-root="" className="min-w-full font-mono text-xs">
+      <DiffContextSummary count={hunk.hiddenContextBefore} />
       <div ref={codeRef} data-reviewable-diff-code="" className="min-w-full">
         {highlighted ?? (
           <pre>
@@ -72,6 +95,7 @@ function ReviewableDiffHunkCode({ filename, hunk }: { filename: string; hunk: Di
           </pre>
         )}
       </div>
+      <DiffContextSummary count={hunk.hiddenContextAfter} />
     </div>
   );
 }

@@ -3,16 +3,28 @@ import test from "node:test";
 
 import {
   APPEARANCE_STORAGE_KEY,
+  ACCENT_PALETTES,
   CODE_THEMES,
   CODE_THEME_PAIRS,
   CORNER_RADIUS_STYLES,
   DEFAULT_APPEARANCE_PREFERENCES,
   isDefaultAppearancePreferences,
   parseAppearancePreferences,
+  userMessageColorForTheme,
 } from "./appearance-preferences";
 
 test("keeps the persisted appearance storage contract stable", () => {
   assert.equal(APPEARANCE_STORAGE_KEY, "workbench.appearance.v1");
+});
+
+test("uses 14px as the default UI font size", () => {
+  assert.equal(DEFAULT_APPEARANCE_PREFERENCES.uiFontSize, 14);
+});
+
+test("uses light preset accents for user message surfaces but ignores custom colors", () => {
+  assert.equal(userMessageColorForTheme(ACCENT_PALETTES.green.light, "light"), "#e8f6ed");
+  assert.equal(userMessageColorForTheme("#3DEC22", "light"), "#f7f7f8");
+  assert.equal(userMessageColorForTheme("#3DEC22", "dark"), "#2f2f2f");
 });
 
 test("parses persisted appearance preferences", () => {

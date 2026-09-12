@@ -1015,6 +1015,10 @@ export function WorkbenchComposer({
     lexicalEditorRef.current = editor;
   }, []);
 
+  const focusComposerInput = useCallback(() => {
+    lexicalEditorRef.current?.focus();
+  }, []);
+
   const insertComposerTrigger = useCallback((trigger: "@" | "/") => {
     const editor = lexicalEditorRef.current;
     if (!editor) return;
@@ -1423,6 +1427,7 @@ export function WorkbenchComposer({
           }
           attachmentsEnabled={attachmentsEnabled}
           onDropFiles={(files) => void addComposerFiles(files)}
+          onCardClick={focusComposerInput}
         />
 
         {composer.error || composerCommandError ? (

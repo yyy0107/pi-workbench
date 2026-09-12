@@ -42,9 +42,13 @@ import { MessageDisclosureScope, useMessageDisclosure } from "./message-disclosu
 import { toolDiffModel } from "./tool-diff-model";
 import {
   activeToolPresentationLabel,
+  compactTimelineText,
   dataTimelineState,
+  hasTrailingTextBlock,
   liveReasoningPreview,
+  timelineBlockIsActive,
   timelineEntries,
+  timelineHasActiveWork,
   timelineStats,
   timelineSteps,
   toolTimelineCallState,
@@ -535,11 +539,44 @@ export function MessageToolTimeline({
       ),
     [timelineBlocks],
   );
-  const timelineRunning = timelineBlocks.some((block) =>
-    block.kind === "data"
-      ? dataTimelineState(block, dataPresentations)?.active === true
-      : block.status === "running",
+  const messageRunning =
+    node.kind === "assistant" &&
+    node.status === "running" &&
+    !hasTrailingTextBlock(node.blocks, indices.at(-1));
+  const timelineRunning = timelineHasActiveWork(timelineBlocks, dataPresentations, messageRunning);
+  const latestActiveIndex = timelineBlocks.findLastIndex((block) =>
+    timelineBlockIsActive(block, dataPresentations),
   );
+  const latestActiveBlock = timelineBlocks[latestActiveIndex];
+  const latestActiveModel = stepModels[latestActiveIndex];
+  const latestActivity = (() => {
+    if (!timelineRunning || !latestActiveBlock || !latestActiveModel) return undefined;
+
+    if (latestActiveBlock.kind === "data") {
+      const state = dataTimelineState(latestActiveBlock, dataPresentations);
+      return state?.group ? text(state.group.activeLabel) : undefined;
+    }
+
+    if (latestActiveModel.kind === "data") return undefined;
+
+    const preview = compactTimelineText(text(latestActiveModel.chip));
+    if (latestActiveBlock.kind === "reasoning") {
+      const label = t("extensions.messagePresentation.toolTimeline.activeSteps.thinking");
+      return preview ? `${label} · ${preview}` : label;
+    }
+
+    const presentationActiveLabel = activeToolPresentationLabel(
+      latestActiveBlock,
+      latestActiveModel.presentation,
+    );
+    const label =
+      latestActiveBlock.toolName === "write"
+        ? t("extensions.messagePresentation.toolTimeline.activeSteps.creating")
+        : presentationActiveLabel
+          ? text(presentationActiveLabel)
+          : t(`extensions.messagePresentation.toolTimeline.activeSteps.${latestActiveModel.kind}`);
+    return preview ? `${label} · ${preview}` : label;
+  })();
   const steps: ReasoningStep[] = entries.map((entry) => {
     if (entry.kind === "parallel-tools") {
       const models = entry.sourceIndices.map((index) => stepModels[index]);
@@ -623,7 +660,15 @@ export function MessageToolTimeline({
         open={open}
         onOpenChange={setOpen}
         restingLabel={t("extensions.messagePresentation.toolTimeline.summary", summaryArgs)}
-        activeLabel={t("extensions.messagePresentation.toolTimeline.active", summaryArgs)}
+        activeLabel={
+          latestActivity
+            ? t("extensions.messagePresentation.toolTimeline.activeLatest", {
+                latest: latestActivity,
+              })
+            : messageRunning
+              ? t("extensions.messagePresentation.toolTimeline.planningNextStep")
+              : t("extensions.messagePresentation.toolTimeline.active", summaryArgs)
+        }
         icon={ListChecksIcon}
         className="my-1 max-w-none [overflow-anchor:none]"
       />

@@ -4,6 +4,8 @@ export interface UserMessageIndexLayoutInput {
   composerStart: number;
   threadStart: number;
   layoutAllowsIndex?: boolean;
+  layoutMoving?: boolean;
+  previouslyVisible?: boolean;
 }
 
 export interface VerticalBounds {
@@ -29,6 +31,7 @@ export function resolveComposerIndexGap({
 
 export function shouldShowUserMessageIndex(layout: UserMessageIndexLayoutInput): boolean {
   if (layout.layoutAllowsIndex === false) return false;
+  if (layout.layoutMoving && !layout.previouslyVisible) return false;
   const gap = resolveComposerIndexGap(layout);
   return Number.isFinite(gap) && gap > MIN_COMPOSER_INDEX_GAP;
 }

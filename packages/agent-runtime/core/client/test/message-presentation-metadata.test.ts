@@ -6,7 +6,7 @@ import {
   createWorkbenchReasoningPresentationMetadata,
   readWorkbenchParallelToolPresentationMetadata,
   readWorkbenchReasoningPresentationMetadata,
-} from "../src/message-presentation-metadata";
+} from "../src/conversation/presentation-metadata";
 
 test("round-trips generic reasoning presentation metadata", () => {
   const metadata = createWorkbenchReasoningPresentationMetadata({

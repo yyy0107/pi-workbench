@@ -1,8 +1,13 @@
+export { GitReviewSnapshots, type GitReviewSnapshot } from "./git-review-snapshots";
 import { execFile, type ExecFileException } from "node:child_process";
+import { createHash } from "node:crypto";
+import { devNull } from "node:os";
 import { realpath } from "node:fs/promises";
 import path from "node:path";
 
 import {
+  type WorkbenchWorkspaceGitDiff,
+  type WorkbenchWorkspaceGitDiffRequest,
   type WorkbenchWorkspaceGitCommit as WorkspaceGitCommit,
   type WorkbenchWorkspaceGitCommitRef as WorkspaceGitCommitRef,
   type WorkbenchWorkspaceGitChangedFile as WorkspaceGitChangedFile,
@@ -49,10 +54,21 @@ export interface WorkspaceGitServiceDependencies {
   ) => Promise<Value>;
   readonly resolveWorkspaceRoot: (workspaceId: string) => Promise<string | undefined>;
   readonly runGit: WorkspaceGitCommandRunner;
+  readonly resolveReviewSnapshots?: (
+    cwd: string,
+    sessionId: string,
+  ) => Promise<{
+    gitDir: string;
+    snapshots: import("./git-review-snapshots").GitReviewSnapshot[];
+  }>;
 }
 
 export interface WorkspaceGitProtocol {
   describe(input: WorkspaceGitDescribePayload, signal: AbortSignal): Promise<WorkspaceGitStatus>;
+  diff(
+    input: WorkbenchWorkspaceGitDiffRequest,
+    signal: AbortSignal,
+  ): Promise<WorkbenchWorkspaceGitDiff>;
   log(input: WorkbenchWorkspaceGitLogRequest, signal: AbortSignal): Promise<WorkspaceGitLogValue>;
   switchBranch(
     input: WorkspaceGitSwitchBranchPayload,
@@ -69,6 +85,10 @@ export interface WorkspaceGitServiceErrorDetails {
   "git-unavailable": Record<string, never>;
   "git-not-repository": { workspaceId: string };
   "git-status-failed": { workspaceId: string };
+  "git-diff-failed": { workspaceId: string };
+  "git-diff-stale": { workspaceId: string };
+  "git-diff-invalid": { workspaceId: string };
+  "git-diff-too-large": { workspaceId: string; reason: "too-large" };
   "git-log-failed": { workspaceId: string };
   "git-branch-invalid": { branch: string };
   "git-branch-not-found": { workspaceId: string; branch: string };
@@ -194,6 +214,7 @@ export function countGitStatusEntries(output: string): number {
 }
 
 interface GitLineStats {
+  binary?: boolean;
   additions?: number;
   deletions?: number;
 }
@@ -221,6 +242,7 @@ function parseGitNumstat(output: string): Map<string, GitLineStats> {
     const path = inlinePath || records[index + 2];
     if (path) {
       stats.set(path, {
+        ...(record.startsWith("-\t-\t") ? { binary: true } : {}),
         ...(additions === undefined ? {} : { additions }),
         ...(deletions === undefined ? {} : { deletions }),
       });
@@ -325,6 +347,272 @@ class DefaultWorkspaceGitService implements WorkspaceGitProtocol {
   ): Promise<WorkspaceGitStatus> {
     const workspace = await this.requireWorkspace(input.workspaceId);
     return this.readStatus(workspace, signal);
+  }
+
+  async diff(
+    input: WorkbenchWorkspaceGitDiffRequest,
+    signal: AbortSignal,
+  ): Promise<WorkbenchWorkspaceGitDiff> {
+    const workspace = await this.requireWorkspace(input.workspaceId);
+    const repositoryStatus = await this.readStatus(workspace, signal);
+    if (!repositoryStatus.repository && input.scope !== "session" && input.scope !== "last-turn")
+      return repositoryStatus;
+    const status = repositoryStatus.repository
+      ? repositoryStatus
+      : { branches: [] as string[], branch: undefined, detachedHead: undefined };
+    const details = { workspaceId: input.workspaceId };
+    const invalid = () =>
+      new WorkspaceGitServiceError("git-diff-invalid", "Invalid Git comparison or file.", details);
+    if (
+      ![
+        "uncommitted",
+        "unstaged",
+        "staged",
+        "branch",
+        "commit",
+        "range",
+        "session",
+        "last-turn",
+      ].includes(input.scope) ||
+      !Number.isSafeInteger(input.offset ?? 0) ||
+      (input.offset ?? 0) < 0
+    )
+      throw invalid();
+    let gitPrefix: string[] = [];
+    const run = async (args: string[], allowDifference = false) => {
+      const result = await this.runCommand(
+        [...gitPrefix, ...args],
+        workspace,
+        signal,
+        "git-diff-failed",
+        details,
+      );
+      if (result.exitCode !== 0 && !(allowDifference && result.exitCode === 1)) {
+        throw new WorkspaceGitServiceError(
+          "git-diff-failed",
+          "The Git diff could not be read.",
+          details,
+        );
+      }
+      return result.stdout;
+    };
+    const remoteBranches = repositoryStatus.repository
+      ? (await run(["for-each-ref", "--format=%(refname:short)", "refs/remotes/"]))
+          .trim()
+          .split("\n")
+          .filter((branch) => branch && !branch.endsWith("/HEAD"))
+      : [];
+    const branches = [...status.branches, ...remoteBranches];
+    const revisions: string[] = input.scope === "staged" ? ["--cached"] : [];
+    if (input.scope === "uncommitted") {
+      const head = await this.runCommand(
+        ["rev-parse", "--verify", "HEAD"],
+        workspace,
+        signal,
+        "git-diff-failed",
+        details,
+      );
+      revisions.push(
+        head.exitCode === 0
+          ? head.stdout.trim()
+          : (await run(["hash-object", "-t", "tree", devNull])).trim(),
+      );
+    }
+    if (input.scope === "branch") {
+      if (!input.revision || !branches.includes(input.revision)) throw invalid();
+      const base = (
+        await run([
+          "merge-base",
+          "HEAD",
+          `${status.branches.includes(input.revision) ? "refs/heads" : "refs/remotes"}/${input.revision}`,
+        ])
+      ).trim();
+      if (!/^[a-f0-9]{40,64}$/.test(base)) throw invalid();
+      revisions.push(base, "HEAD");
+    }
+    if (input.scope === "commit" || input.scope === "range") {
+      const resolveCommit = async (revision: string | undefined) => {
+        if (!revision || !/^[a-f0-9]{4,64}$/i.test(revision)) throw invalid();
+        return (
+          await run(["rev-parse", "--verify", "--end-of-options", `${revision}^{commit}`])
+        ).trim();
+      };
+      const last = await resolveCommit(input.revision);
+      const first = input.scope === "range" ? await resolveCommit(input.baseRevision) : last;
+      if (input.scope === "range") await run(["merge-base", "--is-ancestor", first, last]);
+      const parents = (await run(["rev-list", "--parents", "-n", "1", first])).trim().split(" ");
+      const base = parents[1] ?? (await run(["hash-object", "-t", "tree", devNull])).trim();
+      revisions.push(base, last);
+    }
+    let turns: { id: string; timestamp: number }[] | undefined;
+    if (input.scope === "session" || input.scope === "last-turn") {
+      if (!input.sessionId || !this.dependencies.resolveReviewSnapshots) throw invalid();
+      const history = await this.dependencies.resolveReviewSnapshots(
+        workspace.path,
+        input.sessionId,
+      );
+      turns = history.snapshots.map(({ id, timestamp }) => ({ id, timestamp }));
+      const selected = input.revision
+        ? history.snapshots.find((turn) => turn.id === input.revision)
+        : history.snapshots.at(-1);
+      const first = input.scope === "session" ? history.snapshots[0] : selected;
+      const last = input.scope === "session" ? history.snapshots.at(-1) : selected;
+      if (!first?.before || !last?.after)
+        return {
+          repository: true,
+          branches: status.branches,
+          branch: status.branch,
+          files: [],
+          turns,
+          unrecorded: true,
+        };
+      gitPrefix = [`--git-dir=${history.gitDir}`];
+      revisions.push(first.before, last.after);
+    }
+    const diffArgs = [
+      "--literal-pathspecs",
+      "diff",
+      "--no-ext-diff",
+      "--no-textconv",
+      "--find-renames",
+    ];
+    const [names, stats] = await Promise.all([
+      run([...diffArgs, "--name-status", "-z", ...revisions, "--"]),
+      run([...diffArgs, "--numstat", "-z", ...revisions, "--"]),
+    ]);
+    const counts = parseGitNumstat(stats);
+    const records = names.split("\0");
+    const byPath = new Map<string, WorkspaceGitChangedFile>();
+    for (let index = 0; records[index];) {
+      const code = records[index++];
+      const firstPath = records[index++];
+      const previousPath = /^[RC]/.test(code) ? firstPath : undefined;
+      const filePath = previousPath ? records[index++] : firstPath;
+      if (byPath.get(filePath)?.kind !== "conflicted")
+        byPath.set(filePath, {
+          path: filePath,
+          kind: classifyGitStatus(code),
+          ...(previousPath ? { previousPath } : {}),
+          ...counts.get(filePath),
+        });
+    }
+    const files = [...byPath.values()];
+    if (input.scope === "unstaged" || input.scope === "uncommitted") {
+      const untracked = await run(["ls-files", "--others", "--exclude-standard", "-z"]);
+      for (const filePath of untracked.split("\0").filter(Boolean)) {
+        files.push({ path: filePath, kind: "untracked" });
+      }
+    }
+    const summary = {
+      repository: true as const,
+      branch: status.branch ?? status.detachedHead,
+      branches,
+      ...(turns ? { turns } : {}),
+    };
+    if (input.path !== undefined || input.exportPatch) {
+      if (input.exportPatch && files.some((file) => file.kind === "conflicted")) throw invalid();
+      const file =
+        input.path === undefined ? undefined : files.find((file) => file.path === input.path);
+      if (input.path !== undefined && !file) throw invalid();
+      const untrackedPatch = (filePath: string) =>
+        run(
+          [
+            "diff",
+            "--no-index",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--no-color",
+            "--binary",
+            "--",
+            devNull,
+            filePath,
+          ],
+          true,
+        );
+      let patch =
+        file?.kind === "untracked"
+          ? await untrackedPatch(file.path)
+          : await run([
+              ...diffArgs,
+              "--patch",
+              "--no-color",
+              "--binary",
+              input.fullContext && !input.exportPatch ? "--unified=2147483647" : "--unified=3",
+              ...(file?.kind === "conflicted" && input.scope === "unstaged" ? ["--ours"] : []),
+              ...(file?.previousPath ? ["--diff-filter=RC"] : []),
+              ...revisions,
+              "--",
+              ...(file ? [file.path, ...(file.previousPath ? [file.previousPath] : [])] : []),
+            ]);
+      if (!file) {
+        let bytes = Buffer.byteLength(patch);
+        for (const file of files) {
+          if (file.kind !== "untracked") continue;
+          const addition = await untrackedPatch(file.path);
+          bytes += Buffer.byteLength(addition);
+          if (bytes > GIT_COMMAND_OUTPUT_LIMIT_BYTES)
+            throw new WorkspaceGitServiceError(
+              "git-diff-too-large",
+              "The patch exceeds the review output limit.",
+              { ...details, reason: "too-large" },
+            );
+          patch += addition;
+        }
+      }
+      const patchVersion = createHash("sha256").update(patch).digest("hex");
+      if (input.patchVersion && input.patchVersion !== patchVersion) {
+        throw new WorkspaceGitServiceError(
+          "git-diff-stale",
+          "The diff changed. Refresh before continuing.",
+          details,
+        );
+      }
+      const offset = input.offset ?? 0;
+      // ponytail: bounded text pages; Git's existing 16 MiB command limit remains the ceiling.
+      let end = Math.min(patch.length, offset + 32_768);
+      if (end < patch.length && /[\uD800-\uDBFF]/.test(patch[end - 1])) end -= 1;
+      return {
+        ...summary,
+        files: [],
+        patch: patch.slice(offset, end),
+        patchVersion,
+        ...(end < patch.length ? { nextOffset: end } : {}),
+      };
+    }
+    const patchVersion = createHash("sha256").update(JSON.stringify(files)).digest("hex");
+    if (input.patchVersion && input.patchVersion !== patchVersion) {
+      throw new WorkspaceGitServiceError(
+        "git-diff-stale",
+        "The file list changed. Refresh before continuing.",
+        details,
+      );
+    }
+    const offset = input.offset ?? 0;
+    const page = files.slice(offset, offset + WORKSPACE_GIT_CHANGED_FILE_LIMIT);
+    for (const file of page) {
+      if (file.kind !== "untracked") continue;
+      const stats = await run(
+        [
+          "diff",
+          "--no-index",
+          "--no-ext-diff",
+          "--no-textconv",
+          "--numstat",
+          "-z",
+          "--",
+          devNull,
+          path.join(workspace.path, file.path),
+        ],
+        true,
+      );
+      Object.assign(file, [...parseGitNumstat(stats).values()][0]);
+    }
+    return {
+      ...summary,
+      files: page,
+      patchVersion,
+      ...(offset + page.length < files.length ? { nextOffset: offset + page.length } : {}),
+    };
   }
 
   async log(
@@ -625,7 +913,12 @@ class DefaultWorkspaceGitService implements WorkspaceGitProtocol {
   }
 
   private async runCommand<
-    Code extends "git-status-failed" | "git-log-failed" | "git-switch-failed" | "git-create-failed",
+    Code extends
+      | "git-diff-failed"
+      | "git-status-failed"
+      | "git-log-failed"
+      | "git-switch-failed"
+      | "git-create-failed",
   >(
     args: readonly string[],
     workspace: WorkspaceRoot,
@@ -645,8 +938,22 @@ class DefaultWorkspaceGitService implements WorkspaceGitProtocol {
           { cause: error },
         );
       }
+      if (
+        failureCode === "git-diff-failed" &&
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER"
+      ) {
+        throw new WorkspaceGitServiceError(
+          "git-diff-too-large",
+          "The patch exceeds the review output limit.",
+          { workspaceId: workspace.workspaceId, reason: "too-large" },
+        );
+      }
       const messages = {
         "git-status-failed": "The Git repository status could not be read.",
+        "git-diff-failed": "The Git diff could not be read.",
         "git-log-failed": "The Git history could not be read.",
         "git-switch-failed": "The Git branch could not be switched.",
         "git-create-failed": "The Git branch could not be created.",

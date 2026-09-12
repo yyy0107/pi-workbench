@@ -1,48 +1,35 @@
 "use client";
 
-import { useCallback } from "react";
-
-import {
-  useRightWorkspace,
-  useWorkspaceContext,
-  useWorkspaceSurfaces,
-} from "../../../right-workspace-react";
-import { toolStringArg, useCompletedToolCalls } from "@workbench/agent-runtime-client";
-
+import { useCallback, useEffect, useRef } from "react";
+import { useWorkspaceContext } from "../../../right-workspace-react";
+import { useCompletedToolCalls, useSessionState } from "@workbench/agent-runtime-client";
 import { useGitReviewService } from "./git-review-service";
 
 export function ReviewRuntimeBridge() {
   const gitReview = useGitReviewService();
-  const controller = useRightWorkspace();
-  const surfaces = useWorkspaceSurfaces("review");
   const context = useWorkspaceContext();
-
+  const repositoryId = context.worktreeId ?? context.projectId;
+  const running = useSessionState((snapshot) => snapshot.isRunning);
+  const wasRunning = useRef(running);
+  useEffect(() => {
+    if (wasRunning.current && !running && repositoryId) gitReview.noteChanged(repositoryId);
+    wasRunning.current = running;
+  }, [running, repositoryId, gitReview]);
   useCompletedToolCalls(
     useCallback(
       (part) => {
         if (
-          !["write", "edit", "apply_patch"].includes(part.toolName) ||
+          !["write", "edit", "apply_patch", "bash"].includes(part.toolName) ||
           part.result === undefined ||
-          !context.threadId ||
-          !context.worktreeId
-        ) {
+          !repositoryId
+        )
           return false;
-        }
-        const path = toolStringArg(part.arguments, "path", "file_path", "filePath");
-        if (path) gitReview.noteChanged(context.worktreeId, path);
-        const target = surfaces.find(
-          (surface) =>
-            surface.kind === "review" &&
-            surface.scope.type === "thread" &&
-            surface.scope.key === context.threadId &&
-            surface.params.repositoryId === context.worktreeId,
-        );
-        if (target) controller.update(target.id, { status: "resource-changed" });
+        // Re-read Git even when a tool has no single path argument (for example apply_patch).
+        gitReview.noteChanged(repositoryId);
         return true;
       },
-      [context, controller, gitReview, surfaces],
+      [repositoryId, gitReview],
     ),
   );
-
   return null;
 }

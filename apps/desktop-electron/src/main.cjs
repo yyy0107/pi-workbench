@@ -276,7 +276,18 @@ function createMainWindow(workbenchUrl) {
       window.hide();
     }
   });
-  window.once("ready-to-show", () => window.show());
+  let windowShown = false;
+  const showWindow = () => {
+    if (windowShown || window.isDestroyed()) return;
+    windowShown = true;
+    window.show();
+    if (process.platform === "linux") app.focus({ steal: true });
+    window.focus();
+  };
+  window.once("ready-to-show", showWindow);
+  // Some Linux Wayland/GPU combinations do not emit `ready-to-show` even though the
+  // navigation completed. Keep the window usable once the trusted page has loaded.
+  window.webContents.once("did-finish-load", showWindow);
   window.once("closed", () => {
     if (mainWindow === window) mainWindow = undefined;
   });
@@ -457,7 +468,6 @@ async function bootstrap() {
   } else {
     const response = await net.fetch(workbenchUrl, { redirect: "error" });
     await assertDesktopRendererDevelopmentResponse(response);
-    console.log(`> Electron connected to the explicit Desktop renderer at ${rendererOrigin}`);
   }
   if (isQuitting) {
     await stopWorkbenchRuntime();

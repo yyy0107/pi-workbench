@@ -7,9 +7,9 @@ import type {
 import { useMemo, useSyncExternalStore } from "react";
 import type { CurrentSessionSnapshot, ThreadListSnapshot } from "@workbench/agent-runtime-core";
 
-import { useHostSnapshot } from "./bind-snapshot-selector";
-import { createConversationNodeSelection } from "./conversation-node-selection";
-import { useRuntimeContext, useSessionContext } from "./runtime-context";
+import { useHostSnapshot } from "./snapshot-selector";
+import { createConversationNodeSelection } from "./node-selection";
+import { useRuntimeContext, useSessionContext } from "./context";
 
 const identity = <T>(value: T): T => value;
 

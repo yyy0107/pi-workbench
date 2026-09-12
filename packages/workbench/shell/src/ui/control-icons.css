@@ -11,3 +11,37 @@
     height: var(--button-icon-size, var(--icon-size-md));
   }
 }
+
+/* Keep each glyph, frame and radius together; local control tokens remain overridable. */
+@layer components {
+  .aui-icon-profile-xs {
+    --icon-button-profile-size: var(--icon-size-xs);
+    --icon-button-profile-frame: var(--icon-frame-size-xs);
+    --icon-button-profile-radius: var(--icon-frame-radius-xs);
+  }
+  .aui-icon-profile-sm {
+    --icon-button-profile-size: var(--icon-size-sm);
+    --icon-button-profile-frame: var(--icon-frame-size-sm);
+    --icon-button-profile-radius: var(--icon-frame-radius-sm);
+  }
+  .aui-icon-profile-md {
+    --icon-button-profile-size: var(--icon-size-md);
+    --icon-button-profile-frame: var(--icon-frame-size-md);
+    --icon-button-profile-radius: var(--icon-frame-radius-md);
+  }
+  .aui-icon-profile-lg {
+    --icon-button-profile-size: var(--icon-size-lg);
+    --icon-button-profile-frame: var(--icon-frame-size-lg);
+    --icon-button-profile-radius: var(--icon-frame-radius-lg);
+  }
+  .aui-icon-profile-xl {
+    --icon-button-profile-size: var(--icon-size-xl);
+    --icon-button-profile-frame: var(--icon-frame-size-xl);
+    --icon-button-profile-radius: var(--icon-frame-radius-xl);
+  }
+  .aui-icon-profile-xxl {
+    --icon-button-profile-size: var(--icon-size-xxl);
+    --icon-button-profile-frame: var(--icon-frame-size-xxl);
+    --icon-button-profile-radius: var(--icon-frame-radius-xxl);
+  }
+}

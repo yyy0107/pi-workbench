@@ -1,137 +1,564 @@
 "use client";
 
-import { FileDiffIcon, RefreshCwIcon } from "lucide-react";
-import { useEffect, useState, useSyncExternalStore } from "react";
-
-import { useExtensionErrorReporter } from "@workbench/extension-host";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CopyIcon,
+  FileCode2Icon,
+  FileDiffIcon,
+} from "lucide-react";
+import { memo, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
+import type {
+  WorkbenchWorkspaceGitChangedFile,
+  WorkbenchWorkspaceGitDiffRequest,
+  WorkbenchWorkspaceGitReviewScope,
+} from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
 import { defineMessage, useI18n } from "../../../i18n";
-import { InlineFeedbackForm } from "../../../right-workspace/presentation";
-import { useRightWorkspace } from "../../../right-workspace-react";
-import { Button } from "../../../ui";
-import { useGitReviewService, type GitDiff } from "./git-review-service";
+import {
+  useOpenerService,
+  useRightWorkspace,
+  useWorkspaceContext,
+} from "../../../right-workspace-react";
+import {
+  Button,
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  PathEllipsis,
+  useToastManager,
+} from "../../../ui";
+import { useClipboardCopy } from "../../../hooks/use-clipboard-copy";
+import { FileTypeIcon } from "../../../workspace-file-tree";
+import { workspaceAbsolutePath } from "../../../workspace-files";
+import type { DiffHunk } from "../../../elements/reviewable-diff";
+import { MarkdownPreview } from "../../../chat/markdown-preview";
+import { shouldHighlightWorkbenchCode } from "../../../code-highlighting/code-highlight-policy";
+import { languageForFilename } from "../../../code-highlighting/shiki-catalog";
+import { useWorkbenchHighlightedLines } from "../../../code-highlighting/use-workbench-highlighted-lines";
+import { isMarkdownFile } from "../workspace-file/file-view-mode";
+import { ReviewDiffHunk } from "./review-diff-hunk";
+import { defaultReviewDisplayOptions, type ReviewDisplayOptions } from "./review-options";
+import { parseUnifiedPatch, visiblePatchHunks } from "../../../elements/unified-patch";
+import { useGitReviewService } from "./git-review-service";
+import { CommitSelection } from "./commit-selection";
+import { useGitDiff } from "./use-git-diff";
 
 export interface ReviewSurfaceParams extends Record<string, unknown> {
   repositoryId: string;
-  reviewScope: "unstaged" | "staged" | "commit" | "branch" | "last-turn";
+  reviewScope: WorkbenchWorkspaceGitReviewScope;
   revision?: string;
+  baseRevision?: string;
+  sessionId?: string;
+  displayOptions?: ReviewDisplayOptions;
+  filesExpanded?: boolean;
 }
 
-const REVIEW_LOAD_FAILED = defineMessage("extensions.workspaceReview.loadFailed");
+type ReviewProps = WorkspaceSurfaceProps<ReviewSurfaceParams>;
 
-export function ReviewSurface({
-  surface,
-  retryToken = 0,
-}: WorkspaceSurfaceProps<ReviewSurfaceParams>) {
+function DiffState({ query }: { query: ReturnType<typeof useGitDiff> }) {
   const { t } = useI18n();
-  const controller = useRightWorkspace();
-  const reportError = useExtensionErrorReporter();
-  const git = useGitReviewService();
-  const revision = useSyncExternalStore(
-    git.subscribe.bind(git),
-    git.getRevision.bind(git),
-    () => 0,
-  );
-  const [diff, setDiff] = useState<GitDiff>();
+  if (query.error)
+    return (
+      <div
+        role="alert"
+        className="flex flex-wrap items-center gap-2 p-3 text-sm text-muted-foreground"
+      >
+        <span>
+          {t(
+            query.error === "unavailable"
+              ? "extensions.workspaceReview.unavailable"
+              : query.error === "stale"
+                ? "extensions.workspaceReview.stale"
+                : query.error === "too-large"
+                  ? "extensions.workspaceReview.tooLarge"
+                  : "extensions.workspaceReview.loadFailed",
+          )}
+        </span>
+        {query.error === "failed" && (
+          <Button variant="ghost" onClick={query.retry}>
+            {t("extensions.workspaceReview.retry")}
+          </Button>
+        )}
+      </div>
+    );
+  if (query.loading)
+    return (
+      <p role="status" className="p-3 text-sm text-muted-foreground">
+        {t("extensions.workspaceReview.loading")}
+      </p>
+    );
+  if (query.data && !query.data.repository)
+    return (
+      <p role="status" className="p-3 text-sm text-muted-foreground">
+        {t("extensions.workspaceReview.notRepository")}
+      </p>
+    );
+  return null;
+}
 
-  const refresh = () => {
-    controller.update(surface.id, { status: "loading" });
-    void git
-      .getDiff({
-        repositoryId: surface.params.repositoryId,
-        scope: surface.params.reviewScope,
-        ...(surface.params.revision ? { revision: surface.params.revision } : {}),
+function MoreDiff({ query }: { query: ReturnType<typeof useGitDiff> }) {
+  const { t } = useI18n();
+  return query.data?.repository && query.data.nextOffset !== undefined ? (
+    <div className="px-3 py-2">
+      <p className="text-xs text-muted-foreground">{t("extensions.workspaceReview.partial")}</p>
+      <Button
+        variant="ghost"
+        onClick={query.loadMore}
+        disabled={query.loading || Boolean(query.error)}
+      >
+        {t("extensions.workspaceReview.loadMore")}
+      </Button>
+    </div>
+  ) : null;
+}
+
+const FilePatch = memo(function FilePatch({
+  surface,
+  request,
+  file,
+  options,
+  cacheKey,
+}: {
+  options: ReviewDisplayOptions;
+  surface: ReviewProps["surface"];
+  request: WorkbenchWorkspaceGitDiffRequest;
+  file: WorkbenchWorkspaceGitChangedFile;
+  cacheKey: string;
+}) {
+  const { t } = useI18n();
+  const richText = options.richText && isMarkdownFile(file.path);
+  const fileRequest = useMemo(
+    () => ({ ...request, path: file.path, fullContext: options.fullFile || richText }),
+    [request, file.path, options.fullFile, richText],
+  );
+  const query = useGitDiff(fileRequest, true, cacheKey);
+  const patch = query.data?.repository ? (query.data.patch ?? "") : "";
+  const parsedHunks = useMemo(() => parseUnifiedPatch(patch), [patch]);
+  const hunks = useMemo(
+    () =>
+      visiblePatchHunks(parsedHunks).map((hunk): DiffHunk => ({
+        id: `${hunk.sourceHunkIndex}:${hunk.sourceBlockIndex}`,
+        decision: "pending",
+        range: `@@ -${hunk.oldStart},${hunk.lines.filter((line) => line.kind !== "added").length} +${hunk.newStart},${hunk.lines.filter((line) => line.kind !== "removed").length} @@`,
+        lines: hunk.lines,
+        hiddenContextBefore: hunk.hiddenContextBefore,
+        hiddenContextAfter: hunk.hiddenContextAfter,
+      })),
+    [parsedHunks],
+  );
+  const highlightCode = useMemo(
+    () => (richText ? "" : hunks.flatMap((hunk) => hunk.lines.map((line) => line.text)).join("\n")),
+    [hunks, richText],
+  );
+  const highlightEnabled = useMemo(
+    () => Boolean(highlightCode) && shouldHighlightWorkbenchCode(highlightCode),
+    [highlightCode],
+  );
+  const highlightLanguage = useMemo(() => languageForFilename(file.path), [file.path]);
+  const { tokens: highlightedTokens } = useWorkbenchHighlightedLines(
+    highlightCode,
+    highlightLanguage,
+    {
+      enabled: highlightEnabled,
+    },
+  );
+  const tokensByHunk = useMemo(() => {
+    if (!highlightedTokens) return undefined;
+    let lineOffset = 0;
+    return hunks.map((hunk) => {
+      const tokens = highlightedTokens.slice(lineOffset, lineOffset + hunk.lines.length);
+      lineOffset += hunk.lines.length;
+      return tokens;
+    });
+  }, [hunks, highlightedTokens]);
+  return (
+    <div className="border-y border-border" aria-busy={query.loading}>
+      {file.previousPath && (
+        <p className="break-all px-3 py-2 text-xs text-muted-foreground">
+          {t("extensions.workspaceReview.renamedFrom", { path: file.previousPath })}
+        </p>
+      )}
+      {richText &&
+      hunks.length > 0 &&
+      query.data?.repository &&
+      query.data.nextOffset === undefined &&
+      !query.loading &&
+      !query.error ? (
+        <div className="grid gap-2 p-2">
+          {(["old", "new"] as const).map((side) => (
+            <section key={side} className="min-w-0 rounded-(--button-radius) border border-border">
+              <h3 className="border-b border-border bg-muted px-3 py-1 text-xs text-muted-foreground">
+                {t(
+                  side === "old"
+                    ? "extensions.workspaceReview.before"
+                    : "extensions.workspaceReview.after",
+                )}
+              </h3>
+              <MarkdownPreview
+                ariaLabel={t(
+                  side === "old"
+                    ? "extensions.workspaceReview.before"
+                    : "extensions.workspaceReview.after",
+                )}
+                content={parsedHunks
+                  .flatMap((hunk) =>
+                    hunk.lines
+                      .filter((line) => line.kind !== (side === "old" ? "added" : "removed"))
+                      .map((line) => line.text),
+                  )
+                  .join("\n")}
+              />
+            </section>
+          ))}
+        </div>
+      ) : (
+        hunks.map((hunk, index) => (
+          <ReviewDiffHunk
+            key={hunk.id}
+            hunk={hunk}
+            filename={file.path}
+            surface={surface}
+            request={request}
+            options={options}
+            tokens={tokensByHunk?.[index]}
+          />
+        ))
+      )}
+      {!query.loading && !query.error && query.data?.repository && !hunks.length && (
+        <p className="p-3 text-sm text-muted-foreground">
+          {t(
+            file.binary
+              ? "extensions.workspaceReview.binary"
+              : "extensions.workspaceReview.noTextChanges",
+          )}
+        </p>
+      )}
+      {patch.includes("\\ No newline at end of file") && (
+        <p className="px-3 py-1 text-xs text-muted-foreground">
+          {t("extensions.workspaceReview.noFinalNewline")}
+        </p>
+      )}
+      <DiffState query={query} />
+      <MoreDiff query={query} />
+    </div>
+  );
+});
+
+const ReviewFile = memo(function ReviewFile({
+  file,
+  surface,
+  request,
+  options,
+  context,
+  filesExpanded,
+  cacheKey,
+}: {
+  options: ReviewDisplayOptions;
+  file: WorkbenchWorkspaceGitChangedFile;
+  surface: ReviewProps["surface"];
+  request: WorkbenchWorkspaceGitDiffRequest;
+  context: ReviewProps["context"];
+  filesExpanded: boolean;
+  cacheKey: string;
+}) {
+  const { t, number } = useI18n();
+  const openers = useOpenerService();
+  const notifications = useToastManager();
+  const { copy, status: copyStatus } = useClipboardCopy();
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!filesExpanded) setOpen(false);
+  }, [filesExpanded]);
+  const isOpen = filesExpanded || open;
+  const fileName = file.path.split(/[\\/]/).filter(Boolean).at(-1) ?? file.path;
+  const displayPath = workspaceAbsolutePath(context.rootPath, file.path);
+  const copyPathLabel =
+    copyStatus === "copied"
+      ? t("extensions.workspaceReview.fileActions.pathCopied")
+      : copyStatus === "failed"
+        ? t("extensions.workspaceReview.fileActions.pathCopyFailed")
+        : t("extensions.workspaceReview.fileActions.copyPath");
+  const expandLabel = t(
+    isOpen
+      ? "extensions.workspaceReview.fileActions.collapse"
+      : "extensions.workspaceReview.fileActions.expand",
+  );
+  const openFileTab = () => {
+    void openers
+      .open({
+        resource: { scheme: "workspace-file", path: file.path, label: fileName },
+        context,
+        scope: surface.scope,
+        policy: "force-focus",
       })
-      .then((value) => {
-        setDiff(value);
-        controller.update(surface.id, { status: "ready", statusMessage: undefined });
-      })
-      .catch((error: unknown) => {
-        reportError(error, { source: "workspace", contributionId: surface.id });
-        controller.update(surface.id, {
-          status: "error",
-          statusMessage: REVIEW_LOAD_FAILED,
+      .catch(() => {
+        notifications.add({
+          id: "workspace-review-file-open-error",
+          type: "error",
+          priority: "high",
+          title: t("extensions.shared.fileTree.openError", { name: fileName }),
         });
       });
   };
-
-  useEffect(refresh, [retryToken, revision, surface.resourceKey]);
-
   return (
-    <section className="flex h-full min-h-0 flex-col">
-      <div className="flex min-h-10 shrink-0 items-center gap-2 border-b px-3 text-xs">
-        <FileDiffIcon className="text-muted-foreground size-4" />
-        <span className="min-w-0 flex-1 truncate font-medium">
-          {surface.params.repositoryId} · {surface.params.reviewScope}
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={t("extensions.workspaceReview.refresh")}
-          title={t("extensions.workspaceReview.refresh")}
-          className="text-muted-foreground hover:text-foreground"
-          onClick={refresh}
+    <Collapsible open={isOpen} onOpenChange={setOpen}>
+      <div className="group flex min-w-0 items-center bg-transparent pe-3 hover:[background:var(--button-background-hover)] focus-within:[background:var(--button-background-hover)] dark:[background:var(--button-background-hover)]">
+        <CollapsibleTrigger
+          render={
+            <Button
+              variant="ghost"
+              data-frame="none"
+              data-selection="none"
+              className="min-w-0 max-w-full shrink justify-start gap-2 text-xs font-normal aria-expanded:[background:transparent]! aria-expanded:text-foreground active:[background:transparent]!"
+            />
+          }
+          title={displayPath}
         >
-          <RefreshCwIcon />
-        </Button>
+          <FileTypeIcon path={file.path} className="size-(--icon-size-md) shrink-0" />
+          <PathEllipsis text={displayPath} mode="filename" className="shrink text-left" />
+          {file.binary ? (
+            <span className="shrink-0 text-muted-foreground">
+              {t("extensions.workspaceReview.binaryShort")}
+            </span>
+          ) : file.additions !== undefined && file.deletions !== undefined ? (
+            <span
+              className="flex shrink-0 gap-1 font-mono tabular-nums"
+              aria-label={t("extensions.workspaceReview.lineChanges", {
+                additions: file.additions,
+                deletions: file.deletions,
+              })}
+            >
+              <span className="text-success-foreground" aria-hidden>
+                +{number(file.additions)}
+              </span>
+              <span className="text-danger-foreground" aria-hidden>
+                −{number(file.deletions)}
+              </span>
+            </span>
+          ) : null}
+        </CollapsibleTrigger>
+        <div className="[--button-icon-frame-size:var(--icon-frame-size-xs)] [--button-icon-size:var(--icon-size-xs)] [--button-icon-radius:var(--icon-frame-radius-xs)] flex shrink-0 items-center gap-1 self-stretch text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 dark:opacity-100 motion-reduce:transition-none">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={copyPathLabel}
+            title={copyPathLabel}
+            onClick={() => void copy(file.path)}
+          >
+            {copyStatus === "copied" ? <CheckIcon /> : <CopyIcon />}
+          </Button>
+          <CollapsibleTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-label={expandLabel}
+                title={expandLabel}
+              />
+            }
+          >
+            {isOpen ? <ChevronDownIcon /> : <ChevronRightIcon />}
+          </CollapsibleTrigger>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={t("extensions.workspaceReview.fileActions.openInFileTab")}
+            title={t("extensions.workspaceReview.fileActions.openInFileTab")}
+            disabled={!context.rootPath || !(context.worktreeId ?? context.projectId)}
+            onClick={openFileTab}
+          >
+            <FileCode2Icon />
+          </Button>
+        </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {diff?.files.length ? (
-          <div className="space-y-2">
-            {diff.files.map((file) => (
-              <article key={file.path} className="overflow-visible rounded-xl border">
-                <header className="bg-muted/35 flex h-9 items-center gap-2 border-b px-3 text-xs">
-                  <span className="min-w-0 flex-1 truncate font-mono">{file.path}</span>
-                  <span className="text-emerald-600">+{file.additions}</span>
-                  <span className="text-rose-600">−{file.deletions}</span>
-                </header>
-                <div className="relative font-mono text-[11px] leading-5">
-                  {file.lines.map((line, index) => (
-                    <div
-                      key={`${line.oldLine ?? ""}-${line.newLine ?? ""}-${index}`}
-                      className={`group/line relative flex min-h-7 items-center ${
-                        line.kind === "addition"
-                          ? "bg-emerald-500/8"
-                          : line.kind === "deletion"
-                            ? "bg-rose-500/8"
-                            : ""
-                      }`}
-                    >
-                      <span className="text-muted-foreground w-9 shrink-0 select-none text-right">
-                        {line.oldLine ?? ""}
-                      </span>
-                      <span className="text-muted-foreground w-9 shrink-0 select-none pr-2 text-right">
-                        {line.newLine ?? ""}
-                      </span>
-                      <code className="min-w-0 flex-1 overflow-x-auto whitespace-pre px-2">
-                        {line.text}
-                      </code>
-                      <InlineFeedbackForm
-                        surface={surface}
-                        kind="diff-line"
-                        label={t("extensions.workspaceReview.commentLine")}
-                        target={{
-                          path: file.path,
-                          side: line.kind === "deletion" ? "old" : "new",
-                          line: line.newLine ?? line.oldLine ?? index + 1,
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </article>
+      <CollapsibleContent>
+        {isOpen && (
+          <FilePatch
+            key={`${options.fullFile}:${options.richText}`}
+            surface={surface}
+            request={request}
+            file={file}
+            options={options}
+            cacheKey={cacheKey}
+          />
+        )}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+});
+
+function ReviewComparison({ surface, reviewRevision }: ReviewProps & { reviewRevision: number }) {
+  const { t } = useI18n();
+  const controller = useRightWorkspace();
+  const context = useWorkspaceContext();
+  const isCommit =
+    surface.params.reviewScope === "commit" || surface.params.reviewScope === "range";
+  const options = useMemo(
+    () => ({ ...defaultReviewDisplayOptions, ...surface.params.displayOptions }),
+    [surface.params.displayOptions],
+  );
+  const diffCacheKey = `${surface.resourceKey}:${reviewRevision}`;
+  const supported =
+    !isCommit ||
+    Boolean(
+      surface.params.revision &&
+      (surface.params.reviewScope !== "range" || surface.params.baseRevision),
+    );
+  const request = useMemo(
+    () => ({
+      workspaceId: surface.params.repositoryId,
+      scope: surface.params.reviewScope,
+      revision: surface.params.reviewScope === "last-turn" ? undefined : surface.params.revision,
+      baseRevision: surface.params.baseRevision,
+      sessionId: surface.params.sessionId ?? context.threadId,
+    }),
+    [
+      surface.params.repositoryId,
+      surface.params.reviewScope,
+      surface.params.revision,
+      surface.params.baseRevision,
+      surface.params.sessionId,
+      context.threadId,
+    ],
+  );
+  const query = useGitDiff(request, supported, diffCacheKey);
+  const repository = query.data?.repository ? query.data : undefined;
+  const reveal = (params: ReviewSurfaceParams) => {
+    const id = controller.reveal({
+      kind: "review",
+      title: defineMessage("extensions.workspaceReview.title"),
+      params,
+      context,
+    });
+    if (id !== surface.id) controller.close(surface.id, context);
+  };
+  return (
+    <section data-workspace-review="" className="flex h-full min-h-0 flex-col text-foreground">
+      {request.scope === "branch" && (
+        <div className="flex min-w-0 items-center border-b border-border px-2 py-1">
+          <span
+            className="min-w-0 truncate text-xs text-muted-foreground"
+            title={repository?.branch}
+          >
+            {repository?.branch}
+          </span>
+          <ChevronRightIcon
+            aria-hidden
+            className="size-(--icon-size-sm) shrink-0 text-muted-foreground"
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" className="min-w-0 shrink text-xs" />}
+              aria-label={t("extensions.workspaceReview.compareBranch")}
+            >
+              <span className="truncate">{request.revision}</span>
+              <ChevronDownIcon />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent data-workspace-review="" className="max-h-80 overflow-y-auto">
+              <DropdownMenuRadioGroup
+                value={request.revision}
+                onValueChange={(revision) => reveal({ ...surface.params, revision })}
+              >
+                {repository?.branches.map((branch) => (
+                  <DropdownMenuRadioItem key={branch} value={branch}>
+                    {branch}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+      {isCommit && (
+        <div className="flex flex-wrap border-b border-border px-2 py-1">
+          {surface.params.reviewScope === "range" && (
+            <CommitSelection
+              workspaceId={request.workspaceId}
+              value={request.baseRevision}
+              label={t("extensions.workspaceReview.firstCommit")}
+              onChange={(baseRevision) => reveal({ ...surface.params, baseRevision })}
+            />
+          )}
+          <CommitSelection
+            workspaceId={request.workspaceId}
+            value={request.revision}
+            label={t(
+              surface.params.reviewScope === "range"
+                ? "extensions.workspaceReview.lastCommit"
+                : "extensions.workspaceReview.chooseCommit",
+            )}
+            onChange={(revision) => reveal({ ...surface.params, revision })}
+          />
+        </div>
+      )}
+      <div className="min-h-0 flex-1 overflow-y-auto py-1" aria-busy={query.loading}>
+        {supported ? (
+          <>
+            {repository?.files.map((file) => (
+              <ReviewFile
+                key={file.path}
+                file={file}
+                surface={surface}
+                request={request}
+                options={options}
+                context={context}
+                filesExpanded={surface.params.filesExpanded === true}
+                cacheKey={diffCacheKey}
+              />
             ))}
-          </div>
+            {!query.loading && !query.error && repository?.files.length === 0 && (
+              <div
+                role="status"
+                className="flex flex-col items-center gap-2 p-6 text-center text-sm text-muted-foreground"
+              >
+                <FileDiffIcon aria-hidden className="size-(--icon-size-lg)" />
+                {t(
+                  repository.unrecorded
+                    ? "extensions.workspaceReview.unrecorded"
+                    : "extensions.workspaceReview.empty",
+                )}
+              </div>
+            )}
+            <DiffState query={query} />
+            <MoreDiff query={query} />
+          </>
         ) : (
-          <div className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 p-8 text-center text-xs">
-            <FileDiffIcon className="size-7 opacity-45" />
-            <p className="text-foreground font-medium">{t("extensions.workspaceReview.empty")}</p>
-            <p>{t("extensions.workspaceReview.connectHint")}</p>
-          </div>
+          <p role="status" className="p-3 text-sm text-muted-foreground">
+            {t("extensions.workspaceReview.chooseCommitsHint")}
+          </p>
         )}
       </div>
     </section>
+  );
+}
+
+export function ReviewSurface(props: ReviewProps) {
+  const changes = useGitReviewService();
+  const controller = useRightWorkspace();
+  useEffect(() => {
+    controller.update(props.surface.id, { status: "ready", statusMessage: undefined });
+  }, [controller, props.surface.id, props.retryToken]);
+  const revision = useSyncExternalStore(
+    changes.subscribe,
+    () => changes.getRevision(props.surface.params.repositoryId),
+    () => 0,
+  );
+  return (
+    <ReviewComparison
+      key={`${props.surface.resourceKey}:${revision}:${props.retryToken ?? 0}`}
+      reviewRevision={revision}
+      {...props}
+    />
   );
 }

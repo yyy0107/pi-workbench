@@ -44,7 +44,9 @@ import { conversationEventThreadMessage } from "../../src/messages/conversation-
 import {
   aggregatePiSessionStatistics,
   mergeMonotonicPiSessionStatistics,
+  readPiTurnStatistics,
 } from "../../src/messages/session-statistics";
+import { readPiUsage } from "../../src/messages/pi-usage";
 import {
   WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
   WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
@@ -1326,6 +1328,7 @@ test("preserves assistant usage and timing metadata", () => {
     usage: {
       input: 1_200,
       output: 52,
+      reasoning: 12,
       cacheRead: 800,
       cacheWrite: 0,
       totalTokens: 2_052,
@@ -1338,6 +1341,15 @@ test("preserves assistant usage and timing metadata", () => {
   assert.deepEqual(converted.metadata.custom.piUsage, {
     input: 1_200,
     output: 52,
+    reasoning: 12,
+    cacheRead: 800,
+    cacheWrite: 0,
+    totalTokens: 2_052,
+  });
+  assert.deepEqual(converted.metadata.custom.workbenchUsage, {
+    input: 1_200,
+    output: 40,
+    reasoning: 12,
     cacheRead: 800,
     cacheWrite: 0,
     totalTokens: 2_052,
@@ -1656,11 +1668,13 @@ test("preserves every LLM step for session-level statistics after coalescing", (
     turns: 1,
     steps: 2,
     llmDurationMs: 3_000,
+    decodeDurationMs: 2_000,
     toolDurationMs: 7_000,
     firstTokenDurationMs: 1_000,
     firstTokenSamples: 2,
     inputTokens: 150,
     outputTokens: 50,
+    reasoningTokens: 0,
     cacheReadTokens: 1_950,
     cacheWriteTokens: 10,
   });
@@ -1682,6 +1696,7 @@ test("updates the active LLM step in session statistics before message completio
       usage: {
         input: 100,
         output: 20,
+        reasoning: 5,
         cacheRead: 500,
         cacheWrite: 0,
         totalTokens: 620,
@@ -1705,6 +1720,7 @@ test("updates the active LLM step in session statistics before message completio
       usage: {
         input: 50,
         output: 10,
+        reasoning: 3,
         cacheRead: 650,
         cacheWrite: 5,
         totalTokens: 715,
@@ -1728,14 +1744,52 @@ test("updates the active LLM step in session statistics before message completio
     turns: 1,
     steps: 2,
     llmDurationMs: 2_500,
+    decodeDurationMs: 2_000,
     toolDurationMs: 0,
     firstTokenDurationMs: 500,
     firstTokenSamples: 2,
     inputTokens: 150,
-    outputTokens: 30,
+    outputTokens: 22,
+    reasoningTokens: 8,
     cacheReadTokens: 1_150,
     cacheWriteTokens: 5,
   });
+  const assistant = messages.at(-1);
+  assert.equal(assistant?.role, "assistant");
+  if (assistant?.role !== "assistant") return;
+  assert.equal(readPiUsage(assistant.metadata.custom.piUsage)?.output, 10);
+});
+
+test("does not retain usage from a completed step on the next streaming step", () => {
+  const completed = piAssistantToThreadMessage(
+    {
+      role: "assistant",
+      content: [{ type: "toolCall", id: "tool", name: "read", arguments: {} }],
+      usage: {
+        input: 100,
+        output: 20,
+        reasoning: 5,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 120,
+      },
+    },
+    "completed",
+  );
+  const streaming = piAssistantToThreadMessage(
+    { role: "assistant", content: [{ type: "text", text: "Still going" }] },
+    "streaming",
+    { streaming: true },
+  );
+
+  const [merged] = coalesceConsecutiveAssistantMessages([completed, streaming]);
+  assert.equal(merged?.role, "assistant");
+  if (merged?.role !== "assistant") return;
+  assert.equal(merged.metadata.custom.piUsage, undefined);
+  assert.equal(merged.metadata.custom.workbenchUsage, undefined);
+  const turnStatistics = readPiTurnStatistics(merged.metadata.custom.workbenchTurnStatistics);
+  assert.equal(turnStatistics?.outputTokens, 15);
+  assert.equal(turnStatistics?.reasoningTokens, 5);
 });
 
 test("updates active tool duration before the tool call completes", () => {
@@ -1774,11 +1828,13 @@ test("keeps session cumulative quantities monotonic across transient projections
     turns: 3,
     steps: 5,
     llmDurationMs: 5_000,
+    decodeDurationMs: 4_100,
     toolDurationMs: 4_000,
     firstTokenDurationMs: 900,
     firstTokenSamples: 3,
     inputTokens: 1_000,
     outputTokens: 300,
+    reasoningTokens: 0,
     cacheReadTokens: 2_000,
     cacheWriteTokens: 100,
   };
@@ -1786,11 +1842,13 @@ test("keeps session cumulative quantities monotonic across transient projections
     turns: 2,
     steps: 4,
     llmDurationMs: 4_500,
+    decodeDurationMs: 3_800,
     toolDurationMs: 3_500,
     firstTokenDurationMs: 700,
     firstTokenSamples: 2,
     inputTokens: 900,
     outputTokens: 250,
+    reasoningTokens: 0,
     cacheReadTokens: 1_800,
     cacheWriteTokens: 80,
   };

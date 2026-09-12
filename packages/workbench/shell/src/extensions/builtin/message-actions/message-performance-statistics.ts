@@ -33,14 +33,15 @@ export function messageCacheHitRate({
   return promptTokens > 0 ? cacheReadTokens / promptTokens : undefined;
 }
 
-/** Returns aggregate output throughput across every LLM step in the assistant turn. */
+/** Returns aggregate model-token throughput, including reasoning, across every LLM step. */
 export function messageTokensPerSecond({
   turnStatistics,
   timingTokensPerSecond,
 }: MessageTokensPerSecondOptions): number | undefined {
   if (turnStatistics) {
-    return turnStatistics.llmDurationMs > 0
-      ? turnStatistics.outputTokens / (turnStatistics.llmDurationMs / 1_000)
+    return turnStatistics.decodeDurationMs > 0
+      ? (turnStatistics.outputTokens + turnStatistics.reasoningTokens) /
+          (turnStatistics.decodeDurationMs / 1_000)
       : undefined;
   }
   return timingTokensPerSecond;

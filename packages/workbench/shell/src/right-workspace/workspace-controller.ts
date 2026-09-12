@@ -108,6 +108,42 @@ function activeSurfacePatch(
     : { activeAuxiliarySurfaceId: surfaceId };
 }
 
+function surfaceIdsToReplace(
+  state: Pick<RightWorkspaceState, "surfaceOrder" | "surfaces" | "navigationHistory">,
+  newSurface: WorkspaceSurfaceInstance,
+  maxTabs: number,
+): readonly string[] {
+  const orderIndex = new Map(state.surfaceOrder.map((surfaceId, index) => [surfaceId, index]));
+  const historyIndex = new Map(
+    state.navigationHistory.map((surfaceId, index) => [surfaceId, index]),
+  );
+  const candidates = state.surfaceOrder.flatMap((surfaceId) => {
+    const surface = state.surfaces[surfaceId];
+    return surface &&
+      surface.kind === newSurface.kind &&
+      surface.placement === newSurface.placement &&
+      sameScope(surface.scope, newSurface.scope)
+      ? [surface]
+      : [];
+  });
+  const replacementCount = candidates.length - maxTabs + 1;
+  if (replacementCount <= 0) return [];
+
+  return candidates
+    .filter((surface) => surface.dirty !== true && surface.pinned !== true)
+    .toSorted((left, right) => {
+      const historyDelta = (historyIndex.get(right.id) ?? -1) - (historyIndex.get(left.id) ?? -1);
+      if (historyDelta !== 0) return historyDelta;
+      const activeDelta = right.lastActiveAt - left.lastActiveAt;
+      if (activeDelta !== 0) return activeDelta;
+      const createdDelta = right.createdAt - left.createdAt;
+      if (createdDelta !== 0) return createdDelta;
+      return (orderIndex.get(right.id) ?? -1) - (orderIndex.get(left.id) ?? -1);
+    })
+    .slice(0, replacementCount)
+    .map((surface) => surface.id);
+}
+
 function resolvePlacement(
   request: OpenSurfaceRequest,
   defaultPlacement?: WorkspaceSurfacePlacement,
@@ -323,6 +359,10 @@ export class DefaultRightWorkspaceController implements RightWorkspaceController
     if (!definition) throw new Error(`Workspace surface "${request.kind}" is not registered`);
     const placement = resolvePlacement(request, definition.defaultPlacement);
     const resourceKey = definition.getResourceKey(request.params, request.context);
+    const scope =
+      request.scope ??
+      definition.getDefaultScope?.(request.params, request.context) ??
+      defaultScopeFor(request.context);
     if (!definition.allowDuplicateResources) {
       const existing = Object.values(this.#store.getState().surfaces).find(
         (surface) => surface.kind === request.kind && surface.resourceKey === resourceKey,
@@ -342,10 +382,7 @@ export class DefaultRightWorkspaceController implements RightWorkspaceController
       placement,
       title: request.title,
       resourceKey,
-      scope:
-        request.scope ??
-        definition.getDefaultScope?.(request.params, request.context) ??
-        defaultScopeFor(request.context),
+      scope,
       params: { ...request.params },
       status: request.status ?? "idle",
       ...(request.statusMessage ? { statusMessage: request.statusMessage } : {}),
@@ -356,18 +393,36 @@ export class DefaultRightWorkspaceController implements RightWorkspaceController
     };
     const policy = request.policy ?? "force-focus";
     this.setState((state) => {
+      const idsToReplace =
+        definition.tabPolicy?.replacement === "most-recent"
+          ? surfaceIdsToReplace(state, surface, definition.tabPolicy.maxTabs)
+          : [];
+      const idsToReplaceSet = new Set(idsToReplace);
+      const surfaces = { ...state.surfaces };
+      for (const surfaceId of idsToReplace) delete surfaces[surfaceId];
+      surfaces[id] = surface;
+      const surfaceOrder = [
+        ...state.surfaceOrder.filter((surfaceId) => !idsToReplaceSet.has(surfaceId)),
+        id,
+      ];
       const activeId = activeSurfaceIdForPlacement(state, placement);
       const active = activeId ? state.surfaces[activeId] : undefined;
       const hasActiveInScope =
         active?.placement === placement && sameScope(active.scope, surface.scope);
-      const activate = policy !== "background" || !hasActiveInScope;
+      const activate =
+        policy !== "background" ||
+        !hasActiveInScope ||
+        (activeId !== null && idsToReplaceSet.has(activeId));
       return {
-        surfaces: { ...state.surfaces, [id]: surface },
-        surfaceOrder: [...state.surfaceOrder, id],
+        surfaces,
+        surfaceOrder,
         ...(activate ? activeSurfacePatch(placement, id) : {}),
         navigationHistory: activate
-          ? pushHistory(state.navigationHistory, id)
-          : state.navigationHistory,
+          ? pushHistory(
+              state.navigationHistory.filter((surfaceId) => !idsToReplaceSet.has(surfaceId)),
+              id,
+            )
+          : state.navigationHistory.filter((surfaceId) => !idsToReplaceSet.has(surfaceId)),
         open: policy === "background" ? state.open : true,
         ...(placement === "auxiliary" && policy !== "background" ? { auxiliaryOpen: true } : {}),
       };

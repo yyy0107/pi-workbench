@@ -16,7 +16,7 @@
   }
 
   .aui-chat-icon-size-file {
-    --chat-icon-size: calc(var(--icon-size-md) * 1.25);
+    --chat-icon-size: var(--icon-size-xl);
   }
 
   .aui-chat-icon-size-placeholder {
@@ -31,11 +31,13 @@
     )
     :where(button[data-slot]) {
     --button-icon-size: var(--chat-icon-size, var(--icon-size-sm));
+    --button-icon-frame-size: var(--icon-frame-size-sm);
+    --button-icon-radius: var(--icon-frame-radius-sm);
   }
 
   [data-slot="message-actions"] .aui-button-icon {
     --button-icon-frame-size: var(--message-action-size, var(--icon-frame-size-compact));
-    --button-radius: var(--radius-sm);
+    --button-icon-radius: var(--icon-frame-radius-sm);
     --message-action-hit-padding: max(
       0px,
       calc((var(--icon-frame-size-default) - var(--button-icon-frame-size)) / 2)

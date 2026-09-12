@@ -5,12 +5,14 @@ import {
   type AnyWorkspaceSurfaceDefinition,
   type WorkspaceSurfaceDefinition,
   type WorkspaceSurfaceRegistry,
+  type WorkspaceSurfaceTabReplacement,
 } from "../api/workspace-surface";
 import { assertNonEmptyId, emitRegistryChange } from "./registry-utils";
 
 const EMPTY_SURFACES = Object.freeze([]) as readonly AnyWorkspaceSurfaceDefinition[];
 const CACHE_POLICIES = new Set(WORKSPACE_SURFACE_CACHE_POLICIES);
 const SURFACE_PLACEMENTS = new Set(WORKSPACE_SURFACE_PLACEMENTS);
+const TAB_REPLACEMENTS = new Set<WorkspaceSurfaceTabReplacement>(["most-recent"]);
 
 export class WorkspaceSurfaceRegistryImpl implements WorkspaceSurfaceRegistry {
   readonly #definitions = new Map<string, AnyWorkspaceSurfaceDefinition>();
@@ -31,6 +33,16 @@ export class WorkspaceSurfaceRegistryImpl implements WorkspaceSurfaceRegistry {
       throw new Error(
         `Workspace surface "${definition.kind}" has invalid default placement "${definition.defaultPlacement}"`,
       );
+    }
+    if (definition.tabPolicy) {
+      if (!Number.isInteger(definition.tabPolicy.maxTabs) || definition.tabPolicy.maxTabs < 1) {
+        throw new Error(`Workspace surface "${definition.kind}" has an invalid maximum tab count`);
+      }
+      if (!TAB_REPLACEMENTS.has(definition.tabPolicy.replacement)) {
+        throw new Error(
+          `Workspace surface "${definition.kind}" has invalid tab replacement "${definition.tabPolicy.replacement}"`,
+        );
+      }
     }
 
     const stored = Object.freeze({ ...definition }) as unknown as AnyWorkspaceSurfaceDefinition;

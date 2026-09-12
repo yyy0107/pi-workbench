@@ -3,7 +3,7 @@
 import type { ToolCallBlock } from "@workbench/agent-runtime-contracts/conversation";
 import { useEffect, useRef } from "react";
 
-import { useConversationNodes, useConversationSession } from "./hooks";
+import { useConversationNodes, useConversationSession } from "../runtime/hooks";
 
 /** Read the first non-empty string argument matching one of the supplied protocol field names. */
 export function toolStringArg(args: unknown, ...keys: string[]): string | undefined {

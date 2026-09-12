@@ -120,6 +120,7 @@ export function ModelSelector({
   labels,
   loadFailed = false,
   models,
+  showFullModelName = false,
   selectedEffort,
   selectedModelId,
   selectionFailed = false,
@@ -136,6 +137,7 @@ export function ModelSelector({
   labels: ModelSelectorLabels;
   loadFailed?: boolean;
   models: readonly ModelSelectorOption[];
+  showFullModelName?: boolean;
   selectedEffort?: string;
   selectedModelId?: string;
   selectionFailed?: boolean;
@@ -194,14 +196,18 @@ export function ModelSelector({
           aria-label={labels.select}
           aria-invalid={validationError ? true : undefined}
           className={cn(
-            "group relative flex w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] font-sans [font-size:var(--workbench-ui-font-size,1rem)] leading-[var(--control-text-line-height)]! outline-none hover:[background:var(--button-background-hover)] focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48",
+            "group relative flex w-fit items-center justify-center rounded-md bg-transparent px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] font-sans [font-size:var(--workbench-ui-font-size,1rem)] leading-[var(--control-text-line-height)]! outline-none hover:[background:var(--button-background-hover)] focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:cursor-not-allowed",
+            showFullModelName ? "max-w-none" : "max-w-32 max-[360px]:max-w-24 sm:max-w-48",
             compact ? "h-[var(--button-height-compact)]" : "h-[var(--dropdown-control-height)]",
             validationError && selectorValidationErrorStyles,
           )}
         >
           {withTooltip(
             <span
-              className="block max-w-full min-w-0 truncate pe-6 text-end font-medium"
+              className={cn(
+                "block min-w-0 pe-6 text-end font-medium",
+                showFullModelName ? "whitespace-nowrap" : "max-w-full truncate",
+              )}
               title={selectedModel?.name}
             >
               {validationError ?? selectedModel?.name ?? labels.select}

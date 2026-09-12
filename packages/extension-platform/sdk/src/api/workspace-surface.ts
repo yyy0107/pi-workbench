@@ -81,6 +81,15 @@ export const WORKSPACE_SURFACE_CACHE_POLICIES = [
 export type WorkspaceSurfaceCachePolicy = (typeof WORKSPACE_SURFACE_CACHE_POLICIES)[number];
 export type WorkspaceSurfacePersistence = "persistent" | "session";
 
+export type WorkspaceSurfaceTabReplacement = "most-recent";
+
+export interface WorkspaceSurfaceTabPolicy {
+  /** Maximum number of instances of this surface kind in one scope and placement. */
+  maxTabs: number;
+  /** Which existing tab is removed when opening a new instance at the limit. */
+  replacement: WorkspaceSurfaceTabReplacement;
+}
+
 export type WorkspaceSurfaceRenderer<P extends Record<string, unknown> = Record<string, unknown>> =
   ComponentType<WorkspaceSurfaceProps<P>>;
 
@@ -97,6 +106,7 @@ export interface WorkspaceSurfaceDefinition<
   /** Default host pane. Omitted definitions render in the primary tabbed pane. */
   defaultPlacement?: WorkspaceSurfacePlacement;
   allowDuplicateResources?: boolean;
+  tabPolicy?: WorkspaceSurfaceTabPolicy;
   getResourceKey(params: P, context: WorkspaceContext): string;
   getDefaultScope?(params: P, context: WorkspaceContext): WorkspaceScope;
   /** Optional active-primary chrome rendered by the core host above every workspace pane. */

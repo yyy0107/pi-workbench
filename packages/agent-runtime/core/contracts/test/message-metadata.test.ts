@@ -27,8 +27,14 @@ test("parses backend-neutral lifecycle, usage, timing, and state metadata", () =
     },
   );
   assert.deepEqual(
-    readWorkbenchMessageUsage({ input: 4, output: 3, cacheRead: 2, cacheWrite: 1 }),
-    { input: 4, output: 3, cacheRead: 2, cacheWrite: 1 },
+    readWorkbenchMessageUsage({
+      input: 4,
+      output: 3,
+      reasoning: 2,
+      cacheRead: 2,
+      cacheWrite: 1,
+    }),
+    { input: 4, output: 3, reasoning: 2, cacheRead: 2, cacheWrite: 1 },
   );
   assert.deepEqual(readWorkbenchTurnTiming({ startedAt: 10, completedAt: 25 }), {
     startedAt: 10,
@@ -51,25 +57,43 @@ test("parses generic conversation events and aggregate turn statistics", () => {
     readWorkbenchTurnStatistics({
       steps: 2,
       llmDurationMs: 100,
+      decodeDurationMs: 90,
       toolDurationMs: 20,
       firstTokenDurationMs: 10,
       firstTokenSamples: 1,
       inputTokens: 50,
       outputTokens: 25,
+      reasoningTokens: 0,
       cacheReadTokens: 5,
       cacheWriteTokens: 2,
     }),
     {
       steps: 2,
       llmDurationMs: 100,
+      decodeDurationMs: 90,
       toolDurationMs: 20,
       firstTokenDurationMs: 10,
       firstTokenSamples: 1,
       inputTokens: 50,
       outputTokens: 25,
+      reasoningTokens: 0,
       cacheReadTokens: 5,
       cacheWriteTokens: 2,
     },
+  );
+  assert.equal(
+    readWorkbenchTurnStatistics({
+      steps: 1,
+      llmDurationMs: 100,
+      toolDurationMs: 0,
+      firstTokenDurationMs: 20,
+      firstTokenSamples: 1,
+      inputTokens: 10,
+      outputTokens: 5,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    })?.decodeDurationMs,
+    80,
   );
 });
 

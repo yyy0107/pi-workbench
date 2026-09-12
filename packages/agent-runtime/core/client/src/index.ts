@@ -4,12 +4,12 @@ export {
   WORKBENCH_STORAGE_PREFIX,
   workbenchBrowserStorage,
   type WorkbenchAsyncStorage,
-} from "./adapters/history";
-export { bindSnapshotSelector, type SnapshotSelectorHook } from "./bind-snapshot-selector";
+} from "./browser/storage";
+export { bindSnapshotSelector, type SnapshotSelectorHook } from "./runtime/snapshot-selector";
 export {
   WORKBENCH_COMPOSER_ATTACHMENT_ACCEPT,
   composerAttachmentFromFile,
-} from "./composer-attachment";
+} from "./browser/composer-attachment";
 export {
   WorkbenchAgentCapabilityError,
   type WorkbenchAgentCapabilityErrorCode,
@@ -24,7 +24,7 @@ export {
   type WorkbenchScratchSessionCapability,
   type WorkbenchWorkspaceCapability,
   type WorkbenchWorkspaceFileStreamOptions,
-} from "./capabilities";
+} from "./environment/capabilities";
 export {
   type ConversationNodeSelectionOptions,
   useAgentRuntime,
@@ -34,9 +34,9 @@ export {
   useCurrentSession,
   useSessionState,
   useThreadList,
-} from "./hooks";
-export { RuntimeProvider } from "./runtime-provider";
-export { SessionProvider, type SessionProviderProps } from "./session-provider";
+} from "./runtime/hooks";
+export { RuntimeProvider } from "./runtime/provider";
+export { SessionProvider, type SessionProviderProps } from "./runtime/session-provider";
 export type {
   CurrentSessionSnapshot,
   ThreadListActions,
@@ -51,9 +51,9 @@ export {
   readWorkbenchReasoningPresentationMetadata,
   type WorkbenchParallelToolPresentationMetadata,
   type WorkbenchReasoningPresentationMetadata,
-} from "./message-presentation-metadata";
+} from "./conversation/presentation-metadata";
 export {
   createThreadListReloadCoordinator,
   type ThreadListReloadCoordinator,
-} from "./thread-list-reload-coordinator";
-export { toolResultText, toolStringArg, useCompletedToolCalls } from "./tool-events";
+} from "./conversation/thread-list-reload";
+export { toolResultText, toolStringArg, useCompletedToolCalls } from "./conversation/tool-events";

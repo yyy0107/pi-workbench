@@ -1,0 +1,22 @@
+@property --workbench-panel-share {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --workbench-panel-expansion {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --workbench-panel-maximization {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --workbench-panel-width {
+  syntax: "*";
+  inherits: false;
+}

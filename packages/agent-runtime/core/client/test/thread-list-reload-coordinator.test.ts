@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createThreadListReloadCoordinator } from "../src/thread-list-reload-coordinator";
+import { createThreadListReloadCoordinator } from "../src/conversation/thread-list-reload";
 
 function deferred() {
   let resolve!: () => void;

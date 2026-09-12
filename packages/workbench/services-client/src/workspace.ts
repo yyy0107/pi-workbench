@@ -135,6 +135,8 @@ export function createWorkspaceClient(
       capabilityCall(() =>
         describeWorkspaceGit({ workspaceId }, { ...options, ...requestOptions }),
       ),
+    readGitDiff: (request, requestOptions) =>
+      callServiceRpc("workspace.git.diff", request, { ...options, ...requestOptions }),
     readGitLog: (workspaceId, requestOptions) =>
       capabilityCall(() =>
         readWorkspaceGitLog(

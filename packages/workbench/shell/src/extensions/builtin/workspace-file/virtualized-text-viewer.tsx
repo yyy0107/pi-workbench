@@ -1,8 +1,10 @@
 "use client";
 
+import { tokenStyle } from "../../../code-highlighting/shiki-token-style";
+
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { AlertCircleIcon, LoaderCircleIcon } from "lucide-react";
-import { useMemo, useRef, type CSSProperties } from "react";
+import { useMemo, useRef } from "react";
 import type { ThemedToken } from "shiki/core";
 
 import type { WorkbenchShikiLanguage } from "@workbench/shell/code-highlighting";
@@ -21,25 +23,6 @@ function progressPercent(snapshot: ProgressiveTextSnapshot): number | undefined 
   if (!snapshot.totalBytes) return undefined;
   if (snapshot.loadedBytes >= snapshot.totalBytes) return 100;
   return Math.min(99, Math.max(0, Math.floor((snapshot.loadedBytes / snapshot.totalBytes) * 100)));
-}
-
-function tokenStyle(token: ThemedToken): CSSProperties | undefined {
-  const raw = token.htmlStyle;
-  if (!raw) return token.color ? { color: token.color } : undefined;
-
-  const style = {} as CSSProperties & Record<`--${string}`, string>;
-  for (const [property, value] of Object.entries(raw)) {
-    if (property.startsWith("--")) {
-      style[property as `--${string}`] = value;
-      continue;
-    }
-    if (property === "background-color") style.backgroundColor = value;
-    else if (property === "font-style") style.fontStyle = value as CSSProperties["fontStyle"];
-    else if (property === "font-weight") style.fontWeight = value as CSSProperties["fontWeight"];
-    else if (property === "text-decoration") style.textDecoration = value;
-    else if (property === "color") style.color = value;
-  }
-  return style;
 }
 
 function VirtualizedCodeLine({

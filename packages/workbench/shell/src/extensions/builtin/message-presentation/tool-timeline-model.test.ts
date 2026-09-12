@@ -17,10 +17,14 @@ import type {
 import {
   type TimelineSourceBlock,
   activeToolPresentationLabel,
+  compactTimelineText,
   dataTimelineState,
+  hasTrailingTextBlock,
   liveReasoningPreview,
   reasoningPreview,
+  timelineBlockIsActive,
   timelineEntries,
+  timelineHasActiveWork,
   timelineStats,
   timelineSteps,
   toolTimelineCallState,
@@ -147,6 +151,26 @@ test("admits only Data Blocks that opt into the shared work timeline", () => {
   assert.equal(dataTimelineState(data("workbench.progress", "hidden"), presentations), undefined);
   assert.equal(dataTimelineState(data("unregistered", "running"), presentations), undefined);
   assert.deepEqual(timelineSteps([data("workbench.progress", "complete")]), [{ kind: "data" }]);
+});
+
+test("keeps the timeline active between completed tool calls in a running assistant message", () => {
+  const completeTool = tool("bash", { command: "echo A" });
+  const runningTool = { ...completeTool, status: "running" } satisfies ToolCallBlock;
+
+  assert.equal(timelineBlockIsActive(completeTool, {}), false);
+  assert.equal(timelineBlockIsActive(runningTool, {}), true);
+  assert.equal(timelineHasActiveWork([completeTool], {}, true), true);
+  assert.equal(timelineHasActiveWork([completeTool], {}, false), false);
+});
+
+test("treats trailing assistant text as the end of the tool timeline", () => {
+  const completeTool = tool("bash", { command: "echo A" });
+  const textBlock = { key: "answer", kind: "text", text: "The result is ready." } as const;
+
+  assert.equal(hasTrailingTextBlock([completeTool, textBlock], 0), true);
+  assert.equal(hasTrailingTextBlock([completeTool, { ...textBlock, text: "  " }], 0), false);
+  assert.equal(hasTrailingTextBlock([textBlock, completeTool], 0), false);
+  assert.equal(hasTrailingTextBlock([textBlock], undefined), false);
 });
 
 test("keeps a data step in sequence with reasoning and tools", () => {
@@ -340,6 +364,11 @@ test("keeps the complete live reasoning text for end-anchored previews", () => {
     "First thought Newest reasoning detail",
   );
   assert.equal(liveReasoningPreview("123456789"), "123456789");
+});
+
+test("compacts the latest timeline activity without changing its readable prefix", () => {
+  assert.equal(compactTimelineText("  Running\n  pnpm   test  "), "Running pnpm test");
+  assert.equal(compactTimelineText("123456789", 8), "1234567…");
 });
 
 test("groups only adjacent tools carrying the same parallel batch metadata", () => {

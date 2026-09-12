@@ -83,6 +83,8 @@ export type PiAssistantContent =
 export interface PiUsage {
   input: number;
   output: number;
+  /** Reasoning/thinking tokens; Pi's output field includes them. */
+  reasoning?: number;
   cacheRead: number;
   cacheWrite: number;
   totalTokens: number;

@@ -1,3 +1,5 @@
+@import "../resize/proportional-panel.css";
+
 @property --thread-content-inline-gutter {
   syntax: "<length>";
   inherits: false;
@@ -46,6 +48,13 @@
 /* Native window resizing must not animate toward an obsolete layout width. */
 [data-workbench-shell][data-window-resizing="true"] {
   --layout-motion-duration: 0ms;
+}
+
+/* Native edge resizing already supplies the motion. Do not let responsive content transitions
+   queue a second animation for every intermediate viewport width. */
+[data-workbench-shell][data-window-resizing="true"] :where(*, *::before, *::after) {
+  animation: none !important;
+  transition: none !important;
 }
 
 /* A full-height navigation rail already reserves the shared toggle's column. */

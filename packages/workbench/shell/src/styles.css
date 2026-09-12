@@ -1,5 +1,6 @@
 @import "./code-highlighting/workbench-code-editor.css";
 @import "./elements/reviewable-diff.css";
+@import "./extensions/builtin/workspace-review/review.css";
 @import "./extensions/builtin/appearance/appearance-background.css";
 @import "./extensions/builtin/user-message-index/user-message-index.css";
 @import "./extensions/builtin/workspace-browser/browser-viewport.css";
@@ -145,11 +146,12 @@
   --button-foreground-selected: var(--control-state-foreground-selected);
 
   /* Icons and icon frames */
+  --icon-size-xs: 12px;
   --icon-size-sm: 14px;
   --icon-size-md: 16px;
   --icon-size-lg: 18px;
-  --icon-frame-size-compact: var(--control-hit-compact);
-  --icon-frame-size-default: var(--button-height-default);
+  --icon-size-xl: 20px;
+  --icon-size-xxl: 24px;
   --icon-frame-background-hover: var(--control-state-background-hover);
   --icon-frame-background-active: var(--control-state-background-active);
   --icon-frame-background-selected: var(--control-state-background-selected);
@@ -203,11 +205,11 @@
   --accent-foreground: oklch(0.21 0.006 285.885);
   --destructive: oklch(0.577 0.245 27.325);
   --danger: var(--destructive);
-  --danger-foreground: oklch(0.45 0.2 27.325);
+  --danger-foreground: oklch(0.5 0.22 27.325);
   --info: oklch(0.62 0.18 250);
   --info-foreground: oklch(0.42 0.15 250);
   --success: oklch(0.6 0.16 155);
-  --success-foreground: oklch(0.4 0.12 155);
+  --success-foreground: oklch(0.5 0.2 145);
   --warning: oklch(0.75 0.17 70);
   --warning-foreground: oklch(0.43 0.12 52);
   --border: oklch(0.95 0.003 286.32);
@@ -232,7 +234,7 @@
   --aui-foreground: #0d0d0d;
   --aui-muted-foreground: #6e6e6e;
   --aui-border: #f0f0f0;
-  --aui-user-message: color-mix(in srgb, var(--primary) 10%, var(--background));
+  --aui-user-message: #f7f7f8;
   --aui-composer: #f7f7f8;
   --aui-max-width: 48rem;
   --aui-border-radius: 1.5rem;
@@ -258,11 +260,11 @@
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --danger: var(--destructive);
-  --danger-foreground: oklch(0.82 0.12 22.216);
+  --danger-foreground: oklch(0.7 0.22 27.325);
   --info: oklch(0.72 0.14 250);
   --info-foreground: oklch(0.83 0.09 250);
   --success: oklch(0.7 0.14 155);
-  --success-foreground: oklch(0.82 0.1 155);
+  --success-foreground: oklch(0.7 0.2 145);
   --warning: oklch(0.8 0.15 75);
   --warning-foreground: oklch(0.87 0.11 78);
   --border: oklch(1 0 0 / 8%);
@@ -287,11 +289,52 @@
   --aui-foreground: #ececec;
   --aui-muted-foreground: #9b9b9b;
   --aui-border: #383838;
-  --aui-user-message: color-mix(in srgb, var(--primary) 10%, var(--background));
+  --aui-user-message: #2f2f2f;
   --aui-composer: #2f2f2f;
   --aui-max-width: 48rem;
   --aui-border-radius: 1.5rem;
   --aui-font-family: system-ui;
+}
+
+/* Six icon profiles, resolved at the appearance boundary so density and radius stay live.
+   At default density and radius: XS 12/22/4, S 14/24/5, M 16/28/6,
+   L 18/32/7, XL 20/36/8, XXL 24/42/9 (glyph/frame/radius in px).
+   Per-side glyph clearance grows from 5px for compact controls to 9px for large entries. */
+:root,
+[data-workbench-shell] {
+  --icon-frame-density-offset: calc(var(--form-control-height) - var(--control-hit-default));
+  --icon-frame-size-xs: max(
+    calc(var(--icon-size-xs) + 4px),
+    calc(22px + var(--icon-frame-density-offset))
+  );
+  --icon-frame-radius-xs: calc(var(--radius) * 0.4);
+  --icon-frame-size-sm: max(
+    calc(var(--icon-size-sm) + 4px),
+    calc(24px + var(--icon-frame-density-offset))
+  );
+  --icon-frame-radius-sm: calc(var(--radius) * 0.5);
+  --icon-frame-size-md: max(
+    calc(var(--icon-size-md) + 4px),
+    calc(28px + var(--icon-frame-density-offset))
+  );
+  --icon-frame-radius-md: calc(var(--radius) * 0.6);
+  --icon-frame-size-lg: max(
+    calc(var(--icon-size-lg) + 4px),
+    calc(32px + var(--icon-frame-density-offset))
+  );
+  --icon-frame-radius-lg: calc(var(--radius) * 0.7);
+  --icon-frame-size-xl: max(
+    calc(var(--icon-size-xl) + 4px),
+    calc(36px + var(--icon-frame-density-offset))
+  );
+  --icon-frame-radius-xl: calc(var(--radius) * 0.8);
+  --icon-frame-size-xxl: max(
+    calc(var(--icon-size-xxl) + 4px),
+    calc(42px + var(--icon-frame-density-offset))
+  );
+  --icon-frame-radius-xxl: calc(var(--radius) * 0.9);
+  --icon-frame-size-compact: var(--icon-frame-size-sm);
+  --icon-frame-size-default: var(--icon-frame-size-md);
 }
 
 /* Resolve scrollbar tokens at each Shell's theme boundary, not just the document root. */
@@ -379,6 +422,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background-color: var(--workbench-window-background, var(--background));
   }
 }

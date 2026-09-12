@@ -107,6 +107,7 @@ export interface WorkbenchWorkspaceGitChangedFile {
   path: string;
   previousPath?: string;
   kind: WorkbenchWorkspaceGitChangeKind;
+  binary?: boolean;
   additions?: number;
   deletions?: number;
 }
@@ -124,6 +125,43 @@ export interface WorkbenchWorkspaceGitRepositoryStatus {
 export type WorkbenchWorkspaceGitStatus =
   | { repository: false }
   | WorkbenchWorkspaceGitRepositoryStatus;
+
+export type WorkbenchWorkspaceGitReviewScope =
+  | "uncommitted"
+  | "unstaged"
+  | "staged"
+  | "branch"
+  | "commit"
+  | "range"
+  | "session"
+  | "last-turn";
+
+export interface WorkbenchWorkspaceGitDiffRequest extends WorkbenchWorkspaceGitRequest {
+  scope: WorkbenchWorkspaceGitReviewScope;
+  fullContext?: boolean;
+  exportPatch?: boolean;
+  revision?: string;
+  baseRevision?: string;
+  sessionId?: string;
+  path?: string;
+  offset?: number;
+  /** Reject continuation pages if the patch changed since the first page. */
+  patchVersion?: string;
+}
+
+export type WorkbenchWorkspaceGitDiff =
+  | { repository: false }
+  | {
+      repository: true;
+      branch?: string;
+      branches: string[];
+      files: WorkbenchWorkspaceGitChangedFile[];
+      turns?: { id: string; timestamp: number }[];
+      unrecorded?: boolean;
+      nextOffset?: number;
+      patch?: string;
+      patchVersion?: string;
+    };
 
 export type WorkbenchWorkspaceGitRefKind = "head" | "local" | "remote" | "tag" | "other";
 

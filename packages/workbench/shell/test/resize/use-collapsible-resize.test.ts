@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -9,7 +9,7 @@ import {
   useCollapsibleResize,
 } from "../../src/resize/use-collapsible-resize";
 
-test("holds the rebound width until the pointer crosses it, then follows without lag", (t) => {
+function installResizeClock(t: TestContext, reducedMotion = false) {
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   let now = 0;
   let nextFrame = 0;
@@ -26,7 +26,7 @@ test("holds the rebound width until the pointer crosses it, then follows without
   Object.defineProperty(globalThis, "window", {
     configurable: true,
     value: {
-      matchMedia: () => ({ matches: false }),
+      matchMedia: () => ({ matches: reducedMotion }),
       requestAnimationFrame: (callback: FrameRequestCallback) => {
         frames.set(++nextFrame, callback);
         return nextFrame;
@@ -38,6 +38,102 @@ test("holds the rebound width until the pointer crosses it, then follows without
     if (originalWindow) Object.defineProperty(globalThis, "window", originalWindow);
     else Reflect.deleteProperty(globalThis, "window");
   });
+  return { advance, frames };
+}
+
+test("batches pointer bursts once per frame and commits the latest input before the next frame", (t) => {
+  const { advance, frames } = installResizeClock(t);
+  const previews: number[] = [];
+  const commits: number[] = [];
+  let limitReads = 0;
+  let resize!: ReturnType<typeof useCollapsibleResize>;
+  function Probe() {
+    resize = useCollapsibleResize({
+      width: 600,
+      minimumWidth: 360,
+      direction: -1,
+      getMaximumWidth: () => {
+        limitReads++;
+        return 1200;
+      },
+      getRenderedWidth: () => 600,
+      onPreview: (width) => previews.push(width),
+      onCommit: (width) => commits.push(width),
+      onOpenChange() {},
+      onResizingChange() {},
+    });
+    return null;
+  }
+  renderToStaticMarkup(createElement(Probe));
+  const event = {
+    button: 0,
+    pointerId: 1,
+    clientX: 1000,
+    currentTarget: {
+      setAttribute() {},
+      setPointerCapture() {},
+      hasPointerCapture: () => true,
+      releasePointerCapture() {},
+    },
+  } as unknown as Parameters<typeof resize.onPointerDown>[0];
+  resize.onPointerDown(event);
+  for (let index = 1; index <= 100; index++) {
+    event.clientX = 1000 - index;
+    resize.onPointerMove(event);
+  }
+  assert.deepEqual(previews, []);
+  assert.equal(limitReads, 1, "pointer events do not repeatedly measure layout limits");
+  assert.equal(frames.size, 1);
+  advance(1);
+  assert.deepEqual(previews, [700]);
+  assert.equal(limitReads, 2);
+  event.clientX = 800;
+  resize.onPointerMove(event);
+  resize.onPointerUp(event);
+  assert.equal(commits.at(-1), 800);
+  assert.equal(previews.at(-1), 800);
+  assert.equal(frames.size, 0, "no stale preview can run after commit");
+  advance(1);
+  assert.equal(previews.at(-1), 800);
+
+  resize.onPointerDown(event);
+  event.clientX = 650;
+  resize.onPointerMove(event);
+  resize.onPointerCancel(event);
+  assert.equal(commits.at(-1), 600, "cancel restores the measured start width");
+  assert.equal(frames.size, 0);
+  advance(1);
+  assert.equal(previews.at(-1), 600);
+});
+
+test("keyboard resize starts from the live proportional width rather than the stored preference", () => {
+  let resize!: ReturnType<typeof useCollapsibleResize>;
+  let committed = 0;
+  function Probe() {
+    resize = useCollapsibleResize({
+      width: 900,
+      minimumWidth: 360,
+      direction: -1,
+      getMaximumWidth: () => 1200,
+      getRenderedWidth: () => 700,
+      onPreview() {},
+      onCommit: (width) => {
+        committed = width;
+      },
+      onOpenChange() {},
+      onResizingChange() {},
+    });
+    return null;
+  }
+  renderToStaticMarkup(createElement(Probe));
+  resize.onKeyDown({ key: "ArrowLeft", preventDefault() {} } as Parameters<
+    typeof resize.onKeyDown
+  >[0]);
+  assert.equal(committed, 716);
+});
+
+test("holds the rebound width until the pointer crosses it, then follows without lag", (t) => {
+  const { advance, frames } = installResizeClock(t);
   for (const direction of [-1, 1] as const) {
     let resize!: ReturnType<typeof useCollapsibleResize>;
     let preview = 600;
@@ -80,6 +176,7 @@ test("holds the rebound width until the pointer crosses it, then follows without
     for (const width of [700, 710, 716, 720, 724, 730, 750, 380, 360, 330, 300, 250, 130]) {
       event.clientX = 1000 + direction * (width - 600);
       resize.onPointerMove(event);
+      advance(1);
       assert.equal(
         preview,
         Math.max(360, width),
@@ -93,7 +190,7 @@ test("holds the rebound width until the pointer crosses it, then follows without
     event.clientX += direction * 25;
     resize.onPointerMove(event);
     assert.equal(preview, 0, "rebound starts from the rendered width instead of jumping");
-    advance(1);
+    advance(2);
     assert.ok(preview > 0 && preview < 360, "rebound has intermediate animation frames");
     for (const width of [266, 300, 359, 360]) {
       const intermediate: number = preview;
@@ -104,13 +201,14 @@ test("holds the rebound width until the pointer crosses it, then follows without
         intermediate,
         "movement below the threshold must not interrupt rebound",
       );
-      assert.equal(frames.size, 1);
+      assert.equal(frames.size, 2, "one spring frame and one coalesced pointer frame");
     }
     advance(60);
     assert.equal(preview, 360);
     for (const width of [361, 380, 362]) {
       event.clientX = 1000 + direction * (width - 600);
       resize.onPointerMove(event);
+      advance(1);
       assert.equal(
         preview,
         Math.max(360, width),
@@ -142,7 +240,8 @@ test("holds the rebound width until the pointer crosses it, then follows without
   }
 });
 
-test("tracks changing container limits within the same drag and clamps on release", () => {
+test("tracks changing container limits within the same drag and clamps on release", (t) => {
+  const { advance } = installResizeClock(t);
   let resize!: ReturnType<typeof useCollapsibleResize>;
   let maximum = 852;
   let preview = 360;
@@ -180,10 +279,12 @@ test("tracks changing container limits within the same drag and clamps on releas
   resize.onPointerDown(event);
   event.clientX = 600;
   resize.onPointerMove(event);
+  advance(1);
   assert.equal(preview, 840);
   maximum = 1120; // The adjacent sidebar releases 268 px without starting a new drag.
   event.clientX = 500;
   resize.onPointerMove(event);
+  advance(1);
   assert.equal(preview, 940, "the divider follows the pointer beyond its original limit");
   maximum = 900;
   resize.onPointerUp(event);
@@ -191,15 +292,7 @@ test("tracks changing container limits within the same drag and clamps on releas
 });
 
 test("keeps the original pointer anchor through repeated collapses and overshoots", (t) => {
-  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
-  Object.defineProperty(globalThis, "window", {
-    configurable: true,
-    value: { matchMedia: () => ({ matches: true }) },
-  });
-  t.after(() => {
-    if (originalWindow) Object.defineProperty(globalThis, "window", originalWindow);
-    else Reflect.deleteProperty(globalThis, "window");
-  });
+  const { advance } = installResizeClock(t, true);
 
   for (const direction of [-1, 1] as const) {
     for (const finish of ["commit", "cancel"] as const) {
@@ -242,6 +335,7 @@ test("keeps the original pointer anchor through repeated collapses and overshoot
       const moveToWidth = (width: number) => {
         event.clientX = 1000 + direction * (width - 720);
         resize.onPointerMove(event);
+        advance(1);
       };
       resize.onPointerDown(event);
       for (let cycle = 0; cycle < 3; cycle += 1) {

@@ -71,7 +71,7 @@ import type {
 } from "../conversation/pi-conversation-message";
 
 import { parsePiConversationEvent, projectPiConversationEvent } from "./conversation-events";
-import type { PiUsageMetadata } from "./pi-usage";
+import { visibleOutputTokens, type PiUsageMetadata } from "./pi-usage";
 import { aggregatePiTurnStatistics } from "./session-statistics";
 import { readPiTurnTiming } from "./turn-timing";
 
@@ -978,6 +978,7 @@ export function piAssistantToThreadMessage(
     ? ({
         input: message.usage.input,
         output: message.usage.output,
+        ...(message.usage.reasoning === undefined ? {} : { reasoning: message.usage.reasoning }),
         cacheRead: message.usage.cacheRead,
         cacheWrite: message.usage.cacheWrite,
         totalTokens: message.usage.totalTokens,
@@ -1007,7 +1008,15 @@ export function piAssistantToThreadMessage(
         ...(message.diagnostics ? { piDiagnostics: message.diagnostics } : {}),
         ...(termination ? { piTermination: termination } : {}),
         ...(termination ? { workbenchTermination: termination } : {}),
-        ...(usage ? { piUsage: usage, workbenchUsage: usage } : {}),
+        ...(usage
+          ? {
+              piUsage: usage,
+              workbenchUsage: {
+                ...usage,
+                output: visibleOutputTokens(usage),
+              },
+            }
+          : {}),
       },
     },
   };
@@ -1265,6 +1274,10 @@ export function coalesceConsecutiveAssistantMessages(
           custom: {
             ...merged.metadata.custom,
             ...next.metadata.custom,
+            // Usage belongs to one model step. Do not let a completed tool-use step masquerade
+            // as usage for the next still-streaming assistant message.
+            piUsage: next.metadata.custom.piUsage,
+            workbenchUsage: next.metadata.custom.workbenchUsage,
           },
         },
       };

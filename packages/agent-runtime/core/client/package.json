@@ -10,44 +10,44 @@
       "default": "./src/index.ts"
     },
     "./environment": {
-      "types": "./src/agent-runtime-environment.ts",
-      "import": "./src/agent-runtime-environment.ts",
-      "default": "./src/agent-runtime-environment.ts"
+      "types": "./src/environment/ports.ts",
+      "import": "./src/environment/ports.ts",
+      "default": "./src/environment/ports.ts"
     },
     "./context": {
-      "types": "./src/agent-runtime-context.tsx",
-      "import": "./src/agent-runtime-context.tsx",
-      "default": "./src/agent-runtime-context.tsx"
+      "types": "./src/environment/context.tsx",
+      "import": "./src/environment/context.tsx",
+      "default": "./src/environment/context.tsx"
     },
     "./capabilities": {
-      "types": "./src/capabilities.ts",
-      "import": "./src/capabilities.ts",
-      "default": "./src/capabilities.ts"
+      "types": "./src/environment/capabilities.ts",
+      "import": "./src/environment/capabilities.ts",
+      "default": "./src/environment/capabilities.ts"
     },
     "./installation": {
-      "types": "./src/agent-runtime-installation.tsx",
-      "import": "./src/agent-runtime-installation.tsx",
-      "default": "./src/agent-runtime-installation.tsx"
+      "types": "./src/environment/installation.tsx",
+      "import": "./src/environment/installation.tsx",
+      "default": "./src/environment/installation.tsx"
     },
     "./message-statistics": {
-      "types": "./src/message-statistics.ts",
-      "import": "./src/message-statistics.ts",
-      "default": "./src/message-statistics.ts"
+      "types": "./src/conversation/statistics.ts",
+      "import": "./src/conversation/statistics.ts",
+      "default": "./src/conversation/statistics.ts"
     },
     "./message-presentation-metadata": {
-      "types": "./src/message-presentation-metadata.ts",
-      "import": "./src/message-presentation-metadata.ts",
-      "default": "./src/message-presentation-metadata.ts"
+      "types": "./src/conversation/presentation-metadata.ts",
+      "import": "./src/conversation/presentation-metadata.ts",
+      "default": "./src/conversation/presentation-metadata.ts"
     },
     "./prompt-feedback": {
-      "types": "./src/prompt-feedback.ts",
-      "import": "./src/prompt-feedback.ts",
-      "default": "./src/prompt-feedback.ts"
+      "types": "./src/conversation/prompt-feedback.ts",
+      "import": "./src/conversation/prompt-feedback.ts",
+      "default": "./src/conversation/prompt-feedback.ts"
     },
     "./workspaces": {
-      "types": "./src/workspaces.tsx",
-      "import": "./src/workspaces.tsx",
-      "default": "./src/workspaces.tsx"
+      "types": "./src/workspace/selection.tsx",
+      "import": "./src/workspace/selection.tsx",
+      "default": "./src/workspace/selection.tsx"
     }
   },
   "scripts": {

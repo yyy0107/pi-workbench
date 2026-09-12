@@ -99,6 +99,14 @@ const fileDefinition = {
   render: () => null,
 };
 
+const limitedFileDefinition = {
+  ...fileDefinition,
+  tabPolicy: {
+    maxTabs: 2,
+    replacement: "most-recent" as const,
+  },
+};
+
 const explorerDefinition = {
   kind: "explorer",
   icon: FixtureIcon,
@@ -142,6 +150,12 @@ function createRegistry() {
   return registry;
 }
 
+function createLimitedFileRegistry() {
+  const registry = new WorkspaceSurfaceRegistryImpl();
+  registry.register(limitedFileDefinition);
+  return registry;
+}
+
 test("opening a surface requires an active extension contribution", () => {
   const store = createRightWorkspaceStore();
   const controller = new DefaultRightWorkspaceController(store, new WorkspaceSurfaceRegistryImpl());
@@ -182,6 +196,40 @@ test("reveal deduplicates a file resource and closing the workspace preserves it
   assert.equal(store.getState().open, false);
   assert.ok(store.getState().surfaces[first]);
   assert.equal(store.getState().activeSurfaceId, first);
+});
+
+test("a tab policy replaces the most recently used clean file when the limit is reached", () => {
+  const store = createRightWorkspaceStore();
+  const controller = createController(store, createLimitedFileRegistry());
+  const openFile = (name: string) =>
+    controller.open({
+      kind: "file",
+      title: name,
+      params: { absolutePath: `/workspace/${name}` },
+      context,
+    });
+
+  const first = openFile("one.ts");
+  const second = openFile("two.ts");
+  const third = openFile("three.ts");
+
+  assert.deepEqual(store.getState().surfaceOrder, [first, third]);
+  assert.equal(store.getState().surfaces[second], undefined);
+  assert.equal(store.getState().activeSurfaceId, third);
+
+  controller.closeAll();
+  const dirty = openFile("dirty.ts");
+  controller.update(dirty, { dirty: true });
+  const clean = openFile("clean.ts");
+  const fourth = openFile("four.ts");
+  assert.deepEqual(
+    store
+      .getState()
+      .surfaceOrder.map((surfaceId) => store.getState().surfaces[surfaceId]?.params.absolutePath),
+    ["/workspace/dirty.ts", "/workspace/four.ts"],
+  );
+  assert.equal(store.getState().surfaces[clean], undefined);
+  assert.equal(store.getState().surfaces[fourth]?.title, "four.ts");
 });
 
 test("closing and reopening the workspace remembers its last width", () => {

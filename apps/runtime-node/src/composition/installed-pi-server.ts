@@ -34,6 +34,7 @@ import type { WorkbenchAgentServerAdapter } from "@workbench/agent-runtime-serve
 import {
   bindPiAgentHostBindings,
   resolvePiWorkspaceRoot,
+  resolvePiReviewSnapshots,
   resolvePiWorkspaceId,
   mutatePiWorkspace,
   CommandService,
@@ -298,6 +299,7 @@ function createInstalledPiServer(
   const workspaceGit = createWorkspaceGitService({
     resolveWorkspaceRoot: resolvePiWorkspaceRoot,
     mutateWorkspace: mutatePiWorkspace,
+    resolveReviewSnapshots: resolvePiReviewSnapshots,
   });
   const terminalShell = createTerminalShellPreference();
   const toolTerminalSessions = new ToolTerminalSessionManager({ getShell: terminalShell.getShell });

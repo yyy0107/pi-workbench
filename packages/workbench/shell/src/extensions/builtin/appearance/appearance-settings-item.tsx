@@ -28,6 +28,7 @@ import { cn } from "../../../utils";
 import type { SettingsItemComponentProps } from "@workbench/extension-sdk";
 
 import {
+  ACCENT_PALETTES,
   BACKGROUND_BLURS,
   BORDER_STYLES,
   CODE_FONT_FAMILIES,
@@ -50,6 +51,7 @@ import {
   RUNNING_INDICATOR_IDS,
   UI_FONT_FAMILIES,
   type BackgroundBlur,
+  type AccentPreset,
   type BorderStyle,
   type CodeFontFamily,
   type CodeTheme,
@@ -443,16 +445,6 @@ function FontControl<Value extends string>({
   );
 }
 
-const ACCENT_PALETTES = {
-  neutral: { light: "#18181b", dark: "#f4f4f5" },
-  blue: { light: "#2563eb", dark: "#60a5fa" },
-  green: { light: "#15803d", dark: "#4ade80" },
-  orange: { light: "#c2410c", dark: "#fb923c" },
-  red: { light: "#dc2626", dark: "#f87171" },
-  pink: { light: "#be185d", dark: "#f472b6" },
-  purple: { light: "#7e22ce", dark: "#c084fc" },
-} as const;
-type AccentPreset = keyof typeof ACCENT_PALETTES;
 const ACCENT_PRESETS = [...(Object.keys(ACCENT_PALETTES) as AccentPreset[]), "custom"] as const;
 
 function AccentColorControl({

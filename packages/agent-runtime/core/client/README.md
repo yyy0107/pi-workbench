@@ -1,30 +1,132 @@
 # `@workbench/agent-runtime-client`
 
-Workbench 浏览器侧、与具体 Agent 实现无关的 Headless Runtime React 接入层。
+The browser-side React integration layer for Workbench. This package connects React UI to the
+React-free Headless Agent Runtime and is intentionally independent of any concrete Agent Runtime
+implementation.
 
-`RuntimeProvider` 保存稳定的 `AgentRuntime`，`SessionProvider` 绑定当前或显式指定的 Session。
-`useThreadList`、`useCurrentSession`、`useSessionState`、`useConversationNode` 与
-`useConversationNodes` 通过 external-store 订阅 Runtime 的规范化快照。
+## Responsibilities
 
-`AgentRuntime.current` 同时暴露稳定的本地 `sessionId` 与晋升后才存在的 durable `threadId`：前者绑定
-消息 Session，后者用于路由和目录操作。线程变更统一通过 `threadActions`，本地 draft 不会提前创建
-远端会话。
+This package is responsible for:
+
+- Installing a stable `AgentRuntime` through `RuntimeProvider`.
+- Binding the current Session, or an explicitly selected nested Session, through `SessionProvider`.
+- Subscribing to thread lists, the current session, Conversation Snapshots, and message nodes with
+  `useSyncExternalStore`.
+- Providing selector hooks so updates to unselected message content do not cause unnecessary React
+  rerenders.
+- Exposing Runtime-neutral commands, thread stores, workspace search, and optional capabilities.
+- Providing shared Workbench handling for capability errors, browser storage, Composer attachments,
+  tool events, and message statistics.
+- Defining the composition boundaries for workspace selection, Runtime installation, and nested
+  session binding.
+
+`AgentRuntime.current` exposes two identities:
+
+- `sessionId`: the stable in-memory Session identity used to bind message state.
+- `threadId`: the durable identity that exists after a local conversation is promoted, used for
+  routing, catalog operations, and thread mutations.
+
+A local draft can be created and selected without allocating a remote conversation. Thread catalog
+mutations go through `threadActions` or the corresponding thread capability.
+
+## Directory structure
+
+```text
+src/
+  runtime/
+    context.tsx              # AgentRuntime / ConversationSession React Context
+    provider.tsx             # RuntimeProvider
+    session-provider.tsx     # SessionProvider
+    hooks.ts                 # Runtime, Session, Thread, and Node selector hooks
+    snapshot-selector.ts     # useSyncExternalStore selector binding
+    node-selection.ts        # Multiple conversation-node derived observable
+
+  environment/
+    context.tsx              # Runtime environment Context and capability hooks
+    ports.ts                 # Thread store and workspace-file-search ports
+    capabilities.ts          # Optional capabilities and stable error type
+    installation.tsx         # Selected Runtime installation boundary
+
+  workspace/
+    selection.tsx            # Workspace selection Context and directory port
+
+  browser/
+    storage.ts               # localStorage with in-memory fallback
+    composer-attachment.ts   # File to Composer attachment conversion
+
+  conversation/
+    tool-events.ts           # Tool payload helpers and completed-call hook
+    prompt-feedback.ts       # Prompt feedback port and compatibility framing
+    thread-list-reload.ts    # Coalesced thread-list reload coordinator
+    statistics.ts            # Message/node statistics aggregation
+    presentation-metadata.ts # Generic reasoning and parallel-tool metadata
+
+  index.ts                   # Main public entry point
+```
 
 ## Public entries
 
-- `@workbench/agent-runtime-client`：Provider、selector hooks、storage 与通用 tool helpers
-- `@workbench/agent-runtime-client/environment`：commands、thread store、workspace search 等宿主端口
-- `@workbench/agent-runtime-client/context`：Runtime 环境与能力 hooks
-- `@workbench/agent-runtime-client/capabilities`：可选能力契约与稳定的 `WorkbenchAgentCapabilityError`
-- `@workbench/agent-runtime-client/installation`：应用组合根安装边界
-- `@workbench/agent-runtime-client/message-statistics`：基于 Headless Node/Block 的统计聚合
-- `@workbench/agent-runtime-client/prompt-feedback`：workspace feedback 窄接口
+Public subpaths are defined by the `exports` field in `package.json`. Consumers should use package
+imports instead of depending on internal files under `src`:
 
-该包不定义具体 Agent 协议或连接；React 由宿主应用提供，确保 Workbench 只有一个 React 实例。
+| Entry | Purpose |
+| --- | --- |
+| `@workbench/agent-runtime-client` | Providers, selector hooks, storage, Composer, and generic tool helpers |
+| `@workbench/agent-runtime-client/environment` | Runtime ports such as the thread store and workspace-file search |
+| `@workbench/agent-runtime-client/context` | Runtime environment Provider and capability hooks |
+| `@workbench/agent-runtime-client/capabilities` | Optional capability contracts and `WorkbenchAgentCapabilityError` |
+| `@workbench/agent-runtime-client/installation` | Runtime installation contract used by the application composition root |
+| `@workbench/agent-runtime-client/message-statistics` | Statistics aggregated from Headless Nodes and Blocks |
+| `@workbench/agent-runtime-client/message-presentation-metadata` | Reasoning and parallel-tool presentation metadata |
+| `@workbench/agent-runtime-client/prompt-feedback` | Narrow workspace prompt-feedback interface |
+| `@workbench/agent-runtime-client/workspaces` | Workspace selection and directory-store port |
 
-`WorkbenchAgentRuntimeEnvironmentProvider` 接收只读能力集合：host、workspace、models、interactions、
-scratchSessions、context、automation 和 attachmentUnderstanding。通用 UI 从 `/context` 的窄 hooks
-读取对应能力；缺失时隐藏入口或显示明确不可用状态，不根据 Runtime ID 分支或注入 no-op 实现。
-具体 Runtime 负责把传输错误转换为 Workbench 错误；通用 UI 只消费稳定错误码与 Workbench DTO。
-`WorkbenchBoundSessionProvider` 使用实现方提供的 session binding 绑定 Side Chat 等嵌套会话，
-不改变外层会话选择，也不创建第二份状态缓存。
+Example:
+
+```tsx
+import {
+  RuntimeProvider,
+  SessionProvider,
+  useCurrentSession,
+  useSessionState,
+  useThreadList,
+} from "@workbench/agent-runtime-client";
+import {
+  WorkbenchAgentRuntimeEnvironmentProvider,
+  useWorkbenchWorkspaceCapability,
+} from "@workbench/agent-runtime-client/context";
+```
+
+## Boundaries
+
+This package does not own:
+
+- A concrete Agent protocol, Pi SDK, or network transport.
+- A concrete Runtime manager, adapter, or transport lifecycle.
+- Server-side command, execution, or thread-port implementations.
+- The visual Sidebar, Composer, Message, or other Workbench Shell components.
+- The concrete Zustand, Redux, or other state-management implementation for workspaces.
+
+A concrete Runtime should implement its transport, manager, and adapter in its own package, then map
+them to this package's `AgentRuntime`, `ConversationSession`, thread ports, and capabilities. Generic
+Workbench UI should consume only stable Workbench DTOs, error codes, and capability interfaces; it
+should not branch on Runtime IDs.
+
+`RuntimeProvider` and `SessionProvider` bind the Runtime and Session objects to React.
+`WorkbenchAgentRuntimeEnvironmentProvider` binds commands, the thread store, workspace search, and
+optional capabilities to the selected Runtime environment. When an optional capability is absent,
+its hook returns `undefined`, allowing the UI to hide the entry point or show an explicit unavailable
+state.
+
+## Development checks
+
+Run these commands from the repository root:
+
+```bash
+pnpm --filter @workbench/agent-runtime-client typecheck
+pnpm --filter @workbench/agent-runtime-client test
+```
+
+The package should preserve its dependency boundaries: production sources must not import a concrete
+Agent Runtime, and Runtime-neutral thread presentation and Composer consumers must remain independent
+of any concrete implementation.
