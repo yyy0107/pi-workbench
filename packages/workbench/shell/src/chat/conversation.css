@@ -26,9 +26,25 @@
   }
 }
 
+:where([data-slot="workbench-conversation"]) [data-workbench-composer-dock][data-animate-dock] {
+  transform-origin: top left;
+  animation: composer-dock-enter var(--layout-state-motion-duration) var(--layout-motion-ease)
+    backwards;
+}
+
+@keyframes composer-dock-enter {
+  from {
+    transform: var(--composer-dock-enter-transform);
+  }
+  to {
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :where([data-slot="workbench-conversation"])
-    [data-slot="user-message-content"][data-animate-enter] {
+    [data-slot="user-message-content"][data-animate-enter],
+  :where([data-slot="workbench-conversation"]) [data-workbench-composer-dock][data-animate-dock] {
     animation: none;
   }
 }

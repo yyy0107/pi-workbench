@@ -35,6 +35,7 @@ import {
 
 import { WorkbenchEmpty } from "./workbench-empty";
 import { ConversationList } from "./conversation-list";
+import { ConversationLayout } from "./conversation-layout";
 import { useWorkbenchConversationViewport } from "./workbench-conversation-viewport";
 import { displayedAgentRunElapsedMs } from "./workbench-thread-timing";
 
@@ -164,6 +165,8 @@ export interface WorkbenchConversationProps {
   emptyComposer: ReactNode;
   /** Host-owned Composer dock or footer. */
   composerDock?: ReactNode;
+  /** Keep the Composer in its bottom dock while showing the empty-state welcome content. */
+  dockComposerWhenEmpty?: boolean;
   /** Whether loading the current runtime should replace messages with the history indicator. */
   showHistoryLoading?: boolean;
   autoScroll?: boolean;
@@ -183,6 +186,7 @@ export function WorkbenchConversationContent({
   hostContent,
   emptyComposer,
   composerDock,
+  dockComposerWhenEmpty = false,
   showHistoryLoading = false,
   autoScroll,
   scrollToBottomOnInitialize = false,
@@ -201,7 +205,8 @@ export function WorkbenchConversationContent({
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const isEmpty = nodeKeys.length === 0;
   const isHistoryLoading = showHistoryLoading && (isThreadLoading || !isHistoryReady);
-  const hasDockedComposer = Boolean(composerDock) && (!isEmpty || isHistoryLoading);
+  const hasDockedComposer =
+    Boolean(composerDock) && (!isEmpty || isHistoryLoading || dockComposerWhenEmpty);
   const slotContext = { threadId };
   const loadOlder = useCallback(() => {
     if (!hasMore || isLoadingOlder || !session.actions.loadOlder) return;
@@ -246,8 +251,12 @@ export function WorkbenchConversationContent({
         className="flex h-full min-h-0 shrink-0 flex-col empty:hidden"
       />
 
-      <div
+      <ConversationLayout
         data-slot="conversation-layout"
+        sessionId={session.id}
+        isEmpty={isEmpty}
+        isHistoryLoading={isHistoryLoading}
+        hasDockedComposer={hasDockedComposer}
         className="relative grid min-h-0 min-w-0 flex-1 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden transition-[--thread-content-inline-gutter] duration-(--thread-index-motion-duration) ease-(--layout-motion-ease) motion-reduce:transition-none"
         style={
           {
@@ -307,7 +316,9 @@ export function WorkbenchConversationContent({
             <ThreadHistoryLoading />
           ) : (
             <>
-              {isEmpty ? <WorkbenchEmpty>{emptyComposer}</WorkbenchEmpty> : null}
+              {isEmpty ? (
+                <WorkbenchEmpty>{hasDockedComposer ? null : emptyComposer}</WorkbenchEmpty>
+              ) : null}
               <ConversationList renderWorkingStatus={() => <AssistantWorkingStatus />} />
             </>
           )}
@@ -366,7 +377,7 @@ export function WorkbenchConversationContent({
             ) : null}
           </div>
         ) : null}
-      </div>
+      </ConversationLayout>
 
       <SlotHost
         name="thread.right"
