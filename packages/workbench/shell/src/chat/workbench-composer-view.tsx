@@ -32,6 +32,24 @@ import type { ComposerTriggerItem } from "./composer-directive";
 import { withTooltip } from "../ui/tooltip";
 
 const COMPOSER_PRIMARY_ACTION_CLASS_NAME = "aui-composer-primary-action hover:bg-primary";
+const COMPOSER_INTERACTIVE_TARGET_SELECTOR = [
+  "button",
+  "a",
+  "input",
+  "select",
+  "textarea",
+  "summary",
+  '[contenteditable="true"]',
+  '[role="button"]',
+  '[role="checkbox"]',
+  '[role="combobox"]',
+  '[role="listbox"]',
+  '[role="menuitem"]',
+  '[role="option"]',
+  '[role="radio"]',
+  '[role="switch"]',
+  '[tabindex]:not([tabindex="-1"])',
+].join(", ");
 export type WorkbenchComposerSuggestionGroup =
   | "builtin"
   | "extension"
@@ -426,6 +444,7 @@ export function WorkbenchComposerSurfaceView({
   actionsRight,
   attachmentsEnabled,
   onDropFiles,
+  onCardClick,
 }: Readonly<{
   isNewThread: boolean;
   isRunning: boolean;
@@ -438,6 +457,7 @@ export function WorkbenchComposerSurfaceView({
   actionsRight: ReactNode;
   attachmentsEnabled: boolean;
   onDropFiles(files: readonly File[]): void;
+  onCardClick(): void;
 }>) {
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
@@ -489,6 +509,16 @@ export function WorkbenchComposerSurfaceView({
           dragDepth.current = 0;
           setDragging(false);
           onDropFiles([...event.dataTransfer.files]);
+        }}
+        onClick={(event) => {
+          if (event.defaultPrevented) return;
+          if (
+            event.target instanceof Element &&
+            event.target.closest(COMPOSER_INTERACTIVE_TARGET_SELECTOR)
+          ) {
+            return;
+          }
+          onCardClick();
         }}
         className={cn(
           "bg-background data-[dragging=true]:bg-accent/50 relative flex min-h-[var(--composer-height)] flex-col overflow-hidden rounded-[var(--composer-inner-radius,1.375rem)] border shadow-[0_1px_3px_rgba(0,0,0,0.08)] outline-none transition-[border-color,box-shadow,background-color] data-[dragging=true]:border-dashed",
