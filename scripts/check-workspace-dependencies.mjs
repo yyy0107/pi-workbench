@@ -43,19 +43,10 @@ const PACKAGE_PRODUCTION_DEPENDENCY_POLICIES = new Map([
     ]),
   ],
   [
-    "@workbench/attachment-understanding-server",
-    new Set([
-      "@workbench/attachment-understanding-contracts",
-      "@workbench/host-server",
-      "@workbench/server-core",
-    ]),
-  ],
-  [
     "@workbench/services-client",
     new Set([
       "@workbench/agent-runtime-client",
       "@workbench/agent-runtime-contracts",
-      "@workbench/attachment-understanding-contracts",
       "@workbench/automation-contracts",
       "@workbench/host-client",
       "@workbench/host-contracts",

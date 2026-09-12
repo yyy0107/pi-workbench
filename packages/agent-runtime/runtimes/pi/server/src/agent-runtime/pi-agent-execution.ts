@@ -1,5 +1,4 @@
 import type {
-  PiDocumentContent,
   PiImageContent,
   PiQueuedPrompt,
   PiQueueMode,
@@ -90,7 +89,6 @@ function translatePiExecutionError(error: unknown): never {
 function piPrompt(prompt: AgentExecutionPrompt): PiQueuedPrompt {
   const textAttachmentIds: string[] = [];
   const images: PiImageContent[] = [];
-  const documents: PiDocumentContent[] = [];
 
   for (const attachment of prompt.attachments) {
     if (attachment.kind === "text-reference") {
@@ -106,25 +104,13 @@ function piPrompt(prompt: AgentExecutionPrompt): PiQueuedPrompt {
       });
       continue;
     }
-    if (attachment.mediaType !== "application/pdf") {
-      throw new AgentExecutionError(
-        "prompt-rejected",
-        "Pi accepts PDF documents only at this execution boundary.",
-      );
-    }
-    documents.push({
-      type: "file",
-      data: attachment.data,
-      mimeType: attachment.mediaType,
-      ...(attachment.name === undefined ? {} : { name: attachment.name }),
-    });
+    throw new AgentExecutionError("prompt-rejected", "Pi does not accept this attachment type.");
   }
 
   return {
     message: prompt.text,
     ...(textAttachmentIds.length ? { textAttachmentIds } : {}),
     ...(images.length ? { images } : {}),
-    ...(documents.length ? { documents } : {}),
   };
 }
 

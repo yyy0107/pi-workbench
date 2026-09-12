@@ -20,7 +20,6 @@ import {
   readWorkbenchMessageUsage,
   readWorkbenchTurnStatistics,
 } from "@workbench/agent-runtime-contracts/message-metadata";
-import { parseAttachmentRecognitionSnapshot } from "@workbench/attachment-understanding-contracts/state-machine";
 import { useExtensionErrorReporter } from "@workbench/extension-host";
 import type { MessageSlotContext } from "@workbench/extension-sdk";
 
@@ -97,14 +96,7 @@ function MessagePerformance({ node }: Readonly<{ node: ConversationNode }>) {
           openOnHover
           delay={100}
           closeDelay={100}
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={label}
-            />
-          }
+          render={<Button type="button" variant="ghost" size="icon-sm" aria-label={label} />}
         >
           <GaugeIcon />
         </PopoverTrigger>
@@ -174,12 +166,7 @@ function AssistantActions({ node }: Readonly<{ node: ConversationNode }>) {
   const isRunning = useSessionState((snapshot) => snapshot.isRunning);
   const reportError = useExtensionErrorReporter();
   const navigation = useWorkbenchNavigation();
-  const custom = node.presentation?.custom;
-  const stateToken = readWorkbenchMessageStateToken(custom?.workbenchStateToken);
-  const retriesCancelledAttachment =
-    custom?.workbenchAttachmentRecognitionOnly === true &&
-    parseAttachmentRecognitionSnapshot(custom.workbenchAttachmentRecognition)?.status ===
-      "cancelled";
+  const stateToken = readWorkbenchMessageStateToken(node.presentation?.custom?.workbenchStateToken);
   const [forkState, setForkState] = useState<"idle" | "pending" | "failed">("idle");
   const forkConversation = useCallback(async () => {
     if (!stateToken || !session.actions.fork || forkState === "pending") return;
@@ -225,11 +212,7 @@ function AssistantActions({ node }: Readonly<{ node: ConversationNode }>) {
       ) : null}
       {session.actions.retry ? (
         <TooltipIconButton
-          tooltip={t(
-            retriesCancelledAttachment
-              ? "extensions.messageActions.retryAttachmentRequest"
-              : "extensions.messageActions.regenerateResponse",
-          )}
+          tooltip={t("extensions.messageActions.regenerateResponse")}
           type="button"
           disabled={isRunning}
           onClick={retry}

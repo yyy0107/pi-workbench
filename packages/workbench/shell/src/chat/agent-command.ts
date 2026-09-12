@@ -22,7 +22,6 @@ const AGENT_COMMAND_ACRONYMS = new Map(
     "json",
     "llm",
     "mcp",
-    "ocr",
     "rpc",
     "sdk",
     "ui",

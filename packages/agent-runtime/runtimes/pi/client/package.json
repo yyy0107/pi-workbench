@@ -60,7 +60,6 @@
     "@workbench/agent-runtime-core": "workspace:*",
     "@workbench/agent-runtime-pi-protocol": "workspace:*",
     "@workbench/agent-runtime-pi-shared": "workspace:*",
-    "@workbench/attachment-understanding-contracts": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
     "@workbench/contracts": "workspace:*",
     "@workbench/host-client": "workspace:*",

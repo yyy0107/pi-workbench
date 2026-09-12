@@ -34,7 +34,6 @@ import { workbenchToolOverrides } from "../internal-extensions/builtin-tools";
 import type {
   PiAssistantMessage,
   PiAgentMessage,
-  PiDocumentContent,
   PiEvent,
   PiImageContent,
   PiModelListResponse,
@@ -164,21 +163,6 @@ import { getStreamHub } from "../streams/stream-hub";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 import { validateWorkspace, workspaceFromCwd } from "../workspaces/workspace-paths";
 import { getPiAgentHostBindings } from "../agent-runtime/pi-agent-host-bindings";
-import {
-  attachmentReferenceId,
-  isTerminalAttachmentRecognitionSnapshot,
-  parseAttachmentRecognitionSnapshot,
-  reduceAttachmentRecognitionSnapshot,
-  WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
-  WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
-  type AttachmentRecognitionSnapshot,
-} from "@workbench/attachment-understanding-contracts/state-machine";
-import {
-  type CachedAttachmentUnderstandingObservation,
-  type RecognizableAttachment,
-} from "@workbench/attachment-understanding-server/contracts";
-import { runAttachmentUnderstandingTask } from "@workbench/attachment-understanding-server/task";
-import { recognizeWithMultimodalModel } from "../attachment-understanding/multimodal";
 import {
   createWorkbenchInternalPiExtensions,
   prepareWorkbenchPiExtensions,
@@ -766,9 +750,6 @@ function copyQueuedPrompts(prompts: readonly PiQueuedPrompt[]): PiQueuedPrompt[]
     ...(prompt.textAttachments?.length ? { textAttachments: prompt.textAttachments } : {}),
     ...(prompt.sourceText === undefined ? {} : { sourceText: prompt.sourceText }),
     ...(prompt.images?.length ? { images: prompt.images.map((image) => ({ ...image })) } : {}),
-    ...(prompt.documents?.length
-      ? { documents: prompt.documents.map((document) => ({ ...document })) }
-      : {}),
   }));
 }
 
@@ -825,18 +806,8 @@ function promptsHaveImages(prompts: ReadonlyPromptQueueSnapshot): boolean {
   );
 }
 
-function promptsHaveDocuments(prompts: ReadonlyPromptQueueSnapshot): boolean {
-  return [...prompts.steering, ...prompts.followUp].some((prompt) =>
-    prompt.documents?.some((document) => document.type === "file" && Boolean(document.data)),
-  );
-}
-
 function imageUnsupported(): PiServerError {
   return new PiServerError("pi_model_image_unsupported", 400);
-}
-
-function documentPreprocessingRequired(): PiServerError {
-  return new PiServerError("pi_attachment_preprocessing_required", 400);
 }
 
 function firstUserText(messages: readonly unknown[]): string {
@@ -905,127 +876,6 @@ export class SerializedSessionMutations {
   }
 }
 
-type AttachmentUnderstandingRunResult =
-  | { kind: "native"; images: PiImageContent[] }
-  | { kind: "preprocessed"; observations: CachedAttachmentUnderstandingObservation[] }
-  | { kind: "failed"; errorCode: string }
-  | { kind: "cancelled" };
-
-function recognizableAttachments(
-  images: readonly PiImageContent[],
-  documents: readonly PiDocumentContent[],
-): RecognizableAttachment[] {
-  return [
-    ...images.map((attachment, index) => {
-      const sequence = index + 1;
-      return {
-        id: attachmentReferenceId({ kind: "image", sequence }),
-        kind: "image" as const,
-        sequence,
-        ...(attachment.name === undefined ? {} : { name: attachment.name }),
-        mimeType: attachment.mimeType,
-        data: attachment.data,
-      };
-    }),
-    ...documents.map((attachment, index) => {
-      const sequence = index + 1;
-      return {
-        id: attachmentReferenceId({ kind: "pdf", sequence }),
-        kind: "pdf" as const,
-        sequence,
-        ...(attachment.name === undefined ? {} : { name: attachment.name }),
-        mimeType: attachment.mimeType,
-        data: attachment.data,
-      };
-    }),
-  ];
-}
-
-function interruptedAttachmentRecognitionTransitions(
-  events: readonly SessionEvent[],
-  now = Date.now(),
-): AttachmentRecognitionSnapshot[][] {
-  const latest = new Map<string, AttachmentRecognitionSnapshot>();
-  for (const event of events) {
-    if (event.type !== "message" || !isRecord(event.data)) continue;
-    if (
-      event.data.customType !== WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE &&
-      event.data.customType !== WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE
-    ) {
-      continue;
-    }
-    const incoming = parseAttachmentRecognitionSnapshot(event.data.details);
-    if (!incoming) continue;
-    const current = latest.get(incoming.operationId);
-    if (!current) {
-      latest.set(incoming.operationId, incoming);
-      continue;
-    }
-    try {
-      latest.set(incoming.operationId, reduceAttachmentRecognitionSnapshot(current, incoming));
-    } catch {
-      // A corrupt operation does not prevent independent operations from being reconciled.
-    }
-  }
-
-  const transition = (
-    current: AttachmentRecognitionSnapshot,
-    state:
-      | { status: "running"; stage: "fallback" }
-      | { status: "failed"; errorCode: "recognition-interrupted" },
-  ): AttachmentRecognitionSnapshot => {
-    const updatedAt = Math.max(current.timestamps?.updatedAt ?? 0, now);
-    const incoming = parseAttachmentRecognitionSnapshot({
-      version: 1,
-      operationId: current.operationId,
-      submissionId: current.submissionId,
-      ...(current.rpcId === undefined ? {} : { rpcId: current.rpcId }),
-      revision: current.revision + 1,
-      ...state,
-      method: current.method,
-      ...(current.providerId === undefined ? {} : { providerId: current.providerId }),
-      attachmentCount: current.attachmentCount,
-      completedCount: current.completedCount,
-      ...(current.progress === undefined ? {} : { progress: current.progress }),
-      timestamps: {
-        createdAt: current.timestamps?.createdAt ?? updatedAt,
-        updatedAt,
-        ...(state.status === "failed" ? { completedAt: updatedAt } : {}),
-      },
-    });
-    if (!incoming) throw new TypeError("Could not reconcile an interrupted attachment operation.");
-    return reduceAttachmentRecognitionSnapshot(current, incoming);
-  };
-
-  return [...latest.values()].flatMap((snapshot) => {
-    if (isTerminalAttachmentRecognitionSnapshot(snapshot)) return [];
-    const running =
-      snapshot.status === "pending"
-        ? transition(snapshot, { status: "running", stage: "fallback" })
-        : snapshot;
-    const failed = transition(running, {
-      status: "failed",
-      errorCode: "recognition-interrupted",
-    });
-    return [snapshot.status === "pending" ? [running, failed] : [failed]];
-  });
-}
-
-function persistedComposerResolutionSubmissionIds(entries: readonly SessionEntry[]): Set<string> {
-  const submissionIds = new Set<string>();
-  for (const entry of entries) {
-    const details =
-      entry.type === "custom_message" && isWorkbenchComposerResolutionCustomType(entry.customType)
-        ? entry.details
-        : entry.type === "custom" && isWorkbenchComposerResolutionCustomType(entry.customType)
-          ? entry.data
-          : undefined;
-    const resolution = parseWorkbenchComposerResolutionDetails(details);
-    if (resolution) submissionIds.add(resolution.submissionId);
-  }
-  return submissionIds;
-}
-
 interface ComposerSubmissionReplay {
   /** Reuse the durable Composer marker so a retry creates an answer branch, not a user branch. */
   submissionId: string;
@@ -1043,10 +893,6 @@ class HostedPiSession {
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
   private promptTask: Promise<void> | undefined;
   private submissionLeaseActive = false;
-  private imageRecognitionTask: Promise<AttachmentUnderstandingRunResult> | undefined;
-  private imageRecognitionAbort: AbortController | undefined;
-  private imageRecognitionCompletion: Promise<void> | undefined;
-  private completeImageRecognition: (() => void) | undefined;
   private activePromptHasImages = false;
   private sequence = -1;
   private activeAssistantStream: ActiveAssistantStream | undefined;
@@ -1162,70 +1008,8 @@ class HostedPiSession {
     });
     if (initializedJournal.error !== undefined) {
       this.reportJournalFailure(initializedJournal.error);
-    } else {
-      this.reconcileInterruptedAttachmentRecognition();
     }
     this.touch();
-  }
-
-  private reconcileInterruptedAttachmentRecognition(): void {
-    const resolvedComposerSubmissions = persistedComposerResolutionSubmissionIds(
-      this.session.sessionManager.getBranch(),
-    );
-    for (const transitions of interruptedAttachmentRecognitionTransitions(
-      this.canonicalEventsValue,
-    )) {
-      for (const snapshot of transitions) {
-        const timestamp = snapshot.timestamps?.updatedAt ?? Date.now();
-        this.publish(
-          {
-            type: "message",
-            role: "custom",
-            customType: WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
-            content: "",
-            display: true,
-            details: snapshot,
-            timestamp,
-          },
-          timestamp,
-        );
-      }
-      const terminal = transitions.at(-1);
-      if (terminal && isTerminalAttachmentRecognitionSnapshot(terminal)) {
-        this.session.sessionManager.appendCustomEntry(
-          WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
-          terminal,
-        );
-        if (!resolvedComposerSubmissions.has(terminal.submissionId)) {
-          const resolution: WorkbenchComposerResolutionDetails = {
-            version: 2,
-            submissionId: terminal.submissionId,
-            status: "command_error",
-            commandTrace: [],
-          };
-          this.session.sessionManager.appendCustomMessageEntry(
-            WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
-            "",
-            false,
-            resolution,
-          );
-          const timestamp = terminal.timestamps?.updatedAt ?? Date.now();
-          this.publish(
-            {
-              type: "message",
-              role: "custom",
-              customType: WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
-              content: "",
-              display: false,
-              details: resolution,
-              timestamp,
-            },
-            timestamp,
-          );
-          resolvedComposerSubmissions.add(terminal.submissionId);
-        }
-      }
-    }
   }
 
   get id(): string {
@@ -1243,11 +1027,7 @@ class HostedPiSession {
 
   /** Workbench-owned activity that must finish before mutating or releasing this host. */
   get isBusy(): boolean {
-    return (
-      this.submissionLeaseActive ||
-      this.imageRecognitionAbort !== undefined ||
-      this.hasActiveAgentRun
-    );
+    return this.submissionLeaseActive || this.hasActiveAgentRun;
   }
 
   get runTiming(): PiRunTiming | undefined {
@@ -2162,22 +1942,9 @@ class HostedPiSession {
       let resolvedPrompt = await this.resolveComposerSubmission(prompt, composer, rpcId, {
         submissionId,
       });
-      const recognitionSignal = this.imageRecognitionAbort?.signal;
-      if (resolvedPrompt && recognitionSignal?.aborted) {
-        resolvedPrompt = undefined;
-        this.publish({ type: "command_error", code: "pi_attachment_recognition_cancelled" });
-      }
       if (resolvedPrompt) {
         try {
-          const started = await this.promptNow(
-            resolvedPrompt.message,
-            resolvedPrompt.images,
-            undefined,
-            recognitionSignal,
-          );
-          if (!started) {
-            this.publish({ type: "command_error", code: "pi_attachment_recognition_cancelled" });
-          }
+          await this.promptNow(resolvedPrompt.message, resolvedPrompt.images);
         } catch (error) {
           const projection = this.pendingComposerUserProjections.at(-1);
           if (projection?.promptText === resolvedPrompt.message) {
@@ -2198,7 +1965,6 @@ class HostedPiSession {
         source: { kind: "rpc", rpcId },
       });
     } finally {
-      this.releaseImageRecognitionLease();
       this.submissionLeaseActive = false;
       this.notifyRunningChanged();
     }
@@ -2239,19 +2005,7 @@ class HostedPiSession {
               ]
             : [],
         );
-        const documents: PiDocumentContent[] = attachments.flatMap((attachment) =>
-          attachment.mimeType === "application/pdf"
-            ? [
-                {
-                  type: "file" as const,
-                  data: attachment.data,
-                  mimeType: "application/pdf" as const,
-                  ...(attachment.name === undefined ? {} : { name: attachment.name }),
-                },
-              ]
-            : [],
-        );
-        if (images.length + documents.length > 0 || composerDetails.textAttachments?.length) {
+        if (images.length > 0 || composerDetails.textAttachments?.length) {
           await this.retryComposerSubmission(
             composerEntry.id,
             composerDetails.submissionId,
@@ -2265,7 +2019,6 @@ class HostedPiSession {
                   }
                 : {}),
               ...(images.length === 0 ? {} : { images }),
-              ...(documents.length === 0 ? {} : { documents }),
             },
             composerDetails.composer,
             requestId ?? randomUUID(),
@@ -2413,116 +2166,6 @@ class HostedPiSession {
     if (admittedRun) await admittedRun;
   }
 
-  private async understandAttachments(
-    images: PiImageContent[],
-    documents: PiDocumentContent[],
-    attachments: readonly RecognizableAttachment[],
-    submissionId: string,
-    rpcId?: string,
-  ): Promise<AttachmentUnderstandingRunResult> {
-    const settingsResult = await Promise.resolve()
-      .then(() => {
-        const settingsStore = getPiAgentHostBindings().attachmentUnderstandingSettings?.();
-        if (!settingsStore) throw new Error("Attachment understanding settings are not installed.");
-        return settingsStore.resolveRuntimeSettings();
-      })
-      .then(
-        (value) => ({ ok: true as const, value }),
-        (error: unknown) => ({ ok: false as const, error }),
-      );
-    if (settingsResult.ok && settingsResult.value.value.routing === "native-only") {
-      if (documents.length > 0) throw documentPreprocessingRequired();
-      return { kind: "native", images };
-    }
-
-    if (this.imageRecognitionTask || this.imageRecognitionAbort) {
-      throw new PiServerError("pi_session_busy", 409);
-    }
-    const controller = new AbortController();
-    this.imageRecognitionAbort = controller;
-    this.imageRecognitionCompletion = new Promise<void>((resolve) => {
-      this.completeImageRecognition = resolve;
-    });
-    let terminalSnapshot: AttachmentRecognitionSnapshot | undefined;
-    const task = (async (): Promise<AttachmentUnderstandingRunResult> => {
-      try {
-        const result = await runAttachmentUnderstandingTask({
-          operationId: randomUUID(),
-          submissionId,
-          ...(rpcId === undefined ? {} : { rpcId }),
-          attachments,
-          settings: settingsResult,
-          signal: controller.signal,
-          modelSupportsImages: async () => {
-            const selectedModel = this.session.model;
-            if (selectedModel?.provider)
-              await this.refreshChangedModelProvider(selectedModel.provider);
-            const availableModels = this.session.modelRuntime.getAvailableSnapshot();
-            const currentModel = selectedModel
-              ? availableModels.find(
-                  (model) =>
-                    model.provider === selectedModel.provider && model.id === selectedModel.id,
-                )
-              : availableModels[0];
-            return currentModel?.input.includes("image") === true;
-          },
-          prepareMultimodal: (provider) => this.refreshChangedModelProvider(provider),
-          recognizeMultimodal: (options) =>
-            recognizeWithMultimodalModel({ ...options, runtime: this.session.modelRuntime }),
-          publish: (snapshot) => {
-            if (isTerminalAttachmentRecognitionSnapshot(snapshot)) terminalSnapshot = snapshot;
-            const timestamp = snapshot.timestamps?.updatedAt ?? Date.now();
-            this.publish(
-              {
-                type: "message",
-                role: "custom",
-                customType: WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
-                content: "",
-                display: true,
-                details: snapshot,
-                timestamp,
-              },
-              timestamp,
-            );
-          },
-        });
-        return result.kind === "native" ? { ...result, images } : result;
-      } finally {
-        if (terminalSnapshot) {
-          this.session.sessionManager.appendCustomEntry(
-            WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
-            terminalSnapshot,
-          );
-        }
-      }
-    })();
-    this.imageRecognitionTask = task;
-    this.touch();
-    this.notifyRunningChanged();
-    try {
-      return await task;
-    } finally {
-      if (this.imageRecognitionTask === task) {
-        this.imageRecognitionTask = undefined;
-      }
-      this.touch();
-      this.notifyRunningChanged();
-      announceSessionChanged(this);
-    }
-  }
-
-  private releaseImageRecognitionLease(): void {
-    if (!this.imageRecognitionAbort && !this.imageRecognitionCompletion) return;
-    this.imageRecognitionAbort = undefined;
-    const complete = this.completeImageRecognition;
-    this.completeImageRecognition = undefined;
-    this.imageRecognitionCompletion = undefined;
-    complete?.();
-    this.touch();
-    this.notifyRunningChanged();
-    announceSessionChanged(this);
-  }
-
   private async resolveComposerSubmission(
     prompt: PiQueuedPrompt,
     submission: WorkbenchComposerSubmission,
@@ -2544,15 +2187,13 @@ class HostedPiSession {
           commands: submission.commands,
           composer: submission,
           ...(textAttachments.length ? { textAttachments } : {}),
-          ...(prompt.images?.length || prompt.documents?.length
+          ...(prompt.images?.length
             ? {
-                attachments: [...(prompt.images ?? []), ...(prompt.documents ?? [])].map(
-                  ({ data, mimeType, name }) => ({
-                    data,
-                    mimeType,
-                    ...(name === undefined ? {} : { name }),
-                  }),
-                ),
+                attachments: prompt.images.map(({ data, mimeType, name }) => ({
+                  data,
+                  mimeType,
+                  ...(name === undefined ? {} : { name }),
+                })),
               }
             : {}),
           status: "accepted" as const,
@@ -2635,80 +2276,11 @@ class HostedPiSession {
       (command) => command.status === "execution-failed",
     );
     const commandOwnsAgentTurn = plannedCommands.some((command) => command.effect === "agent-turn");
-    let resolvedImages = prompt.images;
-    let attachmentUnderstandingFatalError: string | undefined;
-    let usedAttachmentPreprocessing = false;
-    let attachmentResultFiles: readonly CachedAttachmentUnderstandingObservation[] = [];
-    let usedAttachmentReferences = false;
-    if (
-      (prompt.images?.length || prompt.documents?.length) &&
-      !commandFailed &&
-      !commandOwnsAgentTurn
-    ) {
-      const attachmentReferences = recognizableAttachments(
-        prompt.images ?? [],
-        prompt.documents ?? [],
-      );
-      resolution.request.untrustedContext.push({
-        source: "workbench.attachment-references",
-        trust: "untrusted-context",
-        value: {
-          version: 1,
-          kind: "attachment-references",
-          sequenceScope: "per-kind",
-          references: attachmentReferences.map(({ id, kind, sequence }) => ({
-            attachmentId: id,
-            kind,
-            sequence,
-          })),
-        },
-      });
-      usedAttachmentReferences = true;
-      const attachmentUnderstanding = await this.understandAttachments(
-        prompt.images ?? [],
-        prompt.documents ?? [],
-        attachmentReferences,
-        submissionId,
-        rpcId,
-      );
-      if (attachmentUnderstanding.kind === "native") {
-        resolvedImages = attachmentUnderstanding.images;
-      } else if (attachmentUnderstanding.kind === "preprocessed") {
-        resolvedImages = undefined;
-        usedAttachmentPreprocessing = true;
-        attachmentResultFiles = attachmentUnderstanding.observations;
-      } else if (attachmentUnderstanding.kind === "cancelled") {
-        resolvedImages = undefined;
-        attachmentUnderstandingFatalError = "attachment-recognition-cancelled";
-      } else {
-        resolvedImages = undefined;
-        resolution.request.trustedContext.push({
-          source: "workbench.attachment-understanding-status",
-          trust: "trusted-config",
-          value: {
-            version: 1,
-            kind: "attachment-understanding-status",
-            status: "failed",
-            errorCode: attachmentUnderstanding.errorCode,
-            unavailableAttachments: attachmentReferences.map(({ id, kind, sequence }) => ({
-              attachmentId: id,
-              kind,
-              sequence,
-            })),
-          },
-        });
-      }
-      if (this.imageRecognitionAbort?.signal.aborted) {
-        resolvedImages = undefined;
-        attachmentUnderstandingFatalError = "attachment-recognition-cancelled";
-      }
-    }
     const needsMainTurn =
       !commandOwnsAgentTurn &&
       !commandFailed &&
-      attachmentUnderstandingFatalError === undefined &&
       (textAttachments.length > 0 ||
-        Boolean(resolvedImages?.length) ||
+        Boolean(prompt.images?.length) ||
         Boolean(resolution.request.userText.trim()) ||
         resolution.request.selectedSkills.length > 0 ||
         resolution.request.instructions.length > 0 ||
@@ -2718,7 +2290,7 @@ class HostedPiSession {
       version: 2,
       submissionId,
       status:
-        needsMainTurn || (!commandFailed && attachmentUnderstandingFatalError === undefined)
+        needsMainTurn || !commandFailed
           ? needsMainTurn
             ? "resolved"
             : "completed"
@@ -2748,23 +2320,15 @@ class HostedPiSession {
 
     if (!needsMainTurn) {
       this.publish(
-        commandFailed || attachmentUnderstandingFatalError
-          ? {
-              type: "command_error",
-              code: commandFailed
-                ? "pi_composer_command_failed"
-                : "pi_attachment_recognition_failed",
-            }
+        commandFailed
+          ? { type: "command_error", code: "pi_composer_command_failed" }
           : { type: "command_done" },
       );
       return undefined;
     }
     const modelInput =
-      hasWorkbenchComposerSemantics(submission) ||
-      usedAttachmentPreprocessing ||
-      usedAttachmentReferences ||
-      textAttachments.length > 0
-        ? compilePiComposerPrompt(resolution.request, attachmentResultFiles, textAttachments)
+      hasWorkbenchComposerSemantics(submission) || textAttachments.length > 0
+        ? compilePiComposerPrompt(resolution.request, textAttachments)
         : undefined;
     if (modelInput) {
       this.session.sessionManager.appendCustomEntry(
@@ -2783,7 +2347,7 @@ class HostedPiSession {
             sourceText: submission.sourceText,
           }
         : {}),
-      ...(resolvedImages?.length ? { images: resolvedImages } : {}),
+      ...(prompt.images?.length ? { images: prompt.images } : {}),
     };
   }
 
@@ -2815,11 +2379,11 @@ class HostedPiSession {
         if (options.selection) await this.applyPromptSelection(options.selection);
         let admission: PromptSubmissionResult = { queued: false };
         const submittedComposer = provenance?.composer;
-        const hasRecognizableAttachments = Boolean(
-          prompt.images?.length || prompt.documents?.length || prompt.textAttachmentIds?.length,
+        const hasPromptAttachments = Boolean(
+          prompt.images?.length || prompt.textAttachmentIds?.length,
         );
         const composer = submittedComposer
-          ? hasRecognizableAttachments &&
+          ? hasPromptAttachments &&
             !hasWorkbenchComposerDocument(submittedComposer) &&
             !hasWorkbenchComposerSemantics(submittedComposer)
             ? {
@@ -2827,7 +2391,7 @@ class HostedPiSession {
                 document: [{ type: "text" as const, text: submittedComposer.sourceText }],
               }
             : submittedComposer
-          : hasRecognizableAttachments
+          : hasPromptAttachments
             ? {
                 version: 2 as const,
                 document: [{ type: "text" as const, text: prompt.message }],
@@ -2843,11 +2407,6 @@ class HostedPiSession {
           (hasWorkbenchComposerDocument(composer) || hasWorkbenchComposerSemantics(composer))
             ? await this.resolveComposerSubmission(prompt, composer, provenance?.rpcId)
             : prompt;
-        const recognitionSignal = this.imageRecognitionAbort?.signal;
-        if (resolvedPrompt && recognitionSignal?.aborted) {
-          resolvedPrompt = undefined;
-          this.publish({ type: "command_error", code: "pi_attachment_recognition_cancelled" });
-        }
         if (resolvedPrompt) {
           const queuedIntoActiveRun = this.hasActiveAgentRun;
           try {
@@ -2857,18 +2416,7 @@ class HostedPiSession {
                 queueItemId: await this.queueNow(mode, resolvedPrompt, provenance?.rpcId),
               };
             } else {
-              const started = await this.promptNow(
-                resolvedPrompt.message,
-                resolvedPrompt.images,
-                undefined,
-                recognitionSignal,
-              );
-              if (!started) {
-                this.publish({
-                  type: "command_error",
-                  code: "pi_attachment_recognition_cancelled",
-                });
-              }
+              await this.promptNow(resolvedPrompt.message, resolvedPrompt.images);
             }
           } catch (error) {
             let pendingProjection:
@@ -2950,7 +2498,6 @@ class HostedPiSession {
         }
         return admission;
       } finally {
-        this.releaseImageRecognitionLease();
         if (submissionLeaseAcquired) {
           this.submissionLeaseActive = false;
           this.notifyRunningChanged();
@@ -3014,13 +2561,8 @@ class HostedPiSession {
         source: "workbench",
       });
     }
-    const recognition = this.imageRecognitionTask;
-    const recognitionCompletion = this.imageRecognitionCompletion;
-    this.imageRecognitionAbort?.abort();
     this.session.abortCompaction();
     await this.session.abort();
-    await recognition?.catch(() => undefined);
-    await recognitionCompletion?.catch(() => undefined);
     this.touch();
   }
 
@@ -3036,7 +2578,6 @@ class HostedPiSession {
     requestedId?: string,
   ): Promise<string> {
     if (!this.hasActiveAgentRun) throw new PiServerError("pi_session_not_running", 409);
-    if (prompt.documents?.length) throw documentPreprocessingRequired();
     if (prompt.images?.length && !this.session.model?.input.includes("image")) {
       throw imageUnsupported();
     }
@@ -3081,7 +2622,6 @@ class HostedPiSession {
   }
 
   private async requireQueueImageCapability(queue: ReadonlyPromptQueueSnapshot): Promise<void> {
-    if (promptsHaveDocuments(queue)) throw documentPreprocessingRequired();
     if (!promptsHaveImages(queue)) return;
     const currentModel = this.session.model;
     if (currentModel) {
@@ -3273,7 +2813,6 @@ class HostedPiSession {
           untrustedContext: [],
           commandTrace: [],
         },
-        [],
         textAttachments,
       );
       const branch = this.session.sessionManager.getBranch();
@@ -3418,8 +2957,6 @@ class HostedPiSession {
     this.alive = false;
     getInteractiveResponseRegistry().clearSession(this.id);
     if (this.idleTimer) clearTimeout(this.idleTimer);
-    const recognitionCompletion = this.imageRecognitionCompletion;
-    this.imageRecognitionAbort?.abort();
     let stopped = false;
     try {
       this.session.abortCompaction();
@@ -3427,7 +2964,6 @@ class HostedPiSession {
       this.session.abortBash();
       if (this.isBusy) await this.session.abort();
       await this.promptTask?.catch(() => undefined);
-      await recognitionCompletion?.catch(() => undefined);
       await this.mutations.run(async () => undefined);
       stopped = true;
     } catch {
@@ -4790,10 +4326,7 @@ export async function listModels(cwd: string): Promise<PiModelListResponse> {
 }
 
 function isWorkbenchDisplayOnlyCustomType(customType: string): boolean {
-  return (
-    isWorkbenchComposerCommandResponseCustomType(customType) ||
-    customType === WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE
-  );
+  return isWorkbenchComposerCommandResponseCustomType(customType);
 }
 
 function historyFromManager(manager: SessionManager): PiSessionHistory {
@@ -5236,12 +4769,7 @@ export async function queuePrompt(
   mode: PiQueueMode,
   prompt: PiQueuedPrompt,
 ): Promise<void> {
-  if (
-    !prompt.message.trim() &&
-    !prompt.images?.length &&
-    !prompt.documents?.length &&
-    !prompt.textAttachmentIds?.length
-  ) {
+  if (!prompt.message.trim() && !prompt.images?.length && !prompt.textAttachmentIds?.length) {
     throw new PiServerError("pi_empty_prompt", 400);
   }
   const host = await getOrStartSession(id);
@@ -5259,7 +4787,6 @@ export async function submitPrompt(
   if (
     !prompt.message.trim() &&
     !prompt.images?.length &&
-    !prompt.documents?.length &&
     !prompt.textAttachmentIds?.length &&
     !(composer && hasWorkbenchComposerSemantics(composer))
   ) {
@@ -5294,12 +4821,7 @@ export async function steerQueuedPrompt(
   steering: readonly PiQueuedPrompt[],
   followUp: readonly PiQueuedPrompt[],
 ): Promise<void> {
-  if (
-    !prompt.message.trim() &&
-    !prompt.images?.length &&
-    !prompt.documents?.length &&
-    !prompt.textAttachmentIds?.length
-  ) {
+  if (!prompt.message.trim() && !prompt.images?.length && !prompt.textAttachmentIds?.length) {
     throw new PiServerError("pi_empty_prompt", 400);
   }
   const host = await getOrStartSession(id);

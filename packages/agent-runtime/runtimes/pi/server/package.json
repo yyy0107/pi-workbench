@@ -38,8 +38,6 @@
     "@workbench/agent-runtime-pi-protocol": "workspace:*",
     "@workbench/agent-runtime-pi-shared": "workspace:*",
     "@workbench/agent-runtime-server": "workspace:*",
-    "@workbench/attachment-understanding-contracts": "workspace:*",
-    "@workbench/attachment-understanding-server": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
     "@workbench/browser-contracts": "workspace:*",
     "@workbench/contracts": "workspace:*",

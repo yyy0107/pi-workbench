@@ -19,20 +19,12 @@ const WORKBENCH_SETTINGS_PUBLIC_FILE = new URL(
   "packages/server/settings/src/file.ts",
   REPOSITORY_ROOT,
 );
-const IMAGE_SETTINGS_STORE = new URL(
-  "../packages/server/attachment-understanding/src/settings-store.ts",
-  import.meta.url,
-);
 const AGENT_SETTINGS_ROUTES = new URL(
   "../packages/agent-runtime/runtimes/pi/server/src/transport/routes/agent-settings-rpc-routes.ts",
   import.meta.url,
 );
 const WORKBENCH_SETTINGS_ROUTES = new URL(
   "../packages/server/settings/src/rpc.ts",
-  import.meta.url,
-);
-const IMAGE_SETTINGS_ROUTES = new URL(
-  "../packages/server/attachment-understanding/src/rpc.ts",
   import.meta.url,
 );
 const RPC_ROUTE_COMPOSITION = new URL(
@@ -50,22 +42,15 @@ const WORKBENCH_SETTINGS_METHODS = [
   "workbenchSettings.openDocument",
   "workbenchSettings.update",
 ] as const;
-const IMAGE_SETTINGS_METHODS = [
-  "imageUnderstanding.describe",
-  "imageUnderstanding.update",
-] as const;
-
 test("each Settings transport depends on only its narrow protocol", async () => {
-  const [agent, workbench, image] = await Promise.all([
+  const [agent, workbench] = await Promise.all([
     readFile(AGENT_SETTINGS_ROUTES, "utf8"),
     readFile(WORKBENCH_SETTINGS_ROUTES, "utf8"),
-    readFile(IMAGE_SETTINGS_ROUTES, "utf8"),
   ]);
 
   assert.match(agent, /import type \{[\s\S]*AgentSettingsProtocol/);
   assert.match(workbench, /import type \{ WorkbenchSettingsProtocol \}/);
-  assert.match(image, /import type \{ ImageUnderstandingSettingsProtocol \}/);
-  for (const source of [agent, workbench, image]) {
+  for (const source of [agent, workbench]) {
     assert.doesNotMatch(source, /@earendil-works\/pi-coding-agent/);
     assert.doesNotMatch(source, /node:fs|node:path/);
     assert.doesNotMatch(source, /withCrossProcessFileLock|atomicReplaceFile/);
@@ -74,16 +59,14 @@ test("each Settings transport depends on only its narrow protocol", async () => 
     workbench,
     /(?:runtime\/server\/settings|@workbench\/settings-server|workbench\/server\/workbench-settings|WorkbenchSettingsService)/,
   );
-  assert.doesNotMatch(agent, /WorkbenchSettingsProtocol|ImageUnderstandingSettingsProtocol/);
-  assert.doesNotMatch(workbench, /AgentSettingsProtocol|ImageUnderstandingSettingsProtocol/);
-  assert.doesNotMatch(image, /AgentSettingsProtocol|WorkbenchSettingsProtocol/);
+  assert.doesNotMatch(agent, /WorkbenchSettingsProtocol/);
+  assert.doesNotMatch(workbench, /AgentSettingsProtocol/);
 });
 
 test("Settings routes preserve their distinct trust, budget, and lifecycle boundaries", async () => {
-  const [agent, workbench, image] = await Promise.all([
+  const [agent, workbench] = await Promise.all([
     readFile(AGENT_SETTINGS_ROUTES, "utf8"),
     readFile(WORKBENCH_SETTINGS_ROUTES, "utf8"),
-    readFile(IMAGE_SETTINGS_ROUTES, "utf8"),
   ]);
 
   assert.equal(agent.match(/loopbackOnly: true/g)?.length, 3);
@@ -98,20 +81,14 @@ test("Settings routes preserve their distinct trust, budget, and lifecycle bound
   assert.match(workbench, /service\.prepareDocument\(\)/);
   assert.match(workbench, /openDocument\(settingsFile, signal\)/);
   assert.match(workbench, /getService\(\)\.update\(payload\)/);
-
-  assert.equal(image.match(/loopbackOnly: true/g)?.length, 2);
-  assert.match(image, /getStore\(\)\.describe\(\)/);
-  assert.match(image, /getStore\(\)\.update\(payload\)/);
-  assert.match(image, /const imageUnderstandingCredential/);
 });
 
 test("Settings services implement narrow protocols while retaining persistence ownership", async () => {
-  const [agent, workbench, workbenchFile, workbenchPublicFile, image] = await Promise.all([
+  const [agent, workbench, workbenchFile, workbenchPublicFile] = await Promise.all([
     readFile(AGENT_SETTINGS_SERVICE, "utf8"),
     readFile(WORKBENCH_SETTINGS_SERVICE, "utf8"),
     readFile(WORKBENCH_SETTINGS_FILE, "utf8"),
     readFile(WORKBENCH_SETTINGS_PUBLIC_FILE, "utf8"),
-    readFile(IMAGE_SETTINGS_STORE, "utf8"),
   ]);
 
   assert.match(agent, /export interface AgentSettingsProtocol/);
@@ -141,17 +118,6 @@ test("Settings services implement narrow protocols while retaining persistence o
     workbenchPublicFile,
     /@earendil-works\/pi-coding-agent|agent-runtime-pi-protocol/,
   );
-
-  assert.match(image, /export interface ImageUnderstandingSettingsProtocol/);
-  assert.match(
-    image,
-    /export class ImageUnderstandingSettingsStore implements ImageUnderstandingSettingsProtocol/,
-  );
-  assert.match(image, /parseOcrAdapterSource/);
-  assert.match(image, /secrets/);
-  assert.match(image, /legacyStateFile/);
-  assert.doesNotMatch(image, /getAgentDir|agent-runtime-pi|globalThis/);
-  assert.doesNotMatch(image, /image-understanding-settings-rpc-routes|rpc-transport/);
 });
 
 test("the route composition creates Settings groups without retaining transport details", async () => {
@@ -163,27 +129,16 @@ test("the route composition creates Settings groups without retaining transport 
     "utf8",
   );
   assert.match(installed, /createWorkbenchSettingsRpcRoutes\(/);
-  assert.doesNotMatch(
-    source,
-    /createWorkbenchSettingsRpcRoutes|createImageUnderstandingSettingsRpcRoutes/,
-  );
-  assert.match(installed, /createImageUnderstandingSettingsRpcRoutes\(/);
+  assert.doesNotMatch(source, /createWorkbenchSettingsRpcRoutes/);
   assert.match(source, /const agentSettingsService = new AgentSettingsService\(\)/);
   assert.match(installed, /getService: createInstalledWorkbenchSettingsService/);
   assert.match(installed, /openDocument: localHostService\.openPath/);
-  assert.match(installed, /getStore: getImageUnderstandingSettingsStore/);
   assert.match(source, /projectRpcDomainError/);
-  for (const method of [
-    ...AGENT_SETTINGS_METHODS,
-    ...WORKBENCH_SETTINGS_METHODS,
-    ...IMAGE_SETTINGS_METHODS,
-  ]) {
+  for (const method of [...AGENT_SETTINGS_METHODS, ...WORKBENCH_SETTINGS_METHODS]) {
     assert.ok(!source.includes(`case "${method}":`), `Router still owns Settings route: ${method}`);
   }
   assert.doesNotMatch(source, /const agentSettingsPatch/);
   assert.doesNotMatch(source, /const settingsUpdatePayload/);
   assert.doesNotMatch(source, /const workbenchSettingsUpdatePayload/);
-  assert.doesNotMatch(source, /const imageUnderstandingCredential/);
-  assert.doesNotMatch(source, /const imageUnderstandingUpdatePayload/);
   assert.doesNotMatch(source, /compaction-rpc-validator/);
 });

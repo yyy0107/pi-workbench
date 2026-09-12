@@ -1,6 +1,6 @@
 import type { ComposerAttachment } from "@workbench/agent-runtime-contracts/conversation";
 
-export const WORKBENCH_COMPOSER_ATTACHMENT_ACCEPT = "image/*,application/pdf,.pdf";
+export const WORKBENCH_COMPOSER_ATTACHMENT_ACCEPT = "image/*";
 
 export function createComposerAttachmentKey(): string {
   return (
@@ -21,8 +21,8 @@ export function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 export async function composerAttachmentFromFile(file: File): Promise<ComposerAttachment> {
-  const mediaType = file.type || (/\.pdf$/iu.test(file.name) ? "application/pdf" : "");
-  if (!mediaType.startsWith("image/") && mediaType !== "application/pdf") {
+  const mediaType = file.type;
+  if (!mediaType.startsWith("image/")) {
     throw new TypeError(`Unsupported attachment type: ${mediaType || file.name}`);
   }
   return {

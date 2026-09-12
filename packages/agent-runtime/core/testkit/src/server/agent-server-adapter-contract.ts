@@ -45,12 +45,6 @@ export const WORKBENCH_AGENT_SERVER_CONTRACT_INPUTS = Object.freeze({
           mediaType: "image/png",
           name: "contract.png",
         },
-        {
-          kind: "document",
-          data: "contract-pdf",
-          mediaType: "application/pdf",
-          name: "contract.pdf",
-        },
       ],
     },
     provenance: { requestId: "contract-request", clientTimeZone: "Etc/UTC" },

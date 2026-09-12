@@ -260,7 +260,6 @@ test("preserves the product-owned cross-package extension activation order", () 
     "workbench.side-chat",
     "workbench.setting-model-config",
     "workbench.pi.settings-action",
-    "workbench.image-understanding",
     "workbench.toolbox",
     "workbench.automations",
     "workbench.model-selector",
@@ -306,10 +305,7 @@ test("keeps Pi under the Runtime implementation path without structural Adapter 
   assert.equal(existsSync(implementationRoot), true);
   assert.equal(existsSync(path.join(repositoryRoot, ...LEGACY_PI_IMPLEMENTATION_PATH)), false);
 
-  const allowedAdapterFiles = new Set([
-    "server/src/attachment-understanding/providers/ocr-adapter.ts",
-    "server/test/attachment-understanding/providers/ocr-adapter.test.ts",
-  ]);
+  const allowedAdapterFiles = new Set<string>();
   const forbiddenIdentifiers = [
     ["createPiAgentServer", "Adapter"].join(""),
     ["PiAgentServer", "AdapterDependencies"].join(""),

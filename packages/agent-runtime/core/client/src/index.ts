@@ -14,7 +14,6 @@ export {
   WorkbenchAgentCapabilityError,
   type WorkbenchAgentCapabilityErrorCode,
   type WorkbenchAgentRuntimeCapabilities,
-  type WorkbenchAttachmentUnderstandingCapability,
   type WorkbenchCapabilityRequestOptions,
   type WorkbenchContextCapability,
   type WorkbenchContextCapabilitySnapshot,

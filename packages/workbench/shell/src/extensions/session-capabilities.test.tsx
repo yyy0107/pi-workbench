@@ -20,8 +20,6 @@ import { automationExtension } from "./builtin/automation";
 import { AutomationSidebar } from "./builtin/automation/automation-sidebar";
 import { AutomationMainView } from "./builtin/automation/automation-main-view-content";
 import { ModelSelector } from "./builtin/model-selector/model-selector";
-import { attachmentUnderstandingExtension } from "./builtin/image-understanding";
-import { AttachmentUnderstandingSettingsItem } from "./builtin/image-understanding/image-understanding-settings-item";
 import { TokenUsage } from "./builtin/token-usage/token-usage";
 
 test("session entry points stay hidden without capabilities and restored surfaces explain why", () => {
@@ -61,7 +59,6 @@ test("session entry points stay hidden without capabilities and restored surface
         service={{ load: async () => ({}), update: async () => undefined }}
       >
         <I18nProvider initialLocale="en-US">
-          <AttachmentUnderstandingSettingsItem sectionId="image-understanding" itemId="providers" />
           <AutomationMainView
             view={{
               kind: "automations",
@@ -78,16 +75,14 @@ test("session entry points stay hidden without capabilities and restored surface
       </WorkbenchSettingsProvider>,
     ),
   );
-  assert.equal(markup.match(/This runtime does not support this feature\./g)?.length, 3);
+  assert.equal(markup.match(/This runtime does not support this feature\./g)?.length, 2);
 });
 
 test("runtime entries follow capability presence and dispose with their owning extension", async () => {
   const manager = new ExtensionManager();
-  const activations = [
-    interactiveRequestsExtension,
-    attachmentUnderstandingExtension,
-    automationExtension,
-  ].map((extension) => manager.activate(extension));
+  const activations = [interactiveRequestsExtension, automationExtension].map((extension) =>
+    manager.activate(extension),
+  );
   const entries = manager.slots.get("shell.overlay");
   const dom = installMinimalReactDomEnvironment();
   const root = createRoot(dom.container);
@@ -114,21 +109,16 @@ test("runtime entries follow capability presence and dispose with their owning e
     assert.equal(manager.commands.get("automations.create"), undefined);
     await render({
       automation: {},
-      attachmentUnderstanding: {},
     } as WorkbenchAgentRuntimeCapabilities);
     assert.deepEqual(manager.settings.getSections(), []);
     assert.deepEqual(manager.sidebarSections.getAll(), []);
     await render({
       interactions: {},
-      attachmentUnderstanding: {},
       automation: {},
       models: {},
       host: {},
     } as WorkbenchAgentRuntimeCapabilities);
-    assert.deepEqual(
-      manager.settings.getSections().map(({ id }) => id),
-      ["image-understanding"],
-    );
+    assert.deepEqual(manager.settings.getSections(), []);
     assert.equal(manager.sidebarSections.get("automations")?.id, "automations");
     assert.ok(manager.commands.get("automations.create"));
     await render({});

@@ -1,22 +1,10 @@
 import { PI_CACHE_MISS_DATA_NAME } from "@workbench/agent-runtime-pi-protocol/messages";
 import type { PastedTextAttachment } from "@workbench/contracts/composer";
 import {
-  parseAttachmentRecognitionSnapshot,
-  reconcileAttachmentRecognitionSnapshot,
-  reduceAttachmentRecognitionSnapshot,
-  WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
-  WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
-  WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
-  WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
-  type AttachmentRecognitionSnapshot,
-} from "@workbench/attachment-understanding-contracts/state-machine";
-
-import {
   isWorkbenchComposerCommandResponseCustomType,
   isWorkbenchComposerResolutionCustomType,
   isWorkbenchComposerUserCustomType,
   parseWorkbenchPromptFailureDetails,
-  parseWorkbenchComposerSubmission,
   parseWorkbenchComposerCommandResponseDetails,
   parseWorkbenchComposerResolutionDetails,
   parseWorkbenchComposerUserDetails,
@@ -33,7 +21,6 @@ import type {
 import type {
   PiAgentMessage,
   PiAssistantMessage,
-  PiDocumentContent,
   PiImageContent,
   PiModelChangeConversationEvent,
   PiSessionHistory,
@@ -81,13 +68,6 @@ function messageDate(timestamp: number | undefined, index: number): Date {
 
 function metadata(custom: Record<string, unknown> = {}) {
   return { custom };
-}
-
-function isRecognitionDataName(name: string): boolean {
-  return (
-    name === WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME ||
-    name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME
-  );
 }
 
 function isPiContextTracePart(part: ThreadAssistantMessage["content"][number]): boolean {
@@ -272,347 +252,6 @@ export function isPiContextTraceOnlyAssistant(message: ThreadMessage): boolean {
     message.content.every(
       (part) => isPiContextTracePart(part) || (part.type === "text" && part.text === ""),
     )
-  );
-}
-
-function attachmentRecognitionMetadata(message: ThreadMessage): unknown {
-  return (
-    message.metadata.custom.workbenchAttachmentRecognition ??
-    message.metadata.custom.workbenchImageRecognition
-  );
-}
-
-export function attachmentRecognitionSubmissionIdFromMessage(
-  message: ThreadMessage,
-): string | undefined {
-  const value =
-    message.metadata.custom.workbenchAttachmentRecognitionSubmissionId ??
-    message.metadata.custom.workbenchImageRecognitionSubmissionId;
-  return typeof value === "string" ? value : undefined;
-}
-
-export function attachmentRecognitionSnapshotFromMessage(
-  message: ThreadMessage,
-): AttachmentRecognitionSnapshot | undefined {
-  const part = message.content.find(
-    (candidate) => candidate.type === "data" && isRecognitionDataName(candidate.name),
-  );
-  if (part?.type === "data") return parseAttachmentRecognitionSnapshot(part.data);
-  return parseAttachmentRecognitionSnapshot(attachmentRecognitionMetadata(message));
-}
-
-function attachmentRecognitionMessageStatus(
-  snapshot: AttachmentRecognitionSnapshot,
-): ThreadAssistantMessage["status"] {
-  switch (snapshot.status) {
-    case "pending":
-    case "running":
-      return { type: "running" };
-    case "cancelled":
-      return { type: "incomplete", reason: "cancelled" };
-    case "failed":
-      return { type: "incomplete", reason: "error", error: snapshot.errorCode };
-    case "succeeded":
-    case "skipped":
-      return { type: "complete", reason: "unknown" };
-  }
-}
-
-function attachmentRecognitionTermination(
-  snapshot: AttachmentRecognitionSnapshot,
-): PiMessageTermination | undefined {
-  if (snapshot.status === "cancelled") {
-    return {
-      schemaVersion: 1,
-      kind: "cancelled",
-      stopReason: "aborted",
-      source: "workbench",
-    };
-  }
-  if (snapshot.status === "failed") {
-    return {
-      schemaVersion: 1,
-      kind: "provider-error",
-      stopReason: "error",
-      errorMessage: snapshot.errorCode,
-      source: "workbench",
-    };
-  }
-  return undefined;
-}
-
-function attachmentRecognitionTurnTiming(
-  snapshot: AttachmentRecognitionSnapshot,
-): { startedAt: number; completedAt: number } | undefined {
-  const startedAt = snapshot.timestamps?.createdAt;
-  const completedAt = snapshot.timestamps?.completedAt;
-  return startedAt !== undefined &&
-    completedAt !== undefined &&
-    Number.isFinite(startedAt) &&
-    Number.isFinite(completedAt) &&
-    completedAt >= startedAt
-    ? { startedAt, completedAt }
-    : undefined;
-}
-
-function attachmentRecognitionLifecycleMetadata(snapshot: AttachmentRecognitionSnapshot) {
-  const termination = attachmentRecognitionTermination(snapshot);
-  const turnTiming = attachmentRecognitionTurnTiming(snapshot);
-  return {
-    ...(termination === undefined ? {} : { piTermination: termination }),
-    ...(termination === undefined ? {} : { workbenchTermination: termination }),
-    ...(turnTiming === undefined ? {} : { piTurnTiming: turnTiming }),
-    ...(turnTiming === undefined ? {} : { workbenchTurnTiming: turnTiming }),
-  };
-}
-
-export function attachmentRecognitionAssistantMessage(
-  snapshot: AttachmentRecognitionSnapshot,
-): ThreadAssistantMessage {
-  return {
-    id: `workbench-attachment-recognition:${snapshot.operationId}`,
-    role: "assistant",
-    content: [{ type: "data", name: WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME, data: snapshot }],
-    status: attachmentRecognitionMessageStatus(snapshot),
-    createdAt: new Date(snapshot.timestamps?.createdAt ?? 0),
-    metadata: {
-      unstable_state: null,
-      unstable_annotations: [],
-      unstable_data: [],
-      steps: [],
-      custom: {
-        workbenchAttachmentRecognition: snapshot,
-        workbenchAttachmentRecognitionOnly: true,
-        workbenchAttachmentRecognitionSubmissionId: snapshot.submissionId,
-        ...(snapshot.rpcId === undefined ? {} : { workbenchPromptRpcId: snapshot.rpcId }),
-        ...attachmentRecognitionLifecycleMetadata(snapshot),
-      },
-    },
-  };
-}
-
-/**
- * Recognition can be cancelled before Pi has a canonical user message to regenerate from. In
- * that case the durable Composer marker is the retry source understood by the server.
- */
-export function isAttachmentRecognitionRetrySource(message: ThreadUserMessage): boolean {
-  return (
-    attachmentRecognitionSnapshotFromMessage(message)?.status === "cancelled" &&
-    parseWorkbenchComposerSubmission(message.metadata.custom.workbenchComposerSubmission) !==
-      undefined
-  );
-}
-
-export function isAttachmentRecognitionOnlyAssistant(message: ThreadMessage): boolean {
-  return (
-    message.role === "assistant" &&
-    (message.metadata.custom.workbenchAttachmentRecognitionOnly === true ||
-      message.metadata.custom.workbenchImageRecognitionOnly === true) &&
-    message.content.length > 0 &&
-    message.content.every((part) => part.type === "data" && isRecognitionDataName(part.name)) &&
-    attachmentRecognitionSnapshotFromMessage(message) !== undefined
-  );
-}
-
-function updateAttachmentRecognitionAssistantPart(
-  message: ThreadAssistantMessage,
-  incomingValue: unknown,
-  mergeSnapshot: (
-    current: AttachmentRecognitionSnapshot,
-    incoming: AttachmentRecognitionSnapshot,
-  ) => AttachmentRecognitionSnapshot,
-): ThreadAssistantMessage {
-  const incoming = parseAttachmentRecognitionSnapshot(incomingValue);
-  if (!incoming) return message;
-  const current = attachmentRecognitionSnapshotFromMessage(message);
-  let next = incoming;
-  if (current) {
-    try {
-      next = mergeSnapshot(current, incoming);
-    } catch {
-      return message;
-    }
-    if (next === current) return message;
-  }
-  const content = message.content.filter(
-    (part) => part.type !== "data" || !isRecognitionDataName(part.name),
-  );
-  const recognitionOnly = isAttachmentRecognitionOnlyAssistant(message);
-  const {
-    piTermination: _previousTermination,
-    piTurnTiming: _previousTurnTiming,
-    workbenchTermination: _previousWorkbenchTermination,
-    workbenchTurnTiming: _previousWorkbenchTurnTiming,
-    ...customWithoutLifecycle
-  } = message.metadata.custom;
-  return {
-    ...message,
-    content: [
-      { type: "data", name: WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME, data: next },
-      ...content,
-    ],
-    ...(recognitionOnly ? { status: attachmentRecognitionMessageStatus(next) } : {}),
-    metadata: {
-      ...message.metadata,
-      custom: {
-        ...(recognitionOnly ? customWithoutLifecycle : message.metadata.custom),
-        workbenchAttachmentRecognition: next,
-        workbenchAttachmentRecognitionSubmissionId: next.submissionId,
-        ...(next.rpcId === undefined ? {} : { workbenchPromptRpcId: next.rpcId }),
-        ...(recognitionOnly ? attachmentRecognitionLifecycleMetadata(next) : {}),
-      },
-    },
-  };
-}
-
-export function upsertAttachmentRecognitionAssistantPart(
-  message: ThreadAssistantMessage,
-  incomingValue: unknown,
-): ThreadAssistantMessage {
-  return updateAttachmentRecognitionAssistantPart(
-    message,
-    incomingValue,
-    reduceAttachmentRecognitionSnapshot,
-  );
-}
-
-export function reconcileAttachmentRecognitionAssistantPart(
-  message: ThreadAssistantMessage,
-  incomingValue: unknown,
-): ThreadAssistantMessage {
-  return updateAttachmentRecognitionAssistantPart(
-    message,
-    incomingValue,
-    reconcileAttachmentRecognitionSnapshot,
-  );
-}
-
-export function withoutAttachmentRecognitionUserParts(
-  messages: readonly ThreadMessage[],
-): ThreadMessage[] {
-  let changed = false;
-  const updated = messages.map((message) => {
-    if (message.role !== "user") return message;
-    const content = message.content.filter(
-      (part) => part.type !== "data" || !isRecognitionDataName(part.name),
-    );
-    if (content.length === message.content.length) return message;
-    changed = true;
-    return { ...message, content };
-  });
-  return changed ? updated : (messages as ThreadMessage[]);
-}
-
-function updateAttachmentRecognitionInMessages(
-  messages: readonly ThreadMessage[],
-  incomingValue: unknown,
-  updatePart: (
-    message: ThreadAssistantMessage,
-    incoming: AttachmentRecognitionSnapshot,
-  ) => ThreadAssistantMessage,
-): ThreadMessage[] {
-  const incoming = parseAttachmentRecognitionSnapshot(incomingValue);
-  if (!incoming) return messages as ThreadMessage[];
-
-  let updated = withoutAttachmentRecognitionUserParts(messages);
-  const explicitAssistantIndex = updated.findIndex(
-    (message) =>
-      message.role === "assistant" &&
-      (attachmentRecognitionSnapshotFromMessage(message)?.operationId === incoming.operationId ||
-        attachmentRecognitionSubmissionIdFromMessage(message) === incoming.submissionId ||
-        (incoming.rpcId !== undefined &&
-          message.metadata.custom.workbenchPromptRpcId === incoming.rpcId)),
-  );
-  const userIndex = updated.findIndex(
-    (message) =>
-      message.role === "user" &&
-      ((incoming.rpcId !== undefined &&
-        message.metadata.custom.workbenchPromptRpcId === incoming.rpcId) ||
-        message.metadata.custom.workbenchComposerSubmissionId === incoming.submissionId ||
-        parseAttachmentRecognitionSnapshot(attachmentRecognitionMetadata(message))?.operationId ===
-          incoming.operationId),
-  );
-  if (userIndex >= 0) {
-    const user = updated[userIndex];
-    if (user?.role === "user") {
-      updated = [...updated];
-      updated[userIndex] = {
-        ...user,
-        metadata: {
-          ...user.metadata,
-          custom: {
-            ...user.metadata.custom,
-            workbenchAttachmentRecognition: incoming,
-          },
-        },
-      };
-    }
-  }
-
-  let assistantIndex = explicitAssistantIndex;
-  if (assistantIndex < 0 && userIndex >= 0) {
-    const resolvedUser =
-      updated[userIndex]?.metadata.custom.workbenchComposerProjectionResolved === true;
-    if (resolvedUser) {
-      for (let index = userIndex + 1; index < updated.length; index += 1) {
-        const candidate = updated[index];
-        if (candidate?.role === "user") break;
-        if (candidate?.role === "assistant") {
-          assistantIndex = index;
-          break;
-        }
-      }
-    }
-  }
-
-  if (assistantIndex >= 0) {
-    const current = updated[assistantIndex];
-    if (!current || current.role !== "assistant") return updated;
-    const next = updatePart(current, incoming);
-    if (next === current) return updated;
-    if (updated === messages) updated = [...updated];
-    updated[assistantIndex] = next;
-    return updated;
-  }
-
-  if (userIndex < 0 || (incoming.status === "skipped" && incoming.method === "native")) {
-    return updated;
-  }
-  const resolvedUser =
-    updated[userIndex]?.metadata.custom.workbenchComposerProjectionResolved === true;
-  const hasLaterUser = updated.some(
-    (message, index) => index > userIndex && message.role === "user",
-  );
-  // An unresolved Composer marker normally stays at the chronological tail until Pi publishes
-  // its canonical user event. If a later user turn already exists, however, this recognition
-  // operation can no longer belong at the tail: doing so places the old status beside (and then
-  // coalesces it into) the newer assistant response. Keep stale terminal/history updates anchored
-  // to their originating user turn even when that turn never produced a canonical Pi user event.
-  const insertionIndex = resolvedUser || hasLaterUser ? userIndex + 1 : updated.length;
-  updated = [...updated];
-  updated.splice(insertionIndex, 0, attachmentRecognitionAssistantMessage(incoming));
-  return updated;
-}
-
-export function upsertAttachmentRecognitionInMessages(
-  messages: readonly ThreadMessage[],
-  incomingValue: unknown,
-): ThreadMessage[] {
-  return updateAttachmentRecognitionInMessages(
-    messages,
-    incomingValue,
-    upsertAttachmentRecognitionAssistantPart,
-  );
-}
-
-export function reconcileAttachmentRecognitionInMessages(
-  messages: readonly ThreadMessage[],
-  incomingValue: unknown,
-): ThreadMessage[] {
-  return updateAttachmentRecognitionInMessages(
-    messages,
-    incomingValue,
-    reconcileAttachmentRecognitionAssistantPart,
   );
 }
 
@@ -1241,22 +880,7 @@ export function coalesceConsecutiveAssistantMessages(
 
     const content: ThreadAssistantMessage["content"][number][] = [];
     const appendContent = (parts: ThreadAssistantMessage["content"]) => {
-      for (const part of parts) {
-        if (part.type === "data" && isRecognitionDataName(part.name)) {
-          const previousIndex = content.findIndex(
-            (candidate) => candidate.type === "data" && isRecognitionDataName(candidate.name),
-          );
-          if (previousIndex >= 0) {
-            // Attachment recognition is one aggregate state machine per assistant turn.
-            // Retries can leave several consecutive recognition-only assistant
-            // fragments in history; retain the newest snapshot instead of exposing
-            // every fragment as a duplicate timeline step.
-            content[previousIndex] = part;
-            continue;
-          }
-        }
-        content.push(part);
-      }
+      content.push(...parts);
     };
 
     appendContent(first.content);
@@ -1309,10 +933,7 @@ export function coalesceConsecutiveAssistantMessages(
   for (const message of messages) {
     if (message.role === "assistant") {
       const previousAssistant = assistantGroup.at(-1);
-      if (
-        previousAssistant?.status.type === "incomplete" &&
-        !isAttachmentRecognitionOnlyAssistant(previousAssistant)
-      ) {
+      if (previousAssistant?.status.type === "incomplete") {
         flushAssistantGroup();
       }
       assistantGroup.push(message);
@@ -1359,7 +980,6 @@ export function piHistoryToThreadMessages(
   // Once its real user event arrives, keep the marker identity but render it at that event.
   const supersededComposerUserIndexes = new Set<number>();
   const composerCommandResponseIndexes = new Map<string, number>();
-  const attachmentRecognitionBySubmissionId = new Map<string, AttachmentRecognitionSnapshot>();
   const runningCompactCommandResponses = new Set<string>();
   const resolvedToolTimingById = new Map(toolTimingById);
   for (const timing of history.context.toolTimings ?? []) {
@@ -1415,13 +1035,6 @@ export function piHistoryToThreadMessages(
                   ...(message.workbenchSteering
                     ? { piSteering: true, workbenchSteering: true }
                     : {}),
-                  ...(attachmentRecognitionBySubmissionId.get(projection.submissionId) === undefined
-                    ? {}
-                    : {
-                        workbenchAttachmentRecognition: attachmentRecognitionBySubmissionId.get(
-                          projection.submissionId,
-                        ),
-                      }),
                   ...(history.context.entrySeqs?.[index] == null
                     ? {}
                     : { piEventSeq: history.context.entrySeqs[index] }),
@@ -1464,13 +1077,6 @@ export function piHistoryToThreadMessages(
               : {
                   workbenchComposerSubmissionId: projection.submissionId,
                   workbenchComposerProjectionResolved: true,
-                  ...(attachmentRecognitionBySubmissionId.get(projection.submissionId) === undefined
-                    ? {}
-                    : {
-                        workbenchAttachmentRecognition: attachmentRecognitionBySubmissionId.get(
-                          projection.submissionId,
-                        ),
-                      }),
                 }),
           }),
         };
@@ -1540,13 +1146,6 @@ export function piHistoryToThreadMessages(
                 ...(details.status === undefined
                   ? {}
                   : { workbenchComposerStatus: details.status }),
-                ...(attachmentRecognitionBySubmissionId.get(details.submissionId) === undefined
-                  ? {}
-                  : {
-                      workbenchAttachmentRecognition: attachmentRecognitionBySubmissionId.get(
-                        details.submissionId,
-                      ),
-                    }),
               }),
             };
             if (messageIndex < messages.length) {
@@ -1558,40 +1157,6 @@ export function piHistoryToThreadMessages(
               };
             } else messages.push(projectedMessage);
             composerUserIndexes.set(details.submissionId, messageIndex);
-          }
-        } else if (
-          message.customType === WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE ||
-          message.customType === WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE
-        ) {
-          const incoming = parseAttachmentRecognitionSnapshot(message.details);
-          if (incoming) {
-            const current = attachmentRecognitionBySubmissionId.get(incoming.submissionId);
-            let next = incoming;
-            if (current) {
-              try {
-                next = reduceAttachmentRecognitionSnapshot(current, incoming);
-              } catch {
-                break;
-              }
-            }
-            attachmentRecognitionBySubmissionId.set(incoming.submissionId, next);
-            const messageIndex = composerUserIndexes.get(incoming.submissionId);
-            const projected = messageIndex === undefined ? undefined : messages[messageIndex];
-            if (messageIndex !== undefined && projected?.role === "user") {
-              messages[messageIndex] = {
-                ...projected,
-                content: projected.content.filter(
-                  (part) => part.type !== "data" || !isRecognitionDataName(part.name),
-                ),
-                metadata: {
-                  ...projected.metadata,
-                  custom: {
-                    ...projected.metadata.custom,
-                    workbenchAttachmentRecognition: next,
-                  },
-                },
-              };
-            }
           }
         } else if (isWorkbenchComposerResolutionCustomType(message.customType)) {
           const details = parseWorkbenchComposerResolutionDetails(message.details);
@@ -1723,15 +1288,9 @@ export function piHistoryToThreadMessages(
     }
   });
 
-  let chronologicallyProjectedMessages = supersededComposerUserIndexes.size
+  const chronologicallyProjectedMessages = supersededComposerUserIndexes.size
     ? messages.filter((_message, index) => !supersededComposerUserIndexes.has(index))
     : messages;
-  for (const snapshot of attachmentRecognitionBySubmissionId.values()) {
-    chronologicallyProjectedMessages = reconcileAttachmentRecognitionInMessages(
-      chronologicallyProjectedMessages,
-      snapshot,
-    );
-  }
   return coalesceConsecutiveAssistantMessages(
     projectPiContextTracePromptParts(chronologicallyProjectedMessages, contextTracePromptParts),
   );
@@ -1744,23 +1303,15 @@ export function sameUserPrompt(left: ThreadUserMessage, right: ThreadUserMessage
     stripWorkspaceFeedbackContext(leftPrompt.text) !==
       stripWorkspaceFeedbackContext(rightPrompt.text) ||
     leftPrompt.images.length !== rightPrompt.images.length ||
-    leftPrompt.documents.length !== rightPrompt.documents.length ||
     leftPrompt.textAttachments.map((attachment) => attachment.id).join() !==
       rightPrompt.textAttachments.map((attachment) => attachment.id).join()
   ) {
     return false;
   }
-  return (
-    leftPrompt.images.every(
-      (image, index) =>
-        image.mimeType === rightPrompt.images[index]?.mimeType &&
-        image.data === rightPrompt.images[index]?.data,
-    ) &&
-    leftPrompt.documents.every(
-      (document, index) =>
-        document.mimeType === rightPrompt.documents[index]?.mimeType &&
-        document.data === rightPrompt.documents[index]?.data,
-    )
+  return leftPrompt.images.every(
+    (image, index) =>
+      image.mimeType === rightPrompt.images[index]?.mimeType &&
+      image.data === rightPrompt.images[index]?.data,
   );
 }
 
@@ -1843,26 +1394,11 @@ function splitDataUrl(value: string, fallbackMimeType: string, name?: string): P
   };
 }
 
-function splitDocumentDataUrl(
-  value: string,
-  fallbackMimeType: "application/pdf",
-  name?: string,
-): PiDocumentContent {
-  const match = /^data:([^;,]+);base64,([\s\S]*)$/.exec(value);
-  return {
-    type: "file",
-    mimeType: (match?.[1] ?? fallbackMimeType) as "application/pdf",
-    data: match?.[2] ?? value,
-    ...(name === undefined ? {} : { name }),
-  };
-}
-
 export function appendMessageToPiPrompt(
   message: Pick<PiComposerMessage, "content" | "attachments" | "runConfig">,
 ): {
   text: string;
   images: PiImageContent[];
-  documents: PiDocumentContent[];
   textAttachments: PastedTextAttachment[];
   composer?: WorkbenchComposerSubmission;
 } {
@@ -1873,7 +1409,6 @@ export function appendMessageToPiPrompt(
   const composer = workbenchComposerSubmissionFromRunConfig(message.runConfig);
   const text = composer?.text ?? sourceText;
   const images: PiImageContent[] = [];
-  const documents: PiDocumentContent[] = [];
   const textAttachments: PastedTextAttachment[] = [];
 
   const collect = (part: (typeof message.content)[number], fallbackName?: string) => {
@@ -1883,10 +1418,6 @@ export function appendMessageToPiPrompt(
       images.push(splitDataUrl(part.image, "image/png", part.filename ?? fallbackName));
     } else if (part.type === "file" && part.mimeType.startsWith("image/")) {
       images.push(splitDataUrl(part.data, part.mimeType, part.filename ?? fallbackName));
-    } else if (part.type === "file" && part.mimeType === "application/pdf") {
-      documents.push(
-        splitDocumentDataUrl(part.data, "application/pdf", part.filename ?? fallbackName),
-      );
     }
   };
   message.content.forEach((part) => collect(part));
@@ -1897,7 +1428,6 @@ export function appendMessageToPiPrompt(
   return {
     text,
     images,
-    documents,
     textAttachments,
     ...(composer === undefined ? {} : { composer }),
   };

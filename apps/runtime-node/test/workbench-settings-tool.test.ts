@@ -54,7 +54,6 @@ test("the installed settings tool validates and persists only current-host prefe
       ),
     },
     workspaces: { workspaces: [] },
-    imageUnderstanding: { secrets: { apiKey: "private-test-secret" } },
   };
   await writeFile(settingsFile, JSON.stringify(document));
   installed = getInstalledPiServer();
@@ -167,7 +166,6 @@ test("the installed settings tool validates and persists only current-host prefe
   assert.deepEqual(saved.preferences.appearance, { colorMode: "dark", uiFontSize: 16 });
   assert.equal(saved.preferences.showReasoning, true);
   assert.deepEqual(saved.workspaces, document.workspaces);
-  assert.deepEqual(saved.imageUnderstanding, document.imageUnderstanding);
   assert.deepEqual(saved.preferences.backgroundImage, document.preferences.backgroundImage);
   assert.deepEqual(saved.preferences.rightWorkspace, document.preferences.rightWorkspace);
   assert.equal(await readFile(defaultFile, "utf8"), "other installation settings");

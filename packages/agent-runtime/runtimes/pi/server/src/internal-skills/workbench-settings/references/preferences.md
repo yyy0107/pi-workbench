@@ -36,7 +36,7 @@ The result reads back only the affected preferences, for example `{"revision":12
 
 ## Configuration domains and fallback
 
-- Workbench preferences use this tool and the shared `workbench-settings.json` service. Its cross-process lock and atomic writes preserve workspace state and attachment-understanding secrets in other sections of the same file. Never read or overwrite the whole physical document to perform a preference change.
+- Workbench preferences use this tool and the shared `workbench-settings.json` service. Its cross-process lock and atomic writes preserve workspace state in other sections of the same file. Never read or overwrite the whole physical document to perform a preference change.
 - Pi system prompts and compaction use this tool's separate `domain: "pi"`; read [pi-settings.md](pi-settings.md). Providers/models, authentication, skills/packages, project trust, and other Pi settings use `pi-docs` and their corresponding services. Do not put their settings into `appearance` or another arbitrary JSON preference.
 - Browser localStorage is legacy migration input, not the authoritative settings store. Pi TUI themes and `pi` CLI flags do not configure Workbench's GUI.
 - This Workbench version has no general `workbench config` CLI. Its Runtime CLI controls host startup. Do not invent a CLI command or assume the HTTP API is available to shell tools without host authentication.

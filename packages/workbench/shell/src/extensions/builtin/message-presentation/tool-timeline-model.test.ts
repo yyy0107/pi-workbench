@@ -174,14 +174,14 @@ test("treats trailing assistant text as the end of the tool timeline", () => {
 });
 
 test("keeps a data step in sequence with reasoning and tools", () => {
-  const recognition = data("workbench.image-recognition", { status: "succeeded" });
+  const progress = data("workbench.progress", { status: "succeeded" });
   const blocks = [
     {
       key: "reasoning-block",
       kind: "reasoning",
       text: "Inspect the request",
     } satisfies ReasoningBlock,
-    recognition,
+    progress,
     tool("read", { path: "/workspace/result.ts" }),
   ];
 
@@ -195,7 +195,7 @@ test("keeps a data step in sequence with reasoning and tools", () => {
             : entry.block.toolName
         : entry.batchId,
     ),
-    ["reasoning", "workbench.image-recognition", "read"],
+    ["reasoning", "workbench.progress", "read"],
   );
   assert.deepEqual(
     timelineSteps(blocks).map((step) => step.kind),

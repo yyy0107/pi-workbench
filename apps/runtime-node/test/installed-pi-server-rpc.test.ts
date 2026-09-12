@@ -9,7 +9,6 @@ import type { BrowserCommand } from "@workbench/browser-contracts";
 
 import type {
   HostDescription,
-  ImageUnderstandingDescribeValue,
   LocalAppsListValue,
   ServerResponse,
   WorkbenchSettingsDescribeValue,
@@ -635,10 +634,10 @@ test("validates bounded context trace cursors before activating a session", asyn
 });
 
 test("large domain payloads use endpoint-specific budgets above the ordinary RPC limit", async () => {
-  const pdfBytes = Buffer.alloc(800 * 1024);
-  pdfBytes.write("%PDF-1.7\n", 0, "ascii");
-  const pdfData = pdfBytes.toString("base64");
-  assert.ok(pdfData.length > DEFAULT_MAX_RPC_REQUEST_BODY_BYTES);
+  const imageBytes = Buffer.alloc(800 * 1024);
+  imageBytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const imageData = imageBytes.toString("base64");
+  assert.ok(imageData.length > DEFAULT_MAX_RPC_REQUEST_BODY_BYTES);
 
   const promptResponse = await handlePiRpcPost(
     rpcRequest("session.prompt", {
@@ -646,10 +645,10 @@ test("large domain payloads use endpoint-specific budgets above the ordinary RPC
       mode: "queue",
       content: [
         {
-          type: "file",
-          mediaType: "application/pdf",
-          data: pdfData,
-          name: "large.pdf",
+          type: "image",
+          mediaType: "image/png",
+          data: imageData,
+          name: "large.png",
         },
       ],
     }),
@@ -1056,68 +1055,6 @@ test("validates and restricts the exposed agent settings namespace", async () =>
   assert.equal(hiddenBody.result.ok, false);
   if (hiddenBody.result.ok) assert.fail("Expected an unexposed namespace error");
   assert.equal(hiddenBody.result.error.code, "settings-not-exposed");
-});
-
-test("updates image-understanding settings without returning provider credentials", async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), "workbench-image-understanding-rpc-"));
-  const previousStateFile = process.env.PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE;
-  process.env.PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE = path.join(root, "settings.json");
-  t.after(async () => {
-    if (previousStateFile === undefined) {
-      delete process.env.PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE;
-    } else {
-      process.env.PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE = previousStateFile;
-    }
-    await rm(root, { recursive: true, force: true });
-  });
-
-  const secret = "private-image-provider-key";
-  const updateResponse = await handlePiRpcPost(
-    rpcRequest("imageUnderstanding.update", {
-      expectedRevision: 0,
-      patch: {
-        routing: "always-preprocess",
-        engine: "ocr",
-        ocrProvider: "glm-ocr",
-        glm: {
-          endpoint: "https://ocr.example/layout",
-          model: "glm-ocr",
-          apiKey: secret,
-        },
-      },
-    }),
-    "imageUnderstanding.update",
-  );
-  assert.equal((await updateResponse.clone().text()).includes(secret), false);
-  const updated = await rpcValue<ImageUnderstandingDescribeValue>(updateResponse);
-  assert.equal(updated.revision, 1);
-  assert.equal(updated.value.glm.credentialConfigured, true);
-  assert.equal("apiKey" in updated.value.glm, false);
-
-  const described = await rpcValue<ImageUnderstandingDescribeValue>(
-    await handlePiRpcPost(
-      rpcRequest("imageUnderstanding.describe", {}, "rpc-image-describe"),
-      "imageUnderstanding.describe",
-    ),
-  );
-  assert.deepEqual(described, updated);
-
-  const conflict = await handlePiRpcPost(
-    rpcRequest(
-      "imageUnderstanding.update",
-      { expectedRevision: 0, patch: { routing: "auto" } },
-      "rpc-image-conflict",
-    ),
-    "imageUnderstanding.update",
-  );
-  const conflictBody = (await conflict.json()) as ServerResponse<unknown>;
-  assert.equal(conflictBody.result.ok, false);
-  if (conflictBody.result.ok) assert.fail("Expected an image settings revision conflict");
-  assert.equal(conflictBody.result.error.code, "image-settings-conflict");
-  assert.deepEqual(conflictBody.result.error.details, {
-    expectedRevision: 0,
-    actualRevision: 1,
-  });
 });
 
 test("persists Workbench preferences through the shared RPC boundary", async (t) => {

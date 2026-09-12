@@ -1,13 +1,7 @@
-import type {
-  PiDocumentContent,
-  PiImageContent,
-} from "@workbench/agent-runtime-pi-protocol/messages";
+import type { PiImageContent } from "@workbench/agent-runtime-pi-protocol/messages";
 import {
-  INLINE_ATTACHMENT_LIMITS,
   INLINE_IMAGE_LIMITS,
-  isInlineDocumentMediaType,
   isInlineImageMediaType,
-  type InlineAttachmentAdmissionErrorReason,
   type InlineImageAdmissionErrorReason,
   type InlineImageMediaType,
 } from "@workbench/agent-runtime-pi-protocol/attachments";
@@ -16,16 +10,14 @@ const MAX_INLINE_IMAGE_BASE64_LENGTH =
   Math.ceil(INLINE_IMAGE_LIMITS.maxDecodedBytesPerImage / 3) * 4;
 
 export class InlineImageAdmissionError extends Error {
-  readonly reason: InlineAttachmentAdmissionErrorReason;
+  readonly reason: InlineImageAdmissionErrorReason;
 
-  constructor(reason: InlineAttachmentAdmissionErrorReason, message: string) {
+  constructor(reason: InlineImageAdmissionErrorReason, message: string) {
     super(message);
     this.name = "InlineImageAdmissionError";
     this.reason = reason;
   }
 }
-
-export const InlineAttachmentAdmissionError = InlineImageAdmissionError;
 
 export interface InlineImageAdmissionInput {
   readonly data: string;
@@ -33,20 +25,7 @@ export interface InlineImageAdmissionInput {
   readonly name?: string;
 }
 
-export type InlineAttachmentAdmissionInput =
-  | ({ readonly type: "image" } & InlineImageAdmissionInput)
-  | {
-      readonly type: "file";
-      readonly data: string;
-      readonly mediaType: string;
-      readonly name?: string;
-    };
-
 function fail(reason: InlineImageAdmissionErrorReason, message: string): never {
-  throw new InlineImageAdmissionError(reason, message);
-}
-
-function failAttachment(reason: InlineAttachmentAdmissionErrorReason, message: string): never {
   throw new InlineImageAdmissionError(reason, message);
 }
 
@@ -154,95 +133,4 @@ export function admitInlineImages(parts: readonly InlineImageAdmissionInput[]): 
       ...(part.name === undefined ? {} : { name: part.name }),
     };
   });
-}
-
-const MAX_INLINE_DOCUMENT_BASE64_LENGTH =
-  Math.ceil(INLINE_ATTACHMENT_LIMITS.maxDecodedBytesPerDocument / 3) * 4;
-
-function hasPdfSignature(bytes: Uint8Array): boolean {
-  return (
-    bytes.length >= 5 &&
-    bytes[0] === 0x25 &&
-    bytes[1] === 0x50 &&
-    bytes[2] === 0x44 &&
-    bytes[3] === 0x46 &&
-    bytes[4] === 0x2d
-  );
-}
-
-/**
- * Admits the complete OCR-capable attachment set. Images retain their stricter per-image limits;
- * PDFs are validated independently and are never forwarded to Pi as native model content.
- */
-export function admitInlineAttachments(parts: readonly InlineAttachmentAdmissionInput[]): {
-  images: PiImageContent[];
-  documents: PiDocumentContent[];
-} {
-  if (parts.length > INLINE_ATTACHMENT_LIMITS.maxCount) {
-    if (parts.every((part) => part.type === "image")) {
-      fail("TOO_MANY_INLINE_IMAGES", "The prompt contains too many inline images.");
-    }
-    failAttachment(
-      "TOO_MANY_INLINE_ATTACHMENTS",
-      "The prompt contains too many inline attachments.",
-    );
-  }
-
-  const imageParts = parts.filter(
-    (part): part is Extract<InlineAttachmentAdmissionInput, { type: "image" }> =>
-      part.type === "image",
-  );
-  const images = admitInlineImages(imageParts);
-  let totalBytes = imageParts.reduce(
-    (total, part) => total + (canonicalBase64DecodedBytes(part.data) ?? 0),
-    0,
-  );
-  const documents: PiDocumentContent[] = [];
-
-  for (const part of parts) {
-    if (part.type !== "file") continue;
-    if (!isInlineDocumentMediaType(part.mediaType)) {
-      failAttachment(
-        "UNSUPPORTED_DOCUMENT_MEDIA_TYPE",
-        "An inline document has an unsupported media type.",
-      );
-    }
-    if (part.data.length > MAX_INLINE_DOCUMENT_BASE64_LENGTH) {
-      failAttachment("INLINE_DOCUMENT_TOO_LARGE", "An inline document exceeds the size limit.");
-    }
-    const decodedBytes = canonicalBase64DecodedBytes(part.data);
-    if (decodedBytes === undefined) {
-      failAttachment("INVALID_DOCUMENT_BASE64", "An inline document is not canonical base64.");
-    }
-    if (decodedBytes > INLINE_ATTACHMENT_LIMITS.maxDecodedBytesPerDocument) {
-      failAttachment("INLINE_DOCUMENT_TOO_LARGE", "An inline document exceeds the size limit.");
-    }
-    totalBytes += decodedBytes;
-    if (totalBytes > INLINE_ATTACHMENT_LIMITS.maxDecodedBytesTotal) {
-      failAttachment(
-        "INLINE_ATTACHMENTS_TOTAL_TOO_LARGE",
-        "The prompt's inline attachments exceed the total size limit.",
-      );
-    }
-
-    const bytes = Buffer.from(part.data, "base64");
-    if (bytes.length !== decodedBytes || bytes.toString("base64") !== part.data) {
-      failAttachment("INVALID_DOCUMENT_BASE64", "An inline document is not canonical base64.");
-    }
-    if (!hasPdfSignature(bytes)) {
-      failAttachment(
-        "UNRECOGNIZED_DOCUMENT_FORMAT",
-        "An inline document does not have a supported PDF signature.",
-      );
-    }
-
-    documents.push({
-      type: "file",
-      data: part.data,
-      mimeType: part.mediaType,
-      ...(part.name === undefined ? {} : { name: part.name }),
-    });
-  }
-
-  return { images, documents };
 }

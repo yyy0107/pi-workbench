@@ -54,9 +54,7 @@ entry, and the Workbench Composer no longer imports the Pi implementation direct
 
 Known test failures before the refactor:
 
-1. `extensions/builtin/image-understanding/extension.test.ts` cannot resolve the extensionless
-   `next/dynamic` ESM specifier through the custom TypeScript test loader.
-2. `runtime/assistant-ui/dependency-boundary.test.ts` reports
+1. `runtime/assistant-ui/dependency-boundary.test.ts` reports
    `workbench/chat/workbench-composer.tsx` importing the Pi implementation. This is an existing
    architecture violation that the refactor plan explicitly removes.
 

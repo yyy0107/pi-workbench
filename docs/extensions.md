@@ -1083,7 +1083,7 @@ const isRunning = useSessionState((snapshot) => snapshot.isRunning);
 const node = useConversationNode(nodeKeys.at(-1) ?? "");
 ```
 
-工作区、host、模型选择、交互、临时会话、context、Automation 和附件识别使用
+工作区、host、模型选择、交互、临时会话、context 和 Automation 使用
 `@workbench/agent-runtime-client/context` 的对应 capability hook，例如
 `useWorkbenchWorkspaceCapability()`、`useWorkbenchModelSelectionCapability()`。通用 DTO 来自
 Workbench contracts，失败只按 `WorkbenchAgentCapabilityError.code` 处理。能力缺失时隐藏入口，

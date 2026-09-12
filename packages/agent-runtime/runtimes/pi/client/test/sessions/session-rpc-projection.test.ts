@@ -573,29 +573,12 @@ test("derives model boundaries for legacy histories without explicit model event
   });
 });
 
-test("builds protocol prompt content for images and PDFs and rejects unsupported media", () => {
+test("builds protocol prompt content for images and rejects unsupported media", () => {
   assert.deepEqual(
-    piPromptContent(
-      "hello",
-      [{ type: "image", mimeType: "image/png", data: "AAAA" }],
-      [
-        {
-          type: "file",
-          mimeType: "application/pdf",
-          data: "JVBERi0=",
-          name: "notes.pdf",
-        },
-      ],
-    ),
+    piPromptContent("hello", [{ type: "image", mimeType: "image/png", data: "AAAA" }]),
     [
       { type: "text", text: "hello" },
       { type: "image", mediaType: "image/png", data: "AAAA" },
-      {
-        type: "file",
-        mediaType: "application/pdf",
-        data: "JVBERi0=",
-        name: "notes.pdf",
-      },
     ],
   );
   assert.throws(

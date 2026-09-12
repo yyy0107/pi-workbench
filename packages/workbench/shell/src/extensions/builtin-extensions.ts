@@ -22,7 +22,6 @@ import { gitBranchExtension } from "./builtin/git-branch";
 
 import { interactiveRequestsExtension } from "./builtin/interactive-requests";
 import { sideChatExtension } from "./builtin/side-chat";
-import { attachmentUnderstandingExtension } from "./builtin/image-understanding";
 import { automationExtension } from "./builtin/automation";
 import { modelSelectorExtension } from "./builtin/model-selector";
 import { tokenUsageExtension } from "./builtin/token-usage";
@@ -68,7 +67,6 @@ export const shellExtensionGroups = Object.freeze({
   workspace: shellWorkspaceExtensions,
   files: shellFileExtensions,
   interactions: Object.freeze([interactiveRequestsExtension, sideChatExtension]),
-  attachments: Object.freeze([attachmentUnderstandingExtension]),
   automations: Object.freeze([automationExtension]),
   models: Object.freeze([modelSelectorExtension]),
   context: Object.freeze([tokenUsageExtension]),
@@ -80,7 +78,6 @@ export const shellBuiltinExtensions: readonly WorkbenchExtension[] = Object.free
   ...shellSettingsExtensions,
   ...shellWorkspaceExtensions,
   ...shellExtensionGroups.interactions,
-  ...shellExtensionGroups.attachments,
   ...shellExtensionGroups.automations,
   ...shellExtensionGroups.models,
   ...shellExtensionGroups.context,

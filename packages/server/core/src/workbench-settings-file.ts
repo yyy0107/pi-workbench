@@ -10,7 +10,6 @@ export interface WorkbenchSettingsDocument {
   revision: number;
   preferences?: unknown;
   workspaces?: unknown;
-  imageUnderstanding?: unknown;
   [key: string]: unknown;
 }
 

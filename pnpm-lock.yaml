@@ -178,9 +178,6 @@ importers:
       '@workbench/agent-runtime-server':
         specifier: workspace:*
         version: link:../../packages/agent-runtime/core/server
-      '@workbench/attachment-understanding-server':
-        specifier: workspace:*
-        version: link:../../packages/server/attachment-understanding
       '@workbench/automation-server':
         specifier: workspace:*
         version: link:../../packages/server/automation
@@ -351,9 +348,6 @@ importers:
       '@workbench/agent-runtime-core':
         specifier: workspace:*
         version: link:../runtime
-      '@workbench/attachment-understanding-contracts':
-        specifier: workspace:*
-        version: link:../../../contracts/attachment-understanding
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../../contracts/automation
@@ -485,9 +479,6 @@ importers:
       '@workbench/agent-runtime-pi-shared':
         specifier: workspace:*
         version: link:../shared
-      '@workbench/attachment-understanding-contracts':
-        specifier: workspace:*
-        version: link:../../../../contracts/attachment-understanding
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../../../contracts/automation
@@ -586,9 +577,6 @@ importers:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../../core/contracts
-      '@workbench/attachment-understanding-contracts':
-        specifier: workspace:*
-        version: link:../../../../contracts/attachment-understanding
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../../../contracts/automation
@@ -626,12 +614,6 @@ importers:
       '@workbench/agent-runtime-server':
         specifier: workspace:*
         version: link:../../../core/server
-      '@workbench/attachment-understanding-contracts':
-        specifier: workspace:*
-        version: link:../../../../contracts/attachment-understanding
-      '@workbench/attachment-understanding-server':
-        specifier: workspace:*
-        version: link:../../../../server/attachment-understanding
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../../../contracts/automation
@@ -715,15 +697,6 @@ importers:
       '@workbench/agent-runtime-pi-protocol':
         specifier: workspace:*
         version: link:../protocol
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/contracts/attachment-understanding:
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -859,28 +832,6 @@ importers:
       ws:
         specifier: ^8.21.3
         version: 8.21.3
-
-  packages/server/attachment-understanding:
-    dependencies:
-      '@workbench/attachment-understanding-contracts':
-        specifier: workspace:*
-        version: link:../../contracts/attachment-understanding
-      '@workbench/host-server':
-        specifier: workspace:*
-        version: link:../../host/server
-      '@workbench/server-core':
-        specifier: workspace:*
-        version: link:../core
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      '@workbench/host-contracts':
-        specifier: workspace:*
-        version: link:../../workbench/host-contracts
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
 
   packages/server/automation:
     dependencies:
@@ -1174,9 +1125,6 @@ importers:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../agent-runtime/core/contracts
-      '@workbench/attachment-understanding-contracts':
-        specifier: workspace:*
-        version: link:../../contracts/attachment-understanding
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../contracts/automation
@@ -1256,9 +1204,6 @@ importers:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../agent-runtime/core/contracts
-      '@workbench/attachment-understanding-contracts':
-        specifier: workspace:*
-        version: link:../../contracts/attachment-understanding
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../contracts/automation

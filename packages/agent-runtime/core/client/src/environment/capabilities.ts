@@ -25,10 +25,6 @@ import type {
   WorkbenchWorkspaceGitLog,
   WorkbenchWorkspaceGitStatus,
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
-import type {
-  AttachmentUnderstandingDescribeValue,
-  AttachmentUnderstandingUpdatePayload,
-} from "@workbench/attachment-understanding-contracts/settings";
 import type { AutomationProtocol } from "@workbench/automation-contracts";
 import type { ModelSelection } from "@workbench/contracts/model-selection";
 import type {
@@ -186,13 +182,6 @@ export interface WorkbenchContextCapability {
   compact(sessionId: string): Promise<WorkbenchContextPolicyValue>;
 }
 
-export interface WorkbenchAttachmentUnderstandingCapability {
-  describe(): Promise<AttachmentUnderstandingDescribeValue>;
-  update(
-    request: AttachmentUnderstandingUpdatePayload,
-  ): Promise<AttachmentUnderstandingDescribeValue>;
-}
-
 /** Direct fields keep capability discovery typed without introducing a runtime registry. */
 export interface WorkbenchAgentRuntimeCapabilities {
   readonly host?: WorkbenchRuntimeHostCapability;
@@ -202,7 +191,6 @@ export interface WorkbenchAgentRuntimeCapabilities {
   readonly scratchSessions?: WorkbenchScratchSessionCapability;
   readonly context?: WorkbenchContextCapability;
   readonly automation?: AutomationProtocol;
-  readonly attachmentUnderstanding?: WorkbenchAttachmentUnderstandingCapability;
 }
 
 /** Public services supplied by a product installation; runtime adapters add their own capabilities. */
@@ -213,6 +201,5 @@ export interface WorkbenchServicesCapabilities {
   >;
   readonly workspace: Omit<WorkbenchWorkspaceCapability, "createWorkspace">;
   readonly automation: AutomationProtocol;
-  readonly attachmentUnderstanding: WorkbenchAttachmentUnderstandingCapability;
   readonly settings: import("@workbench/agent-runtime-contracts/settings").WorkbenchSettingsPort;
 }

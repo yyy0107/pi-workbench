@@ -208,7 +208,6 @@
     "@tanstack/react-virtual": "3.14.10",
     "@workbench/agent-runtime-client": "workspace:*",
     "@workbench/agent-runtime-contracts": "workspace:*",
-    "@workbench/attachment-understanding-contracts": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
     "@workbench/browser-contracts": "workspace:*",
     "@workbench/contracts": "workspace:*",

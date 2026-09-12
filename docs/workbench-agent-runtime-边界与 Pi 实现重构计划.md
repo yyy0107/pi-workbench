@@ -57,7 +57,6 @@ Pi Runtime Implementation
 | Model Selector                                                       | Workbench                  | 使用通用 `ModelSelection` 和 Workbench model capability         |
 | Interactive Requests                                                 | Workbench                  | 使用 Workbench interaction capability                           |
 | Side Chat                                                            | Workbench                  | 使用通用 scratch-session capability                             |
-| Attachment / Image Understanding                                     | Workbench                  | 复用现有 attachment-understanding contracts                     |
 | Token Usage / Context Policy                                         | Workbench                  | 使用通用 context capability                                     |
 | Agent Configuration                                                  | Pi                         | 保留在 Pi Contributions                                         |
 | Provider / Model Configuration                                       | Pi                         | 保留在 Pi Contributions                                         |
@@ -86,7 +85,6 @@ interface WorkbenchAgentRuntimeCapabilities {
   scratchSessions?: WorkbenchScratchSessionCapability;
   context?: WorkbenchContextCapability;
   automation?: AutomationProtocol;
-  attachmentUnderstanding?: WorkbenchAttachmentUnderstandingCapability;
 }
 ```
 
@@ -167,7 +165,6 @@ Pi Runtime 内不再使用架构意义上的 `Adapter` 命名（下表旧名称�
 保留以下名称：
 
 - Workbench 定义的 `WorkbenchAgentServerAdapter`。
-- Workbench attachment-understanding contract 中的 OCR Adapter 概念。
 - 第三方 API、兼容协议或持久化数据里的既有字面量，例如 `modelsSource: "adapter"`；仅为了词汇统一不修改 wire shape。
 
 ## 实施阶段
@@ -236,7 +233,6 @@ Pi Runtime 内不再使用架构意义上的 `Adapter` 命名（下表旧名称�
 - Side Chat
 - Automation
 - Model Selector
-- Image Understanding
 - Token Usage / Context Policy
 
 要求：
@@ -245,7 +241,6 @@ Pi Runtime 内不再使用架构意义上的 `Adapter` 命名（下表旧名称�
 - Side Chat 使用通用 scratch-session 生命周期：create、restore、release、promote。
 - Automation 直接复用现有 Workbench Automation Protocol。
 - Model Selector 使用 Workbench model catalog/selection/revision 能力；Provider Configuration 保留在 Pi。
-- Image Understanding 复用现有 attachment-understanding contracts。
 - Token Usage 读取 Workbench context budget/policy；Context Trace 仍读取 Pi 专属接口。
 - 所有 Pi errors 在实现边界完成映射。
 
@@ -301,7 +296,7 @@ Pi Runtime 内不再使用架构意义上的 `Adapter` 命名（下表旧名称�
 - Side Chat create/restore/release/promote 生命周期。
 - Model revision 和 session selection 更新。
 - Context policy 更新、compact、busy/failed 状态。
-- Automation 和 attachment-understanding 继续通过现有 Workbench contracts 工作。
+- Automation 继续通过现有 Workbench contracts 工作。
 - Pi raw event 仍正确投影到现有 Conversation snapshot，不进入 Shell。
 
 ### 最终验证

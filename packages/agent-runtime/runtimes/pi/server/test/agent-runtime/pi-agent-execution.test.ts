@@ -54,7 +54,6 @@ test("maps the neutral prompt and provenance to Pi without leaking Pi into the p
         text: "inspect",
         attachments: [
           { kind: "image", data: "image-data", mediaType: "image/png", name: "input.png" },
-          { kind: "document", data: "pdf-data", mediaType: "application/pdf" },
         ],
         composer,
       },
@@ -78,7 +77,6 @@ test("maps the neutral prompt and provenance to Pi without leaking Pi into the p
               name: "input.png",
             },
           ],
-          documents: [{ type: "file", data: "pdf-data", mimeType: "application/pdf" }],
         },
         provenance: {
           rpcId: "rpc-1",
@@ -178,7 +176,7 @@ test("normalizes Pi execution failures to stable Agent error codes", async () =>
   }
 });
 
-test("rejects a non-PDF document before entering Pi", async () => {
+test("rejects document attachments before entering Pi", async () => {
   const { adapter, calls } = harness();
 
   await assert.rejects(

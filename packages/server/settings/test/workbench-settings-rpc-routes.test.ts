@@ -72,11 +72,7 @@ test("claims only the Workbench Settings RPC subdomain", async () => {
 
   assert.ok(claimed);
   assert.deepEqual(await successValue(await claimed), { revision: 0, preferences: {} });
-  for (const method of [
-    "imageUnderstanding.describe",
-    "settings.describe",
-    "workbenchSettings.unknown",
-  ]) {
+  for (const method of ["settings.describe", "workbenchSettings.unknown"]) {
     assert.equal(routes.handle(rpcRequest(method, {}), method), undefined);
   }
 });

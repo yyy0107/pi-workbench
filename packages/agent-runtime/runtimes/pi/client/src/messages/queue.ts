@@ -93,7 +93,7 @@ function queueItemParts(item: QueueItem): readonly (PiFileMessagePart | PiTextMe
       };
     }
     if (
-      (part.type === "image" || part.type === "file") &&
+      part.type === "image" &&
       typeof part.data === "string" &&
       typeof part.mediaType === "string"
     ) {
@@ -174,23 +174,10 @@ function promptFromQueueItem(item: QueueItem): PiQueuedPrompt {
         ]
       : [],
   );
-  const documents = item.message.content.flatMap((part) =>
-    part.type === "file" && typeof part.data === "string" && part.mediaType === "application/pdf"
-      ? [
-          {
-            type: "file" as const,
-            data: part.data,
-            mimeType: "application/pdf" as const,
-            ...(typeof part.name === "string" ? { name: part.name } : {}),
-          },
-        ]
-      : [],
-  );
   return {
     message:
       typeof item.message.source.modelText === "string" ? item.message.source.modelText : message,
     ...(images.length ? { images } : {}),
-    ...(documents.length ? { documents } : {}),
   };
 }
 
@@ -213,12 +200,6 @@ function optimisticQueueItem(id: string, mode: PiQueueMode, prompt: PiQueuedProm
           mediaType: image.mimeType,
           data: image.data,
           ...(image.name === undefined ? {} : { name: image.name }),
-        })),
-        ...(prompt.documents ?? []).map((document) => ({
-          type: "file",
-          mediaType: document.mimeType,
-          data: document.data,
-          ...(document.name === undefined ? {} : { name: document.name }),
         })),
       ],
       source: { kind: "optimistic" },
@@ -415,7 +396,6 @@ export class PiMessageQueue {
           }
         : {}),
       ...(prompt.images.length ? { images: prompt.images } : {}),
-      ...(prompt.documents.length ? { documents: prompt.documents } : {}),
       ...(prompt.composer === undefined ? {} : { composer: prompt.composer }),
     };
     const optimisticId = this.options.createId();

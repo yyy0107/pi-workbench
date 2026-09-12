@@ -1,4 +1,3 @@
-import type { AttachmentReference } from "@workbench/attachment-understanding-contracts/state-machine";
 import type { MessageBlock } from "@workbench/agent-runtime-contracts/conversation";
 import { isTodoTool } from "../../../chat/todo-model";
 
@@ -40,7 +39,7 @@ interface ReferenceableMessagePart {
 export function messageAttachmentReference(
   parts: readonly ReferenceableMessagePart[],
   index: number,
-): AttachmentReference | undefined {
+): { kind: "image" | "pdf"; sequence: number } | undefined {
   const target = parts[index];
   const kind =
     target?.kind === "file" && target.mediaType?.startsWith("image/")

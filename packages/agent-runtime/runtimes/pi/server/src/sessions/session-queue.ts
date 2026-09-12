@@ -23,9 +23,6 @@ function copyPrompt(prompt: PiQueuedPrompt): PiQueuedPrompt {
       : {}),
     ...(prompt.sourceText === undefined ? {} : { sourceText: prompt.sourceText }),
     ...(prompt.images?.length ? { images: prompt.images.map((image) => ({ ...image })) } : {}),
-    ...(prompt.documents?.length
-      ? { documents: prompt.documents.map((document) => ({ ...document })) }
-      : {}),
   };
 }
 
@@ -33,11 +30,6 @@ function promptFingerprint(prompt: PiQueuedPrompt): string {
   return JSON.stringify([
     prompt.message,
     ...(prompt.images ?? []).map((image) => [image.mimeType, image.data, image.name ?? null]),
-    ...(prompt.documents ?? []).map((document) => [
-      document.mimeType,
-      document.data,
-      document.name ?? null,
-    ]),
   ]);
 }
 
@@ -45,11 +37,7 @@ function promptMatches(left: PiQueuedPrompt, right: PiQueuedPrompt): boolean {
   if (promptFingerprint(left) === promptFingerprint(right)) return true;
   // Native Pi queue events contain text only. Match those snapshots back to the
   // full prompt retained by the workbench so attachment content is not discarded.
-  return (
-    left.message === right.message &&
-    (!left.images?.length || !right.images?.length) &&
-    (!left.documents?.length || !right.documents?.length)
-  );
+  return left.message === right.message && (!left.images?.length || !right.images?.length);
 }
 
 function queueContent(prompt: PiQueuedPrompt): QueueItem["message"]["content"] {
@@ -67,12 +55,6 @@ function queueContent(prompt: PiQueuedPrompt): QueueItem["message"]["content"] {
       mediaType: image.mimeType,
       data: image.data,
       ...(image.name === undefined ? {} : { name: image.name }),
-    })),
-    ...(prompt.documents ?? []).map((document) => ({
-      type: "file",
-      mediaType: document.mimeType,
-      data: document.data,
-      ...(document.name === undefined ? {} : { name: document.name }),
     })),
   ];
 }
@@ -129,21 +111,8 @@ export class SessionQueueProjection {
           lane,
           prompt:
             retained?.prompt.images?.length && !prompt.images?.length
-              ? {
-                  ...prompt,
-                  images: retained.prompt.images.map((image) => ({ ...image })),
-                  ...(retained.prompt.documents?.length && !prompt.documents?.length
-                    ? {
-                        documents: retained.prompt.documents.map((document) => ({ ...document })),
-                      }
-                    : {}),
-                }
-              : retained?.prompt.documents?.length && !prompt.documents?.length
-                ? {
-                    ...prompt,
-                    documents: retained.prompt.documents.map((document) => ({ ...document })),
-                  }
-                : prompt,
+              ? { ...prompt, images: retained.prompt.images.map((image) => ({ ...image })) }
+              : prompt,
         };
       });
 

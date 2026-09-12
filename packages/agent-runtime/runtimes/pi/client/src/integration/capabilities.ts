@@ -204,7 +204,6 @@ export function createPiAgentRuntimeCapabilities(
       compact: (sessionId) => capabilityCall(() => manager.contextPolicies.compact(sessionId)),
     },
     automation: services.automation,
-    attachmentUnderstanding: services.attachmentUnderstanding,
   };
   return Object.freeze(capabilities);
 }

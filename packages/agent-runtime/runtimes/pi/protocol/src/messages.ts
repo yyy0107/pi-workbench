@@ -57,14 +57,6 @@ export interface PiImageContent {
   name?: string;
 }
 
-/** Display/preprocessing-only document content. Pi's model prompt never receives this part. */
-export interface PiDocumentContent {
-  type: "file";
-  data: string;
-  mimeType: "application/pdf";
-  name?: string;
-}
-
 export interface PiToolCallContent {
   type: "toolCall";
   id: string;
@@ -309,7 +301,6 @@ export interface PiQueuedPrompt {
   sourceText?: string;
   message: string;
   images?: PiImageContent[];
-  documents?: PiDocumentContent[];
   composer?: WorkbenchComposerSubmission;
 }
 

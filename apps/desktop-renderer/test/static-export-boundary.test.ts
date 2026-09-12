@@ -105,7 +105,6 @@ test("preserves the Desktop extension ID and activation-order baseline", async (
     "workbench.side-chat",
     "workbench.setting-model-config",
     "workbench.pi.settings-action",
-    "workbench.image-understanding",
     "workbench.toolbox",
     "workbench.automations",
     "workbench.model-selector",

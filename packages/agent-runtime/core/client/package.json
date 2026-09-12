@@ -57,7 +57,6 @@
   "dependencies": {
     "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/agent-runtime-core": "workspace:*",
-    "@workbench/attachment-understanding-contracts": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
     "@workbench/contracts": "workspace:*",
     "@workbench/host-contracts": "workspace:*",

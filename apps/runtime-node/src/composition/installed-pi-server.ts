@@ -2,8 +2,6 @@ import { builtinToolEnabled } from "@workbench/agent-runtime-contracts/settings"
 import { BrowserManager } from "@workbench/browser-server";
 import applicationPackage from "../../package.json" with { type: "json" };
 
-import { getImageUnderstandingSettingsStore } from "./installed-attachment-understanding";
-import { createImageUnderstandingSettingsRpcRoutes } from "@workbench/attachment-understanding-server/rpc";
 import { createRuntimeHttpRouter } from "./runtime-http-router";
 import { createWorkbenchSettingsRpcRoutes } from "@workbench/settings-server/rpc";
 import { createAutomationRpcRoutes } from "@workbench/automation-server/rpc";
@@ -197,7 +195,6 @@ function createInstalledPiAgentHostBindings(
     workbenchSettings: createInstalledWorkbenchSettingsAgentAccess(),
     workspaceFiles,
     getDefaultTerminalShell: terminalShell.getShell,
-    attachmentUnderstandingSettings: getImageUnderstandingSettingsStore,
     async readSessionPreferences() {
       const { preferences } = await settings.describe();
       return {
@@ -316,10 +313,6 @@ function createInstalledPiServer(
   const automation = getInstalledPiAutomationService({ agentExecution: agent.execution });
   const domainErrors = { projectDomainError: projectRpcDomainError };
   const routeGroups = [
-    createImageUnderstandingSettingsRpcRoutes({
-      getStore: getImageUnderstandingSettingsStore,
-      ...domainErrors,
-    }),
     createWorkspaceGitRpcRoutes({ service: workspaceGit, ...domainErrors }),
     createWorkspaceFileRpcRoutes({ service: workspaceFiles, ...domainErrors }),
     createLocalFileRpcRoutes({ service: localFiles, ...domainErrors }),

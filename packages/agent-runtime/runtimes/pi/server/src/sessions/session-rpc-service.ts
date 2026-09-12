@@ -70,7 +70,7 @@ import {
   PiSessionModelContextServiceError,
   type PiSessionModelContextService,
 } from "./pi-session-model-context-service";
-import { admitInlineAttachments, InlineAttachmentAdmissionError } from "./inline-image-admission";
+import { admitInlineImages, InlineImageAdmissionError } from "./inline-image-admission";
 import { workspaceFromCwd } from "../workspaces/workspace-paths";
 
 export type SessionListInput = SessionListPayload;
@@ -253,13 +253,13 @@ function attachmentError(
   return new SessionRpcServiceError("attachment-error", message, { reason });
 }
 
-function admitSessionInlineAttachments(
-  parts: readonly Extract<SessionPromptContent, { type: "image" | "file" }>[],
+function admitSessionInlineImages(
+  parts: readonly Extract<SessionPromptContent, { type: "image" }>[],
 ) {
   try {
-    return admitInlineAttachments(parts);
+    return admitInlineImages(parts);
   } catch (error) {
-    if (error instanceof InlineAttachmentAdmissionError) {
+    if (error instanceof InlineImageAdmissionError) {
       throw attachmentError(error.reason, error.message);
     }
     throw error;
@@ -1182,10 +1182,9 @@ export class SessionRpcService {
       )
       .map((part) => part.text)
       .join("\n\n");
-    const attachments = admitSessionInlineAttachments(
+    const images = admitSessionInlineImages(
       input.content.filter(
-        (part): part is Extract<SessionPromptContent, { type: "image" | "file" }> =>
-          part.type === "image" || part.type === "file",
+        (part): part is Extract<SessionPromptContent, { type: "image" }> => part.type === "image",
       ),
     );
     const composerHasSemantics = Boolean(
@@ -1200,8 +1199,7 @@ export class SessionRpcService {
     }
     if (
       !message.trim() &&
-      attachments.images.length === 0 &&
-      attachments.documents.length === 0 &&
+      images.length === 0 &&
       !input.content.some((part) => part.type === "attachment") &&
       !composerHasSemantics
     ) {
@@ -1213,17 +1211,11 @@ export class SessionRpcService {
           ? [{ kind: "text-reference" as const, attachmentId: part.attachmentId }]
           : [],
       ),
-      ...attachments.images.map((image) => ({
+      ...images.map((image) => ({
         kind: "image" as const,
         data: image.data,
         mediaType: image.mimeType,
         ...(image.name === undefined ? {} : { name: image.name }),
-      })),
-      ...attachments.documents.map((document) => ({
-        kind: "document" as const,
-        data: document.data,
-        mediaType: document.mimeType,
-        ...(document.name === undefined ? {} : { name: document.name }),
       })),
     ];
     let admission: Awaited<ReturnType<AgentExecutionPort["submit"]>>;

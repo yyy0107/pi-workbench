@@ -31,9 +31,9 @@ Pi 是 Workbench Agent Runtime 的具体实现，所有权边界由 Workbench �
 - [`core/client`](../../core/client) 提供 React 接入、`WorkbenchAgentRuntimeCapabilities`、窄 hooks
   与 `WorkbenchAgentCapabilityError`。Shell、Core、Extension SDK/Host 不导入 Pi packages。
 - [`client/src/integration/capabilities.ts`](./client/src/integration/capabilities.ts) 将同一个 Pi
-  manager 的 host、workspace、models、interactions、scratchSessions、context、automation 和
-  attachmentUnderstanding 接到 Workbench 能力集合；`PiAgentRuntimeProvider` 安装该集合。
-  Automation、附件识别和 Terminal 继续复用各自的 Workbench contracts。
+  manager 的 host、workspace、models、interactions、scratchSessions、context 和 automation
+  接到 Workbench 能力集合；`PiAgentRuntimeProvider` 安装该集合。Automation 和 Terminal 继续复用
+  各自的 Workbench contracts。
 - Pi 原始消息和事件在 Client 内投影成 `ConversationNode`、`MessageBlock` 和 snapshot；通用 UI
   根据投影与 capability presence 渲染，不解析 Pi event name 或判断 `runtime.id === "pi"`。
   缺失能力时隐藏入口；恢复的历史页面显示明确不可用状态，不注入假实现。
@@ -76,7 +76,6 @@ flowchart TD
   COMPOSITION --> MODEL_CONTEXT_WINDOW_ROUTES["Model Context Window RPC routes"]
   COMPOSITION --> AGENT_SETTINGS_ROUTES["Agent Settings RPC routes"]
   COMPOSITION --> WORKBENCH_SETTINGS_ROUTES["Workbench Settings RPC routes"]
-  COMPOSITION --> IMAGE_SETTINGS_ROUTES["Image Understanding Settings RPC routes"]
   COMPOSITION --> SESSION_ROUTES["Session RPC routes"]
   COMPOSITION --> AUTOMATION_ROUTES["Automation RPC routes"]
   COMPOSITION --> TRACE_ROUTES["Context Trace RPC routes"]
@@ -105,7 +104,6 @@ flowchart TD
   EXTENSION_SERVICE -->|"catalog target"| RESOURCE_CONTEXT
   AGENT_SETTINGS_ROUTES --> SETTINGS["AgentSettingsProtocol / Service"]
   WORKBENCH_SETTINGS_ROUTES --> WORKBENCH_SETTINGS["WorkbenchSettingsProtocol / Service"]
-  IMAGE_SETTINGS_ROUTES --> IMAGE_SETTINGS["ImageUnderstandingSettingsProtocol / Store"]
   MODEL_PROVIDER_ROUTES --> MODEL["ModelProviderProtocol / ModelService"]
   MODEL_CONTEXT_WINDOW_ROUTES --> MODEL_CONTEXT_PROTOCOL["ModelContextWindowProtocol / ModelService"]
   SESSION_FACADE -->|"owns lifecycle"| SESSION["SessionRpcService"]
@@ -167,8 +165,7 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
   `package.update`、`package.remove`、`packageCatalog.search`、`packageCatalog.describe`；
 - Settings：Pi 原生设置 `settings.describe`、`settings.openDocument`、`settings.update`，Workbench
   设置 `workbenchSettings.describe`、`workbenchSettings.openDocument`、
-  `workbenchSettings.update`，以及附件识别配置
-  `imageUnderstanding.describe`、`imageUnderstanding.update`；
+  `workbenchSettings.update`；
 - LLM：`llm.providers`、`llm.providerConfig`、`llm.startProviderLogin`、
   `llm.providerLogin`、`llm.respondProviderLogin`、`llm.cancelProviderLogin`、`llm.configureProvider`、
   `llm.removeProvider`、`llm.modelContextWindow`、`llm.updateModelContextWindow`、
@@ -246,19 +243,17 @@ Workbench 的 `SYSTEM.md` 和 `APPEND_SYSTEM.md` 支持 `{{pi.cwd}}`、
 替换只处理已加载的系统/追加提示词，执行单次白名单替换，不递归解释注入的内容；未知占位符保持原样。
 项目指令、技能和 cwd 仍由 Pi 原生追加，不需要占位符。这是 Workbench 提供的功能，独立 Pi 不会展开。
 
-三个设置子域分别由 Pi 的 `transport/routes/agent-settings-rpc-routes.ts`、
-`@workbench/settings-server/rpc` 和 `@workbench/attachment-understanding-server/rpc` 拥有，避免把 Pi
-原生设置、Workbench preferences 与附件识别凭据合并成一个泛化服务。Agent Settings route 只依赖
+两个设置子域分别由 Pi 的 `transport/routes/agent-settings-rpc-routes.ts` 和
+`@workbench/settings-server/rpc` 拥有，避免把 Pi 原生设置与 Workbench preferences 合并成一个泛化服务。
+Agent Settings route 只依赖
 `AgentSettingsProtocol` 和组合根注入的文档打开函数，所有方法保持 loopback-only，写入接口使用 4 MiB
 更新载体预算与打开取消映射；Workbench Settings route 通过 late-bound `WorkbenchSettingsProtocol`
 保留环境覆盖和 HMR 语义，describe/update 允许显式 trusted host，文档打开保持 loopback-only，
-并独占 24 MiB 更新载体预算与打开取消映射；Image
-Understanding route 通过 late-bound `ImageUnderstandingSettingsProtocol` 保留 registry 和旧文件迁移，
-两个方法保持 loopback-only。三个 route 统一复用顶层错误投影，但不会取得文件锁、状态文件、凭据或
-Pi agent 目录。
+并独占 24 MiB 更新载体预算与打开取消映射。两个 route 统一复用顶层错误投影，但不会取得文件锁、
+状态文件、凭据或 Pi agent 目录。
 
 Workbench 自有的持久配置统一写入 Pi agent 目录下的 `workbench-settings.json`。文档使用
-`version`、全局 `revision`、`preferences`、`workspaces` 和 `imageUnderstanding` 顶层字段；三类
+`version`、全局 `revision`、`preferences` 和 `workspaces` 顶层字段；两类
 写入共享进程间锁并使用 mode-0600 原子替换。`preferences` 包含外观与背景图、locale、模型选择器
 记忆、Toolbox 置顶、RightWorkspace 布局、侧栏开关、工作区展开项和桌面端当前会话。浏览器中的旧 localStorage、Cookie 与
 IndexedDB 值在对应功能首次 hydrate 时导入，成功后删除。滚动位置和未保存文件草稿仍是
@@ -266,10 +261,9 @@ sessionStorage 临时状态，不属于跨窗口的用户配置。
 `workbenchSettings.openDocument` 会在文档不存在时写入最小的 `version`/`revision` 结构，再交给本地
 Host 的默认应用打开；已经存在的文档不会因打开动作被解析、改写或覆盖。
 
-旧 `~/.pi/workbench/workspaces.json` 与
-`~/.pi/agent/workbench/image-understanding.json` 会在服务端首次读取时原子导入对应 section，成功
-提交新文档后删除旧文件。RPC 只向浏览器返回非敏感的 `preferences`；OCR secrets 与完整 Workspace
-状态虽然位于同一物理文件，但不会经过 Workbench Settings RPC 返回。
+旧 `~/.pi/workbench/workspaces.json` 会在服务端首次读取时原子导入对应 section，成功提交新文档后
+删除旧文件。RPC 只向浏览器返回非敏感的 `preferences`；完整 Workspace 状态虽然位于同一物理文件，
+但不会经过 Workbench Settings RPC 返回。
 
 ## RPC envelope 和错误
 
@@ -325,7 +319,7 @@ envelope；仅仅伪造同名 `code`、`details` 字段的普通异常不会被�
 - 只接受 `POST` 和 `Content-Type: application/json`；
 - 普通 RPC 最多缓冲 1 MiB 请求体；只有领域契约确实需要时才显式放宽：`settings.update` 为
   4 MiB、`llm.configureProvider` 为 8 MiB、`workbenchSettings.update` 为 24 MiB、
-  `workspace.files.write` 为 20 MiB，包含 inline 图片/PDF 的 `session.prompt` 为 80 MiB；
+  `workspace.files.write` 为 20 MiB，包含 inline 图片的 `session.prompt` 为 80 MiB；
 - 仍承载队列暂停和 follow-up 重排的 legacy session commands route 与附件 prompt 共用 80 MiB
   上限；声明或实际读取超限都返回 `413`；
 - 请求体预算在 JSON 解析和兼容性未知字段剥离之前执行，未知字段不会绕过对应 method 的上限；
@@ -430,7 +424,7 @@ Workspace Git 同样只接受 `workspaceId`，并从 `WorkspaceStore` 解析权�
 
 模型服务与会话统一通过 `server/src/agent-runtime/agent-session-services.ts` 创建 Pi services。
 该入口在扩展加载前保存宿主 `fetch`，并通过 Pi 的请求级 `fetch` 参数保护支持注入的 HTTP
-适配器；普通回答、压缩、图片理解及 deferred 请求共用这条边界。调用方显式传入的 `fetch`、
+适配器；普通回答、压缩及 deferred 请求共用这条边界。调用方显式传入的 `fetch`、
 认证、代理环境参数和 WebSocket transport 选择继续由 SDK 处理，不改写扩展使用的全局 `fetch`。
 Pi 0.85.1 的 Google 适配器不支持注入，Bedrock 使用自己的 HTTP handler，未知扩展 API 也保留
 原有传输。这是对全局 `fetch` 被意外替换的定向防护，不是同进程扩展的安全沙箱，也不覆盖认证
@@ -1126,8 +1120,8 @@ Cookie、System Prompt、用户消息、附件内容、宿主路径和工具参�
 Pi 目前的 `before_provider_request` 是“逻辑 provider 请求”钩子：底层 HTTP transport 在同一 payload
 和 headers 上重试时不会再次触发。因此协议明确返回
 `providerTransportAttempts: "logical-request-only"` 和 `transportAttemptsObserved: false`，不要把
-`requestId` 误画成每次网络尝试。当前 scope 是 `agent-turn`；compaction/branch summary 或附件 OCR
-内部自行发起的辅助模型请求，并不保证经过这个 provider payload 钩子。
+`requestId` 误画成每次网络尝试。当前 scope 是 `agent-turn`；compaction/branch summary 等内部自行
+发起的辅助模型请求，并不保证经过这个 provider payload 钩子。
 
 `model-output.detail.timing` 在现有调用链记录上下文快照开始采集到 payload 钩子的 `preparationMs`、序列化 payload
 字节数，以及从 payload 钩子开始计时的响应头、首个模型事件、首个非空内容 delta 和结束时间。支持 fetch
@@ -1160,9 +1154,8 @@ journal 重放 chunk 并物化未完成 assistant。
   精确回滚；
 - queue item 有稳定 ID，可执行 edit、remove、follow-up 重排或将 follow-up 提升为 steer；
 - prompt 的 `rpcId` 和规范化 IANA client timezone 会作为 provenance 写入 JSONL；
-- inline 图片和 PDF 会在进入 session 前校验 base64、文件签名、媒体类型及大小；“模型原生”模式把
-  图片直接交给 Pi 的普通模型输入校验与请求路径，不创建附件理解任务或状态；只有开启附件理解时才会
-  使用配置的 OCR 或多模态引擎预处理，PDF 仍要求已开启且兼容的 OCR；
+- inline 图片会在进入 session 前校验 base64、文件签名、媒体类型及大小，再直接交给 Pi 的普通模型
+  输入校验与请求路径；
 - Composer 用户消息已经持久化、但模型原生图片在 Provider 调用前被当前模型的输入能力校验拒绝时，
   服务端写入 `workbench.prompt-failure.v1` 并将该提交作为已接纳的终态返回；客户端完成新会话提升，
   在对应用户消息后展示可重试的会话内错误，而不把消息恢复到 Composer；
@@ -1258,7 +1251,7 @@ Pi 浏览器实现位于 [`client`](./client)，应用组合层与 Pi Contributi
 `@workbench/agent-runtime-pi-shared` 拥有。
 
 Workbench Explorer、Review、Terminal、Workspace/Host、Interactive Requests、Side Chat、Automation、
-Model Selector、Image Understanding 和 Token Usage / Context Policy 扩展位于
+Model Selector 和 Token Usage / Context Policy 扩展位于
 `packages/workbench/shell/src/extensions/builtin`，通过 Workbench capability 使用运行时能力。
 本目录的 contributions 保留 Agent Configuration、Provider/Model Configuration、Pi Settings、Toolbox、
 Context Trace、External Session Import、Pi Version/Connection Status、Running Indicator 和 branding。
@@ -1277,8 +1270,6 @@ packages/agent-runtime/runtimes/pi/
     │   └── pi-agent-server-implementation.ts
     ├── core/
     │   └── errors.ts
-    ├── attachment-understanding/
-    │   └── multimodal.ts
     ├── imports/
     │   ├── claude-code-session-importer.ts
     │   ├── codex-session-importer.ts
@@ -1403,7 +1394,7 @@ packages/agent-runtime/runtimes/pi/
   running、waiting 和 completed 更新。draft promotion 复用原 Session 并发布一次 durable identity，
   不产生重复 remote item；
 - `server` 可以依赖 Pi protocol/shared packages，不得导入 Pi client package。Node/Pi Runtime、凭据、信任和
-  Pi 资源文件逻辑留在这里；通用文件、Git、Host 和附件识别由公共服务包拥有；
+  Pi 资源文件逻辑留在这里；通用文件、Git 和 Host 由公共服务包拥有；
 - `server/src/agent-runtime` 实现 `@workbench/agent-runtime-server` 的后端无关执行与线程存储端口，把 `threadId`、
   `rootPath`、结构化 Prompt、目录摘要、搜索文档、CRUD/队列 mutation 和稳定 Agent 错误映射到 Pi
   `sessionId`、`cwd`、`PiQueuedPrompt`、Hosted Session/registry 操作和 Pi 错误码；`SessionRpcService`
@@ -1421,10 +1412,6 @@ packages/agent-runtime/runtimes/pi/
   policy 与手动 compaction，并在 Pi SDK 边界归一化预期错误。两者是 Pi protocol collaborator，
   不是顶层通用 Agent 端口；`SessionRpcService` 只做请求校验、会话存在性检查、调用编排和 wire error
   投影，不直接导入 `session-registry` 或 `ModelService`；
-- `server/src/attachment-understanding/multimodal.ts` 只保留 Pi ModelRuntime 多模态执行；
-  `@workbench/attachment-understanding-server` 拥有路由决策、任务生命周期、OCR、受限 HTTP 和设置存储。
-  Runtime app 注入设置路径与旧环境变量；Pi 会话保留模型刷新、忙碌租约、取消释放和唯一终态持久化。
-  纯声明和跨端状态机复用 `@workbench/attachment-understanding-contracts`，`imageUnderstanding.*` wire 名称保持兼容；
 - `server/src/imports` 拥有本机 Codex、Claude Code、Cursor 数据发现与解析、Pi `SessionManager` 原生
   JSONL 写入、幂等 provenance、Workspace 创建/绑定和既有 Host 事件发布。它直接复用
   `protocol/src/rpc.ts` 的来源枚举及扫描/导入 DTO，只额外保留不跨浏览器边界的已加载 Pi Message 类型；
@@ -1448,9 +1435,8 @@ packages/agent-runtime/runtimes/pi/
   `PackageCatalogProtocol`，并把请求 `AbortSignal` 原样交给服务层。npm 名称、已配置 Package source、
   mutation target 和 Catalog 查询边界集中在 `package-rpc-validators.ts`；跨资源领域复用的
   session/target 身份、target scope、名称和相对路径校验集中在 `resource-rpc-validators.ts`。
-  `routes/agent-settings-rpc-routes.ts` 拥有 Pi 设置方法、预算和信任边界；公共 Workbench Settings 与
-  Image Understanding 路由分别归 `@workbench/settings-server/rpc` 和
-  `@workbench/attachment-understanding-server/rpc`，由 Runtime app 组合并按调用解析设置存储。
+  `routes/agent-settings-rpc-routes.ts` 拥有 Pi 设置方法、预算和信任边界；公共 Workbench Settings 路由归
+  `@workbench/settings-server/rpc`，由 Runtime app 组合并按调用解析设置存储。
   `routes/model-provider-rpc-routes.ts` 拥有 11 个
   Provider/auth/catalog/discovery 方法及其配置载体预算、取消和 refresh 通知，只依赖
   `ModelProviderProtocol`；`model-context-window-rpc-routes.ts` 独立拥有三个容量读取/覆盖方法，只依赖
@@ -1488,9 +1474,7 @@ packages/agent-runtime/runtimes/pi/
   `SYSTEM.md`、`settings.json`、revision 和跨进程文件锁；Workbench-owned preferences 的协议位于
   `@workbench/agent-runtime-contracts/settings`，通用持久化实现位于
   `@workbench/settings-server`。Pi route 只依赖该窄协议，当前安装的 Pi agent 目录由
-  `apps/runtime-node/src/composition/installed-workbench-settings.ts` 在应用组合层注入。
-  附件识别的 `settings-store.ts` 实现 `ImageUnderstandingSettingsProtocol`，但 runtime-only credential 读取
-  不进入该 transport 协议；
+  `apps/runtime-node/src/composition/installed-workbench-settings.ts` 在应用组合层注入；
 - `server/src/models/model-service.ts` 同时实现 `ModelProviderProtocol` 与
   `ModelContextWindowProtocol`，继续独占 `createAgentSessionServices()` 创建的单一 Pi
   `ModelRuntime`、credential store、Provider 登录状态、`models.json` 配置、endpoint discovery 和
@@ -1518,10 +1502,9 @@ packages/agent-runtime/runtimes/pi/
   所有 project-local Pi 资源；常规持久信任由 `~/.pi/agent/trust.json` 管理；
 - `PI_WORKBENCH_SETTINGS_FILE`：统一 Workbench settings 文件，默认为
   `~/.pi/agent/workbench-settings.json`；
-- `PI_WORKBENCH_STATE_DIR`：旧版 Workspace/OCR 独立状态目录兼容覆盖；设置后继续使用旧版独立文件，
-  供测试和已有部署逐步迁移；
+- `PI_WORKBENCH_STATE_DIR`：Workbench 状态目录覆盖，供 Workspace、浏览器服务和 Composer 粘贴文本
+  附件使用；
 - `PI_WORKBENCH_WORKSPACE_STATE_FILE`：旧版 Workspace 独立状态文件兼容覆盖；
-- `PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE`：旧版图片理解独立状态文件兼容覆盖；
 - `PI_WORKBENCH_CONTEXT_TRACE_DIR`：独立的上下文审计 journal 根目录；默认是
   `~/.pi/agent/workbench-context-traces/v1`。
 - `PI_WORKBENCH_SESSION_INDEX_FILE`：会话目录持久索引文件；默认是
@@ -1583,85 +1566,12 @@ fetch body 时间是解码后的 HTTP 数据交付时间，并非 TCP 收包时�
 RPC envelope、恶意 Host 的 `403`、普通 stream GET 的 `426`、两个 WS handshake，以及向
 downlink 发送消息后的 `1008` close。
 
-## OCR 适配器规范
-
-OCR 的纯声明解析位于 `@workbench/attachment-understanding-contracts`，服务端执行适配位于
-`packages/server/attachment-understanding`。OCR 设置中的源码是以下形式的有效 TypeScript，但
-运行时不会把它交给 TypeScript/JavaScript 引擎：
-
-```ts
-export default defineOcrAdapter({
-  version: 1,
-  id: "example-ocr",
-  label: "Example OCR",
-  accepts: ["image"],
-  authentication: { header: "Authorization", prefix: "Bearer " },
-  request: {
-    kind: "json",
-    body: { model: "$model", file: "$attachment.dataUrl" },
-  },
-  operation: {
-    kind: "sync",
-    output: {
-      strategy: "first-non-empty",
-      rules: [{ path: "result.text", format: "text" }],
-    },
-  },
-});
-```
-
-服务端提取中间的 JSON 数据，安全移除字符串外的 `//` 与块注释，再执行字段白名单、长度/深度/数组
-上限、标识符、HTTP header、路径语法和版本校验，最后交给统一执行器。源码可以包含说明性注释，但
-不能包含 import、函数、表达式或 wrapper 外的语句；因此它不是 Node `vm` 沙箱，也不会获得
-`process`、文件系统、环境变量或原始凭据。
-
-版本 1 的顶层字段如下：
-
-- `id` / `label`：稳定 Provider ID 和展示标签；
-- `accepts`：`image`、`pdf` 或两者；
-- `authentication`：写入凭据的 header 和 prefix。凭据由服务端统一 mode-0600 Workbench settings
-  document 的 `imageUnderstanding.secrets` 保存，不出现在源码或 describe RPC；
-- `request`：`json` body 模板或 `multipart` 文件字段/普通字段。模板值支持 `$model`、
-  `$attachment.dataUrl`、`$attachment.base64`、`$attachment.name` 和
-  `$attachment.mimeType`；
-- `api`：可选的服务码路径、成功值及到稳定 Workbench 错误码的映射；
-- `operation`：`sync` 直接按 output rules 取文本，或 `async-job` 声明 job ID、poll path、状态值、
-  JSONL/纯文本结果源和 output rules；
-- `retry`：仅对映射中显式标记 `retryable` 的提交错误做有界指数退避。
-
-output rule 使用受限 dot path，并以 `[]` 展平数组，例如
-`result.layoutParsingResults[].markdown.text` 或
-`result.ocrResults[].prunedResult.rec_texts[]`。多个 rule 按顺序执行，第一个非空结果获胜；JSONL
-逐行解析后再合并。所有 HTTP 请求仍受超时、取消、响应大小、HTTPS、重定向和结果下载 SSRF 防护。
-新增厂商或模型应优先新增/调整模板，不应在 session coordinator 中增加厂商分支。
-
 ## 当前能力边界
 
 - `session.attachment` 已保留协议形状，但 Pi 当前没有按 `attachmentId` 读取持久附件的仓库；
-  该方法稳定返回 `attachment-error`。发送 prompt 时的 inline 图片与 PDF 已支持。
-- Inline 附件最多 20 个。图片仅接受 PNG、JPEG、WebP 和 GIF，单张解码后最多 10 MiB；PDF
-  仅接受 `application/pdf`，单文件最多 50 MiB；混合附件解码后总计最多 50 MiB。媒体类型必须与
-  文件签名一致。
-- 开启附件理解后的预处理使用 `workbench.attachment-recognition.v1` 状态机，并以
-  `workbench.attachment-recognition` data part 合并到 AI 消息工作时间线；状态从 pending、running
-  进入 succeeded/failed/cancelled/skipped 终态，成功结果可展开。历史
-  `workbench.image-recognition.v1` 事件仍可读取，但新事件不再使用图片专属字段名。“模型原生”图片不
-  进入该状态机，也不产生对应的时间线 Part。
-- 图片与 PDF 使用种类内独立、从 1 开始的稳定引用（`image-1`、`image-2`、`pdf-1` 等）。同一引用
-  同时用于展开结果和隔离的模型上下文，因此用户说“图一 / 图二”时不会依赖 Provider 返回顺序；
-  旧历史中的通用附件 ID 会按结果顺序回退显示为“附件 N”。
-- OCR 通过版本化的声明式 TypeScript 适配器执行。设置页内置 GLM-OCR、PaddleOCR-VL-1.6、
-  PP-OCRv6 和 PP-StructureV3 模板，也允许编辑自定义适配器。适配器声明鉴权头、JSON/Multipart
-  请求、同步/异步作业、错误码、轮询状态、结果 URL 和文本提取路径；服务端只把源码解析为受限
-  数据，不执行 import、函数或任意 JavaScript。多模态预处理仍使用固定的 Pi ModelRuntime 实现。
-- 内置 OCR 适配器接收图片与 PDF。PDF 不会作为 Pi 原生模型内容发送，也不会走当前仅支持图片的
-  多模态预处理；只要请求包含 PDF，路由就要求已配置且声明支持 PDF 的 OCR 适配器。完整识别结果以
-  Markdown/文本文件保存在附件结果缓存目录的独立 `recognition-*` 子目录中；目录默认为
-  `~/.pi/workbench/attachment-results/`，可在附件理解设置中输入或选择目录，留空恢复默认。模型通过
-  `workbench-attachment-results` XML 接收结果绝对路径及读取说明，文件内容仍是不可信参考数据。
-  缓存写入成功后才发布识别成功并注入路径；修改目录不会移动或删除旧结果，以保留历史引用。
-  原始 Provider 响应、凭据与附件字节不会进入状态消息。旧版 GLM/Paddle 配置在读取时映射为对应
-  适配器，原凭据保持 write-only 且不会被覆盖。
+  该方法稳定返回 `attachment-error`。发送 prompt 时支持 inline 图片。
+- Inline 图片最多 20 张，仅接受 PNG、JPEG、WebP 和 GIF；单张解码后最多 10 MiB，合计最多 50 MiB，
+  媒体类型必须与文件签名一致。图片直接进入当前模型的原生视觉输入路径。
 - 当前 queue edit 只接受 text content；附件 queue item 可以保留、删除或 steer，但不能通过该
   RPC 改写为新的附件内容。
 - Skills 当前实现与会话解耦的用户/项目 target 目录与详情、官方资源过滤规则的启停、身份授权的目录浏览和只读

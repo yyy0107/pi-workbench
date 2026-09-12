@@ -68,11 +68,7 @@ test("claims only the Pi Agent Settings RPC subdomain", async () => {
     hasDocument: false,
     namespaces: [],
   });
-  for (const method of [
-    "imageUnderstanding.describe",
-    "settings.unknown",
-    "workbenchSettings.describe",
-  ]) {
+  for (const method of ["settings.unknown", "workbenchSettings.describe"]) {
     assert.equal(routes.handle(rpcRequest(method, {}), method), undefined);
   }
 });
