@@ -3,5 +3,5 @@ import type { ComposerQueueItem } from "@workbench/agent-runtime-contracts/conve
 export function visibleComposerQueueItems(
   queueItems: readonly ComposerQueueItem[],
 ): readonly ComposerQueueItem[] {
-  return queueItems.slice(0, 1);
+  return queueItems;
 }

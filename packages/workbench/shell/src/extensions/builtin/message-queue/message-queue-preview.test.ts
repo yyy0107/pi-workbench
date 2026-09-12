@@ -6,14 +6,25 @@ import type { ComposerQueueItem } from "@workbench/agent-runtime-contracts/conve
 import { visibleComposerQueueItems } from "./message-queue-preview";
 
 function queueItem(key: string): ComposerQueueItem {
-  return { key, text: key, attachments: [] };
+  return {
+    key,
+    text: key,
+    attachments: [
+      {
+        key: `${key}-attachment`,
+        name: `${key}.png`,
+        source: `data:image/png;base64,${key}`,
+        mediaType: "image/png",
+      },
+    ],
+  };
 }
 
-test("shows only the first queued message", () => {
-  const first = queueItem("first");
-  const visible = visibleComposerQueueItems([first, queueItem("second"), queueItem("third")]);
+test("shows every queued message with attachments", () => {
+  const queue = [queueItem("first"), queueItem("second"), queueItem("third")];
+  const visible = visibleComposerQueueItems(queue);
 
-  assert.deepEqual(visible, [first]);
+  assert.deepEqual(visible, queue);
 });
 
 test("keeps an empty queue hidden", () => {
