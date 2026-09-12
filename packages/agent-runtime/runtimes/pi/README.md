@@ -724,7 +724,8 @@ trace 不会整体注入模型。普通正文直接传递；带结构化语义�
 上下文一起排队，同时以不参与模型上下文的 `workbench.composer-model-input.v1` custom entry 保存拆分。
 `workbench.composer-context` 在 Pi 原生 `context` hook 中仅匹配当前分支已记录且实际送达的请求，
 把 config、Skill 全文、instructions 和带信任边界的 context 转成独立消息，正文保留原文
-及图片，不再套 `<user-request>`。内部传输仍保留兼容包装，防止模板展开后的 `/...` 被 Pi 再执行为命令；
+及图片；托管图片的来源路径作为同一 user turn 中位于原生图片之后的独立 text part，不再套
+`<user-request>`。内部传输仍保留兼容包装，防止模板展开后的 `/...` 被 Pi 再执行为命令；
 历史压缩也仍能读取完整上下文。纯 session-action 完成后不启动聊天；附带正文时仅在执行成功后继续一次主请求。
 
 长文本粘贴由通用 Conversation actions 调用 `composer.attachments.create/read/discard`，不依赖已创建的
@@ -736,6 +737,17 @@ trace 不会整体注入模型。普通正文直接传递；带结构化语义�
 读取说明，附件内容始终视为不可信参考材料。`workbench.composer-user.v3` 的可选 `textAttachments`
 保存描述信息，历史及队列投影显示独立卡片；原文只在上传接口传输。队列编辑沿用已编译的其它上下文，
 并更新 canonical 描述信息及对应的模型输入拆分记录。
+
+Composer 普通文件同样不依赖已创建的服务端会话，选择、拖拽或从剪贴板粘贴文件后立即调用
+`composer.attachments.createFile`。Runtime 校验 base64、名称、媒体类型和大小，图片额外校验真实文件签名，
+再以 `attachments/YYYY-MM-DD/<extension>/<uuid>/<original-name>` 原子落盘；长文本固定保存到
+`attachments/YYYY-MM-DD/pasted_txt/<uuid>/pasted-text.txt`。草稿删除调用统一的 `discard`；提交或
+排队按 ID 重新读取、验证并 retain，`workbench.composer-user.v3.fileAttachments` 只保存托管文件描述，
+不保存文件 base64。视觉模型收到同一 user turn 的正文、原生图片和
+`[Image: source: <absolute-path>]`；纯文本模型不接收原生图片，而在正文后收到明确的 media omitted
+text part 及同一路径。PDF、PPTX 等普通文件以 `[Attached <mime>: <name>]` 和
+`[File: source: <absolute-path>]` 进入同一 user turn，由模型或工具决定是否处理。所有情况都先持久化
+用户消息，不做 OCR 或文件内容预处理。历史 UI 通过 `composer.attachments.readFile` 按 ID 读取图片预览。
 
 UI 原文和 canonical Composer document 以隐藏的 `workbench.composer-user.v3` custom message
 持久化；`sourceText` 只作为编辑器 serialization/fallback，并统一使用
@@ -1154,8 +1166,9 @@ journal 重放 chunk 并物化未完成 assistant。
   精确回滚；
 - queue item 有稳定 ID，可执行 edit、remove、follow-up 重排或将 follow-up 提升为 steer；
 - prompt 的 `rpcId` 和规范化 IANA client timezone 会作为 provenance 写入 JSONL；
-- inline 图片会在进入 session 前校验 base64、文件签名、媒体类型及大小，再直接交给 Pi 的普通模型
-  输入校验与请求路径；
+- Composer 文件会先持久化；进入 session 后从托管文件重新校验。当前模型支持图片时，受支持的图片
+  走 Pi 原生视觉输入，不支持时只传 omitted 说明和绝对文件路径；其它文件传文件说明和绝对路径；
+  legacy inline 图片仍沿用原生能力拒绝语义；
 - Composer 用户消息已经持久化、但模型原生图片在 Provider 调用前被当前模型的输入能力校验拒绝时，
   服务端写入 `workbench.prompt-failure.v1` 并将该提交作为已接纳的终态返回；客户端完成新会话提升，
   在对应用户消息后展示可重试的会话内错误，而不把消息恢复到 Composer；
@@ -1568,10 +1581,11 @@ downlink 发送消息后的 `1008` close。
 
 ## 当前能力边界
 
-- `session.attachment` 已保留协议形状，但 Pi 当前没有按 `attachmentId` 读取持久附件的仓库；
-  该方法稳定返回 `attachment-error`。发送 prompt 时支持 inline 图片。
-- Inline 图片最多 20 张，仅接受 PNG、JPEG、WebP 和 GIF；单张解码后最多 10 MiB，合计最多 50 MiB，
-  媒体类型必须与文件签名一致。图片直接进入当前模型的原生视觉输入路径。
+- `session.attachment` 仍是保留的通用协议形状并稳定返回 `attachment-error`；Composer 自有的
+  `composer.attachments.createFile/readFile` 已支持按托管 ID 保存和读取普通文件。
+- 图片最多 20 张，仅接受 PNG、JPEG、WebP 和 GIF；单张解码后最多 10 MiB，合计最多 25 MiB，
+  媒体类型必须与文件签名一致。普通文件单个最多 25 MiB、一次提交合计最多 100 MiB；所有 Composer
+  文件始终落盘，模型能力只决定是否附带原生图片 part。
 - 当前 queue edit 只接受 text content；附件 queue item 可以保留、删除或 steer，但不能通过该
   RPC 改写为新的附件内容。
 - Skills 当前实现与会话解耦的用户/项目 target 目录与详情、官方资源过滤规则的启停、身份授权的目录浏览和只读
@@ -1589,8 +1603,9 @@ downlink 发送消息后的 `1008` close。
   等价语义，并继续使用 Pi 的公开 API。
 - `session.create.agentPreset` 是兼容字段，当前 Pi session engine 不支持创建时选择 preset，传入
   后返回 `agent-preset-invalid`。
-- 历史图片在 text-only 模型上下文中会被稳定占位文本替换，不会阻止后续纯文字消息；仍不能在活动
-  图片 prompt 或待处理图片队列存在时切换到 text-only model。
+- 历史原生图片在 text-only 模型上下文中会被稳定占位文本替换，不会阻止后续纯文字消息；活动中的
+  原生图片 prompt 仍不能切换到 text-only model。托管 Composer 图片队列可以按发送时模型能力选择
+  原生图片或路径降级；legacy inline 图片队列仍要求视觉模型。
 - `/api/pi/**`、`legacy-sse.ts` 和 legacy contracts 仍为兼容层；新 UI 的核心读写使用
   `/api/<method>` 与 mux/host WS。队列 pause 与 follow-up 重排暂时仍经过 legacy command，因为目标
   协议没有对应方法。

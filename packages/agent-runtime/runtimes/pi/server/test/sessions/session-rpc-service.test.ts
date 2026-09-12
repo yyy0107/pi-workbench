@@ -804,7 +804,13 @@ test("renames, prompts, queues, and cancels supported session operations", async
         clientTimeZone: "US/Pacific",
         content: [
           { type: "text", text: "hello" },
-          { type: "image", mediaType: "image/png", data: PNG_BASE64, name: "screen.png" },
+          {
+            type: "image",
+            mediaType: "image/png",
+            data: PNG_BASE64,
+            name: "screen.png",
+            attachmentId: "8b95d58b-3189-45f0-9be6-f7a9e4de7248",
+          },
         ],
       },
       { rpcId: "rpc-prompt" },
@@ -827,6 +833,7 @@ test("renames, prompts, queues, and cancels supported session operations", async
           data: PNG_BASE64,
           mediaType: "image/png",
           name: "screen.png",
+          attachmentId: "8b95d58b-3189-45f0-9be6-f7a9e4de7248",
         },
       ],
     },
@@ -1385,6 +1392,25 @@ test("admits text references independently of inline images", async () => {
       threadId: "session-1",
       itemId: "text-queue",
       mutation: { kind: "edit", text: "new text", textAttachmentIds: [attachmentId] },
+    },
+  });
+});
+
+test("admits managed file references without treating them as inline images", async () => {
+  const { service, calls } = harness();
+  const attachmentId = "d719e248-b35d-4e37-b60f-b9040527c27a";
+  await service.prompt({
+    sessionId: "session-1",
+    mode: "queue",
+    content: [{ type: "file", attachmentId }],
+  });
+  assert.deepEqual(calls.at(-1), {
+    name: "submit-prompt",
+    value: {
+      threadId: "session-1",
+      mode: "follow-up",
+      prompt: { text: "", attachments: [{ kind: "file-reference", attachmentId }] },
+      provenance: {},
     },
   });
 });

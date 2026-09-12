@@ -99,12 +99,17 @@ const promptAttachmentContent = rpcObject({
   type: rpcLiteral("attachment"),
   attachmentId: rpcString({ minLength: 36, maxLength: 36 }),
 });
+const promptFileContent = rpcObject({
+  type: rpcLiteral("file"),
+  attachmentId: rpcString({ minLength: 36, maxLength: 36 }),
+});
 const promptTextContent = rpcObject({ type: rpcLiteral("text"), text: rpcString() });
 const promptImageContent = rpcObject({
   type: rpcLiteral("image"),
   mediaType: rpcEnum(INLINE_IMAGE_MEDIA_TYPES),
   data: rpcString(),
   name: rpcOptional(rpcString()),
+  attachmentId: rpcOptional(rpcString({ minLength: 36, maxLength: 36 })),
 });
 function isComposerJsonValue(value: unknown, depth = 0): value is WorkbenchComposerJsonValue {
   if (depth > 32) return false;
@@ -223,7 +228,9 @@ const composerSubmission: RpcValidator<WorkbenchComposerSubmission> = (value, pa
 const sessionPromptPayload = rpcObject({
   sessionId: nonEmptyString,
   mode: rpcEnum(["queue", "steer"]),
-  content: rpcArray(rpcUnion([promptTextContent, promptImageContent, promptAttachmentContent])),
+  content: rpcArray(
+    rpcUnion([promptTextContent, promptImageContent, promptAttachmentContent, promptFileContent]),
+  ),
   clientTimeZone: rpcOptional(rpcString()),
   composer: rpcOptional(composerSubmission),
 });

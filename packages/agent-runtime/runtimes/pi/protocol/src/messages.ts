@@ -1,4 +1,4 @@
-import type { PastedTextAttachment } from "@workbench/contracts/composer";
+import type { ManagedFileAttachment, PastedTextAttachment } from "@workbench/contracts/composer";
 import type {
   ComposerSubmission as WorkbenchComposerSubmission,
   ComposerUserProjection as WorkbenchComposerUserProjection,
@@ -55,6 +55,10 @@ export interface PiImageContent {
   data: string;
   mimeType: string;
   name?: string;
+  /** Draft transport identity before the Runtime resolves the canonical descriptor. */
+  attachmentId?: string;
+  /** Runtime-owned source retained with queue and canonical Composer projections. */
+  attachment?: ManagedFileAttachment;
 }
 
 export interface PiToolCallContent {
@@ -295,12 +299,16 @@ export interface PiPromptCommand {
 export type PiQueueMode = "steer" | "followUp";
 
 export interface PiQueuedPrompt {
+  fileAttachmentIds?: string[];
+  fileAttachments?: ManagedFileAttachment[];
   textAttachmentIds?: string[];
   /** Display metadata retained beside the compiled queue text. */
   textAttachments?: PastedTextAttachment[];
   sourceText?: string;
   message: string;
   images?: PiImageContent[];
+  /** Native/path decision made when the managed Composer image submission is admitted. */
+  imageDelivery?: "native" | "path";
   composer?: WorkbenchComposerSubmission;
 }
 

@@ -9,9 +9,13 @@ import type {
   ConversationSnapshot,
 } from "@workbench/agent-runtime-contracts/conversation";
 import {
+  MANAGED_IMAGE_MEDIA_TYPES,
   PASTED_TEXT_MAX_BYTES,
   PASTED_TEXT_MAX_COUNT,
+  type ManagedFileAttachment,
   type PastedTextAttachment,
+  type ReadManagedFileAttachmentRequest,
+  type ReadManagedFileAttachmentResult,
   type ReadPastedTextAttachmentRequest,
   type ReadPastedTextAttachmentResult,
 } from "@workbench/agent-runtime-contracts/composer-attachments";
@@ -169,6 +173,36 @@ function submissionMessage(
               sourceType: "id" as const,
               textAttachment: attachment.attachment,
             },
+          ],
+          status: { type: "complete" as const },
+        };
+      }
+      if (attachment.kind === "managed-file") {
+        if (attachment.status !== "ready") throw new Error("File attachment is not ready.");
+        const isImage = MANAGED_IMAGE_MEDIA_TYPES.some(
+          (mediaType) => mediaType === attachment.mediaType,
+        );
+        return {
+          id: attachment.key,
+          type: "image" as const,
+          name: attachment.name,
+          contentType: attachment.mediaType,
+          content: [
+            isImage
+              ? {
+                  type: "image" as const,
+                  image: attachment.source,
+                  filename: attachment.name,
+                  fileAttachment: attachment.attachment,
+                }
+              : {
+                  type: "file" as const,
+                  data: attachment.attachment.id,
+                  mimeType: attachment.mediaType,
+                  sourceType: "id" as const,
+                  filename: attachment.name,
+                  fileAttachment: attachment.attachment,
+                },
           ],
           status: { type: "complete" as const },
         };
@@ -609,6 +643,7 @@ export class PiClientSession implements ConversationSession {
       addPastedTextAttachment: (text) => this.addPastedTextAttachment(text),
       retryPastedTextAttachment: (key) => this.uploadPastedTextAttachment(key),
       readPastedTextAttachment: (input) => this.readPastedTextAttachment(input),
+      readManagedFileAttachment: (input) => this.readManagedFileAttachment(input),
       removeComposerAttachment: (key) => this.removeComposerAttachment(key),
       dismissComposerError: () => this.dismissComposerError(),
       send: (input) => this.submitComposer("send", input),
@@ -707,10 +742,10 @@ export class PiClientSession implements ConversationSession {
   }
 
   private async addComposerAttachment(attachment: ComposerAttachment): Promise<void> {
-    if (attachment.kind === "pasted-text")
-      throw new TypeError("Use addPastedTextAttachment to upload text.");
+    if (attachment.kind === "pasted-text" || attachment.kind === "managed-file")
+      throw new TypeError("Use the managed Composer attachment APIs.");
     const mediaType = attachment.mediaType ?? /^data:([^;,]+)/u.exec(attachment.source)?.[1];
-    if (!mediaType?.startsWith("image/") || !attachment.source.startsWith("data:")) {
+    if (!mediaType || !attachment.source.startsWith("data:")) {
       const error = Object.freeze({
         code: "attachment-invalid",
         message: "Unsupported Composer attachment",
@@ -720,9 +755,18 @@ export class PiClientSession implements ConversationSession {
       throw new TypeError(error.message);
     }
     if (this.composerValue.attachments.some(({ key }) => key === attachment.key)) return;
-    this.replaceComposer({
-      attachments: Object.freeze([...this.composerValue.attachments, Object.freeze(attachment)]),
+    const managed = Object.freeze({
+      kind: "managed-file" as const,
+      key: attachment.key,
+      name: attachment.name,
+      source: attachment.source,
+      mediaType,
+      status: "saving" as const,
     });
+    this.replaceComposer({
+      attachments: Object.freeze([...this.composerValue.attachments, managed]),
+    });
+    await this.uploadManagedFileAttachment(managed.key);
   }
 
   private removeComposerAttachment(key: string): void {
@@ -732,12 +776,13 @@ export class PiClientSession implements ConversationSession {
     );
     if (attachments.length === this.composerValue.attachments.length) return;
     this.replaceComposer({ attachments: Object.freeze(attachments) });
-    if (removed?.kind === "pasted-text") this.discardPastedTextAttachment(key);
+    if (removed?.kind === "pasted-text" || removed?.kind === "managed-file")
+      this.discardComposerAttachment(key);
   }
 
-  private discardPastedTextAttachment(id: string): void {
+  private discardComposerAttachment(id: string): void {
     void callPiRpc("composer.attachments.discard", { id }, this.manager.rpcTransportOptions).catch(
-      (error) => console.warn("[workbench] discard text attachment failed", error),
+      (error) => console.warn("[workbench] discard Composer attachment failed", error),
     );
   }
 
@@ -760,18 +805,14 @@ export class PiClientSession implements ConversationSession {
     await this.uploadPastedTextAttachment(key);
   }
 
-  private readonly pastedTextUploads = new Set<string>();
+  private readonly pastedTextUploads = new Map<string, Promise<void>>();
 
-  private async uploadPastedTextAttachment(key: string): Promise<void> {
+  private uploadPastedTextAttachment(key: string): Promise<void> {
+    const activeUpload = this.pastedTextUploads.get(key);
+    if (activeUpload) return activeUpload;
     const item = this.composerValue.attachments.find((attachment) => attachment.key === key);
-    if (
-      this.disposed ||
-      this.pastedTextUploads.has(key) ||
-      item?.kind !== "pasted-text" ||
-      item.status === "ready"
-    )
-      return;
-    this.pastedTextUploads.add(key);
+    if (this.disposed || item?.kind !== "pasted-text" || item.status === "ready")
+      return Promise.resolve();
     const saving = Object.freeze({ ...item, status: "saving" as const, error: undefined });
     this.replaceComposer({
       attachments: Object.freeze(
@@ -780,54 +821,126 @@ export class PiClientSession implements ConversationSession {
         ),
       ),
     });
-    try {
-      if (new TextEncoder().encode(item.text).length > PASTED_TEXT_MAX_BYTES)
-        throw new PiApiError("attachment-too-large", 400);
-      if (this.composerValue.attachments.length > PASTED_TEXT_MAX_COUNT)
-        throw new PiApiError("too-many-attachments", 400);
-      const attachment = await callPiRpc<{ id: string; text: string }, PastedTextAttachment>(
-        "composer.attachments.create",
-        { id: key, text: item.text },
-        this.manager.rpcTransportOptions,
-      );
-      if (this.disposed || !this.composerValue.attachments.includes(saving)) {
-        this.discardPastedTextAttachment(key);
-        return;
+    const upload = (async () => {
+      try {
+        if (new TextEncoder().encode(item.text).length > PASTED_TEXT_MAX_BYTES)
+          throw new PiApiError("attachment-too-large", 400);
+        if (this.composerValue.attachments.length > PASTED_TEXT_MAX_COUNT)
+          throw new PiApiError("too-many-attachments", 400);
+        const attachment = await callPiRpc<{ id: string; text: string }, PastedTextAttachment>(
+          "composer.attachments.create",
+          { id: key, text: item.text },
+          this.manager.rpcTransportOptions,
+        );
+        if (this.disposed || !this.composerValue.attachments.includes(saving)) {
+          this.discardComposerAttachment(key);
+          return;
+        }
+        this.replaceComposer({
+          attachments: Object.freeze(
+            this.composerValue.attachments.map((entry) =>
+              entry === saving
+                ? Object.freeze({
+                    kind: "pasted-text" as const,
+                    key,
+                    name: attachment.name,
+                    mediaType: "text/plain" as const,
+                    status: "ready" as const,
+                    attachment,
+                  })
+                : entry,
+            ),
+          ),
+        });
+      } catch (error) {
+        if (this.disposed || !this.composerValue.attachments.includes(saving)) return;
+        this.replaceComposer({
+          attachments: Object.freeze(
+            this.composerValue.attachments.map((entry) =>
+              entry === saving
+                ? Object.freeze({
+                    ...saving,
+                    status: "error" as const,
+                    error: error instanceof PiApiError ? error.code : "text-attachment-failed",
+                  })
+                : entry,
+            ),
+          ),
+        });
       }
-      this.replaceComposer({
-        attachments: Object.freeze(
-          this.composerValue.attachments.map((entry) =>
-            entry === saving
-              ? Object.freeze({
-                  kind: "pasted-text" as const,
-                  key,
-                  name: attachment.name,
-                  mediaType: "text/plain" as const,
-                  status: "ready" as const,
-                  attachment,
-                })
-              : entry,
-          ),
+    })().finally(() => this.pastedTextUploads.delete(key));
+    this.pastedTextUploads.set(key, upload);
+    return upload;
+  }
+
+  private readonly managedFileUploads = new Map<string, Promise<void>>();
+
+  private uploadManagedFileAttachment(key: string): Promise<void> {
+    const activeUpload = this.managedFileUploads.get(key);
+    if (activeUpload) return activeUpload;
+    const item = this.composerValue.attachments.find((attachment) => attachment.key === key);
+    if (this.disposed || item?.kind !== "managed-file" || item.status === "ready")
+      return Promise.resolve();
+    const saving = Object.freeze({ ...item, status: "saving" as const, error: undefined });
+    this.replaceComposer({
+      attachments: Object.freeze(
+        this.composerValue.attachments.map((attachment) =>
+          attachment === item ? saving : attachment,
         ),
-      });
-    } catch (error) {
-      if (this.disposed || !this.composerValue.attachments.includes(saving)) return;
-      this.replaceComposer({
-        attachments: Object.freeze(
-          this.composerValue.attachments.map((entry) =>
-            entry === saving
-              ? Object.freeze({
-                  ...saving,
-                  status: "error" as const,
-                  error: error instanceof PiApiError ? error.code : "text-attachment-failed",
-                })
-              : entry,
+      ),
+    });
+    const upload = (async () => {
+      try {
+        const match = /^data:([^;,]+);base64,([\s\S]*)$/u.exec(item.source);
+        if (!match || match[1] !== item.mediaType) throw new PiApiError("attachment-invalid", 400);
+        const attachment = await callPiRpc<
+          { id: string; name: string; mediaType: string; data: string },
+          ManagedFileAttachment
+        >(
+          "composer.attachments.createFile",
+          { id: key, name: item.name, mediaType: item.mediaType, data: match[2]! },
+          this.manager.rpcTransportOptions,
+        );
+        if (this.disposed || !this.composerValue.attachments.includes(saving)) {
+          this.discardComposerAttachment(key);
+          return;
+        }
+        this.replaceComposer({
+          attachments: Object.freeze(
+            this.composerValue.attachments.map((entry) =>
+              entry === saving
+                ? Object.freeze({
+                    kind: "managed-file" as const,
+                    key,
+                    name: attachment.name,
+                    source: `data:${attachment.mediaType};base64,${match[2]!}`,
+                    mediaType: attachment.mediaType,
+                    status: "ready" as const,
+                    attachment,
+                  })
+                : entry,
+            ),
           ),
-        ),
-      });
-    } finally {
-      this.pastedTextUploads.delete(key);
-    }
+        });
+      } catch (error) {
+        if (this.disposed || !this.composerValue.attachments.includes(saving)) return;
+        this.replaceComposer({
+          attachments: Object.freeze(
+            this.composerValue.attachments.map((entry) =>
+              entry === saving
+                ? Object.freeze({
+                    ...saving,
+                    status: "error" as const,
+                    error: error instanceof PiApiError ? error.code : "file-attachment-failed",
+                  })
+                : entry,
+            ),
+          ),
+        });
+      }
+    })().finally(() => this.managedFileUploads.delete(key));
+    this.managedFileUploads.set(key, upload);
+    return upload;
   }
 
   private readPastedTextAttachment(
@@ -836,9 +949,37 @@ export class PiClientSession implements ConversationSession {
     return callPiRpc("composer.attachments.read", input, this.manager.rpcTransportOptions);
   }
 
+  private readManagedFileAttachment(
+    input: ReadManagedFileAttachmentRequest,
+  ): Promise<ReadManagedFileAttachmentResult> {
+    return callPiRpc("composer.attachments.readFile", input, this.manager.rpcTransportOptions);
+  }
+
   private dismissComposerError(): void {
     if (!this.composerValue.error && this.composerValue.phase !== "error") return;
     this.replaceComposer({ phase: "idle", error: undefined });
+  }
+
+  private async prepareComposerAttachments(
+    attachments: readonly ComposerAttachment[],
+  ): Promise<readonly ComposerAttachment[] | undefined> {
+    await Promise.all(
+      attachments.map((attachment) => {
+        if (attachment.kind === "pasted-text" && attachment.status !== "ready")
+          return this.uploadPastedTextAttachment(attachment.key);
+        if (attachment.kind === "managed-file" && attachment.status !== "ready")
+          return this.uploadManagedFileAttachment(attachment.key);
+        return Promise.resolve();
+      }),
+    );
+    if (this.disposed) return undefined;
+    const currentByKey = new Map(
+      this.composerValue.attachments.map((attachment) => [attachment.key, attachment]),
+    );
+    const prepared = attachments.map((attachment) => currentByKey.get(attachment.key));
+    return prepared.every((attachment) => attachment !== undefined)
+      ? (prepared as ComposerAttachment[])
+      : undefined;
   }
 
   private async submitComposer(
@@ -846,14 +987,8 @@ export class PiClientSession implements ConversationSession {
     submission: ComposerSubmission,
   ): Promise<void> {
     if (this.disposed || this.composerValue.phase === "submitting") return;
-    if (
-      this.composerValue.attachments.some(
-        (attachment) => attachment.kind === "pasted-text" && attachment.status !== "ready",
-      )
-    )
-      return;
     // Delivery mode belongs to dispatch; submission.mode is model-facing request configuration.
-    const submitted = Object.freeze({ ...this.composerValue, mode });
+    let submitted = Object.freeze({ ...this.composerValue, mode });
     if (
       !submission.sourceText.trim() &&
       !submission.text.trim() &&
@@ -863,10 +998,49 @@ export class PiClientSession implements ConversationSession {
       return;
     }
 
+    if (
+      submitted.attachments.some(
+        (attachment) =>
+          (attachment.kind === "pasted-text" || attachment.kind === "managed-file") &&
+          attachment.status !== "ready",
+      )
+    ) {
+      this.replaceComposer({ phase: "submitting", error: undefined });
+      const prepared = await this.prepareComposerAttachments(submitted.attachments);
+      if (!prepared) {
+        this.replaceComposer({ phase: "idle" });
+        return;
+      }
+      const failed = prepared.find(
+        (attachment) =>
+          (attachment.kind === "pasted-text" || attachment.kind === "managed-file") &&
+          attachment.status !== "ready",
+      );
+      if (failed) {
+        const error = Object.freeze({
+          code:
+            failed.error === "attachment-too-large" ||
+            failed.error === "too-many-attachments" ||
+            failed.error === "attachment-invalid"
+              ? failed.error
+              : "attachment-invalid",
+          message: failed.error ?? "Attachment upload failed.",
+          recoverable: true,
+        });
+        this.replaceComposer({ phase: "error", error });
+        throw new Error(error.message);
+      }
+      submitted = Object.freeze({ ...submitted, attachments: Object.freeze(prepared) });
+    }
+
+    const submittedKeys = new Set(submitted.attachments.map((attachment) => attachment.key));
+    const current = this.composerValue;
     this.composerValue = Object.freeze({
-      ...this.composerValue,
-      text: "",
-      attachments: EMPTY_COMPOSER_ATTACHMENTS,
+      ...current,
+      text: current.text === submitted.text ? "" : current.text,
+      attachments: Object.freeze(
+        current.attachments.filter((attachment) => !submittedKeys.has(attachment.key)),
+      ),
       mode,
       phase: "submitting",
       error: undefined,
@@ -890,10 +1064,10 @@ export class PiClientSession implements ConversationSession {
     if (!item) return undefined;
     for (const attachment of this.composerValue.attachments) {
       if (
-        attachment.kind === "pasted-text" &&
+        (attachment.kind === "pasted-text" || attachment.kind === "managed-file") &&
         !item.attachments.some((entry) => entry.key === attachment.key)
       )
-        this.discardPastedTextAttachment(attachment.key);
+        this.discardComposerAttachment(attachment.key);
     }
     this.replaceComposer({
       text: item.text,
@@ -933,7 +1107,8 @@ export class PiClientSession implements ConversationSession {
   dispose(): void {
     if (this.disposed) return;
     for (const attachment of this.composerValue.attachments) {
-      if (attachment.kind === "pasted-text") this.discardPastedTextAttachment(attachment.key);
+      if (attachment.kind === "pasted-text" || attachment.kind === "managed-file")
+        this.discardComposerAttachment(attachment.key);
     }
     this.disposed = true;
     this.historyRebaselineGeneration += 1;
@@ -1362,6 +1537,7 @@ export class PiClientSession implements ConversationSession {
             prompt.text,
             prompt.images,
             prompt.textAttachments.map((attachment) => attachment.id),
+            prompt.fileAttachments.map((attachment) => attachment.id),
             workspaceFeedbackClaim?.items,
           ),
           ...(prompt.composer === undefined ? {} : { composer: prompt.composer }),
@@ -1667,6 +1843,7 @@ export class PiClientSession implements ConversationSession {
             prompt.message,
             prompt.images,
             prompt.textAttachmentIds,
+            prompt.fileAttachmentIds,
             workspaceFeedbackClaim?.items,
           ),
           ...(prompt.composer === undefined ? {} : { composer: prompt.composer }),

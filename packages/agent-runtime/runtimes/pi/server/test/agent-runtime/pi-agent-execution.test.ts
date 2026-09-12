@@ -53,7 +53,17 @@ test("maps the neutral prompt and provenance to Pi without leaking Pi into the p
       prompt: {
         text: "inspect",
         attachments: [
-          { kind: "image", data: "image-data", mediaType: "image/png", name: "input.png" },
+          {
+            kind: "file-reference",
+            attachmentId: "d719e248-b35d-4e37-b60f-b9040527c27a",
+          },
+          {
+            kind: "image",
+            data: "image-data",
+            mediaType: "image/png",
+            name: "input.png",
+            attachmentId: "8b95d58b-3189-45f0-9be6-f7a9e4de7248",
+          },
         ],
         composer,
       },
@@ -69,12 +79,14 @@ test("maps the neutral prompt and provenance to Pi without leaking Pi into the p
         mode: "followUp",
         prompt: {
           message: "inspect",
+          fileAttachmentIds: ["d719e248-b35d-4e37-b60f-b9040527c27a"],
           images: [
             {
               type: "image",
               data: "image-data",
               mimeType: "image/png",
               name: "input.png",
+              attachmentId: "8b95d58b-3189-45f0-9be6-f7a9e4de7248",
             },
           ],
         },

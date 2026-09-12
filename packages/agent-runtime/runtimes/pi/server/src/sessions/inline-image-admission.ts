@@ -1,9 +1,9 @@
 import type { PiImageContent } from "@workbench/agent-runtime-pi-protocol/messages";
+import { detectManagedImageMediaType } from "@workbench/agent-runtime-contracts/composer-attachments";
 import {
   INLINE_IMAGE_LIMITS,
   isInlineImageMediaType,
   type InlineImageAdmissionErrorReason,
-  type InlineImageMediaType,
 } from "@workbench/agent-runtime-pi-protocol/attachments";
 
 const MAX_INLINE_IMAGE_BASE64_LENGTH =
@@ -49,37 +49,6 @@ function canonicalBase64DecodedBytes(value: string): number | undefined {
   return (value.length / 4) * 3 - padding;
 }
 
-function detectedImageMediaType(bytes: Uint8Array): InlineImageMediaType | undefined {
-  if (
-    bytes.length >= 8 &&
-    bytes[0] === 0x89 &&
-    bytes[1] === 0x50 &&
-    bytes[2] === 0x4e &&
-    bytes[3] === 0x47 &&
-    bytes[4] === 0x0d &&
-    bytes[5] === 0x0a &&
-    bytes[6] === 0x1a &&
-    bytes[7] === 0x0a
-  ) {
-    return "image/png";
-  }
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
-    return "image/jpeg";
-  }
-  if (bytes.length >= 6) {
-    const gifHeader = String.fromCharCode(...bytes.subarray(0, 6));
-    if (gifHeader === "GIF87a" || gifHeader === "GIF89a") return "image/gif";
-  }
-  if (
-    bytes.length >= 12 &&
-    String.fromCharCode(...bytes.subarray(0, 4)) === "RIFF" &&
-    String.fromCharCode(...bytes.subarray(8, 12)) === "WEBP"
-  ) {
-    return "image/webp";
-  }
-  return undefined;
-}
-
 export function admitInlineImages(parts: readonly InlineImageAdmissionInput[]): PiImageContent[] {
   if (parts.length > INLINE_IMAGE_LIMITS.maxCount) {
     fail("TOO_MANY_INLINE_IMAGES", "The prompt contains too many inline images.");
@@ -112,7 +81,7 @@ export function admitInlineImages(parts: readonly InlineImageAdmissionInput[]): 
     if (bytes.length !== decodedBytes || bytes.toString("base64") !== part.data) {
       fail("INVALID_IMAGE_BASE64", "An inline image is not canonical base64.");
     }
-    const detected = detectedImageMediaType(bytes);
+    const detected = detectManagedImageMediaType(bytes);
     if (detected === undefined) {
       fail(
         "UNRECOGNIZED_IMAGE_FORMAT",

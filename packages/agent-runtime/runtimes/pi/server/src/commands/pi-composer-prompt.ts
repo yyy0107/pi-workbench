@@ -9,6 +9,25 @@ export interface PiComposerModelInput {
   prompt: string;
   userText: string;
   context: string[];
+  /** Text content parts appended after native image parts in the same user turn. */
+  trailingUserText?: string[];
+}
+
+export function compilePiComposerTransportPrompt(
+  input: Pick<PiComposerModelInput, "context" | "trailingUserText" | "userText">,
+): string {
+  const trailingFrame = input.trailingUserText?.length
+    ? [
+        "<workbench-user-attachment-parts>",
+        JSON.stringify(input.trailingUserText),
+        "</workbench-user-attachment-parts>",
+      ].join("\n")
+    : undefined;
+  return [
+    ...input.context,
+    ...(trailingFrame ? [trailingFrame] : []),
+    `<user-request>\n${input.userText}\n</user-request>`,
+  ].join("\n\n");
 }
 
 function escapeXml(value: string): string {
@@ -24,6 +43,7 @@ function escapeXml(value: string): string {
 export function compilePiComposerPrompt(
   request: WorkbenchResolvedAgentRequest,
   textAttachments: readonly PastedTextAttachment[] = [],
+  trailingUserText: readonly string[] = [],
 ): PiComposerModelInput {
   const context: string[] = [];
   const hasConfig =
@@ -93,11 +113,14 @@ export function compilePiComposerPrompt(
       ].join("\n"),
     );
   }
-  return {
+  const input: PiComposerModelInput = {
     version: 1,
-    // The transport frame also prevents Pi from executing an expanded template as a command.
-    prompt: [...context, `<user-request>\n${request.userText}\n</user-request>`].join("\n\n"),
+    prompt: "",
     userText: request.userText,
     context,
+    ...(trailingUserText.length ? { trailingUserText: [...trailingUserText] } : {}),
   };
+  // The transport frame also prevents Pi from executing an expanded template as a command.
+  input.prompt = compilePiComposerTransportPrompt(input);
+  return input;
 }

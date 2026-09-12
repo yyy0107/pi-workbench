@@ -128,6 +128,7 @@ test("keeps current Session identity stable across draft promotion", (t) => {
   assert.strictEqual(runtime.session("draft-thread"), session);
   assert.deepEqual(Object.keys(session.actions).sort(), [
     "addComposerAttachment",
+    "addPastedTextAttachment",
     "cancel",
     "dismissComposerError",
     "editQueueItem",
@@ -135,10 +136,13 @@ test("keeps current Session identity stable across draft promotion", (t) => {
     "loadOlder",
     "mutateQueueItem",
     "queue",
+    "readManagedFileAttachment",
+    "readPastedTextAttachment",
     "removeComposerAttachment",
     "resume",
     "resumeLatest",
     "retry",
+    "retryPastedTextAttachment",
     "selectBranch",
     "send",
     "setComposerText",

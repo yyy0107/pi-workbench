@@ -139,3 +139,32 @@ test("retains text attachment cards and model paths across queue snapshots, stee
   assert.equal(queue.items()[0]!.message.content[0]!.text, "edited");
   assert.equal(queue.items()[0]!.message.content[1]!.attachmentId, attachment.id);
 });
+
+test("retains managed files across Pi text-only queue snapshots", () => {
+  const attachment = {
+    id: "d719e248-b35d-4e37-b60f-b9040527c27a",
+    name: "slides.pptx",
+    mediaType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    path: "/runtime/attachments/2026-09-12/pptx/id/slides.pptx",
+    bytes: 1024,
+  };
+  const queue = new SessionQueueProjection({ createId: ids() });
+  queue.append("followUp", {
+    message: "compiled model path",
+    sourceText: "review slides",
+    fileAttachmentIds: [attachment.id],
+    fileAttachments: [attachment],
+  });
+  queue.reconcile([], [{ message: "compiled model path" }]);
+
+  assert.deepEqual(queue.items()[0]!.message.content, [
+    { type: "text", text: "review slides" },
+    {
+      type: "file",
+      mediaType: attachment.mediaType,
+      data: attachment.id,
+      name: attachment.name,
+      attachment,
+    },
+  ]);
+});

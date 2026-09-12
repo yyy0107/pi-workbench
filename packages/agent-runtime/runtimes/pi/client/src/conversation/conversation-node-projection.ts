@@ -204,6 +204,8 @@ function blocks(message: ThreadMessage): MessageBlock[] {
           mediaType: part.mimeType,
           ...(part.sourceType === undefined ? {} : { sourceType: part.sourceType }),
           ...(part.textAttachment === undefined ? {} : { textAttachment: part.textAttachment }),
+          ...(part.fileAttachment === undefined ? {} : { fileAttachment: part.fileAttachment }),
+          ...(part.imageAttachment === undefined ? {} : { imageAttachment: part.imageAttachment }),
         });
         break;
       case "source":

@@ -1,11 +1,12 @@
 "use client";
 
-import { ChevronRightIcon, FileTextIcon, ScanTextIcon, XIcon } from "lucide-react";
+import { ChevronRightIcon, ScanTextIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 import type {
   ComposerAttachment,
   InlineComposerAttachment,
+  ManagedFileComposerAttachment,
   PastedTextComposerAttachment,
 } from "@workbench/agent-runtime-contracts/conversation";
 
@@ -14,11 +15,11 @@ import { Button } from "../ui/button";
 import { PastedTextAttachmentPreview } from "./pasted-text-attachment-preview";
 
 import { TooltipIconButton } from "../ui/tooltip-icon-button";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { useI18n } from "../i18n";
 import { cn } from "../utils";
+import { FileTypeIcon } from "../workspace-file-tree";
 
 function AttachmentPreview({ source }: Readonly<{ source: string }>) {
   const { t } = useI18n();
@@ -40,12 +41,28 @@ function AttachmentTile({
   attachment,
   onRemove,
 }: Readonly<{
-  attachment: InlineComposerAttachment;
+  attachment: InlineComposerAttachment | ManagedFileComposerAttachment;
   onRemove(key: string): void;
 }>) {
   const { t } = useI18n();
-  const isImage = attachment.mediaType?.startsWith("image/") === true;
+  const sourceMediaType = /^data:([^;,]+)/u.exec(attachment.source)?.[1];
+  const isImage =
+    attachment.mediaType?.startsWith("image/") === true ||
+    sourceMediaType?.startsWith("image/") === true;
+  const [failedPreviewSource, setFailedPreviewSource] = useState<string>();
+  const previewSource =
+    isImage && attachment.source && attachment.source !== failedPreviewSource
+      ? attachment.source
+      : undefined;
   const typeLabel = isImage ? t("assistant.attachment.image") : t("assistant.attachment.document");
+  const statusLabel =
+    attachment.kind === "managed-file"
+      ? attachment.status === "saving"
+        ? t("assistant.attachment.statusUploading")
+        : attachment.status === "error"
+          ? t("assistant.attachment.statusFailed")
+          : ""
+      : "";
   const tile = (
     <div
       className={cn(
@@ -55,18 +72,26 @@ function AttachmentTile({
       )}
       role={isImage ? "button" : "group"}
       tabIndex={isImage ? 0 : undefined}
-      aria-label={t("assistant.attachment.accessibleLabel", { type: typeLabel, status: "" })}
+      aria-label={t("assistant.attachment.accessibleLabel", {
+        type: typeLabel,
+        status: statusLabel,
+      })}
     >
-      <Avatar className="h-full w-full rounded-none after:hidden">
-        <AvatarImage
-          src={isImage ? attachment.source : undefined}
+      {previewSource ? (
+        <img
+          src={previewSource}
           alt={t("assistant.attachment.previewAlt")}
-          className="rounded-none object-cover"
+          className="block h-full w-full object-cover"
+          onError={() => setFailedPreviewSource(previewSource)}
         />
-        <AvatarFallback>
-          <FileTextIcon className="text-muted-foreground/80 aui-composer-icon-size-attachment" />
-        </AvatarFallback>
-      </Avatar>
+      ) : (
+        <div className="flex h-full w-full items-center justify-center">
+          <FileTypeIcon
+            path={attachment.name}
+            className="size-[var(--icon-size-xxl)] [&>img]:size-full"
+          />
+        </div>
+      )}
     </div>
   );
 
@@ -105,7 +130,11 @@ function AttachmentTile({
             <XIcon />
           </TooltipIconButton>
         </div>
-        <TooltipContent side="top">{attachment.name}</TooltipContent>
+        <TooltipContent side="top">
+          {attachment.kind === "managed-file" && attachment.status === "error"
+            ? t("assistant.attachment.uploadFailed")
+            : attachment.name}
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );

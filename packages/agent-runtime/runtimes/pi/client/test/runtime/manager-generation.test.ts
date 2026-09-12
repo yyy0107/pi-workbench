@@ -146,7 +146,35 @@ test("keeps Composer delivery modes out of model request configuration", async (
 });
 
 test("restores the submitted draft alongside typing added while a send is pending", async (t) => {
-  const manager = new PiSessionManager();
+  const manager = new PiSessionManager({
+    transport: {
+      http: async (_path, init) => {
+        const request = JSON.parse(String(init?.body));
+        if (request.method === "composer.attachments.discard") {
+          return Response.json({
+            type: "server-response",
+            rpcId: request.rpcId,
+            result: { ok: true, value: { discarded: true } },
+          });
+        }
+        assert.equal(request.method, "composer.attachments.createFile");
+        return Response.json({
+          type: "server-response",
+          rpcId: request.rpcId,
+          result: {
+            ok: true,
+            value: {
+              id: request.payload.id,
+              name: request.payload.name,
+              mediaType: request.payload.mediaType,
+              path: `/attachments/${request.payload.id}/${request.payload.name}`,
+              bytes: Buffer.from(request.payload.data, "base64").length,
+            },
+          },
+        });
+      },
+    },
+  });
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session");
   let rejectSend: ((error: Error) => void) | undefined;

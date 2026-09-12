@@ -1,6 +1,6 @@
 import { REVIEW_ENTRY_TYPE, getReviewSnapshots } from "../internal-extensions/workspace-review";
 import type { GitReviewSnapshot } from "@workbench/workspace-server/git";
-import { getComposerTextAttachmentStore } from "../attachments/composer-text-attachments";
+import { getComposerAttachmentStore } from "../attachments/composer-text-attachments";
 import { existsSync, mkdtempSync, rmdirSync, statSync, unlinkSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { open, readdir, readFile, stat } from "node:fs/promises";
@@ -77,6 +77,7 @@ import {
 } from "@workbench/contracts/composer/request";
 import {
   compilePiComposerPrompt,
+  compilePiComposerTransportPrompt,
   PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE,
 } from "../commands/pi-composer-prompt";
 import {
@@ -109,6 +110,11 @@ import {
   sessionContextPolicyMarker,
 } from "./session-context-policy";
 import { deriveSessionDisplayTitle } from "@workbench/agent-runtime-pi-shared/sessions";
+import {
+  MANAGED_IMAGE_MEDIA_TYPES,
+  type ManagedFileAttachment,
+  type ManagedImageAttachment,
+} from "@workbench/agent-runtime-contracts/composer-attachments";
 import {
   applySessionMessageDelta,
   copyPiAssistantMessage,
@@ -744,12 +750,19 @@ export type PromptQueueMutation =
 function copyQueuedPrompts(prompts: readonly PiQueuedPrompt[]): PiQueuedPrompt[] {
   return prompts.map((prompt) => ({
     message: prompt.message,
+    ...(prompt.fileAttachmentIds?.length
+      ? { fileAttachmentIds: [...prompt.fileAttachmentIds] }
+      : {}),
+    ...(prompt.fileAttachments?.length
+      ? { fileAttachments: prompt.fileAttachments.map((attachment) => ({ ...attachment })) }
+      : {}),
     ...(prompt.textAttachmentIds?.length
       ? { textAttachmentIds: [...prompt.textAttachmentIds] }
       : {}),
     ...(prompt.textAttachments?.length ? { textAttachments: prompt.textAttachments } : {}),
     ...(prompt.sourceText === undefined ? {} : { sourceText: prompt.sourceText }),
     ...(prompt.images?.length ? { images: prompt.images.map((image) => ({ ...image })) } : {}),
+    ...(prompt.imageDelivery === undefined ? {} : { imageDelivery: prompt.imageDelivery }),
   }));
 }
 
@@ -801,9 +814,60 @@ export function textOnlyModelContext(messages: readonly unknown[]): readonly unk
 }
 
 function promptsHaveImages(prompts: ReadonlyPromptQueueSnapshot): boolean {
-  return [...prompts.steering, ...prompts.followUp].some((prompt) =>
-    prompt.images?.some((image) => image.type === "image" && Boolean(image.data)),
+  return [...prompts.steering, ...prompts.followUp].some(
+    (prompt) => prompt.imageDelivery === "native" || hasUnmanagedImages(prompt.images),
   );
+}
+
+function hasUnmanagedImages(images: readonly PiImageContent[] | undefined): boolean {
+  return images?.some((image) => !image.attachment && !image.attachmentId) ?? false;
+}
+
+function nativeImagesForModel(
+  images: readonly PiImageContent[] | undefined,
+  model: { input: readonly string[] } | undefined,
+  delivery?: PiQueuedPrompt["imageDelivery"],
+): PiImageContent[] | undefined {
+  if (!images?.length) return undefined;
+  if (delivery === "path") return hasUnmanagedImages(images) ? [...images] : undefined;
+  if (delivery === "native")
+    return images.map(
+      ({ attachment: _attachment, attachmentId: _attachmentId, ...image }) => image,
+    );
+  if (!model?.input.includes("image")) {
+    return hasUnmanagedImages(images) ? [...images] : undefined;
+  }
+  return images.map(({ attachment: _attachment, attachmentId: _attachmentId, ...image }) => image);
+}
+
+function managedImageTrailingText(
+  images: readonly PiImageContent[],
+  supportsImages: boolean,
+): string[] {
+  return images.flatMap((image) => {
+    const attachment = image.attachment;
+    if (!attachment) return [];
+    const source = `[Image: source: ${attachment.path}]`;
+    return supportsImages
+      ? [source]
+      : [
+          `[Attached ${attachment.mediaType}: ${attachment.name}] [Media omitted from provider request because the selected model does not support image input.]`,
+          source,
+        ];
+  });
+}
+
+function managedFileTrailingText(files: readonly ManagedFileAttachment[]): string[] {
+  return files.flatMap((attachment) => [
+    `[Attached ${attachment.mediaType}: ${attachment.name}]`,
+    `[File: source: ${attachment.path}]`,
+  ]);
+}
+
+function isNativeImageAttachment(
+  attachment: ManagedFileAttachment,
+): attachment is ManagedImageAttachment {
+  return MANAGED_IMAGE_MEDIA_TYPES.some((mediaType) => mediaType === attachment.mediaType);
 }
 
 function imageUnsupported(): PiServerError {
@@ -1944,7 +2008,14 @@ class HostedPiSession {
       });
       if (resolvedPrompt) {
         try {
-          await this.promptNow(resolvedPrompt.message, resolvedPrompt.images);
+          await this.promptNow(
+            resolvedPrompt.message,
+            nativeImagesForModel(
+              resolvedPrompt.images,
+              this.session.model,
+              resolvedPrompt.imageDelivery,
+            ),
+          );
         } catch (error) {
           const projection = this.pendingComposerUserProjections.at(-1);
           if (projection?.promptText === resolvedPrompt.message) {
@@ -2005,7 +2076,26 @@ class HostedPiSession {
               ]
             : [],
         );
-        if (images.length > 0 || composerDetails.textAttachments?.length) {
+        const managedFiles =
+          composerDetails.fileAttachments ?? composerDetails.imageAttachments ?? [];
+        images.push(
+          ...managedFiles.filter(isNativeImageAttachment).map((attachment) => ({
+            type: "image" as const,
+            data: "",
+            mimeType: attachment.mediaType,
+            name: attachment.name,
+            attachmentId: attachment.id,
+            attachment,
+          })),
+        );
+        const fileAttachmentIds = managedFiles
+          .filter((attachment) => !isNativeImageAttachment(attachment))
+          .map((attachment) => attachment.id);
+        if (
+          images.length > 0 ||
+          fileAttachmentIds.length > 0 ||
+          composerDetails.textAttachments?.length
+        ) {
           await this.retryComposerSubmission(
             composerEntry.id,
             composerDetails.submissionId,
@@ -2018,6 +2108,7 @@ class HostedPiSession {
                     ),
                   }
                 : {}),
+              ...(fileAttachmentIds.length ? { fileAttachmentIds } : {}),
               ...(images.length === 0 ? {} : { images }),
             },
             composerDetails.composer,
@@ -2172,9 +2263,48 @@ class HostedPiSession {
     rpcId?: string,
     replay?: ComposerSubmissionReplay,
   ): Promise<PiQueuedPrompt | undefined> {
-    const textAttachments = await getComposerTextAttachmentStore().retain(
-      prompt.textAttachmentIds ?? [],
+    const attachmentStore = getComposerAttachmentStore();
+    const textAttachments = await attachmentStore.retain(prompt.textAttachmentIds ?? []);
+    const retainedFileAttachments = await attachmentStore.retainFiles(
+      prompt.fileAttachmentIds ?? [],
     );
+    const fileReferencedImageIds = retainedFileAttachments
+      .filter(isNativeImageAttachment)
+      .map((attachment) => attachment.id);
+    const fileAttachments = retainedFileAttachments.filter(
+      (attachment) => !isNativeImageAttachment(attachment),
+    );
+    const imageAttachmentIds = [
+      ...fileReferencedImageIds,
+      ...(prompt.images?.flatMap((image) =>
+        image.attachmentId ? [image.attachmentId] : image.attachment ? [image.attachment.id] : [],
+      ) ?? []),
+    ];
+    const imageAttachments = await attachmentStore.retainImages(imageAttachmentIds);
+    const imageDataById = new Map(
+      await Promise.all(
+        imageAttachments.map(
+          async (attachment) =>
+            [attachment.id, (await attachmentStore.readImage({ id: attachment.id })).data] as const,
+        ),
+      ),
+    );
+    const resolvedImages = [
+      ...imageAttachments.map((attachment) => ({
+        type: "image" as const,
+        data: imageDataById.get(attachment.id)!,
+        mimeType: attachment.mediaType,
+        name: attachment.name,
+        attachmentId: attachment.id,
+        attachment,
+      })),
+      ...(prompt.images?.filter((image) => !image.attachmentId && !image.attachment) ?? []),
+    ];
+    const imageDelivery = imageAttachments.length
+      ? this.session.model?.input.includes("image")
+        ? ("native" as const)
+        : ("path" as const)
+      : undefined;
     const plannedCommands = preflightPlanWorkbenchComposerCommands(this.session, submission);
     const submissionId = replay?.submissionId ?? randomUUID();
     const canonicalDetails = submission.document
@@ -2187,13 +2317,18 @@ class HostedPiSession {
           commands: submission.commands,
           composer: submission,
           ...(textAttachments.length ? { textAttachments } : {}),
-          ...(prompt.images?.length
+          ...(imageAttachments.length || fileAttachments.length
+            ? { fileAttachments: [...imageAttachments, ...fileAttachments] }
+            : {}),
+          ...(resolvedImages.some((image) => !image.attachment)
             ? {
-                attachments: prompt.images.map(({ data, mimeType, name }) => ({
-                  data,
-                  mimeType,
-                  ...(name === undefined ? {} : { name }),
-                })),
+                attachments: resolvedImages
+                  .filter((image) => !image.attachment)
+                  .map(({ data, mimeType, name }) => ({
+                    data,
+                    mimeType,
+                    ...(name === undefined ? {} : { name }),
+                  })),
               }
             : {}),
           status: "accepted" as const,
@@ -2280,6 +2415,8 @@ class HostedPiSession {
       !commandOwnsAgentTurn &&
       !commandFailed &&
       (textAttachments.length > 0 ||
+        imageAttachments.length > 0 ||
+        fileAttachments.length > 0 ||
         Boolean(prompt.images?.length) ||
         Boolean(resolution.request.userText.trim()) ||
         resolution.request.selectedSkills.length > 0 ||
@@ -2327,8 +2464,14 @@ class HostedPiSession {
       return undefined;
     }
     const modelInput =
-      hasWorkbenchComposerSemantics(submission) || textAttachments.length > 0
-        ? compilePiComposerPrompt(resolution.request, textAttachments)
+      hasWorkbenchComposerSemantics(submission) ||
+      textAttachments.length > 0 ||
+      fileAttachments.length > 0 ||
+      imageAttachments.length > 0
+        ? compilePiComposerPrompt(resolution.request, textAttachments, [
+            ...managedImageTrailingText(resolvedImages, imageDelivery === "native"),
+            ...managedFileTrailingText(fileAttachments),
+          ])
         : undefined;
     if (modelInput) {
       this.session.sessionManager.appendCustomEntry(
@@ -2340,14 +2483,21 @@ class HostedPiSession {
     this.queueComposerUserProjection(projection, resolvedPrompt);
     return {
       message: resolvedPrompt,
-      ...(textAttachments.length
+      ...(textAttachments.length || imageAttachments.length || fileAttachments.length
         ? {
             textAttachments,
             textAttachmentIds: textAttachments.map((attachment) => attachment.id),
             sourceText: submission.sourceText,
           }
         : {}),
-      ...(prompt.images?.length ? { images: prompt.images } : {}),
+      ...(fileAttachments.length
+        ? {
+            fileAttachments,
+            fileAttachmentIds: fileAttachments.map((attachment) => attachment.id),
+          }
+        : {}),
+      ...(resolvedImages.length ? { images: resolvedImages } : {}),
+      ...(imageDelivery === undefined ? {} : { imageDelivery }),
     };
   }
 
@@ -2380,7 +2530,9 @@ class HostedPiSession {
         let admission: PromptSubmissionResult = { queued: false };
         const submittedComposer = provenance?.composer;
         const hasPromptAttachments = Boolean(
-          prompt.images?.length || prompt.textAttachmentIds?.length,
+          prompt.images?.length ||
+          prompt.fileAttachmentIds?.length ||
+          prompt.textAttachmentIds?.length,
         );
         const composer = submittedComposer
           ? hasPromptAttachments &&
@@ -2416,7 +2568,14 @@ class HostedPiSession {
                 queueItemId: await this.queueNow(mode, resolvedPrompt, provenance?.rpcId),
               };
             } else {
-              await this.promptNow(resolvedPrompt.message, resolvedPrompt.images);
+              await this.promptNow(
+                resolvedPrompt.message,
+                nativeImagesForModel(
+                  resolvedPrompt.images,
+                  this.session.model,
+                  resolvedPrompt.imageDelivery,
+                ),
+              );
             }
           } catch (error) {
             let pendingProjection:
@@ -2578,7 +2737,10 @@ class HostedPiSession {
     requestedId?: string,
   ): Promise<string> {
     if (!this.hasActiveAgentRun) throw new PiServerError("pi_session_not_running", 409);
-    if (prompt.images?.length && !this.session.model?.input.includes("image")) {
+    if (
+      (prompt.imageDelivery === "native" || hasUnmanagedImages(prompt.images)) &&
+      !this.session.model?.input.includes("image")
+    ) {
       throw imageUnsupported();
     }
     const lane = mode === "steer" ? "steering" : "followUp";
@@ -2591,9 +2753,15 @@ class HostedPiSession {
     }
     try {
       if (mode === "steer") {
-        await this.session.steer(prompt.message, prompt.images);
+        await this.session.steer(
+          prompt.message,
+          nativeImagesForModel(prompt.images, this.session.model, prompt.imageDelivery),
+        );
       } else {
-        await this.session.followUp(prompt.message, prompt.images);
+        await this.session.followUp(
+          prompt.message,
+          nativeImagesForModel(prompt.images, this.session.model, prompt.imageDelivery),
+        );
       }
     } catch (error) {
       this.publishQueueUpdate();
@@ -2609,15 +2777,24 @@ class HostedPiSession {
     const firstFollowUp = queue.followUp[0];
     if (!this.hasActiveAgentRun && (firstSteering || firstFollowUp)) {
       const first = firstSteering ?? firstFollowUp!;
-      await this.promptNow(first.message, first.images);
+      await this.promptNow(
+        first.message,
+        nativeImagesForModel(first.images, this.session.model, first.imageDelivery),
+      );
       if (firstSteering) queue.steering.shift();
       else queue.followUp.shift();
     }
     for (const prompt of queue.steering) {
-      await this.session.steer(prompt.message, prompt.images);
+      await this.session.steer(
+        prompt.message,
+        nativeImagesForModel(prompt.images, this.session.model, prompt.imageDelivery),
+      );
     }
     for (const prompt of queue.followUp) {
-      await this.session.followUp(prompt.message, prompt.images);
+      await this.session.followUp(
+        prompt.message,
+        nativeImagesForModel(prompt.images, this.session.model, prompt.imageDelivery),
+      );
     }
   }
 
@@ -2662,7 +2839,10 @@ class HostedPiSession {
       try {
         this.session.clearQueue();
         for (const prompt of nextQueue.steering) {
-          await this.session.steer(prompt.message, prompt.images);
+          await this.session.steer(
+            prompt.message,
+            nativeImagesForModel(prompt.images, this.session.model, prompt.imageDelivery),
+          );
         }
       } finally {
         this.suppressQueueUpdates -= 1;
@@ -2711,14 +2891,28 @@ class HostedPiSession {
     this.suppressQueueUpdates += 1;
     try {
       this.session.clearQueue();
-      if (this.hasActiveAgentRun) await this.session.steer(prompt.message, prompt.images);
-      else await this.promptNow(prompt.message, prompt.images);
+      if (this.hasActiveAgentRun)
+        await this.session.steer(
+          prompt.message,
+          nativeImagesForModel(prompt.images, this.session.model, prompt.imageDelivery),
+        );
+      else
+        await this.promptNow(
+          prompt.message,
+          nativeImagesForModel(prompt.images, this.session.model, prompt.imageDelivery),
+        );
       for (const queued of remaining.steering) {
-        await this.session.steer(queued.message, queued.images);
+        await this.session.steer(
+          queued.message,
+          nativeImagesForModel(queued.images, this.session.model, queued.imageDelivery),
+        );
       }
       if (!paused) {
         for (const queued of remaining.followUp) {
-          await this.session.followUp(queued.message, queued.images);
+          await this.session.followUp(
+            queued.message,
+            nativeImagesForModel(queued.images, this.session.model, queued.imageDelivery),
+          );
         }
       }
     } finally {
@@ -2754,7 +2948,10 @@ class HostedPiSession {
       try {
         this.session.clearQueue();
         for (const prompt of nextQueue.steering) {
-          await this.session.steer(prompt.message, prompt.images);
+          await this.session.steer(
+            prompt.message,
+            nativeImagesForModel(prompt.images, this.session.model, prompt.imageDelivery),
+          );
         }
       } finally {
         this.suppressQueueUpdates -= 1;
@@ -2796,12 +2993,29 @@ class HostedPiSession {
 
     if (
       mutation.kind === "edit" &&
-      (item.prompt.textAttachments?.length || mutation.prompt.textAttachmentIds?.length)
+      (item.prompt.fileAttachments?.length ||
+        item.prompt.textAttachments?.length ||
+        mutation.prompt.textAttachmentIds?.length)
     ) {
-      const textAttachments = await getComposerTextAttachmentStore().retain(
+      const textAttachments = await getComposerAttachmentStore().retain(
         mutation.prompt.textAttachmentIds ?? item.prompt.textAttachmentIds ?? [],
       );
       const sourceText = mutation.prompt.message;
+      const branch = this.session.sessionManager.getBranch();
+      const previousInput = branch.findLast(
+        (entry) =>
+          entry.type === "custom" &&
+          entry.customType === PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE &&
+          isRecord(entry.data) &&
+          entry.data.prompt === item.prompt.message,
+      );
+      const previousTrailingUserText =
+        previousInput?.type === "custom" &&
+        isRecord(previousInput.data) &&
+        Array.isArray(previousInput.data.trailingUserText) &&
+        previousInput.data.trailingUserText.every((value) => typeof value === "string")
+          ? (previousInput.data.trailingUserText as string[])
+          : [];
       const compiled = compilePiComposerPrompt(
         {
           version: 1,
@@ -2814,14 +3028,7 @@ class HostedPiSession {
           commandTrace: [],
         },
         textAttachments,
-      );
-      const branch = this.session.sessionManager.getBranch();
-      const previousInput = branch.findLast(
-        (entry) =>
-          entry.type === "custom" &&
-          entry.customType === PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE &&
-          isRecord(entry.data) &&
-          entry.data.prompt === item.prompt.message,
+        previousTrailingUserText,
       );
       if (
         previousInput?.type === "custom" &&
@@ -2834,10 +3041,7 @@ class HostedPiSession {
               typeof value === "string" && !value.startsWith("<workbench-pasted-text-files>"),
           ),
         );
-        compiled.prompt = [
-          ...compiled.context,
-          `<user-request>\n${sourceText}\n</user-request>`,
-        ].join("\n\n");
+        compiled.prompt = compilePiComposerTransportPrompt(compiled);
       }
       this.session.sessionManager.appendCustomEntry(PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE, compiled);
       const pending = this.pendingComposerUserProjections.find(
@@ -2887,7 +3091,16 @@ class HostedPiSession {
           sourceText,
           textAttachments,
           textAttachmentIds: textAttachments.map((attachment) => attachment.id),
+          ...(item.prompt.fileAttachments?.length
+            ? {
+                fileAttachments: item.prompt.fileAttachments,
+                fileAttachmentIds: item.prompt.fileAttachments.map((attachment) => attachment.id),
+              }
+            : {}),
           ...(item.prompt.images?.length ? { images: item.prompt.images } : {}),
+          ...(item.prompt.imageDelivery === undefined
+            ? {}
+            : { imageDelivery: item.prompt.imageDelivery }),
         },
       };
     }
@@ -2908,11 +3121,17 @@ class HostedPiSession {
     try {
       this.session.clearQueue();
       for (const prompt of nextQueue.steering) {
-        await this.session.steer(prompt.message, prompt.images);
+        await this.session.steer(
+          prompt.message,
+          nativeImagesForModel(prompt.images, this.session.model, prompt.imageDelivery),
+        );
       }
       if (!this.pausedQueue) {
         for (const prompt of nextQueue.followUp) {
-          await this.session.followUp(prompt.message, prompt.images);
+          await this.session.followUp(
+            prompt.message,
+            nativeImagesForModel(prompt.images, this.session.model, prompt.imageDelivery),
+          );
         }
       }
     } finally {
@@ -4769,7 +4988,12 @@ export async function queuePrompt(
   mode: PiQueueMode,
   prompt: PiQueuedPrompt,
 ): Promise<void> {
-  if (!prompt.message.trim() && !prompt.images?.length && !prompt.textAttachmentIds?.length) {
+  if (
+    !prompt.message.trim() &&
+    !prompt.images?.length &&
+    !prompt.fileAttachmentIds?.length &&
+    !prompt.textAttachmentIds?.length
+  ) {
     throw new PiServerError("pi_empty_prompt", 400);
   }
   const host = await getOrStartSession(id);
@@ -4787,6 +5011,7 @@ export async function submitPrompt(
   if (
     !prompt.message.trim() &&
     !prompt.images?.length &&
+    !prompt.fileAttachmentIds?.length &&
     !prompt.textAttachmentIds?.length &&
     !(composer && hasWorkbenchComposerSemantics(composer))
   ) {
@@ -4821,7 +5046,12 @@ export async function steerQueuedPrompt(
   steering: readonly PiQueuedPrompt[],
   followUp: readonly PiQueuedPrompt[],
 ): Promise<void> {
-  if (!prompt.message.trim() && !prompt.images?.length && !prompt.textAttachmentIds?.length) {
+  if (
+    !prompt.message.trim() &&
+    !prompt.images?.length &&
+    !prompt.fileAttachmentIds?.length &&
+    !prompt.textAttachmentIds?.length
+  ) {
     throw new PiServerError("pi_empty_prompt", 400);
   }
   const host = await getOrStartSession(id);

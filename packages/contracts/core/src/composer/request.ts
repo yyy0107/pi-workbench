@@ -1,6 +1,10 @@
 import {
   COMPOSER_COMMAND_EFFECTS,
+  parseManagedFileAttachment,
+  parseManagedImageAttachment,
   parsePastedTextAttachment,
+  type ManagedFileAttachment,
+  type ManagedImageAttachment,
   type PastedTextAttachment,
   isComposerJsonValue,
   type ComposerCommandArgsBinding,
@@ -97,6 +101,9 @@ export interface WorkbenchComposerUserDetails {
   commands?: readonly WorkbenchComposerCommandSubmission[];
   composer?: WorkbenchComposerSubmission;
   attachments?: WorkbenchComposerAttachmentProjection[];
+  fileAttachments?: ManagedFileAttachment[];
+  /** @deprecated Read-only compatibility for image-only managed attachment markers. */
+  imageAttachments?: ManagedImageAttachment[];
   textAttachments?: PastedTextAttachment[];
   /** @deprecated Read-only compatibility for persisted v2 image markers. */
   images?: WorkbenchComposerImageProjection[];
@@ -490,6 +497,12 @@ export function parseWorkbenchComposerUserDetails(
   const attachments = Array.isArray(value.attachments)
     ? value.attachments.map(composerAttachmentProjection)
     : [];
+  const fileAttachments = Array.isArray(value.fileAttachments)
+    ? value.fileAttachments.map(parseManagedFileAttachment)
+    : [];
+  const imageAttachments = Array.isArray(value.imageAttachments)
+    ? value.imageAttachments.map(parseManagedImageAttachment)
+    : [];
   const textAttachments = Array.isArray(value.textAttachments)
     ? value.textAttachments.map(parsePastedTextAttachment)
     : [];
@@ -500,6 +513,8 @@ export function parseWorkbenchComposerUserDetails(
     document === undefined ||
     commands.some((command) => command === undefined) ||
     attachments.some((attachment) => attachment === undefined) ||
+    fileAttachments.some((attachment) => attachment === undefined) ||
+    imageAttachments.some((attachment) => attachment === undefined) ||
     images.some((image) => image === undefined) ||
     textAttachments.some((attachment) => attachment === undefined)
   ) {
@@ -516,6 +531,12 @@ export function parseWorkbenchComposerUserDetails(
     ...(value.attachments === undefined
       ? {}
       : { attachments: attachments as WorkbenchComposerAttachmentProjection[] }),
+    ...(value.fileAttachments === undefined
+      ? {}
+      : { fileAttachments: fileAttachments as ManagedFileAttachment[] }),
+    ...(value.imageAttachments === undefined
+      ? {}
+      : { imageAttachments: imageAttachments as ManagedImageAttachment[] }),
     ...(value.images === undefined ? {} : { images: images as WorkbenchComposerImageProjection[] }),
     ...(value.textAttachments === undefined
       ? {}

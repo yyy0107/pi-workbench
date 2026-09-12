@@ -1984,12 +1984,14 @@ export interface SessionScratchPromoteValue {
 
 export type SessionPromptContent =
   | { type: "attachment"; attachmentId: string }
+  | { type: "file"; attachmentId: string }
   | { type: "text"; text: string }
   | {
       type: "image";
       mediaType: InlineImageMediaType;
       data: string;
       name?: string;
+      attachmentId?: string;
     };
 
 export interface SessionPromptPayload {

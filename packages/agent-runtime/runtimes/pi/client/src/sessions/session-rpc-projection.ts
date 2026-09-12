@@ -473,17 +473,28 @@ export function piPromptContent(
   text: string,
   images: readonly PiImageContent[] = [],
   textAttachmentIds: readonly string[] = [],
+  fileAttachmentIds: readonly string[] = [],
   feedback: readonly PromptFeedbackItem[] = [],
 ): SessionPromptContent[] {
   const promptText = appendWorkspaceFeedbackContext(text, feedback);
   return [
     ...textAttachmentIds.map((attachmentId) => ({ type: "attachment" as const, attachmentId })),
+    ...fileAttachmentIds.map((attachmentId) => ({ type: "file" as const, attachmentId })),
     ...(promptText ? [{ type: "text" as const, text: promptText }] : []),
-    ...[...images, ...feedback.flatMap((item) => item.images ?? [])].map((image) => ({
+    ...images.map((image) => ({
       type: "image" as const,
       mediaType: promptMediaType(image.mimeType),
       data: image.data,
       ...(image.name === undefined ? {} : { name: image.name }),
+      ...(image.attachmentId === undefined ? {} : { attachmentId: image.attachmentId }),
     })),
+    ...feedback
+      .flatMap((item) => item.images ?? [])
+      .map((image) => ({
+        type: "image" as const,
+        mediaType: promptMediaType(image.mimeType),
+        data: image.data,
+        ...(image.name === undefined ? {} : { name: image.name }),
+      })),
   ];
 }

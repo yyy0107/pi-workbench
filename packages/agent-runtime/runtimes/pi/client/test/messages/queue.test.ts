@@ -284,6 +284,50 @@ test("preserves an image filename in the optimistic queue item and submitted pro
   ]);
 });
 
+test("restores a managed image preview and descriptor when editing a queued prompt", () => {
+  const { queue } = harness();
+  const attachment = {
+    id: "d719e248-b35d-4e37-b60f-b9040527c27a",
+    name: "persisted.png",
+    mediaType: "image/png" as const,
+    path: "/runtime/attachments/persisted.png",
+    bytes: 7,
+  };
+  queue.replaceAuthoritative([
+    {
+      id: "queue-1",
+      placement: "queued",
+      message: {
+        id: "queue-1",
+        role: "user",
+        content: [
+          { type: "text", text: "look" },
+          {
+            type: "image",
+            mediaType: "image/png",
+            data: "cGF5bG9hZA==",
+            name: attachment.name,
+            attachment,
+          },
+        ],
+        source: { kind: "user", imageDelivery: "path" },
+      },
+    },
+  ]);
+
+  assert.deepEqual(queue.edit("queue-1")?.attachments, [
+    {
+      kind: "managed-file",
+      key: attachment.id,
+      name: attachment.name,
+      source: "data:image/png;base64,cGF5bG9hZA==",
+      mediaType: "image/png",
+      status: "ready",
+      attachment,
+    },
+  ]);
+});
+
 test("reorders follow-ups optimistically and keeps the order across an older snapshot", async () => {
   const { queue, calls } = harness();
   queue.replaceAuthoritative([

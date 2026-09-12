@@ -53,6 +53,7 @@ import {
 } from "@workbench/contracts/composer/request";
 import {
   AgentExecutionError,
+  type AgentExecutionAttachment,
   type AgentExecutionPort,
   type AgentQueueMutation,
 } from "@workbench/agent-runtime-server/execution";
@@ -1182,11 +1183,10 @@ export class SessionRpcService {
       )
       .map((part) => part.text)
       .join("\n\n");
-    const images = admitSessionInlineImages(
-      input.content.filter(
-        (part): part is Extract<SessionPromptContent, { type: "image" }> => part.type === "image",
-      ),
+    const imageParts = input.content.filter(
+      (part): part is Extract<SessionPromptContent, { type: "image" }> => part.type === "image",
     );
+    const images = admitSessionInlineImages(imageParts);
     const composerHasSemantics = Boolean(
       input.composer && hasWorkbenchComposerSemantics(input.composer),
     );
@@ -1200,24 +1200,30 @@ export class SessionRpcService {
     if (
       !message.trim() &&
       images.length === 0 &&
-      !input.content.some((part) => part.type === "attachment") &&
+      !input.content.some((part) => part.type === "attachment" || part.type === "file") &&
       !composerHasSemantics
     ) {
       throw new SessionRpcServiceError("command-error", "The prompt has no content.", {});
     }
-    const executionAttachments = [
-      ...input.content.flatMap((part) =>
-        part.type === "attachment"
-          ? [{ kind: "text-reference" as const, attachmentId: part.attachmentId }]
-          : [],
-      ),
-      ...images.map((image) => ({
+    const executionAttachments: AgentExecutionAttachment[] = [];
+    for (const part of input.content) {
+      if (part.type === "attachment") {
+        executionAttachments.push({ kind: "text-reference", attachmentId: part.attachmentId });
+      } else if (part.type === "file") {
+        executionAttachments.push({ kind: "file-reference", attachmentId: part.attachmentId });
+      }
+    }
+    executionAttachments.push(
+      ...images.map((image, index) => ({
         kind: "image" as const,
         data: image.data,
         mediaType: image.mimeType,
         ...(image.name === undefined ? {} : { name: image.name }),
+        ...(imageParts[index]?.attachmentId === undefined
+          ? {}
+          : { attachmentId: imageParts[index].attachmentId }),
       })),
-    ];
+    );
     let admission: Awaited<ReturnType<AgentExecutionPort["submit"]>>;
     try {
       admission = await this.execution.submit({

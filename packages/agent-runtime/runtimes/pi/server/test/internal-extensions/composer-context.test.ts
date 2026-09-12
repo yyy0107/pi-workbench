@@ -106,6 +106,94 @@ test("projects only the delivered request, keeping context separate from text an
   assert.deepEqual(projectPiComposerContext(ordinary, manager.getBranch()), ordinary);
 });
 
+test("keeps persisted image paths in the same user turn after native image delivery", () => {
+  const manager = SessionManager.inMemory();
+  const source = "/runtime/attachments/image.png";
+  const supported = compilePiComposerPrompt(
+    {
+      version: 1,
+      userText: "你好 ",
+      config: { metadata: {} },
+      selectedSkills: [],
+      instructions: [],
+      trustedContext: [],
+      untrustedContext: [],
+      commandTrace: [],
+    },
+    [],
+    [`[Image: source: ${source}]`],
+  );
+  manager.appendCustomEntry(PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE, supported);
+  const image = { type: "image" as const, mimeType: "image/png", data: "image-data" };
+  assert.deepEqual(
+    projectPiComposerContext(
+      [
+        {
+          role: "user",
+          content: [{ type: "text", text: supported.prompt }, image],
+          timestamp: 1,
+        },
+      ],
+      manager.getBranch(),
+    ),
+    [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "你好 " },
+          image,
+          { type: "text", text: `[Image: source: ${source}]` },
+        ],
+        timestamp: 1,
+      },
+    ],
+  );
+
+  const omitted = compilePiComposerPrompt(
+    {
+      version: 1,
+      userText: "你好 ",
+      config: { metadata: {} },
+      selectedSkills: [],
+      instructions: [],
+      trustedContext: [],
+      untrustedContext: [],
+      commandTrace: [],
+    },
+    [],
+    [
+      "[Attached image/png: image.png] [Media omitted from provider request because the selected model does not support image input.]",
+      `[Image: source: ${source}]`,
+    ],
+  );
+  manager.appendCustomEntry(PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE, omitted);
+  assert.notEqual(
+    supported.prompt,
+    omitted.prompt,
+    "identical user text with different image delivery must remain uniquely matchable",
+  );
+  assert.deepEqual(
+    projectPiComposerContext(
+      [{ role: "user", content: omitted.prompt, timestamp: 2 }],
+      manager.getBranch(),
+    ),
+    [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "你好 " },
+          {
+            type: "text",
+            text: "[Attached image/png: image.png] [Media omitted from provider request because the selected model does not support image input.]",
+          },
+          { type: "text", text: `[Image: source: ${source}]` },
+        ],
+        timestamp: 2,
+      },
+    ],
+  );
+});
+
 test("unwraps transformed command text only at the model boundary without adding an empty turn", () => {
   const manager = SessionManager.inMemory();
   const request = compilePiComposerPrompt({

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -19,6 +20,7 @@ import type {
   MuxStreamPayload,
   ServerRequest,
 } from "@workbench/agent-runtime-pi-protocol/stream";
+import type { PiImageContent } from "@workbench/agent-runtime-pi-protocol/messages";
 
 const {
   cancelSession,
@@ -70,6 +72,7 @@ import { resolvePiWorkspaceRoot } from "../../src/workspaces/workspace-service-b
 import { projectPiComposerContext } from "../../src/internal-extensions/composer-context";
 import { createPiAutomationRuntimeBindings } from "../../src/automations/pi-automation-service";
 import { getWorkspaceStore } from "../../src/workspaces/workspace-registry";
+import { getComposerTextAttachmentStore } from "../../src/attachments/composer-text-attachments";
 
 bindPiAgentHostBindings({
   workspaceFiles: createWorkspaceFileService({ resolveWorkspaceRoot: resolvePiWorkspaceRoot }),
@@ -1139,7 +1142,7 @@ test("executes session commands once and sends only remaining text to the model"
   );
 });
 
-test("forwards model-native image inputs", async (t) => {
+test("forwards image-only managed attachments to a vision model", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-native-image-references-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -1161,7 +1164,7 @@ test("forwards model-native image inputs", async (t) => {
     modelRuntime: { getAvailableSnapshot(): unknown[] };
     prompt(
       message: string,
-      options: { images?: unknown[]; preflightResult?: (accepted: boolean) => void },
+      options: { images?: PiImageContent[]; preflightResult?: (accepted: boolean) => void },
     ): Promise<void>;
   };
   const originalModel = fakeAgent.model;
@@ -1172,7 +1175,7 @@ test("forwards model-native image inputs", async (t) => {
   Object.defineProperty(fakeAgent, "model", { configurable: true, value: visionModel });
   fakeAgent.modelRuntime.getAvailableSnapshot = () => [visionModel];
   let forwardedPrompt = "";
-  let forwardedImages: unknown[] | undefined;
+  let forwardedImages: PiImageContent[] | undefined;
   fakeAgent.prompt = async (message, options) => {
     forwardedPrompt = message;
     forwardedImages = options.images;
@@ -1185,23 +1188,34 @@ test("forwards model-native image inputs", async (t) => {
     await host.shutdown();
   });
 
+  const imageStore = getComposerTextAttachmentStore();
+  const one = await imageStore.createImage({
+    id: randomUUID(),
+    name: "one.png",
+    mediaType: "image/png",
+    data: "iVBORw0KGgo=",
+  });
+  const two = await imageStore.createImage({
+    id: randomUUID(),
+    name: "two.jpg",
+    mediaType: "image/jpeg",
+    data: "/9j/",
+  });
+
   const admission = await submitPrompt(
     host.id,
     "followUp",
     {
-      message: "Compare image one with image two",
-      images: [
-        { type: "image", mimeType: "image/png", data: "iVBORw0KGgo=", name: "one.png" },
-        { type: "image", mimeType: "image/jpeg", data: "/9j/", name: "two.jpg" },
-      ],
+      message: "",
+      fileAttachmentIds: [one.id, two.id],
     },
     {
       rpcId: "native-image-reference-rpc",
       composer: {
         version: 2,
-        document: [{ type: "text", text: "Compare image one with image two" }],
-        sourceText: "Compare image one with image two",
-        text: "Compare image one with image two",
+        document: [],
+        sourceText: "",
+        text: "",
         context: [],
         metadata: {},
         commands: [],
@@ -1211,8 +1225,146 @@ test("forwards model-native image inputs", async (t) => {
   await new Promise<void>((resolve) => setImmediate(resolve));
 
   assert.deepEqual(admission, { queued: false });
-  assert.equal(forwardedImages?.length, 2);
-  assert.doesNotMatch(forwardedPrompt, /attachment-references/);
+  assert.deepEqual(forwardedImages, [
+    { type: "image", mimeType: "image/png", data: "iVBORw0KGgo=", name: "one.png" },
+    { type: "image", mimeType: "image/jpeg", data: "/9j/", name: "two.jpg" },
+  ]);
+  const projected = projectPiComposerContext(
+    [
+      {
+        role: "user",
+        content: [{ type: "text", text: forwardedPrompt }, ...(forwardedImages ?? [])],
+        timestamp: 1,
+      },
+    ],
+    host.session.sessionManager.getBranch(),
+  );
+  assert.deepEqual(
+    projected[0]?.role === "user" && Array.isArray(projected[0].content)
+      ? projected[0].content.map((part) =>
+          part.type === "text" ? part.text : `${part.type}:${part.mimeType}`,
+        )
+      : [],
+    [
+      "image:image/png",
+      "image:image/jpeg",
+      `[Image: source: ${one.path}]`,
+      `[Image: source: ${two.path}]`,
+    ],
+  );
+});
+
+test("sends persisted image paths instead of native media to a text-only model", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-managed-image-text-only-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
+    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
+  });
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const host = await createSession(cwd, "managed-image-text-only");
+  const fakeAgent = host.session as unknown as {
+    model?: { provider: string; id: string; input: readonly string[] } & Record<string, unknown>;
+    modelRuntime: { getAvailableSnapshot(): unknown[] };
+    prompt(
+      message: string,
+      options: { images?: PiImageContent[]; preflightResult?: (accepted: boolean) => void },
+    ): Promise<void>;
+  };
+  const originalModel = fakeAgent.model;
+  const originalPrompt = fakeAgent.prompt;
+  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
+  assert.ok(originalModel);
+  const textModel = { ...originalModel, input: ["text"] };
+  Object.defineProperty(fakeAgent, "model", { configurable: true, value: textModel });
+  fakeAgent.modelRuntime.getAvailableSnapshot = () => [textModel];
+  let forwardedPrompt = "";
+  let forwardedImages: PiImageContent[] | undefined;
+  fakeAgent.prompt = async (message, options) => {
+    forwardedPrompt = message;
+    forwardedImages = options.images;
+    options.preflightResult?.(true);
+  };
+  t.after(async () => {
+    Reflect.deleteProperty(fakeAgent, "model");
+    fakeAgent.prompt = originalPrompt;
+    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
+    await host.shutdown();
+  });
+
+  const image = await getComposerTextAttachmentStore().createImage({
+    id: randomUUID(),
+    name: "image.png",
+    mediaType: "image/png",
+    data: "iVBORw0KGgo=",
+  });
+  const document = await getComposerTextAttachmentStore().createFile({
+    id: randomUUID(),
+    name: "spec.pdf",
+    mediaType: "application/pdf",
+    data: Buffer.from("%PDF-1.7\n").toString("base64"),
+  });
+  const admission = await submitPrompt(
+    host.id,
+    "followUp",
+    {
+      message: "你好 ",
+      fileAttachmentIds: [image.id, document.id],
+    },
+    {
+      composer: {
+        version: 2,
+        document: [{ type: "text", text: "你好 " }],
+        sourceText: "你好 ",
+        text: "你好 ",
+        context: [],
+        metadata: {},
+        commands: [],
+      },
+    },
+  );
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(admission, { queued: false });
+  assert.equal(forwardedImages, undefined);
+  const projected = projectPiComposerContext(
+    [{ role: "user", content: forwardedPrompt, timestamp: 1 }],
+    host.session.sessionManager.getBranch(),
+  );
+  assert.deepEqual(projected, [
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "你好 " },
+        {
+          type: "text",
+          text: "[Attached image/png: image.png] [Media omitted from provider request because the selected model does not support image input.]",
+        },
+        { type: "text", text: `[Image: source: ${image.path}]` },
+        { type: "text", text: "[Attached application/pdf: spec.pdf]" },
+        { type: "text", text: `[File: source: ${document.path}]` },
+      ],
+      timestamp: 1,
+    },
+  ]);
+  const history = await getSessionHistory(host.id);
+  const marker = history.context.messages.find(
+    (message) => message.role === "custom" && message.customType === "workbench.composer-user.v3",
+  );
+  assert.equal(marker?.role, "custom");
+  if (marker?.role === "custom") {
+    const details = marker.details as { fileAttachments?: unknown[]; attachments?: unknown[] };
+    assert.deepEqual(details.fileAttachments, [image, document]);
+    assert.equal(details.attachments, undefined);
+  }
 });
 
 test("records a durable in-thread failure when a text-only model receives a native image", async (t) => {

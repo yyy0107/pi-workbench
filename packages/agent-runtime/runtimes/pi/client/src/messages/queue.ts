@@ -1,4 +1,7 @@
-import { parsePastedTextAttachment } from "@workbench/contracts/composer";
+import {
+  parseManagedFileAttachment,
+  parsePastedTextAttachment,
+} from "@workbench/contracts/composer";
 import type {
   ComposerAttachment,
   ComposerQueueItem,
@@ -97,12 +100,26 @@ function queueItemParts(item: QueueItem): readonly (PiFileMessagePart | PiTextMe
       typeof part.data === "string" &&
       typeof part.mediaType === "string"
     ) {
+      const attachment = parseManagedFileAttachment(part.attachment);
       return {
         type: "file",
         data: part.data,
         mimeType: part.mediaType,
         ...(typeof part.name === "string" ? { filename: part.name } : {}),
+        ...(attachment ? { fileAttachment: attachment } : {}),
       };
+    }
+    if (part.type === "file") {
+      const attachment = parseManagedFileAttachment(part.attachment);
+      if (attachment)
+        return {
+          type: "file",
+          data: attachment.id,
+          mimeType: attachment.mediaType,
+          sourceType: "id",
+          filename: attachment.name,
+          fileAttachment: attachment,
+        };
     }
     return { type: "text", text: `[${part.type}]` };
   });
@@ -134,6 +151,21 @@ function composerAttachment(
       status: "ready",
       attachment: part.textAttachment,
     };
+  const fileAttachment = part.fileAttachment ?? part.imageAttachment;
+  if (fileAttachment)
+    return {
+      kind: "managed-file",
+      key: fileAttachment.id,
+      name: fileAttachment.name,
+      source: part.data.startsWith("data:")
+        ? part.data
+        : part.sourceType === "id"
+          ? ""
+          : `data:${fileAttachment.mediaType};base64,${part.data}`,
+      mediaType: fileAttachment.mediaType,
+      status: "ready",
+      attachment: fileAttachment,
+    };
   const mediaType = part.mimeType === "image/*" ? "image/png" : part.mimeType;
   return {
     key: `${index}:${part.filename ?? "attachment"}`,
@@ -162,22 +194,43 @@ function promptFromQueueItem(item: QueueItem): PiQueuedPrompt {
     .filter((part) => part.type === "text" && typeof part.text === "string")
     .map((part) => part.text as string)
     .join("");
-  const images = item.message.content.flatMap((part) =>
-    part.type === "image" && typeof part.data === "string" && typeof part.mediaType === "string"
-      ? [
-          {
-            type: "image" as const,
-            data: part.data,
-            mimeType: part.mediaType,
-            ...(typeof part.name === "string" ? { name: part.name } : {}),
-          },
-        ]
-      : [],
-  );
+  const images = item.message.content.flatMap((part) => {
+    if (
+      part.type !== "image" ||
+      typeof part.data !== "string" ||
+      typeof part.mediaType !== "string"
+    )
+      return [];
+    const attachment = parseManagedFileAttachment(part.attachment);
+    return [
+      {
+        type: "image" as const,
+        data: part.data,
+        mimeType: part.mediaType,
+        ...(typeof part.name === "string" ? { name: part.name } : {}),
+        ...(attachment ? { attachment, attachmentId: attachment.id } : {}),
+      },
+    ];
+  });
+  const fileAttachments = item.message.content.flatMap((part) => {
+    if (part.type !== "file") return [];
+    const attachment = parseManagedFileAttachment(part.attachment);
+    return attachment ? [attachment] : [];
+  });
   return {
     message:
       typeof item.message.source.modelText === "string" ? item.message.source.modelText : message,
     ...(images.length ? { images } : {}),
+    ...(fileAttachments.length
+      ? {
+          fileAttachments,
+          fileAttachmentIds: fileAttachments.map((attachment) => attachment.id),
+        }
+      : {}),
+    ...(item.message.source.imageDelivery === "native" ||
+    item.message.source.imageDelivery === "path"
+      ? { imageDelivery: item.message.source.imageDelivery }
+      : {}),
   };
 }
 
@@ -200,6 +253,14 @@ function optimisticQueueItem(id: string, mode: PiQueueMode, prompt: PiQueuedProm
           mediaType: image.mimeType,
           data: image.data,
           ...(image.name === undefined ? {} : { name: image.name }),
+          ...(image.attachment === undefined ? {} : { attachment: image.attachment }),
+        })),
+        ...(prompt.fileAttachments ?? []).map((attachment) => ({
+          type: "file",
+          data: attachment.id,
+          mediaType: attachment.mediaType,
+          name: attachment.name,
+          attachment,
         })),
       ],
       source: { kind: "optimistic" },
@@ -389,6 +450,12 @@ export class PiMessageQueue {
     const prompt = appendMessageToPiPrompt(message);
     const queued: PiQueuedPrompt = {
       message: prompt.text,
+      ...(prompt.fileAttachments.length
+        ? {
+            fileAttachments: prompt.fileAttachments,
+            fileAttachmentIds: prompt.fileAttachments.map((attachment) => attachment.id),
+          }
+        : {}),
       ...(prompt.textAttachments.length
         ? {
             textAttachments: prompt.textAttachments,

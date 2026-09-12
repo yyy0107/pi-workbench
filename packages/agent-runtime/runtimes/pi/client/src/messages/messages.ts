@@ -1,5 +1,5 @@
 import { PI_CACHE_MISS_DATA_NAME } from "@workbench/agent-runtime-pi-protocol/messages";
-import type { PastedTextAttachment } from "@workbench/contracts/composer";
+import type { ManagedFileAttachment, PastedTextAttachment } from "@workbench/contracts/composer";
 import {
   isWorkbenchComposerCommandResponseCustomType,
   isWorkbenchComposerResolutionCustomType,
@@ -1013,13 +1013,29 @@ export function piHistoryToThreadMessages(
             const projectedImageUrls = new Set(
               projected.content.flatMap((part) => (part.type === "image" ? [part.image] : [])),
             );
+            const projectedManagedImages = projected.content.flatMap((part) =>
+              part.type === "file" && (part.fileAttachment ?? part.imageAttachment)
+                ? [part.fileAttachment ?? part.imageAttachment!]
+                : [],
+            );
+            const matchedManagedImages = new Set<string>();
             const resolved = {
               ...projected,
               content: [
                 ...projected.content,
-                ...content.filter(
-                  (part) => part.type === "image" && !projectedImageUrls.has(part.image),
-                ),
+                ...content.filter((part) => {
+                  if (part.type !== "image" || projectedImageUrls.has(part.image)) return false;
+                  const mediaType = /^data:([^;,]+)/iu.exec(part.image)?.[1];
+                  const attachment = projectedManagedImages.find(
+                    (candidate) =>
+                      !matchedManagedImages.has(candidate.id) &&
+                      candidate.mediaType === mediaType &&
+                      (part.filename === undefined || candidate.name === part.filename),
+                  );
+                  if (!attachment) return true;
+                  matchedManagedImages.add(attachment.id);
+                  return false;
+                }),
               ],
               createdAt: messageDate(
                 message.timestamp ?? history.context.entryCompletedAts?.[index] ?? undefined,
@@ -1112,6 +1128,14 @@ export function piHistoryToThreadMessages(
               ...(details.attachments ?? details.images ?? []).map(
                 threadRecognizableAttachmentPart,
               ),
+              ...(details.fileAttachments ?? details.imageAttachments ?? []).map((attachment) => ({
+                type: "file" as const,
+                data: attachment.id,
+                mimeType: attachment.mediaType,
+                sourceType: "id" as const,
+                filename: attachment.name,
+                fileAttachment: attachment,
+              })),
               ...(details.textAttachments ?? []).map((attachment) => ({
                 type: "file" as const,
                 data: attachment.id,
@@ -1399,6 +1423,7 @@ export function appendMessageToPiPrompt(
 ): {
   text: string;
   images: PiImageContent[];
+  fileAttachments: ManagedFileAttachment[];
   textAttachments: PastedTextAttachment[];
   composer?: WorkbenchComposerSubmission;
 } {
@@ -1409,15 +1434,26 @@ export function appendMessageToPiPrompt(
   const composer = workbenchComposerSubmissionFromRunConfig(message.runConfig);
   const text = composer?.text ?? sourceText;
   const images: PiImageContent[] = [];
+  const fileAttachments: ManagedFileAttachment[] = [];
   const textAttachments: PastedTextAttachment[] = [];
 
   const collect = (part: (typeof message.content)[number], fallbackName?: string) => {
     if (part.type === "file" && part.textAttachment) {
       textAttachments.push(part.textAttachment);
     } else if (part.type === "image") {
-      images.push(splitDataUrl(part.image, "image/png", part.filename ?? fallbackName));
+      const attachment = part.fileAttachment ?? part.imageAttachment;
+      // Managed images have already crossed the byte boundary once and are now Runtime-owned
+      // files. Send only their ids here: the Runtime selects native image delivery or a durable
+      // path fallback from the current model capability. Keeping their base64 out of this RPC also
+      // prevents the legacy inline-image admission path from rejecting a managed attachment first.
+      if (attachment) fileAttachments.push(attachment);
+      else images.push(splitDataUrl(part.image, "image/png", part.filename ?? fallbackName));
     } else if (part.type === "file" && part.mimeType.startsWith("image/")) {
-      images.push(splitDataUrl(part.data, part.mimeType, part.filename ?? fallbackName));
+      const attachment = part.fileAttachment ?? part.imageAttachment;
+      if (attachment) fileAttachments.push(attachment);
+      else images.push(splitDataUrl(part.data, part.mimeType, part.filename ?? fallbackName));
+    } else if (part.type === "file" && part.fileAttachment) {
+      fileAttachments.push(part.fileAttachment);
     }
   };
   message.content.forEach((part) => collect(part));
@@ -1428,6 +1464,7 @@ export function appendMessageToPiPrompt(
   return {
     text,
     images,
+    fileAttachments,
     textAttachments,
     ...(composer === undefined ? {} : { composer }),
   };

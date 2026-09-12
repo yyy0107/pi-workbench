@@ -78,7 +78,7 @@ import {
   composerCommandParameterIssues,
   withComposerCommandParameterDefaults,
 } from "./composer-command-parameters";
-import { addComposerImagesFromPaste } from "./composer-image-paste";
+import { addComposerFilesFromPaste } from "./composer-image-paste";
 import { canRestorePastedText } from "@workbench/agent-runtime-contracts/composer-attachments";
 import { addComposerTextFromPaste } from "./composer-text-paste";
 import { ComposerAttachments } from "./composer-attachments";
@@ -403,10 +403,7 @@ export function WorkbenchComposer({
   );
   const runningMode = runningComposerMode(session.actions, preferredRunningMode);
   const canSendWhileRunning = session.actions[runningMode] !== undefined;
-  const canSend =
-    composer.phase !== "submitting" &&
-    !isEmpty &&
-    !composerAttachments.some((item) => item.kind === "pasted-text" && item.status !== "ready");
+  const canSend = composer.phase !== "submitting" && !isEmpty;
   const attachmentsEnabled = session.actions.addComposerAttachment !== undefined;
   const mainThreadId = session.id;
   const isNewThread =
@@ -929,13 +926,7 @@ export function WorkbenchComposer({
       const steer =
         runningComposerMode(session.actions, preferredRunningMode, invertMode) === "steer";
       const snapshot = session.snapshot.getSnapshot();
-      if (
-        snapshot.composer.phase === "submitting" ||
-        snapshot.composer.attachments.some(
-          (item) => item.kind === "pasted-text" && item.status !== "ready",
-        )
-      )
-        return;
+      if (snapshot.composer.phase === "submitting") return;
       if (!canSubmitWorkbenchComposer(canSubmit, submissionGuards.current)) {
         setSubmissionBlocked(true);
         return;
@@ -1341,7 +1332,7 @@ export function WorkbenchComposer({
               onPasteCapture={(event) => {
                 if (addComposerTextFromPaste(event, session.actions.addPastedTextAttachment))
                   return;
-                void addComposerImagesFromPaste(event, {
+                void addComposerFilesFromPaste(event, {
                   attachmentsEnabled,
                   addAttachment: async (file) => addComposerFiles([file]),
                 });

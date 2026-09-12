@@ -82,6 +82,18 @@ export class FakeConversationSession implements ConversationSession {
       send: actions?.send ?? (async () => undefined),
       setComposerText: actions?.setComposerText ?? (() => undefined),
       addComposerAttachment: actions?.addComposerAttachment ?? (async () => undefined),
+      addPastedTextAttachment: actions?.addPastedTextAttachment ?? (async () => undefined),
+      retryPastedTextAttachment: actions?.retryPastedTextAttachment ?? (async () => undefined),
+      readPastedTextAttachment:
+        actions?.readPastedTextAttachment ??
+        (async () => {
+          throw new Error("Pasted text attachment reading is unavailable");
+        }),
+      readManagedFileAttachment:
+        actions?.readManagedFileAttachment ??
+        (async () => {
+          throw new Error("Managed file attachment reading is unavailable");
+        }),
       removeComposerAttachment: actions?.removeComposerAttachment ?? (() => undefined),
       dismissComposerError: actions?.dismissComposerError ?? (() => undefined),
       cancel: actions?.cancel ?? (async () => undefined),

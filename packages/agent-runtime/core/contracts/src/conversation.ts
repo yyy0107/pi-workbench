@@ -1,4 +1,8 @@
-import type { PastedTextAttachment } from "@workbench/contracts/composer";
+import type {
+  ManagedFileAttachment,
+  ManagedImageAttachment,
+  PastedTextAttachment,
+} from "@workbench/contracts/composer";
 import type { ComposerJsonValue } from "@workbench/contracts/composer";
 
 export type { ComposerSubmission } from "@workbench/contracts/composer";
@@ -70,6 +74,9 @@ export interface DataBlock extends MessageBlockBase {
 
 export interface FileBlock extends MessageBlockBase {
   readonly textAttachment?: PastedTextAttachment;
+  readonly fileAttachment?: ManagedFileAttachment;
+  /** @deprecated Read-only compatibility for image-only projections. */
+  readonly imageAttachment?: ManagedImageAttachment;
   readonly kind: "file";
   readonly name: string;
   readonly source: string;
@@ -190,6 +197,17 @@ export interface InlineComposerAttachment {
   readonly mediaType?: string;
 }
 
+export type ManagedFileComposerAttachment = {
+  readonly kind: "managed-file";
+  readonly key: string;
+  readonly name: string;
+  readonly source: string;
+  readonly mediaType: string;
+} & (
+  | { readonly status: "saving" | "error"; readonly error?: string }
+  | { readonly status: "ready"; readonly attachment: ManagedFileAttachment }
+);
+
 export type PastedTextComposerAttachment = {
   readonly kind: "pasted-text";
   readonly key: string;
@@ -200,7 +218,10 @@ export type PastedTextComposerAttachment = {
   | { readonly status: "ready"; readonly attachment: PastedTextAttachment }
 );
 
-export type ComposerAttachment = InlineComposerAttachment | PastedTextComposerAttachment;
+export type ComposerAttachment =
+  | InlineComposerAttachment
+  | ManagedFileComposerAttachment
+  | PastedTextComposerAttachment;
 
 export interface ComposerQueueItem {
   readonly key: string;

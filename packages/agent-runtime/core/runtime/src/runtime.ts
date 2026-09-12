@@ -1,4 +1,6 @@
 import type {
+  ReadManagedFileAttachmentRequest,
+  ReadManagedFileAttachmentResult,
   ReadPastedTextAttachmentRequest,
   ReadPastedTextAttachmentResult,
 } from "@workbench/agent-runtime-contracts/composer-attachments";
@@ -27,6 +29,9 @@ export interface ConversationActions {
   readPastedTextAttachment(
     input: ReadPastedTextAttachmentRequest,
   ): Promise<ReadPastedTextAttachmentResult>;
+  readManagedFileAttachment(
+    input: ReadManagedFileAttachmentRequest,
+  ): Promise<ReadManagedFileAttachmentResult>;
   removeComposerAttachment(key: string): void;
   dismissComposerError(): void;
   send(input: ComposerSubmission): Promise<void>;

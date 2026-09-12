@@ -2,7 +2,7 @@
 
 import { PastedTextAttachmentPreview } from "../pasted-text-attachment-preview";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type {
   ConversationError,
@@ -125,6 +125,59 @@ export function WorkbenchMessageSourceBlock({
   );
 }
 
+function ManagedFileAttachmentPreview({
+  block,
+  referenceLabel,
+}: Readonly<{ block: FileBlock; referenceLabel?: string }>) {
+  const session = useConversationSession();
+  const attachment = block.fileAttachment ?? block.imageAttachment!;
+  const isImage = attachment.mediaType.startsWith("image/");
+  const [source, setSource] = useState<string>();
+
+  useEffect(() => {
+    let current = true;
+    setSource(undefined);
+    if (!isImage) return () => undefined;
+    const read = session.actions.readManagedFileAttachment;
+    if (!read) return () => undefined;
+    void read({ id: attachment.id })
+      .then((result) => {
+        if (current) setSource(`data:${result.attachment.mediaType};base64,${result.data}`);
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [attachment.id, isImage, session.actions]);
+
+  const content =
+    isImage && source ? (
+      <Image.Root>
+        <Image.Zoom src={source} alt={block.name}>
+          <Image.Preview src={source} alt={block.name} />
+        </Image.Zoom>
+      </Image.Root>
+    ) : (
+      <File.Root>
+        <File.Icon mimeType={attachment.mediaType} />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <File.Name>{block.name}</File.Name>
+          <File.Size bytes={attachment.bytes} className="text-xs" />
+        </div>
+      </File.Root>
+    );
+
+  if (!referenceLabel) return content;
+  return (
+    <div data-slot="user-attachment-reference" className="relative max-w-full">
+      {content}
+      <span className="bg-background/85 text-foreground pointer-events-none absolute top-2 left-2 rounded-full border border-foreground/10 px-2 py-0.5 text-[11px] font-medium shadow-sm backdrop-blur-sm">
+        {referenceLabel}
+      </span>
+    </div>
+  );
+}
+
 export function WorkbenchMessageFileBlock({
   block,
   referenceLabel,
@@ -132,6 +185,8 @@ export function WorkbenchMessageFileBlock({
 }: Readonly<{ block: FileBlock; referenceLabel?: string; assistant?: boolean }>) {
   if (block.textAttachment)
     return <PastedTextAttachmentPreview attachment={block.textAttachment} />;
+  if (block.fileAttachment || block.imageAttachment)
+    return <ManagedFileAttachmentPreview block={block} referenceLabel={referenceLabel} />;
   const mediaType = resolvedMediaType(block);
   const source = playableFileSource(block, mediaType);
   const image = mediaType.startsWith("image/");

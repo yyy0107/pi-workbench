@@ -585,4 +585,7 @@ test("builds protocol prompt content for images and rejects unsupported media", 
     () => piPromptContent("", [{ type: "image", mimeType: "image/bmp", data: "AAAA" }]),
     /Unsupported Pi prompt image type/,
   );
+  assert.deepEqual(piPromptContent("", [], [], ["file-id"]), [
+    { type: "file", attachmentId: "file-id" },
+  ]);
 });

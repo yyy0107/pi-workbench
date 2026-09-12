@@ -18,17 +18,25 @@ export interface SessionQueueProjectionOptions {
 function copyPrompt(prompt: PiQueuedPrompt): PiQueuedPrompt {
   return {
     message: prompt.message,
+    ...(prompt.fileAttachments?.length
+      ? {
+          fileAttachments: prompt.fileAttachments.map((attachment) => ({ ...attachment })),
+          fileAttachmentIds: [...(prompt.fileAttachmentIds ?? [])],
+        }
+      : {}),
     ...(prompt.textAttachments?.length
       ? { textAttachments: prompt.textAttachments, textAttachmentIds: prompt.textAttachmentIds }
       : {}),
     ...(prompt.sourceText === undefined ? {} : { sourceText: prompt.sourceText }),
     ...(prompt.images?.length ? { images: prompt.images.map((image) => ({ ...image })) } : {}),
+    ...(prompt.imageDelivery === undefined ? {} : { imageDelivery: prompt.imageDelivery }),
   };
 }
 
 function promptFingerprint(prompt: PiQueuedPrompt): string {
   return JSON.stringify([
     prompt.message,
+    ...(prompt.fileAttachments ?? []).map((attachment) => [attachment.id, attachment.path]),
     ...(prompt.images ?? []).map((image) => [image.mimeType, image.data, image.name ?? null]),
   ]);
 }
@@ -37,7 +45,11 @@ function promptMatches(left: PiQueuedPrompt, right: PiQueuedPrompt): boolean {
   if (promptFingerprint(left) === promptFingerprint(right)) return true;
   // Native Pi queue events contain text only. Match those snapshots back to the
   // full prompt retained by the workbench so attachment content is not discarded.
-  return left.message === right.message && (!left.images?.length || !right.images?.length);
+  return (
+    left.message === right.message &&
+    ((!left.images?.length && !left.fileAttachments?.length) ||
+      (!right.images?.length && !right.fileAttachments?.length))
+  );
 }
 
 function queueContent(prompt: PiQueuedPrompt): QueueItem["message"]["content"] {
@@ -55,6 +67,14 @@ function queueContent(prompt: PiQueuedPrompt): QueueItem["message"]["content"] {
       mediaType: image.mimeType,
       data: image.data,
       ...(image.name === undefined ? {} : { name: image.name }),
+      ...(image.attachment === undefined ? {} : { attachment: image.attachment }),
+    })),
+    ...(prompt.fileAttachments ?? []).map((attachment) => ({
+      type: "file",
+      mediaType: attachment.mediaType,
+      data: attachment.id,
+      name: attachment.name,
+      attachment,
     })),
   ];
 }
@@ -109,10 +129,25 @@ export class SessionQueueProjection {
         return {
           id: retained?.id ?? this.createId(),
           lane,
-          prompt:
-            retained?.prompt.images?.length && !prompt.images?.length
-              ? { ...prompt, images: retained.prompt.images.map((image) => ({ ...image })) }
-              : prompt,
+          prompt: {
+            ...prompt,
+            ...(retained?.prompt.images?.length && !prompt.images?.length
+              ? {
+                  images: retained.prompt.images.map((image) => ({ ...image })),
+                  ...(retained.prompt.imageDelivery === undefined
+                    ? {}
+                    : { imageDelivery: retained.prompt.imageDelivery }),
+                }
+              : {}),
+            ...(retained?.prompt.fileAttachments?.length && !prompt.fileAttachments?.length
+              ? {
+                  fileAttachments: retained.prompt.fileAttachments.map((attachment) => ({
+                    ...attachment,
+                  })),
+                  fileAttachmentIds: [...(retained.prompt.fileAttachmentIds ?? [])],
+                }
+              : {}),
+          },
         };
       });
 
@@ -184,6 +219,9 @@ export class SessionQueueProjection {
         source: {
           kind: "user",
           ...(item.prompt.sourceText === undefined ? {} : { modelText: item.prompt.message }),
+          ...(item.prompt.imageDelivery === undefined
+            ? {}
+            : { imageDelivery: item.prompt.imageDelivery }),
         },
       },
     }));

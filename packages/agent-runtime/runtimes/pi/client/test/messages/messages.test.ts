@@ -405,6 +405,78 @@ test("projects a sent image attachment into the same message part used by persis
   ]);
 });
 
+test("sends a managed image as a Runtime file reference without repeating its preview bytes", () => {
+  const attachment = {
+    id: "8b95d58b-3189-45f0-9be6-f7a9e4de7248",
+    name: "image.png",
+    mediaType: "image/png" as const,
+    path: "/runtime/attachments/image.png",
+    bytes: 8,
+  };
+  const message: AppendMessage = {
+    role: "user",
+    content: [],
+    attachments: [
+      {
+        id: attachment.id,
+        type: "image",
+        name: attachment.name,
+        contentType: attachment.mediaType,
+        content: [
+          {
+            type: "image",
+            image: "data:image/png;base64,iVBORw0KGgo=",
+            filename: attachment.name,
+            fileAttachment: attachment,
+          },
+        ],
+        status: { type: "complete" },
+      },
+    ],
+    createdAt: new Date(0),
+    metadata: { custom: {} },
+    parentId: null,
+    sourceId: null,
+  };
+
+  const prompt = appendMessageToPiPrompt(message);
+  assert.deepEqual(prompt.images, []);
+  assert.deepEqual(prompt.fileAttachments, [attachment]);
+});
+
+test("carries a managed document as a file reference instead of an image", () => {
+  const attachment = {
+    id: "d719e248-b35d-4e37-b60f-b9040527c27a",
+    name: "spec.pdf",
+    mediaType: "application/pdf",
+    path: "/runtime/attachments/2026-09-12/pdf/id/spec.pdf",
+    bytes: 9,
+  };
+  const message: AppendMessage = {
+    role: "user",
+    content: [
+      { type: "text", text: "review" },
+      {
+        type: "file",
+        data: attachment.id,
+        mimeType: attachment.mediaType,
+        sourceType: "id",
+        filename: attachment.name,
+        fileAttachment: attachment,
+      },
+    ],
+    attachments: [],
+    createdAt: new Date(0),
+    metadata: { custom: {} },
+    parentId: null,
+    sourceId: null,
+  };
+
+  const prompt = appendMessageToPiPrompt(message);
+  assert.deepEqual(prompt.images, []);
+  assert.deepEqual(prompt.fileAttachments, [attachment]);
+});
+
 test("renders token-only Composer source text in its optimistic user bubble", () => {
   const sourceText = ":pi-command[compact|Compact] ";
   const command = {
@@ -710,6 +782,86 @@ test("projects a durable prompt failure as an assistant error after its accepted
     code: "image-input-unsupported",
     rpcId: "session.prompt:image",
   });
+});
+
+test("uses the managed image marker as the canonical bubble without duplicating native history", () => {
+  const attachment = {
+    id: "8b95d58b-3189-45f0-9be6-f7a9e4de7248",
+    name: "image.png",
+    mediaType: "image/png" as const,
+    path: "/runtime/attachments/image.png",
+    bytes: 8,
+  };
+  const document = {
+    id: "d719e248-b35d-4e37-b60f-b9040527c27a",
+    name: "spec.pdf",
+    mediaType: "application/pdf",
+    path: "/runtime/attachments/2026-09-12/pdf/id/spec.pdf",
+    bytes: 9,
+  };
+  const history: PiSessionHistory = {
+    sessionId: "session",
+    context: {
+      entryIds: ["composer-entry", "native-user"],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+          content: "",
+          display: false,
+          details: {
+            version: 3,
+            submissionId: "managed-image-submission",
+            sourceText: "你好 ",
+            text: "你好 ",
+            document: [{ type: "text", text: "你好 " }],
+            commands: [],
+            fileAttachments: [attachment, document],
+            status: "accepted",
+          },
+          timestamp: 10,
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "你好 " },
+            { type: "image", data: "iVBORw0KGgo=", mimeType: "image/png", name: "image.png" },
+          ],
+          workbenchComposer: {
+            version: 2,
+            submissionId: "managed-image-submission",
+            sourceText: "你好 ",
+            hidden: true,
+          },
+          timestamp: 11,
+        },
+      ],
+    },
+  };
+
+  const [message] = piHistoryToThreadMessages(history);
+  assert.equal(message?.role, "user");
+  assert.deepEqual(message?.content, [
+    { type: "text", text: "你好 " },
+    {
+      type: "file",
+      data: attachment.id,
+      mimeType: "image/png",
+      sourceType: "id",
+      filename: "image.png",
+      fileAttachment: attachment,
+    },
+    {
+      type: "file",
+      data: document.id,
+      mimeType: "application/pdf",
+      sourceType: "id",
+      filename: "spec.pdf",
+      fileAttachment: document,
+    },
+  ]);
 });
 
 test("places a resolved follow-up Composer message after the assistant turn it waited for", () => {
