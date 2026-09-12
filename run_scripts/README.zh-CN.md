@@ -42,4 +42,4 @@ Windows PowerShell 或 CMD：
 
 发布脚本复用 `scripts/local-release.mjs`。需先通过 `gh auth login` 登录，保持各应用版本一致，并处于对应 `v<版本号>` 标签的干净工作区。该标签指向的提交必须已包含在 `origin/main` 中。上传前需推送标签并创建对应的 GitHub Release。
 
-`release` 将正式发布产物构建到 `release-assets/<平台目标>/`，`release-upload` 上传这些经过校验的产物。仅有 `dist-electron/` 中的普通安装包不足以运行 `release-upload`。
+`release` 将正式发布产物构建到 `release-assets/<平台目标>/`，`release-upload` 会先校验该目录，但只上传程序资产（桌面安装包和 Web Runtime 压缩包）。JSON 清单、校验文件和更新元数据仅保留在本地用于发布校验，不会上传。仅有 `dist-electron/` 中的普通安装包不足以运行 `release-upload`。

@@ -6,6 +6,7 @@ import nativeBuild from "./build-node-pty-native.cjs";
 import processRunner from "../apps/desktop-electron/scripts/process-runner.cjs";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
+const uploadableProgramAssetPattern = /\.(?:deb|dmg|exe|msi|rpm|zip|tar\.gz)$/u;
 
 export function localRelease({
   args = process.argv.slice(2),
@@ -112,7 +113,9 @@ export function localRelease({
       throw new Error(`Remote ${tag} does not match the built commit ${commit}.`);
     const assets = readdirSync(output)
       .sort()
+      .filter((name) => uploadableProgramAssetPattern.test(name))
       .map((name) => path.join(output, name));
+    if (assets.length === 0) throw new Error(`No program assets found in ${output}.`);
     run("gh", ["release", "upload", tag, ...assets, "--repo", repository, ...flags]);
   }
   return { tag, target, output, commit };
