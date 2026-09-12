@@ -105,12 +105,14 @@ function AttachmentTile({
               <DialogContent
                 closeLabel={t("assistant.common.close")}
                 closeButtonFrame="none"
-                className="[&>button]:bg-foreground/60 [&>button]:hover:bg-foreground/80 [&_svg]:text-background p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0!"
+                closeButtonInteraction="static"
+                closeButtonClassName="top-0 end-0 bg-black/65 text-white"
+                className="h-fit w-fit max-w-[calc(100vw-2rem)] gap-0 rounded-none bg-transparent p-0 pt-[calc(var(--icon-frame-size-sm)+0.5rem)] ring-0 sm:max-w-[calc(100vw-2rem)]"
               >
                 <DialogTitle className="sr-only">
                   {t("assistant.attachment.previewTitle")}
                 </DialogTitle>
-                <div className="bg-background relative mx-auto flex max-h-[80dvh] w-full items-center justify-center overflow-hidden rounded-sm">
+                <div className="relative mx-auto flex w-fit max-w-full items-center justify-center">
                   <AttachmentPreview source={attachment.source} />
                 </div>
               </DialogContent>

@@ -7,9 +7,9 @@ import { cn } from "../utils";
 import { withTooltip } from "./tooltip";
 
 const iconButtonInteractionStyles = [
-  "[&:not([data-frame=none]):hover:not(:active)]:[background:var(--icon-frame-background-hover)]!",
-  "[&:not([data-frame=none]):focus-visible:not(:active)]:[background:var(--icon-frame-background-hover)]!",
-  "[&:not([data-frame=none]):active]:[background:var(--icon-frame-background-active)]!",
+  "[&:not([data-interaction=static]):not([data-frame=none]):hover:not(:active)]:[background:var(--icon-frame-background-hover)]!",
+  "[&:not([data-interaction=static]):not([data-frame=none]):focus-visible:not(:active)]:[background:var(--icon-frame-background-hover)]!",
+  "[&:not([data-interaction=static]):not([data-frame=none]):active]:[background:var(--icon-frame-background-active)]!",
   "[&:not([data-selection=none])]:aria-expanded:[background:var(--icon-frame-background-selected)]!",
   "[&:not([data-selection=none])]:aria-expanded:[color:var(--icon-frame-foreground-selected)]!",
   "[&:not([data-selection=none])]:aria-pressed:[background:var(--icon-frame-background-selected)]!",
@@ -45,8 +45,8 @@ const selectableButtonStateStyles = [
 ].join(" ");
 
 const neutralButtonInteractionStyles = [
-  "[&:not([data-frame=none])]:hover:[background:var(--button-background-hover)]",
-  "[&:not([data-frame=none])]:active:[background:var(--button-background-active)]",
+  "[&:not([data-interaction=static]):not([data-frame=none])]:hover:[background:var(--button-background-hover)]",
+  "[&:not([data-interaction=static]):not([data-frame=none])]:active:[background:var(--button-background-active)]",
 ].join(" ");
 
 const buttonVariants = cva(
@@ -57,16 +57,20 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        default:
+          "bg-primary text-primary-foreground [&:not([data-interaction=static])]:hover:bg-primary/80",
         outline: cn(
-          "border-border bg-card hover:text-foreground dark:border-input",
+          "border-border bg-card dark:border-input [&:not([data-interaction=static])]:hover:text-foreground",
           neutralButtonInteractionStyles,
         ),
         secondary: cn("bg-secondary text-secondary-foreground", neutralButtonInteractionStyles),
-        ghost: cn("hover:text-foreground", neutralButtonInteractionStyles),
+        ghost: cn(
+          "[&:not([data-interaction=static])]:hover:text-foreground",
+          neutralButtonInteractionStyles,
+        ),
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-destructive/10 text-destructive dark:bg-destructive/20 [&:not([data-interaction=static])]:hover:bg-destructive/20 dark:[&:not([data-interaction=static])]:hover:bg-destructive/30",
+        link: "text-primary underline-offset-4 [&:not([data-interaction=static])]:hover:underline",
       },
       size: {
         default:
@@ -90,17 +94,28 @@ const buttonVariants = cva(
   },
 );
 
+export type ButtonInteraction = "default" | "static";
+
 function Button({
   className,
+  interaction = "default",
   variant = "default",
   size = "default",
   tooltipDelay = size?.startsWith("icon") ? 0 : undefined,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & { tooltipDelay?: number }) {
+}: ButtonPrimitive.Props &
+  VariantProps<typeof buttonVariants> & {
+    interaction?: ButtonInteraction;
+    tooltipDelay?: number;
+  }) {
   return withTooltip(
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      data-interaction={interaction === "static" ? "static" : undefined}
+      className={cn(
+        buttonVariants({ variant, size, className }),
+        interaction === "static" && "transition-none",
+      )}
       {...props}
     />,
     tooltipDelay,
