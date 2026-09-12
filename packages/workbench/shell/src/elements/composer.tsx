@@ -62,11 +62,17 @@ function ComposerMenuItem({
 export function ComposerCommandItem({
   command,
   active,
+  icon,
+  iconClassName,
+  iconSize,
   className,
   ...props
 }: Omit<ComponentProps<"button">, "children"> & {
   command: ComposerCommand;
   active: boolean;
+  icon?: ReactNode;
+  iconClassName?: string;
+  iconSize?: "default" | "md-lg" | "lg";
 }) {
   const triggerLabel = command.label ?? command.name;
 
@@ -80,13 +86,26 @@ export function ComposerCommandItem({
       )}
       {...props}
     >
+      {icon ? (
+        <span
+          data-slot="composer-command-item-icon"
+          aria-hidden="true"
+          className={cn(
+            "text-muted-foreground aui-composer-icon-size-default inline-flex shrink-0 items-center justify-center [&_svg]:size-full",
+            iconSize === "md-lg" && "aui-composer-icon-size-md-lg",
+            iconClassName,
+          )}
+        >
+          {icon}
+        </span>
+      ) : null}
       <span className="flex min-w-0 flex-1 items-baseline gap-2 leading-5">
         {withTooltip(
           <code
-            className="text-primary min-w-0 truncate text-[13px] font-medium"
-            title={`/${triggerLabel}`}
+            className="text-foreground min-w-0 truncate text-[13px] font-medium"
+            title={triggerLabel}
           >
-            /{triggerLabel}
+            {triggerLabel}
           </code>,
         )}
         {command.argumentHint
@@ -121,12 +140,16 @@ export function ComposerCommandItem({
 
 export function ComposerCommandToken({
   icon,
+  iconClassName,
+  iconSize,
   label,
   hint,
   className,
   ...props
 }: Omit<ComponentProps<"span">, "children"> & {
   icon?: ReactNode;
+  iconClassName?: string;
+  iconSize?: "default" | "md-lg" | "lg";
   label: string;
   hint?: string;
 }) {
@@ -144,7 +167,11 @@ export function ComposerCommandToken({
           <span
             data-slot="composer-command-token-icon"
             aria-hidden="true"
-            className="aui-composer-icon-size-default inline-flex items-center justify-center [&_svg]:size-full"
+            className={cn(
+              "aui-composer-icon-size-default inline-flex items-center justify-center [&_svg]:size-full",
+              iconSize === "md-lg" && "aui-composer-icon-size-md-lg",
+              iconClassName,
+            )}
           >
             {icon}
           </span>

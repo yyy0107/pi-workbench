@@ -149,6 +149,7 @@
   --icon-size-xs: 12px;
   --icon-size-sm: 14px;
   --icon-size-md: 16px;
+  --icon-size-md-lg: calc((var(--icon-size-md) + var(--icon-size-lg)) / 2);
   --icon-size-lg: 18px;
   --icon-size-xl: 20px;
   --icon-size-xxl: 24px;
@@ -159,6 +160,7 @@
   /* Backward-compatible aliases for extension styles. */
   --icon-sm: var(--icon-size-sm);
   --icon-md: var(--icon-size-md);
+  --icon-md-lg: var(--icon-size-md-lg);
 
   /* Inputs */
   --input-control-height: calc(var(--form-control-height) - 2px);
@@ -296,9 +298,9 @@
   --aui-font-family: system-ui;
 }
 
-/* Six icon profiles, resolved at the appearance boundary so density and radius stay live.
+/* Seven icon profiles, resolved at the appearance boundary so density and radius stay live.
    At default density and radius: XS 12/22/4, S 14/24/5, M 16/28/6,
-   L 18/32/7, XL 20/36/8, XXL 24/42/9 (glyph/frame/radius in px).
+   M-L 17/30/6.5, L 18/32/7, XL 20/36/8, XXL 24/42/9 (glyph/frame/radius in px).
    Per-side glyph clearance grows from 5px for compact controls to 9px for large entries. */
 :root,
 [data-workbench-shell] {
@@ -318,6 +320,11 @@
     calc(28px + var(--icon-frame-density-offset))
   );
   --icon-frame-radius-md: calc(var(--radius) * 0.6);
+  --icon-frame-size-md-lg: max(
+    calc(var(--icon-size-md-lg) + 4px),
+    calc(30px + var(--icon-frame-density-offset))
+  );
+  --icon-frame-radius-md-lg: calc(var(--radius) * 0.65);
   --icon-frame-size-lg: max(
     calc(var(--icon-size-lg) + 4px),
     calc(32px + var(--icon-frame-density-offset))

@@ -67,7 +67,12 @@ import {
   workbenchComposerDirectiveFormatter,
 } from "./composer-document";
 import { composerCommandArgumentHint } from "./composer-command-argument-hint";
+import { sortComposerSuggestions } from "./composer-command-group-order";
 import { ComposerCommandParameterPanel } from "./composer-command-parameter-panel";
+import {
+  COMPOSER_COMMAND_TOKEN_ICON_ACCENT_CLASS_NAME,
+  composerCommandIconColorMap,
+} from "./composer-command-icon-color";
 import {
   composerCommandParameterFields,
   composerCommandParameterIssues,
@@ -85,7 +90,11 @@ import {
   type ComposerTriggerItem,
   type DirectiveChipProps,
 } from "./composer-directive";
-import { ComposerTokenIcon, type ComposerTokenKind } from "./composer-token-icon";
+import {
+  ComposerCommandIcon,
+  ComposerTokenIcon,
+  type ComposerTokenKind,
+} from "./composer-token-icon";
 import { MarkdownComposerInput } from "./markdown-composer-input";
 import {
   canSubmitWorkbenchComposer,
@@ -527,7 +536,7 @@ export function WorkbenchComposer({
       });
     }
 
-    return suggestions;
+    return sortComposerSuggestions(suggestions);
   }, [agentCommands, localize, registeredComposerCommands, t]);
   const composerSuggestionsByKey = useMemo(
     () =>
@@ -726,6 +735,10 @@ export function WorkbenchComposer({
     () => slashCommandMatch?.suggestions.map(({ item }) => item) ?? [],
     [slashCommandMatch],
   );
+  const commandIconColorBySuggestionKey = useMemo(
+    () => composerCommandIconColorMap(slashCommandItems),
+    [slashCommandItems],
+  );
   const contextMenuOpen =
     contextMentionMatch !== undefined && suppressedMatchKey !== contextMentionMatch.key;
   const commandMenuOpen =
@@ -814,7 +827,8 @@ export function WorkbenchComposer({
       const editor = lexicalEditorRef.current;
       if (!editor) return;
       setSuppressedMatchKey(undefined);
-      const selectedSuggestion = composerSuggestionsByKey.get(suggestionKey(item));
+      const selectedSuggestionKey = suggestionKey(item);
+      const selectedSuggestion = composerSuggestionsByKey.get(selectedSuggestionKey);
       const parameterSelection =
         selectedSuggestion?.argsSchema && suggestionHasParameterFields(selectedSuggestion)
           ? {
@@ -1135,16 +1149,14 @@ export function WorkbenchComposer({
           />
         );
       }
-      const suggestion = composerSuggestionsByKey.get(
-        suggestionKey({ id: directiveId, type: directiveType }),
-      );
+      const directiveSuggestionKey = suggestionKey({ id: directiveId, type: directiveType });
+      const suggestion = composerSuggestionsByKey.get(directiveSuggestionKey);
       const parameterKey = suggestionHasParameterFields(suggestion)
         ? suggestionParameterKey({ id: directiveId, type: directiveType })
         : undefined;
       const editLabel = parameterKey
         ? t("workbench.chat.composer.commandParameters.edit", { command: label })
         : undefined;
-      const TokenIcon = suggestion?.definition?.icon;
       const tokenKind: ComposerTokenKind | undefined =
         directiveType === COMPOSER_CONVERSATION_MENTION_TYPE
           ? "conversation"
@@ -1154,12 +1166,14 @@ export function WorkbenchComposer({
       return (
         <ComposerCommandToken
           icon={
-            TokenIcon ? (
-              <TokenIcon />
+            suggestion ? (
+              <ComposerCommandIcon kind={suggestion.group} />
             ) : tokenKind ? (
               <ComposerTokenIcon kind={tokenKind} />
             ) : undefined
           }
+          iconClassName={suggestion ? COMPOSER_COMMAND_TOKEN_ICON_ACCENT_CLASS_NAME : undefined}
+          iconSize="md-lg"
           label={label}
           role={parameterKey ? "button" : undefined}
           tabIndex={parameterKey ? 0 : undefined}
@@ -1236,6 +1250,7 @@ export function WorkbenchComposer({
           items={slashCommandItems}
           highlightedIndex={commandHighlightedIndex}
           suggestions={composerSuggestionsByKey}
+          iconColorBySuggestionKey={commandIconColorBySuggestionKey}
           groupLabel={(group, count) => suggestionGroupLabel(group, t, runtimeName, count)}
           ariaLabel={t("workbench.chat.composer.commandSuggestions")}
           onSelect={(item) => handleDirectiveSelect(item, "/")}
