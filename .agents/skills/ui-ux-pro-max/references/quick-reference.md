@@ -1,6 +1,6 @@
 # Quick Reference — Full Rule Set (all 10 categories)
 
-Load this file when doing a UI review/audit pass, or when you need the full checklist for a category beyond the priority table in SKILL.md. Each rule is also present verbatim in `data/ux-guidelines.csv` / `data/app-interface.csv` and is reachable via `--domain ux` / `--domain web` search — this file is a static index for quick scanning without a search round-trip.
+Read only the category relevant to an unresolved UX question or requested review. This is a static index of the searchable guidance in `data/ux-guidelines.csv` / `data/app-interface.csv`; search is optional when this reference already answers the question. Apply each rule to its stated platform and accessibility level. In Workbench, preserve Shell semantic tokens and density settings; native mobile target sizes, fixed font defaults, and mobile navigation patterns are not universal desktop requirements. Distinguish required accessible behavior from optional style recommendations, and do not add animation solely to avoid immediate feedback.
 
 ## Quick Reference
 

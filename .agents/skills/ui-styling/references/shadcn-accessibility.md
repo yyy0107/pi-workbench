@@ -1,5 +1,7 @@
 # shadcn/ui Accessibility Patterns
 
+Standalone examples below must be adapted to the owning project. In Workbench, reuse Shell components, semantic tokens, and the existing i18n/theme system. Install only a missing dependency or primitive needed by the request; do not initialize a second UI system or copy a rich selector already provided by Shell.
+
 ARIA patterns, keyboard navigation, screen reader support, and accessible component usage.
 
 ## Foundation: Radix UI Primitives
@@ -457,7 +459,7 @@ In components:
 
 **Automated testing:**
 ```bash
-npm install -D @axe-core/react
+pnpm add -D @axe-core/react
 ```
 
 ```tsx

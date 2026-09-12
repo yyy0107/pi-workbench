@@ -25,7 +25,7 @@
 
 ## UI 样式归属与复用
 
-- 新建或修改 UI 组件前，必须先检查 `packages/workbench/shell/src/ui/` 中的共享组件和 `packages/workbench/shell/src/styles.css` 公共入口及其导入的语义 token 和区域样式；复用优先级为：共享组件及其 variant → Tailwind 语义类 → 所属作用域的现有 CSS token → 新增局部样式。不得在业务组件中复制已有基础组件或交互状态样式。
+- 新增控件或修改布局、视觉、交互样式时，按需检查 `packages/workbench/shell/src/ui/` 中对应的共享组件，以及 `packages/workbench/shell/src/styles.css` 导入的相关语义 token 和区域样式；已读取且未变化的内容直接复用，纯文案或非视觉逻辑修改不要求重读样式。复用优先级为：共享组件及其 variant → Tailwind 语义类 → 所属作用域的现有 CSS token → 新增局部样式。不得在业务组件中复制已有基础组件或交互状态样式。
 - 新组件必须接入全局外观系统。颜色使用 `bg-background`、`bg-muted`、`text-foreground`、`text-muted-foreground`、`border-border` 等语义类；控件高度、圆角、图标、输入框、下拉框、开关和交互状态使用 `--button-*`、`--control-*`、`--icon-*`、`--input-control-*`、`--dropdown-control-*`、`--switch-*` 等现有 token。若已有对应 token，禁止改用固定的 `px`、任意 Tailwind 尺寸、十六进制/RGB 颜色或独立圆角值覆盖它。
 - 下拉选择器必须复用 `packages/workbench/shell/src/ui/` 中对应的共享组件和既有布局：工作区或项目选择统一使用 `WorkspaceSelector`，通用富下拉优先使用 `SelectorDropdown`、`DropdownMenu` 及其共享选项组件。不得在业务组件中直接使用原生 `<select>`、用 `components/ui/Select` 替代已有富下拉，或自行复制触发器、弹层、搜索、选中态等样式。仅当现有全局组件无法表达且产品明确需要原生选择语义时，才允许使用 `components/ui/Select`，并应在代码附近说明原因。
 - 全局规范放全局，区域公共规范放区域，共享组件复用基础能力。主题基础和滚动条属于全局；标题栏、状态栏高度及布局动画参数属于 `[data-workbench-shell]`；侧栏行高、间距、图标和拖放规则只属于侧栏；对话、Composer 和渲染器规则与组件共置并限定作用域。跨组件复用不等于需要放到 `:root`。
@@ -53,6 +53,8 @@ pnpm lint:fix     # oxlint --fix && oxfmt
 pnpm format       # oxfmt --check
 pnpm format:fix   # oxfmt
 ```
+
+以下 Next.js 自动维护指引仅适用于涉及 Next.js API、路由、渲染、配置或构建行为的修改；其他代码和纯文档修改不需要为此阅读 Next.js 文档。
 
 <!-- BEGIN:nextjs-agent-rules -->
 

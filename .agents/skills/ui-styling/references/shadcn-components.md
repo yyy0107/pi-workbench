@@ -1,14 +1,15 @@
 # shadcn/ui Component Reference
 
+Standalone examples below must be adapted to the owning project. In Workbench, reuse Shell components, semantic tokens, and the existing i18n/theme system. Install only a missing dependency or primitive needed by the request; do not initialize a second UI system or copy a rich selector already provided by Shell.
+
 Complete catalog of shadcn/ui components with usage patterns and installation.
 
 ## Installation
 
 **Add specific components:**
 ```bash
-npx shadcn@latest add button
-npx shadcn@latest add button card dialog  # Multiple
-npx shadcn@latest add --all              # All components
+pnpm dlx shadcn@latest add button
+pnpm dlx shadcn@latest add button card dialog  # Multiple
 ```
 
 Components install to `components/ui/` with automatic dependency management.
