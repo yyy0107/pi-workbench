@@ -4,7 +4,7 @@
   --sidebar-row-radius: var(--button-radius);
   --sidebar-row-padding: 6px;
   --sidebar-row-gap: 4px;
-  --sidebar-list-gap: 2px;
+  --sidebar-list-gap: 1px;
   --sidebar-row-indent: var(--icon-frame-size-compact);
   --sidebar-row-motion-duration: 150ms;
   --sidebar-drop-line-size: 2px;
@@ -154,6 +154,7 @@
     .sidebar-row[data-variant="folder"] .sidebar-row-label,
     .sidebar-section-label {
       font-weight: 500;
+      font-size: var(--text-base);
     }
     .sidebar-row-status,
     .sidebar-row-actions {
