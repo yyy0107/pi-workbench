@@ -42,4 +42,4 @@ Arguments are forwarded to the final pnpm command. For example, `release-upload.
 
 The release scripts reuse `scripts/local-release.mjs`. Sign in with `gh auth login`, keep all app versions aligned, and use a clean checkout at the matching `v<version>` tag. The tagged commit must be included in `origin/main`. Push that tag and create its GitHub Release before uploading.
 
-`release` builds release assets into `release-assets/<platform-target>/`; `release-upload` uploads those validated assets. The regular installers in `dist-electron/` alone are not sufficient for `release-upload`.
+`release` builds release assets into `release-assets/<platform-target>/`; `release-upload` validates that directory but uploads only program assets (desktop installers and the Web Runtime archive). JSON manifests, checksum files and update metadata remain local and are used to validate the release; they are not uploaded. The regular installers in `dist-electron/` alone are not sufficient for `release-upload`.

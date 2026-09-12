@@ -14,6 +14,11 @@ test("builds only the host target; uploads only after asset and remote tag valid
   const output = path.join(root, "release-assets", target);
   mkdirSync(output, { recursive: true });
   writeFileSync(path.join(output, "installer.deb"), "fixture");
+  writeFileSync(path.join(output, "web-runtime.tar.gz"), "fixture");
+  writeFileSync(path.join(output, "release-metadata.json"), "fixture");
+  writeFileSync(path.join(output, "runtime-inventory.json"), "fixture");
+  writeFileSync(path.join(output, "SHA256SUMS.txt"), "fixture");
+  writeFileSync(path.join(output, "latest.yml"), "fixture");
   const stalePackages = path.join(root, "dist-electron");
   mkdirSync(stalePackages);
   writeFileSync(path.join(stalePackages, "old-installer.exe"), "stale");
@@ -70,6 +75,7 @@ test("builds only the host target; uploads only after asset and remote tag valid
     "upload",
     "v0.2.0",
     path.join(output, "installer.deb"),
+    path.join(output, "web-runtime.tar.gz"),
     "--repo",
     "owner/repo",
   ]);
