@@ -312,7 +312,9 @@ function MarkdownLinkSafetyDialog({ isOpen, onClose, onConfirm, url }: LinkSafet
             type="button"
             onClick={(event) => {
               const request = new CustomEvent("workbench:open-browser-link", {
-                bubbles: true, cancelable: true, detail: { url },
+                bubbles: true,
+                cancelable: true,
+                detail: { url },
               });
               if (event.currentTarget.dispatchEvent(request)) onConfirm();
               close();
@@ -381,7 +383,7 @@ const RenderedMarkdownText = memo(function RenderedMarkdownText({
       lineNumbers={false}
       linkSafety={streamdownLinkSafety}
       mode={mode}
-      animated={Boolean(smooth && isRunning)}
+      animated={smooth && isRunning ? { sep: "char" } : false}
       plugins={plugins}
     >
       {processed}
