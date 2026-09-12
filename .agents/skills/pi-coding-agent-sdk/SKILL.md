@@ -1,6 +1,6 @@
 ---
 name: pi-coding-agent-sdk
-description: Use the embedded @earendil-works/pi-coding-agent SDK and Pi extension system in this Workbench repository. Use when Codex needs to create or change an ExtensionFactory or InlineExtension, subscribe to Pi lifecycle/model/message/tool/input events, register Pi tools/commands/providers/renderers, load or filter extensions through DefaultResourceLoader, work with LoadExtensionsResult or ExtensionRuntime, create/bind/reload AgentSession services, or decide how Pi server state should cross the Workbench RPC boundary. Also use when the Pi Runtime packages depend on the Pi coding-agent public API.
+description: Use when changing embedded Pi coding-agent sessions, extension lifecycle, tools, resource loading, or their Workbench RPC boundary. Verify the installed SDK's public API.
 ---
 
 # Pi Coding Agent SDK
@@ -9,8 +9,8 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 
 ## Load the right context
 
-1. Read the repository `AGENTS.md` and the nearest nested instructions for every file being changed.
-2. Read `packages/agent-runtime/runtimes/pi/README.md` completely before changing Pi session, transport, workspace, model, settings, package, skill, or extension behavior.
+1. Follow the repository `AGENTS.md` and applicable nested instructions; reuse instructions already read and unchanged.
+2. For Pi session, transport, workspace, model, settings, package, skill, or extension changes, locate and read the relevant sections of `packages/agent-runtime/runtimes/pi/README.md`. Read additional sections only for unresolved ownership or behavior questions.
 3. Read [references/source-routing.md](references/source-routing.md) before choosing or importing a Pi API. Resolve the installed package version first.
 4. Read [references/extensions.md](references/extensions.md) when authoring, registering, loading, filtering, or debugging Pi extensions.
 5. Read [references/session-sdk.md](references/session-sdk.md) when creating sessions/services, binding extension contexts, reloading resources, or exposing Pi behavior to Workbench.
@@ -65,7 +65,7 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 - For type/import-only changes, inspect the resolved declarations and run the cheapest relevant TypeScript or targeted test check.
 - For extension behavior, add or update a focused test around the owning server module; simulate events and loader results without real provider calls.
 - For tool output handling, exercise small and oversized results, UTF-8 byte and line limits, and retrieval of complete data. For spill files, check permissions and failure/cancellation; confirm `details` does not retain the oversized snapshot and a committed mutation is still reported as saved.
-- For session creation, binding, reload, or resource discovery changes, run targeted Pi runtime tests plus `pnpm exec tsc --noEmit` when types cross modules.
+- For session creation, binding, reload, or resource discovery changes, run targeted Pi runtime tests. When types cross modules, run `pnpm --filter <affected-package> run typecheck` for the owner and directly affected consumers; use their existing scripts rather than a root `tsc` invocation.
 - Do not open a browser unless a concrete UI synchronization or interaction uncertainty remains.
 
 ## Guardrails

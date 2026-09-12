@@ -8,7 +8,8 @@ import {
   Link2Icon,
   MailIcon,
 } from "lucide-react";
-import type { ComponentProps } from "react";
+import { useEffect, useState, type ComponentProps } from "react";
+import { loadWebsiteIcon } from "../website-icon";
 import { defaultRehypePlugins, type StreamdownProps } from "streamdown";
 import { FileLink } from "../../ui/file-link";
 import { parseLocalFileHref } from "../../workspace-files/file-link";
@@ -79,7 +80,7 @@ function rehypeLinkIcons() {
         node.children.unshift({
           type: "element",
           tagName: "span",
-          properties: { "data-markdown-link-icon": linkKind(href) },
+          properties: { "data-markdown-link-icon": linkKind(href), "data-website-href": href },
           children: [],
         });
         return;
@@ -118,11 +119,36 @@ export function MarkdownFileLink({
 export function MarkdownLinkIcon({
   node: _node,
   "data-markdown-link-icon": kind,
+  "data-website-href": href,
   ...props
 }: ComponentProps<"span"> & {
   node?: unknown;
   "data-markdown-link-icon"?: keyof typeof linkIcons;
+  "data-website-href"?: string;
 }) {
+  const [loaded, setLoaded] = useState<{ href: string; src: string } | null>(null);
+  useEffect(() => {
+    if (kind !== "web" || !href) return;
+    let active = true;
+    void loadWebsiteIcon(href).then((src) => {
+      if (active && src) setLoaded({ href, src });
+    });
+    return () => {
+      active = false;
+    };
+  }, [kind, href]);
+  if (kind === "web" && loaded && loaded.href === href) {
+    return (
+      <img
+        src={loaded.src}
+        alt=""
+        aria-hidden="true"
+        referrerPolicy="no-referrer"
+        className="aui-markdown-link-icon"
+        onError={() => setLoaded(null)}
+      />
+    );
+  }
   const Icon = kind && linkIcons[kind];
   return Icon ? (
     <Icon aria-hidden="true" className="aui-markdown-link-icon" />

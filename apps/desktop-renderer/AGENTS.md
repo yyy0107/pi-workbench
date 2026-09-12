@@ -1,3 +1,5 @@
+以下 Next.js 自动维护指引仅适用于涉及 Next.js API、路由、渲染、配置或构建行为的修改；其他代码和纯文档修改不需要为此阅读 Next.js 文档。
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

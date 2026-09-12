@@ -1,6 +1,6 @@
 ---
 name: extend-workbench-ui
-description: Builds, modifies, and reviews Pi Workbench frontend extensions using this repository's static Slot, Panel, Command, Composer Command, Opener, Renderer, Settings, Main View, Workspace Surface, and Toolbox metadata platform. Use when adding Workbench UI features, extension components, composer/header/sidebar/statusbar/workspace contributions, inspector surfaces, resource open handlers, panels, settings, command-palette actions or shortcuts, message/part/tool/data renderers or timeline presentations, builtinExtensions or installableComponentExtensions entries, or when deciding whether a change belongs in an extension versus app, workbench, RightWorkspace, browser conversation runtime, Pi runtime, or backend core.
+description: Add, modify, or review Workbench frontend extension contributions and their registration. Use also when deciding whether a requested UI capability belongs in an extension or a core owner.
 ---
 
 # Extend Workbench UI
@@ -9,9 +9,9 @@ Implement frontend features through the repository's typed, statically bundled e
 
 ## Load the right context
 
-1. Read the repository `AGENTS.md` and preserve unrelated worktree changes.
-2. Read [references/contracts.md](references/contracts.md) before editing extension code.
-3. Read [references/recipes.md](references/recipes.md) when implementing a Slot, Panel, Command, Composer Command, Opener, Renderer, Settings, Main View, RightWorkspace integration, Toolbox entry, or new host Slot.
+1. Follow the repository `AGENTS.md` and applicable nested instructions, reuse unchanged context already read, and preserve unrelated worktree changes.
+2. Read the relevant contribution section of [references/contracts.md](references/contracts.md) when adding or changing an extension API use or resolving a contract question. Copy-only and styling-only edits do not require reading the full contract reference.
+3. Use the matching example in [references/recipes.md](references/recipes.md) when an implementation pattern is needed; do not read unrelated recipes.
 4. Generic host/session/workspace/model UI uses Workbench contracts, projections, and capability hooks from `@workbench/agent-runtime-client/context`; inspect their owners before choosing an API. For Pi-specific configuration, resources, or diagnostics, read [`packages/agent-runtime/runtimes/pi/README.md`](../../../packages/agent-runtime/runtimes/pi/README.md) and inspect the named Pi contract/client entry. Do not infer APIs from legacy routes or a generic Harness reference.
 5. Use `$pi-coding-agent-sdk` when work reaches the server-side AgentSession, coding-agent extension, resource-loader, or `@earendil-works/pi-coding-agent` layer. Keep that SDK behind the Workbench Pi server boundary rather than importing it into browser components.
 6. Use `$pi-ai-sdk` when work directly uses `@earendil-works/pi-ai` models, providers, authentication, messages, tool schemas, image requests, or streaming events. Use both Pi SDK skills only when the task genuinely crosses both layers.
@@ -19,7 +19,7 @@ Implement frontend features through the repository's typed, statically bundled e
 8. For browser conversation, thread, composer, message, or tool state, inspect the current owner under `packages/agent-runtime/**` and `packages/workbench/shell/**` before editing.
 9. The [assistant-ui migration](../../../docs/assistant-ui-removal-and-custom-runtime-plan.md) is complete. Follow the [Workbench/Pi ownership boundary](../../../docs/agent-runtime-pi-implementation-refactor-plan.md); do not reintroduce assistant-ui dependencies or public types.
 10. Route tool definition and execution through the owning Pi/backend capability. A Renderer registration alone does not define or execute a tool.
-11. If the task touches Next.js app code, read the relevant local guide in `node_modules/next/dist/docs/` before editing.
+11. If the task changes Next.js API, routing, rendering, configuration, or build behavior, read the relevant local guide in `node_modules/next/dist/docs/` before editing.
 
 ## Decide the ownership boundary
 
@@ -160,16 +160,16 @@ JavaScript loading, or runtime route registration.
 
 ### 5. Validate proportionally
 
-Run targeted checks first, using pnpm only:
+Choose checks for the changed behavior, using pnpm only. For extension code, check the changed files and the owning package as applicable:
 
 ```bash
-pnpm exec oxfmt --check <owner-package>/src/extensions/builtin/<feature> <owner-package>/src/extensions/builtin-extensions.ts
-pnpm exec oxlint <owner-package>/src/extensions/builtin/<feature> <owner-package>/src/extensions/builtin-extensions.ts
-pnpm exec tsc --noEmit
+pnpm exec oxfmt --check <changed-files>
+pnpm exec oxlint <changed-code-files>
+pnpm --filter <owner-package-name> run typecheck
 ```
 
-Run `pnpm build` when changing provider composition, public contracts, Workbench hosts, routing, or client/server boundaries.
-When changing Pi transport or session behavior, also run the Pi tests documented in `packages/agent-runtime/runtimes/pi/README.md`.
+For public contract or composition changes, also check directly affected consumers. Use an affected app/package build when bundling, routing, or client/server behavior needs verification; reserve root `pnpm build` for artifact composition or cross-host compatibility that narrower checks cannot establish.
+For Pi transport or session behavior, run the relevant tests identified in `packages/agent-runtime/runtimes/pi/README.md`. Documentation-only edits need static review, not TypeScript checks or builds. Once relevant checks pass, repeat them only after a further change or new evidence of a problem.
 
 ## Enforce the guardrails
 

@@ -1,6 +1,6 @@
 ---
 name: pi-ai-sdk
-description: Use @earendil-works/pi-ai in this Workbench repository for model/provider collections, authentication, chat or image requests, streaming events, tool schemas, partial tool-call JSON, and Pi Messages wire events. Use when code imports pi-ai, changes the Pi Runtime model catalog or streamed-message handling, builds a custom provider, or needs version-correct Pi AI types. Do not use for coding-agent sessions or extensions unless the task also touches Pi AI; use the pi-coding-agent-sdk skill for that layer.
+description: Use when changing Pi AI model/provider APIs, authentication, message streams, or image requests in Workbench. Coding-agent sessions and extensions belong to pi-coding-agent-sdk unless the change also touches Pi AI.
 ---
 
 # Pi AI SDK
@@ -9,8 +9,8 @@ Use Pi AI as the provider-neutral model, message, streaming, tool-schema, authen
 
 ## Load the right context
 
-1. Read the repository `AGENTS.md` and the nearest instructions for every file being changed.
-2. Read `packages/agent-runtime/runtimes/pi/README.md` completely before changing model, provider, auth, session stream, attachment, or browser transport behavior.
+1. Follow the repository `AGENTS.md` and applicable nested instructions; reuse instructions already read and unchanged.
+2. For model, provider, auth, session stream, attachment, or browser transport changes, locate and read the relevant sections of `packages/agent-runtime/runtimes/pi/README.md`. Read additional sections only for unresolved ownership or behavior questions.
 3. Read [references/source-routing.md](references/source-routing.md) before choosing an import. Resolve the installed package version and export map first.
 4. Read [references/models-providers-auth.md](references/models-providers-auth.md) for model lookup, provider composition, custom providers, dynamic catalogs, authentication, or reasoning options.
 5. Read [references/messages-streams-tools-images.md](references/messages-streams-tools-images.md) for contexts, message/event protocols, reducers, tool calls, image input, or image generation.

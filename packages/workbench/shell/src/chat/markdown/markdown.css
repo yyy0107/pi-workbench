@@ -62,9 +62,7 @@
 }
 
 .aui-streamdown :where([data-streamdown="link"]) {
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
+  display: inline;
   color: var(--primary);
   font-weight: 400;
   text-decoration-line: none;
@@ -77,8 +75,9 @@
 }
 
 .aui-streamdown .aui-markdown-link-icon {
+  object-fit: contain;
   display: inline-block;
-  flex-shrink: 0;
+  vertical-align: calc(0.5ex - var(--icon-size-sm) / 2);
   width: var(--icon-size-sm);
   height: var(--icon-size-sm);
   margin-inline-end: 0.25em;
