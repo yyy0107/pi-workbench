@@ -110,7 +110,7 @@ function useBrowserLinkRouting(root: RefObject<HTMLElement | null>, settingsRead
       const target = event.target as Element | null;
       if (!target || typeof target.closest !== "function") return;
       const anchor = target.closest<HTMLAnchorElement>(
-        'a[href][target="_blank"], a[href][data-streamdown="link"]',
+        'a[href][target="_blank"], a[href][data-markdown="link"]',
       );
       if (
         !anchor ||

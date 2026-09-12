@@ -1,7 +1,7 @@
 "use client";
 
-import { createCodePlugin } from "@streamdown/code";
-import { createMathPlugin } from "@streamdown/math";
+import "katex/dist/katex.min.css";
+import { normalizeMarkdownText } from "./markdown-normalize";
 import { CheckIcon, CircleXIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
 import {
   Children,
@@ -16,16 +16,10 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
-import {
-  CodeBlock,
-  Streamdown,
-  type Components,
-  type LinkSafetyConfig,
-  type LinkSafetyModalProps,
-  type StreamdownProps,
-} from "streamdown";
+import { WorkbenchMarkdown, type MarkdownComponents } from "./workbench-markdown";
+import { MarkdownCodeBlock } from "./markdown-code-block";
 
-import { CODE_THEME_PAIRS, type CodeTheme, useAppearancePreferences } from "../../appearance";
+import { type CodeTheme } from "../../appearance";
 import { InlineCitation, type Source } from "../../elements/inline-citation";
 import { useDisclosureScrollLock } from "../../elements/use-disclosure-scroll-lock";
 import { useClipboardCopy } from "../../hooks/use-clipboard-copy";
@@ -42,7 +36,7 @@ import {
 import { cn } from "../../utils";
 import { CodexCodeHeader } from "./codex-code-header";
 import { MermaidCode } from "./mermaid-code";
-import { MarkdownFileLink, MarkdownLinkIcon, markdownLinkIconPlugins } from "./markdown-link-icons";
+import { MarkdownFileLink, MarkdownLinkIcon } from "./markdown-link-icons";
 import {
   INLINE_CITATION_GROUP_SENTINEL,
   parseInlineCitationUrlSentinel,
@@ -56,24 +50,10 @@ interface InlineCitationContextValue {
 }
 
 const InlineCitationContext = createContext<InlineCitationContextValue | null>(null);
-const mathPlugin = createMathPlugin({ singleDollarTextMath: true });
-const LATEX_DISPLAY_MATH = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
-const LATEX_INLINE_MATH = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
-const CUSTOM_DISPLAY_MATH = /\[\/math\]([\s\S]*?)\[\/math\]/g;
-const CUSTOM_INLINE_MATH = /\[\/inline\]([\s\S]*?)\[\/inline\]/g;
-
-export type MarkdownTextProps = Omit<
-  StreamdownProps,
-  | "animated"
-  | "children"
-  | "components"
-  | "controls"
-  | "isAnimating"
-  | "lineNumbers"
-  | "linkSafety"
-  | "plugins"
-  | "shikiTheme"
-> & {
+const CodeThemeContext = createContext<CodeTheme | undefined>(undefined);
+export type MarkdownTextProps = Omit<ComponentProps<"div">, "children"> & {
+  readonly mode?: "streaming" | "static";
+  readonly decorateLinks?: boolean;
   readonly codeTheme?: CodeTheme;
   readonly defer?: boolean;
   readonly inheritLineHeight?: boolean;
@@ -81,30 +61,8 @@ export type MarkdownTextProps = Omit<
   readonly preserveWhitespace?: boolean;
   readonly preprocess?: (text: string) => string;
   readonly resetParagraphMargins?: boolean;
-  readonly smooth?: boolean | Readonly<Record<string, number>>;
+  readonly smooth?: boolean;
 };
-
-function normalizeMathDelimiters(text: string): string {
-  return text
-    .replace(CUSTOM_DISPLAY_MATH, (_, body: string) => `$$${body.trim()}$$`)
-    .replace(CUSTOM_INLINE_MATH, (_, body: string) => `$${body.trim()}$`)
-    .replace(LATEX_INLINE_MATH, (_, body: string) => `$${body.trim()}$`)
-    .replace(LATEX_DISPLAY_MATH, (_, body: string) => `$$${body}$$`);
-}
-
-/** Keep prose prices out of single-dollar math while preserving likely numeric formulas. */
-function escapeCurrencyDollars(text: string): string {
-  return text.replace(/(^|[^\\$])\$(?=\d)/g, (_, prefix: string, offset: number) => {
-    const dollar = offset + prefix.length;
-    const close = text.indexOf("$", dollar + 1);
-    const body = close < 0 ? "" : text.slice(dollar + 1, close);
-    const likelyMath =
-      close > dollar + 1 &&
-      !/\s$/.test(body) &&
-      (/[_^{}\\=+*/]/.test(body) || /^\d+(?:\.\d+)?$/.test(body));
-    return `${prefix}${likelyMath ? "$" : "\\$"}`;
-  });
-}
 
 function sourceFromCitationUrl(value: string): Source | undefined {
   try {
@@ -167,7 +125,7 @@ function MarkdownSuperscript({
   }
 
   return (
-    <sup data-streamdown="superscript" className={cn("text-sm", className)} {...props}>
+    <sup data-markdown="superscript" className={cn("text-sm", className)} {...props}>
       {children}
     </sup>
   );
@@ -184,19 +142,20 @@ function MarkdownCode({
   const [overflowing, setOverflowing] = useState(false);
   const [bodyRef, , prepareDisclosureTransition] = useDisclosureScrollLock(setExpanded);
   const code = dataBlock ? renderedText(children) : "";
+  const codeTheme = useContext(CodeThemeContext);
 
   useLayoutEffect(() => {
     const body = bodyRef.current;
     if (!body || expanded) return;
 
     const measure = () => {
-      const viewport = body.querySelector<HTMLElement>('[data-streamdown="code-block-body"]');
+      const viewport = body.querySelector<HTMLElement>('[data-markdown="code-block-body"]');
       setOverflowing(Boolean(viewport && viewport.scrollHeight > viewport.clientHeight + 1));
     };
     const resizeObserver = new ResizeObserver(measure);
     const observeContent = () => {
       resizeObserver.disconnect();
-      body.querySelectorAll('[data-streamdown="code-block-body"], pre').forEach((element) => {
+      body.querySelectorAll('[data-markdown="code-block-body"], pre').forEach((element) => {
         resizeObserver.observe(element);
       });
       measure();
@@ -213,7 +172,7 @@ function MarkdownCode({
 
   if (!dataBlock) {
     return (
-      <code className={cn("aui-streamdown-inline-code", className)} {...props}>
+      <code className={cn("aui-markdown-inline-code", className)} {...props}>
         {children}
       </code>
     );
@@ -242,20 +201,27 @@ function MarkdownCode({
         }
       />
       <div ref={bodyRef} className="aui-codex-code-body" data-expanded={expanded}>
-        <CodeBlock code={code} language={language} lineNumbers={false} />
+        <MarkdownCodeBlock code={code} language={language} codeTheme={codeTheme} />
       </div>
     </>
   );
 }
 
 const sourceCodeComponents = {
+  a: MarkdownLink,
+  pre: ({ children }: { children?: ReactNode }) => <>{children}</>,
+  table: ({ children, node: _node, ...props }: ComponentProps<"table"> & { node?: unknown }) => (
+    <div data-markdown="table-wrapper">
+      <table {...props}>{children}</table>
+    </div>
+  ),
   code: MarkdownCode,
   span: MarkdownLinkIcon,
   "workbench-file-link": MarkdownFileLink,
   sup: MarkdownSuperscript,
-} as Components;
+} as MarkdownComponents;
 
-const streamdownComponents = {
+const markdownComponents = {
   ...sourceCodeComponents,
   code: (props: ComponentProps<typeof MarkdownCode>) =>
     props["data-block"] && /(?:^|\s)language-mermaid(?:\s|$)/i.test(props.className ?? "") ? (
@@ -263,7 +229,45 @@ const streamdownComponents = {
     ) : (
       <MarkdownCode {...props} />
     ),
-} as Components;
+} as MarkdownComponents;
+
+interface LinkSafetyModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  url: string;
+}
+
+function MarkdownLink({
+  href,
+  children,
+  node: _node,
+  ...props
+}: ComponentProps<"a"> & { node?: unknown }) {
+  const [open, setOpen] = useState(false);
+  if (!href) return <span>{children}</span>;
+  if (href.startsWith("#"))
+    return (
+      <a {...props} href={href} data-markdown="link">
+        {children}
+      </a>
+    );
+  return (
+    <>
+      <button type="button" data-markdown="link" onClick={() => setOpen(true)}>
+        {children}
+      </button>
+      {open ? (
+        <MarkdownLinkSafetyDialog
+          isOpen
+          onClose={() => setOpen(false)}
+          onConfirm={() => window.open(href, "_blank", "noopener,noreferrer")}
+          url={href}
+        />
+      ) : null}
+    </>
+  );
+}
 
 function MarkdownLinkSafetyDialog({ isOpen, onClose, onConfirm, url }: LinkSafetyModalProps) {
   const { t } = useI18n();
@@ -329,11 +333,6 @@ function MarkdownLinkSafetyDialog({ isOpen, onClose, onConfirm, url }: LinkSafet
   );
 }
 
-const streamdownLinkSafety = {
-  enabled: true,
-  renderModal: (props) => <MarkdownLinkSafetyDialog {...props} />,
-} satisfies LinkSafetyConfig;
-
 function ConfiguredMarkdownText({
   text,
   defer = false,
@@ -345,7 +344,8 @@ function ConfiguredMarkdownText({
 
 const RenderedMarkdownText = memo(function RenderedMarkdownText({
   className,
-  codeTheme: codeThemeOverride,
+  codeTheme,
+  decorateLinks = false,
   inheritLineHeight = false,
   isRunning = false,
   mode = isRunning ? "streaming" : "static",
@@ -357,37 +357,42 @@ const RenderedMarkdownText = memo(function RenderedMarkdownText({
   text,
   ...props
 }: MarkdownTextProps & Readonly<{ text: string; renderDiagrams?: boolean }>) {
-  const { codeTheme: preferredCodeTheme } = useAppearancePreferences();
-  const { light, dark } = CODE_THEME_PAIRS[codeThemeOverride ?? preferredCodeTheme];
-  const codePlugin = useMemo(() => createCodePlugin({ themes: [light, dark] }), [dark, light]);
-  const plugins = useMemo(() => ({ code: codePlugin, math: mathPlugin }), [codePlugin]);
+  const { t } = useI18n();
+  const labels = useMemo(
+    () => ({
+      footnotes: t("assistant.markdown.footnotes"),
+      backToReference: t("assistant.markdown.backToReference"),
+    }),
+    [t],
+  );
   const processed = useMemo(() => {
-    const normalized = escapeCurrencyDollars(normalizeMathDelimiters(text));
+    const normalized = normalizeMarkdownText(text);
     return preprocess?.(normalized) ?? normalized;
   }, [preprocess, text]);
 
   return (
-    <Streamdown
+    <div
       {...props}
       className={cn(
-        "aui-streamdown space-y-0 [&>*:first-child]:mt-0! [&>*:last-child]:mb-0!",
+        "aui-markdown space-y-0 [&>*:first-child]:mt-0! [&>*:last-child]:mb-0!",
         inheritLineHeight &&
-          "[&_p]:leading-[inherit]! [&_[data-streamdown=list-item]]:leading-[inherit]!",
+          "[&_p]:leading-[inherit]! [&_[data-markdown=list-item]]:leading-[inherit]!",
         preserveWhitespace && "[&_p]:whitespace-pre-wrap!",
         resetParagraphMargins && "[&_p]:m-0!",
         className,
       )}
-      components={renderDiagrams ? streamdownComponents : sourceCodeComponents}
-      controls={false}
-      isAnimating={isRunning}
-      lineNumbers={false}
-      linkSafety={streamdownLinkSafety}
-      mode={mode}
-      animated={smooth && isRunning ? { sep: "char" } : false}
-      plugins={plugins}
     >
-      {processed}
-    </Streamdown>
+      <CodeThemeContext.Provider value={codeTheme}>
+        <WorkbenchMarkdown
+          text={processed}
+          streaming={mode === "streaming" && isRunning}
+          smooth={Boolean(smooth)}
+          components={renderDiagrams ? markdownComponents : sourceCodeComponents}
+          labels={labels}
+          decorateLinks={decorateLinks}
+        />
+      </CodeThemeContext.Provider>
+    </div>
   );
 });
 
@@ -411,9 +416,7 @@ export const MarkdownTextContentWithCitations = memo(function MarkdownTextConten
   const preprocess = useMemo(
     () => (value: string) => {
       const result = preprocessInlineCitationMarkers(value);
-      return result.markerCount === 0
-        ? `${result.text}<sup>${INLINE_CITATION_GROUP_SENTINEL}</sup>`
-        : result.text;
+      return result.text;
     },
     [],
   );
@@ -426,9 +429,12 @@ export const MarkdownTextContentWithCitations = memo(function MarkdownTextConten
         defer={isRunning}
         mode={isRunning ? "streaming" : "static"}
         preprocess={preprocess}
-        rehypePlugins={markdownLinkIconPlugins}
+        decorateLinks
         smooth
       />
+      {sources.length > 0 && preprocessInlineCitationMarkers(text).markerCount === 0 ? (
+        <MarkdownSuperscript>{INLINE_CITATION_GROUP_SENTINEL}</MarkdownSuperscript>
+      ) : null}
     </InlineCitationContext.Provider>
   );
 });

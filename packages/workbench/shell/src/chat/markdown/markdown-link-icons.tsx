@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type ComponentProps } from "react";
 import { loadWebsiteIcon } from "../website-icon";
-import { defaultRehypePlugins, type StreamdownProps } from "streamdown";
 import { FileLink } from "../../ui/file-link";
 import { parseLocalFileHref } from "../../workspace-files/file-link";
 
@@ -49,30 +48,12 @@ function visitLinks(node: MarkdownNode, visit: (link: LinkNode) => void): void {
   else if ("children" in node) node.children.forEach((child) => visitLinks(child, visit));
 }
 
-function rehypeLocalFileUrls() {
-  return (tree: MarkdownNode) =>
-    visitLinks(tree, (node) => {
-      const href = node.properties.href;
-      if (typeof href === "string" && /^[a-z]:[\\/]/i.test(href)) {
-        node.properties.href = `file:///${href.replaceAll("\\", "/")}`;
-      } else if (
-        typeof href === "string" &&
-        !/^file:/i.test(href) &&
-        /^[^/]+:/.test(href) &&
-        parseLocalFileHref(href)
-      ) {
-        node.properties.href = `./${href}`;
-      }
-    });
-}
-
-// Keep external links with Streamdown; local links use the shared registered file opener.
-function rehypeLinkIcons() {
+export function decorateMarkdownLinks() {
   return (tree: MarkdownNode) =>
     visitLinks(tree, (node) => {
       if (node.type === "element" && node.tagName === "a") {
         const href = node.properties.href;
-        if (typeof href !== "string" || !href || href === "streamdown:incomplete-link") return;
+        if (typeof href !== "string" || !href) return;
         if (parseLocalFileHref(href)) node.tagName = "workbench-file-link";
         // Linked images already provide their own visual content.
         if (node.children.some((child) => child.type === "element" && child.tagName === "img"))
@@ -88,29 +69,13 @@ function rehypeLinkIcons() {
     });
 }
 
-const sanitize = defaultRehypePlugins.sanitize;
-if (!Array.isArray(sanitize))
-  throw new Error("Streamdown's sanitizer configuration is unavailable");
-const schema = sanitize[1] as { protocols: Record<string, string[]> };
-
-export const markdownLinkIconPlugins = [
-  defaultRehypePlugins.raw,
-  rehypeLocalFileUrls,
-  [
-    sanitize[0],
-    { ...schema, protocols: { ...schema.protocols, href: [...schema.protocols.href, "file"] } },
-  ],
-  rehypeLinkIcons,
-  defaultRehypePlugins.harden,
-] satisfies StreamdownProps["rehypePlugins"];
-
 export function MarkdownFileLink({
   node: _node,
   href,
   ...props
 }: ComponentProps<"a"> & { node?: unknown }) {
   return href ? (
-    <FileLink {...props} href={href} data-streamdown="link" />
+    <FileLink {...props} href={href} data-markdown="link" />
   ) : (
     <span>{props.children}</span>
   );

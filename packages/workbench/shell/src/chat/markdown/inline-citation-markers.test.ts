@@ -9,7 +9,7 @@ import {
 
 test("converts safe URL citation markers and assigns stable reference indices", () => {
   const firstUrl = "https://example.com/docs/primitives/message";
-  const secondUrl = "https://example.org/docs/ui/streamdown";
+  const secondUrl = "https://example.org/docs/ui/markdown";
   const result = preprocessInlineCitationMarkers(
     `First [[cite:${firstUrl}]] second [[cite:${secondUrl}]] again [[cite:${firstUrl}]]`,
   );

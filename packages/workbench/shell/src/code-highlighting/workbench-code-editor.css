@@ -24,24 +24,24 @@
 [data-workbench-code-view]
   [data-workbench-code]
   .aui-codex-code-body
-  > [data-streamdown="code-block"] {
+  > [data-markdown="code-block"] {
   min-height: 100%;
   border: 0;
   border-radius: 0;
   background: transparent;
 }
 
-[data-workbench-code-view] [data-workbench-code] [data-streamdown="code-block-body"] {
+[data-workbench-code-view] [data-workbench-code] [data-markdown="code-block-body"] {
   min-height: 100%;
-  /* The editor viewport owns scrolling, so override Streamdown's inline height cap. */
-  max-height: none !important;
+  /* The editor viewport owns scrolling instead of the nested code surface. */
+  max-height: none;
   overflow: visible;
   padding: 4px 12px 4px 60px;
   font-size: var(--workbench-code-font-size, 13px);
   line-height: 24px;
 }
 
-[data-workbench-code-view] [data-workbench-code] [data-streamdown="code-block-body"] > pre {
+[data-workbench-code-view] [data-workbench-code] [data-markdown="code-block-body"] > pre {
   min-height: 100%;
   margin: 0 !important;
   overflow-wrap: anywhere;
@@ -52,14 +52,14 @@
   counter-reset: workbench-code-line;
 }
 
-[data-workbench-code-view] [data-workbench-code] [data-streamdown="code-block-body"] > pre > code {
+[data-workbench-code-view] [data-workbench-code] [data-markdown="code-block-body"] > pre > code {
   display: block;
   min-width: 100%;
 }
 
 [data-workbench-code-view]
   [data-workbench-code]
-  [data-streamdown="code-block-body"]
+  [data-markdown="code-block-body"]
   > pre
   > code
   > span {
@@ -79,7 +79,7 @@
 
 [data-workbench-code-view]
   [data-workbench-code]
-  [data-streamdown="code-block-body"]
+  [data-markdown="code-block-body"]
   > pre
   > code
   > span::before {
@@ -97,7 +97,7 @@
 
 [data-workbench-code-view]
   [data-workbench-code]
-  [data-streamdown="code-block-body"]
+  [data-markdown="code-block-body"]
   > pre
   > code
   > span::after {

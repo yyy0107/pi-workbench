@@ -150,7 +150,7 @@ for both central and side-chat views. Composer controls use `[data-slot="workben
 and `[data-slot="workbench-composer-actions"]`; detached Composer menus opt in with
 `data-workbench-composer-popup`. Corner-radius preferences are selected locally through the Shell's
 `data-workbench-corner-radius` state, without exposing Composer geometry at the document root.
-Markdown/Streamdown styles live with the renderer and work outside the conversation as well.
+Workbench Markdown styles live with the renderer and work outside the conversation as well.
 
 Lucide's existing Provider supplies the Shell's default stroke; explicit icon choices remain valid.
 Shared button primitives own their default glyph size. Override `--button-icon-size` and

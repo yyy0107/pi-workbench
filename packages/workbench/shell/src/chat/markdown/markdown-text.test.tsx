@@ -47,7 +47,7 @@ function render(node: ReactNode): string {
   );
 }
 
-test("routes fenced code and code previews through Streamdown's code block", () => {
+test("routes fenced code and code previews through the Workbench code block", () => {
   const code = "const answer = 42;\nconsole.log(answer);";
   for (const node of [
     createElement(MarkdownTextContent, {
@@ -59,23 +59,23 @@ test("routes fenced code and code previews through Streamdown's code block", () 
     assert.match(markup, /data-expanded="false"/);
     assert.doesNotMatch(markup, /Expand code block/);
     assert.match(markup, />Copy</);
-    assert.match(markup, /data-streamdown="code-block"/);
-    assert.match(markup, /data-streamdown="code-block-body"/);
+    assert.match(markup, /data-markdown="code-block"/);
+    assert.match(markup, /data-markdown="code-block-body"/);
     assert.match(markup, /data-language="typescript"/);
     assert.match(markup, /aui-codex-code-language">TypeScript</);
     assert.match(markup, /<pre[\s>]/);
     assert.match(markup, /const answer = 42;/);
     assert.match(markup, /console.log\(answer\);/);
-    assert.doesNotMatch(markup, /aui-streamdown-inline-code[^>]*>const/);
+    assert.doesNotMatch(markup, /aui-markdown-inline-code[^>]*>const/);
   }
 
   assert.match(
     render(createElement(MarkdownTextContent, { text: "Inline `answer`." })),
-    /<code class="aui-streamdown-inline-code">answer<\/code>/,
+    /<code class="aui-markdown-inline-code">answer<\/code>/,
   );
 });
 
-test("keeps Markdown editor source literal through Streamdown highlighting", () => {
+test("keeps Markdown editor source literal through Workbench highlighting", () => {
   const code = [
     "# System prompt",
     "Cost: $5 or $10.",
@@ -93,6 +93,18 @@ test("keeps Markdown editor source literal through Streamdown highlighting", () 
   assert.ok(markup.includes("**nested source**"));
 });
 
+test("prose math normalization leaves ordinary inline and fenced code unchanged", () => {
+  const snippet = String.raw`const price = "$5"; // \(literal\)`;
+  const markup = render(
+    createElement(MarkdownTextContent, {
+      text: `Inline \`${snippet}\`.\n\n\`\`\`js\n${snippet}\n\`\`\`\n\n\\(x^2\\)`,
+    }),
+  );
+  assert.equal(markup.match(/class="katex"/g)?.length, 1);
+  assert.equal(markup.split(String.raw`\(literal\)`).length - 1, 2);
+  assert.doesNotMatch(markup, /\\\$5/);
+});
+
 test("routes Mermaid fences to diagrams while keeping source previews literal", () => {
   const code = "graph TD\n  A[Start] --> B[Done]";
   for (const language of ["mermaid", "Mermaid"]) {
@@ -103,18 +115,18 @@ test("routes Mermaid fences to diagrams while keeping source previews literal", 
           isRunning,
         }),
       );
-      assert.match(markup, /data-streamdown="mermaid-block"/);
+      assert.match(markup, /data-markdown="mermaid-block"/);
       assert.match(markup, /aria-busy="true"/);
       assert.match(markup, /Rendering diagram/);
       assert.match(markup, />Copy</);
-      assert.doesNotMatch(markup, /data-streamdown="code-block"/);
+      assert.doesNotMatch(markup, /data-markdown="code-block"/);
     }
   }
 
   const source = render(createElement(MarkdownCodeBlockContent, { code, language: "mermaid" }));
-  assert.match(source, /data-streamdown="code-block"/);
+  assert.match(source, /data-markdown="code-block"/);
   assert.match(source, /A\[Start\]/);
-  assert.doesNotMatch(source, /data-streamdown="mermaid-block"/);
+  assert.doesNotMatch(source, /data-markdown="mermaid-block"/);
 });
 
 test("renders supported math delimiters without treating currency as math", () => {
@@ -147,7 +159,7 @@ test("renders structured citations with stable accessible labels", () => {
   assert.match(markup, /aria-label="Example guide"/);
 });
 
-test("decorates assistant links by destination while retaining Streamdown link safety", () => {
+test("decorates assistant links by destination while retaining Workbench link safety", () => {
   const links = [
     ["/workspace/notes.md:12", "file-text"],
     ["file:///tmp/notes.md", "file-text"],
@@ -174,9 +186,9 @@ test("decorates assistant links by destination while retaining Streamdown link s
       );
       assert.match(
         markup,
-        parseLocalFileHref(href)
-          ? /<a[^>]+data-streamdown="link"/
-          : /<button[^>]+data-streamdown="link"/,
+        parseLocalFileHref(href) || href.startsWith("#")
+          ? /<a[^>]+data-markdown="link"/
+          : /<button[^>]+data-markdown="link"/,
         href,
       );
       if (parseLocalFileHref(href)) assert.match(markup, /data-slot="context-menu-trigger"/, href);
@@ -220,4 +232,53 @@ test("code header exposes expand and collapse controls before copy", () => {
     assert.ok(markup.includes(label));
     assert.ok(markup.indexOf(label) < markup.indexOf(">Copy<"));
   }
+});
+
+test("filters unsafe HTML, link protocols and image handlers before rendering", () => {
+  const markup = render(
+    createElement(MarkdownTextContentWithCitations, {
+      text: '<script>alert(1)</script>\n\n<img src="https://example.com/a.png" onerror="alert(1)">\n\n<a href="javascript:alert(1)">unsafe</a>\n\n<iframe src="https://example.com"></iframe>\n\n**Safe text**',
+      sources: [],
+    }),
+  );
+  assert.doesNotMatch(markup, /<script|<iframe|onerror=|javascript:/i);
+  assert.match(markup, /<strong>Safe text<\/strong>/);
+});
+
+test("renders inline URL citations without animating their internal marker text", () => {
+  for (const isRunning of [false, true]) {
+    const markup = render(
+      createElement(MarkdownTextContentWithCitations, {
+        text: "Evidence [[cite:https://example.com/guide]] here.",
+        sources: [],
+        isRunning,
+      }),
+    );
+    assert.match(markup, /data-slot="inline-citation"/);
+    assert.doesNotMatch(markup, /workbench-inline-citation-url|\[\[cite:/);
+  }
+});
+
+test("keeps cross-block references and footnotes resolved while streaming", () => {
+  const text =
+    "See [guide][ref] and a note[^n].\n\nMiddle.\n\nAnother block.\n\n[ref]: https://example.com\n[^n]: Footnote text.";
+  const markup = render(createElement(MarkdownTextContent, { text, isRunning: true }));
+  assert.match(markup, /data-markdown="link"/);
+  assert.match(markup, /Footnote text/);
+  assert.doesNotMatch(markup, /\[guide\]\[ref\]/);
+  const ids = [...markup.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
+  for (const match of markup.matchAll(/href="#([^"]+)"/g))
+    assert.ok(ids.includes(match[1]), match[1]);
+});
+
+test("repairs partial bold prose without adding character spans to completed text", () => {
+  const streaming = render(
+    createElement(MarkdownTextContent, { text: "**正在生成", isRunning: true, smooth: true }),
+  );
+  assert.match(streaming, /<strong>正在生成<\/strong>/);
+  const settled = render(
+    createElement(MarkdownTextContent, { text: "完整中文正文。", smooth: true }),
+  );
+  assert.match(settled, /<p>完整中文正文。<\/p>/);
+  assert.doesNotMatch(settled, /workbench-reveal-text|data-sd-animate/);
 });

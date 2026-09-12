@@ -1,4 +1,9 @@
-import { createHighlighterCore, type HighlighterCore, type ThemedToken } from "shiki/core";
+import {
+  createHighlighterCore,
+  type GrammarState,
+  type HighlighterCore,
+  type ThemedToken,
+} from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
 import type { WorkbenchCodeTheme } from "../appearance";
@@ -27,6 +32,55 @@ type HighlightedCodeTree = ReturnType<HighlighterCore["codeToHast"]>;
 export type WorkbenchHighlightedTokens = readonly (readonly ThemedToken[])[];
 const highlightCache = new Map<string, Promise<HighlightedCodeTree>>();
 const tokenHighlightCache = new Map<string, Promise<WorkbenchHighlightedTokens>>();
+
+/** A fence-local tokenizer. Completed lines keep both their tokens and grammar state. */
+export async function createWorkbenchCodeStream(
+  language: WorkbenchShikiLanguage,
+  lightTheme: WorkbenchCodeTheme,
+  darkTheme: WorkbenchCodeTheme,
+) {
+  const highlighter = await highlighterPromise;
+  await Promise.all([
+    ensureLanguage(highlighter, language),
+    ensureTheme(highlighter, lightTheme),
+    ensureTheme(highlighter, darkTheme),
+  ]);
+  let prefix = "";
+  let state: GrammarState | undefined;
+  let completed: ThemedToken[][] = [];
+  let previous = "";
+  let last: WorkbenchHighlightedTokens | undefined;
+  const tokenize = (value: string) =>
+    highlighter.codeToTokens(value, {
+      lang: language,
+      themes: { light: lightTheme, dark: darkTheme },
+      defaultColor: "light-dark()",
+      tokenizeTimeLimit: 80,
+      ...(state ? { grammarState: state } : {}),
+    });
+  return {
+    update(source: string): WorkbenchHighlightedTokens {
+      const code = source.replace(/\r\n?/g, "\n");
+      if (code === previous && last) return last;
+      if (!code.startsWith(previous)) {
+        prefix = "";
+        state = undefined;
+        completed = [];
+      }
+      const rest = code.slice(prefix.length);
+      const boundary = rest.lastIndexOf("\n") + 1;
+      if (boundary > 0) {
+        const result = tokenize(rest.slice(0, boundary));
+        completed = [...completed, ...result.tokens.slice(0, -1)];
+        state = highlighter.getLastGrammarState(result.tokens);
+        prefix += rest.slice(0, boundary);
+      }
+      previous = code;
+      last = [...completed, ...tokenize(rest.slice(boundary)).tokens];
+      return last;
+    },
+  };
+}
 
 function enqueueRegistration(register: () => Promise<void>): Promise<void> {
   const registration = registrationQueue.then(register, register);

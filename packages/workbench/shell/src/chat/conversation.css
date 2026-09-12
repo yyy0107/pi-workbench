@@ -50,7 +50,7 @@
 }
 
 :where([data-slot="workbench-conversation"])
-  :where(.aui-streamdown, [data-slot="user-message-bubble"]) {
+  :where(.aui-markdown, [data-slot="user-message-bubble"]) {
   font-family: var(--workbench-content-font, var(--font-sans));
   font-weight: var(--workbench-content-font-weight, 400);
 }

@@ -1,12 +1,26 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
-import { CodeBlock, useIsCodeFenceIncomplete } from "streamdown";
+import { useContext, useEffect, useId, useMemo, useState } from "react";
+import { MarkdownCodeBlock } from "./markdown-code-block";
+import { MarkdownFenceContext } from "./workbench-markdown";
 
 import { useAppearancePreferences } from "../../appearance";
 import { useMediaQuery } from "../../hooks/use-media-query";
 import { useI18n } from "../../i18n";
 import { CodexCodeHeader } from "./codex-code-header";
+
+// Mermaid configuration is global. Keep initialization and each queued render
+// together so simultaneous diagrams cannot consume another surface's theme.
+let diagramQueue: Promise<unknown> = Promise.resolve();
+function renderDiagram(id: string, code: string, config: import("mermaid").MermaidConfig) {
+  const rendering = diagramQueue.then(async () => {
+    const { default: mermaid } = await import("mermaid");
+    mermaid.initialize({ ...config, startOnLoad: false });
+    return mermaid.render(id, code);
+  });
+  diagramQueue = rendering.catch(() => undefined);
+  return rendering;
+}
 
 export function MermaidCode({ code }: Readonly<{ code: string }>) {
   const { t } = useI18n();
@@ -35,7 +49,7 @@ export function MermaidCode({ code }: Readonly<{ code: string }>) {
     [accent, background, dark, foreground],
   );
   const id = `mermaid-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
-  const incomplete = useIsCodeFenceIncomplete();
+  const incomplete = useContext(MarkdownFenceContext);
   const [result, setResult] = useState<{ svg: string; error: string } | null>(null);
 
   useEffect(() => {
@@ -44,21 +58,19 @@ export function MermaidCode({ code }: Readonly<{ code: string }>) {
     if (incomplete) return;
 
     // Keep the diagram engine out of ordinary Markdown/code loading.
-    void import("@streamdown/mermaid")
-      .then(({ mermaid }) => mermaid.getMermaid(config).render(id, code))
-      .then(
-        ({ svg }) => !cancelled && setResult({ svg, error: "" }),
-        (error: unknown) =>
-          !cancelled &&
-          setResult({ svg: "", error: error instanceof Error ? error.message : String(error) }),
-      );
+    void renderDiagram(id, code, config).then(
+      ({ svg }) => !cancelled && setResult({ svg, error: "" }),
+      (error: unknown) =>
+        !cancelled &&
+        setResult({ svg: "", error: error instanceof Error ? error.message : String(error) }),
+    );
     return () => {
       cancelled = true;
     };
   }, [code, config, id, incomplete]);
 
   return (
-    <div data-streamdown="mermaid-block">
+    <div data-markdown="mermaid-block">
       <CodexCodeHeader code={code} language="mermaid" expanded={false} />
       <div className="aui-mermaid-body" aria-busy={incomplete || !result}>
         {result?.svg && !incomplete ? (
@@ -73,7 +85,7 @@ export function MermaidCode({ code }: Readonly<{ code: string }>) {
               {t("assistant.codeBlock.mermaidError")}
             </p>
             <pre className="overflow-auto text-sm text-muted-foreground">{result.error}</pre>
-            <CodeBlock code={code} language="mermaid" lineNumbers={false} />
+            <MarkdownCodeBlock code={code} language="mermaid" />
           </>
         ) : (
           <p role="status" className="text-sm text-muted-foreground">
