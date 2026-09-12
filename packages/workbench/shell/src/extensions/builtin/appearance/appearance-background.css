@@ -87,7 +87,7 @@
   --aui-foreground: var(--workbench-theme-foreground);
   --aui-muted-foreground: var(--muted-foreground);
   --aui-border: var(--border);
-  --aui-user-message: color-mix(in srgb, var(--primary) 10%, var(--background));
+  --aui-user-message: var(--workbench-theme-user-message);
   --aui-composer: var(--muted);
   --aui-font-family: var(--workbench-theme-ui-font);
   --font-sans: var(--workbench-theme-ui-font);
@@ -118,6 +118,7 @@
   --workbench-theme-ui-font: var(--workbench-light-ui-font);
   --workbench-theme-code-font: var(--workbench-light-code-font);
   --workbench-theme-contrast: var(--workbench-light-contrast);
+  --workbench-theme-user-message: var(--workbench-light-user-message);
   --muted: color-mix(
     in srgb,
     var(--workbench-theme-background),
@@ -147,6 +148,7 @@
   --workbench-theme-ui-font: var(--workbench-dark-ui-font);
   --workbench-theme-code-font: var(--workbench-dark-code-font);
   --workbench-theme-contrast: var(--workbench-dark-contrast);
+  --workbench-theme-user-message: var(--workbench-dark-user-message);
 }
 
 [data-workbench-shell][data-workbench-appearance] :where(code, pre, kbd, samp) {

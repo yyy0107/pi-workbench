@@ -7,6 +7,37 @@ export const APPEARANCE_STORAGE_KEY = "workbench.appearance.v1";
 export const COLOR_MODES = ["system", "light", "dark"] as const;
 export type ColorMode = (typeof COLOR_MODES)[number];
 
+export const ACCENT_PALETTES = {
+  neutral: { light: "#18181b", dark: "#f4f4f5" },
+  blue: { light: "#2563eb", dark: "#60a5fa" },
+  green: { light: "#15803d", dark: "#4ade80" },
+  orange: { light: "#c2410c", dark: "#fb923c" },
+  red: { light: "#dc2626", dark: "#f87171" },
+  pink: { light: "#be185d", dark: "#f472b6" },
+  purple: { light: "#7e22ce", dark: "#c084fc" },
+} as const;
+export type AccentPreset = keyof typeof ACCENT_PALETTES;
+
+const LIGHT_USER_MESSAGE_COLORS: Record<AccentPreset, string> = {
+  neutral: "#f7f7f8",
+  blue: "#eaf2ff",
+  green: "#e8f6ed",
+  orange: "#fff1e6",
+  red: "#ffebed",
+  pink: "#ffedf7",
+  purple: "#f4ebff",
+};
+const DARK_USER_MESSAGE_COLOR = "#2f2f2f";
+
+export function userMessageColorForTheme(color: string, mode: "light" | "dark"): string {
+  if (mode === "dark") return DARK_USER_MESSAGE_COLOR;
+  const normalized = color.toLowerCase();
+  const preset = (Object.keys(ACCENT_PALETTES) as AccentPreset[]).find(
+    (id) => ACCENT_PALETTES[id].light === normalized,
+  );
+  return preset ? LIGHT_USER_MESSAGE_COLORS[preset] : LIGHT_USER_MESSAGE_COLORS.neutral;
+}
+
 export const BACKGROUND_BLURS = ["none", "soft", "medium", "strong"] as const;
 export type BackgroundBlur = (typeof BACKGROUND_BLURS)[number];
 
@@ -260,7 +291,7 @@ export const DEFAULT_APPEARANCE_PREFERENCES = Object.freeze({
   composerAnimationIntensity: 50,
   codeFont: "systemMono",
   codeFontWeight: 400,
-  uiFontSize: 16,
+  uiFontSize: 14,
   codeFontSize: 13,
   codeTheme: "dark-plus",
 } satisfies AppearancePreferences);

@@ -234,7 +234,7 @@
   --aui-foreground: #0d0d0d;
   --aui-muted-foreground: #6e6e6e;
   --aui-border: #f0f0f0;
-  --aui-user-message: color-mix(in srgb, var(--primary) 10%, var(--background));
+  --aui-user-message: #f7f7f8;
   --aui-composer: #f7f7f8;
   --aui-max-width: 48rem;
   --aui-border-radius: 1.5rem;
@@ -289,7 +289,7 @@
   --aui-foreground: #ececec;
   --aui-muted-foreground: #9b9b9b;
   --aui-border: #383838;
-  --aui-user-message: color-mix(in srgb, var(--primary) 10%, var(--background));
+  --aui-user-message: #2f2f2f;
   --aui-composer: #2f2f2f;
   --aui-max-width: 48rem;
   --aui-border-radius: 1.5rem;

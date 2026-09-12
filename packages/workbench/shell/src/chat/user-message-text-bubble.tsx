@@ -74,7 +74,7 @@ export function UserMessageTextBubble({ children }: { children: ReactNode }) {
     <div
       ref={rootRef}
       data-slot="user-message-bubble"
-      className="w-fit max-w-full min-w-0 self-end rounded-[var(--radius-xl)] bg-aui-user-message px-4 py-2.5 text-start text-base leading-6 text-foreground whitespace-pre-wrap [overflow-wrap:anywhere]"
+      className="w-fit max-w-full min-w-0 self-end rounded-[var(--radius-xl)] bg-aui-user-message px-4 py-2.5 text-start text-base leading-6 text-foreground whitespace-pre-wrap dark:ring-1 dark:ring-inset dark:ring-border [overflow-wrap:anywhere]"
     >
       <div
         id={id}
