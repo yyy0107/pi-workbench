@@ -8,6 +8,7 @@ import type { PiQueuedPrompt, PiQueueMode } from "@workbench/agent-runtime-pi-pr
 import type { SessionQueueAction } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type { QueueItem } from "@workbench/agent-runtime-pi-protocol/stream";
 import { stripWorkspaceFeedbackContext } from "@workbench/agent-runtime-client/prompt-feedback";
+import { deriveSessionDisplayText } from "@workbench/agent-runtime-pi-shared/sessions";
 import type {
   PiComposerMessage,
   PiFileMessagePart,
@@ -86,7 +87,10 @@ function queueItemParts(item: QueueItem): readonly (PiFileMessagePart | PiTextMe
         };
     }
     if (part.type === "text" && typeof part.text === "string") {
-      return { type: "text", text: stripWorkspaceFeedbackContext(part.text) };
+      return {
+        type: "text",
+        text: deriveSessionDisplayText(stripWorkspaceFeedbackContext(part.text)),
+      };
     }
     if (
       (part.type === "image" || part.type === "file") &&

@@ -76,6 +76,21 @@ function firstMeaningfulLine(value: string): string {
   );
 }
 
+/**
+ * Recovers user-visible text from either canonical user text or Pi's compiled prompt.
+ * Internal Workbench envelopes are never allowed to become conversation chrome.
+ */
+export function deriveSessionDisplayText(source: string | undefined): string {
+  if (!source?.trim()) return "";
+
+  const userRequest = explicitUserRequest(source);
+  const withoutInternalProtocol = stripInternalEnvelopes(
+    userRequest ?? source,
+    userRequest === undefined,
+  );
+  return stripComposerProtocol(withoutInternalProtocol).trim();
+}
+
 function truncateTitle(value: string, maxCharacters: number): string {
   const characters = Array.from(value);
   if (characters.length <= maxCharacters) return value;
@@ -91,14 +106,7 @@ export function deriveSessionDisplayTitle(
   options: Readonly<SessionDisplayTitleOptions> = {},
 ): string {
   const fallback = options.fallback?.trim() ?? "";
-  if (!source?.trim()) return fallback;
-
-  const userRequest = explicitUserRequest(source);
-  const withoutInternalProtocol = stripInternalEnvelopes(
-    userRequest ?? source,
-    userRequest === undefined,
-  );
-  const normalized = firstMeaningfulLine(stripComposerProtocol(withoutInternalProtocol))
+  const normalized = firstMeaningfulLine(deriveSessionDisplayText(source))
     .replace(/\s+/gu, " ")
     .trim();
   if (!normalized) return fallback;

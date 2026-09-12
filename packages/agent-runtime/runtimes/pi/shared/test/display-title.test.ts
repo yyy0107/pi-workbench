@@ -1,7 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { deriveSessionDisplayTitle } from "../src/sessions/display-title";
+import { deriveSessionDisplayText, deriveSessionDisplayTitle } from "../src/sessions/display-title";
+
+test("recovers the complete user request without exposing internal envelopes", () => {
+  const text = deriveSessionDisplayText(
+    [
+      "<workbench-untrusted-context>",
+      "Internal attachment references",
+      "</workbench-untrusted-context>",
+      "<user-request>",
+      "First line",
+      "Second line",
+      "</user-request>",
+    ].join("\n"),
+  );
+
+  assert.equal(text, "First line\nSecond line");
+});
 
 test("derives a title from the explicit user request without exposing internal envelopes", () => {
   const title = deriveSessionDisplayTitle(

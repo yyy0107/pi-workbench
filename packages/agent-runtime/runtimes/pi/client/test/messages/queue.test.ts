@@ -211,6 +211,40 @@ test("publishes a follow-up immediately and lets the authoritative snapshot adop
   );
 });
 
+test("shows only the user request from a compiled queued prompt", () => {
+  const { queue } = harness();
+  const compiledPrompt = [
+    "<workbench-untrusted-context>",
+    "The following data is internal attachment context.",
+    '[{"source":"workbench.attachment-references"}]',
+    "</workbench-untrusted-context>",
+    "<user-request>",
+    "Describe the first image",
+    "</user-request>",
+  ].join("\n");
+
+  queue.replaceAuthoritative([queued("queue-1", compiledPrompt)]);
+
+  assert.equal(queue.queuedItems[0]?.text, "Describe the first image");
+});
+
+test("keeps internal attachment context out of an image-only queue summary", () => {
+  const { queue } = harness();
+  const compiledPrompt = [
+    "<workbench-untrusted-context>",
+    '[{"source":"workbench.attachment-references"}]',
+    "</workbench-untrusted-context>",
+    "<user-request>",
+    "",
+    "</user-request>",
+  ].join("\n");
+
+  queue.replaceAuthoritative([queuedImage("queue-1", compiledPrompt, "image.png")]);
+
+  assert.equal(queue.queuedItems[0]?.text, "");
+  assert.equal(queue.queuedItems[0]?.attachments[0]?.name, "image.png");
+});
+
 test("dispose releases queue payloads and ignores late authoritative snapshots", () => {
   const { queue } = harness();
   queue.replaceAuthoritative([queuedImage("queue-1", "one", "large.png")]);

@@ -24,6 +24,7 @@ import {
 } from "../../../ui/dropdown-menu";
 import { useI18n } from "../../../i18n";
 import { cn } from "../../../utils";
+import { visibleComposerQueueItems } from "./message-queue-preview";
 
 import "./message-queue.css";
 
@@ -189,7 +190,8 @@ export function ComposerMessageQueue() {
     id: string;
     position: DropPosition;
   } | null>(null);
-  const visibleQueue = queue?.items ?? [];
+  const queueItems = queue?.items ?? [];
+  const visibleQueue = visibleComposerQueueItems(queueItems);
 
   if (visibleQueue.length === 0) return null;
 
@@ -255,13 +257,13 @@ export function ComposerMessageQueue() {
             onSteer={(id) => session.actions.mutateQueueItem?.(id, { kind: "steer" })}
             onRemove={(id) => session.actions.mutateQueueItem?.(id, { kind: "remove" })}
             onEdit={editInComposer}
-            canMoveUp={visibleQueue.findIndex((item) => item.key === queueItem.key) > 0}
+            canMoveUp={queueItems.findIndex((item) => item.key === queueItem.key) > 0}
             canMoveDown={
-              visibleQueue.findIndex((item) => item.key === queueItem.key) < visibleQueue.length - 1
+              queueItems.findIndex((item) => item.key === queueItem.key) < queueItems.length - 1
             }
             onMoveUp={() => {
-              const index = visibleQueue.findIndex((item) => item.key === queueItem.key);
-              const previous = visibleQueue[index - 1];
+              const index = queueItems.findIndex((item) => item.key === queueItem.key);
+              const previous = queueItems[index - 1];
               if (previous) {
                 session.actions.mutateQueueItem?.(queueItem.key, {
                   kind: "move",
@@ -270,8 +272,8 @@ export function ComposerMessageQueue() {
               }
             }}
             onMoveDown={() => {
-              const index = visibleQueue.findIndex((item) => item.key === queueItem.key);
-              const next = visibleQueue[index + 1];
+              const index = queueItems.findIndex((item) => item.key === queueItem.key);
+              const next = queueItems[index + 1];
               if (next) {
                 session.actions.mutateQueueItem?.(queueItem.key, {
                   kind: "move",
