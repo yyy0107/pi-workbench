@@ -16,7 +16,7 @@ Use `linux/*.sh` on Linux and `windows/*.cmd` on Windows. Every script changes t
 
 `dev`, `electron-dev`, `build` and `electron-build` install development dependencies with the frozen lockfile. Build artifacts go to `.desktop-build/`; installers go to `dist-electron/`. Build installers on the target operating system; architecture defaults to the host.
 
-Windows packaging uses `electron:dist:artifact`: it validates package files but does not run the Linux-only packaged application execution checks. Web and Electron development both use port `3000`; run one at a time.
+Windows packaging uses `electron:dist:artifact`: it validates package files but does not run the Linux-only packaged application execution checks. Web and Electron development use port `3000` by default. Pass `--port <port>` to `dev` or `electron-dev` to select another port.
 
 ## Examples
 
@@ -24,6 +24,8 @@ Linux:
 
 ```bash
 ./run_scripts/linux/dev.sh
+./run_scripts/linux/dev.sh --port 3001
+./run_scripts/linux/electron-dev.sh --port 3002
 ./run_scripts/linux/electron-build.sh
 ./run_scripts/linux/release.sh
 ```
@@ -32,6 +34,8 @@ Windows PowerShell or CMD:
 
 ```powershell
 .\run_scripts\windows\dev.cmd
+.\run_scripts\windows\dev.cmd --port 3001
+.\run_scripts\windows\electron-dev.cmd --port 3002
 .\run_scripts\windows\electron-build.cmd
 .\run_scripts\windows\release.cmd
 ```

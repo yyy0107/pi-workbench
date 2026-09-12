@@ -8,6 +8,7 @@ import workbenchPaths from "./workbench-paths.cjs";
 
 const { createWorkbenchPaths } = workbenchPaths;
 const CONNECT_EXISTING_ARGUMENT = "--connect-existing";
+const PORT_ARGUMENT = "--port";
 const DEFAULT_RENDERER_ORIGIN = "http://127.0.0.1:3000";
 const DEFAULT_STARTUP_TIMEOUT_MS = 90_000;
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -49,8 +50,42 @@ export function parseElectronDevelopmentOptions({
   argv = process.argv.slice(2),
   environment = process.env,
 } = {}) {
-  if (argv.length > 1 || (argv.length === 1 && argv[0] !== CONNECT_EXISTING_ARGUMENT)) {
-    throw stableError(`Usage: electron-dev-orchestrator.mjs [${CONNECT_EXISTING_ARGUMENT}]`);
+  const arguments_ = argv[0] === "--" ? argv.slice(1) : argv;
+  let connectExisting = false;
+  let rendererPort;
+  let rendererPortSpecified = false;
+  for (let index = 0; index < arguments_.length; index += 1) {
+    const argument = arguments_[index];
+    if (argument === CONNECT_EXISTING_ARGUMENT && !connectExisting) {
+      connectExisting = true;
+      continue;
+    }
+    if (argument === PORT_ARGUMENT && !rendererPortSpecified) {
+      rendererPortSpecified = true;
+      rendererPort = arguments_[index + 1];
+      index += 1;
+      continue;
+    }
+    if (argument.startsWith(`${PORT_ARGUMENT}=`) && !rendererPortSpecified) {
+      rendererPortSpecified = true;
+      rendererPort = argument.slice(PORT_ARGUMENT.length + 1);
+      continue;
+    }
+    throw stableError(
+      `Usage: electron-dev-orchestrator.mjs [${CONNECT_EXISTING_ARGUMENT}] [${PORT_ARGUMENT} <port>]`,
+    );
+  }
+  if (rendererPortSpecified) {
+    const port = Number(rendererPort);
+    if (
+      !/^\d+$/u.test(rendererPort ?? "") ||
+      !Number.isInteger(port) ||
+      port < 1 ||
+      port > 65_535
+    ) {
+      throw stableError(`${PORT_ARGUMENT} must be an integer from 1 to 65535.`);
+    }
+    rendererPort = String(port);
   }
   for (const staleName of ["WORKBENCH_WEB_ORIGIN", "WORKBENCH_RUNTIME_ORIGIN"]) {
     if (environment[staleName]?.trim()) {
@@ -60,13 +95,19 @@ export function parseElectronDevelopmentOptions({
     }
   }
 
-  const connectExisting = argv[0] === CONNECT_EXISTING_ARGUMENT;
   const explicitOrigin = environment.WORKBENCH_DESKTOP_RENDERER_ORIGIN?.trim();
   if (connectExisting) {
-    const rendererOrigin = parseCanonicalDesktopRendererOrigin(explicitOrigin);
+    if (explicitOrigin && rendererPortSpecified) {
+      throw stableError(
+        `WORKBENCH_DESKTOP_RENDERER_ORIGIN and ${PORT_ARGUMENT} cannot be used together.`,
+      );
+    }
+    const rendererOrigin = parseCanonicalDesktopRendererOrigin(
+      explicitOrigin || (rendererPortSpecified ? `http://127.0.0.1:${rendererPort}` : undefined),
+    );
     if (!rendererOrigin) {
       throw stableError(
-        "WORKBENCH_DESKTOP_RENDERER_ORIGIN must be a canonical loopback HTTP origin.",
+        `WORKBENCH_DESKTOP_RENDERER_ORIGIN must be a canonical loopback HTTP origin, or ${PORT_ARGUMENT} must select an existing loopback renderer.`,
       );
     }
     return Object.freeze({ mode: "connect-existing", rendererOrigin });
@@ -76,7 +117,12 @@ export function parseElectronDevelopmentOptions({
       `WORKBENCH_DESKTOP_RENDERER_ORIGIN requires ${CONNECT_EXISTING_ARGUMENT}; managed mode owns the endpoint.`,
     );
   }
-  return Object.freeze({ mode: "managed", rendererOrigin: DEFAULT_RENDERER_ORIGIN });
+  return Object.freeze({
+    mode: "managed",
+    rendererOrigin: rendererPortSpecified
+      ? `http://127.0.0.1:${rendererPort}`
+      : DEFAULT_RENDERER_ORIGIN,
+  });
 }
 
 function scrubWorkbenchEnvironment(environment) {

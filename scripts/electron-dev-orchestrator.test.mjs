@@ -43,12 +43,45 @@ test("validates one renderer endpoint, waits before Electron launch, and cleans 
     rendererOrigin: "http://127.0.0.1:3000",
   });
   assert.deepEqual(
+    parseElectronDevelopmentOptions({ argv: ["--port", "43127"], environment: {} }),
+    {
+      mode: "managed",
+      rendererOrigin: "http://127.0.0.1:43127",
+    },
+  );
+  assert.deepEqual(
+    parseElectronDevelopmentOptions({ argv: ["--", "--port=43128"], environment: {} }),
+    {
+      mode: "managed",
+      rendererOrigin: "http://127.0.0.1:43128",
+    },
+  );
+  assert.deepEqual(
     parseElectronDevelopmentOptions({
       argv: ["--connect-existing"],
       environment: { WORKBENCH_DESKTOP_RENDERER_ORIGIN: "http://127.0.0.1:43127" },
     }),
     { mode: "connect-existing", rendererOrigin: "http://127.0.0.1:43127" },
   );
+  assert.deepEqual(
+    parseElectronDevelopmentOptions({
+      argv: ["--connect-existing", "--port", "43129"],
+      environment: {},
+    }),
+    { mode: "connect-existing", rendererOrigin: "http://127.0.0.1:43129" },
+  );
+  for (const argv of [
+    ["--port"],
+    ["--port", "0"],
+    ["--port", "65536"],
+    ["--port", "not-a-port"],
+    ["--port", "43127", "--port", "43128"],
+  ]) {
+    assert.throws(
+      () => parseElectronDevelopmentOptions({ argv, environment: {} }),
+      /Usage:|--port must be/u,
+    );
+  }
   assert.throws(
     () =>
       parseElectronDevelopmentOptions({

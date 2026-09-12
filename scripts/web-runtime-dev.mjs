@@ -10,15 +10,43 @@ import workbenchPaths from "./workbench-paths.cjs";
 
 const { createWorkbenchPaths } = workbenchPaths;
 const HOT_ARGUMENT = "--hot";
+const PORT_ARGUMENT = "--port";
 
 export function parseWebRuntimeDevOptions(argv = process.argv.slice(2)) {
-  if (argv.length === 0) return Object.freeze({ hot: false });
+  const arguments_ = argv[0] === "--" ? argv.slice(1) : argv;
+  let hot = false;
+  let port;
+  let portSpecified = false;
+  for (let index = 0; index < arguments_.length; index += 1) {
+    const argument = arguments_[index];
+    if (argument === HOT_ARGUMENT && !hot) {
+      hot = true;
+      continue;
+    }
+    if (argument === PORT_ARGUMENT && !portSpecified) {
+      portSpecified = true;
+      port = arguments_[index + 1];
+      index += 1;
+      continue;
+    }
+    if (argument.startsWith(`${PORT_ARGUMENT}=`) && !portSpecified) {
+      portSpecified = true;
+      port = argument.slice(PORT_ARGUMENT.length + 1);
+      continue;
+    }
+    throw new Error(`Usage: web-runtime-dev.mjs [${HOT_ARGUMENT}] [${PORT_ARGUMENT} <port>]`);
+  }
+  if (!portSpecified) return Object.freeze({ hot });
+  const parsedPort = Number(port);
   if (
-    (argv.length === 1 && argv[0] === HOT_ARGUMENT) ||
-    (argv.length === 2 && argv[0] === "--" && argv[1] === HOT_ARGUMENT)
-  )
-    return Object.freeze({ hot: true });
-  throw new Error(`Usage: web-runtime-dev.mjs [${HOT_ARGUMENT}]`);
+    !/^\d+$/u.test(port ?? "") ||
+    !Number.isInteger(parsedPort) ||
+    parsedPort < 1 ||
+    parsedPort > 65_535
+  ) {
+    throw new Error(`${PORT_ARGUMENT} must be an integer from 1 to 65535.`);
+  }
+  return Object.freeze({ hot, port: parsedPort });
 }
 
 export function runProductionBuild({
@@ -39,13 +67,19 @@ export function runProductionBuild({
 
 export async function runWebRuntimeDev({
   options = parseWebRuntimeDevOptions(),
+  environment = process.env,
   build = runProductionBuild,
   startHot = runManagedWebRuntimeWatch,
-  startProduction = () => runWebRuntimeOrchestrator({ mode: RuntimeConnectedWebMode.production }),
+  startProduction = (orchestratorOptions) => runWebRuntimeOrchestrator(orchestratorOptions),
 } = {}) {
-  if (options.hot) return startHot();
+  const developmentEnvironment =
+    options.port === undefined ? environment : { ...environment, PORT: String(options.port) };
+  if (options.hot) return startHot({ environment: developmentEnvironment });
   if (build() !== 0) return 1;
-  return startProduction();
+  return startProduction({
+    mode: RuntimeConnectedWebMode.production,
+    environment: developmentEnvironment,
+  });
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
