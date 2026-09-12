@@ -215,6 +215,7 @@ test("browser overlay waits for explicit responses, routes confirmed links, and 
     assert.equal(surfaceCount, 1);
     const anchor = {
       href: "http://localhost:3002/",
+      getAttribute: () => "http://localhost:3002/",
       hasAttribute: () => false,
       closest: (selector: string) =>
         selector.startsWith("a[") ? anchor : selector === "[data-workbench-shell]" ? shell : null,
@@ -228,6 +229,49 @@ test("browser overlay waits for explicit responses, routes confirmed links, and 
       },
     };
     await act(async () => handlers.get("click")!(modifiedClick));
+    assert.equal(surfaceCount, 1);
+
+    for (const href of [
+      "index.html",
+      "./page.htm",
+      "/tmp/index.html",
+      "file:///tmp/index.html",
+      "../notes.md",
+    ]) {
+      const localAnchor = {
+        ...anchor,
+        href: new URL(href, "http://localhost:3002/").href,
+        getAttribute: () => href,
+        closest: (selector: string) =>
+          selector.startsWith("a[")
+            ? localAnchor
+            : selector === "[data-workbench-shell]"
+              ? shell
+              : null,
+      };
+      await act(async () =>
+        handlers.get("click")!({
+          target: localAnchor,
+          button: 0,
+          preventDefault() {
+            assert.fail("local links must reach the file opener");
+          },
+        }),
+      );
+      assert.equal(surfaceCount, 1, href);
+    }
+    anchor.href = "http://localhost:3001/page";
+    let webClickPrevented = false;
+    await act(async () =>
+      handlers.get("click")!({
+        target: anchor,
+        button: 0,
+        preventDefault() {
+          webClickPrevented = true;
+        },
+      }),
+    );
+    assert.equal(webClickPrevented, true);
     assert.equal(surfaceCount, 1);
 
     const opener = Object.values(workspace.store.getState().surfaces)[0]!;

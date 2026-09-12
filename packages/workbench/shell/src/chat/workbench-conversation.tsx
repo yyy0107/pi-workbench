@@ -126,7 +126,7 @@ function AssistantWorkingStatus() {
         <span
           data-slot="assistant-working-label"
           aria-hidden="true"
-          className="shimmer [--shimmer-color:black] [--shimmer-repeat-delay:900] [--shimmer-speed:180] [--shimmer-spread:52px] motion-reduce:animate-none"
+          className="shimmer [--shimmer-color:var(--aui-accent)] [--shimmer-repeat-delay:900] [--shimmer-speed:180] [--shimmer-spread:52px] motion-reduce:animate-none"
         >
           {displayLabel}
         </span>
