@@ -25,16 +25,12 @@ import { FileTypeIcon } from "@workbench/ui-file-presentation/icons";
 
 function AttachmentPreview({ source }: Readonly<{ source: string }>) {
   const { t } = useI18n(composerTranslationBundle);
-  const [loaded, setLoaded] = useState(false);
   return (
     <img
       src={source}
       alt={t("assistant.attachment.previewAlt")}
-      className={cn(
-        "block h-auto max-h-[80vh] w-auto max-w-full rounded-sm object-contain transition-opacity duration-300 motion-reduce:transition-none",
-        loaded ? "opacity-100" : "opacity-0",
-      )}
-      onLoad={() => setLoaded(true)}
+      decoding="async"
+      className="block h-auto max-h-[80vh] w-auto max-w-full rounded-sm object-contain"
     />
   );
 }
@@ -83,6 +79,7 @@ function AttachmentTile({
         <img
           src={previewSource}
           alt={t("assistant.attachment.previewAlt")}
+          decoding="async"
           className="block h-full w-full object-cover"
           onError={() => setFailedPreviewSource(previewSource)}
         />
@@ -109,7 +106,10 @@ function AttachmentTile({
                 closeButtonFrame="none"
                 closeButtonInteraction="static"
                 closeButtonClassName="top-0 end-0 bg-black/65 text-white"
-                className="h-fit w-fit max-w-[calc(100vw-2rem)] gap-0 rounded-none bg-transparent p-0 pt-[calc(var(--icon-frame-size-sm)+0.5rem)] ring-0 sm:max-w-[calc(100vw-2rem)]"
+                overlayClassName="supports-backdrop-filter:backdrop-blur-none data-open:animate-none data-closed:animate-none"
+                // Image previews also opt out of the appearance system's floating-surface blur.
+                style={{ backdropFilter: "none" }}
+                className="h-fit w-fit max-w-[calc(100vw-2rem)] gap-0 rounded-none bg-transparent p-0 pt-[calc(var(--icon-frame-size-sm)+0.5rem)] ring-0 data-open:animate-none data-closed:animate-none sm:max-w-[calc(100vw-2rem)]"
               >
                 <DialogTitle className="sr-only">
                   {t("assistant.attachment.previewTitle")}

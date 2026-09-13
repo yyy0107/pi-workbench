@@ -8,11 +8,6 @@
     );
   }
 
-  .aui-composer-attachments:has(> :nth-child(3)) {
-    --composer-attachment-height: calc(var(--control-hit-touch) * 3 / 2);
-    --composer-attachment-width: calc(var(--control-hit-compact) * 8);
-  }
-
   .aui-composer-attachment-image {
     width: var(--composer-attachment-height);
     height: var(--composer-attachment-height);
