@@ -1,6 +1,5 @@
 packages:
   - "apps/*"
-  - "packages/client/*"
   - "packages/workspace/*"
   - "packages/conversation/*"
   - "packages/contracts/*"
@@ -10,7 +9,7 @@ packages:
   - "packages/extension-platform/*"
   - "packages/host/*"
   - "packages/terminal/*"
-  - "packages/workbench/*"
+  - "packages/client/*"
   - "packages/test-support/*"
 
 allowBuilds:

@@ -16,7 +16,7 @@ Implement frontend features through the repository's typed, statically bundled e
 5. Use `$pi-coding-agent-sdk` when work reaches the server-side AgentSession, coding-agent extension, resource-loader, or `@earendil-works/pi-coding-agent` layer. Keep that SDK behind the Workbench Pi server boundary rather than importing it into browser components.
 6. Use `$pi-ai-sdk` when work directly uses `@earendil-works/pi-ai` models, providers, authentication, messages, tool schemas, image requests, or streaming events. Use both Pi SDK skills only when the task genuinely crosses both layers.
 7. Read `docs/extensions.md` only when the task asks for public documentation or a detailed tutorial.
-8. For browser conversation, thread, composer, message, or tool state, inspect the current owner under `packages/agent-runtime/**` and `packages/workbench/shell/**` before editing.
+8. For browser conversation, thread, composer, message, or tool state, inspect the current owner under `packages/agent-runtime/**` and `packages/client/shell/**` before editing.
 9. The [assistant-ui migration](../../../docs/assistant-ui-removal-and-custom-runtime-plan.md) is complete. Follow the [Workbench/Pi ownership boundary](../../../docs/agent-runtime-pi-implementation-refactor-plan.md); do not reintroduce assistant-ui dependencies or public types.
 10. Route tool definition and execution through the owning Pi/backend capability. A Renderer registration alone does not define or execute a tool.
 11. If the task changes Next.js API, routing, rendering, configuration, or build behavior, read the relevant local guide in `node_modules/next/dist/docs/` before editing.
@@ -47,7 +47,7 @@ Modify core layers instead when the task changes:
 
 - a Next.js route or page assembly: `apps/web/src/app/`;
 - reusable shell structure, responsive layout, or a new insertion contract:
-  `packages/workbench/shell/src/`; application-only composition stays in `apps/web/src/workbench/`;
+  `packages/client/shell/src/`; application-only composition stays in `apps/web/src/workbench/`;
 - Inspector controller lifecycle, generic persistence, and runtime-neutral feedback claim store:
   `@workbench/workspace-runtime`;
 - Inspector React context/hooks, immutable installation Provider, and generic Surface runtime host:
@@ -57,7 +57,7 @@ Modify core layers instead when the task changes:
 - a feature-owned inspector Surface, menu item, Runtime bridge, or single-feature domain service:
   `packages/<domain>/<capability>/src/`;
 - a user-installable, statically trusted component contribution bundle:
-  `packages/workbench/shell/src/extensions/installable/<feature>/`;
+  `packages/client/shell/src/extensions/installable/<feature>/`;
 - a capability consumed by multiple contributions: promote its contract/adapter to the owning
   workspace package's public capability module;
 - assistant runtime, persistence, transport, or adapters: the appropriate
@@ -75,7 +75,7 @@ When no existing Slot fits, add a typed host Slot first, then register the featu
   `packages/extension-platform/sdk/src/api/`, and runtime hooks in
   `packages/extension-platform/host/src/index.ts` when a mounted component needs Host state.
 - Inspect the owning package's extension groups, then the application composition in
-  `packages/workbench/pi-product/src/extensions.ts`.
+  `packages/client/pi-product/src/extensions.ts`.
 - Choose the closest builtin example:
   - `connection-status`: minimal Slot;
   - `token-usage`: derive the active browser conversation Runtime state;
@@ -107,7 +107,7 @@ packages/<domain>/<capability>/src/
 ```
 
 For a component extension that users can uninstall, use the same internal layout under
-`packages/workbench/shell/src/extensions/installable/<feature>/`, declare
+`packages/client/shell/src/extensions/installable/<feature>/`, declare
 `toolbox.distribution: "installable"`, and add the stable extension object to
 `installableComponentExtensions`. Do not place an uninstallable feature under an owner package's
 `src/extensions/builtin/`.
@@ -143,12 +143,12 @@ Keep `setup()` synchronous. Do not call React hooks in it. Return every custom e
 ### 4. Add to the correct static catalog
 
 Export a fixed feature from its local `index.ts` and add it to the owning package's semantic group.
-Shell groups live in `packages/workbench/shell/src/extensions/builtin-extensions.ts`; Pi groups live
+Shell groups live in `packages/client/shell/src/extensions/builtin-extensions.ts`; Pi groups live
 behind `@workbench/agent-runtime-pi-contributions/installation`. The Web application interleaves
 those groups only in
-`packages/workbench/pi-product/src/extensions.ts`. Export independently installable contributions from their capability package and assemble them in
-`packages/workbench/pi-product/src/extensions.ts`. Keep Shell-owned brand and sidebar extensions in
-`packages/workbench/shell/src/extensions/`. Each capability package has real `src/` implementation,
+`packages/client/pi-product/src/extensions.ts`. Export independently installable contributions from their capability package and assemble them in
+`packages/client/pi-product/src/extensions.ts`. Keep Shell-owned brand and sidebar extensions in
+`packages/client/shell/src/extensions/`. Each capability package has real `src/` implementation,
 consumed TypeScript helpers in `lib/`, and root `tests/`; src/lib each allow one child directory.
 
 Keep extension objects and catalog array references stable. Installation and uninstallation only
@@ -176,7 +176,7 @@ For Pi transport or session behavior, run the relevant tests identified in `pack
   Message Renderer and shared extension surfaces use the explicitly allowlisted leaf Host entries;
   never import the aggregate `@workbench/extension-host/hosts` entry or registry internals.
 - Keep uninstallable component extensions under
-  `packages/workbench/shell/src/extensions/installable/`, never an owner package's
+  `packages/client/shell/src/extensions/installable/`, never an owner package's
   `src/extensions/builtin/`.
 - Keep Toolbox component placement previews as a faithful, proportionally scaled reproduction of the current Workbench panorama (sidebar, header, conversation, composer, RightWorkspace, status bar, panels, and global overlays). Reuse the same design tokens and surface hierarchy, and highlight the exact typed target as a non-layout overlay instead of falling back to an abstract empty-box diagram.
 - In message placement previews, render concrete system, user, and assistant examples plus representative visible Block states (text, reasoning, tool, data, source, attachment, and error). Give `message.before`, `message.actions`, and `message.after` labeled role-specific examples while active so a valid message Slot never collapses into an invisible strip.

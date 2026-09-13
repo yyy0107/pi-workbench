@@ -17,8 +17,8 @@ Follow the repository `AGENTS.md` and reuse the existing Shell component and app
 For new controls or layout/visual/interaction changes, inspect only the relevant owner:
 
 - `packages/client/ui/src/components/`: shared primitives and variants; use the owning package's public exports instead of copying implementations.
-- `packages/client/ui/src/tokens.css`: shared semantic Tailwind mappings and control tokens; `packages/workbench/shell/src/styles.css` assembles shared and regional styles.
-- `packages/workbench/shell/src/extensions/builtin/appearance/`: appearance settings and their style derivation when the change touches them.
+- `packages/client/ui/src/tokens.css`: shared semantic Tailwind mappings and control tokens; `packages/client/shell/src/styles.css` assembles shared and regional styles.
+- `packages/client/shell/src/extensions/builtin/appearance/`: appearance settings and their style derivation when the change touches them.
 - The feature's co-located CSS: regional layout and tokens. Reuse unchanged context already read.
 
 Use `WorkspaceSelector` for workspace/project selection and the existing `SelectorDropdown` or `DropdownMenu` composition for rich generic selection. Keep overlays in the owning Shell Portal container and preserve the scope markers needed by their styles. Localize changed product and accessibility copy through the shared i18n API.

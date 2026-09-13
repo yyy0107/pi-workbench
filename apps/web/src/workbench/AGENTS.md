@@ -1,6 +1,6 @@
 # Workbench i18n 规范
 
-- 通用 Workbench 核心文案由 `packages/workbench/shell/src/i18n/` 的 bundle 拥有；Web 产品文案由
+- 通用 Workbench 文案由 `packages/client/ui-sidebar/src/i18n/`、`packages/client/ui-panels/src/i18n/`、`packages/client/ui-layout/src/i18n/` 等能力 bundle 拥有；Shell 只聚合安装；Web 产品文案由
   `apps/web/src/app/i18n/` 拥有，Pi 专属文案由 Pi contributions package 拥有。此目录只组合公开 bundle，
   不建立第二套 catalog 或从 package source 深导入。
 - React 组件通过统一 Provider/Hook 读取当前 locale；不要在壳层逐级传递 locale，也不要缓存翻译后的字符串到 Zustand 或模块常量。

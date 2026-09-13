@@ -12,12 +12,12 @@ const CONCRETE_RUNTIME_IMPORT =
   /(?:from\s+|import\s*\()\s*["'](?:@\/runtime\/pi|@workbench\/agent-runtime-pi(?:[-/]|["'])|\.\.\/pi)(?:\/|["'])?/;
 const GENERIC_THREAD_PRESENTATION_CONSUMERS = [
   "packages/client/terminal-ui/src/terminal-target.ts",
-  "packages/workbench/shell/src/sidebar/thread-list-groups.ts",
-  "packages/workbench/shell/src/sidebar/thread-list-item.tsx",
-  "packages/workbench/shell/src/sidebar/thread-list.tsx",
-  "packages/workbench/shell/src/sidebar/workspace-thread-list.tsx",
-  "packages/workbench/shell/src/shell/workbench-header.tsx",
-  "packages/workbench/shell/src/shell/workbench-sidebar.tsx",
+  "packages/client/ui-sidebar/src/thread-list-groups.ts",
+  "packages/client/ui-sidebar/src/thread-list-item.tsx",
+  "packages/client/ui-sidebar/src/thread-list.tsx",
+  "packages/client/ui-sidebar/src/workspace-thread-list.tsx",
+  "packages/client/ui-layout/src/workbench-header.tsx",
+  "packages/client/ui-layout/src/workbench-sidebar.tsx",
 ] as const;
 const GENERIC_AGENT_COMMAND_CONSUMERS = [
   "packages/conversation/conversation/src/composer-message-text.tsx",

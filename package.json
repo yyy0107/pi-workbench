@@ -48,6 +48,7 @@
     "@workbench/shell": "workspace:*",
     "@workbench/shell-context": "workspace:*",
     "@workbench/ui": "workspace:*",
+    "@workbench/ui-layout": "workspace:*",
     "@workbench/workspace-runtime": "workspace:*",
     "oxc-parser": "^0.149.0",
     "oxfmt": "^0.62.0",

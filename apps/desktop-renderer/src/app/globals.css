@@ -3,8 +3,8 @@
 @import "tw-shimmer";
 @import "@workbench/shell/styles.css";
 
-@source "../../../../packages/workbench/shell/src/**/*.{ts,tsx}";
-@source "../../../../packages/workbench/shell/lib/**/*.{ts,tsx}";
+@source "../../../../packages/client/shell/src/**/*.{ts,tsx}";
+@source "../../../../packages/client/shell/lib/**/*.{ts,tsx}";
 @source "../../../../packages/client/*/src/**/*.{ts,tsx}";
 @source "../../../../packages/client/*/lib/**/*.{ts,tsx}";
 @source "../../../../packages/workspace/*/src/**/*.{ts,tsx}";

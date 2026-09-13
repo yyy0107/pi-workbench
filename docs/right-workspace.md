@@ -117,7 +117,7 @@ Explorer
 File contribution 在同步 `setup()` 中通过 `context.openers.register(...)` 注册 handler。执行时
 Service 注入通用 Surface operations，因此 setup 不需要 React Hook；Explorer 不知道 File 的
 React component、store 或 surface kind。通用文件运行时 contract 位于
-`packages/workbench/shell/src/workspace-files`，其中 `buffered-file-workspace-service.ts` 通过 Workbench
+`packages/client/shell/src/workspace-files`，其中 `buffered-file-workspace-service.ts` 通过 Workbench
 workspace capability 访问文件，以 Workspace scope + path 隔离缓冲与订阅。Pi Contributions 只通过
 `services/pi-resource-file-backend.ts` 投影 Skill/Extension 资源读取，由 Toolbox 注册专属 opener；
 替换 runtime 时不需要改 Explorer/File 的组件边界。

@@ -1,0 +1,88 @@
+{
+  "name": "@workbench/shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./application": {
+      "types": "./src/application.tsx",
+      "import": "./src/application.tsx",
+      "default": "./src/application.tsx"
+    },
+    "./browser-session-persistence": {
+      "types": "./src/browser-session-persistence.ts",
+      "import": "./src/browser-session-persistence.ts",
+      "default": "./src/browser-session-persistence.ts"
+    },
+    "./extensions": {
+      "types": "./src/extensions/index.ts",
+      "import": "./src/extensions/index.ts",
+      "default": "./src/extensions/index.ts"
+    },
+    "./i18n": {
+      "types": "./src/i18n/index.ts",
+      "import": "./src/i18n/index.ts",
+      "default": "./src/i18n/index.ts"
+    },
+    "./i18n/runtime": {
+      "types": "./src/i18n/public-runtime.ts",
+      "import": "./src/i18n/public-runtime.ts",
+      "default": "./src/i18n/public-runtime.ts"
+    },
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-controls": "workspace:*",
+    "@workbench/agent-runtime-client": "workspace:*",
+    "@workbench/automation-ui": "workspace:*",
+    "@workbench/code-highlighting": "workspace:*",
+    "@workbench/composer": "workspace:*",
+    "@workbench/conversation": "workspace:*",
+    "@workbench/extension-host": "workspace:*",
+    "@workbench/extension-sdk": "workspace:*",
+    "@workbench/host-contracts": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/markdown": "workspace:*",
+    "@workbench/settings-runtime": "workspace:*",
+    "@workbench/settings-ui": "workspace:*",
+    "@workbench/shell-context": "workspace:*",
+    "@workbench/terminal-ui": "workspace:*",
+    "@workbench/ui": "workspace:*",
+    "@workbench/ui-layout": "workspace:*",
+    "@workbench/ui-panels": "workspace:*",
+    "@workbench/ui-sidebar": "workspace:*",
+    "@workbench/workspace-artifact": "workspace:*",
+    "@workbench/workspace-browser": "workspace:*",
+    "@workbench/workspace-directory-picker": "workspace:*",
+    "@workbench/workspace-explorer": "workspace:*",
+    "@workbench/workspace-file-view": "workspace:*",
+    "@workbench/workspace-files": "workspace:*",
+    "@workbench/workspace-git-branch": "workspace:*",
+    "@workbench/workspace-review": "workspace:*",
+    "@workbench/workspace-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/appearance": "workspace:*",
+    "@workbench/ui-testkit": "workspace:*",
+    "lucide-react": "^1.29.0",
+    "material-icon-theme": "^5.37.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

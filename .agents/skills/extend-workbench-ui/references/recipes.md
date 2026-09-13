@@ -269,14 +269,14 @@ state and persistence with the feature that owns the item. Do not register
 during render or import the concrete Settings registry implementation. Items may register before
 their section appears.
 
-Use `packages/workbench/shell/src/extensions/builtin/settings` for the shell and
-`packages/workbench/shell/src/extensions/builtin/locale-selector` for an independently owned item.
+Use `packages/client/shell/src/extensions/builtin/settings` for the shell and
+`packages/client/shell/src/extensions/builtin/locale-selector` for an independently owned item.
 
 ## Installable Toolbox entry
 
 Toolbox metadata describes an actual registered component contribution. For an uninstallable,
 statically trusted bundle, keep the feature under
-`packages/workbench/shell/src/extensions/installable/`, align metadata with the real registration,
+`packages/client/shell/src/extensions/installable/`, align metadata with the real registration,
 and list the stable extension object in `installableComponentExtensions`. Metadata `entryFile` and
 `sourceFiles` remain relative to the owner package's `src/` directory:
 
@@ -564,7 +564,7 @@ Keep optional product areas out of the core sidebar. Register replaceable produc
 persistent utilities in `sidebar.footer`. The host owns layout, so the contribution should render
 one control and should not add outer padding or section chrome.
 
-Use `packages/workbench/shell/src/extensions/builtin/workbench-brand` as the minimal
+Use `packages/client/shell/src/extensions/builtin/workbench-brand` as the minimal
 `sidebar.brand` reference. Keep one active brand contribution in normal configurations; multiple
 contributions render in Slot order.
 
@@ -587,7 +587,7 @@ Use this only when no existing host contract can represent a broadly reusable in
 
 1. Add the literal name to `WORKBENCH_SLOTS` in `packages/extension-platform/sdk/src/api/slot.ts`.
 2. Add its props to `SlotPropsMap`.
-3. Mount `SlotHost` in the appropriate `packages/workbench/shell/src/` Host component, or in
+3. Mount `SlotHost` in the appropriate `packages/client/shell/src/` Host component, or in
    `apps/web/src/workbench/` only when the insertion point is application-specific.
 4. Supply the typed context expected by `SlotPropsMap`.
 5. Add or update the public extension guide.

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const PROJECT_ROOT = fileURLToPath(new URL("../", import.meta.url));
-const SHELL_SOURCE_ROOT = resolve(PROJECT_ROOT, "packages/workbench/shell/src");
+const SHELL_SOURCE_ROOT = resolve(PROJECT_ROOT, "packages/client/shell/src");
 const SHELL_BUILTIN_ROOT = resolve(SHELL_SOURCE_ROOT, "extensions/builtin");
 const PI_BUILTIN_ROOT = resolve(PROJECT_ROOT, "packages/pi/contributions/src/extensions");
 const BUILTIN_ROOTS = [SHELL_BUILTIN_ROOT, PI_BUILTIN_ROOT];
@@ -53,6 +53,9 @@ const BUSINESS_EXTENSION_ROOTS = [
   ),
 ].filter(existsSync);
 const COMPONENT_ROOTS = [
+  resolve(PROJECT_ROOT, "packages/client/ui-sidebar/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-panels/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-layout/src"),
   resolve(PROJECT_ROOT, "packages/client/ui/src"),
   resolve(PROJECT_ROOT, "packages/conversation/conversation/src"),
   resolve(PROJECT_ROOT, "packages/conversation/composer/src"),

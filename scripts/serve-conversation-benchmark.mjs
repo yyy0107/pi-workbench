@@ -22,7 +22,7 @@ await build({
   bundle: true,
   format: "esm",
   splitting: true,
-  nodePaths: [path.join(root, "packages/workbench/shell/node_modules")],
+  nodePaths: [path.join(root, "packages/client/shell/node_modules")],
   jsx: "automatic",
   minify: true,
   define: { "process.env.NODE_ENV": '"production"' },

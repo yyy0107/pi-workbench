@@ -3,7 +3,7 @@ import test from "node:test";
 
 test("the shared TypeScript loader imports public Shell and Pi composition entries", async () => {
   const [shell, piContributions] = await Promise.all([
-    import("@workbench/shell/workbench"),
+    import("@workbench/ui-layout"),
     import("@workbench/agent-runtime-pi-contributions/installation"),
   ]);
 

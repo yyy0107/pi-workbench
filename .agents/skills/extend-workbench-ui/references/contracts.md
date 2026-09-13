@@ -94,7 +94,7 @@ third-party plugins and do not imply an Extension Host, permissions, or a stable
 
 Distribution is separate from the contribution lifecycle. Fixed product capabilities live in the
 owning package's `src/extensions/builtin/` and enter its semantic extension groups. User-installable
-component bundles currently live in `packages/workbench/shell/src/extensions/installable/`, declare
+component bundles currently live in `packages/client/shell/src/extensions/installable/`, declare
 `toolbox.distribution: "installable"`, and enter the static
 `installableComponentExtensions` catalog. The application persists whether each catalog entry is
 installed and passes only installed entries to `ExtensionProvider`; uninstalling therefore invokes
@@ -150,7 +150,7 @@ that uses the real design system and renders representative states without invok
 runtime behavior. Use typed `defineMessage(...)` descriptors for user-visible metadata.
 
 An uninstallable entry belongs under
-`packages/workbench/shell/src/extensions/installable/<feature>/`, declares
+`packages/client/shell/src/extensions/installable/<feature>/`, declares
 `distribution: "installable"`, and is listed in `installableComponentExtensions`. Fixed product
 features remain under their owner package's `src/extensions/builtin/` and enter that package's
 semantic extension groups; adding Toolbox metadata does not change that ownership boundary.

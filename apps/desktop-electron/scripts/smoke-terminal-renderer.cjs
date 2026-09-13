@@ -12,7 +12,7 @@ const {
 } = require("../src/desktop-renderer-protocol.cjs");
 
 const shellRequire = createRequire(
-  path.resolve(__dirname, "../../../packages/workbench/shell/package.json"),
+  path.resolve(__dirname, "../../../packages/client/shell/package.json"),
 );
 const xtermRoot = path.dirname(shellRequire.resolve("@xterm/xterm/package.json"));
 const resources = {

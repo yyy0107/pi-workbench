@@ -33,3 +33,17 @@ test("guards the remaining literal Runtime boundaries", () => {
     assert.ok(violations.some((violation) => violation.includes(expected)));
   }
 });
+
+test("native sockets belong only to the Runtime transport owner in client", () => {
+  const owner = "packages/client/host-client/src/runtime-websocket.ts";
+  const consumer = "packages/client/shell/src/connection.ts";
+  const violations = runtimeBoundaryViolations(
+    new Map([
+      [owner, "new globalThis.WebSocket(url);"],
+      [consumer, "new globalThis.WebSocket(url);"],
+    ]),
+  );
+  assert.deepEqual(violations, [
+    `${consumer}: use the installed RuntimeConnection instead of WebSocket`,
+  ]);
+});

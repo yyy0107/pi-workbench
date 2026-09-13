@@ -33,7 +33,7 @@
       }
     },
     {
-      "files": ["packages/workbench/shell/src/**/*"],
+      "files": ["packages/client/shell/src/**/*"],
       "excludeFiles": ["**/*.test.*", "**/*.spec.*", "**/*.bench.*"],
       "rules": {
         "no-restricted-imports": [
@@ -175,6 +175,71 @@
           }
         ]
       }
+    },
+    {
+      "files": [
+        "packages/client/ui-sidebar/{src,lib}/**/*",
+        "packages/client/ui-panels/{src,lib}/**/*",
+        "packages/client/ui-layout/{src,lib}/**/*"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@workbench/extension-host",
+                "allowImportNames": [
+                  "useCommandService",
+                  "useComposerCommandRegistry",
+                  "useExtensionErrorReporter",
+                  "useMainViewService",
+                  "usePanelRegistry",
+                  "usePanelService",
+                  "useSettingsRegistry",
+                  "useSidebarSectionRegistry"
+                ],
+                "message": "Shell may consume only the finite public host hooks."
+              }
+            ],
+            "patterns": [
+              {
+                "group": [
+                  "@/**",
+                  "@earendil-works/pi*",
+                  "@workbench/agent-runtime-pi*",
+                  "i18next",
+                  "i18next/**",
+                  "react-i18next",
+                  "react-i18next/**",
+                  "next-intl",
+                  "next-intl/**",
+                  "next",
+                  "next/**",
+                  "node:*",
+                  "node-pty",
+                  "tree-sitter",
+                  "tree-sitter-bash",
+                  "electron",
+                  "electron/**",
+                  "@electron/**"
+                ],
+                "message": "Shell must remain product-, framework-, and host-neutral."
+              },
+              {
+                "group": [
+                  "@workbench/shell",
+                  "@workbench/shell/**",
+                  "@workbench/pi-product",
+                  "@workbench/pi-product/**"
+                ],
+                "message": "Client component capabilities must not depend on application composition."
+              }
+            ]
+          }
+        ]
+      },
+      "excludeFiles": ["**/*.test.*", "**/*.spec.*", "**/*.bench.*"]
     }
   ]
 }

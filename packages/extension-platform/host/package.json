@@ -26,9 +26,14 @@
       "default": "./src/services/index.ts"
     },
     "./command-palette": {
-      "types": "./src/command-palette-store.ts",
-      "import": "./src/command-palette-store.ts",
-      "default": "./src/command-palette-store.ts"
+      "types": "./src/command-palette.ts",
+      "import": "./src/command-palette.ts",
+      "default": "./src/command-palette.ts"
+    },
+    "./i18n": {
+      "types": "./src/i18n.ts",
+      "import": "./src/i18n.ts",
+      "default": "./src/i18n.ts"
     },
     "./i18n/en-US": {
       "types": "./src/i18n/en-US.ts",
@@ -81,7 +86,9 @@
     "test": "node ../../../scripts/run-typescript-tests.mjs --package"
   },
   "dependencies": {
-    "@workbench/extension-sdk": "workspace:*"
+    "@workbench/extension-sdk": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/ui": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

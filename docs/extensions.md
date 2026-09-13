@@ -79,7 +79,7 @@ packages/workspace/notes/
 ```
 
 这是新增能力的示例路径。src 放真实能力和契约，lib 只放该能力实际使用的辅助源码；两处均保留 TS/TSX，最多一级子目录。跨包使用公开 exports 和 workspace 依赖。
-公共界面归 `packages/client/*`，工作区归 `packages/workspace/*`，对话归 `packages/conversation/*`，Pi 专属界面归 `packages/pi/*-ui`。产品在 `packages/workbench/pi-product/src/extensions.ts` 按原顺序安装贡献，Shell 保留布局和侧栏装配。
+公共界面归 `packages/client/*`，工作区归 `packages/workspace/*`，对话归 `packages/conversation/*`，Pi 专属界面归 `packages/pi/*-ui`。产品在 `packages/client/pi-product/src/extensions.ts` 按原顺序安装贡献，Shell 保留布局和侧栏装配。
 
 最小扩展只有一个 `extension.ts`：
 
@@ -314,7 +314,7 @@ Panel Registry 只保存定义。打开状态、位置和尺寸由 Panel Store �
 ### 第五步：静态启用扩展
 
 在所属 package 的公开 extension group 中加入扩展；Shell 的入口是
-[`packages/workbench/shell/src/extensions/builtin-extensions.ts`](../packages/workbench/shell/src/extensions/builtin-extensions.ts)，
+[`packages/client/shell/src/extensions/builtin-extensions.ts`](../packages/client/shell/src/extensions/builtin-extensions.ts)，
 最终顺序由
 [`apps/web/src/workbench/runtime-contributions/installed-workbench-extensions.ts`](../apps/web/src/workbench/runtime-contributions/installed-workbench-extensions.ts)
 组合：
@@ -341,8 +341,8 @@ Web 与 Desktop 分别把 `shellExtensionGroups` 和 `piAgentRuntimeExtensionGro
 ### 第六步：验证
 
 ```bash
-pnpm exec oxfmt --check packages/workbench/shell/src/extensions/builtin/notes
-pnpm exec oxlint packages/workbench/shell/src/extensions/builtin/notes
+pnpm exec oxfmt --check packages/client/shell/src/extensions/builtin/notes
+pnpm exec oxlint packages/client/shell/src/extensions/builtin/notes
 pnpm exec tsc --noEmit
 pnpm build
 pnpm dev
@@ -441,7 +441,7 @@ context.slots.register("header.right", {
 普通扩展只能使用已有 Slot。如果确实要扩展宿主契约，需要同时修改两处：
 
 1. 在 `WORKBENCH_SLOTS` 与 `SlotPropsMap` 中增加名称和参数类型；
-2. 在 `packages/workbench/shell/src/` 对应 Host 位置挂载 `SlotHost` 并传入 Context。
+2. 在 `packages/client/shell/src/` 对应 Host 位置挂载 `SlotHost` 并传入 Context。
 
 示意：
 

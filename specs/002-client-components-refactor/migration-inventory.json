@@ -1,0 +1,1976 @@
+{
+  "feature": "002-client-components-refactor",
+  "state": "implemented-and-validated-non-ui",
+  "packages": [
+    {
+      "name": "@workbench/desktop-contracts",
+      "fromRoot": "packages/workbench/desktop-contracts",
+      "toRoot": "packages/client/desktop-contracts",
+      "exportsBefore": {
+        ".": {
+          "types": "./src/index.ts",
+          "import": "./src/index.ts",
+          "default": "./src/index.ts"
+        },
+        "./title-bar": {
+          "types": "./src/title-bar.ts",
+          "import": "./src/title-bar.ts",
+          "default": "./src/title-bar.ts"
+        },
+        "./runtime-bootstrap": {
+          "types": "./src/runtime-bootstrap.ts",
+          "import": "./src/runtime-bootstrap.ts",
+          "default": "./src/runtime-bootstrap.ts"
+        }
+      },
+      "dependenciesBefore": {
+        "@workbench/host-contracts": "workspace:*",
+        "@workbench/terminal-contracts": "workspace:*"
+      },
+      "filesBefore": [
+        "packages/workbench/desktop-contracts/README.md",
+        "packages/workbench/desktop-contracts/README.zh-CN.md",
+        "packages/workbench/desktop-contracts/lib/title-bar-validation.ts",
+        "packages/workbench/desktop-contracts/package.json",
+        "packages/workbench/desktop-contracts/src/index.ts",
+        "packages/workbench/desktop-contracts/src/runtime-bootstrap.ts",
+        "packages/workbench/desktop-contracts/src/settings.ts",
+        "packages/workbench/desktop-contracts/src/system-fonts.ts",
+        "packages/workbench/desktop-contracts/src/title-bar.ts",
+        "packages/workbench/desktop-contracts/tests/runtime-bootstrap.test.ts",
+        "packages/workbench/desktop-contracts/tests/settings.test.ts",
+        "packages/workbench/desktop-contracts/tests/system-fonts.test.ts",
+        "packages/workbench/desktop-contracts/tests/title-bar.test.ts",
+        "packages/workbench/desktop-contracts/tsconfig.json"
+      ],
+      "testsBefore": [
+        "packages/workbench/desktop-contracts/tests/runtime-bootstrap.test.ts",
+        "packages/workbench/desktop-contracts/tests/settings.test.ts",
+        "packages/workbench/desktop-contracts/tests/system-fonts.test.ts",
+        "packages/workbench/desktop-contracts/tests/title-bar.test.ts"
+      ],
+      "consumersBefore": [
+        "apps/desktop-renderer/package.json",
+        "apps/desktop-renderer/src/desktop/desktop-settings.tsx",
+        "apps/desktop-renderer/src/desktop/desktop-task-notifications.tsx",
+        "apps/desktop-renderer/src/desktop/desktop-title-bar-overlay-sync.tsx",
+        "apps/desktop-renderer/src/desktop/notification-sounds.test.ts",
+        "apps/desktop-renderer/src/desktop/notification-sounds.ts",
+        "apps/desktop-renderer/src/desktop/runtime-bootstrap.ts",
+        "pnpm-lock.yaml"
+      ],
+      "exportsAfter": {
+        ".": {
+          "types": "./src/index.ts",
+          "import": "./src/index.ts",
+          "default": "./src/index.ts"
+        },
+        "./title-bar": {
+          "types": "./src/title-bar.ts",
+          "import": "./src/title-bar.ts",
+          "default": "./src/title-bar.ts"
+        },
+        "./runtime-bootstrap": {
+          "types": "./src/runtime-bootstrap.ts",
+          "import": "./src/runtime-bootstrap.ts",
+          "default": "./src/runtime-bootstrap.ts"
+        }
+      },
+      "dependenciesAfter": {
+        "@workbench/host-contracts": "workspace:*",
+        "@workbench/terminal-contracts": "workspace:*"
+      },
+      "testsAfter": [
+        "packages/client/desktop-contracts/tests/runtime-bootstrap.test.ts",
+        "packages/client/desktop-contracts/tests/settings.test.ts",
+        "packages/client/desktop-contracts/tests/system-fonts.test.ts",
+        "packages/client/desktop-contracts/tests/title-bar.test.ts"
+      ]
+    },
+    {
+      "name": "@workbench/host-client",
+      "fromRoot": "packages/workbench/host-client",
+      "toRoot": "packages/client/host-client",
+      "exportsBefore": {
+        ".": {
+          "types": "./src/index.ts",
+          "import": "./src/index.ts",
+          "default": "./src/index.ts"
+        },
+        "./runtime-fetch": {
+          "types": "./src/runtime-fetch.ts",
+          "import": "./src/runtime-fetch.ts",
+          "default": "./src/runtime-fetch.ts"
+        },
+        "./runtime-websocket": {
+          "types": "./src/runtime-websocket.ts",
+          "import": "./src/runtime-websocket.ts",
+          "default": "./src/runtime-websocket.ts"
+        },
+        "./rpc": {
+          "types": "./src/rpc.ts",
+          "import": "./src/rpc.ts",
+          "default": "./src/rpc.ts"
+        }
+      },
+      "dependenciesBefore": {
+        "@workbench/host-contracts": "workspace:*"
+      },
+      "filesBefore": [
+        "packages/workbench/host-client/README.md",
+        "packages/workbench/host-client/README.zh-CN.md",
+        "packages/workbench/host-client/lib/runtime-url.ts",
+        "packages/workbench/host-client/package.json",
+        "packages/workbench/host-client/src/index.ts",
+        "packages/workbench/host-client/src/rpc.ts",
+        "packages/workbench/host-client/src/runtime-fetch.ts",
+        "packages/workbench/host-client/src/runtime-websocket.ts",
+        "packages/workbench/host-client/tests/runtime-fetch.test.ts",
+        "packages/workbench/host-client/tests/runtime-websocket.test.ts",
+        "packages/workbench/host-client/tsconfig.json"
+      ],
+      "testsBefore": [
+        "packages/workbench/host-client/tests/runtime-fetch.test.ts",
+        "packages/workbench/host-client/tests/runtime-websocket.test.ts"
+      ],
+      "consumersBefore": [
+        "apps/desktop-electron/package.json",
+        "apps/desktop-electron/scripts/staged-api-only-runtime-smoke.cjs",
+        "apps/desktop-renderer/package.json",
+        "apps/web/package.json",
+        "packages/client/terminal-ui/package.json",
+        "packages/client/terminal-ui/src/terminal-surface.tsx",
+        "packages/client/terminal-ui/src/use-tool-terminal-ready.ts",
+        "packages/host/server/package.json",
+        "packages/host/server/tests/api-only-runtime-host.test.ts",
+        "packages/host/server/tests/runtime-transport-conformance.test.ts",
+        "packages/pi/client/package.json",
+        "packages/pi/client/src/integration/capabilities.ts",
+        "packages/pi/client/tests/integration/services-fixture.ts",
+        "packages/pi/transport-client/package.json",
+        "packages/pi/transport-client/src/api.ts",
+        "packages/terminal/AGENTS.md",
+        "packages/terminal/client/package.json",
+        "packages/terminal/client/src/terminal-client-connection.ts",
+        "packages/terminal/client/tests/terminal-client-connection.test.ts",
+        "packages/workbench/pi-product/package.json",
+        "packages/workbench/pi-product/src/installation.tsx",
+        "packages/workbench/pi-product/src/settings.ts",
+        "packages/workbench/pi-product/tests/installed-agent-runtime.test.tsx",
+        "packages/workbench/services-client/lib/file-text.ts",
+        "packages/workbench/services-client/package.json",
+        "packages/workbench/services-client/src/automation.ts",
+        "packages/workbench/services-client/src/errors.ts",
+        "packages/workbench/services-client/src/file-content.ts",
+        "packages/workbench/services-client/src/host.ts",
+        "packages/workbench/services-client/src/settings.ts",
+        "packages/workbench/services-client/src/workspace.ts",
+        "packages/workbench/services-client/tests/host-client-transport.test.ts",
+        "packages/workbench/services-client/tests/workspace-file-content-transport.test.ts",
+        "packages/workbench/services-client/tests/workspace-git-transport.test.ts",
+        "packages/workbench/shell/package.json",
+        "packages/workspace/browser/package.json",
+        "packages/workspace/browser/src/remote-browser-session-service.ts",
+        "packages/workspace/browser/tests/remote-browser-session-service.test.ts",
+        "pnpm-lock.yaml",
+        "scripts/check-workspace-dependencies.mjs"
+      ],
+      "exportsAfter": {
+        ".": {
+          "types": "./src/index.ts",
+          "import": "./src/index.ts",
+          "default": "./src/index.ts"
+        },
+        "./runtime-fetch": {
+          "types": "./src/runtime-fetch.ts",
+          "import": "./src/runtime-fetch.ts",
+          "default": "./src/runtime-fetch.ts"
+        },
+        "./runtime-websocket": {
+          "types": "./src/runtime-websocket.ts",
+          "import": "./src/runtime-websocket.ts",
+          "default": "./src/runtime-websocket.ts"
+        },
+        "./rpc": {
+          "types": "./src/rpc.ts",
+          "import": "./src/rpc.ts",
+          "default": "./src/rpc.ts"
+        }
+      },
+      "dependenciesAfter": {
+        "@workbench/host-contracts": "workspace:*"
+      },
+      "testsAfter": [
+        "packages/client/host-client/tests/runtime-fetch.test.ts",
+        "packages/client/host-client/tests/runtime-websocket.test.ts"
+      ]
+    },
+    {
+      "name": "@workbench/host-contracts",
+      "fromRoot": "packages/workbench/host-contracts",
+      "toRoot": "packages/client/host-contracts",
+      "exportsBefore": {
+        ".": {
+          "types": "./src/index.ts",
+          "import": "./src/index.ts",
+          "default": "./src/index.ts"
+        },
+        "./runtime-connection": {
+          "types": "./src/runtime-connection.ts",
+          "import": "./src/runtime-connection.ts",
+          "default": "./src/runtime-connection.ts"
+        },
+        "./runtime-capabilities": {
+          "types": "./src/runtime-capabilities.ts",
+          "import": "./src/runtime-capabilities.ts",
+          "default": "./src/runtime-capabilities.ts"
+        },
+        "./host-control": {
+          "types": "./src/host-control.ts",
+          "import": "./src/host-control.ts",
+          "default": "./src/host-control.ts"
+        },
+        "./runtime-connected-web-control": {
+          "types": "./src/runtime-connected-web-control.ts",
+          "import": "./src/runtime-connected-web-control.ts",
+          "default": "./src/runtime-connected-web-control.ts"
+        },
+        "./control-ndjson": {
+          "types": "./src/control-ndjson.ts",
+          "import": "./src/control-ndjson.ts",
+          "default": "./src/control-ndjson.ts"
+        },
+        "./runtime-host-control": {
+          "types": "./src/runtime-host-control.ts",
+          "import": "./src/runtime-host-control.ts",
+          "default": "./src/runtime-host-control.ts"
+        },
+        "./runtime-host-identity": {
+          "types": "./src/runtime-host-identity.ts",
+          "import": "./src/runtime-host-identity.ts",
+          "default": "./src/runtime-host-identity.ts"
+        },
+        "./runtime-artifact-manifest": {
+          "types": "./src/runtime-artifact-manifest.ts",
+          "import": "./src/runtime-artifact-manifest.ts",
+          "default": "./src/runtime-artifact-manifest.ts"
+        },
+        "./web-host-control": {
+          "types": "./src/web-host-control.ts",
+          "import": "./src/web-host-control.ts",
+          "default": "./src/web-host-control.ts"
+        },
+        "./web-artifact-manifest": {
+          "types": "./src/web-artifact-manifest.ts",
+          "import": "./src/web-artifact-manifest.ts",
+          "default": "./src/web-artifact-manifest.ts"
+        },
+        "./desktop-renderer-artifact-manifest": {
+          "types": "./src/desktop-renderer-artifact-manifest.ts",
+          "import": "./src/desktop-renderer-artifact-manifest.ts",
+          "default": "./src/desktop-renderer-artifact-manifest.ts"
+        },
+        "./rpc": {
+          "types": "./src/rpc.ts",
+          "import": "./src/rpc.ts",
+          "default": "./src/rpc.ts"
+        }
+      },
+      "dependenciesBefore": {},
+      "filesBefore": [
+        "packages/workbench/host-contracts/README.md",
+        "packages/workbench/host-contracts/README.zh-CN.md",
+        "packages/workbench/host-contracts/fixtures/runtime-host-control/v1/cases.json",
+        "packages/workbench/host-contracts/lib/control-ndjson.ts",
+        "packages/workbench/host-contracts/package.json",
+        "packages/workbench/host-contracts/src/control-ndjson.ts",
+        "packages/workbench/host-contracts/src/desktop-renderer-artifact-manifest.ts",
+        "packages/workbench/host-contracts/src/host-control.ts",
+        "packages/workbench/host-contracts/src/index.ts",
+        "packages/workbench/host-contracts/src/rpc.ts",
+        "packages/workbench/host-contracts/src/runtime-artifact-manifest.ts",
+        "packages/workbench/host-contracts/src/runtime-capabilities.ts",
+        "packages/workbench/host-contracts/src/runtime-connected-web-control.ts",
+        "packages/workbench/host-contracts/src/runtime-connection.ts",
+        "packages/workbench/host-contracts/src/runtime-host-control.ts",
+        "packages/workbench/host-contracts/src/runtime-host-identity.ts",
+        "packages/workbench/host-contracts/src/web-artifact-manifest.ts",
+        "packages/workbench/host-contracts/src/web-host-control.ts",
+        "packages/workbench/host-contracts/tests/desktop-renderer-artifact-manifest.test.ts",
+        "packages/workbench/host-contracts/tests/host-control.test.ts",
+        "packages/workbench/host-contracts/tests/runtime-artifact-manifest.test.ts",
+        "packages/workbench/host-contracts/tests/runtime-connected-web-control.test.ts",
+        "packages/workbench/host-contracts/tests/runtime-connection.test.ts",
+        "packages/workbench/host-contracts/tests/runtime-host-control-golden.test.ts",
+        "packages/workbench/host-contracts/tests/runtime-host-control.test.ts",
+        "packages/workbench/host-contracts/tests/web-artifact-manifest.test.ts",
+        "packages/workbench/host-contracts/tests/web-host-control.test.ts",
+        "packages/workbench/host-contracts/tsconfig.json"
+      ],
+      "testsBefore": [
+        "packages/workbench/host-contracts/tests/desktop-renderer-artifact-manifest.test.ts",
+        "packages/workbench/host-contracts/tests/host-control.test.ts",
+        "packages/workbench/host-contracts/tests/runtime-artifact-manifest.test.ts",
+        "packages/workbench/host-contracts/tests/runtime-connected-web-control.test.ts",
+        "packages/workbench/host-contracts/tests/runtime-connection.test.ts",
+        "packages/workbench/host-contracts/tests/runtime-host-control-golden.test.ts",
+        "packages/workbench/host-contracts/tests/runtime-host-control.test.ts",
+        "packages/workbench/host-contracts/tests/web-artifact-manifest.test.ts",
+        "packages/workbench/host-contracts/tests/web-host-control.test.ts"
+      ],
+      "consumersBefore": [
+        "apps/desktop-electron/package.json",
+        "apps/desktop-electron/scripts/desktop-artifact-layout.cjs",
+        "apps/desktop-electron/scripts/desktop-artifact-support.cjs",
+        "apps/desktop-electron/scripts/desktop-renderer-artifact.cjs",
+        "apps/desktop-electron/scripts/native-runtime.cjs",
+        "apps/desktop-electron/scripts/packaged-app-smoke.cjs",
+        "apps/desktop-electron/scripts/runtime-artifact-admission.cjs",
+        "apps/desktop-electron/scripts/runtime-artifact-materializer.cjs",
+        "apps/desktop-electron/scripts/staged-api-only-runtime-smoke.cjs",
+        "apps/desktop-electron/test/desktop-artifact-support.test.cjs",
+        "apps/desktop-electron/test/desktop-renderer-artifact.test.cjs",
+        "apps/desktop-electron/test/native-runtime.test.cjs",
+        "apps/desktop-electron/test/runtime-artifact-admission.test.cjs",
+        "apps/desktop-electron/test/staged-api-only-runtime-smoke.test.cjs",
+        "apps/desktop-renderer/package.json",
+        "apps/desktop-renderer/scripts/build-desktop-renderer-artifact.ts",
+        "apps/desktop-renderer/src/desktop/desktop-renderer-application.tsx",
+        "apps/desktop-renderer/src/desktop/desktop-workbench.tsx",
+        "apps/desktop-renderer/src/desktop/runtime-bootstrap.ts",
+        "apps/desktop-renderer/test/build-desktop-renderer-artifact.test.ts",
+        "apps/runtime-node/package.json",
+        "apps/runtime-node/scripts/build-runtime-artifact.ts",
+        "apps/web/package.json",
+        "apps/web/scripts/build-web-artifact.ts",
+        "apps/web/src/server/runtime-connected-web-host.ts",
+        "apps/web/src/server/runtime-connected-web-process.ts",
+        "apps/web/src/server/web-application-host.ts",
+        "apps/web/src/server/web-artifact-layout.ts",
+        "apps/web/src/workbench/providers/application-providers.tsx",
+        "apps/web/src/workbench/providers/installed-web-runtime-connection.ts",
+        "apps/web/test/server/runtime-connected-web-host.test.ts",
+        "apps/web/test/server/runtime-connected-web-process.test.ts",
+        "apps/web/test/server/web-artifact-builder.test.ts",
+        "apps/web/test/server/web-artifact-layout.test.ts",
+        "apps/web/test/server/web-artifact-process.test.ts",
+        "apps/web/test/server/web-only-host.test.ts",
+        "apps/web/test/server/web-primary-import-boundary.test.ts",
+        "package.json",
+        "packages/agent-runtime/client/package.json",
+        "packages/agent-runtime/client/src/environment/capabilities.ts",
+        "packages/client/shell-context/package.json",
+        "packages/client/shell-context/src/runtime-connection/runtime-connection-provider.tsx",
+        "packages/client/shell-context/src/runtime-connection/runtime-connection.ts",
+        "packages/client/shell-context/tests/runtime-connection.test.ts",
+        "packages/host/server/README.md",
+        "packages/host/server/lib/runtime-transport-auth.ts",
+        "packages/host/server/package.json",
+        "packages/host/server/src/api-only-runtime-host.ts",
+        "packages/host/server/src/rpc.ts",
+        "packages/host/server/src/runtime-artifact.ts",
+        "packages/host/server/src/runtime-host-control-session.ts",
+        "packages/host/server/src/runtime-sidecar-child.ts",
+        "packages/host/server/src/web-artifact.ts",
+        "packages/host/server/src/web-host-control-session.ts",
+        "packages/host/server/tests/api-only-runtime-host.test.ts",
+        "packages/host/server/tests/runtime-artifact.test.ts",
+        "packages/host/server/tests/runtime-host-control-session.test.ts",
+        "packages/host/server/tests/runtime-transport-auth.test.ts",
+        "packages/host/server/tests/runtime-transport-conformance.test.ts",
+        "packages/host/server/tests/web-artifact.test.ts",
+        "packages/host/server/tests/web-host-control-session.test.ts",
+        "packages/pi/protocol/package.json",
+        "packages/pi/protocol/src/rpc.ts",
+        "packages/server/automation/package.json",
+        "packages/server/automation/tests/automation-rpc-routes.test.ts",
+        "packages/server/local-host/package.json",
+        "packages/server/local-host/src/host-directories.ts",
+        "packages/server/local-host/src/local-apps/service.ts",
+        "packages/server/local-host/src/local-apps/types.ts",
+        "packages/server/local-host/src/service.ts",
+        "packages/server/local-host/tests/host-rpc-routes.test.ts",
+        "packages/server/local-host/tests/local-app-rpc-routes.test.ts",
+        "packages/server/settings/package.json",
+        "packages/server/settings/tests/workbench-settings-rpc-routes.test.ts",
+        "packages/server/workspace/package.json",
+        "packages/server/workspace/tests/workspace-file-rpc-routes.test.ts",
+        "packages/server/workspace/tests/workspace-git-rpc-routes.test.ts",
+        "packages/terminal/client/package.json",
+        "packages/terminal/client/tests/terminal-client-connection.test.ts",
+        "packages/workbench/desktop-contracts/package.json",
+        "packages/workbench/desktop-contracts/src/runtime-bootstrap.ts",
+        "packages/workbench/host-client/lib/runtime-url.ts",
+        "packages/workbench/host-client/package.json",
+        "packages/workbench/host-client/src/index.ts",
+        "packages/workbench/host-client/src/rpc.ts",
+        "packages/workbench/host-client/src/runtime-fetch.ts",
+        "packages/workbench/host-client/src/runtime-websocket.ts",
+        "packages/workbench/host-client/tests/runtime-fetch.test.ts",
+        "packages/workbench/host-client/tests/runtime-websocket.test.ts",
+        "packages/workbench/pi-product/package.json",
+        "packages/workbench/pi-product/src/installation.tsx",
+        "packages/workbench/pi-product/src/settings.ts",
+        "packages/workbench/pi-product/tests/application.test.tsx",
+        "packages/workbench/pi-product/tests/installed-agent-runtime.test.tsx",
+        "packages/workbench/pi-product/tests/installed-workbench-settings.test.ts",
+        "packages/workbench/services-client/package.json",
+        "packages/workbench/services-client/src/host.ts",
+        "packages/workbench/shell/package.json",
+        "packages/workbench/shell/src/application.tsx",
+        "packages/workspace/browser/package.json",
+        "packages/workspace/browser/src/remote-browser-session-service.ts",
+        "packages/workspace/directory-picker/lib/workspace-admission.ts",
+        "packages/workspace/directory-picker/package.json",
+        "packages/workspace/directory-picker/src/directory-picker-capability.ts",
+        "packages/workspace/directory-picker/src/remote-directory-picker-dialog.tsx",
+        "packages/workspace/directory-picker/tests/directory-picker-capability.test.ts",
+        "packages/workspace/directory-picker/tests/workspace-admission.test.ts",
+        "packages/workspace/file-view/package.json",
+        "packages/workspace/file-view/src/file-surface-header.tsx",
+        "packages/workspace/files/package.json",
+        "packages/workspace/files/src/buffered-file-workspace-service.ts",
+        "packages/workspace/files/src/file-link-menu.tsx",
+        "packages/workspace/files/src/file-open-apps.ts",
+        "packages/workspace/files/src/file-open-preferences.ts",
+        "packages/workspace/files/src/local-app-icon.tsx",
+        "packages/workspace/files/tests/file-open-apps.test.ts",
+        "pnpm-lock.yaml",
+        "scripts/check-workspace-dependencies.mjs",
+        "scripts/web-runtime-dev.mjs",
+        "scripts/web-runtime-orchestrator.mjs",
+        "scripts/web-runtime-orchestrator.test.mjs"
+      ],
+      "exportsAfter": {
+        ".": {
+          "types": "./src/index.ts",
+          "import": "./src/index.ts",
+          "default": "./src/index.ts"
+        },
+        "./runtime-connection": {
+          "types": "./src/runtime-connection.ts",
+          "import": "./src/runtime-connection.ts",
+          "default": "./src/runtime-connection.ts"
+        },
+        "./runtime-capabilities": {
+          "types": "./src/runtime-capabilities.ts",
+          "import": "./src/runtime-capabilities.ts",
+          "default": "./src/runtime-capabilities.ts"
+        },
+        "./host-control": {
+          "types": "./src/host-control.ts",
+          "import": "./src/host-control.ts",
+          "default": "./src/host-control.ts"
+        },
+        "./runtime-connected-web-control": {
+          "types": "./src/runtime-connected-web-control.ts",
+          "import": "./src/runtime-connected-web-control.ts",
+          "default": "./src/runtime-connected-web-control.ts"
+        },
+        "./control-ndjson": {
+          "types": "./src/control-ndjson.ts",
+          "import": "./src/control-ndjson.ts",
+          "default": "./src/control-ndjson.ts"
+        },
+        "./runtime-host-control": {
+          "types": "./src/runtime-host-control.ts",
+          "import": "./src/runtime-host-control.ts",
+          "default": "./src/runtime-host-control.ts"
+        },
+        "./runtime-host-identity": {
+          "types": "./src/runtime-host-identity.ts",
+          "import": "./src/runtime-host-identity.ts",
+          "default": "./src/runtime-host-identity.ts"
+        },
+        "./runtime-artifact-manifest": {
+          "types": "./src/runtime-artifact-manifest.ts",
+          "import": "./src/runtime-artifact-manifest.ts",
+          "default": "./src/runtime-artifact-manifest.ts"
+        },
+        "./web-host-control": {
+          "types": "./src/web-host-control.ts",
+          "import": "./src/web-host-control.ts",
+          "default": "./src/web-host-control.ts"
+        },
+        "./web-artifact-manifest": {
+          "types": "./src/web-artifact-manifest.ts",
+          "import": "./src/web-artifact-manifest.ts",
+          "default": "./src/web-artifact-manifest.ts"
+        },
+        "./desktop-renderer-artifact-manifest": {
+          "types": "./src/desktop-renderer-artifact-manifest.ts",
+          "import": "./src/desktop-renderer-artifact-manifest.ts",
+          "default": "./src/desktop-renderer-artifact-manifest.ts"
+        },
+        "./rpc": {
+          "types": "./src/rpc.ts",
+          "import": "./src/rpc.ts",
+          "default": "./src/rpc.ts"
+        }
+      },
+      "dependenciesAfter": {},
+      "testsAfter": [
+        "packages/client/host-contracts/tests/desktop-renderer-artifact-manifest.test.ts",
+        "packages/client/host-contracts/tests/host-control.test.ts",
+        "packages/client/host-contracts/tests/runtime-artifact-manifest.test.ts",
+        "packages/client/host-contracts/tests/runtime-connected-web-control.test.ts",
+        "packages/client/host-contracts/tests/runtime-connection.test.ts",
+        "packages/client/host-contracts/tests/runtime-host-control-golden.test.ts",
+        "packages/client/host-contracts/tests/runtime-host-control.test.ts",
+        "packages/client/host-contracts/tests/web-artifact-manifest.test.ts",
+        "packages/client/host-contracts/tests/web-host-control.test.ts"
+      ]
+    },
+    {
+      "name": "@workbench/pi-product",
+      "fromRoot": "packages/workbench/pi-product",
+      "toRoot": "packages/client/pi-product",
+      "exportsBefore": {
+        "./application": {
+          "types": "./src/application.tsx",
+          "import": "./src/application.tsx",
+          "default": "./src/application.tsx"
+        },
+        "./installation": {
+          "types": "./src/installation.tsx",
+          "import": "./src/installation.tsx",
+          "default": "./src/installation.tsx"
+        }
+      },
+      "dependenciesBefore": {
+        "@workbench/agent-runtime-client": "workspace:*",
+        "@workbench/agent-runtime-contracts": "workspace:*",
+        "@workbench/agent-runtime-pi-client": "workspace:*",
+        "@workbench/agent-runtime-pi-contributions": "workspace:*",
+        "@workbench/conversation": "workspace:*",
+        "@workbench/extension-sdk": "workspace:*",
+        "@workbench/host-client": "workspace:*",
+        "@workbench/host-contracts": "workspace:*",
+        "@workbench/i18n": "workspace:*",
+        "@workbench/markdown": "workspace:*",
+        "@workbench/services-client": "workspace:*",
+        "@workbench/settings-runtime": "workspace:*",
+        "@workbench/settings-ui": "workspace:*",
+        "@workbench/shell": "workspace:*",
+        "@workbench/shell-context": "workspace:*",
+        "@workbench/workspace-files": "workspace:*",
+        "thinking-orbs": "^0.3.1"
+      },
+      "filesBefore": [
+        "packages/workbench/pi-product/README.md",
+        "packages/workbench/pi-product/README.zh-CN.md",
+        "packages/workbench/pi-product/lib/thinking-orb-renderer.tsx",
+        "packages/workbench/pi-product/package.json",
+        "packages/workbench/pi-product/src/application.tsx",
+        "packages/workbench/pi-product/src/extensions.ts",
+        "packages/workbench/pi-product/src/installation.tsx",
+        "packages/workbench/pi-product/src/running-indicator-defaults.tsx",
+        "packages/workbench/pi-product/src/runtime-provider.tsx",
+        "packages/workbench/pi-product/src/settings.ts",
+        "packages/workbench/pi-product/tests/application.test.tsx",
+        "packages/workbench/pi-product/tests/installed-agent-runtime.test.tsx",
+        "packages/workbench/pi-product/tests/installed-workbench-settings.test.ts",
+        "packages/workbench/pi-product/tests/running-indicator-catalog.test.ts",
+        "packages/workbench/pi-product/tsconfig.json"
+      ],
+      "testsBefore": [
+        "packages/workbench/pi-product/tests/application.test.tsx",
+        "packages/workbench/pi-product/tests/installed-agent-runtime.test.tsx",
+        "packages/workbench/pi-product/tests/installed-workbench-settings.test.ts",
+        "packages/workbench/pi-product/tests/running-indicator-catalog.test.ts"
+      ],
+      "consumersBefore": [
+        ".agents/skills/extend-workbench-ui/SKILL.md",
+        "apps/desktop-renderer/package.json",
+        "apps/desktop-renderer/src/desktop/desktop-workbench.tsx",
+        "apps/desktop-renderer/test/static-export-boundary.test.ts",
+        "apps/web/package.json",
+        "apps/web/src/workbench/providers/application-providers.tsx",
+        "apps/web/src/workbench/providers/workbench-providers.tsx",
+        "apps/web/test/web-package-boundary.test.ts",
+        "apps/web/test/workbench/runtime-contributions/installed-agent-runtime.test.ts",
+        "packages/pi/README.md",
+        "pnpm-lock.yaml",
+        "scripts/check-runtime-host-ownership.mjs"
+      ],
+      "exportsAfter": {
+        "./application": {
+          "types": "./src/application.tsx",
+          "import": "./src/application.tsx",
+          "default": "./src/application.tsx"
+        },
+        "./installation": {
+          "types": "./src/installation.tsx",
+          "import": "./src/installation.tsx",
+          "default": "./src/installation.tsx"
+        }
+      },
+      "dependenciesAfter": {
+        "@workbench/agent-runtime-client": "workspace:*",
+        "@workbench/agent-runtime-contracts": "workspace:*",
+        "@workbench/agent-runtime-pi-client": "workspace:*",
+        "@workbench/agent-runtime-pi-contributions": "workspace:*",
+        "@workbench/conversation": "workspace:*",
+        "@workbench/extension-sdk": "workspace:*",
+        "@workbench/host-client": "workspace:*",
+        "@workbench/host-contracts": "workspace:*",
+        "@workbench/i18n": "workspace:*",
+        "@workbench/markdown": "workspace:*",
+        "@workbench/services-client": "workspace:*",
+        "@workbench/settings-runtime": "workspace:*",
+        "@workbench/settings-ui": "workspace:*",
+        "@workbench/shell": "workspace:*",
+        "@workbench/shell-context": "workspace:*",
+        "@workbench/workspace-files": "workspace:*",
+        "thinking-orbs": "^0.3.1"
+      },
+      "testsAfter": [
+        "packages/client/pi-product/tests/application.test.tsx",
+        "packages/client/pi-product/tests/installed-agent-runtime.test.tsx",
+        "packages/client/pi-product/tests/installed-workbench-settings.test.ts",
+        "packages/client/pi-product/tests/running-indicator-catalog.test.ts"
+      ]
+    },
+    {
+      "name": "@workbench/services-client",
+      "fromRoot": "packages/workbench/services-client",
+      "toRoot": "packages/client/services-client",
+      "exportsBefore": {
+        "./settings": {
+          "types": "./src/settings.ts",
+          "import": "./src/settings.ts",
+          "default": "./src/settings.ts"
+        },
+        "./automation": {
+          "types": "./src/automation.ts",
+          "import": "./src/automation.ts",
+          "default": "./src/automation.ts"
+        },
+        "./host": {
+          "types": "./src/host.ts",
+          "import": "./src/host.ts",
+          "default": "./src/host.ts"
+        },
+        "./workspace": {
+          "types": "./src/workspace.ts",
+          "import": "./src/workspace.ts",
+          "default": "./src/workspace.ts"
+        },
+        "./errors": {
+          "types": "./src/errors.ts",
+          "import": "./src/errors.ts",
+          "default": "./src/errors.ts"
+        }
+      },
+      "dependenciesBefore": {
+        "@workbench/agent-runtime-client": "workspace:*",
+        "@workbench/agent-runtime-contracts": "workspace:*",
+        "@workbench/automation-contracts": "workspace:*",
+        "@workbench/host-client": "workspace:*",
+        "@workbench/host-contracts": "workspace:*"
+      },
+      "filesBefore": [
+        "packages/workbench/services-client/README.md",
+        "packages/workbench/services-client/README.zh-CN.md",
+        "packages/workbench/services-client/lib/file-text.ts",
+        "packages/workbench/services-client/package.json",
+        "packages/workbench/services-client/src/automation.ts",
+        "packages/workbench/services-client/src/errors.ts",
+        "packages/workbench/services-client/src/file-content.ts",
+        "packages/workbench/services-client/src/host.ts",
+        "packages/workbench/services-client/src/settings.ts",
+        "packages/workbench/services-client/src/workspace.ts",
+        "packages/workbench/services-client/tests/automation-client-transport.test.ts",
+        "packages/workbench/services-client/tests/host-client-transport.test.ts",
+        "packages/workbench/services-client/tests/settings.test.ts",
+        "packages/workbench/services-client/tests/workspace-file-content-transport.test.ts",
+        "packages/workbench/services-client/tests/workspace-git-transport.test.ts",
+        "packages/workbench/services-client/tsconfig.json"
+      ],
+      "testsBefore": [
+        "packages/workbench/services-client/tests/automation-client-transport.test.ts",
+        "packages/workbench/services-client/tests/host-client-transport.test.ts",
+        "packages/workbench/services-client/tests/settings.test.ts",
+        "packages/workbench/services-client/tests/workspace-file-content-transport.test.ts",
+        "packages/workbench/services-client/tests/workspace-git-transport.test.ts"
+      ],
+      "consumersBefore": [
+        "packages/pi/client/package.json",
+        "packages/pi/client/src/integration/bound-session-provider.tsx",
+        "packages/pi/client/src/integration/capabilities.ts",
+        "packages/pi/client/src/integration/pi-runtime-provider.tsx",
+        "packages/pi/client/src/public/configuration.ts",
+        "packages/pi/client/src/runtime/manager.ts",
+        "packages/pi/client/tests/integration/services-fixture.ts",
+        "packages/pi/client/tests/transport/api.test.ts",
+        "packages/pi/contributions/package.json",
+        "packages/pi/toolbox-ui/package.json",
+        "packages/pi/toolbox-ui/tests/pi-resource-file-openers.test.ts",
+        "packages/workbench/pi-product/package.json",
+        "packages/workbench/pi-product/src/installation.tsx",
+        "packages/workbench/pi-product/src/settings.ts",
+        "pnpm-lock.yaml",
+        "scripts/check-runtime-host-ownership.mjs",
+        "scripts/check-workspace-dependencies.mjs"
+      ],
+      "exportsAfter": {
+        "./settings": {
+          "types": "./src/settings.ts",
+          "import": "./src/settings.ts",
+          "default": "./src/settings.ts"
+        },
+        "./automation": {
+          "types": "./src/automation.ts",
+          "import": "./src/automation.ts",
+          "default": "./src/automation.ts"
+        },
+        "./host": {
+          "types": "./src/host.ts",
+          "import": "./src/host.ts",
+          "default": "./src/host.ts"
+        },
+        "./workspace": {
+          "types": "./src/workspace.ts",
+          "import": "./src/workspace.ts",
+          "default": "./src/workspace.ts"
+        },
+        "./errors": {
+          "types": "./src/errors.ts",
+          "import": "./src/errors.ts",
+          "default": "./src/errors.ts"
+        }
+      },
+      "dependenciesAfter": {
+        "@workbench/agent-runtime-client": "workspace:*",
+        "@workbench/agent-runtime-contracts": "workspace:*",
+        "@workbench/automation-contracts": "workspace:*",
+        "@workbench/host-client": "workspace:*",
+        "@workbench/host-contracts": "workspace:*"
+      },
+      "testsAfter": [
+        "packages/client/services-client/tests/automation-client-transport.test.ts",
+        "packages/client/services-client/tests/host-client-transport.test.ts",
+        "packages/client/services-client/tests/settings.test.ts",
+        "packages/client/services-client/tests/workspace-file-content-transport.test.ts",
+        "packages/client/services-client/tests/workspace-git-transport.test.ts"
+      ]
+    },
+    {
+      "name": "@workbench/shell",
+      "fromRoot": "packages/workbench/shell",
+      "toRoot": "packages/client/shell",
+      "exportsBefore": {
+        "./application": {
+          "types": "./src/application.tsx",
+          "import": "./src/application.tsx",
+          "default": "./src/application.tsx"
+        },
+        "./browser-session-persistence": {
+          "types": "./src/browser-session-persistence.ts",
+          "import": "./src/browser-session-persistence.ts",
+          "default": "./src/browser-session-persistence.ts"
+        },
+        "./extensions": {
+          "types": "./src/extensions/index.ts",
+          "import": "./src/extensions/index.ts",
+          "default": "./src/extensions/index.ts"
+        },
+        "./hosts/statusbar": {
+          "types": "./src/hosts/statusbar.tsx",
+          "import": "./src/hosts/statusbar.tsx",
+          "default": "./src/hosts/statusbar.tsx"
+        },
+        "./i18n": {
+          "types": "./src/i18n/index.ts",
+          "import": "./src/i18n/index.ts",
+          "default": "./src/i18n/index.ts"
+        },
+        "./i18n/runtime": {
+          "types": "./src/i18n/public-runtime.ts",
+          "import": "./src/i18n/public-runtime.ts",
+          "default": "./src/i18n/public-runtime.ts"
+        },
+        "./panels": {
+          "types": "./src/panels/index.ts",
+          "import": "./src/panels/index.ts",
+          "default": "./src/panels/index.ts"
+        },
+        "./styles.css": "./src/styles.css",
+        "./workbench": {
+          "types": "./src/workbench.ts",
+          "import": "./src/workbench.ts",
+          "default": "./src/workbench.ts"
+        }
+      },
+      "dependenciesBefore": {
+        "@base-ui/react": "^1.7.0",
+        "@file-viewer/core": "2.3.0",
+        "@file-viewer/preset-lite": "2.3.0",
+        "@file-viewer/preset-office": "2.3.0",
+        "@file-viewer/react": "2.3.0",
+        "@lexical/code-core": "0.49.0",
+        "@lexical/link": "0.49.0",
+        "@lexical/list": "0.49.0",
+        "@lexical/markdown": "0.49.0",
+        "@lexical/react": "0.49.0",
+        "@lexical/rich-text": "0.49.0",
+        "@shikijs/langs": "3.23.0",
+        "@shikijs/themes": "3.23.0",
+        "@tanstack/react-virtual": "3.14.10",
+        "@workbench/agent-controls": "workspace:*",
+        "@workbench/agent-runtime-client": "workspace:*",
+        "@workbench/agent-runtime-contracts": "workspace:*",
+        "@workbench/appearance": "workspace:*",
+        "@workbench/automation-contracts": "workspace:*",
+        "@workbench/automation-ui": "workspace:*",
+        "@workbench/browser-contracts": "workspace:*",
+        "@workbench/code-highlighting": "workspace:*",
+        "@workbench/composer": "workspace:*",
+        "@workbench/contracts": "workspace:*",
+        "@workbench/conversation": "workspace:*",
+        "@workbench/extension-host": "workspace:*",
+        "@workbench/extension-sdk": "workspace:*",
+        "@workbench/host-client": "workspace:*",
+        "@workbench/host-contracts": "workspace:*",
+        "@workbench/i18n": "workspace:*",
+        "@workbench/markdown": "workspace:*",
+        "@workbench/settings-runtime": "workspace:*",
+        "@workbench/settings-ui": "workspace:*",
+        "@workbench/shell-context": "workspace:*",
+        "@workbench/terminal-client": "workspace:*",
+        "@workbench/terminal-contracts": "workspace:*",
+        "@workbench/terminal-ui": "workspace:*",
+        "@workbench/ui": "workspace:*",
+        "@workbench/workspace-artifact": "workspace:*",
+        "@workbench/workspace-browser": "workspace:*",
+        "@workbench/workspace-directory-picker": "workspace:*",
+        "@workbench/workspace-explorer": "workspace:*",
+        "@workbench/workspace-file-view": "workspace:*",
+        "@workbench/workspace-files": "workspace:*",
+        "@workbench/workspace-git-branch": "workspace:*",
+        "@workbench/workspace-review": "workspace:*",
+        "@workbench/workspace-runtime": "workspace:*",
+        "@xterm/addon-fit": "^0.11.0",
+        "@xterm/xterm": "^6.0.0",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "cmdk": "^1.1.1",
+        "cronstrue": "^3.24.0",
+        "diff": "8.0.4",
+        "get-east-asian-width": "1.6.0",
+        "hast-util-to-jsx-runtime": "2.3.6",
+        "katex": "0.16.47",
+        "lexical": "0.49.0",
+        "lucide-react": "^1.29.0",
+        "material-icon-theme": "^5.37.0",
+        "mdast-util-from-markdown": "2.0.3",
+        "mdast-util-gfm": "3.1.0",
+        "mdast-util-math": "3.0.0",
+        "mdast-util-to-hast": "13.2.1",
+        "mermaid": "11.17.0",
+        "micromark-extension-gfm": "3.0.0",
+        "micromark-extension-math": "3.1.0",
+        "radix-ui": "^1.6.7",
+        "react-arborist": "^3.16.0",
+        "react-colorful": "^5.8.1",
+        "rehype-katex": "7.0.1",
+        "rehype-raw": "7.0.0",
+        "rehype-sanitize": "6.0.0",
+        "remend": "1.3.1",
+        "shiki": "3.23.0",
+        "tailwind-merge": "^3.6.0",
+        "thinking-orbs": "^0.3.1",
+        "unified": "11.0.5",
+        "zustand": "^5.0.14"
+      },
+      "filesBefore": [
+        "packages/workbench/shell/README.md",
+        "packages/workbench/shell/README.zh-CN.md",
+        "packages/workbench/shell/lib/thread-sort.ts",
+        "packages/workbench/shell/package.json",
+        "packages/workbench/shell/src/application.tsx",
+        "packages/workbench/shell/src/browser-session-persistence.ts",
+        "packages/workbench/shell/src/extensions/AGENTS.md",
+        "packages/workbench/shell/src/extensions/builtin-extensions.ts",
+        "packages/workbench/shell/src/extensions/index.ts",
+        "packages/workbench/shell/src/extensions/workbench-brand-toggle.tsx",
+        "packages/workbench/shell/src/extensions/workbench-brand.ts",
+        "packages/workbench/shell/src/extensions/workspace-sidebar.ts",
+        "packages/workbench/shell/src/hosts/statusbar.tsx",
+        "packages/workbench/shell/src/i18n/extensions-en-US.ts",
+        "packages/workbench/shell/src/i18n/extensions-zh-CN.ts",
+        "packages/workbench/shell/src/i18n/index.ts",
+        "packages/workbench/shell/src/i18n/messages.ts",
+        "packages/workbench/shell/src/i18n/provider.tsx",
+        "packages/workbench/shell/src/i18n/public-runtime.ts",
+        "packages/workbench/shell/src/i18n/runtime.ts",
+        "packages/workbench/shell/src/i18n/workbench-en-US.ts",
+        "packages/workbench/shell/src/i18n/workbench-zh-CN.ts",
+        "packages/workbench/shell/src/panels/index.ts",
+        "packages/workbench/shell/src/panels/panel-container.tsx",
+        "packages/workbench/shell/src/panels/panel-dock.tsx",
+        "packages/workbench/shell/src/panels/panel-header.tsx",
+        "packages/workbench/shell/src/panels/panel-layout.tsx",
+        "packages/workbench/shell/src/panels/panel-resize-handle.tsx",
+        "packages/workbench/shell/src/panels/panel-tab-content.tsx",
+        "packages/workbench/shell/src/panels/terminal-drawer.tsx",
+        "packages/workbench/shell/src/shell/command-palette-host.tsx",
+        "packages/workbench/shell/src/shell/conversation-actions-menu.tsx",
+        "packages/workbench/shell/src/shell/layout-motion.ts",
+        "packages/workbench/shell/src/shell/shell-layout.css",
+        "packages/workbench/shell/src/shell/use-sidebar-settings-hydration.ts",
+        "packages/workbench/shell/src/shell/window-resize.ts",
+        "packages/workbench/shell/src/shell/workbench-global-layer.tsx",
+        "packages/workbench/shell/src/shell/workbench-header.tsx",
+        "packages/workbench/shell/src/shell/workbench-shell.tsx",
+        "packages/workbench/shell/src/shell/workbench-sidebar.tsx",
+        "packages/workbench/shell/src/sidebar/new-thread-button.tsx",
+        "packages/workbench/shell/src/sidebar/running-thread-indicator.tsx",
+        "packages/workbench/shell/src/sidebar/sidebar-move.ts",
+        "packages/workbench/shell/src/sidebar/sidebar-primary-navigation.module.css",
+        "packages/workbench/shell/src/sidebar/sidebar-primary-navigation.tsx",
+        "packages/workbench/shell/src/sidebar/sidebar-reorder.ts",
+        "packages/workbench/shell/src/sidebar/sidebar-resize-handle.tsx",
+        "packages/workbench/shell/src/sidebar/thread-list-groups.ts",
+        "packages/workbench/shell/src/sidebar/thread-list-index.ts",
+        "packages/workbench/shell/src/sidebar/thread-list-item.tsx",
+        "packages/workbench/shell/src/sidebar/thread-list.tsx",
+        "packages/workbench/shell/src/sidebar/thread-order-store.ts",
+        "packages/workbench/shell/src/sidebar/workspace-sidebar-context.tsx",
+        "packages/workbench/shell/src/sidebar/workspace-sidebar-section.tsx",
+        "packages/workbench/shell/src/sidebar/workspace-thread-list.tsx",
+        "packages/workbench/shell/src/styles.css",
+        "packages/workbench/shell/src/workbench.ts",
+        "packages/workbench/shell/tests/chat/markdown-markdown-text.test.tsx",
+        "packages/workbench/shell/tests/conversation-node-subscription.test.tsx",
+        "packages/workbench/shell/tests/dependency-boundaries.test.ts",
+        "packages/workbench/shell/tests/dom-id-literals.test.ts",
+        "packages/workbench/shell/tests/extension-platform-boundary.test.ts",
+        "packages/workbench/shell/tests/extensions/builtin-extensions.test.ts",
+        "packages/workbench/shell/tests/extensions/builtin-workspace-explorer-material-icon-theme.test.ts",
+        "packages/workbench/shell/tests/extensions/session-capabilities.test.tsx",
+        "packages/workbench/shell/tests/hosts/statusbar.test.tsx",
+        "packages/workbench/shell/tests/i18n-provider.test.tsx",
+        "packages/workbench/shell/tests/i18n/config.test.ts",
+        "packages/workbench/shell/tests/i18n/runtime.test.ts",
+        "packages/workbench/shell/tests/public-exports.test.ts",
+        "packages/workbench/shell/tests/resize/proportional-panel-size.test.ts",
+        "packages/workbench/shell/tests/right-workspace/presentation-workspace-controller-i18n.test.ts",
+        "packages/workbench/shell/tests/right-workspace/right-workspace-provider.test.tsx",
+        "packages/workbench/shell/tests/right-workspace/surface-host-lifecycle.test.tsx",
+        "packages/workbench/shell/tests/right-workspace/workspace-surface-runtime-host.test.tsx",
+        "packages/workbench/shell/tests/right-workspace/workspace-tabs-shared.test.tsx",
+        "packages/workbench/shell/tests/shell/layout-motion.test.ts",
+        "packages/workbench/shell/tests/shell/window-resize.test.ts",
+        "packages/workbench/shell/tests/sidebar-settings-hydration.test.tsx",
+        "packages/workbench/shell/tests/sidebar/sidebar-drag-session.test.ts",
+        "packages/workbench/shell/tests/sidebar/sidebar-move.test.ts",
+        "packages/workbench/shell/tests/sidebar/sidebar-reorder.test.ts",
+        "packages/workbench/shell/tests/sidebar/sidebar-resize-handle.test.ts",
+        "packages/workbench/shell/tests/sidebar/thread-list-groups.test.ts",
+        "packages/workbench/shell/tests/sidebar/thread-list-index.test.ts",
+        "packages/workbench/shell/tests/sidebar/thread-list.test.tsx",
+        "packages/workbench/shell/tests/sidebar/thread-order-store.test.ts",
+        "packages/workbench/shell/tests/sidebar/thread-sort.test.ts",
+        "packages/workbench/shell/tests/styles-boundary.test.ts",
+        "packages/workbench/shell/tests/ui-foundation-boundary.test.ts",
+        "packages/workbench/shell/tests/ui/workbench-portal-container.test.tsx",
+        "packages/workbench/shell/tests/unit/application.test.ts",
+        "packages/workbench/shell/tests/unit/desktop-style-csp.test.ts",
+        "packages/workbench/shell/tests/unit/settings.test.tsx",
+        "packages/workbench/shell/tests/workbench-main.test.tsx",
+        "packages/workbench/shell/tests/workspace-directory-store.test.ts",
+        "packages/workbench/shell/tsconfig.json"
+      ],
+      "testsBefore": [
+        "packages/workbench/shell/tests/chat/markdown-markdown-text.test.tsx",
+        "packages/workbench/shell/tests/conversation-node-subscription.test.tsx",
+        "packages/workbench/shell/tests/dependency-boundaries.test.ts",
+        "packages/workbench/shell/tests/dom-id-literals.test.ts",
+        "packages/workbench/shell/tests/extension-platform-boundary.test.ts",
+        "packages/workbench/shell/tests/extensions/builtin-extensions.test.ts",
+        "packages/workbench/shell/tests/extensions/builtin-workspace-explorer-material-icon-theme.test.ts",
+        "packages/workbench/shell/tests/extensions/session-capabilities.test.tsx",
+        "packages/workbench/shell/tests/hosts/statusbar.test.tsx",
+        "packages/workbench/shell/tests/i18n-provider.test.tsx",
+        "packages/workbench/shell/tests/i18n/config.test.ts",
+        "packages/workbench/shell/tests/i18n/runtime.test.ts",
+        "packages/workbench/shell/tests/public-exports.test.ts",
+        "packages/workbench/shell/tests/resize/proportional-panel-size.test.ts",
+        "packages/workbench/shell/tests/right-workspace/presentation-workspace-controller-i18n.test.ts",
+        "packages/workbench/shell/tests/right-workspace/right-workspace-provider.test.tsx",
+        "packages/workbench/shell/tests/right-workspace/surface-host-lifecycle.test.tsx",
+        "packages/workbench/shell/tests/right-workspace/workspace-surface-runtime-host.test.tsx",
+        "packages/workbench/shell/tests/right-workspace/workspace-tabs-shared.test.tsx",
+        "packages/workbench/shell/tests/shell/layout-motion.test.ts",
+        "packages/workbench/shell/tests/shell/window-resize.test.ts",
+        "packages/workbench/shell/tests/sidebar-settings-hydration.test.tsx",
+        "packages/workbench/shell/tests/sidebar/sidebar-drag-session.test.ts",
+        "packages/workbench/shell/tests/sidebar/sidebar-move.test.ts",
+        "packages/workbench/shell/tests/sidebar/sidebar-reorder.test.ts",
+        "packages/workbench/shell/tests/sidebar/sidebar-resize-handle.test.ts",
+        "packages/workbench/shell/tests/sidebar/thread-list-groups.test.ts",
+        "packages/workbench/shell/tests/sidebar/thread-list-index.test.ts",
+        "packages/workbench/shell/tests/sidebar/thread-list.test.tsx",
+        "packages/workbench/shell/tests/sidebar/thread-order-store.test.ts",
+        "packages/workbench/shell/tests/sidebar/thread-sort.test.ts",
+        "packages/workbench/shell/tests/styles-boundary.test.ts",
+        "packages/workbench/shell/tests/ui-foundation-boundary.test.ts",
+        "packages/workbench/shell/tests/ui/workbench-portal-container.test.tsx",
+        "packages/workbench/shell/tests/unit/application.test.ts",
+        "packages/workbench/shell/tests/unit/desktop-style-csp.test.ts",
+        "packages/workbench/shell/tests/unit/settings.test.tsx",
+        "packages/workbench/shell/tests/workbench-main.test.tsx",
+        "packages/workbench/shell/tests/workspace-directory-store.test.ts"
+      ],
+      "consumersBefore": [
+        ".agents/skills/extend-workbench-ui/SKILL.md",
+        ".agents/skills/extend-workbench-ui/references/contracts.md",
+        ".agents/skills/extend-workbench-ui/references/recipes.md",
+        ".agents/skills/ui-styling/SKILL.md",
+        ".agents/skills/ui-styling/references/shadcn-theming.md",
+        ".oxlintrc.json",
+        "AGENTS.md",
+        "apps/desktop-electron/scripts/smoke-terminal-renderer.cjs",
+        "apps/desktop-renderer/package.json",
+        "apps/desktop-renderer/src/app/globals.css",
+        "apps/desktop-renderer/src/app/i18n/bundle.ts",
+        "apps/desktop-renderer/src/app/i18n/en-US.ts",
+        "apps/desktop-renderer/src/app/i18n/zh-CN.ts",
+        "apps/desktop-renderer/src/desktop/desktop-renderer-application.tsx",
+        "apps/desktop-renderer/src/desktop/desktop-settings.tsx",
+        "apps/desktop-renderer/src/desktop/desktop-task-notifications.tsx",
+        "apps/desktop-renderer/src/desktop/desktop-workbench.tsx",
+        "apps/desktop-renderer/src/navigation/desktop-navigation-provider.tsx",
+        "apps/web/package.json",
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/i18n/bundle.ts",
+        "apps/web/src/components/AGENTS.md",
+        "apps/web/src/i18n/server.ts",
+        "apps/web/src/workbench/AGENTS.md",
+        "apps/web/src/workbench/providers/application-providers.tsx",
+        "apps/web/src/workbench/providers/installed-web-runtime-connection.ts",
+        "apps/web/src/workbench/providers/workbench-navigation-provider.tsx",
+        "apps/web/src/workbench/providers/workbench-session-persistence.ts",
+        "apps/web/test/app/globals-boundary.test.ts",
+        "apps/web/test/workbench/runtime-contributions/installed-agent-runtime.test.ts",
+        "package.json",
+        "packages/agent-runtime/client/tests/dependency-boundary.test.ts",
+        "packages/client/automation-ui/package.json",
+        "packages/client/automation-ui/src/automation-task-form.tsx",
+        "packages/client/settings-ui/package.json",
+        "packages/client/settings-ui/src/appearance-settings-item.tsx",
+        "packages/client/settings-ui/src/locale-selector.tsx",
+        "packages/client/settings-ui/tests/settings-sidebar.test.tsx",
+        "packages/client/shell-context/README.md",
+        "packages/client/shell-context/README.zh-CN.md",
+        "packages/client/shell-context/README.zh.md",
+        "packages/client/shell-context/package.json",
+        "packages/client/terminal-ui/package.json",
+        "packages/client/terminal-ui/src/terminal-surface.tsx",
+        "packages/client/terminal-ui/src/use-tool-terminal-ready.ts",
+        "packages/conversation/composer/package.json",
+        "packages/conversation/composer/src/workbench-composer.tsx",
+        "packages/conversation/composer/tests/composer-attachments.test.tsx",
+        "packages/conversation/conversation/lib/side-chat/side-chat-navigation.ts",
+        "packages/conversation/conversation/package.json",
+        "packages/conversation/conversation/src/conversation-list.tsx",
+        "packages/conversation/conversation/src/message-actions/message-actions.tsx",
+        "packages/conversation/conversation/src/side-chat/side-chat-header.tsx",
+        "packages/conversation/conversation/src/user-message-index/user-message-index.tsx",
+        "packages/conversation/conversation/src/workbench-conversation.tsx",
+        "packages/conversation/conversation/src/workbench-empty.tsx",
+        "packages/conversation/conversation/src/workbench-thread.tsx",
+        "packages/pi/README.md",
+        "packages/pi/contributions/package.json",
+        "packages/pi/contributions/tests/dom-installation-isolation.test.tsx",
+        "packages/pi/diagnostics-ui/package.json",
+        "packages/pi/diagnostics-ui/src/context-trace-trigger.tsx",
+        "packages/pi/status-ui/package.json",
+        "packages/pi/status-ui/src/about-settings-item.tsx",
+        "packages/pi/status-ui/src/pi-running-indicator.tsx",
+        "packages/pi/status-ui/src/pi-version.tsx",
+        "packages/pi/status-ui/tests/pi-running-indicator.test.ts",
+        "packages/pi/toolbox-ui/package.json",
+        "packages/pi/toolbox-ui/src/toolbox-prompt-dialogs.tsx",
+        "packages/pi/toolbox-ui/tests/pi-resource-file-openers.test.ts",
+        "packages/workbench/pi-product/lib/thinking-orb-renderer.tsx",
+        "packages/workbench/pi-product/package.json",
+        "packages/workbench/pi-product/src/application.tsx",
+        "packages/workbench/pi-product/src/extensions.ts",
+        "packages/workbench/pi-product/src/installation.tsx",
+        "packages/workbench/pi-product/src/running-indicator-defaults.tsx",
+        "packages/workbench/pi-product/src/runtime-provider.tsx",
+        "packages/workbench/pi-product/src/settings.ts",
+        "packages/workbench/pi-product/tests/application.test.tsx",
+        "packages/workbench/pi-product/tests/running-indicator-catalog.test.ts",
+        "packages/workspace/browser/package.json",
+        "packages/workspace/browser/src/browser-session-service.ts",
+        "packages/workspace/browser/src/browser-settings.tsx",
+        "packages/workspace/browser/tests/browser-annotation-layer.test.tsx",
+        "packages/workspace/browser/tests/browser-events-overlay.test.tsx",
+        "packages/workspace/browser/tests/browser-runtime-bridge.test.tsx",
+        "packages/workspace/browser/tests/browser-settings.test.tsx",
+        "packages/workspace/browser/tests/browser-surface.test.tsx",
+        "packages/workspace/browser/tests/remote-browser-session-service.test.ts",
+        "packages/workspace/directory-picker/package.json",
+        "packages/workspace/directory-picker/src/directory-picker-button.tsx",
+        "packages/workspace/directory-picker/src/new-thread-workspace-item.tsx",
+        "packages/workspace/directory-picker/src/workspace-directory-picker-dialog.tsx",
+        "packages/workspace/directory-picker/tests/capability-presence.test.tsx",
+        "packages/workspace/directory-picker/tests/workspace-directory-picker-dialog.test.tsx",
+        "packages/workspace/file-view/package.json",
+        "packages/workspace/file-view/src/file-document-viewer-runtime.tsx",
+        "packages/workspace/file-view/src/file-openers-bridge.tsx",
+        "packages/workspace/file-view/src/file-surface-header.tsx",
+        "packages/workspace/file-view/src/file-surface.tsx",
+        "packages/workspace/files/package.json",
+        "packages/workspace/files/src/tree/file-type-icon.tsx",
+        "packages/workspace/files/src/workspace-file-runtime.tsx",
+        "packages/workspace/runtime/package.json",
+        "packages/workspace/runtime/src/presentation/right-workspace-toggle-button.tsx",
+        "packages/workspace/runtime/src/presentation/right-workspace.tsx",
+        "packages/workspace/runtime/src/presentation/surface-host.tsx",
+        "packages/workspace/runtime/src/presentation/workspace-tabs.tsx",
+        "packages/workspace/runtime/src/right-workspace-layout.ts",
+        "packages/workspace/runtime/tests/right-workspace-layout.test.ts",
+        "pnpm-lock.yaml",
+        "scripts/check-runtime-host-ownership.mjs",
+        "scripts/conversation-browser-benchmark.tsx",
+        "scripts/extension-boundaries.test.ts",
+        "scripts/public-composition-imports.test.mjs",
+        "scripts/serve-conversation-benchmark.mjs"
+      ],
+      "exportsAfter": {
+        "./application": {
+          "types": "./src/application.tsx",
+          "import": "./src/application.tsx",
+          "default": "./src/application.tsx"
+        },
+        "./browser-session-persistence": {
+          "types": "./src/browser-session-persistence.ts",
+          "import": "./src/browser-session-persistence.ts",
+          "default": "./src/browser-session-persistence.ts"
+        },
+        "./extensions": {
+          "types": "./src/extensions/index.ts",
+          "import": "./src/extensions/index.ts",
+          "default": "./src/extensions/index.ts"
+        },
+        "./i18n": {
+          "types": "./src/i18n/index.ts",
+          "import": "./src/i18n/index.ts",
+          "default": "./src/i18n/index.ts"
+        },
+        "./i18n/runtime": {
+          "types": "./src/i18n/public-runtime.ts",
+          "import": "./src/i18n/public-runtime.ts",
+          "default": "./src/i18n/public-runtime.ts"
+        },
+        "./styles.css": "./src/styles.css"
+      },
+      "dependenciesAfter": {
+        "@workbench/agent-controls": "workspace:*",
+        "@workbench/agent-runtime-client": "workspace:*",
+        "@workbench/automation-ui": "workspace:*",
+        "@workbench/code-highlighting": "workspace:*",
+        "@workbench/composer": "workspace:*",
+        "@workbench/conversation": "workspace:*",
+        "@workbench/extension-host": "workspace:*",
+        "@workbench/extension-sdk": "workspace:*",
+        "@workbench/host-contracts": "workspace:*",
+        "@workbench/i18n": "workspace:*",
+        "@workbench/markdown": "workspace:*",
+        "@workbench/settings-runtime": "workspace:*",
+        "@workbench/settings-ui": "workspace:*",
+        "@workbench/shell-context": "workspace:*",
+        "@workbench/terminal-ui": "workspace:*",
+        "@workbench/ui": "workspace:*",
+        "@workbench/ui-layout": "workspace:*",
+        "@workbench/ui-panels": "workspace:*",
+        "@workbench/ui-sidebar": "workspace:*",
+        "@workbench/workspace-artifact": "workspace:*",
+        "@workbench/workspace-browser": "workspace:*",
+        "@workbench/workspace-directory-picker": "workspace:*",
+        "@workbench/workspace-explorer": "workspace:*",
+        "@workbench/workspace-file-view": "workspace:*",
+        "@workbench/workspace-files": "workspace:*",
+        "@workbench/workspace-git-branch": "workspace:*",
+        "@workbench/workspace-review": "workspace:*",
+        "@workbench/workspace-runtime": "workspace:*"
+      },
+      "testsAfter": [
+        "packages/client/shell/tests/chat/markdown-markdown-text.test.tsx",
+        "packages/client/shell/tests/conversation-node-subscription.test.tsx",
+        "packages/client/shell/tests/dependency-boundaries.test.ts",
+        "packages/client/shell/tests/dom-id-literals.test.ts",
+        "packages/client/shell/tests/extension-platform-boundary.test.ts",
+        "packages/client/shell/tests/extensions/builtin-extensions.test.ts",
+        "packages/client/shell/tests/extensions/builtin-workspace-explorer-material-icon-theme.test.ts",
+        "packages/client/shell/tests/extensions/session-capabilities.test.tsx",
+        "packages/client/ui-layout/tests/hosts/statusbar.test.tsx",
+        "packages/client/shell/tests/i18n-provider.test.tsx",
+        "packages/client/shell/tests/i18n/config.test.ts",
+        "packages/client/shell/tests/i18n/runtime.test.ts",
+        "packages/client/shell/tests/public-exports.test.ts",
+        "packages/client/shell/tests/resize/proportional-panel-size.test.ts",
+        "packages/client/shell/tests/right-workspace/presentation-workspace-controller-i18n.test.ts",
+        "packages/client/shell/tests/right-workspace/right-workspace-provider.test.tsx",
+        "packages/client/shell/tests/right-workspace/surface-host-lifecycle.test.tsx",
+        "packages/client/shell/tests/right-workspace/workspace-surface-runtime-host.test.tsx",
+        "packages/client/shell/tests/right-workspace/workspace-tabs-shared.test.tsx",
+        "packages/client/ui-layout/tests/shell/layout-motion.test.ts",
+        "packages/client/ui-layout/tests/shell/window-resize.test.ts",
+        "packages/client/ui-layout/tests/sidebar-settings-hydration.test.tsx",
+        "packages/client/shell/tests/sidebar/sidebar-drag-session.test.ts",
+        "packages/client/ui-sidebar/tests/sidebar-move.test.ts",
+        "packages/client/ui-sidebar/tests/sidebar-reorder.test.ts",
+        "packages/client/ui-layout/tests/sidebar/sidebar-resize-handle.test.ts",
+        "packages/client/ui-sidebar/tests/thread-list-groups.test.ts",
+        "packages/client/ui-sidebar/tests/thread-list-index.test.ts",
+        "packages/client/ui-sidebar/tests/thread-list.test.tsx",
+        "packages/client/ui-sidebar/tests/thread-order-store.test.ts",
+        "packages/client/ui-sidebar/tests/thread-sort.test.ts",
+        "packages/client/shell/tests/styles-boundary.test.ts",
+        "packages/client/shell/tests/ui-foundation-boundary.test.ts",
+        "packages/client/shell/tests/ui/workbench-portal-container.test.tsx",
+        "packages/client/shell/tests/unit/application.test.ts",
+        "packages/client/shell/tests/unit/desktop-style-csp.test.ts",
+        "packages/client/shell/tests/unit/settings.test.tsx",
+        "packages/client/shell/tests/workbench-main.test.tsx",
+        "packages/client/shell/tests/workspace-directory-store.test.ts"
+      ]
+    }
+  ],
+  "initialWorktree": [
+    " M .specify/feature.json",
+    " M AGENTS.md",
+    "?? specs/002-client-components-refactor/"
+  ],
+  "componentMapping": [
+    {
+      "source": "packages/workbench/shell/README.md",
+      "target": "packages/client/shell/README.md",
+      "owner": "shell",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/README.zh-CN.md",
+      "target": "packages/client/shell/README.zh-CN.md",
+      "owner": "shell",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/lib/thread-sort.ts",
+      "target": "packages/client/ui-sidebar/lib/thread-sort.ts",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/package.json",
+      "target": "packages/client/shell/package.json",
+      "owner": "shell",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/application.tsx",
+      "target": "packages/client/shell/src/application.tsx",
+      "owner": "shell",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/browser-session-persistence.ts",
+      "target": "packages/client/shell/src/browser-session-persistence.ts",
+      "owner": "shell",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/extensions/AGENTS.md",
+      "target": "packages/client/shell/src/extensions/AGENTS.md",
+      "owner": "shell",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/extensions/builtin-extensions.ts",
+      "target": "packages/client/shell/src/extensions/builtin-extensions.ts",
+      "owner": "shell",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/extensions/index.ts",
+      "target": "packages/client/shell/src/extensions/index.ts",
+      "owner": "shell",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/extensions/workbench-brand-toggle.tsx",
+      "target": "packages/client/ui-layout/src/workbench-brand-toggle.tsx",
+      "owner": "ui-layout",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/extensions/workbench-brand.ts",
+      "target": "packages/client/ui-layout/src/extension.ts",
+      "owner": "ui-layout",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/extensions/workspace-sidebar.ts",
+      "target": "packages/client/ui-sidebar/src/extension.ts",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/hosts/statusbar.tsx",
+      "target": "packages/client/ui-layout/src/statusbar.tsx",
+      "owner": "ui-layout",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/i18n/extensions-en-US.ts",
+      "target": "packages/client/shell/src/i18n/extensions-en-US.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/src/i18n/extensions-zh-CN.ts",
+      "target": "packages/client/shell/src/i18n/extensions-zh-CN.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/src/i18n/index.ts",
+      "target": "packages/client/shell/src/i18n/index.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/src/i18n/messages.ts",
+      "target": "packages/client/shell/src/i18n/messages.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/src/i18n/provider.tsx",
+      "target": "packages/client/shell/src/i18n/provider.tsx",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/src/i18n/public-runtime.ts",
+      "target": "packages/client/shell/src/i18n/public-runtime.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/src/i18n/runtime.ts",
+      "target": "packages/client/shell/src/i18n/runtime.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/src/i18n/workbench-en-US.ts",
+      "owner": "shell",
+      "note": "Split original keys into unique capability catalogs; static values and interpolation preserved.",
+      "targets": [
+        "packages/client/ui-sidebar/src/i18n/en-US.ts",
+        "packages/client/ui-panels/src/i18n/en-US.ts",
+        "packages/client/ui-layout/src/i18n/en-US.ts"
+      ]
+    },
+    {
+      "source": "packages/workbench/shell/src/i18n/workbench-zh-CN.ts",
+      "owner": "shell",
+      "note": "Split original keys into unique capability catalogs; static values and interpolation preserved.",
+      "targets": [
+        "packages/client/ui-sidebar/src/i18n/zh-CN.ts",
+        "packages/client/ui-panels/src/i18n/zh-CN.ts",
+        "packages/client/ui-layout/src/i18n/zh-CN.ts"
+      ]
+    },
+    {
+      "source": "packages/workbench/shell/src/panels/index.ts",
+      "target": "packages/client/ui-panels/src/index.ts",
+      "owner": "ui-panels",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/panels/panel-container.tsx",
+      "target": "packages/client/ui-panels/src/panel-container.tsx",
+      "owner": "ui-panels",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/panels/panel-dock.tsx",
+      "target": "packages/client/ui-panels/src/panel-dock.tsx",
+      "owner": "ui-panels",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/panels/panel-header.tsx",
+      "target": "packages/client/ui-panels/src/panel-header.tsx",
+      "owner": "ui-panels",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/panels/panel-layout.tsx",
+      "target": "packages/client/ui-panels/src/panel-layout.tsx",
+      "owner": "ui-panels",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/panels/panel-resize-handle.tsx",
+      "target": "packages/client/ui-panels/src/panel-resize-handle.tsx",
+      "owner": "ui-panels",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/panels/panel-tab-content.tsx",
+      "target": "packages/client/ui-panels/src/panel-tab-content.tsx",
+      "owner": "ui-panels",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/panels/terminal-drawer.tsx",
+      "target": "packages/client/ui-panels/src/terminal-drawer.tsx",
+      "owner": "ui-panels",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/shell/command-palette-host.tsx",
+      "target": "packages/extension-platform/host/src/command-palette-host.tsx",
+      "owner": "extension-host",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/shell/conversation-actions-menu.tsx",
+      "target": "packages/client/ui-sidebar/src/conversation-actions-menu.tsx",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/shell/layout-motion.ts",
+      "target": "packages/client/ui-layout/lib/layout-motion.ts",
+      "owner": "ui-layout",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/shell/shell-layout.css",
+      "target": "packages/client/ui-layout/src/styles.css",
+      "owner": "ui-layout",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/shell/use-sidebar-settings-hydration.ts",
+      "target": "packages/client/ui-layout/src/use-sidebar-settings-hydration.ts",
+      "owner": "ui-layout",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/shell/window-resize.ts",
+      "target": "packages/client/ui-layout/lib/window-resize.ts",
+      "owner": "ui-layout",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/shell/workbench-global-layer.tsx",
+      "target": "packages/client/ui-layout/src/workbench-global-layer.tsx",
+      "owner": "ui-layout",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/shell/workbench-header.tsx",
+      "target": "packages/client/ui-layout/src/workbench-header.tsx",
+      "owner": "ui-layout",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/shell/workbench-shell.tsx",
+      "target": "packages/client/ui-layout/src/workbench-shell.tsx",
+      "owner": "ui-layout",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/shell/workbench-sidebar.tsx",
+      "target": "packages/client/ui-layout/src/workbench-sidebar.tsx",
+      "owner": "ui-layout",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/new-thread-button.tsx",
+      "target": "packages/client/ui-sidebar/src/new-thread-button.tsx",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/running-thread-indicator.tsx",
+      "target": "packages/client/ui-sidebar/src/running-thread-indicator.tsx",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/sidebar-move.ts",
+      "target": "packages/client/ui-sidebar/src/sidebar-move.ts",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/sidebar-primary-navigation.module.css",
+      "target": "packages/client/ui-layout/src/sidebar-primary-navigation.module.css",
+      "owner": "ui-layout",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/sidebar-primary-navigation.tsx",
+      "target": "packages/client/ui-layout/src/sidebar-primary-navigation.tsx",
+      "owner": "ui-layout",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/sidebar-reorder.ts",
+      "target": "packages/client/ui-sidebar/src/sidebar-reorder.ts",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/sidebar-resize-handle.tsx",
+      "target": "packages/client/ui-layout/src/sidebar-resize-handle.tsx",
+      "owner": "ui-layout",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/thread-list-groups.ts",
+      "target": "packages/client/ui-sidebar/src/thread-list-groups.ts",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/thread-list-index.ts",
+      "target": "packages/client/ui-sidebar/src/thread-list-index.ts",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/thread-list-item.tsx",
+      "target": "packages/client/ui-sidebar/src/thread-list-item.tsx",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/thread-list.tsx",
+      "target": "packages/client/ui-sidebar/src/thread-list.tsx",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/thread-order-store.ts",
+      "target": "packages/client/ui-sidebar/src/thread-order-store.ts",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/workspace-sidebar-context.tsx",
+      "target": "packages/client/ui-sidebar/src/workspace-sidebar-context.tsx",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/workspace-sidebar-section.tsx",
+      "target": "packages/client/ui-sidebar/src/workspace-sidebar-section.tsx",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/sidebar/workspace-thread-list.tsx",
+      "target": "packages/client/ui-sidebar/src/workspace-thread-list.tsx",
+      "owner": "ui-sidebar",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/styles.css",
+      "target": "packages/client/shell/src/styles.css",
+      "owner": "shell",
+      "note": ""
+    },
+    {
+      "source": "packages/workbench/shell/src/workbench.ts",
+      "target": "packages/client/ui-layout/src/index.ts",
+      "owner": "shell",
+      "note": "Removed Shell forwarding export; consumers import actual layout/conversation owner."
+    },
+    {
+      "source": "packages/workbench/shell/tests/chat/markdown-markdown-text.test.tsx",
+      "target": "packages/client/shell/tests/chat/markdown-markdown-text.test.tsx",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/conversation-node-subscription.test.tsx",
+      "target": "packages/client/shell/tests/conversation-node-subscription.test.tsx",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/dependency-boundaries.test.ts",
+      "target": "packages/client/shell/tests/dependency-boundaries.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/dom-id-literals.test.ts",
+      "target": "packages/client/shell/tests/dom-id-literals.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/extension-platform-boundary.test.ts",
+      "target": "packages/client/shell/tests/extension-platform-boundary.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/extensions/builtin-extensions.test.ts",
+      "target": "packages/client/shell/tests/extensions/builtin-extensions.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/extensions/builtin-workspace-explorer-material-icon-theme.test.ts",
+      "target": "packages/client/shell/tests/extensions/builtin-workspace-explorer-material-icon-theme.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/extensions/session-capabilities.test.tsx",
+      "target": "packages/client/shell/tests/extensions/session-capabilities.test.tsx",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/hosts/statusbar.test.tsx",
+      "target": "packages/client/ui-layout/tests/hosts/statusbar.test.tsx",
+      "owner": "ui-layout",
+      "note": "UI excluded-by-user"
+    },
+    {
+      "source": "packages/workbench/shell/tests/i18n-provider.test.tsx",
+      "target": "packages/client/shell/tests/i18n-provider.test.tsx",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/i18n/config.test.ts",
+      "target": "packages/client/shell/tests/i18n/config.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/i18n/runtime.test.ts",
+      "target": "packages/client/shell/tests/i18n/runtime.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/public-exports.test.ts",
+      "target": "packages/client/shell/tests/public-exports.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/resize/proportional-panel-size.test.ts",
+      "target": "packages/client/shell/tests/resize/proportional-panel-size.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/right-workspace/presentation-workspace-controller-i18n.test.ts",
+      "target": "packages/client/shell/tests/right-workspace/presentation-workspace-controller-i18n.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/right-workspace/right-workspace-provider.test.tsx",
+      "target": "packages/client/shell/tests/right-workspace/right-workspace-provider.test.tsx",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/right-workspace/surface-host-lifecycle.test.tsx",
+      "target": "packages/client/shell/tests/right-workspace/surface-host-lifecycle.test.tsx",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/right-workspace/workspace-surface-runtime-host.test.tsx",
+      "target": "packages/client/shell/tests/right-workspace/workspace-surface-runtime-host.test.tsx",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/right-workspace/workspace-tabs-shared.test.tsx",
+      "target": "packages/client/shell/tests/right-workspace/workspace-tabs-shared.test.tsx",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/shell/layout-motion.test.ts",
+      "target": "packages/client/ui-layout/tests/shell/layout-motion.test.ts",
+      "owner": "ui-layout",
+      "note": "UI excluded-by-user"
+    },
+    {
+      "source": "packages/workbench/shell/tests/shell/window-resize.test.ts",
+      "target": "packages/client/ui-layout/tests/shell/window-resize.test.ts",
+      "owner": "ui-layout",
+      "note": "UI excluded-by-user"
+    },
+    {
+      "source": "packages/workbench/shell/tests/sidebar-settings-hydration.test.tsx",
+      "target": "packages/client/ui-layout/tests/sidebar-settings-hydration.test.tsx",
+      "owner": "ui-layout",
+      "note": "UI excluded-by-user"
+    },
+    {
+      "source": "packages/workbench/shell/tests/sidebar/sidebar-drag-session.test.ts",
+      "target": "packages/client/shell/tests/sidebar/sidebar-drag-session.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/sidebar/sidebar-move.test.ts",
+      "target": "packages/client/ui-sidebar/tests/sidebar-move.test.ts",
+      "owner": "ui-sidebar",
+      "note": "UI tests retained but not run; pure logic tests selectable"
+    },
+    {
+      "source": "packages/workbench/shell/tests/sidebar/sidebar-reorder.test.ts",
+      "target": "packages/client/ui-sidebar/tests/sidebar-reorder.test.ts",
+      "owner": "ui-sidebar",
+      "note": "UI tests retained but not run; pure logic tests selectable"
+    },
+    {
+      "source": "packages/workbench/shell/tests/sidebar/sidebar-resize-handle.test.ts",
+      "target": "packages/client/ui-layout/tests/sidebar/sidebar-resize-handle.test.ts",
+      "owner": "ui-layout",
+      "note": "UI excluded-by-user"
+    },
+    {
+      "source": "packages/workbench/shell/tests/sidebar/thread-list-groups.test.ts",
+      "target": "packages/client/ui-sidebar/tests/thread-list-groups.test.ts",
+      "owner": "ui-sidebar",
+      "note": "UI tests retained but not run; pure logic tests selectable"
+    },
+    {
+      "source": "packages/workbench/shell/tests/sidebar/thread-list-index.test.ts",
+      "target": "packages/client/ui-sidebar/tests/thread-list-index.test.ts",
+      "owner": "ui-sidebar",
+      "note": "UI tests retained but not run; pure logic tests selectable"
+    },
+    {
+      "source": "packages/workbench/shell/tests/sidebar/thread-list.test.tsx",
+      "target": "packages/client/ui-sidebar/tests/thread-list.test.tsx",
+      "owner": "ui-sidebar",
+      "note": "UI tests retained but not run; pure logic tests selectable"
+    },
+    {
+      "source": "packages/workbench/shell/tests/sidebar/thread-order-store.test.ts",
+      "target": "packages/client/ui-sidebar/tests/thread-order-store.test.ts",
+      "owner": "ui-sidebar",
+      "note": "UI tests retained but not run; pure logic tests selectable"
+    },
+    {
+      "source": "packages/workbench/shell/tests/sidebar/thread-sort.test.ts",
+      "target": "packages/client/ui-sidebar/tests/thread-sort.test.ts",
+      "owner": "ui-sidebar",
+      "note": "UI tests retained but not run; pure logic tests selectable"
+    },
+    {
+      "source": "packages/workbench/shell/tests/styles-boundary.test.ts",
+      "target": "packages/client/shell/tests/styles-boundary.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/ui-foundation-boundary.test.ts",
+      "target": "packages/client/shell/tests/ui-foundation-boundary.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/ui/workbench-portal-container.test.tsx",
+      "target": "packages/client/shell/tests/ui/workbench-portal-container.test.tsx",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/unit/application.test.ts",
+      "target": "packages/client/shell/tests/unit/application.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/unit/desktop-style-csp.test.ts",
+      "target": "packages/client/shell/tests/unit/desktop-style-csp.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/unit/settings.test.tsx",
+      "target": "packages/client/shell/tests/unit/settings.test.tsx",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/workbench-main.test.tsx",
+      "target": "packages/client/shell/tests/workbench-main.test.tsx",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tests/workspace-directory-store.test.ts",
+      "target": "packages/client/shell/tests/workspace-directory-store.test.ts",
+      "owner": "shell",
+      "note": "tests and dictionary keys assigned by semantic consumer before extraction"
+    },
+    {
+      "source": "packages/workbench/shell/tsconfig.json",
+      "target": "packages/client/shell/tsconfig.json",
+      "owner": "shell",
+      "note": ""
+    }
+  ],
+  "translationOwnership": {
+    "workbench.sidebar": "ui-sidebar (layout consumes shared sidebar bundle)",
+    "workbench.panels": "ui-panels",
+    "workbench.shell": "ui-layout except workspace",
+    "platform.extensions": "extension-host existing platform bundle",
+    "extensions": "shell remaining catalog; brand references workbench.shell if applicable",
+    "workbench.shell.workspace": "ui-sidebar"
+  },
+  "dependencyCleanup": {
+    "removed": [
+      "@base-ui/react",
+      "@file-viewer/core",
+      "@file-viewer/preset-lite",
+      "@file-viewer/preset-office",
+      "@file-viewer/react",
+      "@lexical/code-core",
+      "@lexical/link",
+      "@lexical/list",
+      "@lexical/markdown",
+      "@lexical/react",
+      "@lexical/rich-text",
+      "@shikijs/langs",
+      "@shikijs/themes",
+      "@tanstack/react-virtual",
+      "@workbench/automation-contracts",
+      "@workbench/browser-contracts",
+      "@workbench/contracts",
+      "@workbench/host-client",
+      "@workbench/terminal-client",
+      "@workbench/terminal-contracts",
+      "@xterm/addon-fit",
+      "@xterm/xterm",
+      "class-variance-authority",
+      "clsx",
+      "cmdk",
+      "cronstrue",
+      "diff",
+      "get-east-asian-width",
+      "hast-util-to-jsx-runtime",
+      "katex",
+      "lexical",
+      "mdast-util-from-markdown",
+      "mdast-util-gfm",
+      "mdast-util-math",
+      "mdast-util-to-hast",
+      "mermaid",
+      "micromark-extension-gfm",
+      "micromark-extension-math",
+      "radix-ui",
+      "react-arborist",
+      "react-colorful",
+      "rehype-katex",
+      "rehype-raw",
+      "rehype-sanitize",
+      "remend",
+      "shiki",
+      "tailwind-merge",
+      "thinking-orbs",
+      "unified",
+      "zustand"
+    ],
+    "testOnly": [
+      "@workbench/agent-runtime-contracts",
+      "@workbench/appearance",
+      "lucide-react",
+      "material-icon-theme"
+    ],
+    "production": [
+      "@workbench/agent-controls",
+      "@workbench/agent-runtime-client",
+      "@workbench/automation-ui",
+      "@workbench/code-highlighting",
+      "@workbench/composer",
+      "@workbench/conversation",
+      "@workbench/extension-host",
+      "@workbench/extension-sdk",
+      "@workbench/host-contracts",
+      "@workbench/i18n",
+      "@workbench/markdown",
+      "@workbench/settings-runtime",
+      "@workbench/settings-ui",
+      "@workbench/shell-context",
+      "@workbench/terminal-ui",
+      "@workbench/ui",
+      "@workbench/ui-layout",
+      "@workbench/ui-panels",
+      "@workbench/ui-sidebar",
+      "@workbench/workspace-artifact",
+      "@workbench/workspace-browser",
+      "@workbench/workspace-directory-picker",
+      "@workbench/workspace-explorer",
+      "@workbench/workspace-file-view",
+      "@workbench/workspace-files",
+      "@workbench/workspace-git-branch",
+      "@workbench/workspace-review",
+      "@workbench/workspace-runtime",
+      "react"
+    ]
+  },
+  "newCapabilities": [
+    {
+      "root": "packages/client/ui-sidebar",
+      "exports": {
+        ".": "./src/index.ts",
+        "./extension": "./src/extension.ts",
+        "./i18n": "./src/i18n.ts"
+      }
+    },
+    {
+      "root": "packages/client/ui-panels",
+      "exports": {
+        ".": {
+          "types": "./src/index.ts",
+          "import": "./src/index.ts",
+          "default": "./src/index.ts"
+        },
+        "./i18n": {
+          "types": "./src/i18n.ts",
+          "import": "./src/i18n.ts",
+          "default": "./src/i18n.ts"
+        }
+      }
+    },
+    {
+      "root": "packages/client/ui-layout",
+      "exports": {
+        ".": "./src/index.ts",
+        "./extension": "./src/extension.ts",
+        "./i18n": "./src/i18n.ts",
+        "./statusbar": "./src/statusbar.tsx",
+        "./styles.css": "./src/styles.css"
+      }
+    }
+  ]
+}

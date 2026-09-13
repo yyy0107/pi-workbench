@@ -18,7 +18,7 @@ import { ConversationList } from "@workbench/conversation/list";
 import { useWorkbenchConversationViewport } from "@workbench/conversation/viewport";
 import { ThreadScrollStateProvider } from "@workbench/conversation/scroll-state";
 import { WorkbenchSettingsProvider } from "@workbench/settings-runtime";
-import { I18nProvider } from "../packages/workbench/shell/src/i18n";
+import { I18nProvider } from "../packages/client/shell/src/i18n";
 import { createPanelStore } from "@workbench/shell-context/panel-store";
 import { messagePresentationExtension } from "@workbench/conversation/message-presentation";
 import { ToastProvider } from "@workbench/ui";

@@ -20,7 +20,7 @@ Automation 的定义、存储和调度位于
 [`@workbench/automation-contracts`](../contracts/automation)。任务触发时会在目标工作区创建一个
 普通、可见的会话，再通过标准 Agent 执行端口提交用户配置的提示词。本目录保留 Automation 的 Pi
 会话启动实现和 Workbench 事件/RPC 接线；前端页面位于
-[`packages/workbench/shell/src/extensions/builtin/automation`](../workbench/shell/src/extensions/builtin/automation)。
+[`packages/client/shell/src/extensions/builtin/automation`](../workbench/shell/src/extensions/builtin/automation)。
 
 ## 架构
 
@@ -392,7 +392,7 @@ XDG application 目录、本地化用户桌面中的 `.desktop`、PATH 与 Flatp
 只有 `host.localApps.refresh` 会主动重扫。
 RPC 只返回稳定的 `id`、`name`、`kind`、`icon` 和 `supportedFileKinds`，可执行文件、Bundle ID、desktop entry 与启动参数
 始终留在 Host 内；品牌图标固定维护在
-`packages/workbench/shell/src/extensions/builtin/workspace-file/icons`，不从操作系统动态提取。
+`packages/client/shell/src/extensions/builtin/workspace-file/icons`，不从操作系统动态提取。
 所有启动均通过参数数组执行且禁用 shell，避免把用户路径拼进命令字符串。
 
 资源管理器使用独立的 workspace-bound 文件接口，不复用目录选择器协议。请求携带
@@ -1274,7 +1274,7 @@ Pi 按具体能力组织为 `packages/pi/<capability>`。每包同时拥有真�
 
 `server/src/session-composition/registry.ts` 每个模块代际调用一次 `createPiSessionRegistry`。原进程注册表、交互注册表 Symbol、资源协调器、SDK 会话和关闭钩子的作用域保持。资源和工具服务通过明确端口取得这些实例，具体默认选择由装配层拥有。
 
-Workbench 通用 UI、对话与工作区分别归 `packages/client/*`、`packages/conversation/*`、`packages/workspace/*`。产品安装顺序由 `packages/workbench/pi-product` 持有，Shell 保留布局与侧栏。完整公开入口和源码清单见 [能力包映射](../../specs/001-workbench-package-refactor/package-map.md)。
+Workbench 通用 UI、对话与工作区分别归 `packages/client/*`、`packages/conversation/*`、`packages/workspace/*`。产品安装顺序由 `packages/client/pi-product` 持有，Shell 保留布局与侧栏。完整公开入口和源码清单见 [能力包映射](../../specs/001-workbench-package-refactor/package-map.md)。
 
 ## 配置
 

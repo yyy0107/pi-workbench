@@ -6,7 +6,7 @@ import { formatPathEllipsis, PathEllipsis } from "../../src/components/path-elli
 
 test("formatPathEllipsis keeps the requested path ends", () => {
   assert.equal(
-    formatPathEllipsis("/workspace/packages/workbench/src/path-ellipsis.tsx", 11, 14),
+    formatPathEllipsis("/workspace/packages/client/src/path-ellipsis.tsx", 11, 14),
     "/workspace/…h-ellipsis.tsx",
   );
 });
@@ -21,7 +21,7 @@ test("formatPathEllipsis handles Unicode code points and zero-length ends", () =
 test("PathEllipsis exposes the complete path and forwards layout props", () => {
   const html = renderToStaticMarkup(
     <PathEllipsis
-      text="/workspace/packages/workbench/src/path-ellipsis.tsx"
+      text="/workspace/packages/client/src/path-ellipsis.tsx"
       width="100%"
       prefixChars={0}
       suffixChars={14}

@@ -17,9 +17,9 @@ const SOURCE_ROOTS = [
   "apps/runtime-node/src",
   "apps/web/src",
   "packages/pi/contributions/src",
-  "packages/workbench/shell/src",
-  "packages/workbench/pi-product/src",
-  "packages/workbench/services-client/src",
+  "packages/client/shell/src",
+  "packages/client/pi-product/src",
+  "packages/client/services-client/src",
   "runtime",
 ].flatMap((root) =>
   root.endsWith("/src") && root.startsWith("packages/")
@@ -112,6 +112,7 @@ export function runtimeBoundaryViolations(files) {
 
     if (
       !filename.startsWith("apps/web/src/server/") &&
+      filename !== "packages/client/host-client/src/runtime-websocket.ts" &&
       /\bnew\s+(?:(?:window|globalThis)\.)?WebSocket\s*\(/u.test(executable)
     ) {
       violations.push(`${filename}: use the installed RuntimeConnection instead of WebSocket`);

@@ -4,7 +4,7 @@ Use this reference when a change affects theme mappings, control variants, or ap
 
 ## Trace the changed value
 
-Start at the affected component and its semantic class or CSS variable. Follow its definition through `packages/workbench/shell/src/styles.css` and the imported owning stylesheet. Inspect `packages/workbench/shell/src/extensions/builtin/appearance/` only when settings or appearance-derived values are involved.
+Start at the affected component and its semantic class or CSS variable. Follow its definition through `packages/client/shell/src/styles.css` and the imported owning stylesheet. Inspect `packages/client/shell/src/extensions/builtin/appearance/` only when settings or appearance-derived values are involved.
 
 Keep semantic colors in the existing theme layer. Controls consume the shared button/input/dropdown/switch state and size tokens; regional layout values derive from those tokens in the region's scope. A primitive/base value change affects its consumers, a semantic mapping changes its role, and a component override should stay within that component's ownership. Choose the narrowest layer that expresses the requested behavior.
 

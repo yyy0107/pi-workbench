@@ -404,7 +404,7 @@ test("accepts only app/package source inputs in the Runtime bundle closure", () 
   );
   assert.throws(
     () =>
-      assertRuntimeArtifactInputClosure(metafile(["../../workbench/server/private.ts"]), {
+      assertRuntimeArtifactInputClosure(metafile(["../../client/server/private.ts"]), {
         appRoot,
         repositoryRoot,
       }),

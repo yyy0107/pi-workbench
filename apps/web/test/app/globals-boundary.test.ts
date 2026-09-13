@@ -7,7 +7,7 @@ test("Web styles explicitly compose Shell and scan installed contribution source
 
   assert.equal(styles.includes('@import "@workbench/shell/styles.css";'), true);
   assert.equal(
-    styles.includes('@source "../../../../packages/workbench/shell/src/**/*.{ts,tsx}";'),
+    styles.includes('@source "../../../../packages/client/shell/src/**/*.{ts,tsx}";'),
     true,
   );
   for (const domain of ["client", "workspace", "conversation", "pi"]) {

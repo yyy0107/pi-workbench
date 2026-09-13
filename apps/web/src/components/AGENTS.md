@@ -1,7 +1,7 @@
 # 通用组件 i18n 规范
 
 - 本目录只保留 Web-owned 产品组合 wrapper；通用 UI、elements 和图标由
-  `packages/workbench/shell/src/` 拥有并保持 locale 无关，不在这里复制第二份实现。
+  `packages/client/ui/src/` 拥有并保持 locale 无关，不在这里复制第二份实现。
 - 组件通过 `children`、`label`、`description`、`placeholder`、`aria-label` 等 props 接收已翻译文案；不要把翻译键作为通用组件 API。
 - 通用组件不得内置用户可见的英文或中文默认值。确需默认无障碍文案时，暴露必填 label/labels prop，由调用方提供。
 - 不在组件内部拼接句子。涉及数量、状态或实体名的完整文案由调用方翻译后传入。
