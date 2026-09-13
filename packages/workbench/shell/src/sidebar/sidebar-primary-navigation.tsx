@@ -4,9 +4,9 @@ import { SearchIcon } from "lucide-react";
 
 import type { SidebarSectionDefinition } from "@workbench/extension-sdk";
 
-import { Button } from "../ui/button";
+import { Button } from "@workbench/ui";
 import { useI18n } from "../i18n";
-import { cn } from "../utils";
+import { cn } from "@workbench/ui/utils";
 
 import styles from "./sidebar-primary-navigation.module.css";
 

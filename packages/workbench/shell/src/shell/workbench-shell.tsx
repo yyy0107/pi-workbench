@@ -13,34 +13,40 @@ import {
 
 import { LucideProvider } from "lucide-react";
 
-import { SidebarProvider } from "../ui/sidebar";
-import { WorkbenchPortalContainerProvider } from "../ui/workbench-portal-container";
-import { RightWorkspace, RightWorkspaceToggleButton } from "../right-workspace/presentation";
-import { cn } from "../utils";
+import { SidebarProvider } from "@workbench/ui";
+import { WorkbenchPortalContainerProvider } from "@workbench/ui";
+import {
+  RightWorkspace,
+  RightWorkspaceToggleButton,
+} from "@workbench/workspace-runtime/presentation";
+import { cn } from "@workbench/ui/utils";
 import { useMainViewService } from "@workbench/extension-host";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
-import { useWorkbenchSettingsService } from "../settings";
+import { useWorkbenchSettingsService } from "@workbench/settings-runtime";
 import {
   WorkbenchPresentationProvider,
   type WorkbenchAssets,
   type WorkbenchBranding,
-} from "../presentation";
-import { RunningIndicatorProvider, type RunningIndicatorCatalog } from "../running-indicator";
+} from "@workbench/shell-context/presentation";
+import {
+  RunningIndicatorProvider,
+  type RunningIndicatorCatalog,
+} from "@workbench/shell-context/running-indicator";
 import {
   ThreadScrollStateProvider,
   type ThreadScrollPersistencePort,
-} from "../thread-scroll-state";
+} from "@workbench/conversation/scroll-state";
 import {
   WorkbenchMain,
   resolveExpandedThreadWidth,
   resolveThreadResponsiveLayout,
-} from "../layout";
+} from "@workbench/shell-context/layout";
 import { WorkbenchStatusbar } from "../hosts/statusbar";
 import {
   resolveRightWorkspacePresentation,
   shouldCollapseRightWorkspaceBeforeSidebar,
-} from "../right-workspace";
-import { useRightWorkspace, useRightWorkspaceState } from "../right-workspace-react";
+} from "@workbench/workspace-runtime";
+import { useRightWorkspace, useRightWorkspaceState } from "@workbench/workspace-runtime/react";
 
 import { PanelLayout } from "../panels/panel-layout";
 import {
@@ -50,15 +56,15 @@ import {
 import { WorkbenchHeader } from "./workbench-header";
 import { WorkbenchSidebar } from "./workbench-sidebar";
 import { useSidebarSettingsHydration } from "./use-sidebar-settings-hydration";
-import { SidebarDragSessionProvider } from "../hooks/use-sidebar-pointer-reorder";
-import { WorkbenchDomIdsProvider } from "../dom";
+import { SidebarDragSessionProvider } from "@workbench/ui/hooks";
+import { WorkbenchDomIdsProvider } from "@workbench/shell-context/dom";
 import { observeWindowResize } from "./window-resize";
 import { observeLayoutMotion } from "./layout-motion";
-import { resolveTargetThreadWidth } from "../layout/thread-content-width";
-import { MOBILE_BREAKPOINT } from "../hooks/use-mobile";
-import { resolveProportionalPanelWidth } from "../resize/proportional-panel-size";
-import { MIN_CONVERSATION_WIDTH } from "../right-workspace/right-workspace-layout";
-import { MIN_RIGHT_WORKSPACE_WIDTH } from "../right-workspace/workspace-store";
+import { resolveTargetThreadWidth } from "@workbench/shell-context/layout";
+import { MOBILE_BREAKPOINT } from "@workbench/ui/hooks";
+import { resolveProportionalPanelWidth } from "@workbench/ui/resize";
+import { MIN_CONVERSATION_WIDTH } from "@workbench/workspace-runtime";
+import { MIN_RIGHT_WORKSPACE_WIDTH } from "@workbench/workspace-runtime";
 
 export type { WorkbenchInstallationEffectsProps } from "./workbench-global-layer";
 

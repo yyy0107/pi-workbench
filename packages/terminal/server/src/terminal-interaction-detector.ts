@@ -1,5 +1,5 @@
 import type { TerminalInteractionState } from "@workbench/terminal-contracts";
-import { TerminalAnsiTextDecoder } from "./terminal-transcript-projector";
+import { TerminalAnsiTextDecoder } from "../lib/terminal-transcript-projector";
 
 const DEFAULT_QUIET_PERIOD_MS = 1_000;
 const DEFAULT_SIGNAL_WINDOW_MS = 5_000;

@@ -1,1 +1,0 @@
-export { piSettingsActionExtension } from "./extension";

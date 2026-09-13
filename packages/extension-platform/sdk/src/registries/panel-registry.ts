@@ -1,6 +1,6 @@
 import { createDisposable } from "../api/disposable";
 import type { PanelDefinition, PanelRegistry } from "../api/panel";
-import { assertNonEmptyId, emitRegistryChange } from "./registry-utils";
+import { assertNonEmptyId, emitRegistryChange } from "../../lib/registry-utils";
 
 const EMPTY_PANELS = Object.freeze([]) as readonly PanelDefinition[];
 

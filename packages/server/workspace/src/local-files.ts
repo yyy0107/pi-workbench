@@ -1,3 +1,4 @@
+import { withoutWorkspaceIdentity } from "../lib/file-projection";
 import { realpath } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -28,13 +29,6 @@ export interface LocalFileProtocol {
     expectedVersion: string,
     signal?: AbortSignal,
   ): Promise<LocalFileSnapshot>;
-}
-
-function withoutWorkspaceIdentity<T extends { workspaceId?: string; relativePath: string }>(
-  value: T,
-) {
-  const { workspaceId: _workspaceId, relativePath: _relativePath, ...file } = value;
-  return file;
 }
 
 /** Reuse the file IO, encoding, size limits, and version checks without registering a project. */

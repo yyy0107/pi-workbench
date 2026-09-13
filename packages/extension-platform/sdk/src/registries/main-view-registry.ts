@@ -1,6 +1,6 @@
 import { createDisposable } from "../api/disposable";
 import type { AnyMainViewDefinition, MainViewDefinition, MainViewRegistry } from "../api/main-view";
-import { assertNonEmptyId, emitRegistryChange } from "./registry-utils";
+import { assertNonEmptyId, emitRegistryChange } from "../../lib/registry-utils";
 
 const EMPTY_MAIN_VIEWS = Object.freeze([]) as readonly AnyMainViewDefinition[];
 

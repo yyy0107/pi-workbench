@@ -34,16 +34,16 @@
 
 ## Features
 
-| Area | Highlights |
-| --- | --- |
-| Conversations | Persistent sessions, search, pin, archive, fork, and queued follow-ups |
-| Models | Provider sign-in, API keys, model selection, and custom providers |
-| Workspace | Project management; browse, preview, edit, and save files |
-| Terminal | Real local terminals, including interactive commands started by the agent |
-| Extensions | Manage Skills, prompts, Pi extensions, and packages through Toolbox |
-| Session import | Import local Codex, Claude Code, and Cursor conversations |
-| Attachments & inspection | Image/PDF understanding, token usage, and tool timelines |
-| Languages | Switch between English and Simplified Chinese |
+| Area                     | Highlights                                                                |
+| ------------------------ | ------------------------------------------------------------------------- |
+| Conversations            | Persistent sessions, search, pin, archive, fork, and queued follow-ups    |
+| Models                   | Provider sign-in, API keys, model selection, and custom providers         |
+| Workspace                | Project management; browse, preview, edit, and save files                 |
+| Terminal                 | Real local terminals, including interactive commands started by the agent |
+| Extensions               | Manage Skills, prompts, Pi extensions, and packages through Toolbox       |
+| Session import           | Import local Codex, Claude Code, and Cursor conversations                 |
+| Attachments & inspection | Image/PDF understanding, token usage, and tool timelines                  |
+| Languages                | Switch between English and Simplified Chinese                             |
 
 ## Requirements
 
@@ -64,9 +64,9 @@ Open [http://127.0.0.1:3000](http://127.0.0.1:3000), add a project, then configu
 
 `pnpm dev` builds before starting Web and Runtime, without hot reload. Rerun it after source changes.
 
-| Mode | Command |
-| --- | --- |
-| Web with hot reload | `pnpm dev -- --hot` |
+| Mode                 | Command             |
+| -------------------- | ------------------- |
+| Web with hot reload  | `pnpm dev -- --hot` |
 | Electron development | `pnpm electron:dev` |
 
 The Electron command builds and opens the desktop window. Use that window to access the application.
@@ -111,9 +111,10 @@ not sandboxed. Sessions and settings stay local; model requests are sent to the 
 ## Documentation
 
 - [Architecture](./docs/workbench-public-layers.md)
+- [Capability packages and Spec Kit refactor](./specs/001-workbench-package-refactor/package-map.md)
 - [Extensions](./docs/extensions.md)
 - [Internationalization](./docs/i18n.md)
-- [Pi Runtime](./packages/agent-runtime/runtimes/pi/README.md)
+- [Pi Runtime](./packages/pi/README.md)
 
 ## License
 

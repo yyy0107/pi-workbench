@@ -1,0 +1,38 @@
+{
+  "packages/workbench/shell/src/appearance/font-families.ts": {
+    "path": "packages/client/appearance/src/font-families.ts",
+    "export": "@workbench/appearance/fonts"
+  },
+  "packages/workbench/shell/src/appearance/system-fonts.tsx": {
+    "path": "packages/client/appearance/src/system-fonts.tsx",
+    "export": "@workbench/appearance"
+  },
+  "packages/workbench/shell/src/appearance/appearance-preferences.ts": {
+    "path": "packages/client/appearance/src/appearance-preferences.ts",
+    "export": "@workbench/appearance"
+  },
+  "packages/workbench/shell/src/appearance/appearance-store.ts": {
+    "path": "packages/client/appearance/src/appearance-store.ts",
+    "export": "@workbench/appearance"
+  },
+  "packages/workbench/shell/src/appearance.ts": {
+    "path": "packages/client/appearance/src/index.ts",
+    "export": "@workbench/appearance"
+  },
+  "packages/workbench/shell/tests/appearance/appearance-store.test.ts": {
+    "path": "packages/client/appearance/tests/appearance-store.test.ts",
+    "export": "@workbench/appearance"
+  },
+  "packages/workbench/shell/tests/appearance/system-fonts.test.ts": {
+    "path": "packages/client/appearance/tests/system-fonts.test.ts",
+    "export": "@workbench/appearance"
+  },
+  "packages/workbench/shell/tests/appearance/font-families.test.ts": {
+    "path": "packages/client/appearance/tests/font-families.test.ts",
+    "export": "@workbench/appearance"
+  },
+  "packages/workbench/shell/tests/appearance/appearance-preferences.test.ts": {
+    "path": "packages/client/appearance/tests/appearance-preferences.test.ts",
+    "export": "@workbench/appearance"
+  }
+}

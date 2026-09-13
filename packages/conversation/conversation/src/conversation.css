@@ -1,0 +1,56 @@
+@import "./chat-icons.css";
+@import "@workbench/composer/icons.css";
+@import "./renderers/image.css";
+
+/* Shared by the central conversation and side-chat, regardless of their surface name. */
+:where([data-slot="workbench-conversation"]) {
+  --thread-index-motion-duration: var(--layout-state-motion-duration);
+  --message-enter-duration: var(--layout-state-motion-duration);
+  --message-enter-distance: calc(var(--control-hit-default) / 3);
+}
+
+:where([data-slot="workbench-conversation"])
+  [data-slot="user-message-content"][data-animate-enter] {
+  transform-origin: bottom right;
+  animation: user-message-enter var(--message-enter-duration) var(--layout-motion-ease) backwards;
+}
+
+@keyframes user-message-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--message-enter-distance)) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+:where([data-slot="workbench-conversation"]) [data-workbench-composer-dock][data-animate-dock] {
+  transform-origin: top left;
+  animation: composer-dock-enter var(--layout-state-motion-duration) var(--layout-motion-ease)
+    backwards;
+}
+
+@keyframes composer-dock-enter {
+  from {
+    transform: var(--composer-dock-enter-transform);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where([data-slot="workbench-conversation"])
+    [data-slot="user-message-content"][data-animate-enter],
+  :where([data-slot="workbench-conversation"]) [data-workbench-composer-dock][data-animate-dock] {
+    animation: none;
+  }
+}
+
+:where([data-slot="workbench-conversation"])
+  :where(.aui-markdown, [data-slot="user-message-bubble"]) {
+  font-family: var(--workbench-content-font, var(--font-sans));
+  font-weight: var(--workbench-content-font-weight, 400);
+}

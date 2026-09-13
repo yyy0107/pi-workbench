@@ -1,5 +1,5 @@
 import type { ThreadListItem } from "@workbench/agent-runtime-client";
-import { resolveSidebarThreadWorkspaceId } from "../new-thread-policy";
+import { resolveSidebarThreadWorkspaceId } from "@workbench/shell-context/navigation-policy";
 
 export interface SidebarThreadGroups {
   readonly pinnedThreadIds: readonly string[];

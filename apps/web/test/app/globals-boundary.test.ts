@@ -10,10 +10,12 @@ test("Web styles explicitly compose Shell and scan installed contribution source
     styles.includes('@source "../../../../packages/workbench/shell/src/**/*.{ts,tsx}";'),
     true,
   );
-  assert.equal(
-    styles.includes(
-      '@source "../../../../packages/agent-runtime/runtimes/pi/contributions/src/**/*.{ts,tsx}";',
-    ),
-    true,
-  );
+  for (const domain of ["client", "workspace", "conversation", "pi"]) {
+    for (const sourceRoot of ["src", "lib"]) {
+      assert.ok(
+        styles.includes(`@source "../../../../packages/${domain}/*/${sourceRoot}/**/*.{ts,tsx}";`),
+        `${domain}/${sourceRoot} must be scanned`,
+      );
+    }
+  }
 });

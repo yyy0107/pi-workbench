@@ -1,0 +1,6 @@
+{
+  "packages/workbench/shell/src/extensions/builtin/settings/settings-main-view.ts": {
+    "path": "packages/client/settings-ui/src/settings-main-view.ts",
+    "export": "@workbench/settings-ui/request"
+  }
+}

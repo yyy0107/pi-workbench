@@ -1,0 +1,77 @@
+{
+  "name": "@workbench/agent-runtime-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./environment": {
+      "types": "./src/environment/ports.ts",
+      "import": "./src/environment/ports.ts",
+      "default": "./src/environment/ports.ts"
+    },
+    "./context": {
+      "types": "./src/environment/context.tsx",
+      "import": "./src/environment/context.tsx",
+      "default": "./src/environment/context.tsx"
+    },
+    "./capabilities": {
+      "types": "./src/environment/capabilities.ts",
+      "import": "./src/environment/capabilities.ts",
+      "default": "./src/environment/capabilities.ts"
+    },
+    "./installation": {
+      "types": "./src/environment/installation.tsx",
+      "import": "./src/environment/installation.tsx",
+      "default": "./src/environment/installation.tsx"
+    },
+    "./message-statistics": {
+      "types": "./src/conversation/statistics.ts",
+      "import": "./src/conversation/statistics.ts",
+      "default": "./src/conversation/statistics.ts"
+    },
+    "./message-presentation-metadata": {
+      "types": "./src/conversation/presentation-metadata.ts",
+      "import": "./src/conversation/presentation-metadata.ts",
+      "default": "./src/conversation/presentation-metadata.ts"
+    },
+    "./prompt-feedback": {
+      "types": "./src/conversation/prompt-feedback.ts",
+      "import": "./src/conversation/prompt-feedback.ts",
+      "default": "./src/conversation/prompt-feedback.ts"
+    },
+    "./workspaces": {
+      "types": "./src/workspace/selection.tsx",
+      "import": "./src/workspace/selection.tsx",
+      "default": "./src/workspace/selection.tsx"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/agent-runtime-core": "workspace:*",
+    "@workbench/automation-contracts": "workspace:*",
+    "@workbench/contracts": "workspace:*",
+    "@workbench/host-contracts": "workspace:*",
+    "use-sync-external-store": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@types/use-sync-external-store": "^1.5.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8"
+  }
+}

@@ -1,0 +1,26 @@
+export const messages = {
+  extensions: {
+    workspaceExplorer: {
+      title: "资源管理器",
+      empty: "此工作区文件夹为空。",
+      openFiles: "打开本地文件",
+      files: "工作区文件",
+      tree: "工作区文件树",
+      filterLabel: "筛选工作区文件",
+      filterPlaceholder: "筛选文件…",
+      clearFilter: "清除文件筛选",
+      refresh: "刷新资源管理器",
+      collapseAll: "折叠所有文件夹",
+      loading: "正在加载工作区文件…",
+      loadError: "无法加载工作区文件。",
+      retry: "重试",
+      noMatches: "没有符合筛选条件的文件。",
+      loadingDirectory: ({ name }: { name: string }) => `正在加载 ${name}…`,
+      loadDirectoryError: ({ name }: { name: string }) => `无法加载 ${name}。`,
+      retryDirectory: ({ name }: { name: string }) => `重新加载 ${name}`,
+      emptyDirectory: ({ name }: { name: string }) => `${name} 为空。`,
+      openError: ({ name }: { name: string }) => `无法打开 ${name}。`,
+      truncated: "此文件夹内容较多，部分条目未显示。",
+    },
+  },
+};

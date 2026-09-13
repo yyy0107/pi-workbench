@@ -13,7 +13,7 @@ import type {
   ToolRendererComponent,
 } from "../api/renderer";
 import { createDisposable } from "../api/disposable";
-import { assertNonEmptyId, emitRegistryChange } from "./registry-utils";
+import { assertNonEmptyId, emitRegistryChange } from "../../lib/registry-utils";
 
 const EMPTY_COMPONENT_MAP = Object.freeze(Object.create(null));
 const EMPTY_BLOCK_RENDERERS = Object.freeze(

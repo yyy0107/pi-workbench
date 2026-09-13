@@ -1,0 +1,88 @@
+"use client";
+
+import type { ReactNode } from "react";
+
+import { Button } from "@workbench/ui";
+import { useConversationI18n as useI18n } from "./use-i18n";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
+import { NEW_THREAD_COMPOSER_WIDTH_CLASS_NAME } from "@workbench/shell-context/layout";
+import { useWorkbenchBranding } from "@workbench/shell-context/presentation";
+import { useConversationSession, useCurrentSession } from "@workbench/agent-runtime-client";
+
+export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) {
+  const { t } = useI18n();
+  const { productLogoUrl, productName } = useWorkbenchBranding();
+  const session = useConversationSession();
+  const isNewThread = useCurrentSession().isNewThread;
+  const hasDraftWorkspace = useWorkspaceSelection().draftWorkspace !== undefined;
+  const canAutoSendSuggestion = !isNewThread || hasDraftWorkspace;
+  const starterPrompts = [
+    t("workbench.chat.empty.planProject"),
+    t("workbench.chat.empty.explainConcept"),
+    t("workbench.chat.empty.reviewIdea"),
+  ];
+
+  return (
+    <div className="relative mx-auto flex w-full flex-1 flex-col justify-center py-12">
+      {productLogoUrl ? (
+        <img
+          src={productLogoUrl}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="pointer-events-none absolute bottom-[calc(50%_-_3rem)] left-1/2 z-0 size-[min(90vw,36rem)] max-w-none -translate-x-1/2 select-none opacity-[0.025] dark:invert dark:opacity-[0.05]"
+        />
+      ) : null}
+
+      <div className="relative z-10 mb-6 flex flex-col items-center text-center">
+        <h1 className="from-foreground via-muted-foreground to-foreground bg-linear-to-r bg-clip-text text-balance text-[clamp(1.25rem,4vw,2.75rem)] leading-tight font-normal tracking-[-0.035em] text-transparent drop-shadow-[0_1px_0_rgb(0_0_0_/_0.08)]">
+          {t("workbench.chat.empty.question", { productName })}
+        </h1>
+        <p className="text-muted-foreground mt-2 max-w-lg text-sm leading-relaxed">
+          {t("workbench.chat.empty.description")}
+        </p>
+      </div>
+
+      {children ? (
+        <div
+          data-slot="empty-composer"
+          className={`relative z-10 ${NEW_THREAD_COMPOSER_WIDTH_CLASS_NAME}`}
+        >
+          {children}
+        </div>
+      ) : null}
+
+      <div className="relative z-10 mt-5 flex flex-wrap justify-center gap-2">
+        {starterPrompts.map((prompt) => (
+          <Button
+            key={prompt}
+            type="button"
+            variant="outline"
+            size="lg"
+            className="rounded-full"
+            onClick={() => {
+              if (!canAutoSendSuggestion || !session.actions.send) {
+                session.actions.setComposerText?.(prompt);
+                return;
+              }
+              void session.actions
+                .send({
+                  version: 2,
+                  sourceText: prompt,
+                  text: prompt,
+                  context: [],
+                  metadata: {},
+                  commands: [],
+                })
+                .catch((error) =>
+                  console.error("[workbench] failed to send starter prompt", error),
+                );
+            }}
+          >
+            {prompt}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}

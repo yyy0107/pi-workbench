@@ -1,0 +1,265 @@
+{
+  "reason": "用户新增 FR-011，仅登记缺少实际 src/lib 的旧布局；T053 与 T048 分阶段清零。",
+  "violations": [
+    {
+      "rule": "source-layout",
+      "path": "packages/agent-runtime/client/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/agent-runtime/contracts/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/agent-runtime/runtime/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/agent-runtime/server/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/agent-runtime/testkit/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/client/appearance/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/client/code-highlighting/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/client/i18n/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/client/markdown/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/client/settings-runtime/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/client/settings-ui/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/client/shell-context/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/client/ui/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/contracts/automation/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/contracts/browser/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/contracts/core/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/extension-platform/host/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/extension-platform/sdk/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/host/artifact-policy/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/host/server/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/pi/browser/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/pi/client/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/pi/contributions/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/pi/protocol/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/pi/server/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/pi/shared/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/server/automation/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/server/browser/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/server/core/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/server/local-host/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/server/settings/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/server/workspace/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/terminal/client/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/terminal/contracts/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/terminal/pi-tool/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/terminal/server/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/test-support/ui-testkit/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workbench/desktop-contracts/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workbench/host-client/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workbench/host-contracts/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workbench/pi-product/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workbench/services-client/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workbench/shell/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workspace/artifact/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workspace/browser/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workspace/directory-picker/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workspace/explorer/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workspace/file-view/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workspace/files/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workspace/git-branch/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workspace/review/package.json",
+      "detail": "lib/ must contain actual package source"
+    },
+    {
+      "rule": "source-layout",
+      "path": "packages/workspace/runtime/package.json",
+      "detail": "lib/ must contain actual package source"
+    }
+  ]
+}

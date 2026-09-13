@@ -1,0 +1,162 @@
+{
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-view-mode.ts": {
+    "path": "packages/workspace/file-view/src/file-view-mode.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-preview-loading.tsx": {
+    "path": "packages/workspace/file-view/src/file-preview-loading.tsx",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-viewer-source.ts": {
+    "path": "packages/workspace/file-view/src/file-viewer-source.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-code-editor.tsx": {
+    "path": "packages/workspace/file-view/src/file-code-editor.tsx",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-breadcrumb-model.ts": {
+    "path": "packages/workspace/file-view/src/file-breadcrumb-model.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/progressive-text-document.ts": {
+    "path": "packages/workspace/file-view/src/progressive-text-document.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-document-viewer-runtime.tsx": {
+    "path": "packages/workspace/file-view/src/file-document-viewer-runtime.tsx",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-buffer-actions.ts": {
+    "path": "packages/workspace/file-view/src/file-buffer-actions.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-opener.ts": {
+    "path": "packages/workspace/file-view/src/file-opener.ts",
+    "export": "@workbench/workspace-file-view/opener"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-breadcrumb-tree.tsx": {
+    "path": "packages/workspace/file-view/src/file-breadcrumb-tree.tsx",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-surface-messages.ts": {
+    "path": "packages/workspace/file-view/src/file-surface-messages.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/use-workspace-file-object-url.ts": {
+    "path": "packages/workspace/file-view/src/use-workspace-file-object-url.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/index.ts": {
+    "path": "packages/workspace/file-view/src/index.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-openers-bridge.tsx": {
+    "path": "packages/workspace/file-view/src/file-openers-bridge.tsx",
+    "export": "@workbench/workspace-file-view/openers"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/use-progressive-text-document.ts": {
+    "path": "packages/workspace/file-view/src/use-progressive-text-document.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-surface-header.tsx": {
+    "path": "packages/workspace/file-view/src/file-surface-header.tsx",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-surface.tsx": {
+    "path": "packages/workspace/file-view/src/file-surface.tsx",
+    "export": "@workbench/workspace-file-view/surface"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-document-viewer-runtime.module.css": {
+    "path": "packages/workspace/file-view/src/file-document-viewer-runtime.module.css",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-media-preview.tsx": {
+    "path": "packages/workspace/file-view/src/file-media-preview.tsx",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-preview-unavailable.tsx": {
+    "path": "packages/workspace/file-view/src/file-preview-unavailable.tsx",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-document-preview.tsx": {
+    "path": "packages/workspace/file-view/src/file-document-preview.tsx",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/extension.ts": {
+    "path": "packages/workspace/file-view/src/extension.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-buffer-draft.ts": {
+    "path": "packages/workspace/file-view/src/file-buffer-draft.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-image-preview.tsx": {
+    "path": "packages/workspace/file-view/src/file-image-preview.tsx",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-diff-viewer.tsx": {
+    "path": "packages/workspace/file-view/src/file-diff-viewer.tsx",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/virtualized-text-viewer.tsx": {
+    "path": "packages/workspace/file-view/src/virtualized-text-viewer.tsx",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/virtualized-code-window.ts": {
+    "path": "packages/workspace/file-view/src/virtualized-code-window.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-menu-item.tsx": {
+    "path": "packages/workspace/file-view/src/file-menu-item.tsx",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-diff-service.ts": {
+    "path": "packages/workspace/file-view/src/file-diff-service.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-file-file-breadcrumb-model.test.ts": {
+    "path": "packages/workspace/file-view/tests/file-breadcrumb-model.test.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-file-file-viewer-source.test.ts": {
+    "path": "packages/workspace/file-view/tests/file-viewer-source.test.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-file-progressive-text-document.test.ts": {
+    "path": "packages/workspace/file-view/tests/progressive-text-document.test.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-file-file-opener.test.ts": {
+    "path": "packages/workspace/file-view/tests/file-opener.test.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-file-file-diff-service.test.ts": {
+    "path": "packages/workspace/file-view/tests/file-diff-service.test.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-file-file-buffer-draft.test.ts": {
+    "path": "packages/workspace/file-view/tests/file-buffer-draft.test.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-file-file-view-mode.test.ts": {
+    "path": "packages/workspace/file-view/tests/file-view-mode.test.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-file-virtualized-code-window.test.ts": {
+    "path": "packages/workspace/file-view/tests/virtualized-code-window.test.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-file-extension.test.ts": {
+    "path": "packages/workspace/file-view/tests/extension.test.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/src/workspace-files/file-viewer-asset-base-lease.ts": {
+    "path": "packages/workspace/file-view/src/file-viewer-asset-base-lease.ts",
+    "export": "@workbench/workspace-file-view"
+  },
+  "packages/workbench/shell/tests/workspace-files/file-viewer-asset-base-lease.test.ts": {
+    "path": "packages/workspace/file-view/tests/file-viewer-asset-base-lease.test.ts",
+    "export": "@workbench/workspace-file-view"
+  }
+}

@@ -1,7 +1,7 @@
 import type { SlotContribution, SlotRegistry, WorkbenchSlot } from "../api/slot";
 import { WORKBENCH_SLOTS } from "../api/slot";
 import { createDisposable } from "../api/disposable";
-import { assertNonEmptyId, emitRegistryChange } from "./registry-utils";
+import { assertNonEmptyId, emitRegistryChange } from "../../lib/registry-utils";
 
 const EMPTY_CONTRIBUTIONS = Object.freeze([]) as readonly SlotContribution[];
 const VALID_SLOTS = new Set<WorkbenchSlot>(WORKBENCH_SLOTS);

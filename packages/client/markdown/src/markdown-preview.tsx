@@ -1,0 +1,56 @@
+"use client";
+
+import { CheckIcon, CircleXIcon, CopyIcon } from "lucide-react";
+
+import { MarkdownTextContent } from "./lazy-markdown-text";
+import { TooltipIconButton } from "@workbench/ui";
+import { useClipboardCopy } from "@workbench/ui/hooks";
+
+import { useMarkdownI18n } from "./use-i18n";
+
+const COPY_FEEDBACK_DURATION_MS = 2_000;
+
+export function MarkdownPreview({
+  ariaLabel,
+  content,
+}: Readonly<{
+  ariaLabel: string;
+  content: string;
+}>) {
+  const { t } = useMarkdownI18n();
+  const { copy, isCopied, status } = useClipboardCopy({
+    duration: COPY_FEEDBACK_DURATION_MS,
+  });
+  const copyLabel = t(
+    status === "copied"
+      ? "markdown.preview.copied"
+      : status === "failed"
+        ? "markdown.preview.copyFailed"
+        : "markdown.preview.copy",
+  );
+
+  return (
+    <div data-slot="markdown-preview" className="relative h-full bg-transparent">
+      <TooltipIconButton
+        tooltip={copyLabel}
+        aria-label={copyLabel}
+        data-frame="none"
+        className="text-muted-foreground hover:text-foreground absolute top-3 end-3 z-10 size-7 bg-transparent hover:bg-transparent dark:hover:bg-transparent"
+        onClick={() => void copy(content)}
+      >
+        {isCopied ? (
+          <CheckIcon />
+        ) : status === "failed" ? (
+          <CircleXIcon className="text-destructive" />
+        ) : (
+          <CopyIcon />
+        )}
+      </TooltipIconButton>
+      <div role="document" aria-label={ariaLabel} className="h-full overflow-auto">
+        <article className="mx-auto w-full max-w-4xl px-8 py-7 pe-14 text-sm leading-7 break-words">
+          <MarkdownTextContent text={content} defer={false} mode="static" />
+        </article>
+      </div>
+    </div>
+  );
+}

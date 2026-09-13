@@ -1,0 +1,30 @@
+{
+  "packages/workbench/shell/src/extensions/builtin/workspace-artifact/artifact-preview-service.ts": {
+    "path": "packages/workspace/artifact/src/artifact-preview-service.ts",
+    "export": "@workbench/workspace-artifact/service"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-artifact/artifact-renderer-registry.tsx": {
+    "path": "packages/workspace/artifact/src/artifact-renderer-registry.tsx",
+    "export": "@workbench/workspace-artifact"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-artifact/artifact-runtime-bridge.tsx": {
+    "path": "packages/workspace/artifact/src/artifact-runtime-bridge.tsx",
+    "export": "@workbench/workspace-artifact"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-artifact/artifact-surface.tsx": {
+    "path": "packages/workspace/artifact/src/artifact-surface.tsx",
+    "export": "@workbench/workspace-artifact"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-artifact/extension.ts": {
+    "path": "packages/workspace/artifact/src/extension.ts",
+    "export": "@workbench/workspace-artifact"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-artifact/index.ts": {
+    "path": "packages/workspace/artifact/src/index.ts",
+    "export": "@workbench/workspace-artifact"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-artifact-artifact-preview-service.test.ts": {
+    "path": "packages/workspace/artifact/tests/artifact-preview-service.test.ts",
+    "export": "@workbench/workspace-artifact"
+  }
+}

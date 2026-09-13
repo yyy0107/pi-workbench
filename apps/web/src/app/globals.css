@@ -4,7 +4,15 @@
 @import "@workbench/shell/styles.css";
 
 @source "../../../../packages/workbench/shell/src/**/*.{ts,tsx}";
-@source "../../../../packages/agent-runtime/runtimes/pi/contributions/src/**/*.{ts,tsx}";
+@source "../../../../packages/workbench/shell/lib/**/*.{ts,tsx}";
+@source "../../../../packages/client/*/src/**/*.{ts,tsx}";
+@source "../../../../packages/client/*/lib/**/*.{ts,tsx}";
+@source "../../../../packages/workspace/*/src/**/*.{ts,tsx}";
+@source "../../../../packages/workspace/*/lib/**/*.{ts,tsx}";
+@source "../../../../packages/conversation/*/src/**/*.{ts,tsx}";
+@source "../../../../packages/conversation/*/lib/**/*.{ts,tsx}";
+@source "../../../../packages/pi/*/src/**/*.{ts,tsx}";
+@source "../../../../packages/pi/*/lib/**/*.{ts,tsx}";
 
 /* The Web app owns its selected font implementation; Shell consumes these semantic variables. */
 @theme inline {

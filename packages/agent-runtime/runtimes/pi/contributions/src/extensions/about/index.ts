@@ -1,1 +1,0 @@
-export { aboutExtension } from "./extension";

@@ -1,0 +1,14 @@
+{
+  "packages/agent-runtime/runtimes/pi/server/src/internal-packages/browser": "packages/pi/browser",
+  "packages/agent-runtime/core/client": "packages/agent-runtime/client",
+  "packages/agent-runtime/core/contracts": "packages/agent-runtime/contracts",
+  "packages/agent-runtime/core/runtime": "packages/agent-runtime/runtime",
+  "packages/agent-runtime/core/server": "packages/agent-runtime/server",
+  "packages/agent-runtime/core/testkit": "packages/agent-runtime/testkit",
+  "packages/agent-runtime/runtimes/pi/client": "packages/pi/client",
+  "packages/agent-runtime/runtimes/pi/contributions": "packages/pi/contributions",
+  "packages/agent-runtime/runtimes/pi/protocol": "packages/pi/protocol",
+  "packages/agent-runtime/runtimes/pi/server": "packages/pi/server",
+  "packages/agent-runtime/runtimes/pi/shared": "packages/pi/shared",
+  "packages/agent-runtime/runtimes/pi/README.md": "packages/pi/README.md"
+}

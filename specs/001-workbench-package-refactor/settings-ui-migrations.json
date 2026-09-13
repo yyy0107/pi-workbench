@@ -1,0 +1,102 @@
+{
+  "packages/workbench/shell/src/extensions/builtin/settings/conversation-settings-item.tsx": {
+    "path": "packages/client/settings-ui/src/conversation-settings-item.tsx",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/settings/extension.ts": {
+    "path": "packages/client/settings-ui/src/settings-extension.ts",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/settings/index.ts": {
+    "path": "packages/client/settings-ui/src/settings-index.ts",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/settings/settings-command.ts": {
+    "path": "packages/client/settings-ui/src/settings-command.ts",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/settings/settings-main-view-content.tsx": {
+    "path": "packages/client/settings-ui/src/settings-main-view-content.tsx",
+    "export": "@workbench/settings-ui/surface"
+  },
+  "packages/workbench/shell/src/extensions/builtin/settings/settings-sidebar-rail.tsx": {
+    "path": "packages/client/settings-ui/src/settings-sidebar-rail.tsx",
+    "export": "@workbench/settings-ui/sidebar-rail"
+  },
+  "packages/workbench/shell/src/extensions/builtin/settings/settings-sidebar.tsx": {
+    "path": "packages/client/settings-ui/src/settings-sidebar.tsx",
+    "export": "@workbench/settings-ui/sidebar"
+  },
+  "packages/workbench/shell/src/extensions/builtin/settings/settings-trigger.tsx": {
+    "path": "packages/client/settings-ui/src/settings-trigger.tsx",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/appearance/appearance-background.css": {
+    "path": "packages/client/settings-ui/src/appearance-background.css",
+    "export": "@workbench/settings-ui/styles.css"
+  },
+  "packages/workbench/shell/src/extensions/builtin/appearance/appearance-background.tsx": {
+    "path": "packages/client/settings-ui/src/appearance-background.tsx",
+    "export": "@workbench/settings-ui/background"
+  },
+  "packages/workbench/shell/src/extensions/builtin/appearance/appearance-reset-action.tsx": {
+    "path": "packages/client/settings-ui/src/appearance-reset-action.tsx",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/appearance/appearance-settings-item.tsx": {
+    "path": "packages/client/settings-ui/src/appearance-settings-item.tsx",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/appearance/appearance-settings-pages.ts": {
+    "path": "packages/client/settings-ui/lib/appearance-settings-pages.ts",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/appearance/background-image-store.ts": {
+    "path": "packages/client/settings-ui/src/background-image-store.ts",
+    "export": "@workbench/settings-ui/background-image"
+  },
+  "packages/workbench/shell/src/extensions/builtin/appearance/extension.ts": {
+    "path": "packages/client/settings-ui/src/appearance-extension.ts",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/appearance/index.ts": {
+    "path": "packages/client/settings-ui/src/appearance-index.ts",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/locale-selector/extension.ts": {
+    "path": "packages/client/settings-ui/src/locale-selector-extension.ts",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/locale-selector/index.ts": {
+    "path": "packages/client/settings-ui/src/locale-selector-index.ts",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/locale-selector/locale-display-name.ts": {
+    "path": "packages/client/settings-ui/lib/locale-display-name.ts",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/locale-selector/locale-selector.tsx": {
+    "path": "packages/client/settings-ui/src/locale-selector.tsx",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-appearance-appearance-background.test.ts": {
+    "path": "packages/client/settings-ui/tests/appearance-background.test.ts",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-appearance-appearance-settings-pages.test.ts": {
+    "path": "packages/client/settings-ui/tests/appearance-settings-pages.test.ts",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-appearance-background-image-store.test.ts": {
+    "path": "packages/client/settings-ui/tests/background-image-store.test.ts",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-locale-selector-locale-display-name.test.ts": {
+    "path": "packages/client/settings-ui/tests/locale-display-name.test.ts",
+    "export": "@workbench/settings-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-settings-settings-sidebar.test.tsx": {
+    "path": "packages/client/settings-ui/tests/settings-sidebar.test.tsx",
+    "export": "@workbench/settings-ui"
+  }
+}

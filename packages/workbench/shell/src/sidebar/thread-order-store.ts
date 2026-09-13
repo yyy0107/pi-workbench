@@ -4,7 +4,10 @@ import { useEffect } from "react";
 import { useStore } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
-import { useWorkbenchSettingsResource, type WorkbenchSettingsPort } from "../settings";
+import {
+  useWorkbenchSettingsResource,
+  type WorkbenchSettingsPort,
+} from "@workbench/settings-runtime";
 
 export interface ThreadOrderState {
   readonly manualOrderByScope: Readonly<Record<string, readonly string[]>>;

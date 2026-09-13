@@ -1,3 +1,4 @@
+import { isRecord } from "../lib/validation";
 import type { ModelSelection } from "@workbench/contracts/model-selection";
 
 export const MIN_AUTOMATION_DURATION_SECONDS = 60;
@@ -144,10 +145,6 @@ export interface AutomationProtocol {
   runNow(payload: AutomationRunNowPayload): Promise<AutomationLaunchValue>;
   sessions(payload: AutomationSessionsPayload): Promise<AutomationSessionsValue>;
   removeSession(payload: AutomationRemoveSessionPayload): Promise<AutomationRemoveSessionValue>;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export function parseAutomationSessionOrigin(value: unknown): AutomationSessionOrigin | undefined {

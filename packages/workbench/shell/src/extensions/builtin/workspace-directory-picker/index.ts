@@ -1,1 +1,0 @@
-export { workspaceDirectoryPickerExtension } from "./extension";

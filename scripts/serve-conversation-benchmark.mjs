@@ -65,7 +65,10 @@ let css = (
 ).join("\n");
 if (!baseline)
   css += (
-    await readFile(path.join(root, "packages/workbench/shell/src/chat/conversation.css"), "utf8")
+    await readFile(
+      path.join(root, "packages/conversation/conversation/src/conversation.css"),
+      "utf8",
+    )
   ).replace(/^@import .*;$/gm, "");
 css +=
   "\nbody{margin:16px}header{display:flex;gap:12px;margin-bottom:12px}header button,input{border:1px solid gray;padding:6px}#viewport{border:1px solid gray;max-width:1000px;margin:auto}#results{font:12px monospace;max-height:160px;overflow:auto}input{width:100%}";

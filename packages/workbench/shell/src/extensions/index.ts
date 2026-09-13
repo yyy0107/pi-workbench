@@ -6,4 +6,4 @@ export {
   shellSettingsExtensions,
   shellWorkspaceExtensions,
 } from "./builtin-extensions";
-export { settingsExtension } from "./builtin/settings";
+export { settingsExtension } from "@workbench/settings-ui";

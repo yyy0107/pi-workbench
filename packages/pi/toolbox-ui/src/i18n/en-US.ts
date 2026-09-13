@@ -1,0 +1,562 @@
+import type { MessageFormatters } from "@workbench/i18n/runtime";
+export const messages = {
+  extensions: {
+    toolbox: {
+      title: "Toolbox",
+      back: "Back to Toolbox",
+      pinned: "Pinned",
+      noPinned: "Pin a capability from a list or its details to keep it here.",
+      capabilities: "Capabilities",
+      manage: "Manage",
+      searchResults: "Search results",
+      projectTag: ({ project }: { project: string }) => `Project: ${project}`,
+      expandCategory: ({ name }: { name: string }) => `Expand ${name}`,
+      collapseCategory: ({ name }: { name: string }) => `Collapse ${name}`,
+      viewRemaining: (
+        { names, count }: { names: string; count: number },
+        { number }: MessageFormatters,
+      ) => `View ${names}${count > 0 ? `, and ${number(count)} more` : ""}`,
+      showLess: "Show less",
+      noMatches: "No capabilities match this search.",
+      noSession: "No Pi capabilities are available yet.",
+      scopeUnavailable: "This resource scope does not have an available Pi catalog yet.",
+      sessionUnavailable: "A Pi catalog source is no longer available.",
+      loadFailed: "The capability catalog could not be loaded from Pi.",
+      unavailable: "The current host does not expose this information.",
+      managementUnavailable:
+        "Installing, updating, and removing capabilities is not supported by the current Pi host.",
+      currentSession: "Current Pi session",
+      scope: {
+        title: "Scope",
+        label: "Scope:",
+        select: "Select Toolbox resource scope",
+        clear: "Clear resource scope",
+        selecting: "Selecting resource scope…",
+        selectError: "Could not select resource scope",
+        search: "Search resource scopes",
+        searchPlaceholder: "Search user or project scopes",
+        noSearchResults: "No matching resource scopes",
+        personal: "Personal",
+        user: "User",
+        userDescription: "Resources configured for your Pi user environment.",
+        projects: "Projects",
+        noProjects: "No imported projects",
+        unavailableProject: "Unavailable project",
+      },
+      sidebar: {
+        search: "Search Toolbox",
+        searchPlaceholder: "Search skills, Pi extensions, prompts, and packages",
+      },
+      main: {
+        searchIn: ({ name }: { name: string }) => `Search ${name}`,
+        backToList: ({ name }: { name: string }) => `Back to ${name}`,
+        refresh: "Refresh list",
+        loading: "Loading resources…",
+        descriptions: {
+          packages: "Discover skills, extensions, prompts, and themes for your agent.",
+          skills: "Extend your agent with task-specific skills.",
+          extensions:
+            "Browse Pi Packages, custom extensions, Workbench extensions, and built-in tools by source. Explore their purpose, tools, commands, and events, then open details to manage available switches and installed resources.",
+          prompts: "Keep reusable prompts ready for your next task.",
+          installed: "Manage the Pi packages installed in this scope.",
+        },
+        search: "Search capabilities",
+        searchPlaceholder: "Search skills, Pi extensions, prompts, and packages",
+        selectCapability: "Select a capability",
+        selectCapabilityDescription:
+          "Choose an item from the list to inspect its details in this workspace.",
+        resultsCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          count === 1 ? "1 result" : `${number(count)} results`,
+      },
+      openDetails: ({ name }: { name: string }) => `Open details for ${name}`,
+      pin: "Pin capability",
+      unpin: "Unpin capability",
+      addCapability: "Add capability",
+      openSettings: "Open settings",
+      browseMarketplace: "Browse marketplace",
+      browsePiPackages: "Browse Pi packages",
+      updates: "Updates",
+      installLocal: "Install from local source",
+      installedCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `${number(count)} installed`,
+      loadedCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `${number(count)} loaded`,
+      capabilityKinds: {
+        skill: "Skill",
+        extension: "Pi extension",
+        prompt: "Prompt template",
+        package: "Pi package",
+      },
+      status: {
+        builtin: "Built-in",
+        available: "Available",
+        loaded: "Loaded",
+        modelInvocable: "Model access",
+        manualOnly: "Manual only",
+        installed: "Installed",
+        uninstalled: "Uninstalled",
+        updateAvailable: "Update available",
+        officialCatalog: "Official catalog",
+      },
+      scopes: {
+        user: "User",
+        project: "Workspace",
+        temporary: "Temporary",
+      },
+      origins: {
+        builtin: "Built-in Workbench extension",
+        package: "Package",
+        "top-level": "Local custom resource",
+      },
+      implementationOrigins: {
+        "pi-builtin": "Pi built-in tool",
+        workbench: "Workbench implementation",
+        custom: "Custom implementation",
+        package: "Package implementation",
+      },
+      skills: {
+        creatorDescription:
+          "Create or update reusable agent skills, including instructions, scripts, references, and assets.",
+        title: "Skills",
+        currentSession: "Current session",
+        empty: "No skills are available.",
+        browse: "Browse skills",
+        browseUnavailable:
+          "The current Pi protocol can list loaded skills, but it cannot browse or install skills yet.",
+        groupingUnavailable:
+          "Pi does not expose each skill's source or scope, so Built-in, User, and Workspace grouping is unavailable.",
+        enabledStatus: "Enabled",
+        disabledStatus: "Disabled",
+        enableSkill: ({ name }: { name: string }) => `Enable ${name}`,
+        disableSkill: ({ name }: { name: string }) => `Disable ${name}`,
+        openFolder: ({ name }: { name: string }) =>
+          `Open the ${name} folder in the right workspace`,
+        deleteSkill: ({ name }: { name: string }) => `Delete ${name}`,
+        deleteUnavailable: ({ name }: { name: string }) =>
+          `${name} cannot be deleted here because of its source`,
+        actionFailed: "This skill could not be changed. Try again.",
+        deleteTitle: "Delete skill?",
+        deletePackageDescription: ({ source }: { source: string }) =>
+          `This skill is provided by ${source}. Continuing will uninstall the entire Pi package and remove its other capabilities too.`,
+        deleteIndependentDescription: ({ name, path }: { name: string; path: string }) =>
+          `This will permanently delete the ${name} directory at ${path}. This action cannot be undone.`,
+        cancelDelete: "Cancel",
+        confirmDelete: "Delete",
+        deleting: "Deleting…",
+        deleteFailed: "Deletion failed. Check the source or directory permissions and try again.",
+        removed: "The skill was deleted.",
+        packageRemoved:
+          "The Pi package was uninstalled and its capabilities were removed from the sessions.",
+      },
+      browser: {
+        name: "Browser",
+        description: "Control the in-app browser",
+        details:
+          "Navigate pages, inspect their content, click elements, type into forms, and take screenshots in the Workbench browser. Manage permissions and site access in Settings → Browser.",
+      },
+      builtins: {
+        enhancedSearch: "Enhanced Find and Grep",
+        enhancedSearchDescription:
+          "Find and Grep share this setting. Search up to 8 directories in one call; Grep includes 2 context lines by default. Applies to new sessions and sessions restored after restart. Find on Windows is unchanged.",
+        enhancedSearchError: "Could not load or save enhanced search settings. Try again.",
+        tools: {
+          read: "Read text files or images into the model context, with partial reads for longer text files.",
+          bash: "Run shell commands in the current workspace and return their output and exit status for builds, tests, and other command-line tasks.",
+          edit: "Find and precisely replace specified text in an existing file to update selected code or configuration.",
+          write:
+            "Write complete content to a path, creating a new file or replacing an existing one to generate code, documents, and configuration.",
+          grep: "Search file contents. Enhanced search adds multiple directories and context lines.",
+          find: "Find files by name or pattern. Enhanced search adds multiple directories.",
+          ls: "List files and subdirectories at a given path so the model can explore project structure and locate files to read.",
+        },
+        extensions: {
+          settings:
+            "Let the model use workbench_settings to read and update Workbench UI preferences, Pi system prompts, and compaction settings. Does not manage model credentials or project trust.",
+          todo: "Provide the todo tool to create, update, query, and clear tasks with status, dependencies, and owners. Restore the current branch's task list when resuming a session.",
+          askUser:
+            "Provide the ask_user tool for structured questions when the model needs more information or a choice. Support single selections, multiple selections, and custom answers, then wait for your reply before continuing.",
+          messageTermination:
+            "Record why each model reply ended, distinguishing completion, length limits, cancellation, network failures, and service errors so the UI can explain interruptions.",
+          composerContext:
+            "Organize composer context separately from user text before sending it to the model, preserving file and skill context while filtering empty messages used only by the UI.",
+          contextTrace:
+            "Capture snapshots of system prompts, message context, available tools, and compaction for the context trace view, helping you inspect what the model actually received.",
+        },
+        scope: "All workspaces",
+        toggleDescription:
+          "Available in all workspaces. Changes apply to open and future sessions; saved tool history is preserved.",
+      },
+      extensions: {
+        groups: {
+          package: "Pi Packages",
+          custom: "Custom extensions",
+          workbench: "Workbench extensions",
+          builtin: "Built-in extensions",
+        },
+        groupDescriptions: {
+          package:
+            "Extensions provided by Pi Packages, including packages bundled with the app. Their tools, commands, and events load with the package.",
+          custom:
+            "Extensions loaded from local files or directories to add custom tools, commands, and event handlers for the current user or workspace.",
+          workbench:
+            "Tool implementations and session integrations supplied by Workbench for questions, task management, settings, context processing, and runtime diagnostics.",
+          builtin:
+            "Pi's native tools and other host built-ins. When a custom extension or Package replaces a tool, open its details to see the actual provider and override relationship.",
+        },
+        title: "Pi Extensions",
+        browse: "Browse Pi extensions",
+        loaded: "Loaded",
+        empty: "Pi did not load any visible extensions.",
+        disabled: "Disabled",
+        updates: "Updates available",
+        stateUnavailable: "Disabled extensions remain available here so they can be enabled again.",
+        updatesUnavailable: "Extension versions and available updates are not exposed by Pi.",
+        enabledStatus: "Enabled",
+        disabledStatus: "Disabled",
+        enableExtension: ({ name }: { name: string }) => `Enable ${name}`,
+        disableExtension: ({ name }: { name: string }) => `Disable ${name}`,
+        openFolder: ({ name }: { name: string }) => `Open the ${name} folder`,
+        openFolderFailed: "The extension folder could not be opened.",
+        deleteExtension: ({ name }: { name: string }) => `Delete ${name}`,
+        deleteUnavailable: ({ name }: { name: string }) =>
+          `${name} cannot be deleted here because of its source`,
+        actionFailed: "This extension could not be changed. Try again.",
+        deleteTitle: "Delete Pi extension?",
+        deletePackageDescription: ({ source }: { source: string }) =>
+          `This extension is provided by ${source}. Continuing will uninstall the entire Pi package and remove its other capabilities too.`,
+        deleteIndependentDescription: ({ name, path }: { name: string; path: string }) =>
+          `This will permanently delete the independently installed ${name} extension at ${path}. This action cannot be undone.`,
+        cancelDelete: "Cancel",
+        confirmDelete: "Delete",
+        deleting: "Deleting…",
+        deleteFailed:
+          "Deletion failed. Check the extension source or directory permissions and try again.",
+        removed: "The Pi extension was deleted.",
+        packageRemoved:
+          "The Pi package was uninstalled and its capabilities were removed from the sessions.",
+        capabilitySummary: (
+          { events, tools, commands }: { events: number; tools: number; commands: number },
+          { number }: MessageFormatters,
+        ) =>
+          `${number(events)} ${events === 1 ? "event" : "events"} · ${number(tools)} ${tools === 1 ? "tool" : "tools"} · ${number(commands)} ${commands === 1 ? "command" : "commands"}`,
+        loadErrors: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `${number(count)} ${count === 1 ? "extension failed" : "extensions failed"} to load`,
+      },
+      prompts: {
+        savedTitle: "Saved templates",
+        savedCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          count === 1 ? "1 saved template" : `${number(count)} saved templates`,
+        viewMode: "Template view mode",
+        existingDraft:
+          "You have an unsent draft. Use the current draft, or finish it before switching conversations.",
+        create: "New template",
+        edit: "Edit template",
+        copy: "Copy to my templates",
+        use: "Use",
+        useNamed: ({ name }: { name: string }) => `Use ${name}`,
+        delete: "Delete template",
+        deleteDescription: ({ name }: { name: string }) =>
+          `Delete the template file for ${name}? This cannot be undone.`,
+        cancel: "Cancel",
+        save: "Save",
+        saving: "Saving…",
+        name: "Template name",
+        nameHint:
+          "Use letters, numbers, hyphens, underscores, or dots. This is also the /command and file name.",
+        content: "Template content",
+        emptyContent: "This template has no content.",
+        editorHint:
+          "Saved in the prompts directory of the selected scope. Optional YAML frontmatter can define description and argument-hint.",
+        useExample: "Use reference template",
+        example:
+          '---\n# description: Explains the template\'s purpose in the template list.\ndescription: "Review code changes, identify evidence-backed issues, and suggest minimal fixes."\n# argument-hint: A hint shown in the use dialog and command menu; it does not enforce validation.\nargument-hint: "[file or directory] [review focus] [additional requirements...]"\n# Suggested template name: review, available as /review after saving.\n# Enter only the arguments in the use dialog, without /review:\n# "src/app page.tsx" "error handling" "preserve existing interfaces" "check edge cases"\n# Separate arguments with spaces and quote values containing spaces. Leave empty to use defaults.\n# $1 and $2: The first and second arguments; $ARGUMENTS or $@: All arguments.\n# ${1:-default}: Use a default when the first argument is missing.\n# ${@:3}: Arguments from the third onward; ${@:3:2}: Two arguments starting at the third.\n# This YAML configuration and its comments are excluded from the expanded prompt.\n---\nYou are a careful code reviewer. Understand the code\'s actual behavior before suggesting changes.\n\n## Review target\n- Scope: ${1:-uncommitted changes in the current project}\n- Focus: ${2:-correctness, error handling, and maintainability}\n- Additional requirements: ${@:3}\n\n## Steps\n1. Read project instructions and relevant code to understand expected behavior, callers, and constraints.\n2. Trace inputs, state changes, error paths, and boundary conditions through the call chain.\n3. Prioritize reproducible issues; explain their triggers, impact, and supporting code evidence.\n4. Suggest the smallest fix for each issue and the cheapest effective way to verify it.\n\n## Constraints\n- Report findings first. Modify files only when the user explicitly requests changes.\n- Reuse existing components, tools, and conventions; avoid unrelated refactors and new dependencies.\n- Do not guess missing context. State uncertainties and the information needed to resolve them.\n- Do not claim unrun checks passed. Say clearly when no issues were found.\n\n## Output format\n1. Conclusion: Summarize the review in one or two sentences.\n2. Findings: Order by severity; include file locations, triggers, impact, and suggested fixes.\n3. Verification: List checks actually performed, their results, and what remains unverified.',
+        discardTitle: "Discard unsaved changes?",
+        discardDescription: "Closing will discard your unsaved changes.",
+        keepEditing: "Keep editing",
+        discard: "Discard changes",
+        destination: "Destination conversation",
+        newConversation: "New conversation",
+        currentDraft: "Current draft",
+        untitledConversation: "Untitled conversation",
+        selectWorkspace: "Select a project",
+        searchWorkspace: "Search projects",
+        noWorkspaces: "Add a project first.",
+        arguments: "Template arguments",
+        argumentsHint:
+          "Separate arguments with spaces; quote arguments containing spaces. Leave empty to use template defaults.",
+        preparing: "Preparing…",
+        insert: "Insert into composer",
+        useHint:
+          "The expanded template is appended to the composer, preserving your draft. Review it before sending.",
+        enabled: "Enable template",
+        independent: "Independent template",
+        packageSource: ({ source }: { source: string }) => `From ${source}`,
+        untrusted: "Trust this project in project settings before managing its templates.",
+        busy: "A related conversation is running. Wait for it to finish, then retry.",
+        conflict:
+          "The file has changed. Keep a copy of your draft, close the editor, refresh, and retry.",
+        nameExists: "A template with this name already exists in this scope. Choose another name.",
+        invalidContent:
+          "Check the template name and YAML format. Content cannot be empty, and the file must not exceed 256 KiB.",
+        readOnly: "This template is read-only. Copy it to your templates to make changes.",
+        notFound: "This template is no longer available. Refresh the list.",
+        disabledUse: "Enable this template before using it.",
+        failed: "The operation failed. Check your connection and file permissions, then retry.",
+        title: "Prompts",
+        empty: "No prompt templates are available.",
+      },
+      plugins: {
+        title: "Plugins",
+        connected: "Connected",
+        setupNeeded: "Setup needed",
+        disabled: "Disabled",
+        protocolUnavailable:
+          "Plugin connections are not part of the current Workbench/Pi protocol. Accounts and connection status cannot be listed yet.",
+      },
+      packages: {
+        openInstalledPackage: "Open Pi Package",
+        title: "Pi Packages",
+        browse: "Browse",
+        installedTitle: "Installed Pi Packages",
+        officialCatalog: "Official Pi catalog",
+        sourceNote: "Extensions, skills, prompts, and themes from the official Pi Package Catalog.",
+        catalogCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `${number(count)} packages`,
+        refresh: "Refresh Pi packages",
+        retry: "Retry",
+        loadFailed: "The official Pi package catalog could not be loaded.",
+        detailsLoadFailed: "The complete official package details could not be loaded.",
+        installedDetailsLoadFailed: "The installed package snapshot could not be loaded.",
+        installedDescriptionUnavailable:
+          "The installed package snapshot does not provide a description.",
+        empty: "No installed Pi Packages were found.",
+        browseEmpty: "No Pi packages match this search and filter.",
+        checkUpdates: "Check downloaded packages for updates",
+        checkUpdatesAction: "Check for updates",
+        updateNamed: ({ name }: { name: string }) => `Update ${name}`,
+        retryUpdateNamed: ({ name }: { name: string }) => `Retry updating ${name}`,
+        updated: "Updated",
+        checkingUpdates: "Checking downloaded package versions…",
+        updateCheckDescription:
+          "Compare downloaded Pi packages with their latest npm version or Git revision.",
+        updateCheckFailed:
+          "Downloaded package versions could not be checked. Check your network and try again.",
+        upToDate: "All downloaded Pi packages in this scope are up to date.",
+        updateAvailable: "Update available",
+        versionChange: ({ current, target }: { current: string; target: string }) =>
+          `${current} → ${target}`,
+        update: "Update",
+        updating: "Updating…",
+        updatingAt: ({ target }: { target: string }) => `Updating in ${target}…`,
+        updateSuccess: "Updated and loaded into the affected sessions.",
+        updateProjectSuccess: ({ project }: { project: string }) =>
+          `Updated in ${project} and loaded into the affected project sessions.`,
+        updateProjectUntrusted:
+          "This workspace is not trusted, so the project-level Pi Package cannot be updated.",
+        updateWorkspaceMissing: "That project is no longer imported, so it cannot be updated.",
+        updateAlreadyMissing: "This Pi Package is no longer installed in that location.",
+        updateSessionMissing:
+          "The current session is unavailable, so the user package cannot be updated.",
+        updateFailed: "Update failed. Check your network and Pi Package configuration, then retry.",
+        updateTargetUnavailable:
+          "The imported workspace for this project could not be determined, so it cannot be updated yet.",
+        availableUpdatesCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          count === 1 ? "1 update" : `${number(count)} updates`,
+        filteredResources: "Selected resources",
+        allResources: "All package resources",
+        typeFilter: "Category",
+        installedResourceVersion: ({ version }: { version: string }) =>
+          `Resources in installed version ${version} in the current scope, including disabled items.`,
+        installedResources: "Resources in the current installation, including disabled items.",
+        resourcesEmpty: "No resources of this type were found in the current installation.",
+        resourcesLoadFailed:
+          "Could not read the installed package's resource details. Retry to load them.",
+        resourceDescriptionUnavailable: "No description is provided for this resource.",
+        resourceDetailsUnavailable: ({ kind }: { kind: string }) =>
+          `This package declares ${kind} resources, but the market does not publish their names or descriptions. See the package documentation; details can be read locally after installation.`,
+        installContents: "Installation contents",
+        installContentsUnavailable:
+          "Installation contents are unavailable. Retry loading the package details.",
+        noBundledPrompts:
+          "This package does not include prompt templates. Installing it will not add entries to the prompt template list.",
+        sortLabel: "Sort",
+        results: "Packages",
+        pagination: "Package pages",
+        previous: "Previous",
+        next: "Next",
+        page: ({ page, count }: { page: string; count: string }) => `${page} / ${count}`,
+        unknownAuthor: "Unknown author",
+        downloadsPerMonth: ({ count }: { count: string }) => `${count}/mo`,
+        downloadsByPeriod: ({ monthly, weekly }: { monthly: string; weekly: string }) =>
+          `${monthly}/mo · ${weekly}/wk`,
+        packageName: "Package",
+        author: "Author",
+        installedVersion: "Installed version",
+        availableVersion: "Available version",
+        localRevision: "Local revision",
+        remoteRevision: "Remote revision",
+        license: "License",
+        resourceTypes: "Includes",
+        downloads: "Downloads",
+        monthlyDownloads: "Monthly downloads",
+        published: "Published",
+        version: "Version",
+        size: "Size",
+        dependencies: "Dependencies",
+        dependenciesSummary: (
+          { dependencies, peers }: { dependencies: number; peers: number },
+          { number }: MessageFormatters,
+        ) =>
+          `${number(dependencies)} ${dependencies === 1 ? "dependency" : "dependencies"} · ${number(peers)} ${peers === 1 ? "peer" : "peers"}`,
+        manifest: "Pi manifest JSON",
+        manifestShow: "View JSON",
+        installQuick: "One-click install",
+        install: "Install from npm",
+        installNow: "Install",
+        installInTerminal: "Install in right terminal",
+        terminalInstallTitle: ({ name }: { name: string }) => `Install ${name}`,
+        terminalInstallOpenFailed:
+          "Could not open the right-side terminal. Check that Terminal is available and try again.",
+        installing: "Installing…",
+        installed: "Installed",
+        chooseInstallLocation: "Choose install location",
+        installLocation: "Install location",
+        installLocationUser: "User",
+        installLocationProjects: "Projects",
+        installProjectsCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          count === 1 ? "1 imported project" : `${number(count)} imported projects`,
+        installChooseLocation: "Choose a user or project, then choose an install method.",
+        installingAt: ({ target }: { target: string }) => `Installing to ${target}…`,
+        installSuccess: "Installed and loaded into the affected sessions.",
+        installProjectSuccess: ({ project }: { project: string }) =>
+          `Installed in ${project} and loaded into the affected project sessions.`,
+        installProjectUntrusted:
+          "This workspace is not trusted, so a project-level Pi Package cannot be installed. Update the folder's project trust decision in Pi, then retry.",
+        installWorkspaceMissing: "That project is no longer imported. Refresh and choose another.",
+        mutationSessionBusy:
+          "A related Pi session is running. Wait for it to finish, then try again.",
+        installProjectsEmpty: "No projects have been imported yet.",
+        installFailed:
+          "Installation failed. Check your network and Pi npm configuration, then retry.",
+        remove: "Uninstall",
+        removing: "Uninstalling…",
+        removingAt: ({ target }: { target: string }) => `Uninstalling from ${target}…`,
+        removeSuccess: "Uninstalled and removed from the affected sessions.",
+        removeProjectSuccess: ({ project }: { project: string }) =>
+          `Uninstalled from ${project} and removed from the affected project sessions.`,
+        removeProjectUntrusted:
+          "This workspace is not trusted, so the project-level Pi Package cannot be uninstalled.",
+        removeWorkspaceMissing: "That project is no longer imported, so it cannot be uninstalled.",
+        removeAlreadyMissing: "This Pi Package is no longer installed in that location.",
+        removeSessionMissing:
+          "The current session is unavailable, so the user package cannot be uninstalled.",
+        removeFailed: "Uninstall failed. Check the Pi Package configuration and try again.",
+        removeTargetUnavailable:
+          "The imported workspace for this project could not be determined, so it cannot be uninstalled yet.",
+        copyCommand: "Copy command",
+        copied: "Copied",
+        copyFailed: "Couldn't copy command",
+        openCatalog: "Open in Pi Catalog",
+        repository: "Repository",
+        filters: {
+          all: "All packages",
+          extension: "Extension-related",
+          skill: "Skill-related",
+          prompt: "Prompt-related",
+          theme: "TUI themes",
+        },
+        sort: {
+          downloads: "Popular",
+          recent: "Recently published",
+          name: "Name",
+        },
+        types: {
+          extension: "Extension",
+          skill: "Skill",
+          prompt: "Prompt template",
+          theme: "Theme",
+          package: "Package",
+        },
+      },
+      details: {
+        information: "Information",
+        overview: "Overview",
+        capabilityDetails: "Capability details",
+        descriptionUnavailable: "No description is exposed by the current Pi protocol.",
+        modelAccess: "Invocation",
+        whenToUse: "When to use",
+        sourceAndScope: "Source and scope",
+        source: "Source",
+        scope: "Scope",
+        projectScope: ({ project }: { project: string }) => `Project: ${project}`,
+        origin: "Origin",
+        overrides: "Overrides",
+        overridesPiBuiltin: ({ name }: { name: string }) => `Pi built-in tool: ${name}`,
+        sourceScope: "Source scope",
+        skillSourcePackage: ({ source }: { source: string }) => `Provided by Pi Package ${source}`,
+        skillSourcePackageUnknown: "Provided by a Pi Package",
+        skillSourceIndependent: "Installed independently",
+        invocation: "Invocation",
+        arguments: "Arguments",
+        resourceSelection: "Loaded resources",
+        notExposed: "Not exposed by the current host",
+        contributions: "Extension points",
+        events: "Registered hooks / events",
+        tools: "Registered tools",
+        commands: "Registered commands",
+        contributionDetail: "Extension point details",
+        contributionName: "Name",
+        eventKind: "Hook / event",
+        toolKind: "Tool",
+        commandKind: "Command",
+        viewContributionDetail: ({ kind, name }: { kind: string; name: string }) =>
+          `View details for ${kind} “${name}”`,
+        closeContributionDetail: "Close details",
+        registeredHandlers: "Registered handlers",
+        toolLabel: "Display label",
+        description: "Description",
+        parameterSchema: "Parameter schema",
+        argumentCompletions: "Argument completions",
+        available: "Available",
+        unavailable: "Unavailable",
+        eventDetailLimit:
+          "Pi exposes only the number of handlers this extension registers for the event; handler source is not returned.",
+        toolDetailLimit: "Execution and custom rendering functions are not sent to the browser.",
+        commandDetailLimit:
+          "Command handlers and argument-completion implementations are not sent to the browser.",
+        renderers: "Registered message renderers",
+        none: "None",
+        skillDocument: "SKILL.md",
+        skillDocumentViewMode: "SKILL.md view mode",
+        skillDocumentPreview: "Preview",
+        skillDocumentSource: "View source code",
+        skillDocumentLoading: "Loading SKILL.md…",
+        skillDocumentLoadFailed: "This skill's SKILL.md could not be loaded.",
+        skillDocumentEmpty: "This skill's SKILL.md is empty.",
+        retry: "Retry",
+        extensionProtocolLimit:
+          "Version, permissions, changelog, panels, editors, and file types are not included in the current extension-list response; extension-point details show only safe declarative metadata, never handler or execution source.",
+      },
+    },
+    skillReading: {
+      document: {
+        loading: ({ name }: { name: string }) => `Reading ${name} skill`,
+        read: ({ name }: { name: string }) => `Read ${name} skill`,
+        partial: ({ name }: { name: string }) => `Partially read ${name} skill`,
+        empty: ({ name }: { name: string }) => `No content returned for ${name} skill`,
+        error: ({ name }: { name: string }) => `Could not read ${name} skill`,
+        cancelled: ({ name }: { name: string }) => `Reading ${name} skill was cancelled`,
+        waiting: ({ name }: { name: string }) => `Waiting to read ${name} skill`,
+      },
+      resource: {
+        loading: ({ name }: { name: string }) => `Reading ${name} skill resources`,
+        read: ({ name }: { name: string }) => `Read ${name} skill resources`,
+        partial: ({ name }: { name: string }) => `Partially read ${name} skill resources`,
+        empty: ({ name }: { name: string }) => `No content returned for ${name} skill resources`,
+        error: ({ name }: { name: string }) => `Could not read ${name} skill resources`,
+        cancelled: ({ name }: { name: string }) => `Reading ${name} skill resources was cancelled`,
+        waiting: ({ name }: { name: string }) => `Waiting to read ${name} skill resources`,
+      },
+    },
+  },
+};

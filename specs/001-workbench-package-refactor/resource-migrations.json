@@ -1,0 +1,9 @@
+{
+  "packages/pi/server/src/internal-skills": "packages/pi/server/resources/skills",
+  "packages/pi/server/src/internal-prompts": "packages/pi/server/resources/prompts",
+  "packages/pi/browser/index.ts": "packages/pi/browser/src/index.ts",
+  "packages/pi/browser/tools.ts": "packages/pi/browser/src/tools.ts",
+  "packages/pi/browser/script.ts": "packages/pi/browser/src/script.ts",
+  "packages/pi/browser/resources.ts": "packages/pi/browser/src/resources.ts",
+  "packages/pi/browser/standalone-host.ts": "packages/pi/browser/src/standalone-host.ts"
+}

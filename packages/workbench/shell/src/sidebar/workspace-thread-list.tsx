@@ -13,19 +13,19 @@ import {
 import { useShallow } from "zustand/react/shallow";
 import type { WorkspaceSummary } from "@workbench/agent-runtime-client/workspaces";
 
-import { Button } from "../ui/button";
-import { CollapsibleTrigger } from "../ui/collapsible";
+import { Button } from "@workbench/ui";
+import { CollapsibleTrigger } from "@workbench/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
-import { SidebarActions, SidebarGroup, SidebarRow, SidebarStatus } from "../ui/sidebar-items";
-import { Skeleton } from "../ui/skeleton";
+} from "@workbench/ui";
+import { SidebarActions, SidebarGroup, SidebarRow, SidebarStatus } from "@workbench/ui";
+import { Skeleton } from "@workbench/ui";
 import { useI18n } from "../i18n";
-import { useAppearancePreferences } from "../appearance";
+import { useAppearancePreferences } from "@workbench/appearance";
 import { NewThreadButton } from "./new-thread-button";
 import { RunningThreadIndicator } from "./running-thread-indicator";
 import { WorkbenchThreadList } from "./thread-list";

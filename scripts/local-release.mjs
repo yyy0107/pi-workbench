@@ -76,7 +76,7 @@ export function localRelease({
       "apps/desktop-electron/test/native-runtime.test.cjs",
       "apps/desktop-electron/test/after-pack.test.cjs",
       "apps/desktop-electron/test/staged-api-only-runtime-smoke.test.cjs",
-      "packages/host/server/test/windows-process-census.test.cjs",
+      "packages/host/server/tests/windows-process-census.test.cjs",
       "scripts/local-release.test.mjs",
       "scripts/validate-release-tag.test.mjs",
       "scripts/validate-release-assets.test.mjs",

@@ -145,7 +145,7 @@ motion disabled during native window resizing. Titlebar `env()` values stay on t
 row and 2 CSS px between list items. `.sidebar-menu` opts detached menu popups into sidebar menu
 presentation; Portal placement remains inside the installation's existing container.
 
-`src/chat/conversation.css` scopes conversation defaults to `[data-slot="workbench-conversation"]`
+`@workbench/conversation/styles.css` scopes conversation defaults to `[data-slot="workbench-conversation"]`
 for both central and side-chat views. Composer controls use `[data-slot="workbench-composer-shell"]`
 and `[data-slot="workbench-composer-actions"]`; detached Composer menus opt in with
 `data-workbench-composer-popup`. Corner-radius preferences are selected locally through the Shell's
@@ -250,3 +250,5 @@ sorting tests. When changing behavior, run the affected Node tests through
 `scripts/register-typescript-test-loader.mjs`; use Shell/Web type checks for API changes. Browser
 verification should resolve rendering or interaction uncertainties such as icon layering, menu
 visibility, touch status spacing, cross-group scrolling, cancellation, and appearance settings.
+
+Source layout: src owns this capability and its contracts; lib contains consumed internal helpers; tests live at the package root. Example consumer: `src/sidebar/workspace-sidebar-context.tsx` imports `lib/thread-sort.ts`. Capability and helper code remains TS/TSX; existing build tooling retains its language.

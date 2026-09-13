@@ -1,0 +1,178 @@
+{
+  "packages/workbench/shell/src/chat/agent-command.ts": {
+    "path": "packages/conversation/composer/src/agent-command.ts",
+    "export": "@workbench/composer/commands"
+  },
+  "packages/workbench/shell/src/chat/composer-attachments.tsx": {
+    "path": "packages/conversation/composer/src/composer-attachments.tsx",
+    "export": "@workbench/composer/attachments"
+  },
+  "packages/workbench/shell/src/chat/composer-command-argument-hint.ts": {
+    "path": "packages/conversation/composer/src/composer-command-argument-hint.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/composer-command-arguments.tsx": {
+    "path": "packages/conversation/composer/src/composer-command-arguments.tsx",
+    "export": "@workbench/composer/arguments"
+  },
+  "packages/workbench/shell/src/chat/composer-command-group-order.ts": {
+    "path": "packages/conversation/composer/src/composer-command-group-order.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/composer-command-icon-color.ts": {
+    "path": "packages/conversation/composer/src/composer-command-icon-color.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/composer-command-parameter-panel.tsx": {
+    "path": "packages/conversation/composer/src/composer-command-parameter-panel.tsx",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/composer-command-parameters.ts": {
+    "path": "packages/conversation/composer/src/composer-command-parameters.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/composer-directive.tsx": {
+    "path": "packages/conversation/composer/src/composer-directive.tsx",
+    "export": "@workbench/composer/directives"
+  },
+  "packages/workbench/shell/src/chat/composer-document.ts": {
+    "path": "packages/conversation/composer/src/composer-document.ts",
+    "export": "@workbench/composer/document"
+  },
+  "packages/workbench/shell/src/chat/composer-history-keyboard-plugin.tsx": {
+    "path": "packages/conversation/composer/src/composer-history-keyboard-plugin.tsx",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/composer-icons.css": {
+    "path": "packages/conversation/composer/src/composer-icons.css",
+    "export": "@workbench/composer/icons.css"
+  },
+  "packages/workbench/shell/src/chat/composer-image-paste.ts": {
+    "path": "packages/conversation/composer/src/composer-image-paste.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/composer-input-history.ts": {
+    "path": "packages/conversation/composer/src/composer-input-history.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/composer-link-icons.tsx": {
+    "path": "packages/conversation/composer/src/composer-link-icons.tsx",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/composer-markdown-detection.ts": {
+    "path": "packages/conversation/composer/src/composer-markdown-detection.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/composer-panel-styles.ts": {
+    "path": "packages/conversation/composer/src/composer-panel-styles.ts",
+    "export": "@workbench/composer/panels"
+  },
+  "packages/workbench/shell/src/chat/composer-submit.ts": {
+    "path": "packages/conversation/composer/src/composer-submit.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/composer-text-paste.ts": {
+    "path": "packages/conversation/composer/src/composer-text-paste.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/composer-token-icon.tsx": {
+    "path": "packages/conversation/composer/src/composer-token-icon.tsx",
+    "export": "@workbench/composer/tokens"
+  },
+  "packages/workbench/shell/src/chat/composer-trigger-engine.ts": {
+    "path": "packages/conversation/composer/src/composer-trigger-engine.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/markdown-composer-input.tsx": {
+    "path": "packages/conversation/composer/src/markdown-composer-input.tsx",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/pasted-text-attachment-preview.tsx": {
+    "path": "packages/conversation/composer/src/pasted-text-attachment-preview.tsx",
+    "export": "@workbench/composer/attachments"
+  },
+  "packages/workbench/shell/src/chat/workbench-composer-view.tsx": {
+    "path": "packages/conversation/composer/src/workbench-composer-view.tsx",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/chat/workbench-composer.tsx": {
+    "path": "packages/conversation/composer/src/workbench-composer.tsx",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/src/elements/composer.tsx": {
+    "path": "packages/conversation/composer/src/composer-controls.tsx",
+    "export": "@workbench/composer/tokens"
+  },
+  "packages/workbench/shell/src/legacy-pi-compat.ts": {
+    "path": "packages/conversation/composer/src/legacy-pi-compat.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/agent-command.test.ts": {
+    "path": "packages/conversation/composer/tests/agent-command.test.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-attachments.test.tsx": {
+    "path": "packages/conversation/composer/tests/composer-attachments.test.tsx",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-command-argument-hint.test.ts": {
+    "path": "packages/conversation/composer/tests/composer-command-argument-hint.test.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-command-arguments.test.ts": {
+    "path": "packages/conversation/composer/tests/composer-command-arguments.test.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-command-group-order.test.ts": {
+    "path": "packages/conversation/composer/tests/composer-command-group-order.test.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-command-icon-color.test.ts": {
+    "path": "packages/conversation/composer/tests/composer-command-icon-color.test.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-command-parameter-panel.test.ts": {
+    "path": "packages/conversation/composer/tests/composer-command-parameter-panel.test.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-document.test.ts": {
+    "path": "packages/conversation/composer/tests/composer-document.test.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-history-keyboard-plugin.test.ts": {
+    "path": "packages/conversation/composer/tests/composer-history-keyboard-plugin.test.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-image-paste.test.ts": {
+    "path": "packages/conversation/composer/tests/composer-image-paste.test.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-input-history.test.ts": {
+    "path": "packages/conversation/composer/tests/composer-input-history.test.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-markdown-detection.test.ts": {
+    "path": "packages/conversation/composer/tests/composer-markdown-detection.test.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-submit.test.ts": {
+    "path": "packages/conversation/composer/tests/composer-submit.test.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-text-paste.test.ts": {
+    "path": "packages/conversation/composer/tests/composer-text-paste.test.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-token-icon.test.tsx": {
+    "path": "packages/conversation/composer/tests/composer-token-icon.test.tsx",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/chat/composer-trigger-engine.test.ts": {
+    "path": "packages/conversation/composer/tests/composer-trigger-engine.test.ts",
+    "export": "@workbench/composer"
+  },
+  "packages/workbench/shell/tests/workbench-composer-boundary.test.ts": {
+    "path": "packages/conversation/composer/tests/workbench-composer-boundary.test.ts",
+    "export": "@workbench/composer"
+  }
+}

@@ -17,3 +17,5 @@ C/C++ toolchain.
 The former root compatibility declarations were removed after focused resolver, source-provenance,
 native materialization, and target-drift tests proved this leaf-owned path. Do not add a second root
 native dependency owner.
+
+Source layout: src owns this capability and its contracts; lib contains consumed internal helpers; tests live at the package root. Example consumer: `src/terminal-interaction-detector.ts` imports `lib/terminal-transcript-projector.ts`. Capability and helper code remains TS/TSX; existing build tooling retains its language.

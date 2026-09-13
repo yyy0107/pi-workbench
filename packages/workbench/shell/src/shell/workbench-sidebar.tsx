@@ -12,9 +12,9 @@ import {
 } from "react";
 import { PanelLeftCloseIcon, SearchIcon, XIcon } from "lucide-react";
 
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Sidebar, useSidebar } from "../ui/sidebar";
+import { Button } from "@workbench/ui";
+import { Input } from "@workbench/ui";
+import { Sidebar, useSidebar } from "@workbench/ui";
 import { useI18n } from "../i18n";
 import { useMainViewService, useSidebarSectionRegistry } from "@workbench/extension-host";
 import { MainViewSidebarHost } from "@workbench/extension-host/hosts/main-view-sidebar-host";
@@ -23,7 +23,7 @@ import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 import type { SidebarSectionDefinition } from "@workbench/extension-sdk";
 import { SidebarPrimaryNavigation } from "../sidebar/sidebar-primary-navigation";
 import { applySidebarResizePreview, SidebarResizeHandle } from "../sidebar/sidebar-resize-handle";
-import { withTooltip } from "../ui/tooltip";
+import { withTooltip } from "@workbench/ui";
 
 const EMPTY_SIDEBAR_SECTIONS = Object.freeze([]) as readonly SidebarSectionDefinition[];
 

@@ -3,17 +3,17 @@
 import { ChevronRightIcon, FolderIcon } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
-import { Button } from "../ui/button";
-import { useSidebar } from "../ui/sidebar";
+import { Button } from "@workbench/ui";
+import { useSidebar } from "@workbench/ui";
 import { useI18n } from "../i18n";
-import { cn } from "../utils";
+import { cn } from "@workbench/ui/utils";
 import { useMainViewService } from "@workbench/extension-host";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 import { useCurrentSession, useThreadList } from "@workbench/agent-runtime-client";
 import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
-import { truncateConversationTitle } from "../conversation-title";
+import { truncateConversationTitle } from "@workbench/conversation/title";
 import { ConversationActionsMenu } from "./conversation-actions-menu";
-import { withTooltip } from "../ui/tooltip";
+import { withTooltip } from "@workbench/ui";
 
 interface ResolvedMainViewBreadcrumb {
   label: string;

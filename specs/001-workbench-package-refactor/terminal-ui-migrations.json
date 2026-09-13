@@ -1,0 +1,106 @@
+{
+  "packages/workbench/shell/src/extensions/builtin/terminal/bash-tool-disclosure-controller.tsx": {
+    "path": "packages/client/terminal-ui/src/bash-tool-disclosure-controller.tsx",
+    "export": "@workbench/terminal-ui/disclosure"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/bash-tool-renderer.tsx": {
+    "path": "packages/client/terminal-ui/src/bash-tool-renderer.tsx",
+    "export": "@workbench/terminal-ui/renderer"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/extension.ts": {
+    "path": "packages/client/terminal-ui/src/extension.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/index.ts": {
+    "path": "packages/client/terminal-ui/src/index.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/open-terminal-command.ts": {
+    "path": "packages/client/terminal-ui/src/open-terminal-command.ts",
+    "export": "@workbench/terminal-ui/commands"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/terminal-command-opener.ts": {
+    "path": "packages/client/terminal-ui/src/terminal-command-opener.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/terminal-menu-item.tsx": {
+    "path": "packages/client/terminal-ui/src/terminal-menu-item.tsx",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/terminal-resize-observer.ts": {
+    "path": "packages/client/terminal-ui/src/terminal-resize-observer.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/terminal-runtime-bridge.tsx": {
+    "path": "packages/client/terminal-ui/src/terminal-runtime-bridge.tsx",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/terminal-surface-loader.ts": {
+    "path": "packages/client/terminal-ui/src/terminal-surface-loader.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/terminal-surface.module.css": {
+    "path": "packages/client/terminal-ui/src/terminal-surface.module.css",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/terminal-surface.tsx": {
+    "path": "packages/client/terminal-ui/src/terminal-surface.tsx",
+    "export": "@workbench/terminal-ui/surface"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/terminal-target.ts": {
+    "path": "packages/client/terminal-ui/src/terminal-target.ts",
+    "export": "@workbench/terminal-ui/target"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/terminal-tool-status.ts": {
+    "path": "packages/client/terminal-ui/src/terminal-tool-status.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/terminal-tool-transcript.ts": {
+    "path": "packages/client/terminal-ui/src/terminal-tool-transcript.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/terminal-trigger.tsx": {
+    "path": "packages/client/terminal-ui/src/terminal-trigger.tsx",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/terminal-workspace-service.ts": {
+    "path": "packages/client/terminal-ui/src/terminal-workspace-service.ts",
+    "export": "@workbench/terminal-ui/service"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/use-terminal-tool-call.ts": {
+    "path": "packages/client/terminal-ui/src/use-terminal-tool-call.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/terminal/use-tool-terminal-ready.ts": {
+    "path": "packages/client/terminal-ui/src/use-tool-terminal-ready.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-terminal-terminal-command-opener.test.ts": {
+    "path": "packages/client/terminal-ui/tests/terminal-command-opener.test.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-terminal-terminal-resize-observer.test.ts": {
+    "path": "packages/client/terminal-ui/tests/terminal-resize-observer.test.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-terminal-terminal-theme-owner.test.ts": {
+    "path": "packages/client/terminal-ui/tests/terminal-theme-owner.test.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-terminal-terminal-tool-status.test.ts": {
+    "path": "packages/client/terminal-ui/tests/terminal-tool-status.test.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-terminal-terminal-tool-transcript.test.ts": {
+    "path": "packages/client/terminal-ui/tests/terminal-tool-transcript.test.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-terminal-terminal-workspace-service.test.ts": {
+    "path": "packages/client/terminal-ui/tests/terminal-workspace-service.test.ts",
+    "export": "@workbench/terminal-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-terminal-use-terminal-tool-call.test.tsx": {
+    "path": "packages/client/terminal-ui/tests/use-terminal-tool-call.test.tsx",
+    "export": "@workbench/terminal-ui"
+  }
+}

@@ -1,3 +1,4 @@
+import { record, string, finite, member } from "../lib/validation";
 export const BROWSER_WEBSOCKET_PATH = "/api/browser/ws";
 export const MAX_BROWSER_MESSAGE_BYTES = 16 * 1024 * 1024;
 /** Shared timing for the native click pause and its visible pointer animation. */
@@ -414,20 +415,6 @@ export type BrowserServerFrame =
   | { type: "result"; id: string; result: unknown }
   | { type: "error"; id: string; code: string };
 
-function record(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function string(value: unknown, maximum = 8192): value is string {
-  return typeof value === "string" && value.length <= maximum;
-}
-function finite(value: unknown, minimum: number, maximum: number): value is number {
-  return (
-    typeof value === "number" && Number.isFinite(value) && value >= minimum && value <= maximum
-  );
-}
-function member(value: unknown, options: readonly string[]): boolean {
-  return typeof value === "string" && options.includes(value);
-}
 const permissions = ["history", "download", "upload"] as const;
 const decisions = ["allow", "ask", "deny"];
 function validPermissions(value: unknown): boolean {

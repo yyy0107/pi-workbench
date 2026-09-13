@@ -1,3 +1,4 @@
+import { isRecord, isBoundedInteger, isProcessHandle } from "../lib/frame-validation";
 export const TERMINAL_WEBSOCKET_PATH = "/api/terminal";
 
 export * from "./bash-tool-input";
@@ -85,18 +86,6 @@ export type TerminalServerFrame =
     }
   | { type: "process/exited"; exit: TerminalProcessExit }
   | { type: "process/error"; processHandle?: string; code: TerminalErrorCode };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isBoundedInteger(value: unknown, min: number, max: number): value is number {
-  return Number.isInteger(value) && Number(value) >= min && Number(value) <= max;
-}
-
-function isProcessHandle(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0 && value.length <= 1024;
-}
 
 function parseProcessSnapshot(value: unknown): TerminalProcessSnapshot | undefined {
   if (!isRecord(value)) return undefined;

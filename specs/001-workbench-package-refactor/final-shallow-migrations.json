@@ -1,0 +1,134 @@
+{
+  "packages/pi/server/src/transport/routes/agent-settings-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/agent-settings-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/agent-settings-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/composer-attachment-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/composer-attachment-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/composer-attachment-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/extension-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/extension-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/extension-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/external-session-import-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/external-session-import-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/external-session-import-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/host-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/host-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/host-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/installed-package-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/installed-package-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/installed-package-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/model-context-window-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/model-context-window-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/model-context-window-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/model-provider-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/model-provider-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/model-provider-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/package-catalog-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/package-catalog-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/package-catalog-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/project-trust-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/project-trust-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/project-trust-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/resource-catalog-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/resource-catalog-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/resource-catalog-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/session-context-trace-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/session-context-trace-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/session-context-trace-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/session-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/session-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/session-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/skill-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/skill-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/skill-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/usage-statistics-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/usage-statistics-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/usage-statistics-rpc-routes"
+  },
+  "packages/pi/server/src/transport/routes/workspace-rpc-routes.ts": {
+    "path": "packages/pi/server/src/routes/workspace-rpc-routes.ts",
+    "export": "@workbench/agent-runtime-pi-server/workspace-rpc-routes"
+  },
+  "packages/server/local-host/src/local-apps/detectors/index.ts": {
+    "path": "packages/server/local-host/src/local-apps/detectors.ts",
+    "export": "@workbench/local-host-server/detectors"
+  },
+  "packages/server/local-host/src/local-apps/detectors/linux.ts": {
+    "path": "packages/server/local-host/src/local-apps/detector-linux.ts",
+    "export": "@workbench/local-host-server/detector-linux"
+  },
+  "packages/server/local-host/src/local-apps/detectors/macos.ts": {
+    "path": "packages/server/local-host/src/local-apps/detector-macos.ts",
+    "export": "@workbench/local-host-server/detector-macos"
+  },
+  "packages/server/local-host/src/local-apps/detectors/windows.ts": {
+    "path": "packages/server/local-host/src/local-apps/detector-windows.ts",
+    "export": "@workbench/local-host-server/detector-windows"
+  },
+  "packages/server/local-host/src/local-apps/launchers/index.ts": {
+    "path": "packages/server/local-host/src/local-apps/launchers.ts",
+    "export": "@workbench/local-host-server/launchers"
+  },
+  "packages/server/local-host/src/local-apps/launchers/linux.ts": {
+    "path": "packages/server/local-host/src/local-apps/launcher-linux.ts",
+    "export": "@workbench/local-host-server/launcher-linux"
+  },
+  "packages/server/local-host/src/local-apps/launchers/macos.ts": {
+    "path": "packages/server/local-host/src/local-apps/launcher-macos.ts",
+    "export": "@workbench/local-host-server/launcher-macos"
+  },
+  "packages/server/local-host/src/local-apps/launchers/windows.ts": {
+    "path": "packages/server/local-host/src/local-apps/launcher-windows.ts",
+    "export": "@workbench/local-host-server/launcher-windows"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workbench-brand/extension.ts": {
+    "path": "packages/workbench/shell/src/extensions/workbench-brand.ts",
+    "export": "@workbench/shell/workbench-brand"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workbench-brand/index.ts": {
+    "path": "packages/workbench/shell/src/extensions/workbench-brand-index.ts",
+    "export": "@workbench/shell/workbench-brand-index"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workbench-brand/workbench-brand-toggle.tsx": {
+    "path": "packages/workbench/shell/src/extensions/workbench-brand-toggle.tsx",
+    "export": "@workbench/shell/workbench-brand-toggle"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-sidebar/extension.ts": {
+    "path": "packages/workbench/shell/src/extensions/workspace-sidebar.ts",
+    "export": "@workbench/shell/workspace-sidebar"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-sidebar/index.ts": {
+    "path": "packages/workbench/shell/src/extensions/workspace-sidebar-index.ts",
+    "export": "@workbench/shell/workspace-sidebar-index"
+  },
+  "packages/workbench/shell/src/i18n/workbench/en-US.ts": {
+    "path": "packages/workbench/shell/src/i18n/workbench-en-US.ts",
+    "export": "@workbench/shell/workbench-en-US"
+  },
+  "packages/workbench/shell/src/i18n/workbench/zh-CN.ts": {
+    "path": "packages/workbench/shell/src/i18n/workbench-zh-CN.ts",
+    "export": "@workbench/shell/workbench-zh-CN"
+  },
+  "packages/workbench/shell/src/i18n/extensions/en-US.ts": {
+    "path": "packages/workbench/shell/src/i18n/extensions-en-US.ts",
+    "export": "@workbench/shell/extensions-en-US"
+  },
+  "packages/workbench/shell/src/i18n/extensions/zh-CN.ts": {
+    "path": "packages/workbench/shell/src/i18n/extensions-zh-CN.ts",
+    "export": "@workbench/shell/extensions-zh-CN"
+  }
+}

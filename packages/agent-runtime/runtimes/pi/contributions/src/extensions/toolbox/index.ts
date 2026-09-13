@@ -1,1 +1,0 @@
-export { toolboxExtension } from "./extension";

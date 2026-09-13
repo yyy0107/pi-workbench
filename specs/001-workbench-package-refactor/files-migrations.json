@@ -1,0 +1,198 @@
+{
+  "packages/workbench/shell/src/workspace-files/buffered-file-workspace-service.ts": {
+    "path": "packages/workspace/files/src/buffered-file-workspace-service.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/workspace-files/file-workspace-target-service.ts": {
+    "path": "packages/workspace/files/src/file-workspace-target-service.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/workspace-files/workspace-file-runtime.tsx": {
+    "path": "packages/workspace/files/src/workspace-file-runtime.tsx",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/workspace-files/workspace-file-service.ts": {
+    "path": "packages/workspace/files/src/workspace-file-service.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/workspace-files/index.ts": {
+    "path": "packages/workspace/files/src/index.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/workspace-files/file-link.ts": {
+    "path": "packages/workspace/files/src/file-link.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/workspace-files/file-diff-service.ts": {
+    "path": "packages/workspace/files/src/file-diff-service.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/workspace-file-tree/explorer-tree.tsx": {
+    "path": "packages/workspace/files/src/tree/explorer-tree.tsx",
+    "export": "@workbench/workspace-files/tree"
+  },
+  "packages/workbench/shell/src/workspace-file-tree/file-type-icon.tsx": {
+    "path": "packages/workspace/files/src/tree/file-type-icon.tsx",
+    "export": "@workbench/workspace-files/tree"
+  },
+  "packages/workbench/shell/src/workspace-file-tree/explorer-tree-model.ts": {
+    "path": "packages/workspace/files/src/tree/explorer-tree-model.ts",
+    "export": "@workbench/workspace-files/tree"
+  },
+  "packages/workbench/shell/src/workspace-file-tree/index.ts": {
+    "path": "packages/workspace/files/src/tree/index.ts",
+    "export": "@workbench/workspace-files/tree"
+  },
+  "packages/workbench/shell/src/workspace-file-tree/material-icon-theme.ts": {
+    "path": "packages/workspace/files/src/tree/material-icon-theme.ts",
+    "export": "@workbench/workspace-files/tree"
+  },
+  "packages/workbench/shell/src/workspace-file-tree/file-name-parts.ts": {
+    "path": "packages/workspace/files/src/tree/file-name-parts.ts",
+    "export": "@workbench/workspace-files/tree"
+  },
+  "packages/workbench/shell/src/ui/file-link.tsx": {
+    "path": "packages/workspace/files/src/file-link-component.tsx",
+    "export": "@workbench/workspace-files/links"
+  },
+  "packages/workbench/shell/src/file-download.ts": {
+    "path": "packages/workspace/files/src/file-download.ts",
+    "export": "@workbench/workspace-files/download"
+  },
+  "packages/workbench/shell/src/markdown-link-adapter.ts": {
+    "path": "packages/workspace/files/src/markdown-link-adapter.ts",
+    "export": "@workbench/workspace-files/markdown-links"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-link-menu.tsx": {
+    "path": "packages/workspace/files/src/file-link-menu.tsx",
+    "export": "@workbench/workspace-files/links"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-open-apps.ts": {
+    "path": "packages/workspace/files/src/file-open-apps.ts",
+    "export": "@workbench/workspace-files/open-apps"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-open-preferences.ts": {
+    "path": "packages/workspace/files/src/file-open-preferences.ts",
+    "export": "@workbench/workspace-files/open-preferences"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/file-link-content.ts": {
+    "path": "packages/workspace/files/src/file-link-content.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/local-app-icon.tsx": {
+    "path": "packages/workspace/files/src/local-app-icon.tsx",
+    "export": "@workbench/workspace-files/app-icon"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/asset-module-url.ts": {
+    "path": "packages/workspace/files/src/asset-module-url.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/cursor.svg": {
+    "path": "packages/workspace/files/src/icons/cursor.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/webstorm.svg": {
+    "path": "packages/workspace/files/src/icons/webstorm.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/idea.svg": {
+    "path": "packages/workspace/files/src/icons/idea.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/safari.svg": {
+    "path": "packages/workspace/files/src/icons/safari.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/trae.svg": {
+    "path": "packages/workspace/files/src/icons/trae.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/pycharm.svg": {
+    "path": "packages/workspace/files/src/icons/pycharm.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/README.md": {
+    "path": "packages/workspace/files/src/icons/README.md",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/chromium.svg": {
+    "path": "packages/workspace/files/src/icons/chromium.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/edge.svg": {
+    "path": "packages/workspace/files/src/icons/edge.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/chrome.svg": {
+    "path": "packages/workspace/files/src/icons/chrome.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/qoder.svg": {
+    "path": "packages/workspace/files/src/icons/qoder.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/datagrip.svg": {
+    "path": "packages/workspace/files/src/icons/datagrip.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/mpv.svg": {
+    "path": "packages/workspace/files/src/icons/mpv.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/vlc.svg": {
+    "path": "packages/workspace/files/src/icons/vlc.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/vscode.svg": {
+    "path": "packages/workspace/files/src/icons/vscode.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-file/icons/firefox.svg": {
+    "path": "packages/workspace/files/src/icons/firefox.svg",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/tests/workspace-files/file-link.test.ts": {
+    "path": "packages/workspace/files/tests/file-link.test.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/tests/workspace-files/buffered-file-workspace-service.test.ts": {
+    "path": "packages/workspace/files/tests/buffered-file-workspace-service.test.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/tests/workspace-files/file-workspace-target-service.test.ts": {
+    "path": "packages/workspace/files/tests/file-workspace-target-service.test.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/tests/workspace-file-tree/material-icon-theme.test.ts": {
+    "path": "packages/workspace/files/tests/material-icon-theme.test.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/tests/workspace-file-tree/file-name-parts.test.ts": {
+    "path": "packages/workspace/files/tests/file-name-parts.test.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-file-file-open-apps.test.ts": {
+    "path": "packages/workspace/files/tests/file-open-apps.test.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-file-file-open-preferences.test.ts": {
+    "path": "packages/workspace/files/tests/file-open-preferences.test.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-file-file-link-content.test.ts": {
+    "path": "packages/workspace/files/tests/file-link-content.test.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/tests/unit/file-download.test.ts": {
+    "path": "packages/workspace/files/tests/file-download.test.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-file-asset-module-url.test.ts": {
+    "path": "packages/workspace/files/tests/asset-module-url.test.ts",
+    "export": "@workbench/workspace-files"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-explorer-explorer-tree-model.test.ts": {
+    "path": "packages/workspace/files/tests/explorer-tree-model.test.ts",
+    "export": "@workbench/workspace-files/tree"
+  }
+}

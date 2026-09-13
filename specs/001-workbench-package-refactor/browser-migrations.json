@@ -1,0 +1,126 @@
+{
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-address-bar.tsx": {
+    "path": "packages/workspace/browser/src/browser-address-bar.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-annotation-layer.tsx": {
+    "path": "packages/workspace/browser/src/browser-annotation-layer.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-control-indicator.tsx": {
+    "path": "packages/workspace/browser/src/browser-control-indicator.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-device-toolbar.tsx": {
+    "path": "packages/workspace/browser/src/browser-device-toolbar.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-downloads-dialog.tsx": {
+    "path": "packages/workspace/browser/src/browser-downloads-dialog.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-events-overlay.tsx": {
+    "path": "packages/workspace/browser/src/browser-events-overlay.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-file-opener.tsx": {
+    "path": "packages/workspace/browser/src/browser-file-opener.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-files.ts": {
+    "path": "packages/workspace/browser/src/browser-files.ts",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-menu-item.tsx": {
+    "path": "packages/workspace/browser/src/browser-menu-item.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-runtime-bridge.tsx": {
+    "path": "packages/workspace/browser/src/browser-runtime-bridge.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-session-service.ts": {
+    "path": "packages/workspace/browser/src/browser-session-service.ts",
+    "export": "@workbench/workspace-browser/service"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-settings.tsx": {
+    "path": "packages/workspace/browser/src/browser-settings.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-surface.tsx": {
+    "path": "packages/workspace/browser/src/browser-surface.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-viewport.css": {
+    "path": "packages/workspace/browser/src/browser-viewport.css",
+    "export": "@workbench/workspace-browser/styles.css"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/browser-viewport.tsx": {
+    "path": "packages/workspace/browser/src/browser-viewport.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/extension.ts": {
+    "path": "packages/workspace/browser/src/extension.ts",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/index.ts": {
+    "path": "packages/workspace/browser/src/index.ts",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/memory-browser-session-service.ts": {
+    "path": "packages/workspace/browser/src/memory-browser-session-service.ts",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-browser/remote-browser-session-service.ts": {
+    "path": "packages/workspace/browser/src/remote-browser-session-service.ts",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-browser-browser-address-bar.test.tsx": {
+    "path": "packages/workspace/browser/tests/browser-address-bar.test.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-browser-browser-annotation-layer.test.tsx": {
+    "path": "packages/workspace/browser/tests/browser-annotation-layer.test.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-browser-browser-device-toolbar.test.tsx": {
+    "path": "packages/workspace/browser/tests/browser-device-toolbar.test.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-browser-browser-events-overlay.test.tsx": {
+    "path": "packages/workspace/browser/tests/browser-events-overlay.test.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-browser-browser-file-opener.test.tsx": {
+    "path": "packages/workspace/browser/tests/browser-file-opener.test.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-browser-browser-files.test.ts": {
+    "path": "packages/workspace/browser/tests/browser-files.test.ts",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-browser-browser-runtime-bridge.test.tsx": {
+    "path": "packages/workspace/browser/tests/browser-runtime-bridge.test.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-browser-browser-session-service.test.ts": {
+    "path": "packages/workspace/browser/tests/browser-session-service.test.ts",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-browser-browser-settings.test.tsx": {
+    "path": "packages/workspace/browser/tests/browser-settings.test.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-browser-browser-surface.test.tsx": {
+    "path": "packages/workspace/browser/tests/browser-surface.test.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-browser-browser-viewport.test.tsx": {
+    "path": "packages/workspace/browser/tests/browser-viewport.test.tsx",
+    "export": "@workbench/workspace-browser"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-browser-remote-browser-session-service.test.ts": {
+    "path": "packages/workspace/browser/tests/remote-browser-session-service.test.ts",
+    "export": "@workbench/workspace-browser"
+  }
+}

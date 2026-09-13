@@ -1,1 +1,0 @@
-export { agentConfigurationExtension } from "./extension";

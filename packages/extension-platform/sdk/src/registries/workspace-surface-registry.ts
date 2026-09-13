@@ -7,7 +7,7 @@ import {
   type WorkspaceSurfaceRegistry,
   type WorkspaceSurfaceTabReplacement,
 } from "../api/workspace-surface";
-import { assertNonEmptyId, emitRegistryChange } from "./registry-utils";
+import { assertNonEmptyId, emitRegistryChange } from "../../lib/registry-utils";
 
 const EMPTY_SURFACES = Object.freeze([]) as readonly AnyWorkspaceSurfaceDefinition[];
 const CACHE_POLICIES = new Set(WORKSPACE_SURFACE_CACHE_POLICIES);

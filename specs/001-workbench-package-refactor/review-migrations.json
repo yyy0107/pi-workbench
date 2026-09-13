@@ -1,0 +1,66 @@
+{
+  "packages/workbench/shell/src/extensions/builtin/workspace-review/commit-selection.tsx": {
+    "path": "packages/workspace/review/src/commit-selection.tsx",
+    "export": "@workbench/workspace-review"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-review/extension.ts": {
+    "path": "packages/workspace/review/src/extension.ts",
+    "export": "@workbench/workspace-review"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-review/git-review-service.ts": {
+    "path": "packages/workspace/review/src/git-review-service.ts",
+    "export": "@workbench/workspace-review"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-review/index.ts": {
+    "path": "packages/workspace/review/src/index.ts",
+    "export": "@workbench/workspace-review"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-review/review-diff-hunk.tsx": {
+    "path": "packages/workspace/review/src/review-diff-hunk.tsx",
+    "export": "@workbench/workspace-review"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-review/review-menu-item.tsx": {
+    "path": "packages/workspace/review/src/review-menu-item.tsx",
+    "export": "@workbench/workspace-review"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-review/review-options.ts": {
+    "path": "packages/workspace/review/src/review-options.ts",
+    "export": "@workbench/workspace-review"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-review/review-runtime-bridge.tsx": {
+    "path": "packages/workspace/review/src/review-runtime-bridge.tsx",
+    "export": "@workbench/workspace-review"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-review/review-surface-header.tsx": {
+    "path": "packages/workspace/review/src/review-surface-header.tsx",
+    "export": "@workbench/workspace-review"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-review/review-surface.tsx": {
+    "path": "packages/workspace/review/src/review-surface.tsx",
+    "export": "@workbench/workspace-review"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-review/review-toolbar.tsx": {
+    "path": "packages/workspace/review/src/review-toolbar.tsx",
+    "export": "@workbench/workspace-review"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-review/review.css": {
+    "path": "packages/workspace/review/src/review.css",
+    "export": "@workbench/workspace-review/styles.css"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-review/use-git-diff.ts": {
+    "path": "packages/workspace/review/src/use-git-diff.ts",
+    "export": "@workbench/workspace-review"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-review-git-review-service.test.ts": {
+    "path": "packages/workspace/review/tests/git-review-service.test.ts",
+    "export": "@workbench/workspace-review"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-review-review-options.test.ts": {
+    "path": "packages/workspace/review/tests/review-options.test.ts",
+    "export": "@workbench/workspace-review"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-review-use-git-diff.test.tsx": {
+    "path": "packages/workspace/review/tests/use-git-diff.test.tsx",
+    "export": "@workbench/workspace-review"
+  }
+}

@@ -9,10 +9,10 @@ import {
 import { MainViewHost as ExtensionMainViewHost } from "@workbench/extension-host/hosts/main-view-host";
 import { defineExtension } from "@workbench/extension-sdk";
 import type { RuntimeConnection } from "@workbench/host-contracts";
-import { SystemFontsProvider } from "@workbench/shell/appearance";
-import { WorkbenchThread } from "@workbench/shell/chat";
+import { SystemFontsProvider } from "@workbench/appearance";
+import { WorkbenchThread } from "@workbench/conversation";
 import { createTranslationBundleMessageFactory, type Locale } from "@workbench/shell/i18n";
-import { useWorkbenchNavigation } from "@workbench/shell/navigation";
+import { useWorkbenchNavigation } from "@workbench/shell-context/navigation";
 import { desktopRendererTranslationBundle } from "@/app/i18n/bundle";
 import { DesktopNavigationProvider } from "@/navigation/desktop-navigation-provider";
 

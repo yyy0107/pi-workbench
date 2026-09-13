@@ -9,7 +9,7 @@ import {
   matchLocale,
   type Locale,
 } from "@workbench/shell/i18n/runtime";
-import { Button } from "@workbench/shell/ui";
+import { Button } from "@workbench/ui";
 
 import { desktopRendererTranslationBundle } from "@/app/i18n/bundle";
 

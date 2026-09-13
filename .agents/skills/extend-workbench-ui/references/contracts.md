@@ -639,7 +639,7 @@ interface OpenHandlerDefinition {
 
 Register ownership synchronously with `context.openers.register(handler)`. A `canOpen()` score of
 zero means unsupported; the highest positive score wins and registration order breaks ties. Client
-components call `useOpenerService().open(request)` from `@workbench/shell/right-workspace/react` and must
+components call `useOpenerService().open(request)` from `@workbench/workspace-runtime/react` and must
 handle rejection in event handlers. Setup never calls a React hook because the service injects
 `open/reveal` Surface operations only when executing the handler.
 
@@ -658,19 +658,19 @@ Source of truth:
 - `packages/extension-platform/sdk/src/registries/workspace-surface-registry.ts`: tracked capability registry;
 - `apps/web/src/components/right-workspace/index.ts`: Web application facade for product presentation only, including the
   visual workspace, feedback forms/chrome, toggle, and product composition Provider;
-- `packages/workbench/shell/src/right-workspace.ts`: finite public entry for generic
+- `packages/workspace/runtime/src/index.ts`: finite public entry for generic
   RightWorkspace controller/persistence ports, layout state, selectors, mount/split policy, tabs,
   and resize preview. It does not re-export SDK authoring constants or Workspace Surface contracts;
-- `packages/workbench/shell/src/right-workspace/`: implementation of those platform-independent
+- `packages/workspace/runtime/src/`: implementation of those platform-independent
   primitives; it must not import business extensions, Pi, Next, or a root alias;
-- `packages/workbench/shell/src/right-workspace/workspace-controller.ts`: `open`, `reveal`, `focus`,
+- `packages/workspace/runtime/src/workspace-controller.ts`: `open`, `reveal`, `focus`,
   `close`, update, layout, restore, hydration arbitration, ordered persistence, and disposal. Product
   settings/localStorage and catalog validation enter only through injected root-owned adapters;
-- `packages/workbench/shell/src/right-workspace-react.ts`: finite `./right-workspace/react` entry for
+- `packages/workspace/runtime/src/react.ts`: finite `./right-workspace/react` entry for
   generic context/hooks, immutable installation Provider, and Surface runtime host. Provider inputs
   are installation-scoped and require a keyed remount to change; the entry exposes selector hooks,
   not the internal environment or raw Store owner;
-- `packages/workbench/shell/src/right-workspace/workspace-feedback-*.ts`: runtime-neutral feedback
+- `packages/workspace/runtime/src/workspace-feedback-*.ts`: runtime-neutral feedback
   store and immutable claim/CAS contract; it does not import an Agent Runtime;
 - `apps/web/src/components/right-workspace/right-workspace-provider.tsx`: Web product wrapper injecting settings,
   legacy storage, catalog validation, application context, and opener construction. Product visual
@@ -743,7 +743,7 @@ produce an unavailable state for restored UI; never branch on Runtime ID or inst
 Shell, Core, and Extension SDK/Host must not import Pi packages or interpret Pi raw events/errors.
 
 For Pi-specific configuration, resources, and diagnostics inside Pi Contributions, read
-`packages/agent-runtime/runtimes/pi/README.md` and verify exact shapes against:
+`packages/pi/README.md` and verify exact shapes against:
 
 - `@workbench/agent-runtime-pi-protocol/rpc` for unary RPC envelopes and payload/value types;
 - `@workbench/agent-runtime-pi-protocol/stream` for mux/host WebSocket frames;
@@ -756,7 +756,7 @@ second WebSocket/SSE connection, duplicate payload interfaces, or treat HTTP `20
 success without checking the RPC result envelope.
 
 `/api/pi/**`, legacy contracts, and `legacy-sse.ts` are compatibility paths, not the default for new
-features. Use one only when `packages/agent-runtime/runtimes/pi/README.md` explicitly identifies a remaining exception (for
+features. Use one only when `packages/pi/README.md` explicitly identifies a remaining exception (for
 example the current queue-pause compatibility command). If a required method is missing, extend the
 wire contracts, validation/router, domain service, client helper, and tests before wiring the UI.
 Do not infer unimplemented Harness APIs or bypass the trust boundary from a component.
@@ -791,7 +791,7 @@ CommandService `execute(id)` returns a Promise. Catch rejection when invoking it
 `useSettingsRegistry()` is intended for the shared Settings host or subscribed tooling. Business
 extensions normally register sections/items synchronously through `context.settings`.
 
-RightWorkspace and `useOpenerService()` hooks come from `@workbench/shell/right-workspace/react`, Workspace
+RightWorkspace and `useOpenerService()` hooks come from `@workbench/workspace-runtime/react`, Workspace
 Surface/Open Handler registration comes from `context.workspace`/`context.openers`, and Pi hooks come
 from the relevant `@workbench/agent-runtime-pi-client/*` feature facade.
 

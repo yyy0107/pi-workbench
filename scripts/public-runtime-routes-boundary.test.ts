@@ -2,36 +2,30 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const RPC_ROUTER = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/transport/rpc-router.ts",
-  import.meta.url,
-);
+const RPC_ROUTER = new URL("../packages/pi/server/src/transport/rpc-router.ts", import.meta.url);
 const RUNTIME_HTTP_ROUTER = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/transport/runtime-http-router.ts",
+  "../packages/pi/server/src/transport/runtime-http-router.ts",
   import.meta.url,
 );
 const RPC_ROUTE_COMPOSITION = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/transport/rpc-route-composition.ts",
+  "../packages/pi/server/src/transport/rpc-route-composition.ts",
   import.meta.url,
 );
-const HOST_SERVICE = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/host/host-service.ts",
-  import.meta.url,
-);
+const HOST_SERVICE = new URL("../packages/pi/server/src/host/host-service.ts", import.meta.url);
 const LOCAL_APP_SERVICE = new URL(
   "../packages/server/local-host/src/local-apps/service.ts",
   import.meta.url,
 );
 const PROJECT_TRUST_SERVICE = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/trust/project-trust-service.ts",
+  "../packages/pi/resources-server/src/project-trust-service.ts",
   import.meta.url,
 );
 const COMMAND_SERVICE = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/commands/command-service.ts",
+  "../packages/pi/resources-server/src/command-service.ts",
   import.meta.url,
 );
 const PROMPT_SERVICE = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/prompts/prompt-service.ts",
+  "../packages/pi/resources-server/src/prompt-service.ts",
   import.meta.url,
 );
 const HOST_ROUTES = new URL(
@@ -43,11 +37,11 @@ const LOCAL_APP_ROUTES = new URL(
   import.meta.url,
 );
 const PROJECT_TRUST_ROUTES = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/transport/routes/project-trust-rpc-routes.ts",
+  "../packages/pi/server/src/routes/project-trust-rpc-routes.ts",
   import.meta.url,
 );
 const RESOURCE_CATALOG_ROUTES = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/transport/routes/resource-catalog-rpc-routes.ts",
+  "../packages/pi/server/src/routes/resource-catalog-rpc-routes.ts",
   import.meta.url,
 );
 
@@ -79,7 +73,7 @@ test("the final domain transports depend only on narrow protocols", async () => 
   assert.match(projectTrust, /import type \{ ProjectTrustProtocol \}/);
   assert.match(catalogs, /import type \{ CommandCatalogProtocol \}/);
   assert.match(catalogs, /import type \{ PromptCatalogProtocol \}/);
-  assert.match(catalogs, /from "\.\.\/resource-rpc-validators"/);
+  assert.match(catalogs, /from "\.\.\/transport\/resource-rpc-validators"/);
   for (const source of [host, localApp, projectTrust, catalogs]) {
     assert.doesNotMatch(source, /@earendil-works\/pi-(?:ai|coding-agent)/);
     assert.doesNotMatch(source, /session-registry|scoped-resource-context/);
@@ -105,7 +99,7 @@ test("the extracted routes preserve their distinct trust and cancellation bounda
   assert.match(localApp, /Opening the local application was cancelled/);
   assert.doesNotMatch(projectTrust, /loopbackOnly: true/);
   assert.match(projectTrust, /afterUpdate\(\)/);
-  assert.doesNotMatch(catalogs, /loopbackOnly: true/);
+  assert.equal(catalogs.match(/loopbackOnly: true/g)?.length, 3);
 });
 
 test("domain services implement the narrow protocols while retaining state ownership", async () => {
@@ -120,7 +114,7 @@ test("domain services implement the narrow protocols while retaining state owner
   assert.match(host, /export interface HostProtocol/);
   assert.match(host, /export class HostService implements HostProtocol/);
   assert.match(host, /@earendil-works\/pi-coding-agent/);
-  assert.match(host, /sessions\/session-registry/);
+  assert.match(host, /session-composition\/registry/);
   assert.match(host, /@workbench\/local-host-server\/directories/);
 
   assert.match(localApp, /export interface LocalAppProtocol/);
@@ -138,12 +132,13 @@ test("domain services implement the narrow protocols while retaining state owner
     commands,
     /export class CommandService implements AgentCommandCatalogPort, CommandCatalogProtocol/,
   );
-  assert.match(commands, /sessions\/session-registry/);
-  assert.match(commands, /resources\/scoped-resource-context/);
+  assert.match(commands, /getSession\(sessionId: string\)/);
+  assert.doesNotMatch(commands, /sessions\/session-registry/);
+  assert.match(commands, /getScopedResourceHost\(target: PiResourceCatalogTarget\)/);
 
   assert.match(prompts, /export interface PromptCatalogProtocol/);
   assert.match(prompts, /export class PromptService implements PromptCatalogProtocol/);
-  assert.match(prompts, /resources\/scoped-resource-context/);
+  assert.match(prompts, /from "\.\/scoped-resource-context"/);
 
   for (const source of [host, localApp, projectTrust, commands, prompts]) {
     assert.doesNotMatch(source, /rpc-transport|transport\/routes/);

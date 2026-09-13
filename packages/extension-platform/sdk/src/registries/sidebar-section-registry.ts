@@ -1,6 +1,6 @@
 import { createDisposable } from "../api/disposable";
 import type { SidebarSectionDefinition, SidebarSectionRegistry } from "../api/sidebar-section";
-import { assertNonEmptyId, emitRegistryChange } from "./registry-utils";
+import { assertNonEmptyId, emitRegistryChange } from "../../lib/registry-utils";
 
 const EMPTY_SECTIONS = Object.freeze([]) as readonly SidebarSectionDefinition[];
 

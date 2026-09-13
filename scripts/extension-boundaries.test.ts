@@ -7,26 +7,68 @@ import test from "node:test";
 const PROJECT_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const SHELL_SOURCE_ROOT = resolve(PROJECT_ROOT, "packages/workbench/shell/src");
 const SHELL_BUILTIN_ROOT = resolve(SHELL_SOURCE_ROOT, "extensions/builtin");
-const PI_BUILTIN_ROOT = resolve(
-  PROJECT_ROOT,
-  "packages/agent-runtime/runtimes/pi/contributions/src/extensions",
-);
+const PI_BUILTIN_ROOT = resolve(PROJECT_ROOT, "packages/pi/contributions/src/extensions");
 const BUILTIN_ROOTS = [SHELL_BUILTIN_ROOT, PI_BUILTIN_ROOT];
 const SHARED_BUILTIN_TARGETS = new Set([resolve(PI_BUILTIN_ROOT, "project-trust-dialog-copy")]);
 const INSTALLABLE_ROOT = resolve(SHELL_SOURCE_ROOT, "extensions/installable");
-const BUSINESS_EXTENSION_ROOTS = [...BUILTIN_ROOTS, INSTALLABLE_ROOT].filter(existsSync);
+const CONVERSATION_ROOTS = ["src", "lib"].map((directory) =>
+  resolve(PROJECT_ROOT, "packages/conversation/conversation", directory),
+);
+const CONVERSATION_EXTENSION_ROOTS = CONVERSATION_ROOTS.flatMap((root) =>
+  [
+    "message-presentation",
+    "message-actions",
+    "message-queue",
+    "user-message-index",
+    "todo-panel",
+    "interactive-requests",
+    "side-chat",
+    "archived-chats",
+  ].map((feature) => resolve(root, feature)),
+);
+const BUSINESS_EXTENSION_ROOTS = [
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/pi/session-import-ui", directory),
+  ),
+  ...["src", "lib"].map((directory) => resolve(PROJECT_ROOT, "packages/pi/status-ui", directory)),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/pi/diagnostics-ui", directory),
+  ),
+  ...["src", "lib"].map((directory) => resolve(PROJECT_ROOT, "packages/pi/toolbox-ui", directory)),
+  ...["src", "lib"].map((directory) => resolve(PROJECT_ROOT, "packages/pi/settings-ui", directory)),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/settings-ui", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/automation-ui", directory),
+  ),
+  ...BUILTIN_ROOTS,
+  INSTALLABLE_ROOT,
+  ...CONVERSATION_EXTENSION_ROOTS,
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/agent-controls", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/terminal-ui", directory),
+  ),
+].filter(existsSync);
 const COMPONENT_ROOTS = [
-  resolve(SHELL_SOURCE_ROOT, "chat"),
-  resolve(SHELL_SOURCE_ROOT, "elements"),
-  resolve(SHELL_SOURCE_ROOT, "right-workspace"),
-  resolve(SHELL_SOURCE_ROOT, "ui"),
-  resolve(SHELL_SOURCE_ROOT, "workspace-file-tree"),
-];
+  resolve(PROJECT_ROOT, "packages/client/ui/src"),
+  resolve(PROJECT_ROOT, "packages/conversation/conversation/src"),
+  resolve(PROJECT_ROOT, "packages/conversation/composer/src"),
+  resolve(PROJECT_ROOT, "packages/workspace/runtime/src"),
+  resolve(PROJECT_ROOT, "packages/workspace/files/src"),
+].flatMap((root) =>
+  root.endsWith("/src") ? [root, root.slice(0, -4) + "/lib"].filter(existsSync) : [root],
+);
 const PLATFORM_API_ROOT = resolve(PROJECT_ROOT, "packages/extension-platform/sdk/src/api");
-const RIGHT_WORKSPACE_ROOTS = [resolve(SHELL_SOURCE_ROOT, "right-workspace")];
+const RIGHT_WORKSPACE_ROOTS = ["src", "lib"]
+  .map((directory) => resolve(PROJECT_ROOT, "packages/workspace/runtime", directory))
+  .filter(existsSync);
 const RUNTIME_ROOTS = [
   resolve(PROJECT_ROOT, "apps/runtime-node/src"),
   resolve(PROJECT_ROOT, "packages/agent-runtime"),
+  resolve(PROJECT_ROOT, "packages/pi"),
   resolve(PROJECT_ROOT, "packages/server"),
   resolve(PROJECT_ROOT, "packages/terminal"),
 ];
@@ -59,7 +101,17 @@ const HOST_ROOT_RUNTIME_IMPORTS = new Set([
   "useSettingsRegistry",
   "useSidebarSectionRegistry",
 ]);
-const IGNORED_SOURCE_DIRECTORIES = new Set([".git", ".next", "coverage", "dist", "node_modules"]);
+const IGNORED_SOURCE_DIRECTORIES = new Set([
+  ".git",
+  ".next",
+  "coverage",
+  "dist",
+  "node_modules",
+  "test",
+  "tests",
+  "resources",
+  "skills",
+]);
 
 function sourceFiles(root: string): string[] {
   return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
@@ -296,8 +348,11 @@ test("Host barrels do not re-export SDK authoring or lifecycle internals", () =>
   );
 });
 
-test("only Shell i18n infrastructure imports the opaque SDK descriptor factory", () => {
-  const allowed = new Set(["packages/workbench/shell/src/i18n/runtime.ts"]);
+test("only shared i18n infrastructure imports the opaque SDK descriptor factory", () => {
+  const allowed = new Set([
+    "packages/client/i18n/src/runtime.ts",
+    "packages/client/i18n/src/runtime.ts",
+  ]);
   const violations = sourceFiles(PROJECT_ROOT).flatMap((sourcePath) => {
     if (
       !namedImports(sourcePath, "@workbench/extension-sdk/internal").includes(

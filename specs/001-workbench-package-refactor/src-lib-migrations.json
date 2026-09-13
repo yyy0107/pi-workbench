@@ -1,0 +1,1814 @@
+{
+  "@workbench/ui-testkit": {
+    "root": "packages/test-support/ui-testkit",
+    "publicEntries": ["packages/test-support/ui-testkit/src/react-dom-environment.ts"],
+    "moves": {
+      "packages/test-support/ui-testkit/src/react-dom-environment.ts": {
+        "path": "packages/test-support/ui-testkit/lib/react-dom-environment.ts",
+        "export": "@workbench/ui-testkit"
+      }
+    }
+  },
+  "@workbench/settings-runtime": {
+    "root": "packages/client/settings-runtime",
+    "publicEntries": ["packages/client/settings-runtime/src/index.tsx"],
+    "moves": {
+      "packages/client/settings-runtime/src/index.tsx": {
+        "path": "packages/client/settings-runtime/lib/index.tsx",
+        "export": "@workbench/settings-runtime"
+      }
+    }
+  },
+  "@workbench/i18n": {
+    "root": "packages/client/i18n",
+    "publicEntries": [
+      "packages/client/i18n/src/index.ts",
+      "packages/client/i18n/src/public-runtime.ts"
+    ],
+    "moves": {
+      "packages/client/i18n/src/bundle.ts": {
+        "path": "packages/client/i18n/lib/bundle.ts",
+        "export": "@workbench/i18n"
+      },
+      "packages/client/i18n/src/config.ts": {
+        "path": "packages/client/i18n/lib/config.ts",
+        "export": "@workbench/i18n"
+      },
+      "packages/client/i18n/src/index.ts": {
+        "path": "packages/client/i18n/lib/index.ts",
+        "export": "@workbench/i18n"
+      },
+      "packages/client/i18n/src/provider.tsx": {
+        "path": "packages/client/i18n/lib/provider.tsx",
+        "export": "@workbench/i18n"
+      },
+      "packages/client/i18n/src/public-runtime.ts": {
+        "path": "packages/client/i18n/lib/public-runtime.ts",
+        "export": "@workbench/i18n/runtime"
+      },
+      "packages/client/i18n/src/runtime.ts": {
+        "path": "packages/client/i18n/lib/runtime.ts",
+        "export": "@workbench/i18n"
+      },
+      "packages/client/i18n/src/types.ts": {
+        "path": "packages/client/i18n/lib/types.ts",
+        "export": "@workbench/i18n"
+      }
+    }
+  },
+  "@workbench/ui": {
+    "root": "packages/client/ui",
+    "publicEntries": [
+      "packages/client/ui/src/index.ts",
+      "packages/client/ui/src/utils.ts",
+      "packages/client/ui/src/clipboard.ts",
+      "packages/client/ui/src/keyboard-shortcut-owner.ts",
+      "packages/client/ui/src/hooks/index.ts",
+      "packages/client/ui/src/resize.ts",
+      "packages/client/ui/src/disclosure.ts",
+      "packages/client/ui/src/i18n.ts",
+      "packages/client/ui/src/styles.css",
+      "packages/client/ui/src/tokens.css",
+      "packages/client/ui/src/components.css",
+      "packages/client/ui/src/resize/proportional-panel.css"
+    ],
+    "moves": {
+      "packages/client/ui/src/clipboard.ts": {
+        "path": "packages/client/ui/lib/clipboard.ts",
+        "export": "@workbench/ui/clipboard"
+      },
+      "packages/client/ui/src/components/avatar.tsx": {
+        "path": "packages/client/ui/lib/components/avatar.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/button.tsx": {
+        "path": "packages/client/ui/lib/components/button.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/collapsible-resize-handle.tsx": {
+        "path": "packages/client/ui/lib/components/collapsible-resize-handle.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/collapsible.tsx": {
+        "path": "packages/client/ui/lib/components/collapsible.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/color-picker.css": {
+        "path": "packages/client/ui/lib/components/color-picker.css",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/color-picker.tsx": {
+        "path": "packages/client/ui/lib/components/color-picker.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/command.tsx": {
+        "path": "packages/client/ui/lib/components/command.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/context-menu.tsx": {
+        "path": "packages/client/ui/lib/components/context-menu.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/control-icons.css": {
+        "path": "packages/client/ui/lib/components/control-icons.css",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/dialog.tsx": {
+        "path": "packages/client/ui/lib/components/dialog.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/dropdown-menu.tsx": {
+        "path": "packages/client/ui/lib/components/dropdown-menu.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/index.ts": {
+        "path": "packages/client/ui/lib/components/index.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/input-group.tsx": {
+        "path": "packages/client/ui/lib/components/input-group.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/input.tsx": {
+        "path": "packages/client/ui/lib/components/input.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/menu-styles.ts": {
+        "path": "packages/client/ui/lib/components/menu-styles.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/model-selector-models.ts": {
+        "path": "packages/client/ui/lib/components/model-selector-models.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/model-selector.tsx": {
+        "path": "packages/client/ui/lib/components/model-selector.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/path-ellipsis.tsx": {
+        "path": "packages/client/ui/lib/components/path-ellipsis.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/popover.tsx": {
+        "path": "packages/client/ui/lib/components/popover.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/progress.tsx": {
+        "path": "packages/client/ui/lib/components/progress.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/project-trust-dialog.tsx": {
+        "path": "packages/client/ui/lib/components/project-trust-dialog.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/searchable-selector.tsx": {
+        "path": "packages/client/ui/lib/components/searchable-selector.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/select.tsx": {
+        "path": "packages/client/ui/lib/components/select.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/selector-dropdown.tsx": {
+        "path": "packages/client/ui/lib/components/selector-dropdown.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/settings-control.tsx": {
+        "path": "packages/client/ui/lib/components/settings-control.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/settings-layout.tsx": {
+        "path": "packages/client/ui/lib/components/settings-layout.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/sheet.tsx": {
+        "path": "packages/client/ui/lib/components/sheet.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/sidebar-items.css": {
+        "path": "packages/client/ui/lib/components/sidebar-items.css",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/sidebar-items.tsx": {
+        "path": "packages/client/ui/lib/components/sidebar-items.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/sidebar.tsx": {
+        "path": "packages/client/ui/lib/components/sidebar.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/skeleton.tsx": {
+        "path": "packages/client/ui/lib/components/skeleton.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/status-badge.tsx": {
+        "path": "packages/client/ui/lib/components/status-badge.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/surface.tsx": {
+        "path": "packages/client/ui/lib/components/surface.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/switch.tsx": {
+        "path": "packages/client/ui/lib/components/switch.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/tabs.tsx": {
+        "path": "packages/client/ui/lib/components/tabs.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/textarea.tsx": {
+        "path": "packages/client/ui/lib/components/textarea.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/time-picker.tsx": {
+        "path": "packages/client/ui/lib/components/time-picker.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/toast.tsx": {
+        "path": "packages/client/ui/lib/components/toast.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/tooltip-icon-button.tsx": {
+        "path": "packages/client/ui/lib/components/tooltip-icon-button.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/tooltip.tsx": {
+        "path": "packages/client/ui/lib/components/tooltip.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/workbench-portal-container.tsx": {
+        "path": "packages/client/ui/lib/components/workbench-portal-container.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components/workspace-selector.tsx": {
+        "path": "packages/client/ui/lib/components/workspace-selector.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/components.css": {
+        "path": "packages/client/ui/lib/components.css",
+        "export": "@workbench/ui/components.css"
+      },
+      "packages/client/ui/src/disclosure/disclosure-scroll-direction.tsx": {
+        "path": "packages/client/ui/lib/disclosure/disclosure-scroll-direction.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/disclosure/disclosure-scroll-policy.ts": {
+        "path": "packages/client/ui/lib/disclosure/disclosure-scroll-policy.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/disclosure/scroll-compensated-details.tsx": {
+        "path": "packages/client/ui/lib/disclosure/scroll-compensated-details.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/disclosure/use-disclosure-scroll-lock.ts": {
+        "path": "packages/client/ui/lib/disclosure/use-disclosure-scroll-lock.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/disclosure.ts": {
+        "path": "packages/client/ui/lib/disclosure.ts",
+        "export": "@workbench/ui/disclosure"
+      },
+      "packages/client/ui/src/hooks/index.ts": {
+        "path": "packages/client/ui/lib/hooks/index.ts",
+        "export": "@workbench/ui/hooks"
+      },
+      "packages/client/ui/src/hooks/use-clipboard-copy.ts": {
+        "path": "packages/client/ui/lib/hooks/use-clipboard-copy.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/hooks/use-media-query.ts": {
+        "path": "packages/client/ui/lib/hooks/use-media-query.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/hooks/use-mobile.ts": {
+        "path": "packages/client/ui/lib/hooks/use-mobile.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/hooks/use-reduced-motion.ts": {
+        "path": "packages/client/ui/lib/hooks/use-reduced-motion.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/hooks/use-sidebar-pointer-reorder.tsx": {
+        "path": "packages/client/ui/lib/hooks/use-sidebar-pointer-reorder.tsx",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/i18n/en-US.ts": {
+        "path": "packages/client/ui/lib/i18n/en-US.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/i18n/zh-CN.ts": {
+        "path": "packages/client/ui/lib/i18n/zh-CN.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/i18n.ts": {
+        "path": "packages/client/ui/lib/i18n.ts",
+        "export": "@workbench/ui/i18n"
+      },
+      "packages/client/ui/src/index.ts": {
+        "path": "packages/client/ui/lib/index.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/keyboard-shortcut-owner.ts": {
+        "path": "packages/client/ui/lib/keyboard-shortcut-owner.ts",
+        "export": "@workbench/ui/keyboard"
+      },
+      "packages/client/ui/src/resize/observe-resize-handle.ts": {
+        "path": "packages/client/ui/lib/resize/observe-resize-handle.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/resize/proportional-panel-size.ts": {
+        "path": "packages/client/ui/lib/resize/proportional-panel-size.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/resize/proportional-panel.css": {
+        "path": "packages/client/ui/lib/resize/proportional-panel.css",
+        "export": "@workbench/ui/proportional-panel.css"
+      },
+      "packages/client/ui/src/resize/resize-spring.ts": {
+        "path": "packages/client/ui/lib/resize/resize-spring.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/resize/use-collapsible-resize.ts": {
+        "path": "packages/client/ui/lib/resize/use-collapsible-resize.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/resize/use-proportional-panel-size.ts": {
+        "path": "packages/client/ui/lib/resize/use-proportional-panel-size.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/resize.ts": {
+        "path": "packages/client/ui/lib/resize.ts",
+        "export": "@workbench/ui/resize"
+      },
+      "packages/client/ui/src/styles.css": {
+        "path": "packages/client/ui/lib/styles.css",
+        "export": "@workbench/ui/styles.css"
+      },
+      "packages/client/ui/src/styles.d.ts": {
+        "path": "packages/client/ui/lib/styles.d.ts",
+        "export": "@workbench/ui"
+      },
+      "packages/client/ui/src/tokens.css": {
+        "path": "packages/client/ui/lib/tokens.css",
+        "export": "@workbench/ui/tokens.css"
+      },
+      "packages/client/ui/src/utils.ts": {
+        "path": "packages/client/ui/lib/utils.ts",
+        "export": "@workbench/ui/utils"
+      }
+    }
+  },
+  "@workbench/appearance": {
+    "root": "packages/client/appearance",
+    "publicEntries": [
+      "packages/client/appearance/src/index.ts",
+      "packages/client/appearance/src/appearance-preferences.ts",
+      "packages/client/appearance/src/font-families.ts"
+    ],
+    "moves": {
+      "packages/client/appearance/src/appearance-preferences.ts": {
+        "path": "packages/client/appearance/lib/appearance-preferences.ts",
+        "export": "@workbench/appearance/preferences"
+      },
+      "packages/client/appearance/src/appearance-store.ts": {
+        "path": "packages/client/appearance/lib/appearance-store.ts",
+        "export": "@workbench/appearance"
+      },
+      "packages/client/appearance/src/font-families.ts": {
+        "path": "packages/client/appearance/lib/font-families.ts",
+        "export": "@workbench/appearance/fonts"
+      },
+      "packages/client/appearance/src/index.ts": {
+        "path": "packages/client/appearance/lib/index.ts",
+        "export": "@workbench/appearance"
+      },
+      "packages/client/appearance/src/legacy-preferences.ts": {
+        "path": "packages/client/appearance/lib/legacy-preferences.ts",
+        "export": "@workbench/appearance"
+      },
+      "packages/client/appearance/src/system-fonts.tsx": {
+        "path": "packages/client/appearance/lib/system-fonts.tsx",
+        "export": "@workbench/appearance"
+      }
+    }
+  },
+  "@workbench/shell-context": {
+    "root": "packages/client/shell-context",
+    "publicEntries": [
+      "packages/client/shell-context/src/index.ts",
+      "packages/client/shell-context/src/dom.tsx",
+      "packages/client/shell-context/src/navigation.tsx",
+      "packages/client/shell-context/src/presentation.tsx",
+      "packages/client/shell-context/src/runtime-connection.ts",
+      "packages/client/shell-context/src/layout.tsx",
+      "packages/client/shell-context/src/layout-motion.ts",
+      "packages/client/shell-context/src/running-indicator.tsx",
+      "packages/client/shell-context/src/panel-store.ts"
+    ],
+    "moves": {
+      "packages/client/shell-context/src/dom.tsx": {
+        "path": "packages/client/shell-context/lib/dom.tsx",
+        "export": "@workbench/shell-context/dom"
+      },
+      "packages/client/shell-context/src/index.ts": {
+        "path": "packages/client/shell-context/lib/index.ts",
+        "export": "@workbench/shell-context"
+      },
+      "packages/client/shell-context/src/layout/new-thread-layout.tsx": {
+        "path": "packages/client/shell-context/lib/layout/new-thread-layout.tsx",
+        "export": "@workbench/shell-context"
+      },
+      "packages/client/shell-context/src/layout/thread-content-width.ts": {
+        "path": "packages/client/shell-context/lib/layout/thread-content-width.ts",
+        "export": "@workbench/shell-context"
+      },
+      "packages/client/shell-context/src/layout-motion.ts": {
+        "path": "packages/client/shell-context/lib/layout-motion.ts",
+        "export": "@workbench/shell-context/layout-motion"
+      },
+      "packages/client/shell-context/src/layout.tsx": {
+        "path": "packages/client/shell-context/lib/layout.tsx",
+        "export": "@workbench/shell-context/layout"
+      },
+      "packages/client/shell-context/src/navigation.tsx": {
+        "path": "packages/client/shell-context/lib/navigation.tsx",
+        "export": "@workbench/shell-context/navigation"
+      },
+      "packages/client/shell-context/src/panel-store.ts": {
+        "path": "packages/client/shell-context/lib/panel-store.ts",
+        "export": "@workbench/shell-context/panel-store"
+      },
+      "packages/client/shell-context/src/presentation.tsx": {
+        "path": "packages/client/shell-context/lib/presentation.tsx",
+        "export": "@workbench/shell-context/presentation"
+      },
+      "packages/client/shell-context/src/running-indicator.tsx": {
+        "path": "packages/client/shell-context/lib/running-indicator.tsx",
+        "export": "@workbench/shell-context/running-indicator"
+      },
+      "packages/client/shell-context/src/runtime-connection/runtime-connection-provider.tsx": {
+        "path": "packages/client/shell-context/lib/runtime-connection/runtime-connection-provider.tsx",
+        "export": "@workbench/shell-context"
+      },
+      "packages/client/shell-context/src/runtime-connection/runtime-connection.ts": {
+        "path": "packages/client/shell-context/lib/runtime-connection/runtime-connection.ts",
+        "export": "@workbench/shell-context"
+      },
+      "packages/client/shell-context/src/runtime-connection.ts": {
+        "path": "packages/client/shell-context/lib/runtime-connection.ts",
+        "export": "@workbench/shell-context/runtime-connection"
+      },
+      "packages/client/shell-context/src/workbench-shell-owner.ts": {
+        "path": "packages/client/shell-context/lib/workbench-shell-owner.ts",
+        "export": "@workbench/shell-context"
+      }
+    }
+  },
+  "@workbench/code-highlighting": {
+    "root": "packages/client/code-highlighting",
+    "publicEntries": [
+      "packages/client/code-highlighting/src/index.ts",
+      "packages/client/code-highlighting/src/shiki-highlighter.ts",
+      "packages/client/code-highlighting/src/codex-code-header.tsx",
+      "packages/client/code-highlighting/src/i18n.ts",
+      "packages/client/code-highlighting/src/styles.css",
+      "packages/client/code-highlighting/src/workbench-code-editor.css",
+      "packages/client/code-highlighting/src/diff/reviewable-diff.css",
+      "packages/client/code-highlighting/src/code-block.css"
+    ],
+    "moves": {
+      "packages/client/code-highlighting/src/code-block.css": {
+        "path": "packages/client/code-highlighting/lib/code-block.css",
+        "export": "@workbench/code-highlighting/code-block.css"
+      },
+      "packages/client/code-highlighting/src/code-highlight-policy.ts": {
+        "path": "packages/client/code-highlighting/lib/code-highlight-policy.ts",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/code-theme-preview.tsx": {
+        "path": "packages/client/code-highlighting/lib/code-theme-preview.tsx",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/codex-code-header.tsx": {
+        "path": "packages/client/code-highlighting/lib/codex-code-header.tsx",
+        "export": "@workbench/code-highlighting/header"
+      },
+      "packages/client/code-highlighting/src/diff/code-diff.tsx": {
+        "path": "packages/client/code-highlighting/lib/diff/code-diff.tsx",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/diff/range.ts": {
+        "path": "packages/client/code-highlighting/lib/diff/range.ts",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/diff/reviewable-diff.css": {
+        "path": "packages/client/code-highlighting/lib/diff/reviewable-diff.css",
+        "export": "@workbench/code-highlighting/diff.css"
+      },
+      "packages/client/code-highlighting/src/diff/reviewable-diff.tsx": {
+        "path": "packages/client/code-highlighting/lib/diff/reviewable-diff.tsx",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/diff/unified-patch.ts": {
+        "path": "packages/client/code-highlighting/lib/diff/unified-patch.ts",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/i18n/en-US.ts": {
+        "path": "packages/client/code-highlighting/lib/i18n/en-US.ts",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/i18n/zh-CN.ts": {
+        "path": "packages/client/code-highlighting/lib/i18n/zh-CN.ts",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/i18n.ts": {
+        "path": "packages/client/code-highlighting/lib/i18n.ts",
+        "export": "@workbench/code-highlighting/i18n"
+      },
+      "packages/client/code-highlighting/src/index.ts": {
+        "path": "packages/client/code-highlighting/lib/index.ts",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/markdown-code-block.tsx": {
+        "path": "packages/client/code-highlighting/lib/markdown-code-block.tsx",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/shiki-catalog.ts": {
+        "path": "packages/client/code-highlighting/lib/shiki-catalog.ts",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/shiki-highlighter.ts": {
+        "path": "packages/client/code-highlighting/lib/shiki-highlighter.ts",
+        "export": "@workbench/code-highlighting/engine"
+      },
+      "packages/client/code-highlighting/src/shiki-token-style.ts": {
+        "path": "packages/client/code-highlighting/lib/shiki-token-style.ts",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/styles.css": {
+        "path": "packages/client/code-highlighting/lib/styles.css",
+        "export": "@workbench/code-highlighting/styles.css"
+      },
+      "packages/client/code-highlighting/src/use-i18n.ts": {
+        "path": "packages/client/code-highlighting/lib/use-i18n.ts",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/use-workbench-highlighted-code.tsx": {
+        "path": "packages/client/code-highlighting/lib/use-workbench-highlighted-code.tsx",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/use-workbench-highlighted-lines.ts": {
+        "path": "packages/client/code-highlighting/lib/use-workbench-highlighted-lines.ts",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/workbench-code-block.tsx": {
+        "path": "packages/client/code-highlighting/lib/workbench-code-block.tsx",
+        "export": "@workbench/code-highlighting"
+      },
+      "packages/client/code-highlighting/src/workbench-code-editor.css": {
+        "path": "packages/client/code-highlighting/lib/workbench-code-editor.css",
+        "export": "@workbench/code-highlighting/editor.css"
+      },
+      "packages/client/code-highlighting/src/workbench-code-editor.tsx": {
+        "path": "packages/client/code-highlighting/lib/workbench-code-editor.tsx",
+        "export": "@workbench/code-highlighting"
+      }
+    }
+  },
+  "@workbench/markdown": {
+    "root": "packages/client/markdown",
+    "publicEntries": [
+      "packages/client/markdown/src/index.ts",
+      "packages/client/markdown/src/markdown-text.tsx",
+      "packages/client/markdown/src/link-adapter.tsx",
+      "packages/client/markdown/src/website-icon.ts",
+      "packages/client/markdown/src/i18n.ts",
+      "packages/client/markdown/src/styles.css"
+    ],
+    "moves": {
+      "packages/client/markdown/src/i18n/en-US.ts": {
+        "path": "packages/client/markdown/lib/i18n/en-US.ts",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/i18n/zh-CN.ts": {
+        "path": "packages/client/markdown/lib/i18n/zh-CN.ts",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/i18n.ts": {
+        "path": "packages/client/markdown/lib/i18n.ts",
+        "export": "@workbench/markdown/i18n"
+      },
+      "packages/client/markdown/src/incremental-markdown.ts": {
+        "path": "packages/client/markdown/lib/incremental-markdown.ts",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/index.ts": {
+        "path": "packages/client/markdown/lib/index.ts",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/inline-citation-markers.ts": {
+        "path": "packages/client/markdown/lib/inline-citation-markers.ts",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/inline-citation.tsx": {
+        "path": "packages/client/markdown/lib/inline-citation.tsx",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/lazy-markdown-text.tsx": {
+        "path": "packages/client/markdown/lib/lazy-markdown-text.tsx",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/link-adapter.tsx": {
+        "path": "packages/client/markdown/lib/link-adapter.tsx",
+        "export": "@workbench/markdown/links"
+      },
+      "packages/client/markdown/src/markdown-link-icons.tsx": {
+        "path": "packages/client/markdown/lib/markdown-link-icons.tsx",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/markdown-normalize.ts": {
+        "path": "packages/client/markdown/lib/markdown-normalize.ts",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/markdown-pipeline.ts": {
+        "path": "packages/client/markdown/lib/markdown-pipeline.ts",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/markdown-preview.tsx": {
+        "path": "packages/client/markdown/lib/markdown-preview.tsx",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/markdown-reveal.tsx": {
+        "path": "packages/client/markdown/lib/markdown-reveal.tsx",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/markdown-text.tsx": {
+        "path": "packages/client/markdown/lib/markdown-text.tsx",
+        "export": "@workbench/markdown/render"
+      },
+      "packages/client/markdown/src/markdown-types.ts": {
+        "path": "packages/client/markdown/lib/markdown-types.ts",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/markdown.css": {
+        "path": "packages/client/markdown/lib/markdown.css",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/mermaid-code.tsx": {
+        "path": "packages/client/markdown/lib/mermaid-code.tsx",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/styles.css": {
+        "path": "packages/client/markdown/lib/styles.css",
+        "export": "@workbench/markdown/styles.css"
+      },
+      "packages/client/markdown/src/use-i18n.ts": {
+        "path": "packages/client/markdown/lib/use-i18n.ts",
+        "export": "@workbench/markdown"
+      },
+      "packages/client/markdown/src/website-icon.ts": {
+        "path": "packages/client/markdown/lib/website-icon.ts",
+        "export": "@workbench/markdown/website-icon"
+      },
+      "packages/client/markdown/src/workbench-markdown.tsx": {
+        "path": "packages/client/markdown/lib/workbench-markdown.tsx",
+        "export": "@workbench/markdown"
+      }
+    }
+  },
+  "@workbench/settings-ui": {
+    "root": "packages/client/settings-ui",
+    "publicEntries": [
+      "packages/client/settings-ui/src/index.ts",
+      "packages/client/settings-ui/src/settings-main-view.ts",
+      "packages/client/settings-ui/src/i18n.ts"
+    ],
+    "moves": {
+      "packages/client/settings-ui/src/i18n/en-US.ts": {
+        "path": "packages/client/settings-ui/lib/i18n/en-US.ts",
+        "export": "@workbench/settings-ui"
+      },
+      "packages/client/settings-ui/src/i18n/zh-CN.ts": {
+        "path": "packages/client/settings-ui/lib/i18n/zh-CN.ts",
+        "export": "@workbench/settings-ui"
+      },
+      "packages/client/settings-ui/src/i18n.ts": {
+        "path": "packages/client/settings-ui/lib/i18n.ts",
+        "export": "@workbench/settings-ui/i18n"
+      },
+      "packages/client/settings-ui/src/index.ts": {
+        "path": "packages/client/settings-ui/lib/index.ts",
+        "export": "@workbench/settings-ui"
+      },
+      "packages/client/settings-ui/src/settings-main-view.ts": {
+        "path": "packages/client/settings-ui/lib/settings-main-view.ts",
+        "export": "@workbench/settings-ui/request"
+      }
+    }
+  },
+  "@workbench/workspace-runtime": {
+    "root": "packages/workspace/runtime",
+    "publicEntries": [
+      "packages/workspace/runtime/src/index.ts",
+      "packages/workspace/runtime/src/react.ts",
+      "packages/workspace/runtime/src/presentation/index.ts",
+      "packages/workspace/runtime/src/right-workspace-persistence.ts",
+      "packages/workspace/runtime/src/workspace-directory-store.ts",
+      "packages/workspace/runtime/src/i18n.ts",
+      "packages/workspace/runtime/src/use-i18n.ts",
+      "packages/workspace/runtime/src/presentation/right-workspace.css"
+    ],
+    "moves": {
+      "packages/workspace/runtime/src/feedback/composer-feedback.tsx": {
+        "path": "packages/workspace/runtime/lib/feedback/composer-feedback.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/feedback/feedback-layer.tsx": {
+        "path": "packages/workspace/runtime/lib/feedback/feedback-layer.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/feedback/inline-feedback-form.tsx": {
+        "path": "packages/workspace/runtime/lib/feedback/inline-feedback-form.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/i18n/en-US.ts": {
+        "path": "packages/workspace/runtime/lib/i18n/en-US.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/i18n/zh-CN.ts": {
+        "path": "packages/workspace/runtime/lib/i18n/zh-CN.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/i18n.ts": {
+        "path": "packages/workspace/runtime/lib/i18n.ts",
+        "export": "@workbench/workspace-runtime/i18n"
+      },
+      "packages/workspace/runtime/src/index.ts": {
+        "path": "packages/workspace/runtime/lib/index.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/legacy-storage.ts": {
+        "path": "packages/workspace/runtime/lib/legacy-storage.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/presentation/index.ts": {
+        "path": "packages/workspace/runtime/lib/presentation/index.ts",
+        "export": "@workbench/workspace-runtime/presentation"
+      },
+      "packages/workspace/runtime/src/presentation/right-workspace-toggle-button.tsx": {
+        "path": "packages/workspace/runtime/lib/presentation/right-workspace-toggle-button.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/presentation/right-workspace.css": {
+        "path": "packages/workspace/runtime/lib/presentation/right-workspace.css",
+        "export": "@workbench/workspace-runtime/styles.css"
+      },
+      "packages/workspace/runtime/src/presentation/right-workspace.tsx": {
+        "path": "packages/workspace/runtime/lib/presentation/right-workspace.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/presentation/surface-boundary.tsx": {
+        "path": "packages/workspace/runtime/lib/presentation/surface-boundary.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/presentation/surface-header-host.tsx": {
+        "path": "packages/workspace/runtime/lib/presentation/surface-header-host.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/presentation/surface-host.tsx": {
+        "path": "packages/workspace/runtime/lib/presentation/surface-host.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/presentation/workspace-add-menu.tsx": {
+        "path": "packages/workspace/runtime/lib/presentation/workspace-add-menu.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/presentation/workspace-empty-state.tsx": {
+        "path": "packages/workspace/runtime/lib/presentation/workspace-empty-state.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/presentation/workspace-header.tsx": {
+        "path": "packages/workspace/runtime/lib/presentation/workspace-header.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/presentation/workspace-resize-handle.tsx": {
+        "path": "packages/workspace/runtime/lib/presentation/workspace-resize-handle.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/presentation/workspace-split-resize-handle.tsx": {
+        "path": "packages/workspace/runtime/lib/presentation/workspace-split-resize-handle.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/presentation/workspace-status-layer.tsx": {
+        "path": "packages/workspace/runtime/lib/presentation/workspace-status-layer.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/presentation/workspace-tabs.tsx": {
+        "path": "packages/workspace/runtime/lib/presentation/workspace-tabs.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/react.ts": {
+        "path": "packages/workspace/runtime/lib/react.ts",
+        "export": "@workbench/workspace-runtime/react"
+      },
+      "packages/workspace/runtime/src/right-workspace-context.tsx": {
+        "path": "packages/workspace/runtime/lib/right-workspace-context.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/right-workspace-layout.ts": {
+        "path": "packages/workspace/runtime/lib/right-workspace-layout.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/right-workspace-persistence.ts": {
+        "path": "packages/workspace/runtime/lib/right-workspace-persistence.ts",
+        "export": "@workbench/workspace-runtime/persistence"
+      },
+      "packages/workspace/runtime/src/right-workspace-prompt-feedback.ts": {
+        "path": "packages/workspace/runtime/lib/right-workspace-prompt-feedback.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/right-workspace-provider.tsx": {
+        "path": "packages/workspace/runtime/lib/right-workspace-provider.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/surface-mount-contexts.ts": {
+        "path": "packages/workspace/runtime/lib/surface-mount-contexts.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/surface-mount-policy.ts": {
+        "path": "packages/workspace/runtime/lib/surface-mount-policy.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/surface-types.ts": {
+        "path": "packages/workspace/runtime/lib/surface-types.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/use-i18n.ts": {
+        "path": "packages/workspace/runtime/lib/use-i18n.ts",
+        "export": "@workbench/workspace-runtime/translations"
+      },
+      "packages/workspace/runtime/src/workspace-controller.ts": {
+        "path": "packages/workspace/runtime/lib/workspace-controller.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/workspace-directory-store.ts": {
+        "path": "packages/workspace/runtime/lib/workspace-directory-store.ts",
+        "export": "@workbench/workspace-runtime/directory-store"
+      },
+      "packages/workspace/runtime/src/workspace-draft-store.ts": {
+        "path": "packages/workspace/runtime/lib/workspace-draft-store.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/workspace-feedback-store.ts": {
+        "path": "packages/workspace/runtime/lib/workspace-feedback-store.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/workspace-feedback-types.ts": {
+        "path": "packages/workspace/runtime/lib/workspace-feedback-types.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/workspace-resize-preview.ts": {
+        "path": "packages/workspace/runtime/lib/workspace-resize-preview.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/workspace-selectors.ts": {
+        "path": "packages/workspace/runtime/lib/workspace-selectors.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/workspace-split-layout.ts": {
+        "path": "packages/workspace/runtime/lib/workspace-split-layout.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/workspace-split-resize-observer.ts": {
+        "path": "packages/workspace/runtime/lib/workspace-split-resize-observer.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/workspace-store.ts": {
+        "path": "packages/workspace/runtime/lib/workspace-store.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/workspace-surface-runtime-host.tsx": {
+        "path": "packages/workspace/runtime/lib/workspace-surface-runtime-host.tsx",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/workspace-tab-a11y.ts": {
+        "path": "packages/workspace/runtime/lib/workspace-tab-a11y.ts",
+        "export": "@workbench/workspace-runtime"
+      },
+      "packages/workspace/runtime/src/workspace-tab-layout.ts": {
+        "path": "packages/workspace/runtime/lib/workspace-tab-layout.ts",
+        "export": "@workbench/workspace-runtime"
+      }
+    }
+  },
+  "@workbench/workspace-files": {
+    "root": "packages/workspace/files",
+    "publicEntries": [
+      "packages/workspace/files/src/index.ts",
+      "packages/workspace/files/src/tree/index.ts",
+      "packages/workspace/files/src/file-link-component.tsx",
+      "packages/workspace/files/src/file-classification.ts",
+      "packages/workspace/files/src/file-open-apps.ts",
+      "packages/workspace/files/src/file-open-preferences.ts",
+      "packages/workspace/files/src/local-app-icon.tsx",
+      "packages/workspace/files/src/file-download.ts",
+      "packages/workspace/files/src/markdown-link-adapter.ts",
+      "packages/workspace/files/src/i18n.ts",
+      "packages/workspace/files/src/use-i18n.ts"
+    ],
+    "moves": {
+      "packages/workspace/files/src/asset-module-url.ts": {
+        "path": "packages/workspace/files/lib/asset-module-url.ts",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/buffered-file-workspace-service.ts": {
+        "path": "packages/workspace/files/lib/buffered-file-workspace-service.ts",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/file-classification.ts": {
+        "path": "packages/workspace/files/lib/file-classification.ts",
+        "export": "@workbench/workspace-files/classification"
+      },
+      "packages/workspace/files/src/file-diff-service.ts": {
+        "path": "packages/workspace/files/lib/file-diff-service.ts",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/file-download.ts": {
+        "path": "packages/workspace/files/lib/file-download.ts",
+        "export": "@workbench/workspace-files/download"
+      },
+      "packages/workspace/files/src/file-link-component.tsx": {
+        "path": "packages/workspace/files/lib/file-link-component.tsx",
+        "export": "@workbench/workspace-files/links"
+      },
+      "packages/workspace/files/src/file-link-content.ts": {
+        "path": "packages/workspace/files/lib/file-link-content.ts",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/file-link-menu.tsx": {
+        "path": "packages/workspace/files/lib/file-link-menu.tsx",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/file-link.ts": {
+        "path": "packages/workspace/files/lib/file-link.ts",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/file-open-apps.ts": {
+        "path": "packages/workspace/files/lib/file-open-apps.ts",
+        "export": "@workbench/workspace-files/open-apps"
+      },
+      "packages/workspace/files/src/file-open-preferences.ts": {
+        "path": "packages/workspace/files/lib/file-open-preferences.ts",
+        "export": "@workbench/workspace-files/open-preferences"
+      },
+      "packages/workspace/files/src/file-workspace-target-service.ts": {
+        "path": "packages/workspace/files/lib/file-workspace-target-service.ts",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/i18n/en-US.ts": {
+        "path": "packages/workspace/files/lib/i18n/en-US.ts",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/i18n/zh-CN.ts": {
+        "path": "packages/workspace/files/lib/i18n/zh-CN.ts",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/i18n.ts": {
+        "path": "packages/workspace/files/lib/i18n.ts",
+        "export": "@workbench/workspace-files/i18n"
+      },
+      "packages/workspace/files/src/icons/README.md": {
+        "path": "packages/workspace/files/lib/icons/README.md",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/chrome.svg": {
+        "path": "packages/workspace/files/lib/icons/chrome.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/chromium.svg": {
+        "path": "packages/workspace/files/lib/icons/chromium.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/cursor.svg": {
+        "path": "packages/workspace/files/lib/icons/cursor.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/datagrip.svg": {
+        "path": "packages/workspace/files/lib/icons/datagrip.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/edge.svg": {
+        "path": "packages/workspace/files/lib/icons/edge.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/firefox.svg": {
+        "path": "packages/workspace/files/lib/icons/firefox.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/idea.svg": {
+        "path": "packages/workspace/files/lib/icons/idea.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/mpv.svg": {
+        "path": "packages/workspace/files/lib/icons/mpv.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/pycharm.svg": {
+        "path": "packages/workspace/files/lib/icons/pycharm.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/qoder.svg": {
+        "path": "packages/workspace/files/lib/icons/qoder.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/safari.svg": {
+        "path": "packages/workspace/files/lib/icons/safari.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/trae.svg": {
+        "path": "packages/workspace/files/lib/icons/trae.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/vlc.svg": {
+        "path": "packages/workspace/files/lib/icons/vlc.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/vscode.svg": {
+        "path": "packages/workspace/files/lib/icons/vscode.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/icons/webstorm.svg": {
+        "path": "packages/workspace/files/lib/icons/webstorm.svg",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/index.ts": {
+        "path": "packages/workspace/files/lib/index.ts",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/local-app-icon.tsx": {
+        "path": "packages/workspace/files/lib/local-app-icon.tsx",
+        "export": "@workbench/workspace-files/app-icon"
+      },
+      "packages/workspace/files/src/markdown-link-adapter.ts": {
+        "path": "packages/workspace/files/lib/markdown-link-adapter.ts",
+        "export": "@workbench/workspace-files/markdown-links"
+      },
+      "packages/workspace/files/src/tree/explorer-tree-model.ts": {
+        "path": "packages/workspace/files/lib/tree/explorer-tree-model.ts",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/tree/explorer-tree.tsx": {
+        "path": "packages/workspace/files/lib/tree/explorer-tree.tsx",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/tree/file-name-parts.ts": {
+        "path": "packages/workspace/files/lib/tree/file-name-parts.ts",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/tree/file-type-icon.tsx": {
+        "path": "packages/workspace/files/lib/tree/file-type-icon.tsx",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/tree/index.ts": {
+        "path": "packages/workspace/files/lib/tree/index.ts",
+        "export": "@workbench/workspace-files/tree"
+      },
+      "packages/workspace/files/src/tree/material-icon-theme.ts": {
+        "path": "packages/workspace/files/lib/tree/material-icon-theme.ts",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/use-i18n.ts": {
+        "path": "packages/workspace/files/lib/use-i18n.ts",
+        "export": "@workbench/workspace-files/translations"
+      },
+      "packages/workspace/files/src/workspace-file-runtime.tsx": {
+        "path": "packages/workspace/files/lib/workspace-file-runtime.tsx",
+        "export": "@workbench/workspace-files"
+      },
+      "packages/workspace/files/src/workspace-file-service.ts": {
+        "path": "packages/workspace/files/lib/workspace-file-service.ts",
+        "export": "@workbench/workspace-files"
+      }
+    }
+  },
+  "@workbench/workspace-file-view": {
+    "root": "packages/workspace/file-view",
+    "publicEntries": [
+      "packages/workspace/file-view/src/index.ts",
+      "packages/workspace/file-view/src/file-opener.ts",
+      "packages/workspace/file-view/src/file-openers-bridge.tsx",
+      "packages/workspace/file-view/src/file-surface.tsx",
+      "packages/workspace/file-view/src/i18n.ts"
+    ],
+    "moves": {
+      "packages/workspace/file-view/src/extension.ts": {
+        "path": "packages/workspace/file-view/lib/extension.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-breadcrumb-model.ts": {
+        "path": "packages/workspace/file-view/lib/file-breadcrumb-model.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-breadcrumb-tree.tsx": {
+        "path": "packages/workspace/file-view/lib/file-breadcrumb-tree.tsx",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-buffer-actions.ts": {
+        "path": "packages/workspace/file-view/lib/file-buffer-actions.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-buffer-draft.ts": {
+        "path": "packages/workspace/file-view/lib/file-buffer-draft.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-code-editor.tsx": {
+        "path": "packages/workspace/file-view/lib/file-code-editor.tsx",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-diff-service.ts": {
+        "path": "packages/workspace/file-view/lib/file-diff-service.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-diff-viewer.tsx": {
+        "path": "packages/workspace/file-view/lib/file-diff-viewer.tsx",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-document-preview.tsx": {
+        "path": "packages/workspace/file-view/lib/file-document-preview.tsx",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-document-viewer-runtime.module.css": {
+        "path": "packages/workspace/file-view/lib/file-document-viewer-runtime.module.css",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-document-viewer-runtime.tsx": {
+        "path": "packages/workspace/file-view/lib/file-document-viewer-runtime.tsx",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-image-preview.tsx": {
+        "path": "packages/workspace/file-view/lib/file-image-preview.tsx",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-media-preview.tsx": {
+        "path": "packages/workspace/file-view/lib/file-media-preview.tsx",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-menu-item.tsx": {
+        "path": "packages/workspace/file-view/lib/file-menu-item.tsx",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-opener.ts": {
+        "path": "packages/workspace/file-view/lib/file-opener.ts",
+        "export": "@workbench/workspace-file-view/opener"
+      },
+      "packages/workspace/file-view/src/file-openers-bridge.tsx": {
+        "path": "packages/workspace/file-view/lib/file-openers-bridge.tsx",
+        "export": "@workbench/workspace-file-view/openers"
+      },
+      "packages/workspace/file-view/src/file-preview-loading.tsx": {
+        "path": "packages/workspace/file-view/lib/file-preview-loading.tsx",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-preview-unavailable.tsx": {
+        "path": "packages/workspace/file-view/lib/file-preview-unavailable.tsx",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-surface-header.tsx": {
+        "path": "packages/workspace/file-view/lib/file-surface-header.tsx",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-surface-messages.ts": {
+        "path": "packages/workspace/file-view/lib/file-surface-messages.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-surface.tsx": {
+        "path": "packages/workspace/file-view/lib/file-surface.tsx",
+        "export": "@workbench/workspace-file-view/surface"
+      },
+      "packages/workspace/file-view/src/file-view-mode.ts": {
+        "path": "packages/workspace/file-view/lib/file-view-mode.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-viewer-asset-base-lease.ts": {
+        "path": "packages/workspace/file-view/lib/file-viewer-asset-base-lease.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/file-viewer-source.ts": {
+        "path": "packages/workspace/file-view/lib/file-viewer-source.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/i18n/en-US.ts": {
+        "path": "packages/workspace/file-view/lib/i18n/en-US.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/i18n/zh-CN.ts": {
+        "path": "packages/workspace/file-view/lib/i18n/zh-CN.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/i18n.ts": {
+        "path": "packages/workspace/file-view/lib/i18n.ts",
+        "export": "@workbench/workspace-file-view/i18n"
+      },
+      "packages/workspace/file-view/src/index.ts": {
+        "path": "packages/workspace/file-view/lib/index.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/progressive-text-document.ts": {
+        "path": "packages/workspace/file-view/lib/progressive-text-document.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/use-i18n.ts": {
+        "path": "packages/workspace/file-view/lib/use-i18n.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/use-progressive-text-document.ts": {
+        "path": "packages/workspace/file-view/lib/use-progressive-text-document.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/use-workspace-file-object-url.ts": {
+        "path": "packages/workspace/file-view/lib/use-workspace-file-object-url.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/virtualized-code-window.ts": {
+        "path": "packages/workspace/file-view/lib/virtualized-code-window.ts",
+        "export": "@workbench/workspace-file-view"
+      },
+      "packages/workspace/file-view/src/virtualized-text-viewer.tsx": {
+        "path": "packages/workspace/file-view/lib/virtualized-text-viewer.tsx",
+        "export": "@workbench/workspace-file-view"
+      }
+    }
+  },
+  "@workbench/workspace-explorer": {
+    "root": "packages/workspace/explorer",
+    "publicEntries": [
+      "packages/workspace/explorer/src/index.ts",
+      "packages/workspace/explorer/src/i18n.ts"
+    ],
+    "moves": {
+      "packages/workspace/explorer/src/explorer-runtime-bridge.tsx": {
+        "path": "packages/workspace/explorer/lib/explorer-runtime-bridge.tsx",
+        "export": "@workbench/workspace-explorer"
+      },
+      "packages/workspace/explorer/src/explorer-runtime-policy.ts": {
+        "path": "packages/workspace/explorer/lib/explorer-runtime-policy.ts",
+        "export": "@workbench/workspace-explorer"
+      },
+      "packages/workspace/explorer/src/explorer-surface.tsx": {
+        "path": "packages/workspace/explorer/lib/explorer-surface.tsx",
+        "export": "@workbench/workspace-explorer"
+      },
+      "packages/workspace/explorer/src/extension.ts": {
+        "path": "packages/workspace/explorer/lib/extension.ts",
+        "export": "@workbench/workspace-explorer"
+      },
+      "packages/workspace/explorer/src/i18n/en-US.ts": {
+        "path": "packages/workspace/explorer/lib/i18n/en-US.ts",
+        "export": "@workbench/workspace-explorer"
+      },
+      "packages/workspace/explorer/src/i18n/zh-CN.ts": {
+        "path": "packages/workspace/explorer/lib/i18n/zh-CN.ts",
+        "export": "@workbench/workspace-explorer"
+      },
+      "packages/workspace/explorer/src/i18n.ts": {
+        "path": "packages/workspace/explorer/lib/i18n.ts",
+        "export": "@workbench/workspace-explorer/i18n"
+      },
+      "packages/workspace/explorer/src/index.ts": {
+        "path": "packages/workspace/explorer/lib/index.ts",
+        "export": "@workbench/workspace-explorer"
+      },
+      "packages/workspace/explorer/src/use-i18n.ts": {
+        "path": "packages/workspace/explorer/lib/use-i18n.ts",
+        "export": "@workbench/workspace-explorer"
+      }
+    }
+  },
+  "@workbench/workspace-directory-picker": {
+    "root": "packages/workspace/directory-picker",
+    "publicEntries": [
+      "packages/workspace/directory-picker/src/index.ts",
+      "packages/workspace/directory-picker/src/i18n.ts",
+      "packages/workspace/directory-picker/src/use-i18n.ts"
+    ],
+    "moves": {
+      "packages/workspace/directory-picker/src/directory-picker-button.tsx": {
+        "path": "packages/workspace/directory-picker/lib/directory-picker-button.tsx",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/directory-picker-capability.ts": {
+        "path": "packages/workspace/directory-picker/lib/directory-picker-capability.ts",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/directory-picker.module.css": {
+        "path": "packages/workspace/directory-picker/lib/directory-picker.module.css",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/extension.ts": {
+        "path": "packages/workspace/directory-picker/lib/extension.ts",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/i18n/en-US.ts": {
+        "path": "packages/workspace/directory-picker/lib/i18n/en-US.ts",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/i18n/zh-CN.ts": {
+        "path": "packages/workspace/directory-picker/lib/i18n/zh-CN.ts",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/i18n.ts": {
+        "path": "packages/workspace/directory-picker/lib/i18n.ts",
+        "export": "@workbench/workspace-directory-picker/i18n"
+      },
+      "packages/workspace/directory-picker/src/index.ts": {
+        "path": "packages/workspace/directory-picker/lib/index.ts",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/new-thread-workspace-item.tsx": {
+        "path": "packages/workspace/directory-picker/lib/new-thread-workspace-item.tsx",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/new-thread-workspace-policy.ts": {
+        "path": "packages/workspace/directory-picker/lib/new-thread-workspace-policy.ts",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/project-trust-dialog-copy.ts": {
+        "path": "packages/workspace/directory-picker/lib/project-trust-dialog-copy.ts",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/remote-directory-picker-dialog.tsx": {
+        "path": "packages/workspace/directory-picker/lib/remote-directory-picker-dialog.tsx",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/use-i18n.ts": {
+        "path": "packages/workspace/directory-picker/lib/use-i18n.ts",
+        "export": "@workbench/workspace-directory-picker/translations"
+      },
+      "packages/workspace/directory-picker/src/use-workspace-directory-admission.ts": {
+        "path": "packages/workspace/directory-picker/lib/use-workspace-directory-admission.ts",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/workspace-activation.ts": {
+        "path": "packages/workspace/directory-picker/lib/workspace-activation.ts",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/workspace-admission.ts": {
+        "path": "packages/workspace/directory-picker/lib/workspace-admission.ts",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/workspace-directory-picker-dialog.tsx": {
+        "path": "packages/workspace/directory-picker/lib/workspace-directory-picker-dialog.tsx",
+        "export": "@workbench/workspace-directory-picker"
+      },
+      "packages/workspace/directory-picker/src/workspace-directory-summary.tsx": {
+        "path": "packages/workspace/directory-picker/lib/workspace-directory-summary.tsx",
+        "export": "@workbench/workspace-directory-picker"
+      }
+    }
+  },
+  "@workbench/workspace-artifact": {
+    "root": "packages/workspace/artifact",
+    "publicEntries": [
+      "packages/workspace/artifact/src/index.ts",
+      "packages/workspace/artifact/src/artifact-preview-service.ts",
+      "packages/workspace/artifact/src/i18n.ts"
+    ],
+    "moves": {
+      "packages/workspace/artifact/src/artifact-preview-service.ts": {
+        "path": "packages/workspace/artifact/lib/artifact-preview-service.ts",
+        "export": "@workbench/workspace-artifact/service"
+      },
+      "packages/workspace/artifact/src/artifact-renderer-registry.tsx": {
+        "path": "packages/workspace/artifact/lib/artifact-renderer-registry.tsx",
+        "export": "@workbench/workspace-artifact"
+      },
+      "packages/workspace/artifact/src/artifact-runtime-bridge.tsx": {
+        "path": "packages/workspace/artifact/lib/artifact-runtime-bridge.tsx",
+        "export": "@workbench/workspace-artifact"
+      },
+      "packages/workspace/artifact/src/artifact-surface.tsx": {
+        "path": "packages/workspace/artifact/lib/artifact-surface.tsx",
+        "export": "@workbench/workspace-artifact"
+      },
+      "packages/workspace/artifact/src/extension.ts": {
+        "path": "packages/workspace/artifact/lib/extension.ts",
+        "export": "@workbench/workspace-artifact"
+      },
+      "packages/workspace/artifact/src/i18n/en-US.ts": {
+        "path": "packages/workspace/artifact/lib/i18n/en-US.ts",
+        "export": "@workbench/workspace-artifact"
+      },
+      "packages/workspace/artifact/src/i18n/zh-CN.ts": {
+        "path": "packages/workspace/artifact/lib/i18n/zh-CN.ts",
+        "export": "@workbench/workspace-artifact"
+      },
+      "packages/workspace/artifact/src/i18n.ts": {
+        "path": "packages/workspace/artifact/lib/i18n.ts",
+        "export": "@workbench/workspace-artifact/i18n"
+      },
+      "packages/workspace/artifact/src/index.ts": {
+        "path": "packages/workspace/artifact/lib/index.ts",
+        "export": "@workbench/workspace-artifact"
+      },
+      "packages/workspace/artifact/src/use-i18n.ts": {
+        "path": "packages/workspace/artifact/lib/use-i18n.ts",
+        "export": "@workbench/workspace-artifact"
+      }
+    }
+  },
+  "@workbench/workspace-review": {
+    "root": "packages/workspace/review",
+    "publicEntries": [
+      "packages/workspace/review/src/index.ts",
+      "packages/workspace/review/src/review.css",
+      "packages/workspace/review/src/i18n.ts"
+    ],
+    "moves": {
+      "packages/workspace/review/src/commit-selection.tsx": {
+        "path": "packages/workspace/review/lib/commit-selection.tsx",
+        "export": "@workbench/workspace-review"
+      },
+      "packages/workspace/review/src/extension.ts": {
+        "path": "packages/workspace/review/lib/extension.ts",
+        "export": "@workbench/workspace-review"
+      },
+      "packages/workspace/review/src/git-review-service.ts": {
+        "path": "packages/workspace/review/lib/git-review-service.ts",
+        "export": "@workbench/workspace-review"
+      },
+      "packages/workspace/review/src/i18n/en-US.ts": {
+        "path": "packages/workspace/review/lib/i18n/en-US.ts",
+        "export": "@workbench/workspace-review"
+      },
+      "packages/workspace/review/src/i18n/zh-CN.ts": {
+        "path": "packages/workspace/review/lib/i18n/zh-CN.ts",
+        "export": "@workbench/workspace-review"
+      },
+      "packages/workspace/review/src/i18n.ts": {
+        "path": "packages/workspace/review/lib/i18n.ts",
+        "export": "@workbench/workspace-review/i18n"
+      },
+      "packages/workspace/review/src/index.ts": {
+        "path": "packages/workspace/review/lib/index.ts",
+        "export": "@workbench/workspace-review"
+      },
+      "packages/workspace/review/src/review-diff-hunk.tsx": {
+        "path": "packages/workspace/review/lib/review-diff-hunk.tsx",
+        "export": "@workbench/workspace-review"
+      },
+      "packages/workspace/review/src/review-menu-item.tsx": {
+        "path": "packages/workspace/review/lib/review-menu-item.tsx",
+        "export": "@workbench/workspace-review"
+      },
+      "packages/workspace/review/src/review-options.ts": {
+        "path": "packages/workspace/review/lib/review-options.ts",
+        "export": "@workbench/workspace-review"
+      },
+      "packages/workspace/review/src/review-runtime-bridge.tsx": {
+        "path": "packages/workspace/review/lib/review-runtime-bridge.tsx",
+        "export": "@workbench/workspace-review"
+      },
+      "packages/workspace/review/src/review-surface-header.tsx": {
+        "path": "packages/workspace/review/lib/review-surface-header.tsx",
+        "export": "@workbench/workspace-review"
+      },
+      "packages/workspace/review/src/review-surface.tsx": {
+        "path": "packages/workspace/review/lib/review-surface.tsx",
+        "export": "@workbench/workspace-review"
+      },
+      "packages/workspace/review/src/review-toolbar.tsx": {
+        "path": "packages/workspace/review/lib/review-toolbar.tsx",
+        "export": "@workbench/workspace-review"
+      },
+      "packages/workspace/review/src/review.css": {
+        "path": "packages/workspace/review/lib/review.css",
+        "export": "@workbench/workspace-review/styles.css"
+      },
+      "packages/workspace/review/src/use-git-diff.ts": {
+        "path": "packages/workspace/review/lib/use-git-diff.ts",
+        "export": "@workbench/workspace-review"
+      },
+      "packages/workspace/review/src/use-i18n.ts": {
+        "path": "packages/workspace/review/lib/use-i18n.ts",
+        "export": "@workbench/workspace-review"
+      }
+    }
+  },
+  "@workbench/workspace-git-branch": {
+    "root": "packages/workspace/git-branch",
+    "publicEntries": [
+      "packages/workspace/git-branch/src/index.ts",
+      "packages/workspace/git-branch/src/i18n.ts"
+    ],
+    "moves": {
+      "packages/workspace/git-branch/src/extension.ts": {
+        "path": "packages/workspace/git-branch/lib/extension.ts",
+        "export": "@workbench/workspace-git-branch"
+      },
+      "packages/workspace/git-branch/src/git-branch-selector.tsx": {
+        "path": "packages/workspace/git-branch/lib/git-branch-selector.tsx",
+        "export": "@workbench/workspace-git-branch"
+      },
+      "packages/workspace/git-branch/src/git-branch-status-bus.ts": {
+        "path": "packages/workspace/git-branch/lib/git-branch-status-bus.ts",
+        "export": "@workbench/workspace-git-branch"
+      },
+      "packages/workspace/git-branch/src/git-graph-dialog.tsx": {
+        "path": "packages/workspace/git-branch/lib/git-graph-dialog.tsx",
+        "export": "@workbench/workspace-git-branch"
+      },
+      "packages/workspace/git-branch/src/git-graph-layout.ts": {
+        "path": "packages/workspace/git-branch/lib/git-graph-layout.ts",
+        "export": "@workbench/workspace-git-branch"
+      },
+      "packages/workspace/git-branch/src/i18n/en-US.ts": {
+        "path": "packages/workspace/git-branch/lib/i18n/en-US.ts",
+        "export": "@workbench/workspace-git-branch"
+      },
+      "packages/workspace/git-branch/src/i18n/zh-CN.ts": {
+        "path": "packages/workspace/git-branch/lib/i18n/zh-CN.ts",
+        "export": "@workbench/workspace-git-branch"
+      },
+      "packages/workspace/git-branch/src/i18n.ts": {
+        "path": "packages/workspace/git-branch/lib/i18n.ts",
+        "export": "@workbench/workspace-git-branch/i18n"
+      },
+      "packages/workspace/git-branch/src/index.ts": {
+        "path": "packages/workspace/git-branch/lib/index.ts",
+        "export": "@workbench/workspace-git-branch"
+      },
+      "packages/workspace/git-branch/src/use-i18n.ts": {
+        "path": "packages/workspace/git-branch/lib/use-i18n.ts",
+        "export": "@workbench/workspace-git-branch"
+      }
+    }
+  },
+  "@workbench/workspace-browser": {
+    "root": "packages/workspace/browser",
+    "publicEntries": [
+      "packages/workspace/browser/src/index.ts",
+      "packages/workspace/browser/src/browser-session-service.ts",
+      "packages/workspace/browser/src/browser-viewport.css",
+      "packages/workspace/browser/src/i18n.ts"
+    ],
+    "moves": {
+      "packages/workspace/browser/src/browser-address-bar.tsx": {
+        "path": "packages/workspace/browser/lib/browser-address-bar.tsx",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/browser-annotation-layer.tsx": {
+        "path": "packages/workspace/browser/lib/browser-annotation-layer.tsx",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/browser-control-indicator.tsx": {
+        "path": "packages/workspace/browser/lib/browser-control-indicator.tsx",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/browser-device-toolbar.tsx": {
+        "path": "packages/workspace/browser/lib/browser-device-toolbar.tsx",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/browser-downloads-dialog.tsx": {
+        "path": "packages/workspace/browser/lib/browser-downloads-dialog.tsx",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/browser-events-overlay.tsx": {
+        "path": "packages/workspace/browser/lib/browser-events-overlay.tsx",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/browser-file-opener.tsx": {
+        "path": "packages/workspace/browser/lib/browser-file-opener.tsx",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/browser-files.ts": {
+        "path": "packages/workspace/browser/lib/browser-files.ts",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/browser-menu-item.tsx": {
+        "path": "packages/workspace/browser/lib/browser-menu-item.tsx",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/browser-runtime-bridge.tsx": {
+        "path": "packages/workspace/browser/lib/browser-runtime-bridge.tsx",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/browser-session-service.ts": {
+        "path": "packages/workspace/browser/lib/browser-session-service.ts",
+        "export": "@workbench/workspace-browser/service"
+      },
+      "packages/workspace/browser/src/browser-settings.tsx": {
+        "path": "packages/workspace/browser/lib/browser-settings.tsx",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/browser-surface.tsx": {
+        "path": "packages/workspace/browser/lib/browser-surface.tsx",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/browser-viewport.css": {
+        "path": "packages/workspace/browser/lib/browser-viewport.css",
+        "export": "@workbench/workspace-browser/styles.css"
+      },
+      "packages/workspace/browser/src/browser-viewport.tsx": {
+        "path": "packages/workspace/browser/lib/browser-viewport.tsx",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/extension.ts": {
+        "path": "packages/workspace/browser/lib/extension.ts",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/i18n/en-US.ts": {
+        "path": "packages/workspace/browser/lib/i18n/en-US.ts",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/i18n/zh-CN.ts": {
+        "path": "packages/workspace/browser/lib/i18n/zh-CN.ts",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/i18n.ts": {
+        "path": "packages/workspace/browser/lib/i18n.ts",
+        "export": "@workbench/workspace-browser/i18n"
+      },
+      "packages/workspace/browser/src/index.ts": {
+        "path": "packages/workspace/browser/lib/index.ts",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/memory-browser-session-service.ts": {
+        "path": "packages/workspace/browser/lib/memory-browser-session-service.ts",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/remote-browser-session-service.ts": {
+        "path": "packages/workspace/browser/lib/remote-browser-session-service.ts",
+        "export": "@workbench/workspace-browser"
+      },
+      "packages/workspace/browser/src/use-i18n.ts": {
+        "path": "packages/workspace/browser/lib/use-i18n.ts",
+        "export": "@workbench/workspace-browser"
+      }
+    }
+  },
+  "@workbench/composer": {
+    "root": "packages/conversation/composer",
+    "publicEntries": [
+      "packages/conversation/composer/src/index.ts",
+      "packages/conversation/composer/src/composer-document.ts",
+      "packages/conversation/composer/src/composer-directive.tsx",
+      "packages/conversation/composer/src/tokens.ts",
+      "packages/conversation/composer/src/composer-command-arguments.tsx",
+      "packages/conversation/composer/src/agent-command.ts",
+      "packages/conversation/composer/src/attachments.ts",
+      "packages/conversation/composer/src/composer-panel-styles.ts",
+      "packages/conversation/composer/src/i18n.ts",
+      "packages/conversation/composer/src/use-i18n.ts",
+      "packages/conversation/composer/src/composer-icons.css",
+      "packages/conversation/composer/src/composer.css",
+      "packages/conversation/composer/src/styles.css"
+    ],
+    "moves": {
+      "packages/conversation/composer/src/agent-command.ts": {
+        "path": "packages/conversation/composer/lib/agent-command.ts",
+        "export": "@workbench/composer/commands"
+      },
+      "packages/conversation/composer/src/attachments.ts": {
+        "path": "packages/conversation/composer/lib/attachments.ts",
+        "export": "@workbench/composer/attachments"
+      },
+      "packages/conversation/composer/src/composer-attachments.tsx": {
+        "path": "packages/conversation/composer/lib/composer-attachments.tsx",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-command-argument-hint.ts": {
+        "path": "packages/conversation/composer/lib/composer-command-argument-hint.ts",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-command-arguments.tsx": {
+        "path": "packages/conversation/composer/lib/composer-command-arguments.tsx",
+        "export": "@workbench/composer/arguments"
+      },
+      "packages/conversation/composer/src/composer-command-group-order.ts": {
+        "path": "packages/conversation/composer/lib/composer-command-group-order.ts",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-command-icon-color.ts": {
+        "path": "packages/conversation/composer/lib/composer-command-icon-color.ts",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-command-parameter-panel.tsx": {
+        "path": "packages/conversation/composer/lib/composer-command-parameter-panel.tsx",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-command-parameters.ts": {
+        "path": "packages/conversation/composer/lib/composer-command-parameters.ts",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-controls.tsx": {
+        "path": "packages/conversation/composer/lib/composer-controls.tsx",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-directive.tsx": {
+        "path": "packages/conversation/composer/lib/composer-directive.tsx",
+        "export": "@workbench/composer/directives"
+      },
+      "packages/conversation/composer/src/composer-document.ts": {
+        "path": "packages/conversation/composer/lib/composer-document.ts",
+        "export": "@workbench/composer/document"
+      },
+      "packages/conversation/composer/src/composer-history-keyboard-plugin.tsx": {
+        "path": "packages/conversation/composer/lib/composer-history-keyboard-plugin.tsx",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-icons.css": {
+        "path": "packages/conversation/composer/lib/composer-icons.css",
+        "export": "@workbench/composer/icons.css"
+      },
+      "packages/conversation/composer/src/composer-image-paste.ts": {
+        "path": "packages/conversation/composer/lib/composer-image-paste.ts",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-input-history.ts": {
+        "path": "packages/conversation/composer/lib/composer-input-history.ts",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-link-icons.tsx": {
+        "path": "packages/conversation/composer/lib/composer-link-icons.tsx",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-markdown-detection.ts": {
+        "path": "packages/conversation/composer/lib/composer-markdown-detection.ts",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-panel-styles.ts": {
+        "path": "packages/conversation/composer/lib/composer-panel-styles.ts",
+        "export": "@workbench/composer/panels"
+      },
+      "packages/conversation/composer/src/composer-submit.ts": {
+        "path": "packages/conversation/composer/lib/composer-submit.ts",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-text-paste.ts": {
+        "path": "packages/conversation/composer/lib/composer-text-paste.ts",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-token-icon.tsx": {
+        "path": "packages/conversation/composer/lib/composer-token-icon.tsx",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer-trigger-engine.ts": {
+        "path": "packages/conversation/composer/lib/composer-trigger-engine.ts",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/composer.css": {
+        "path": "packages/conversation/composer/lib/composer.css",
+        "export": "@workbench/composer/surface.css"
+      },
+      "packages/conversation/composer/src/i18n/en-US.ts": {
+        "path": "packages/conversation/composer/lib/i18n/en-US.ts",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/i18n/zh-CN.ts": {
+        "path": "packages/conversation/composer/lib/i18n/zh-CN.ts",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/i18n.ts": {
+        "path": "packages/conversation/composer/lib/i18n.ts",
+        "export": "@workbench/composer/i18n"
+      },
+      "packages/conversation/composer/src/index.ts": {
+        "path": "packages/conversation/composer/lib/index.ts",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/legacy-pi-compat.ts": {
+        "path": "packages/conversation/composer/lib/legacy-pi-compat.ts",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/markdown-composer-input.tsx": {
+        "path": "packages/conversation/composer/lib/markdown-composer-input.tsx",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/pasted-text-attachment-preview.tsx": {
+        "path": "packages/conversation/composer/lib/pasted-text-attachment-preview.tsx",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/styles.css": {
+        "path": "packages/conversation/composer/lib/styles.css",
+        "export": "@workbench/composer/styles.css"
+      },
+      "packages/conversation/composer/src/tokens.ts": {
+        "path": "packages/conversation/composer/lib/tokens.ts",
+        "export": "@workbench/composer/tokens"
+      },
+      "packages/conversation/composer/src/use-i18n.ts": {
+        "path": "packages/conversation/composer/lib/use-i18n.ts",
+        "export": "@workbench/composer/translations"
+      },
+      "packages/conversation/composer/src/workbench-composer-view.tsx": {
+        "path": "packages/conversation/composer/lib/workbench-composer-view.tsx",
+        "export": "@workbench/composer"
+      },
+      "packages/conversation/composer/src/workbench-composer.tsx": {
+        "path": "packages/conversation/composer/lib/workbench-composer.tsx",
+        "export": "@workbench/composer"
+      }
+    }
+  }
+}

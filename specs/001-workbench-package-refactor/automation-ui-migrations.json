@@ -1,0 +1,70 @@
+{
+  "packages/workbench/shell/src/extensions/builtin/automation/automation/automation-home.tsx": {
+    "path": "packages/client/automation-ui/src/automation-home.tsx",
+    "export": "@workbench/automation-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/automation/automation/automation-invalid-focus.ts": {
+    "path": "packages/client/automation-ui/lib/automation-invalid-focus.ts",
+    "export": "@workbench/automation-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/automation/automation/automation-save-error.ts": {
+    "path": "packages/client/automation-ui/lib/automation-save-error.ts",
+    "export": "@workbench/automation-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/automation/automation/automation-schedule.ts": {
+    "path": "packages/client/automation-ui/lib/automation-schedule.ts",
+    "export": "@workbench/automation-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/automation/automation/automation-task-form.tsx": {
+    "path": "packages/client/automation-ui/src/automation-task-form.tsx",
+    "export": "@workbench/automation-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/automation/automation/automation-task-presets.ts": {
+    "path": "packages/client/automation-ui/src/automation-task-presets.ts",
+    "export": "@workbench/automation-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/automation/automation-extension.tsx": {
+    "path": "packages/client/automation-ui/src/automation-extension.tsx",
+    "export": "@workbench/automation-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/automation/automation-main-view-content.tsx": {
+    "path": "packages/client/automation-ui/src/automation-main-view-content.tsx",
+    "export": "@workbench/automation-ui/surface"
+  },
+  "packages/workbench/shell/src/extensions/builtin/automation/automation-main-view.ts": {
+    "path": "packages/client/automation-ui/src/automation-main-view.ts",
+    "export": "@workbench/automation-ui/request"
+  },
+  "packages/workbench/shell/src/extensions/builtin/automation/automation-sidebar.tsx": {
+    "path": "packages/client/automation-ui/src/automation-sidebar.tsx",
+    "export": "@workbench/automation-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/automation/index.ts": {
+    "path": "packages/client/automation-ui/src/index.ts",
+    "export": "@workbench/automation-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/automation/project-trust-dialog-copy.ts": {
+    "path": "packages/client/automation-ui/lib/project-trust-dialog-copy.ts",
+    "export": "@workbench/automation-ui"
+  },
+  "packages/workbench/shell/src/extensions/builtin/automation/use-automation-trust-admission.ts": {
+    "path": "packages/client/automation-ui/src/use-automation-trust-admission.ts",
+    "export": "@workbench/automation-ui"
+  },
+  "packages/workbench/shell/src/extensions/runtime-entries.tsx": {
+    "path": "packages/client/automation-ui/lib/runtime-entries.tsx",
+    "export": "@workbench/automation-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-automation-automation-automation-invalid-focus.test.ts": {
+    "path": "packages/client/automation-ui/tests/automation-invalid-focus.test.ts",
+    "export": "@workbench/automation-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-automation-automation-automation-save-error.test.ts": {
+    "path": "packages/client/automation-ui/tests/automation-save-error.test.ts",
+    "export": "@workbench/automation-ui"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-automation-automation-automation-schedule.test.ts": {
+    "path": "packages/client/automation-ui/tests/automation-schedule.test.ts",
+    "export": "@workbench/automation-ui"
+  }
+}

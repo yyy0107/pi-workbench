@@ -1,3 +1,4 @@
+import { isRecord, isJsonValue, shortString, stringList } from "../lib/values";
 import { stat } from "node:fs/promises";
 
 import { isLocale } from "@workbench/contracts/locale";
@@ -32,37 +33,12 @@ type WorkbenchSettingsPreferencesListener = (preferences: WorkbenchSettingsPrefe
 
 const preferenceListenersByStateFile = new Map<string, Set<WorkbenchSettingsPreferencesListener>>();
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isJsonValue(value: unknown, depth = 0): value is WorkbenchSettingsJsonValue {
-  if (depth > 32) return false;
-  if (
-    value === null ||
-    typeof value === "boolean" ||
-    typeof value === "string" ||
-    (typeof value === "number" && Number.isFinite(value))
-  ) {
-    return true;
-  }
-  if (Array.isArray(value)) return value.every((item) => isJsonValue(item, depth + 1));
-  return isRecord(value) && Object.values(value).every((item) => isJsonValue(item, depth + 1));
-}
-
 function jsonRecord(value: unknown, field: string, maximumBytes: number) {
   if (!isRecord(value) || !isJsonValue(value)) throw new TypeError(`${field} must be JSON data`);
   if (Buffer.byteLength(JSON.stringify(value), "utf8") > maximumBytes) {
     throw new TypeError(`${field} is too large`);
   }
   return value as Record<string, WorkbenchSettingsJsonValue>;
-}
-
-function shortString(value: unknown, field: string, maximumLength: number): string {
-  if (typeof value !== "string" || !value.trim() || value.length > maximumLength) {
-    throw new TypeError(`${field} is invalid`);
-  }
-  return value;
 }
 
 function backgroundImage(value: unknown): WorkbenchBackgroundImagePreference {
@@ -78,12 +54,6 @@ function backgroundImage(value: unknown): WorkbenchBackgroundImagePreference {
     throw new TypeError("backgroundImage.data is too large");
   }
   return { name, mimeType, data };
-}
-
-function stringList(value: unknown, field: string): string[] {
-  if (!Array.isArray(value) || value.length > 1_000) throw new TypeError(`${field} is invalid`);
-  const items = value.map((item) => shortString(item, field, 512));
-  return [...new Set(items)];
 }
 
 function sidebarThreadOrderByScope(value: unknown): Record<string, string[]> {

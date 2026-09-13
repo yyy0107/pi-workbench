@@ -200,9 +200,11 @@ For package verification from the repository root:
 
 ```bash
 pnpm --filter @workbench/browser-server typecheck
-pnpm exec node --import ./scripts/register-typescript-test-loader.mjs --test packages/server/browser/test/browser.test.ts
+pnpm exec node --import ./scripts/register-typescript-test-loader.mjs --test packages/server/browser/tests/browser.test.ts
 ```
 
 The integration test launches an isolated temporary Chrome profile and a local HTTP fixture.
 It skips the Chrome test when no executable is installed; the full WebMCP coverage requires a
 current browser with the APIs described above.
+
+Source layout: src owns this capability and its contracts; lib contains consumed internal helpers; tests live at the package root. Example consumer: `src/index.ts` imports `lib/pointer-motion.ts`. Capability and helper code remains TS/TSX; existing build tooling retains its language.

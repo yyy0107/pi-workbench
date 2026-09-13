@@ -1,9 +1,9 @@
 import type { ElementType, ReactNode } from "react";
 import { XIcon } from "lucide-react";
 
-import { TooltipIconButton } from "../ui/tooltip-icon-button";
+import { TooltipIconButton } from "@workbench/ui";
 import { useI18n } from "../i18n";
-import { cn } from "../utils";
+import { cn } from "@workbench/ui/utils";
 
 export interface PanelHeaderProps {
   title: ReactNode;

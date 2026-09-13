@@ -1,0 +1,45 @@
+{
+  "name": "@workbench/automation-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./request": "./src/automation-main-view.ts",
+    "./surface": "./src/automation-main-view-content.tsx",
+    "./i18n": "./src/i18n.ts",
+    "./sidebar": "./src/automation-sidebar.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-controls": "workspace:*",
+    "@workbench/agent-runtime-client": "workspace:*",
+    "@workbench/automation-contracts": "workspace:*",
+    "@workbench/contracts": "workspace:*",
+    "@workbench/extension-host": "workspace:*",
+    "@workbench/extension-sdk": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/shell-context": "workspace:*",
+    "@workbench/ui": "workspace:*",
+    "@workbench/workspace-directory-picker": "workspace:*",
+    "cronstrue": "^3.24.0",
+    "lucide-react": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@workbench/ui-testkit": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

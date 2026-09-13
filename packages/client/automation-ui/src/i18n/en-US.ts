@@ -1,0 +1,290 @@
+import type { MessageFormatters } from "@workbench/i18n/runtime";
+export const messages = {
+  extensions: {
+    automations: {
+      title: "Automations",
+      breadcrumb: {
+        newTask: "New task",
+        editor: "Edit",
+      },
+      sidebar: {
+        region: "Automation navigation",
+        retry: "Retry",
+      },
+      trust: {
+        question: "Trust this automation workspace?",
+        description:
+          "Trusting allows Pi to run this automation in the selected workspace. Only trust workspaces you created or reviewed.",
+        securityDecision: "Automation workspace trust",
+        accept: "Trust workspace",
+        decline: "Do not trust",
+        saving: "Saving…",
+        cancel: "Cancel automation workspace trust",
+        saveError: "Unable to save the workspace trust decision.",
+        selectError: "Unable to select this automation workspace.",
+      },
+      automationHome: {
+        title: "Automation",
+        description:
+          "Create scheduled tasks, control when they run, and review every result in one place.",
+        tasksLabel: "Automation tasks",
+        loading: "Loading tasks…",
+        loadFailed: "Tasks could not be loaded.",
+        empty: "No tasks yet",
+        emptyDescription:
+          "Create a task with a schedule and instructions. Once saved, it runs automatically on schedule.",
+        myAutomations: "My tasks",
+        newAutomation: "New task",
+        history: "History",
+        edit: "Edit",
+        editScheduledTask: "Edit scheduled task",
+        runNow: "Run now",
+        pause: "Pause",
+        enable: "Enable",
+        delete: "Delete",
+        deleting: "Deleting…",
+        starting: "Starting…",
+        updatingStatus: "Updating task status…",
+        moreActions: ({ name }: { name: string }) => `More actions for ${name}`,
+        noNextRun: "No upcoming run",
+        nextRun: ({ time }: { time: string }) => `Next run: ${time}`,
+        nextRunRelative: ({ time }: { time: string }) => `Next run ${time}`,
+        scheduleAt: ({ recurrence, time }: { recurrence: string; time: string }) =>
+          `${recurrence} at ${time}`,
+        customSchedule: ({ cron }: { cron: string }) => `Cron: ${cron}`,
+        scheduleWithNextRun: ({ schedule, nextRun }: { schedule: string; nextRun: string }) =>
+          `${schedule} · ${nextRun}`,
+        paused: "Paused",
+        runCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `${number(count)} ${count === 1 ? "run" : "runs"}`,
+        neverRun: "Never run",
+        lastRun: ({ status, time }: { status: string; time: string }) =>
+          `Last run: ${status} · ${time}`,
+        publishBeforeRun: "Open and save this task before running or enabling it.",
+        noTriggerToEnable: ({ name }: { name: string }) => `${name} has no schedule to enable.`,
+        runStarted: ({ name }: { name: string }) => `${name} started.`,
+        alreadyRunning: ({ name }: { name: string }) => `${name} is already running.`,
+        runFailed: ({ name }: { name: string }) => `${name} could not be started.`,
+        enabledFeedback: ({ name }: { name: string }) => `${name} is enabled.`,
+        disabledFeedback: ({ name }: { name: string }) => `${name} is paused.`,
+        toggleFailed: ({ name }: { name: string }) => `${name} could not be updated.`,
+        deletedFeedback: ({ name }: { name: string }) => `${name} was deleted.`,
+        deleteFailed: ({ name }: { name: string }) => `${name} could not be deleted.`,
+        toggleAutomation: ({ name }: { name: string }) => `Enable or disable ${name}`,
+        createScheduled: "Create scheduled task",
+        createIdle: "Create idle task",
+        createBlank: "Start with a blank scheduled task",
+        moreCreateOptions: "More ways to create",
+        createInConversation: "Create in a conversation",
+        createFailed: "The task could not be created.",
+        keepAwake: "Keep the computer awake while Workbench runs tasks.",
+        wakeLockUnavailable: "This environment cannot keep the computer awake.",
+        idleTemplates: "Idle task templates",
+        scheduledTemplates: "Scheduled task templates",
+        earliestSlot: "Earliest available slot",
+        weekdayMorning: "Weekdays at 09:00",
+        dailyMorning: "Daily at 10:00",
+        fridayAfternoon: "Fridays at 16:00",
+        wednesdayAfternoon: "Wednesdays at 15:00",
+        enabled: "Enabled",
+        disabled: "Disabled",
+        runStatus: {
+          queued: "Queued",
+          running: "Running",
+          waitingForApproval: "Waiting for approval",
+          succeeded: "Succeeded",
+          failed: "Failed",
+          cancelled: "Cancelled",
+          interrupted: "Interrupted",
+        },
+        noTriggers: "No triggers configured",
+        triggerSummary: (
+          { enabled, total }: { enabled: number; total: number },
+          { number }: MessageFormatters,
+        ) => `${number(enabled)}/${number(total)} triggers enabled`,
+        templates: {
+          gitStandup: {
+            name: "Git stand-up summary",
+            description:
+              "Summarize this week's Git activity for Friday stand-up, including important commits, merged PRs, and key changes.",
+            commandName: "Collect Git activity",
+            nodeName: "Write stand-up summary",
+            prompt:
+              "Use the Git activity from the previous step to write a concise stand-up summary. Highlight important commits, merged PRs, key changes, risks, and next steps.",
+          },
+          ciFailureReport: {
+            name: "CI failures and flaky tests",
+            description:
+              "Scan recent CI runs, list failures and flaky tests with likely causes, and recommend fixes by impact.",
+            nodeName: "Analyze CI runs",
+            prompt:
+              "Inspect recent CI runs for this project. Identify failures and flaky tests, analyze likely causes and impact, then recommend fixes in priority order.",
+          },
+          docsSync: {
+            name: "Documentation sync check",
+            description:
+              "Check whether README, docs, configuration notes, and usage examples are stale or inconsistent with the implementation.",
+            nodeName: "Check documentation sync",
+            prompt:
+              "Compare the current code and recent commits with README, docs, configuration notes, and usage examples. Find stale or inconsistent documentation, and only modify issues confirmed by the code.",
+          },
+          morningBriefing: {
+            name: "Morning briefing",
+            description:
+              "Summarize commits, module changes, CI status, and follow-ups since the previous workday in no more than six items.",
+            nodeName: "Create morning briefing",
+            prompt:
+              "Summarize commits, module changes, CI status, and follow-up items since the previous workday in no more than six stand-up-ready items. Analyze only; do not modify files.",
+            triggerName: "Weekday morning briefing",
+          },
+          riskScan: {
+            name: "Risk scan",
+            description:
+              "Inspect code changes from the last 24 hours for runtime errors, data loss, permission bypasses, resource leaks, and cross-platform risk.",
+            nodeName: "Scan change risk",
+            prompt:
+              "Inspect code changes from the last 24 hours for runtime errors, data loss, permission bypasses, resource leaks, and cross-platform compatibility risks. Include evidence and remediation priority.",
+            triggerName: "Daily risk scan",
+          },
+        },
+      },
+      automationTask: {
+        title: "New scheduled task",
+        editTitle: "Edit scheduled task",
+        description: "Configure the task's run time, instructions, and execution mode.",
+        editDescription: "Adjust this task's run time, instructions, and execution mode.",
+        draftHint: "Once saved, the task runs on its configured schedule.",
+        editHint: "Review the task configuration, then save your changes.",
+        tabsLabel: "Scheduled task page",
+        settings: "Settings",
+        history: "History",
+        historyEmpty: "Run history will appear here after the task is created.",
+        historyLoadFailed: "The run history could not be loaded.",
+        historyColumns: {
+          triggeredAt: "Trigger time",
+          source: "Source",
+          status: "Status",
+          duration: "Duration",
+          actions: "Actions",
+        },
+        runSource: {
+          manual: "Manual",
+          schedule: "Scheduled",
+          event: "Event",
+          replay: "Replay",
+        },
+        runStatus: {
+          running: "Running",
+          succeeded: "Succeeded",
+          unavailable: "Unavailable",
+        },
+        runActions: ({ time }: { time: string }) => `Actions for the run triggered at ${time}`,
+        goToConversation: "Go to conversation",
+        deleteRun: "Delete",
+        deleteActiveRunUnavailable: "A run in progress cannot be deleted.",
+        deleteRunTitle: "Delete this run?",
+        deleteRunDescription:
+          "This removes the run from this task's history. The linked conversation will remain available.",
+        cancelDeleteRun: "Cancel",
+        confirmDeleteRun: "Delete",
+        deletingRun: "Deleting…",
+        deleteRunFailed: "The run could not be deleted. Try again.",
+        deleteRunSucceeded: ({ time }: { time: string }) =>
+          `The run triggered at ${time} was removed from history.`,
+        status: "Status",
+        statusRunning: "Running",
+        statusPaused: "Paused",
+        moreActions: "More task actions",
+        create: "Create scheduled task",
+        creating: "Creating…",
+        createFailed: "The task could not be created.",
+        save: "Save",
+        saving: "Saving…",
+        saved: "Changes saved.",
+        saveFailed: "The task could not be saved.",
+        saveConflict: "This task changed elsewhere. Reload it before saving again.",
+        invalidConfiguration: "The task configuration is invalid. Check the fields and try again.",
+        scheduleInvalid: "The schedule is invalid. Check the Cron expression and timezone.",
+        loading: "Loading task…",
+        loadFailed: "The task could not be loaded.",
+        taskTitle: "Task title",
+        untitledTask: "Untitled task",
+        taskTitlePlaceholder: "For example: Morning briefing",
+        taskTitleRequired: "Enter a task title.",
+        schedule: "Schedule",
+        at: "at",
+        time: "Run time",
+        timeLabel: ({ time }: { time: string }) => `Run time: ${time}`,
+        hour: "Hour",
+        minute: "Minute",
+        timeRequired: "Select a valid run time.",
+        customCron: "Cron",
+        customCronPlaceholder: "For example: 0 9 * * 1-5",
+        customCronRequired: "Enter a Cron expression.",
+        removeSchedule: "Remove schedule",
+        addSchedule: "Add plan",
+        scheduleRequired: "A scheduled task needs at least one schedule.",
+        maxRunDuration: "Maximum run time",
+        maxRunDurationPlaceholder: "Unlimited",
+        minutes: "minutes",
+        maxRunDurationHint: "Leave blank to allow the task to run without a time limit.",
+        maxRunDurationInvalid: ({ max }: { max: number }, { number }: MessageFormatters) =>
+          `Enter a whole number from 1 to ${number(max)}, or leave the field blank.`,
+        scheduleSummary: ({
+          timezone,
+          recurrence,
+          time,
+        }: {
+          timezone: string;
+          recurrence: string;
+          time: string;
+        }) => `${timezone} · ${recurrence} at ${time}`,
+        scheduleSummaryWithoutTime: ({
+          timezone,
+          recurrence,
+        }: {
+          timezone: string;
+          recurrence: string;
+        }) => `${timezone} · ${recurrence}`,
+        customScheduleSummary: ({
+          timezone,
+          description,
+        }: {
+          timezone: string;
+          description: string;
+        }) => `${timezone} · ${description}`,
+        customScheduleFallback: ({ timezone, cron }: { timezone: string; cron: string }) =>
+          `${timezone} · Cron: ${cron}`,
+        frequency: {
+          hourly: "Every hour",
+          daily: "Every day",
+          weekdays: "Every weekday",
+          weekly: "Every week",
+          monthly: "Every month",
+          custom: "Custom",
+        },
+        frequencySummary: {
+          hourly: "Every hour on the hour",
+          daily: "Every day",
+          weekdays: "Every weekday",
+          weekly: "Every Monday",
+          monthly: "On the first day of every month",
+          custom: "Custom",
+        },
+        instructions: "Instructions",
+        instructionsPlaceholder: "Describe the work, available context, and expected output.",
+        instructionsRequired: "Enter task instructions.",
+        workspace: "Workspace",
+        noWorkspace: "No workspace available",
+        workspaceRequired: "Select a trusted workspace.",
+        model: "Model",
+        defaultModel: "Runtime default model",
+        loadingModels: "Loading models…",
+        modelsUnavailable: "The model catalog is unavailable. The runtime default will be used.",
+        thinkingLevel: "Reasoning effort",
+        thinkingOff: "Off",
+        triggerName: ({ title }: { title: string }) => `${title} schedule`,
+      },
+    },
+  },
+};

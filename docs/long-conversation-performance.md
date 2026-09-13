@@ -101,16 +101,16 @@ node scripts/serve-conversation-benchmark.mjs --serve
 ```bash
 pnpm --filter @workbench/agent-runtime-client --filter @workbench/agent-runtime-pi-client --filter @workbench/shell typecheck
 node --import ./scripts/register-typescript-test-loader.mjs --test \
-  packages/agent-runtime/core/client/test/conversation-node-selection.test.ts \
-  packages/agent-runtime/runtimes/pi/client/test/conversation/conversation-assembler.test.ts \
-  packages/agent-runtime/runtimes/pi/client/test/runtime/manager-generation.test.ts \
-  packages/workbench/shell/test/conversation-node-subscription.test.tsx \
-  packages/workbench/shell/src/chat/workbench-conversation-viewport.test.ts \
-  packages/workbench/shell/src/chat/message-action-visibility.test.ts \
-  packages/workbench/shell/src/chat/workbench-message-error.test.ts \
-  packages/workbench/shell/src/chat/markdown/markdown-text.test.tsx \
-  packages/workbench/shell/src/thread-scroll-state.test.tsx \
-  packages/workbench/shell/src/elements/use-disclosure-scroll-lock.test.tsx
+  packages/agent-runtime/client/tests/conversation-node-selection.test.ts \
+  packages/pi/client/tests/conversation/conversation-assembler.test.ts \
+  packages/pi/client/tests/runtime/manager-generation.test.ts \
+  packages/workbench/shell/tests/conversation-node-subscription.test.tsx \
+  packages/conversation/conversation/tests/workbench-conversation-viewport.test.ts \
+  packages/conversation/conversation/tests/message-action-visibility.test.ts \
+  packages/conversation/conversation/tests/workbench-message-error.test.ts \
+  packages/workbench/shell/tests/chat/markdown-markdown-text.test.tsx \
+  packages/conversation/conversation/tests/thread-scroll-state.test.tsx \
+  packages/client/ui/tests/use-disclosure-scroll-lock.test.tsx
 ```
 
 ## 选择式订阅 API

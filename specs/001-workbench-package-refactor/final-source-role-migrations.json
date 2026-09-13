@@ -1,0 +1,54 @@
+{
+  "packages/agent-runtime/runtime/src/notifier.ts": {
+    "path": "packages/agent-runtime/runtime/lib/notifier.ts",
+    "export": "@workbench/agent-runtime-core/notifier"
+  },
+  "packages/extension-platform/sdk/src/registries/registry-utils.ts": {
+    "path": "packages/extension-platform/sdk/lib/registry-utils.ts",
+    "export": "@workbench/extension-sdk/registry-utils"
+  },
+  "packages/host/artifact-policy/src/filesystem.cjs": {
+    "path": "packages/host/artifact-policy/lib/filesystem.cjs",
+    "export": "@workbench/host-artifact-policy/filesystem"
+  },
+  "packages/host/server/src/runtime-transport-auth.ts": {
+    "path": "packages/host/server/lib/runtime-transport-auth.ts",
+    "export": "@workbench/host-server/runtime-transport-auth"
+  },
+  "packages/pi/client/src/runtime/fork-title.ts": {
+    "path": "packages/pi/client/lib/fork-title.ts",
+    "export": "@workbench/agent-runtime-pi-client/fork-title"
+  },
+  "packages/pi/shared/src/prompt-template.ts": {
+    "path": "packages/pi/shared/lib/prompt-template.ts",
+    "export": "@workbench/agent-runtime-pi-shared/prompt-template"
+  },
+  "packages/server/browser/src/pointer-motion.ts": {
+    "path": "packages/server/browser/lib/pointer-motion.ts",
+    "export": "@workbench/browser-server/pointer-motion"
+  },
+  "packages/server/core/src/child-process-environment.ts": {
+    "path": "packages/server/core/lib/child-process-environment.ts",
+    "export": "@workbench/server-core/child-process-environment"
+  },
+  "packages/server/local-host/src/local-apps/process.ts": {
+    "path": "packages/server/local-host/lib/process.ts",
+    "export": "@workbench/local-host-server/process"
+  },
+  "packages/terminal/client/src/terminal-socket-url.ts": {
+    "path": "packages/terminal/client/lib/terminal-socket-url.ts",
+    "export": "@workbench/terminal-client/terminal-socket-url"
+  },
+  "packages/terminal/server/src/terminal-transcript-projector.ts": {
+    "path": "packages/terminal/server/lib/terminal-transcript-projector.ts",
+    "export": "@workbench/terminal-server/terminal-transcript-projector"
+  },
+  "packages/workbench/host-contracts/src/control-ndjson.ts": {
+    "path": "packages/workbench/host-contracts/lib/control-ndjson.ts",
+    "export": "@workbench/host-contracts/control-ndjson"
+  },
+  "packages/workbench/shell/src/sidebar/thread-sort.ts": {
+    "path": "packages/workbench/shell/lib/thread-sort.ts",
+    "export": "@workbench/shell/thread-sort"
+  }
+}

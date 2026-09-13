@@ -39,6 +39,9 @@ export function checkWorkbenchStyleScope() {
     const clone = button.cloneNode(false);
     clone.removeAttribute("id");
     clone.removeAttribute("style");
+    for (const name of [...clone.classList])
+      if (name.startsWith("aui-icon-profile-")) clone.classList.remove(name);
+    clone.classList.add("aui-icon-profile-md");
     clone.classList.add(...className.split(" ").filter(Boolean));
     const svg = button.querySelector("svg").cloneNode(true);
     svg.removeAttribute("id");
@@ -117,10 +120,10 @@ export function checkWorkbenchStyleScope() {
     expect(height(a.footer), 28, "Shell statusbar height");
     expect(height(a.row), 31.5, "Sidebar row height");
     expect(height(a.trigger), height(a.row), "Sidebar click target follows background");
-    expect(parseFloat(getComputedStyle(a.group).rowGap), 2, "Sidebar list gap");
-    expect(iconSize(a.sidebarButton), 16, "Sidebar icon default");
-    expect(iconSize(a.messageButton), 16, "Message action icon default");
-    expect(height(a.messageButton), 32, "Message action frame default");
+    expect(parseFloat(getComputedStyle(a.group).rowGap), 1, "Sidebar list gap");
+    expect(iconSize(a.sidebarButton), 14, "Sidebar icon default");
+    expect(iconSize(a.messageButton), 14, "Message action icon default");
+    expect(height(a.messageButton), 24, "Message action frame default");
     expect(height(a.primaryButton), 32, "Composer primary frame default");
     equal(token(a.root, "--sidebar-row-height"), "", "No sidebar geometry at Shell root");
     equal(token(a.header, "--composer-radius"), "", "No Composer geometry in header");
@@ -135,18 +138,18 @@ export function checkWorkbenchStyleScope() {
     expect(height(a.trigger), 45, "Sidebar trigger override");
     expect(iconSize(a.sidebarButton), 20, "Sidebar action icon override");
     expect(iconSize(a.headerButton), 16, "Sidebar override does not reach header");
-    expect(iconSize(a.messageButton), 16, "Sidebar override does not reach conversation");
+    expect(iconSize(a.messageButton), 14, "Sidebar override does not reach conversation");
     expect(height(b.row), 31.5, "Second Shell keeps its sidebar height");
-    a.conversation.style.setProperty("--thread-icon-size", "18px");
+    a.conversation.style.setProperty("--chat-icon-size", "18px");
     expect(iconSize(a.messageButton), 18, "Conversation icon override");
-    a.messageActions.style.setProperty("--message-action-icon-size", "22px");
+    a.messageActions.style.setProperty("--chat-icon-size", "22px");
     expect(iconSize(a.messageButton), 22, "Message action override");
     expect(iconSize(a.sidebarButton), 20, "Message override does not reach sidebar");
-    expect(iconSize(b.messageButton), 16, "Second Shell keeps its message icon");
-    a.composer.style.setProperty("--composer-primary-icon-size", "20px");
+    expect(iconSize(b.messageButton), 14, "Second Shell keeps its message icon");
+    a.primaryButton.style.setProperty("--button-icon-size", "20px");
     expect(iconSize(a.primaryButton), 20, "Composer primary icon override");
-    a.primaryButton.querySelector("svg").classList.add("aui-composer-stop-icon");
-    expect(iconSize(a.primaryButton), 12, "Stop glyph retains its own size");
+    a.primaryButton.style.removeProperty("--button-icon-size");
+    expect(iconSize(a.primaryButton), 18, "Composer primary glyph restores the large icon token");
     for (const [preset, radius] of Object.entries({
       default: 24,
       square: 0,
@@ -219,7 +222,7 @@ export function checkWorkbenchStyleScope() {
       width: innerWidth,
       dpr: devicePixelRatio,
       rowHeight: 31.5,
-      listGap: 2,
+      listGap: 1,
       checks:
         "area and installation isolation, control sizes, Portal radii, scrollbar theme, discrete resize motion",
     };

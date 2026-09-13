@@ -18,10 +18,13 @@ test("the Runtime application owns the one installed Pi service graph", async ()
   assert.match(source, /createPiRuntimeHttpRouter/);
   assert.match(source, /const commands = new CommandService\(\)/);
   assert.match(source, /createPiAgentServerImplementation\(\{ commands, host \}\)/);
-  assert.match(source, /const routeGroups = createDefaultPiRpcRouteGroups\(\{/);
+  assert.match(source, /const routeGroups = \[/);
   assert.match(source, /const handleRpcPost = createPiRpcRouter\(\{/);
-  assert.match(source, /handleHttpRequest: createInstalledPiRuntimeHttpHandler\(handleRpcPost\)/);
-  assert.match(source, /return createPiRuntimeHttpRouter\(\{/);
+  assert.match(
+    source,
+    /handleHttpRequest: createInstalledPiRuntimeHttpHandler\(\s*handleRpcPost,\s*handleWorkspaceFileContentRequest,\s*createLocalFileContentHandler\(localFiles\)/,
+  );
+  assert.match(source, /createPiRuntimeHttpRouter\(\{/);
 
   assert.equal(count(source, /new CommandService\(\)/g), 1);
   assert.equal(count(source, /createPiAgentServerImplementation\(/g), 1);

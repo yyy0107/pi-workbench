@@ -1,0 +1,38 @@
+{
+  "packages/pi/contributions/src/running-indicator/pi-running-indicator.tsx": {
+    "path": "packages/pi/status-ui/src/pi-running-indicator.tsx",
+    "export": "@workbench/pi-status-ui/running-indicator"
+  },
+  "packages/pi/contributions/tests/running-indicator/pi-running-indicator.test.ts": {
+    "path": "packages/pi/status-ui/tests/pi-running-indicator.test.ts",
+    "export": "@workbench/pi-status-ui"
+  },
+  "packages/pi/contributions/src/extensions/about/about-settings-item.tsx": {
+    "path": "packages/pi/status-ui/src/about-settings-item.tsx",
+    "export": "@workbench/pi-status-ui"
+  },
+  "packages/pi/contributions/src/extensions/about/extension.ts": {
+    "path": "packages/pi/status-ui/src/about-extension.ts",
+    "export": "@workbench/pi-status-ui"
+  },
+  "packages/pi/contributions/src/extensions/about/index.ts": {
+    "path": "packages/pi/status-ui/src/about-index.ts",
+    "export": "@workbench/pi-status-ui"
+  },
+  "packages/pi/contributions/src/extensions/connection-status/connection-status.tsx": {
+    "path": "packages/pi/status-ui/src/connection-status.tsx",
+    "export": "@workbench/pi-status-ui"
+  },
+  "packages/pi/contributions/src/extensions/connection-status/extension.ts": {
+    "path": "packages/pi/status-ui/src/connection-status-extension.ts",
+    "export": "@workbench/pi-status-ui"
+  },
+  "packages/pi/contributions/src/extensions/connection-status/index.ts": {
+    "path": "packages/pi/status-ui/src/connection-status-index.ts",
+    "export": "@workbench/pi-status-ui"
+  },
+  "packages/pi/contributions/src/extensions/connection-status/pi-version.tsx": {
+    "path": "packages/pi/status-ui/src/pi-version.tsx",
+    "export": "@workbench/pi-status-ui"
+  }
+}

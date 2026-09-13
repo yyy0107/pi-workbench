@@ -1,0 +1,67 @@
+import { createPiSessionRegistry } from "@workbench/pi-session-server/registry";
+import { getStreamHub } from "../streams/stream-hub";
+import { getWorkspaceStore } from "../workspaces/workspace-registry";
+import { getPiAgentHostBindings } from "../agent-runtime/pi-agent-host-bindings";
+import { ensureWorkbenchBuiltinResources } from "../resource-composition/builtin-resources";
+import {
+  createWorkbenchInternalPiExtensions,
+  prepareWorkbenchPiExtensions,
+} from "../tool-composition";
+const registry = createPiSessionRegistry({
+  getPublisher: getStreamHub,
+  getWorkspaceStore,
+  getHostBindings: getPiAgentHostBindings,
+  ensureBuiltinResources: ensureWorkbenchBuiltinResources,
+  createExtensions: createWorkbenchInternalPiExtensions,
+  prepareExtensions: prepareWorkbenchPiExtensions,
+});
+export const {
+  notifyModelProviderConfigurationChanged,
+  compactAssistantMessageUpdate,
+  validateWorkbenchComposerCommands,
+  resolveWorkbenchComposerCommands,
+  sessionModifiedAt,
+  messagesHaveImages,
+  textOnlyModelContext,
+  createDetachedSessionFork,
+  getOrStartSession,
+  getScratchSessionRecord,
+  getScratchSessionSummary,
+  createScratchSession,
+  releaseScratchSession,
+  promoteScratchSession,
+  createSession,
+  forkSession,
+  registerImportedSessionManager,
+  listSessions,
+  listSessionSearchText,
+  listSessionFiles,
+  listModels,
+  getSessionHistory,
+  getSessionEvents,
+  getSessionEventBranches,
+  getSessionResumeState,
+  regenerateSession,
+  resumeSession,
+  selectSessionBranch,
+  renameSession,
+  deleteSession,
+  sendPrompt,
+  cancelSession,
+  selectSessionModel,
+  getSessionContextPolicy,
+  updateSessionContextPolicy,
+  compactSessionContext,
+  queuePrompt,
+  submitPrompt,
+  replacePromptQueue,
+  setPromptQueuePaused,
+  steerQueuedPrompt,
+  updatePromptQueueItem,
+  getRunningSessionIds,
+  getLoadedSessions,
+  getAttachedSessionCount,
+  subscribeRunningSessions,
+  resolvePiReviewSnapshots,
+} = registry;
+export * from "@workbench/pi-session-server/registry";

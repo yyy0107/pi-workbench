@@ -8,14 +8,6 @@ const LAYOUT_PROPERTIES = new Set([
   "--thread-content-inline-gutter",
 ]);
 
-export function isWorkbenchLayoutMoving(shell: HTMLElement | null | undefined): boolean {
-  return (
-    shell?.dataset.layoutAnimating === "true" ||
-    shell?.dataset.resizing === "true" ||
-    shell?.dataset.windowResizing === "true"
-  );
-}
-
 /** Share actual transition lifetime; do not guess animation durations with a timer. */
 export function observeLayoutMotion(shell: HTMLElement): () => void {
   const active = new Map<HTMLElement, Map<string, object>>();

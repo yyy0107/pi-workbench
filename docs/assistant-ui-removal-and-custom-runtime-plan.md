@@ -1,5 +1,7 @@
 # Workbench 移除 assistant-ui 与自有会话 Runtime 迁移计划
 
+> 当前目录说明：本文保留当时的迁移步骤和验证记录。当前包布局以 [能力包映射](../specs/001-workbench-package-refactor/package-map.md) 为准；Pi 能力位于 `packages/pi/*`，公共界面位于 `packages/client/*`，对话与工作区分别位于 `packages/conversation/*`、`packages/workspace/*`。
+
 状态：Phase 1–9 已完成；浏览器 Runtime 迁移与 durable chunk 协议均已收口（2026-09-03）
 
 后续的 [Workbench/Pi 边界重构](./agent-runtime-pi-implementation-refactor-plan.md) 已将 Pi 实现迁入
@@ -41,8 +43,8 @@ Conversation Node、稳定快照和 selector 订阅设计，实现 Workbench 自
 相关参考：
 
 - [DeepSeek Harness API 设计参考](./deepseekharness-api-design.md)
-- `packages/agent-runtime/core/client/README.md`
-- `packages/agent-runtime/runtimes/pi/README.md`
+- `packages/agent-runtime/client/README.md`
+- `packages/pi/README.md`
 - DeepSeek Harness 本地参考仓库：`/home/wy/projects/deepseek-harness`
 
 ## 2. 当前基线
@@ -190,7 +192,7 @@ apps/
 新增：
 
 ```text
-packages/agent-runtime/core/runtime
+packages/agent-runtime/runtime
 ```
 
 建议 package 名：
@@ -434,7 +436,7 @@ tool:  tool:call_abc123
 ### 8.2 目标内部结构
 
 ```text
-packages/agent-runtime/runtimes/pi/client/src/
+packages/pi/client/src/
 |- runtime/
 |  |- manager.ts                 # catalog、selection、session cache
 |  |- session.ts                 # 单 Session 状态和动作
@@ -558,7 +560,7 @@ reducer 和 Headless Runtime history/live 拼接路径。
 
 ## 10. React 绑定
 
-React 绑定继续位于 `packages/agent-runtime/core/client`。该 package 从 assistant-ui 接入层转为
+React 绑定继续位于 `packages/agent-runtime/client`。该 package 从 assistant-ui 接入层转为
 Workbench Headless Runtime 的 React 接入层。
 
 目标目录：
@@ -746,7 +748,7 @@ export interface ToolRendererProps {
 - renderer 覆盖 running、complete、incomplete、requires-action 和 error；
 - renderer 只呈现，不因注册自动定义或执行工具；
 - Pi 专属 Terminal、Context Trace、Approval 等贡献继续位于
-  `packages/agent-runtime/runtimes/pi/contributions`；
+  `packages/pi/contributions`；
 - Extension SDK 只依赖 Workbench contracts，不依赖 Pi Client。
 
 ## 13. assistant-ui 概念映射
@@ -1205,7 +1207,7 @@ Browser/E2E 只用于静态和组件测试无法确认的高风险交互，例�
 hooks，并把同一个 Pi manager/session 同时接入新旧 UI 边界；Phase 4 已完成 4A–4D，下一步迁移
 Phase 5 的 Composer、附件和消息 Actions。
 
-1. 新建 `packages/agent-runtime/core/runtime`；
+1. 新建 `packages/agent-runtime/runtime`；
 2. 定义最小 `HostObservable`、`Notifier`、`AgentRuntime` 和 `ConversationSession`；
 3. 在 `core/contracts` 增加最小 Conversation Node/Block/Snapshot 类型；
 4. 为 `core/testkit` 增加 Fake Session；

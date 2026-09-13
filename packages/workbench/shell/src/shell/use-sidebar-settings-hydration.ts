@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from "react";
 
-import type { WorkbenchSettingsPort } from "../settings";
+import type { WorkbenchSettingsPort } from "@workbench/settings-runtime";
 
 const LEGACY_SIDEBAR_COOKIE_NAME = "sidebar_state";
 

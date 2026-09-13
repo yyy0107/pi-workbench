@@ -1,0 +1,3632 @@
+[
+  {
+    "directory": "packages/agent-runtime/client",
+    "name": "@workbench/agent-runtime-client",
+    "purpose": "agent-runtime/client",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      },
+      "./environment": {
+        "types": "./src/environment/ports.ts",
+        "import": "./src/environment/ports.ts",
+        "default": "./src/environment/ports.ts"
+      },
+      "./context": {
+        "types": "./src/environment/context.tsx",
+        "import": "./src/environment/context.tsx",
+        "default": "./src/environment/context.tsx"
+      },
+      "./capabilities": {
+        "types": "./src/environment/capabilities.ts",
+        "import": "./src/environment/capabilities.ts",
+        "default": "./src/environment/capabilities.ts"
+      },
+      "./installation": {
+        "types": "./src/environment/installation.tsx",
+        "import": "./src/environment/installation.tsx",
+        "default": "./src/environment/installation.tsx"
+      },
+      "./message-statistics": {
+        "types": "./src/conversation/statistics.ts",
+        "import": "./src/conversation/statistics.ts",
+        "default": "./src/conversation/statistics.ts"
+      },
+      "./message-presentation-metadata": {
+        "types": "./src/conversation/presentation-metadata.ts",
+        "import": "./src/conversation/presentation-metadata.ts",
+        "default": "./src/conversation/presentation-metadata.ts"
+      },
+      "./prompt-feedback": {
+        "types": "./src/conversation/prompt-feedback.ts",
+        "import": "./src/conversation/prompt-feedback.ts",
+        "default": "./src/conversation/prompt-feedback.ts"
+      },
+      "./workspaces": {
+        "types": "./src/workspace/selection.tsx",
+        "import": "./src/workspace/selection.tsx",
+        "default": "./src/workspace/selection.tsx"
+      }
+    },
+    "src": [
+      "src/browser/composer-attachment.ts",
+      "src/browser/storage.ts",
+      "src/conversation/presentation-metadata.ts",
+      "src/conversation/prompt-feedback.ts",
+      "src/conversation/statistics.ts",
+      "src/conversation/thread-list-reload.ts",
+      "src/conversation/tool-events.ts",
+      "src/environment/capabilities.ts",
+      "src/environment/context.tsx",
+      "src/environment/installation.tsx",
+      "src/environment/ports.ts",
+      "src/index.ts",
+      "src/runtime/context.tsx",
+      "src/runtime/hooks.ts",
+      "src/runtime/node-selection.ts",
+      "src/runtime/provider.tsx",
+      "src/runtime/session-provider.tsx",
+      "src/runtime/snapshot-selector.ts",
+      "src/workspace/selection.tsx"
+    ],
+    "lib": ["lib/metadata-values.ts"],
+    "tests": [
+      "tests/agent-runtime-installation.test.tsx",
+      "tests/capabilities.test.tsx",
+      "tests/composer-attachment.test.ts",
+      "tests/conversation-node-selection.test.ts",
+      "tests/dependency-boundary.test.ts",
+      "tests/message-presentation-metadata.test.ts",
+      "tests/message-statistics.test.ts",
+      "tests/prompt-feedback.test.ts",
+      "tests/thread-list-reload-coordinator.test.ts",
+      "tests/workspaces.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/agent-runtime/contracts",
+    "name": "@workbench/agent-runtime-contracts",
+    "purpose": "跨运行时的 Agent 描述、命令、对话、附件与消息契约",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      },
+      "./descriptor": {
+        "types": "./src/descriptor.ts",
+        "import": "./src/descriptor.ts",
+        "default": "./src/descriptor.ts"
+      },
+      "./commands": {
+        "types": "./src/commands.ts",
+        "import": "./src/commands.ts",
+        "default": "./src/commands.ts"
+      },
+      "./composer-attachments": {
+        "types": "./src/composer-attachments.ts",
+        "import": "./src/composer-attachments.ts",
+        "default": "./src/composer-attachments.ts"
+      },
+      "./conversation": {
+        "types": "./src/conversation.ts",
+        "import": "./src/conversation.ts",
+        "default": "./src/conversation.ts"
+      },
+      "./message-metadata": {
+        "types": "./src/message-metadata.ts",
+        "import": "./src/message-metadata.ts",
+        "default": "./src/message-metadata.ts"
+      },
+      "./runtime-capabilities": {
+        "types": "./src/runtime-capabilities.ts",
+        "import": "./src/runtime-capabilities.ts",
+        "default": "./src/runtime-capabilities.ts"
+      },
+      "./settings": {
+        "types": "./src/settings.ts",
+        "import": "./src/settings.ts",
+        "default": "./src/settings.ts"
+      }
+    },
+    "src": [
+      "src/commands.ts",
+      "src/composer-attachments.ts",
+      "src/conversation.ts",
+      "src/descriptor.ts",
+      "src/index.ts",
+      "src/message-metadata.ts",
+      "src/runtime-capabilities.ts",
+      "src/settings.ts"
+    ],
+    "lib": ["lib/metadata-values.ts"],
+    "tests": [
+      "tests/descriptor.test.ts",
+      "tests/message-metadata.test.ts",
+      "tests/settings.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/agent-runtime/runtime",
+    "name": "@workbench/agent-runtime-core",
+    "purpose": "Agent Runtime、线程管理与可观察状态",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      },
+      "./notifier": {
+        "types": "./src/notifier.ts",
+        "import": "./src/notifier.ts",
+        "default": "./src/notifier.ts"
+      },
+      "./observable": {
+        "types": "./src/observable.ts",
+        "import": "./src/observable.ts",
+        "default": "./src/observable.ts"
+      },
+      "./runtime": {
+        "types": "./src/runtime.ts",
+        "import": "./src/runtime.ts",
+        "default": "./src/runtime.ts"
+      },
+      "./thread-manager": {
+        "types": "./src/thread-manager.ts",
+        "import": "./src/thread-manager.ts",
+        "default": "./src/thread-manager.ts"
+      }
+    },
+    "src": [
+      "src/index.ts",
+      "src/notifier.ts",
+      "src/observable.ts",
+      "src/runtime.ts",
+      "src/thread-manager.ts"
+    ],
+    "lib": ["lib/notifier.ts"],
+    "tests": ["tests/notifier.test.ts"]
+  },
+  {
+    "directory": "packages/agent-runtime/server",
+    "name": "@workbench/agent-runtime-server",
+    "purpose": "Agent 服务端命令、执行和线程存储端口及稳定错误类型",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      },
+      "./tokens": {
+        "types": "./src/tokens.ts",
+        "import": "./src/tokens.ts",
+        "default": "./src/tokens.ts"
+      },
+      "./commands": {
+        "types": "./src/commands.ts",
+        "import": "./src/commands.ts",
+        "default": "./src/commands.ts"
+      },
+      "./execution": {
+        "types": "./src/execution.ts",
+        "import": "./src/execution.ts",
+        "default": "./src/execution.ts"
+      },
+      "./threads": {
+        "types": "./src/threads.ts",
+        "import": "./src/threads.ts",
+        "default": "./src/threads.ts"
+      },
+      "./adapter": {
+        "types": "./src/adapter.ts",
+        "import": "./src/adapter.ts",
+        "default": "./src/adapter.ts"
+      }
+    },
+    "src": [
+      "src/adapter.ts",
+      "src/commands.ts",
+      "src/execution.ts",
+      "src/index.ts",
+      "src/threads.ts",
+      "src/tokens.ts"
+    ],
+    "lib": ["lib/agent-server-error.ts"],
+    "tests": ["tests/errors.test.ts"]
+  },
+  {
+    "directory": "packages/agent-runtime/testkit",
+    "name": "@workbench/agent-runtime-testkit",
+    "purpose": "可复用的 Agent 适配器契约测试与内存运行时夹具",
+    "exports": {
+      "./server": {
+        "types": "./src/server/index.ts",
+        "import": "./src/server/index.ts",
+        "default": "./src/server/index.ts"
+      },
+      "./runtime": {
+        "types": "./src/runtime/index.ts",
+        "import": "./src/runtime/index.ts",
+        "default": "./src/runtime/index.ts"
+      }
+    },
+    "src": [
+      "src/runtime/fake-agent-runtime.ts",
+      "src/runtime/index.ts",
+      "src/server/agent-server-adapter-contract.ts",
+      "src/server/fixture-agent-server-adapter.ts",
+      "src/server/index.ts"
+    ],
+    "lib": ["lib/mutable-observable.ts"],
+    "tests": [
+      "tests/client/runtime-bindings.test.tsx",
+      "tests/runtime/fake-agent-runtime.test.ts",
+      "tests/server/agent-runtime-adapter.contract.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/client/agent-controls",
+    "name": "@workbench/agent-controls",
+    "purpose": "通用模型选择与上下文用量",
+    "exports": {
+      ".": "./src/index.ts",
+      "./models": "./src/models.ts",
+      "./reasoning": "./src/reasoning.ts",
+      "./model-selector": "./src/model-selector.tsx",
+      "./token-usage": "./src/token-usage.tsx",
+      "./i18n": "./src/i18n.ts",
+      "./translations": "./src/use-i18n.ts"
+    },
+    "src": [
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/model-selector-extension.ts",
+      "src/model-selector-index.ts",
+      "src/model-selector-store.ts",
+      "src/model-selector.tsx",
+      "src/models.ts",
+      "src/reasoning.ts",
+      "src/token-usage-extension.ts",
+      "src/token-usage-index.ts",
+      "src/token-usage-section.tsx",
+      "src/token-usage.tsx",
+      "src/use-i18n.ts"
+    ],
+    "lib": [
+      "lib/model-selector-state.ts",
+      "lib/reasoning-effort-label.ts",
+      "lib/token-animation.ts",
+      "lib/token-throughput.ts"
+    ],
+    "tests": [
+      "tests/model-selector-state.test.ts",
+      "tests/reasoning-effort-label.test.ts",
+      "tests/token-animation.test.ts",
+      "tests/token-throughput.test.ts",
+      "tests/token-usage-section.test.tsx"
+    ]
+  },
+  {
+    "directory": "packages/client/appearance",
+    "name": "@workbench/appearance",
+    "purpose": "外观偏好、主题状态与字体选择",
+    "exports": {
+      ".": "./src/index.ts",
+      "./preferences": "./src/appearance-preferences.ts",
+      "./fonts": "./src/font-families.ts"
+    },
+    "src": [
+      "src/appearance-preferences.ts",
+      "src/appearance-store.ts",
+      "src/font-families.ts",
+      "src/index.ts",
+      "src/system-fonts.tsx"
+    ],
+    "lib": ["lib/legacy-preferences.ts"],
+    "tests": [
+      "tests/appearance-preferences.test.ts",
+      "tests/appearance-store.test.ts",
+      "tests/font-families.test.ts",
+      "tests/system-fonts.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/client/automation-ui",
+    "name": "@workbench/automation-ui",
+    "purpose": "自动化界面与扩展",
+    "exports": {
+      ".": "./src/index.ts",
+      "./request": "./src/automation-main-view.ts",
+      "./surface": "./src/automation-main-view-content.tsx",
+      "./i18n": "./src/i18n.ts",
+      "./sidebar": "./src/automation-sidebar.tsx"
+    },
+    "src": [
+      "src/automation-extension.tsx",
+      "src/automation-home.tsx",
+      "src/automation-main-view-content.tsx",
+      "src/automation-main-view.ts",
+      "src/automation-sidebar.tsx",
+      "src/automation-task-form.tsx",
+      "src/automation-task-presets.ts",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/use-automation-trust-admission.ts",
+      "src/use-i18n.ts"
+    ],
+    "lib": [
+      "lib/automation-invalid-focus.ts",
+      "lib/automation-save-error.ts",
+      "lib/automation-schedule.ts",
+      "lib/project-trust-dialog-copy.ts",
+      "lib/runtime-entries.tsx"
+    ],
+    "tests": [
+      "tests/automation-invalid-focus.test.ts",
+      "tests/automation-save-error.test.ts",
+      "tests/automation-schedule.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/client/code-highlighting",
+    "name": "@workbench/code-highlighting",
+    "purpose": "代码高亮、编辑器、Diff 与代码表面",
+    "exports": {
+      ".": "./src/index.ts",
+      "./engine": "./src/shiki-highlighter.ts",
+      "./header": "./src/codex-code-header.tsx",
+      "./i18n": "./src/i18n.ts",
+      "./styles.css": "./src/styles.css",
+      "./editor.css": "./src/workbench-code-editor.css",
+      "./diff.css": "./src/diff/reviewable-diff.css",
+      "./code-block.css": "./src/code-block.css"
+    },
+    "src": [
+      "src/code-block.css",
+      "src/code-theme-preview.tsx",
+      "src/codex-code-header.tsx",
+      "src/diff/code-diff.tsx",
+      "src/diff/reviewable-diff.css",
+      "src/diff/reviewable-diff.tsx",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/markdown-code-block.tsx",
+      "src/shiki-catalog.ts",
+      "src/shiki-highlighter.ts",
+      "src/styles.css",
+      "src/use-i18n.ts",
+      "src/use-workbench-highlighted-code.tsx",
+      "src/use-workbench-highlighted-lines.ts",
+      "src/workbench-code-block.tsx",
+      "src/workbench-code-editor.css",
+      "src/workbench-code-editor.tsx"
+    ],
+    "lib": [
+      "lib/code-highlight-policy.ts",
+      "lib/diff/range.ts",
+      "lib/diff/unified-patch.ts",
+      "lib/shiki-token-style.ts"
+    ],
+    "tests": [
+      "tests/code-highlight-policy.test.ts",
+      "tests/code-surface.test.tsx",
+      "tests/shiki-catalog.test.ts",
+      "tests/shiki-stream.test.ts",
+      "tests/theme-switch.test.tsx",
+      "tests/unified-patch.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/client/i18n",
+    "name": "@workbench/i18n",
+    "purpose": "通用翻译运行时、controlled Provider、bundle 注册",
+    "exports": {
+      ".": "./src/index.ts",
+      "./runtime": "./src/public-runtime.ts",
+      "./duration": "./src/duration.ts"
+    },
+    "src": [
+      "src/bundle.ts",
+      "src/config.ts",
+      "src/duration.ts",
+      "src/index.ts",
+      "src/provider.tsx",
+      "src/public-runtime.ts",
+      "src/runtime.ts",
+      "src/types.ts"
+    ],
+    "lib": ["lib/catalog-tree.ts"],
+    "tests": ["tests/format-duration.test.ts", "tests/provider.test.tsx", "tests/runtime.test.ts"]
+  },
+  {
+    "directory": "packages/client/markdown",
+    "name": "@workbench/markdown",
+    "purpose": "Markdown、公式、Mermaid、预览和可注入的文件链接",
+    "exports": {
+      ".": "./src/index.ts",
+      "./render": "./src/markdown-text.tsx",
+      "./links": "./src/link-adapter.tsx",
+      "./website-icon": "./src/website-icon.ts",
+      "./i18n": "./src/i18n.ts",
+      "./styles.css": "./src/styles.css"
+    },
+    "src": [
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/incremental-markdown.ts",
+      "src/index.ts",
+      "src/inline-citation.tsx",
+      "src/lazy-markdown-text.tsx",
+      "src/link-adapter.tsx",
+      "src/markdown-link-icons.tsx",
+      "src/markdown-pipeline.ts",
+      "src/markdown-preview.tsx",
+      "src/markdown-reveal.tsx",
+      "src/markdown-text.tsx",
+      "src/markdown-types.ts",
+      "src/markdown.css",
+      "src/mermaid-code.tsx",
+      "src/styles.css",
+      "src/use-i18n.ts",
+      "src/website-icon.ts",
+      "src/workbench-markdown.tsx"
+    ],
+    "lib": ["lib/inline-citation-markers.ts", "lib/markdown-normalize.ts"],
+    "tests": [
+      "tests/incremental-markdown.test.ts",
+      "tests/inline-citation-markers.test.ts",
+      "tests/link-adapter.test.tsx",
+      "tests/link-installation.test.tsx",
+      "tests/markdown-reveal.test.tsx",
+      "tests/website-icon.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/client/settings-runtime",
+    "name": "@workbench/settings-runtime",
+    "purpose": "设置 Context、资源生命周期",
+    "exports": {
+      ".": "./src/index.tsx",
+      "./conversation-preferences": "./src/conversation-preferences.ts",
+      "./tool-capability-preferences": "./src/tool-capability-preferences.ts"
+    },
+    "src": [
+      "src/conversation-preferences.ts",
+      "src/index.tsx",
+      "src/tool-capability-preferences.ts"
+    ],
+    "lib": ["lib/dispose-resources.ts"],
+    "tests": ["tests/conversation-preferences.test.ts", "tests/provider.test.tsx"]
+  },
+  {
+    "directory": "packages/client/settings-ui",
+    "name": "@workbench/settings-ui",
+    "purpose": "设置/外观/语言界面",
+    "exports": {
+      ".": "./src/index.ts",
+      "./request": "./src/settings-main-view.ts",
+      "./i18n": "./src/i18n.ts",
+      "./surface": "./src/settings-main-view-content.tsx",
+      "./sidebar": "./src/settings-sidebar.tsx",
+      "./sidebar-rail": "./src/settings-sidebar-rail.tsx",
+      "./background-image": "./src/background-image-store.ts",
+      "./background": "./src/appearance-background.tsx",
+      "./styles.css": "./src/appearance-background.css"
+    },
+    "src": [
+      "src/appearance-background.css",
+      "src/appearance-background.tsx",
+      "src/appearance-extension.ts",
+      "src/appearance-index.ts",
+      "src/appearance-reset-action.tsx",
+      "src/appearance-settings-item.tsx",
+      "src/background-image-store.ts",
+      "src/conversation-settings-item.tsx",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/locale-selector-extension.ts",
+      "src/locale-selector-index.ts",
+      "src/locale-selector.tsx",
+      "src/settings-command.ts",
+      "src/settings-extension.ts",
+      "src/settings-index.ts",
+      "src/settings-main-view-content.tsx",
+      "src/settings-main-view.ts",
+      "src/settings-sidebar-rail.tsx",
+      "src/settings-sidebar.tsx",
+      "src/settings-trigger.tsx",
+      "src/use-i18n.ts"
+    ],
+    "lib": ["lib/appearance-settings-pages.ts", "lib/locale-display-name.ts"],
+    "tests": [
+      "tests/appearance-background.test.ts",
+      "tests/appearance-settings-pages.test.ts",
+      "tests/background-image-store.test.ts",
+      "tests/locale-display-name.test.ts",
+      "tests/settings-sidebar.test.tsx"
+    ]
+  },
+  {
+    "directory": "packages/client/shell-context",
+    "name": "@workbench/shell-context",
+    "purpose": "安装级 DOM、导航、布局、展示与 Runtime 连接 Context",
+    "exports": {
+      ".": "./src/index.ts",
+      "./dom": "./src/dom.tsx",
+      "./navigation": "./src/navigation.tsx",
+      "./presentation": "./src/presentation.tsx",
+      "./runtime-connection": "./src/runtime-connection.ts",
+      "./layout": "./src/layout.tsx",
+      "./layout-motion": "./src/layout-motion.ts",
+      "./running-indicator": "./src/running-indicator.tsx",
+      "./panel-store": "./src/panel-store.ts",
+      "./navigation-policy": "./src/navigation-policy.ts"
+    },
+    "src": [
+      "src/dom.tsx",
+      "src/index.ts",
+      "src/layout/new-thread-layout.tsx",
+      "src/layout-motion.ts",
+      "src/layout.tsx",
+      "src/navigation-policy.ts",
+      "src/navigation.tsx",
+      "src/panel-store.ts",
+      "src/presentation.tsx",
+      "src/running-indicator.tsx",
+      "src/runtime-connection/runtime-connection-provider.tsx",
+      "src/runtime-connection/runtime-connection.ts",
+      "src/runtime-connection.ts"
+    ],
+    "lib": ["lib/layout/thread-content-width.ts", "lib/workbench-shell-owner.ts"],
+    "tests": [
+      "tests/dom.test.tsx",
+      "tests/new-thread-policy.test.ts",
+      "tests/panel-store.test.ts",
+      "tests/running-indicator.test.ts",
+      "tests/runtime-connection.test.ts",
+      "tests/thread-content-width.test.ts",
+      "tests/workbench-shell-owner.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/client/terminal-ui",
+    "name": "@workbench/terminal-ui",
+    "purpose": "终端 Surface、Command、Renderer",
+    "exports": {
+      ".": "./src/index.ts",
+      "./service": "./src/terminal-workspace-service.ts",
+      "./commands": "./src/open-terminal-command.ts",
+      "./target": "./src/terminal-target.ts",
+      "./surface": "./src/terminal-surface.tsx",
+      "./renderer": "./src/bash-tool-renderer.tsx",
+      "./disclosure": "./src/bash-tool-disclosure-controller.tsx",
+      "./i18n": "./src/i18n.ts"
+    },
+    "src": [
+      "src/bash-tool-disclosure-controller.tsx",
+      "src/bash-tool-renderer.tsx",
+      "src/extension.ts",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/open-terminal-command.ts",
+      "src/terminal-command-opener.ts",
+      "src/terminal-menu-item.tsx",
+      "src/terminal-runtime-bridge.tsx",
+      "src/terminal-surface-loader.ts",
+      "src/terminal-surface.module.css",
+      "src/terminal-surface.tsx",
+      "src/terminal-target.ts",
+      "src/terminal-trigger.tsx",
+      "src/terminal-workspace-service.ts",
+      "src/use-i18n.ts",
+      "src/use-terminal-tool-call.ts",
+      "src/use-tool-terminal-ready.ts"
+    ],
+    "lib": [
+      "lib/terminal-resize-observer.ts",
+      "lib/terminal-tool-status.ts",
+      "lib/terminal-tool-transcript.ts"
+    ],
+    "tests": [
+      "tests/terminal-command-opener.test.ts",
+      "tests/terminal-resize-observer.test.ts",
+      "tests/terminal-theme-owner.test.ts",
+      "tests/terminal-tool-status.test.ts",
+      "tests/terminal-tool-transcript.test.ts",
+      "tests/terminal-workspace-service.test.ts",
+      "tests/use-terminal-tool-call.test.tsx"
+    ]
+  },
+  {
+    "directory": "packages/client/ui",
+    "name": "@workbench/ui",
+    "purpose": "基础控件、Portal、语义 token",
+    "exports": {
+      ".": "./src/index.ts",
+      "./utils": "./src/utils.ts",
+      "./clipboard": "./src/clipboard.ts",
+      "./keyboard": "./src/keyboard-shortcut-owner.ts",
+      "./hooks": "./src/hooks/index.ts",
+      "./resize": "./src/resize.ts",
+      "./disclosure": "./src/disclosure.ts",
+      "./i18n": "./src/i18n.ts",
+      "./styles.css": "./src/styles.css",
+      "./tokens.css": "./src/tokens.css",
+      "./components.css": "./src/components.css",
+      "./proportional-panel.css": "./src/resize/proportional-panel.css",
+      "./running-indicator": "./src/components/running-thread-indicator.tsx"
+    },
+    "src": [
+      "src/clipboard.ts",
+      "src/components/avatar.tsx",
+      "src/components/button.tsx",
+      "src/components/collapsible-resize-handle.tsx",
+      "src/components/collapsible.tsx",
+      "src/components/color-picker.css",
+      "src/components/color-picker.tsx",
+      "src/components/command.tsx",
+      "src/components/context-menu.tsx",
+      "src/components/control-icons.css",
+      "src/components/dialog.tsx",
+      "src/components/dropdown-menu.tsx",
+      "src/components/index.ts",
+      "src/components/input-group.tsx",
+      "src/components/input.tsx",
+      "src/components/menu-styles.ts",
+      "src/components/model-selector.tsx",
+      "src/components/path-ellipsis.tsx",
+      "src/components/popover.tsx",
+      "src/components/progress.tsx",
+      "src/components/project-trust-dialog.tsx",
+      "src/components/running-thread-indicator.tsx",
+      "src/components/runtime-capability-unavailable.tsx",
+      "src/components/searchable-selector.tsx",
+      "src/components/select.tsx",
+      "src/components/selector-dropdown.tsx",
+      "src/components/settings-control.tsx",
+      "src/components/settings-layout.tsx",
+      "src/components/sheet.tsx",
+      "src/components/sidebar-items.css",
+      "src/components/sidebar-items.tsx",
+      "src/components/sidebar.tsx",
+      "src/components/skeleton.tsx",
+      "src/components/status-badge.tsx",
+      "src/components/surface.tsx",
+      "src/components/switch.tsx",
+      "src/components/tabs.tsx",
+      "src/components/textarea.tsx",
+      "src/components/time-picker.tsx",
+      "src/components/toast.tsx",
+      "src/components/tooltip-icon-button.tsx",
+      "src/components/tooltip.tsx",
+      "src/components/workbench-portal-container.tsx",
+      "src/components/workspace-selector.tsx",
+      "src/components.css",
+      "src/disclosure/disclosure-scroll-direction.tsx",
+      "src/disclosure/scroll-compensated-details.tsx",
+      "src/disclosure/use-disclosure-scroll-lock.ts",
+      "src/disclosure.ts",
+      "src/hooks/index.ts",
+      "src/hooks/use-clipboard-copy.ts",
+      "src/hooks/use-media-query.ts",
+      "src/hooks/use-mobile.ts",
+      "src/hooks/use-reduced-motion.ts",
+      "src/hooks/use-sidebar-pointer-reorder.tsx",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/keyboard-shortcut-owner.ts",
+      "src/resize/proportional-panel.css",
+      "src/resize/use-collapsible-resize.ts",
+      "src/resize/use-proportional-panel-size.ts",
+      "src/resize.ts",
+      "src/styles.css",
+      "src/styles.d.ts",
+      "src/tokens.css",
+      "src/utils.ts"
+    ],
+    "lib": [
+      "lib/clipboard.ts",
+      "lib/components/model-selector-models.ts",
+      "lib/disclosure/disclosure-scroll-policy.ts",
+      "lib/keyboard-shortcut-owner.ts",
+      "lib/resize/observe-resize-handle.ts",
+      "lib/resize/proportional-panel-size.ts",
+      "lib/resize/resize-spring.ts",
+      "lib/utils.ts"
+    ],
+    "tests": [
+      "tests/clipboard.test.ts",
+      "tests/disclosure-scroll-policy.test.ts",
+      "tests/keyboard-shortcut-owner.test.ts",
+      "tests/menu-presentation.test.ts",
+      "tests/resize/observe-resize-handle.test.ts",
+      "tests/resize/resize-spring.test.ts",
+      "tests/resize/use-collapsible-resize.test.ts",
+      "tests/ui/button.test.tsx",
+      "tests/ui/color-picker.test.ts",
+      "tests/ui/model-selector-models.test.ts",
+      "tests/ui/model-selector.test.tsx",
+      "tests/ui/path-ellipsis.test.tsx",
+      "tests/ui/selector-dropdown.test.tsx",
+      "tests/ui/shared-foundations.test.tsx",
+      "tests/ui/sidebar-items.test.tsx",
+      "tests/ui/surface.test.tsx",
+      "tests/ui/toast.test.tsx",
+      "tests/ui/tooltip.test.tsx",
+      "tests/ui/workspace-selector.test.tsx",
+      "tests/use-disclosure-scroll-lock.test.tsx"
+    ]
+  },
+  {
+    "directory": "packages/contracts/automation",
+    "name": "@workbench/automation-contracts",
+    "purpose": "自动化持久化数据与调度输入契约",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      }
+    },
+    "src": ["src/index.ts"],
+    "lib": ["lib/validation.ts"],
+    "tests": ["tests/origin.test.ts"]
+  },
+  {
+    "directory": "packages/contracts/browser",
+    "name": "@workbench/browser-contracts",
+    "purpose": "浏览器命令、权限、事件与设置的公共协议及输入验证",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      }
+    },
+    "src": ["src/index.ts"],
+    "lib": ["lib/validation.ts"],
+    "tests": ["tests/command-validation.test.ts"]
+  },
+  {
+    "directory": "packages/contracts/core",
+    "name": "@workbench/contracts",
+    "purpose": "共享 Composer 文档、语言与模型选择契约",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      },
+      "./composer": {
+        "types": "./src/composer.ts",
+        "import": "./src/composer.ts",
+        "default": "./src/composer.ts"
+      },
+      "./composer/request": {
+        "types": "./src/composer/request.ts",
+        "import": "./src/composer/request.ts",
+        "default": "./src/composer/request.ts"
+      },
+      "./locale": {
+        "types": "./src/locale.ts",
+        "import": "./src/locale.ts",
+        "default": "./src/locale.ts"
+      },
+      "./model-selection": {
+        "types": "./src/model-selection.ts",
+        "import": "./src/model-selection.ts",
+        "default": "./src/model-selection.ts"
+      }
+    },
+    "src": [
+      "src/composer/request.ts",
+      "src/composer.ts",
+      "src/index.ts",
+      "src/locale.ts",
+      "src/model-selection.ts"
+    ],
+    "lib": ["lib/validation.ts"],
+    "tests": [
+      "tests/composer-request.test.ts",
+      "tests/composer.test.ts",
+      "tests/dependency-boundary.test.ts",
+      "tests/locale.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/conversation/composer",
+    "name": "@workbench/composer",
+    "purpose": "输入器、命令、附件与提交",
+    "exports": {
+      ".": "./src/index.ts",
+      "./document": "./src/composer-document.ts",
+      "./directives": "./src/composer-directive.tsx",
+      "./tokens": "./src/tokens.ts",
+      "./arguments": "./src/composer-command-arguments.tsx",
+      "./commands": "./src/agent-command.ts",
+      "./attachments": "./src/attachments.ts",
+      "./panels": "./src/composer-panel-styles.ts",
+      "./i18n": "./src/i18n.ts",
+      "./translations": "./src/use-i18n.ts",
+      "./icons.css": "./src/composer-icons.css",
+      "./surface.css": "./src/composer.css",
+      "./styles.css": "./src/styles.css"
+    },
+    "src": [
+      "src/agent-command.ts",
+      "src/attachments.ts",
+      "src/composer-attachments.tsx",
+      "src/composer-command-arguments.tsx",
+      "src/composer-command-parameter-panel.tsx",
+      "src/composer-command-parameters.ts",
+      "src/composer-controls.tsx",
+      "src/composer-directive.tsx",
+      "src/composer-document.ts",
+      "src/composer-history-keyboard-plugin.tsx",
+      "src/composer-icons.css",
+      "src/composer-link-icons.tsx",
+      "src/composer-panel-styles.ts",
+      "src/composer-submit.ts",
+      "src/composer-token-icon.tsx",
+      "src/composer-trigger-engine.ts",
+      "src/composer.css",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/markdown-composer-input.tsx",
+      "src/pasted-text-attachment-preview.tsx",
+      "src/styles.css",
+      "src/tokens.ts",
+      "src/use-i18n.ts",
+      "src/workbench-composer-view.tsx",
+      "src/workbench-composer.tsx"
+    ],
+    "lib": [
+      "lib/agent-command.ts",
+      "lib/composer-command-argument-hint.ts",
+      "lib/composer-command-group-order.ts",
+      "lib/composer-command-icon-color.ts",
+      "lib/composer-image-paste.ts",
+      "lib/composer-input-history.ts",
+      "lib/composer-markdown-detection.ts",
+      "lib/composer-panel-styles.ts",
+      "lib/composer-text-paste.ts",
+      "lib/legacy-pi-compat.ts"
+    ],
+    "tests": [
+      "tests/agent-command.test.ts",
+      "tests/composer-attachments.test.tsx",
+      "tests/composer-command-argument-hint.test.ts",
+      "tests/composer-command-arguments.test.ts",
+      "tests/composer-command-group-order.test.ts",
+      "tests/composer-command-icon-color.test.ts",
+      "tests/composer-command-parameter-panel.test.ts",
+      "tests/composer-document.test.ts",
+      "tests/composer-history-keyboard-plugin.test.ts",
+      "tests/composer-image-paste.test.ts",
+      "tests/composer-input-history.test.ts",
+      "tests/composer-markdown-detection.test.ts",
+      "tests/composer-submit.test.ts",
+      "tests/composer-text-paste.test.ts",
+      "tests/composer-token-icon.test.tsx",
+      "tests/composer-trigger-engine.test.ts",
+      "tests/workbench-composer-boundary.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/conversation/conversation",
+    "name": "@workbench/conversation",
+    "purpose": "消息列表、流式/滚动、消息操作、队列、交互",
+    "exports": {
+      ".": "./src/index.ts",
+      "./title": "./src/conversation-title.ts",
+      "./scroll-state": "./src/thread-scroll-state.tsx",
+      "./context": "./src/conversation-message-context.tsx",
+      "./elements": "./src/elements/index.ts",
+      "./viewport": "./src/viewport.ts",
+      "./list": "./src/conversation-list.tsx",
+      "./rows": "./src/rows.ts",
+      "./i18n": "./src/i18n.ts",
+      "./translations": "./src/use-i18n.ts",
+      "./styles.css": "./src/conversation.css",
+      "./message-presentation": "./src/message-presentation/index.ts",
+      "./message-actions": "./src/message-actions/index.ts",
+      "./message-queue": "./src/message-queue/index.ts",
+      "./user-message-index": "./src/user-message-index/index.ts",
+      "./todo-panel": "./src/todo-panel/index.ts",
+      "./interactive-requests": "./src/interactive-requests/index.ts",
+      "./side-chat": "./src/side-chat/index.ts",
+      "./archived-chats": "./src/archived-chats/index.ts",
+      "./user-message-index.css": "./src/user-message-index/user-message-index.css"
+    },
+    "src": [
+      "src/archived-chats/archived-chats-settings-item.tsx",
+      "src/archived-chats/extension.ts",
+      "src/archived-chats/index.ts",
+      "src/chat-icons.css",
+      "src/completed-turn-content.tsx",
+      "src/completed-turn-header.tsx",
+      "src/composer-command-response.tsx",
+      "src/composer-message-text.tsx",
+      "src/conversation-layout.tsx",
+      "src/conversation-list.tsx",
+      "src/conversation-message-context.tsx",
+      "src/conversation-title.ts",
+      "src/conversation.css",
+      "src/elements/conversation-separator.tsx",
+      "src/elements/error-state.tsx",
+      "src/elements/index.ts",
+      "src/elements/message-pair.tsx",
+      "src/elements/reasoning-panel.tsx",
+      "src/elements/streaming-text.tsx",
+      "src/elements/terminal-block.tsx",
+      "src/elements/tool-call.tsx",
+      "src/elements/typing-indicator.tsx",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/interactive-requests/ask-user-panel.tsx",
+      "src/interactive-requests/ask-user-preferences.ts",
+      "src/interactive-requests/ask-user-recommended-mark.tsx",
+      "src/interactive-requests/ask-user-tool-renderer.tsx",
+      "src/interactive-requests/extension.ts",
+      "src/interactive-requests/index.ts",
+      "src/interactive-requests/interactive-requests-overlay.tsx",
+      "src/message-actions/extension.ts",
+      "src/message-actions/index.ts",
+      "src/message-actions/message-actions.tsx",
+      "src/message-actions.tsx",
+      "src/message-parts.tsx",
+      "src/message-presentation/completed-turn-panel.tsx",
+      "src/message-presentation/extension.ts",
+      "src/message-presentation/index.ts",
+      "src/message-presentation/message-disclosure-context.tsx",
+      "src/message-presentation/message-presentation.tsx",
+      "src/message-presentation/message-tool-timeline.tsx",
+      "src/message-queue/composer-message-queue.tsx",
+      "src/message-queue/extension.ts",
+      "src/message-queue/index.ts",
+      "src/message-queue/message-queue.css",
+      "src/renderers/file.tsx",
+      "src/renderers/image.css",
+      "src/renderers/image.tsx",
+      "src/renderers/message-blocks.tsx",
+      "src/renderers/message-source.tsx",
+      "src/rows.ts",
+      "src/side-chat/extension.ts",
+      "src/side-chat/index.ts",
+      "src/side-chat/side-chat-header.tsx",
+      "src/side-chat/side-chat-menu-item.tsx",
+      "src/side-chat/side-chat-runtime-bridge.tsx",
+      "src/side-chat/side-chat-surface.tsx",
+      "src/side-chat/side-chat-workspace.ts",
+      "src/steered-turn.tsx",
+      "src/thread-scroll-state.tsx",
+      "src/todo-list.tsx",
+      "src/todo-panel/extension.ts",
+      "src/todo-panel/index.ts",
+      "src/todo-panel/todo-panel.tsx",
+      "src/tool-group.tsx",
+      "src/use-i18n.ts",
+      "src/user-message-index/extension.ts",
+      "src/user-message-index/index.ts",
+      "src/user-message-index/user-message-index.css",
+      "src/user-message-index/user-message-index.tsx",
+      "src/user-message-text-bubble.tsx",
+      "src/viewport.ts",
+      "src/workbench-conversation.tsx",
+      "src/workbench-empty.tsx",
+      "src/workbench-message.tsx",
+      "src/workbench-thread.tsx"
+    ],
+    "lib": [
+      "lib/archived-chats/archived-chat-group-a11y.ts",
+      "lib/completed-turn-model.ts",
+      "lib/interactive-requests/ask-user-tool-model.ts",
+      "lib/interactive-requests/interaction-form-state.ts",
+      "lib/message-action-visibility.ts",
+      "lib/message-actions/fork-availability.ts",
+      "lib/message-actions/message-performance-statistics.ts",
+      "lib/message-actions/message-performance-visibility.ts",
+      "lib/message-presentation/message-citations.ts",
+      "lib/message-presentation/message-presentation-policy.ts",
+      "lib/message-presentation/tool-diff-model.ts",
+      "lib/message-presentation/tool-timeline-model.ts",
+      "lib/message-queue/message-queue-preview.ts",
+      "lib/side-chat/scratch-session-lease.ts",
+      "lib/side-chat/side-chat-navigation.ts",
+      "lib/todo-model.ts",
+      "lib/user-message-index/user-message-index-layout.ts",
+      "lib/workbench-conversation-viewport.ts",
+      "lib/workbench-message-error.ts",
+      "lib/workbench-message-rows.ts",
+      "lib/workbench-thread-timing.ts"
+    ],
+    "tests": [
+      "tests/builtin-archived-chats-archived-chat-group-a11y.test.ts",
+      "tests/builtin-interactive-requests-ask-user-panel.test.tsx",
+      "tests/builtin-interactive-requests-ask-user-preferences.test.ts",
+      "tests/builtin-interactive-requests-ask-user-tool-model.test.ts",
+      "tests/builtin-interactive-requests-ask-user-tool-presentation.test.ts",
+      "tests/builtin-interactive-requests-interaction-form-state.test.ts",
+      "tests/builtin-message-actions-fork-availability.test.ts",
+      "tests/builtin-message-actions-message-performance-statistics.test.ts",
+      "tests/builtin-message-actions-message-performance-visibility.test.ts",
+      "tests/builtin-message-presentation-message-citations.test.ts",
+      "tests/builtin-message-presentation-message-disclosure-context.test.tsx",
+      "tests/builtin-message-presentation-message-presentation-policy.test.ts",
+      "tests/builtin-message-presentation-message-tool-timeline-stall.test.tsx",
+      "tests/builtin-message-presentation-tool-diff-model.test.ts",
+      "tests/builtin-message-presentation-tool-timeline-model.test.ts",
+      "tests/builtin-message-queue-message-queue-preview.test.ts",
+      "tests/builtin-side-chat-scratch-session-lease.test.ts",
+      "tests/builtin-side-chat-side-chat-navigation.test.ts",
+      "tests/builtin-side-chat-side-chat-workspace.test.ts",
+      "tests/builtin-todo-panel-todo-panel.test.tsx",
+      "tests/builtin-user-message-index-user-message-index-layout.test.ts",
+      "tests/completed-turn-model.test.ts",
+      "tests/composer-command-response.test.tsx",
+      "tests/conversation-layout.test.tsx",
+      "tests/conversation-title.test.ts",
+      "tests/i18n-test.tsx",
+      "tests/message-action-visibility.test.ts",
+      "tests/renderers-message-blocks.test.tsx",
+      "tests/streaming-text.test.tsx",
+      "tests/thread-scroll-state.test.tsx",
+      "tests/todo-model.test.ts",
+      "tests/tool-call.test.tsx",
+      "tests/workbench-conversation-viewport.test.ts",
+      "tests/workbench-message-error.test.ts",
+      "tests/workbench-message-rows.test.ts",
+      "tests/workbench-thread-timing.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/extension-platform/host",
+    "name": "@workbench/extension-host",
+    "purpose": "扩展安装、生命周期、服务容器与界面 Host",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      },
+      "./internal": {
+        "types": "./src/internal.ts",
+        "import": "./src/internal.ts",
+        "default": "./src/internal.ts"
+      },
+      "./installation": {
+        "types": "./src/installation.ts",
+        "import": "./src/installation.ts",
+        "default": "./src/installation.ts"
+      },
+      "./services": {
+        "types": "./src/services/index.ts",
+        "import": "./src/services/index.ts",
+        "default": "./src/services/index.ts"
+      },
+      "./command-palette": {
+        "types": "./src/command-palette-store.ts",
+        "import": "./src/command-palette-store.ts",
+        "default": "./src/command-palette-store.ts"
+      },
+      "./i18n/en-US": {
+        "types": "./src/i18n/en-US.ts",
+        "import": "./src/i18n/en-US.ts",
+        "default": "./src/i18n/en-US.ts"
+      },
+      "./i18n/zh-CN": {
+        "types": "./src/i18n/zh-CN.ts",
+        "import": "./src/i18n/zh-CN.ts",
+        "default": "./src/i18n/zh-CN.ts"
+      },
+      "./hosts/extension-error-boundary": {
+        "types": "./src/hosts/extension-error-boundary.tsx",
+        "import": "./src/hosts/extension-error-boundary.tsx",
+        "default": "./src/hosts/extension-error-boundary.tsx"
+      },
+      "./hosts/main-view-host": {
+        "types": "./src/hosts/main-view-host.tsx",
+        "import": "./src/hosts/main-view-host.tsx",
+        "default": "./src/hosts/main-view-host.tsx"
+      },
+      "./hosts/main-view-sidebar-host": {
+        "types": "./src/hosts/main-view-sidebar-host.tsx",
+        "import": "./src/hosts/main-view-sidebar-host.tsx",
+        "default": "./src/hosts/main-view-sidebar-host.tsx"
+      },
+      "./hosts/panel-host": {
+        "types": "./src/hosts/panel-host.tsx",
+        "import": "./src/hosts/panel-host.tsx",
+        "default": "./src/hosts/panel-host.tsx"
+      },
+      "./hosts/renderer-host": {
+        "types": "./src/hosts/renderer-host.tsx",
+        "import": "./src/hosts/renderer-host.tsx",
+        "default": "./src/hosts/renderer-host.tsx"
+      },
+      "./hosts/slot-host": {
+        "types": "./src/hosts/slot-host.tsx",
+        "import": "./src/hosts/slot-host.tsx",
+        "default": "./src/hosts/slot-host.tsx"
+      },
+      "./hosts/sidebar-section-host": {
+        "types": "./src/hosts/sidebar-section-host.tsx",
+        "import": "./src/hosts/sidebar-section-host.tsx",
+        "default": "./src/hosts/sidebar-section-host.tsx"
+      }
+    },
+    "src": [
+      "src/command-palette-store.ts",
+      "src/extension-context.ts",
+      "src/extension-provider.tsx",
+      "src/hosts/extension-error-boundary.tsx",
+      "src/hosts/main-view-host.tsx",
+      "src/hosts/main-view-sidebar-host.tsx",
+      "src/hosts/panel-host.tsx",
+      "src/hosts/renderer-host.tsx",
+      "src/hosts/sidebar-section-host.tsx",
+      "src/hosts/slot-host.tsx",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/index.ts",
+      "src/installation.ts",
+      "src/internal.ts",
+      "src/services/command-service.ts",
+      "src/services/index.ts",
+      "src/services/main-view-service.ts",
+      "src/services/navigation-service.ts",
+      "src/services/opener-service.ts",
+      "src/services/panel-service.ts"
+    ],
+    "lib": ["lib/breadcrumbs.ts"],
+    "tests": [
+      "tests/command-service.test.ts",
+      "tests/extension-provider.test.ts",
+      "tests/main-view-service.test.ts",
+      "tests/opener-registry.test.ts",
+      "tests/panel-store-fixture.ts",
+      "tests/renderer-host.test.tsx"
+    ]
+  },
+  {
+    "directory": "packages/extension-platform/sdk",
+    "name": "@workbench/extension-sdk",
+    "purpose": "扩展作者使用的描述、注册、贡献点与生命周期契约",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      },
+      "./authoring": {
+        "types": "./src/authoring.ts",
+        "import": "./src/authoring.ts",
+        "default": "./src/authoring.ts"
+      },
+      "./internal": {
+        "types": "./src/internal.ts",
+        "import": "./src/internal.ts",
+        "default": "./src/internal.ts"
+      }
+    },
+    "src": [
+      "src/api/command.ts",
+      "src/api/composer-command.ts",
+      "src/api/disposable.ts",
+      "src/api/extension.ts",
+      "src/api/index.ts",
+      "src/api/localizable-text.ts",
+      "src/api/main-view.ts",
+      "src/api/opener.ts",
+      "src/api/panel.ts",
+      "src/api/renderer.ts",
+      "src/api/settings.ts",
+      "src/api/sidebar-section.ts",
+      "src/api/slot.ts",
+      "src/api/workspace-surface.ts",
+      "src/authoring.ts",
+      "src/create-lazy-workspace-surface.tsx",
+      "src/define-extension.ts",
+      "src/extension-manager.ts",
+      "src/index.ts",
+      "src/internal.ts",
+      "src/registries/command-registry.ts",
+      "src/registries/composer-command-registry.ts",
+      "src/registries/index.ts",
+      "src/registries/main-view-registry.ts",
+      "src/registries/opener-registry.ts",
+      "src/registries/panel-registry.ts",
+      "src/registries/renderer-registry.ts",
+      "src/registries/settings-registry.ts",
+      "src/registries/sidebar-section-registry.ts",
+      "src/registries/slot-registry.ts",
+      "src/registries/workspace-surface-registry.ts"
+    ],
+    "lib": ["lib/registry-utils.ts"],
+    "tests": [
+      "tests/composer-command-registry.test.ts",
+      "tests/localizable-text.test.ts",
+      "tests/main-view-registry.test.ts",
+      "tests/panel-boundary.test.ts",
+      "tests/renderer-registry.test.ts",
+      "tests/settings-registry.test.ts",
+      "tests/sidebar-section-registry.test.ts",
+      "tests/workspace-surface-registry.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/host/artifact-policy",
+    "name": "@workbench/host-artifact-policy",
+    "purpose": "Runtime 与 Web 构建产物的来源、原生依赖及资源准入检查",
+    "exports": {
+      "./source-shape": {
+        "require": "./src/source-shape.cjs",
+        "default": "./src/source-shape.cjs"
+      },
+      "./runtime-native": {
+        "require": "./src/runtime-native.cjs",
+        "default": "./src/runtime-native.cjs"
+      },
+      "./runtime-model-resources": {
+        "require": "./src/runtime-model-resources.cjs",
+        "default": "./src/runtime-model-resources.cjs"
+      },
+      "./runtime-admission": {
+        "require": "./src/runtime-admission.cjs",
+        "default": "./src/runtime-admission.cjs"
+      },
+      "./web-next-runtime-exception": {
+        "require": "./src/web-next-runtime-exception.cjs",
+        "default": "./src/web-next-runtime-exception.cjs"
+      },
+      "./filesystem": {
+        "types": "./src/filesystem.d.cts",
+        "require": "./src/filesystem.cjs",
+        "default": "./src/filesystem.cjs"
+      }
+    },
+    "src": [
+      "src/filesystem.cjs",
+      "src/filesystem.d.cts",
+      "src/runtime-admission.cjs",
+      "src/runtime-model-resources.cjs",
+      "src/runtime-native.cjs",
+      "src/source-shape.cjs",
+      "src/web-next-runtime-exception.cjs"
+    ],
+    "lib": ["lib/filesystem.cjs"],
+    "tests": [
+      "tests/filesystem.test.cjs",
+      "tests/runtime-admission.test.cjs",
+      "tests/runtime-model-resources.test.cjs",
+      "tests/runtime-native.test.cjs",
+      "tests/source-shape.test.cjs",
+      "tests/web-next-runtime-exception.test.cjs"
+    ]
+  },
+  {
+    "directory": "packages/host/server",
+    "name": "@workbench/host-server",
+    "purpose": "HTTP、WebSocket、RPC 与 Runtime 宿主生命周期",
+    "exports": {
+      "./runtime-transport-auth": {
+        "types": "./src/runtime-transport-auth.ts",
+        "import": "./src/runtime-transport-auth.ts",
+        "default": "./src/runtime-transport-auth.ts"
+      },
+      "./workbench-http-server": {
+        "types": "./src/workbench-http-server.ts",
+        "import": "./src/workbench-http-server.ts",
+        "default": "./src/workbench-http-server.ts"
+      },
+      "./fetch-request-handler": {
+        "types": "./src/fetch-request-handler.ts",
+        "import": "./src/fetch-request-handler.ts",
+        "default": "./src/fetch-request-handler.ts"
+      },
+      "./api-only-runtime-host": {
+        "types": "./src/api-only-runtime-host.ts",
+        "import": "./src/api-only-runtime-host.ts",
+        "default": "./src/api-only-runtime-host.ts"
+      },
+      "./runtime-host-control-session": {
+        "types": "./src/runtime-host-control-session.ts",
+        "import": "./src/runtime-host-control-session.ts",
+        "default": "./src/runtime-host-control-session.ts"
+      },
+      "./web-host-control-session": {
+        "types": "./src/web-host-control-session.ts",
+        "import": "./src/web-host-control-session.ts",
+        "default": "./src/web-host-control-session.ts"
+      },
+      "./web-artifact": {
+        "types": "./src/web-artifact.ts",
+        "import": "./src/web-artifact.ts",
+        "default": "./src/web-artifact.ts"
+      },
+      "./runtime-artifact": {
+        "types": "./src/runtime-artifact.ts",
+        "import": "./src/runtime-artifact.ts",
+        "default": "./src/runtime-artifact.ts"
+      },
+      "./runtime-sidecar-proxy": {
+        "types": "./src/runtime-sidecar-proxy.ts",
+        "import": "./src/runtime-sidecar-proxy.ts",
+        "default": "./src/runtime-sidecar-proxy.ts"
+      },
+      "./runtime-sidecar-child": {
+        "types": "./src/runtime-sidecar-child.ts",
+        "import": "./src/runtime-sidecar-child.ts",
+        "default": "./src/runtime-sidecar-child.ts"
+      },
+      "./windows-process-census": {
+        "types": "./src/windows-process-census.d.ts",
+        "require": "./src/windows-process-census.cjs",
+        "default": "./src/windows-process-census.cjs"
+      },
+      "./host-probe": {
+        "types": "./src/host-probe.d.cts",
+        "require": "./src/host-probe.cjs",
+        "default": "./src/host-probe.cjs"
+      },
+      "./rpc": {
+        "types": "./src/rpc.ts",
+        "import": "./src/rpc.ts",
+        "default": "./src/rpc.ts"
+      }
+    },
+    "src": [
+      "src/api-only-runtime-host.ts",
+      "src/fetch-request-handler.ts",
+      "src/host-probe.cjs",
+      "src/host-probe.d.cts",
+      "src/rpc.ts",
+      "src/runtime-artifact.ts",
+      "src/runtime-host-control-session.ts",
+      "src/runtime-sidecar-child.ts",
+      "src/runtime-sidecar-proxy.ts",
+      "src/runtime-transport-auth.ts",
+      "src/web-artifact.ts",
+      "src/web-host-control-session.ts",
+      "src/windows-process-census.cjs",
+      "src/windows-process-census.d.ts",
+      "src/workbench-http-server.ts"
+    ],
+    "lib": ["lib/runtime-transport-auth.ts"],
+    "tests": [
+      "tests/api-only-runtime-host.test.ts",
+      "tests/fetch-request-handler.test.ts",
+      "tests/host-probe.test.cjs",
+      "tests/rpc-route-group.test.ts",
+      "tests/rpc.test.ts",
+      "tests/runtime-artifact.test.ts",
+      "tests/runtime-host-control-session.test.ts",
+      "tests/runtime-sidecar-proxy.test.ts",
+      "tests/runtime-transport-auth.test.ts",
+      "tests/runtime-transport-conformance.test.ts",
+      "tests/web-artifact.test.ts",
+      "tests/web-host-control-session.test.ts",
+      "tests/windows-process-census.test.cjs",
+      "tests/workbench-http-server.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/pi/browser",
+    "name": "@workbench/pi-browser",
+    "purpose": "Pi 浏览器工具、隔离脚本执行与工具资源",
+    "exports": {
+      ".": "./src/index.ts",
+      "./resources": "./src/resources.ts"
+    },
+    "src": [
+      "src/index.ts",
+      "src/resources.ts",
+      "src/script.ts",
+      "src/standalone-host.ts",
+      "src/tools.ts"
+    ],
+    "lib": ["lib/script-worker.ts"],
+    "tests": ["tests/package.test.ts", "tests/standalone-host.test.ts", "tests/tools.test.ts"]
+  },
+  {
+    "directory": "packages/pi/client",
+    "name": "@workbench/agent-runtime-pi-client",
+    "purpose": "Pi 客户端安装、线程管理及面向产品的资源和配置 API",
+    "exports": {
+      "./usage-statistics": {
+        "types": "./src/public/usage-statistics.ts",
+        "import": "./src/public/usage-statistics.ts",
+        "default": "./src/public/usage-statistics.ts"
+      },
+      "./installation": {
+        "types": "./src/public/installation.tsx",
+        "import": "./src/public/installation.tsx",
+        "default": "./src/public/installation.tsx"
+      },
+      "./errors": {
+        "types": "./src/public/errors.ts",
+        "import": "./src/public/errors.ts",
+        "default": "./src/public/errors.ts"
+      },
+      "./host": {
+        "types": "./src/public/host.ts",
+        "import": "./src/public/host.ts",
+        "default": "./src/public/host.ts"
+      },
+      "./resources": {
+        "types": "./src/public/resources.ts",
+        "import": "./src/public/resources.ts",
+        "default": "./src/public/resources.ts"
+      },
+      "./configuration": {
+        "types": "./src/public/configuration.ts",
+        "import": "./src/public/configuration.ts",
+        "default": "./src/public/configuration.ts"
+      },
+      "./workspace": {
+        "types": "./src/public/workspace.ts",
+        "import": "./src/public/workspace.ts",
+        "default": "./src/public/workspace.ts"
+      },
+      "./external-import": {
+        "types": "./src/public/external-import.ts",
+        "import": "./src/public/external-import.ts",
+        "default": "./src/public/external-import.ts"
+      },
+      "./context-trace": {
+        "types": "./src/public/context-trace.ts",
+        "import": "./src/public/context-trace.ts",
+        "default": "./src/public/context-trace.ts"
+      }
+    },
+    "src": [
+      "src/context-policy/session-context-policy-client.ts",
+      "src/integration/bound-session-provider.tsx",
+      "src/integration/capabilities.ts",
+      "src/integration/command-catalog.tsx",
+      "src/integration/copy.tsx",
+      "src/integration/pi-runtime-installation.tsx",
+      "src/integration/pi-runtime-provider.tsx",
+      "src/integration/session-manager-lifecycle.ts",
+      "src/integration/thread-store.ts",
+      "src/integration/trackers.tsx",
+      "src/integration/workspace-selection-provider.tsx",
+      "src/models/model-catalog-invalidation.ts",
+      "src/public/configuration.ts",
+      "src/public/context-trace.ts",
+      "src/public/errors.ts",
+      "src/public/external-import.ts",
+      "src/public/host.ts",
+      "src/public/installation.tsx",
+      "src/public/resources.ts",
+      "src/public/usage-statistics.ts",
+      "src/public/workspace.ts",
+      "src/runtime/auto-retry.ts",
+      "src/runtime/context.tsx",
+      "src/runtime/manager.ts",
+      "src/runtime/package-updates-query.ts",
+      "src/runtime/request-error.ts",
+      "src/runtime/resource-catalog-revision.ts",
+      "src/runtime/send-error.ts",
+      "src/runtime/session-catalog.ts",
+      "src/runtime/session.ts",
+      "src/sessions/session-create-intent.ts"
+    ],
+    "lib": ["lib/fork-title.ts"],
+    "tests": [
+      "tests/conversation/conversation-assembler.test.ts",
+      "tests/dependency-boundary.test.ts",
+      "tests/fixtures/long-conversation.ts",
+      "tests/integration/capabilities.test.ts",
+      "tests/integration/command-catalog.test.ts",
+      "tests/integration/draft-lifecycle.test.tsx",
+      "tests/integration/pi-runtime-installation.test.tsx",
+      "tests/integration/services-fixture.ts",
+      "tests/integration/session-manager-lifecycle.test.ts",
+      "tests/integration/thread-store.test.ts",
+      "tests/runtime/auto-retry.test.ts",
+      "tests/runtime/fork-title.test.ts",
+      "tests/runtime/managed-image-attachments.test.ts",
+      "tests/runtime/manager-generation.test.ts",
+      "tests/runtime/pasted-text-attachments.test.ts",
+      "tests/runtime/prompt-feedback-port.test.ts",
+      "tests/runtime/request-error.test.ts",
+      "tests/runtime/resource-catalog-revision.test.ts",
+      "tests/runtime/send-error.test.ts",
+      "tests/runtime/session-catalog.test.ts",
+      "tests/runtime/session-lifecycle-characterization.test.ts",
+      "tests/runtime/thread-metadata-subscription.test.ts",
+      "tests/runtime/transport-injection.test.ts",
+      "tests/runtime/usage-statistics.test.tsx",
+      "tests/runtime/workspace-admission.test.ts",
+      "tests/sessions/session-create-intent.test.ts",
+      "tests/transport/api.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/pi/contributions",
+    "name": "@workbench/agent-runtime-pi-contributions",
+    "purpose": "Pi 界面能力与翻译 bundle 的产品安装清单",
+    "exports": {
+      "./installation": {
+        "types": "./src/public/installation.tsx",
+        "import": "./src/public/installation.tsx",
+        "default": "./src/public/installation.tsx"
+      }
+    },
+    "src": [
+      "src/assets.d.ts",
+      "src/extensions/AGENTS.md",
+      "src/i18n/en-US.ts",
+      "src/i18n/index.ts",
+      "src/i18n/zh-CN.ts",
+      "src/public/installation.tsx"
+    ],
+    "lib": ["lib/i18n-runtime.ts"],
+    "tests": ["tests/dom-installation-isolation.test.tsx", "tests/public/installation.test.ts"]
+  },
+  {
+    "directory": "packages/pi/conversation",
+    "name": "@workbench/pi-conversation",
+    "purpose": "Pi 纯消息解析、投影与组装",
+    "exports": {
+      ".": "./src/index.ts",
+      "./assembler": "./src/conversation-assembler.ts",
+      "./projection": "./src/conversation-node-projection.ts",
+      "./model": "./src/pi-conversation-message.ts",
+      "./messages": "./src/messages.ts",
+      "./queue": "./src/queue.ts",
+      "./events": "./src/events.ts",
+      "./live-tokens": "./src/live-tokens.ts",
+      "./usage": "./src/usage.ts",
+      "./statistics": "./src/statistics.ts",
+      "./timing": "./src/timing.ts",
+      "./context-trace": "./src/context-trace.ts",
+      "./rpc": "./src/session-rpc-projection.ts",
+      "./accumulator": "./src/session-message-accumulator.ts"
+    },
+    "src": [
+      "src/context-trace.ts",
+      "src/conversation-assembler.ts",
+      "src/conversation-node-projection.ts",
+      "src/events.ts",
+      "src/index.ts",
+      "src/live-tokens.ts",
+      "src/messages.ts",
+      "src/pi-conversation-message.ts",
+      "src/queue.ts",
+      "src/session-message-accumulator.ts",
+      "src/session-rpc-projection.ts",
+      "src/statistics.ts",
+      "src/timing.ts",
+      "src/usage.ts"
+    ],
+    "lib": [
+      "lib/conversation-events.ts",
+      "lib/live-token-meter.ts",
+      "lib/pi-usage.ts",
+      "lib/session-statistics.ts",
+      "lib/turn-timing.ts"
+    ],
+    "tests": [
+      "tests/live-token-meter.test.ts",
+      "tests/message-reconciliation.test.ts",
+      "tests/messages.test.ts",
+      "tests/pi-usage.test.ts",
+      "tests/queue.test.ts",
+      "tests/session-message-accumulator.test.ts",
+      "tests/session-rpc-projection.test.ts",
+      "tests/turn-timing.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/pi/diagnostics-ui",
+    "name": "@workbench/pi-diagnostics-ui",
+    "purpose": "Trace 与用量诊断",
+    "exports": {
+      ".": "./src/index.ts",
+      "./i18n": "./src/i18n.ts"
+    },
+    "src": [
+      "src/context-trace-context-view.tsx",
+      "src/context-trace-detail.tsx",
+      "src/context-trace-extension.ts",
+      "src/context-trace-index.ts",
+      "src/context-trace-menu-item.tsx",
+      "src/context-trace-message-part.tsx",
+      "src/context-trace-overview.module.css",
+      "src/context-trace-overview.tsx",
+      "src/context-trace-surface.tsx",
+      "src/context-trace-trigger.tsx",
+      "src/context-trace-workspace.ts",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/usage-statistics-extension.ts",
+      "src/usage-statistics-settings-item.tsx",
+      "src/usage-statistics.module.css",
+      "src/use-context-trace.ts",
+      "src/use-i18n.ts"
+    ],
+    "lib": [
+      "lib/context-trace-activation.ts",
+      "lib/context-trace-detail-cache.ts",
+      "lib/context-trace-detail-selection.ts",
+      "lib/context-trace-event-label.ts",
+      "lib/context-trace-messages.ts",
+      "lib/context-trace-overview-spans.ts",
+      "lib/context-trace-search.ts",
+      "lib/context-trace-timeline-scale.ts",
+      "lib/context-trace-tree.ts",
+      "lib/usage-statistics-data.ts"
+    ],
+    "tests": [
+      "tests/context-trace-activation.test.ts",
+      "tests/context-trace-detail-cache.test.ts",
+      "tests/context-trace-detail-selection.test.ts",
+      "tests/context-trace-detail.test.tsx",
+      "tests/context-trace-messages.test.ts",
+      "tests/context-trace-overview-spans.test.ts",
+      "tests/context-trace-search.test.ts",
+      "tests/context-trace-timeline-scale.test.ts",
+      "tests/context-trace-tree.test.ts",
+      "tests/usage-statistics-data.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/pi/model-server",
+    "name": "@workbench/pi-model-server",
+    "purpose": "模型服务、配置迁移、注入 Trace 观测",
+    "exports": {
+      ".": "./src/model-service.ts",
+      "./config": "./src/model-config-store.ts",
+      "./services": "./src/agent-session-services.ts",
+      "./image-probe": "./src/image-probe.ts"
+    },
+    "src": [
+      "src/agent-session-services.ts",
+      "src/image-probe.ts",
+      "src/model-config-store.ts",
+      "src/model-service.ts"
+    ],
+    "lib": ["lib/image-input-probe.ts"],
+    "tests": ["tests/model-config-store.test.ts"]
+  },
+  {
+    "directory": "packages/pi/protocol",
+    "name": "@workbench/agent-runtime-pi-protocol",
+    "purpose": "Pi HTTP、RPC、附件、消息与流帧协议",
+    "exports": {
+      "./attachments": {
+        "types": "./src/attachments.ts",
+        "import": "./src/attachments.ts",
+        "default": "./src/attachments.ts"
+      },
+      "./messages": {
+        "types": "./src/messages.ts",
+        "import": "./src/messages.ts",
+        "default": "./src/messages.ts"
+      },
+      "./rpc": {
+        "types": "./src/rpc.ts",
+        "import": "./src/rpc.ts",
+        "default": "./src/rpc.ts"
+      },
+      "./stream": {
+        "types": "./src/stream.ts",
+        "import": "./src/stream.ts",
+        "default": "./src/stream.ts"
+      }
+    },
+    "src": ["src/attachments.ts", "src/messages.ts", "src/rpc.ts", "src/stream.ts"],
+    "lib": ["lib/stream-validation.ts"],
+    "tests": ["tests/attachments.test.ts", "tests/messages.test.ts", "tests/stream.test.ts"]
+  },
+  {
+    "directory": "packages/pi/resources-server",
+    "name": "@workbench/pi-resources-server",
+    "purpose": "资源目录、项目/信任、配置与变更协调",
+    "exports": {
+      ".": "./src/index.ts",
+      "./internal-extensions": "./src/internal-extensions.ts",
+      "./mutations": "./src/pi-resource-mutation-coordinator.ts",
+      "./resource-mutations": "./src/resource-mutations.ts",
+      "./resource-text-file": "./src/resource-text-file.ts",
+      "./contexts": "./src/scoped-resource-context.ts",
+      "./builtin-skills": "./src/builtin-skills.ts",
+      "./skill-enablement": "./src/skill-enablement.ts",
+      "./skills": "./src/skill-service.ts",
+      "./extension-name": "./src/extension-name.ts",
+      "./extensions": "./src/extension-service.ts",
+      "./builtin-packages": "./src/builtin-packages.ts",
+      "./packages": "./src/installed-package-service.ts",
+      "./catalog": "./src/package-catalog-service.ts",
+      "./package-resource-details": "./src/package-resource-details.ts",
+      "./package-update-metadata": "./src/package-update-metadata.ts",
+      "./commands": "./src/command-service.ts",
+      "./composer-command-failure": "./src/composer-command-failure.ts",
+      "./composer-command-planner": "./src/composer-command-planner.ts",
+      "./pi-composer-command-arguments": "./src/pi-composer-command-arguments.ts",
+      "./pi-composer-command-catalog": "./src/pi-composer-command-catalog.ts",
+      "./prompt-template-expander": "./src/prompt-template-expander.ts",
+      "./prompts": "./src/prompt-service.ts",
+      "./settings": "./src/agent-settings-service.ts",
+      "./trust": "./src/project-trust-service.ts",
+      "./workspace-paths": "./src/workspace-paths.ts",
+      "./workspaces": "./src/workspace-protocol-service.ts",
+      "./workspace-store": "./src/workspace-store.ts",
+      "./builtin-resources": "./src/builtin-resources.ts",
+      "./resource-locations": "./src/builtin-resource-locations.ts"
+    },
+    "src": [
+      "src/agent-settings-service.ts",
+      "src/builtin-packages.ts",
+      "src/builtin-resource-locations.ts",
+      "src/builtin-resources.ts",
+      "src/builtin-skills.ts",
+      "src/command-service.ts",
+      "src/composer-command-failure.ts",
+      "src/composer-command-planner.ts",
+      "src/extension-name.ts",
+      "src/extension-service.ts",
+      "src/index.ts",
+      "src/installed-package-service.ts",
+      "src/internal-extensions.ts",
+      "src/package-catalog-service.ts",
+      "src/package-resource-details.ts",
+      "src/package-update-metadata.ts",
+      "src/pi-composer-command-arguments.ts",
+      "src/pi-composer-command-catalog.ts",
+      "src/pi-resource-mutation-coordinator.ts",
+      "src/project-trust-service.ts",
+      "src/prompt-service.ts",
+      "src/prompt-template-expander.ts",
+      "src/resource-mutations.ts",
+      "src/resource-text-file.ts",
+      "src/scoped-resource-context.ts",
+      "src/skill-enablement.ts",
+      "src/skill-service.ts",
+      "src/workspace-paths.ts",
+      "src/workspace-protocol-service.ts",
+      "src/workspace-store.ts"
+    ],
+    "lib": [
+      "lib/extension-name.ts",
+      "lib/internal-extension-path.ts",
+      "lib/package-resource-details.ts",
+      "lib/package-update-metadata.ts",
+      "lib/resource-mutations.ts",
+      "lib/resource-text-file.ts",
+      "lib/skill-enablement.ts",
+      "lib/workspace-paths.ts"
+    ],
+    "tests": [
+      "tests/composer-command-failure.test.ts",
+      "tests/composer-command-planner.test.ts",
+      "tests/package-resource-details.test.ts",
+      "tests/package-update-metadata.test.ts",
+      "tests/prompt-template-expander.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/pi/server",
+    "name": "@workbench/agent-runtime-pi-server",
+    "purpose": "Pi 服务端安装、路由和依赖装配；选择原有共享实例并注入能力服务",
+    "exports": {
+      "./installation": {
+        "types": "./src/public/installation.ts",
+        "import": "./src/public/installation.ts",
+        "default": "./src/public/installation.ts"
+      },
+      "./http": {
+        "types": "./src/public/http.ts",
+        "import": "./src/public/http.ts",
+        "default": "./src/public/http.ts"
+      },
+      "./websocket": {
+        "types": "./src/public/websocket.ts",
+        "import": "./src/public/websocket.ts",
+        "default": "./src/public/websocket.ts"
+      },
+      "./legacy": {
+        "types": "./src/public/legacy.ts",
+        "import": "./src/public/legacy.ts",
+        "default": "./src/public/legacy.ts"
+      }
+    },
+    "src": [
+      "src/agent-runtime/pi-agent-host-bindings.ts",
+      "src/agent-runtime/pi-agent-server-implementation.ts",
+      "src/host/host-service.ts",
+      "src/public/http.ts",
+      "src/public/installation.ts",
+      "src/public/legacy.ts",
+      "src/public/websocket.ts",
+      "src/resource-composition/builtin-resources.ts",
+      "src/resource-composition/settings.ts",
+      "src/resource-composition/workspace-store.ts",
+      "src/resource-composition.ts",
+      "src/routes/agent-settings-rpc-routes.ts",
+      "src/routes/composer-attachment-rpc-routes.ts",
+      "src/routes/extension-rpc-routes.ts",
+      "src/routes/external-session-import-rpc-routes.ts",
+      "src/routes/host-rpc-routes.ts",
+      "src/routes/installed-package-rpc-routes.ts",
+      "src/routes/model-context-window-rpc-routes.ts",
+      "src/routes/model-provider-rpc-routes.ts",
+      "src/routes/package-catalog-rpc-routes.ts",
+      "src/routes/project-trust-rpc-routes.ts",
+      "src/routes/resource-catalog-rpc-routes.ts",
+      "src/routes/session-context-trace-rpc-routes.ts",
+      "src/routes/session-rpc-routes.ts",
+      "src/routes/skill-rpc-routes.ts",
+      "src/routes/usage-statistics-rpc-routes.ts",
+      "src/routes/workspace-rpc-routes.ts",
+      "src/session-composition/registry.ts",
+      "src/session-composition.ts",
+      "src/streams/legacy-sse.ts",
+      "src/streams/stream-hub.ts",
+      "src/streams/websocket-gateway.ts",
+      "src/tool-composition.ts",
+      "src/transport/agent-settings-rpc-validators.ts",
+      "src/transport/compaction-rpc-validator.ts",
+      "src/transport/package-rpc-validators.ts",
+      "src/transport/resource-rpc-validators.ts",
+      "src/transport/responses.ts",
+      "src/transport/rpc-request-budgets.ts",
+      "src/transport/rpc-route-composition.ts",
+      "src/transport/rpc-router.ts",
+      "src/transport/runtime-http-router.ts",
+      "src/workspaces/workspace-registry.ts",
+      "src/workspaces/workspace-service-bindings.ts"
+    ],
+    "lib": ["lib/compaction-rpc-validator.ts"],
+    "tests": [
+      "tests/agent-runtime/pi-agent-execution.test.ts",
+      "tests/agent-runtime/pi-agent-server-implementation.test.ts",
+      "tests/agent-runtime/pi-agent-thread-store.test.ts",
+      "tests/attachments/composer-text-attachments.test.ts",
+      "tests/benchmarks/opencode-stream-diagnostic.ts",
+      "tests/benchmarks/session-history.benchmark.ts",
+      "tests/commands/command-service.test.ts",
+      "tests/commands/pi-composer-prompt.test.ts",
+      "tests/core/rpc-domain-error-boundary.test.ts",
+      "tests/extensions/extension-protocol-boundary.test.ts",
+      "tests/extensions/extension-service.test.ts",
+      "tests/imports/external-session-importers.test.ts",
+      "tests/internal-extensions/builtin-tools.test.ts",
+      "tests/internal-extensions/context-trace.test.ts",
+      "tests/internal-extensions/message-termination.test.ts",
+      "tests/internal-extensions/system-prompt-hook-trace.test.ts",
+      "tests/internal-extensions/todo.test.ts",
+      "tests/models/model-protocol-boundary.test.ts",
+      "tests/models/model-request-transport.test.ts",
+      "tests/models/model-service.test.ts",
+      "tests/package-boundary.test.ts",
+      "tests/packages/browser-tool.test.ts",
+      "tests/packages/builtin-packages.test.ts",
+      "tests/packages/installed-package-service.test.ts",
+      "tests/packages/package-catalog-service.test.ts",
+      "tests/packages/package-protocol-boundary.test.ts",
+      "tests/prompts/prompt-service.test.ts",
+      "tests/resources/resource-mutation-coordination.characterization.test.ts",
+      "tests/resources/scoped-resource-context.test.ts",
+      "tests/sessions/interactive-response-registry.test.ts",
+      "tests/sessions/pasted-text-submission.test.ts",
+      "tests/sessions/pi-session-context-trace-service.test.ts",
+      "tests/sessions/pi-session-protocol-facade.test.ts",
+      "tests/sessions/session-catalog-index.test.ts",
+      "tests/sessions/session-context-breakdown.test.ts",
+      "tests/sessions/session-context-trace-journal.test.ts",
+      "tests/sessions/session-context-trace.test.ts",
+      "tests/sessions/session-event-journal.test.ts",
+      "tests/sessions/session-export.test.ts",
+      "tests/sessions/session-protocol-boundary.test.ts",
+      "tests/sessions/session-registry-metadata.test.ts",
+      "tests/sessions/session-resume.test.ts",
+      "tests/sessions/session-rpc-service.test.ts",
+      "tests/sessions/system-prompt-placeholders.test.ts",
+      "tests/sessions/usage-statistics.test.ts",
+      "tests/settings/agent-settings-service.test.ts",
+      "tests/settings/workbench-settings-file-integration.test.ts",
+      "tests/skills/builtin-skills.test.ts",
+      "tests/skills/skill-protocol-boundary.test.ts",
+      "tests/skills/skill-service.test.ts",
+      "tests/skills/test_extension_creator.py",
+      "tests/skills/test_skill_installer.py",
+      "tests/streams/stream-hub.test.ts",
+      "tests/streams/websocket-gateway.test.ts",
+      "tests/transport/package-rpc-validators.test.ts",
+      "tests/transport/resource-rpc-validators.test.ts",
+      "tests/transport/routes-agent-settings-rpc-routes.test.ts",
+      "tests/transport/routes-extension-rpc-routes.test.ts",
+      "tests/transport/routes-external-session-import-rpc-routes.test.ts",
+      "tests/transport/routes-host-rpc-routes.test.ts",
+      "tests/transport/routes-installed-package-rpc-routes.test.ts",
+      "tests/transport/routes-model-context-window-rpc-routes.test.ts",
+      "tests/transport/routes-model-provider-rpc-routes.test.ts",
+      "tests/transport/routes-package-catalog-rpc-routes.test.ts",
+      "tests/transport/routes-project-trust-rpc-routes.test.ts",
+      "tests/transport/routes-resource-catalog-rpc-routes.test.ts",
+      "tests/transport/routes-session-context-trace-rpc-routes.test.ts",
+      "tests/transport/routes-session-rpc-routes.test.ts",
+      "tests/transport/routes-skill-rpc-routes.test.ts",
+      "tests/transport/routes-workspace-rpc-routes.test.ts",
+      "tests/transport/rpc-domain-error-projector.test.ts",
+      "tests/transport/rpc-route-composition.test.ts",
+      "tests/transport/rpc-router-factory.test.ts",
+      "tests/trust/project-trust-service.test.ts",
+      "tests/workspaces/workspace-protocol-service.test.ts",
+      "tests/workspaces/workspace-registry.test.ts",
+      "tests/workspaces/workspace-service-bindings.test.ts",
+      "tests/workspaces/workspace-store.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/pi/server-ports",
+    "name": "@workbench/pi-server-ports",
+    "purpose": "服务端窄契约",
+    "exports": {
+      ".": "./src/index.ts",
+      "./host": "./src/host-bindings.ts",
+      "./tools": "./src/tool-settings.ts",
+      "./extension-ui": "./src/extension-ui.ts",
+      "./sessions": "./src/session-access.ts",
+      "./streams": "./src/stream-publisher.ts",
+      "./preferences": "./src/resource-preference.ts",
+      "./models": "./src/model-observation.ts",
+      "./errors": "./src/errors.ts",
+      "./trace-capture": "./src/trace-capture.ts",
+      "./tool-trace": "./src/tool-context-trace.ts"
+    },
+    "src": [
+      "src/errors.ts",
+      "src/extension-ui.ts",
+      "src/host-bindings.ts",
+      "src/index.ts",
+      "src/model-observation.ts",
+      "src/resource-preference.ts",
+      "src/session-access.ts",
+      "src/stream-publisher.ts",
+      "src/tool-context-trace.ts",
+      "src/tool-settings.ts",
+      "src/trace-capture.ts"
+    ],
+    "lib": ["lib/read-builtin-preference.ts", "lib/trace-capture.ts"],
+    "tests": ["tests/resource-preference.test.ts"]
+  },
+  {
+    "directory": "packages/pi/session-import-ui",
+    "name": "@workbench/pi-session-import-ui",
+    "purpose": "外部会话导入",
+    "exports": {
+      ".": "./src/index.ts",
+      "./i18n": "./src/i18n.ts"
+    },
+    "src": [
+      "src/external-session-import-extension.ts",
+      "src/external-session-import-index.ts",
+      "src/external-session-import-settings-item.tsx",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/use-i18n.ts"
+    ],
+    "lib": ["lib/import-selection.ts"],
+    "tests": ["tests/extension.test.ts"]
+  },
+  {
+    "directory": "packages/pi/session-server",
+    "name": "@workbench/pi-session-server",
+    "purpose": "Pi 会话注册、历史、附件、导入、自动化执行、用量和 Trace 领域服务",
+    "exports": {
+      "./cold-session-event-cache": "./src/cold-session-event-cache.ts",
+      "./composer-conversation-context": "./src/composer-conversation-context.ts",
+      "./composer-workspace-file-context": "./src/composer-workspace-file-context.ts",
+      "./inline-image-admission": "./src/inline-image-admission.ts",
+      "./interactive": "./src/interactive-response-registry.ts",
+      "./scratch": "./src/pi-scratch-session-store.ts",
+      "./context-trace": "./src/pi-session-context-trace-service.ts",
+      "./history": "./src/pi-session-history-service.ts",
+      "./model-context": "./src/pi-session-model-context-service.ts",
+      "./protocol": "./src/pi-session-protocol-facade.ts",
+      "./session-catalog-index": "./src/session-catalog-index.ts",
+      "./session-context-breakdown": "./src/session-context-breakdown.ts",
+      "./session-context-policy": "./src/session-context-policy.ts",
+      "./session-context-trace-journal": "./src/session-context-trace-journal.ts",
+      "./session-context-trace-summary": "./src/session-context-trace-summary.ts",
+      "./session-context-trace": "./src/session-context-trace.ts",
+      "./session-event-journal": "./src/session-event-journal.ts",
+      "./export": "./src/session-export.ts",
+      "./session-initial-model": "./src/session-initial-model.ts",
+      "./session-interruption": "./src/session-interruption.ts",
+      "./session-queue": "./src/session-queue.ts",
+      "./registry": "./src/session-registry.ts",
+      "./session-resume": "./src/session-resume.ts",
+      "./session-rpc-service": "./src/session-rpc-service.ts",
+      "./session-runtime-dependencies": "./src/session-runtime-dependencies.ts",
+      "./system-prompt-placeholders": "./src/system-prompt-placeholders.ts",
+      "./usage-statistics-aggregation": "./src/usage-statistics-aggregation.ts",
+      "./usage-statistics-store": "./src/usage-statistics-store.ts",
+      "./usage": "./src/usage-statistics.ts",
+      "./composer-text-attachments": "./src/composer-text-attachments.ts",
+      "./claude-code-session-importer": "./src/claude-code-session-importer.ts",
+      "./codex-session-importer": "./src/codex-session-importer.ts",
+      "./cursor-session-importer": "./src/cursor-session-importer.ts",
+      "./imports": "./src/external-session-import-service.ts",
+      "./external-session-types": "./src/external-session-types.ts",
+      "./source-utils": "./src/source-utils.ts",
+      "./automation": "./src/pi-automation-service.ts",
+      "./execution": "./src/pi-agent-execution.ts",
+      "./threads": "./src/pi-agent-thread-store.ts"
+    },
+    "src": [
+      "src/claude-code-session-importer.ts",
+      "src/codex-session-importer.ts",
+      "src/cold-session-event-cache.ts",
+      "src/composer-conversation-context.ts",
+      "src/composer-text-attachments.ts",
+      "src/composer-workspace-file-context.ts",
+      "src/cursor-session-importer.ts",
+      "src/external-session-import-service.ts",
+      "src/external-session-types.ts",
+      "src/inline-image-admission.ts",
+      "src/interactive-response-registry.ts",
+      "src/pi-agent-execution.ts",
+      "src/pi-agent-thread-store.ts",
+      "src/pi-automation-service.ts",
+      "src/pi-scratch-session-store.ts",
+      "src/pi-session-context-trace-service.ts",
+      "src/pi-session-history-service.ts",
+      "src/pi-session-model-context-service.ts",
+      "src/pi-session-protocol-facade.ts",
+      "src/session-catalog-index.ts",
+      "src/session-context-breakdown.ts",
+      "src/session-context-policy.ts",
+      "src/session-context-trace-journal.ts",
+      "src/session-context-trace-summary.ts",
+      "src/session-context-trace.ts",
+      "src/session-event-journal.ts",
+      "src/session-export.ts",
+      "src/session-initial-model.ts",
+      "src/session-interruption.ts",
+      "src/session-queue.ts",
+      "src/session-registry.ts",
+      "src/session-resume.ts",
+      "src/session-rpc-service.ts",
+      "src/session-runtime-dependencies.ts",
+      "src/source-utils.ts",
+      "src/system-prompt-placeholders.ts",
+      "src/usage-statistics-aggregation.ts",
+      "src/usage-statistics-store.ts",
+      "src/usage-statistics.ts"
+    ],
+    "lib": [
+      "lib/composer-conversation-context.ts",
+      "lib/composer-workspace-file-context.ts",
+      "lib/session-context-trace-summary.ts",
+      "lib/session-initial-model.ts",
+      "lib/session-queue.ts",
+      "lib/source-utils.ts",
+      "lib/system-prompt-placeholders.ts",
+      "lib/usage-statistics-aggregation.ts"
+    ],
+    "tests": [
+      "tests/cold-session-event-cache.test.ts",
+      "tests/composer-conversation-context.test.ts",
+      "tests/composer-workspace-file-context.test.ts",
+      "tests/inline-image-admission.test.ts",
+      "tests/session-context-policy.test.ts",
+      "tests/session-interruption.test.ts",
+      "tests/session-queue.test.ts",
+      "tests/usage-statistics-store.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/pi/settings-ui",
+    "name": "@workbench/pi-settings-ui",
+    "purpose": "Pi 模型与 Agent 配置",
+    "exports": {
+      ".": "./src/index.ts",
+      "./i18n": "./src/i18n.ts",
+      "./translations": "./src/use-i18n.ts"
+    },
+    "src": [
+      "src/agent-configuration-extension.ts",
+      "src/agent-configuration-index.ts",
+      "src/agent-settings-items.tsx",
+      "src/cache-miss-notice.tsx",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/model-config-model-row.tsx",
+      "src/model-config-settings-item.tsx",
+      "src/prompt-placeholder-highlight.module.css",
+      "src/setting-model-config-extension.ts",
+      "src/setting-model-config-index.ts",
+      "src/settings-extension.ts",
+      "src/settings-header-action.tsx",
+      "src/settings-index.ts",
+      "src/use-i18n.ts",
+      "src/use-model-config-autosave.ts",
+      "src/use-model-test-feedback.ts"
+    ],
+    "lib": [
+      "lib/model-config-draft.ts",
+      "lib/model-provider-credential-links.ts",
+      "lib/prompt-placeholder-highlight.ts"
+    ],
+    "tests": [
+      "tests/cache-miss-notice.test.tsx",
+      "tests/model-config-draft.test.ts",
+      "tests/model-config-model-row.test.tsx",
+      "tests/model-provider-credential-links.test.ts",
+      "tests/prompt-placeholder-highlight.browser.test.ts",
+      "tests/settings-header-action.test.ts",
+      "tests/use-model-config-autosave.test.tsx",
+      "tests/use-model-test-feedback.test.tsx"
+    ]
+  },
+  {
+    "directory": "packages/pi/shared",
+    "name": "@workbench/agent-runtime-pi-shared",
+    "purpose": "跨 Pi 客户端与服务端复用的描述、命令、消息、模型和 Composer 协议",
+    "exports": {
+      "./descriptor": {
+        "types": "./src/descriptor.ts",
+        "import": "./src/descriptor.ts",
+        "default": "./src/descriptor.ts"
+      },
+      "./commands": {
+        "types": "./src/commands.ts",
+        "import": "./src/commands.ts",
+        "default": "./src/commands.ts"
+      },
+      "./messages": {
+        "types": "./src/messages.ts",
+        "import": "./src/messages.ts",
+        "default": "./src/messages.ts"
+      },
+      "./models": {
+        "types": "./src/models.ts",
+        "import": "./src/models.ts",
+        "default": "./src/models.ts"
+      },
+      "./sessions": {
+        "types": "./src/sessions.ts",
+        "import": "./src/sessions.ts",
+        "default": "./src/sessions.ts"
+      },
+      "./composer-prompt": "./src/composer-prompt.ts"
+    },
+    "src": [
+      "src/builtin-prompts/LICENSE.pi",
+      "src/commands.ts",
+      "src/composer-prompt.ts",
+      "src/descriptor.ts",
+      "src/messages/reducer.ts",
+      "src/messages/termination.ts",
+      "src/messages.ts",
+      "src/models.ts",
+      "src/sessions/display-title.ts",
+      "src/sessions/history-pagination.ts",
+      "src/sessions.ts"
+    ],
+    "lib": ["lib/prompt-template.ts"],
+    "tests": [
+      "tests/commands.test.ts",
+      "tests/dependency-boundary.test.ts",
+      "tests/descriptor.test.ts",
+      "tests/display-title.test.ts",
+      "tests/history-pagination.test.ts",
+      "tests/models.test.ts",
+      "tests/reducer.test.ts",
+      "tests/termination.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/pi/status-ui",
+    "name": "@workbench/pi-status-ui",
+    "purpose": "Pi 状态、关于及运行显示",
+    "exports": {
+      ".": "./src/index.ts",
+      "./i18n": "./src/i18n.ts",
+      "./running-indicator": "./src/pi-running-indicator.tsx"
+    },
+    "src": [
+      "src/about-extension.ts",
+      "src/about-index.ts",
+      "src/about-settings-item.tsx",
+      "src/connection-status-extension.ts",
+      "src/connection-status-index.ts",
+      "src/connection-status.tsx",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/pi-running-indicator.tsx",
+      "src/pi-version.tsx",
+      "src/use-i18n.ts"
+    ],
+    "lib": ["lib/wordmark-pixels.ts"],
+    "tests": ["tests/pi-running-indicator.test.ts"]
+  },
+  {
+    "directory": "packages/pi/toolbox-ui",
+    "name": "@workbench/pi-toolbox-ui",
+    "purpose": "Skills/Extensions/Packages 管理与桥接",
+    "exports": {
+      ".": "./src/index.ts",
+      "./i18n": "./src/i18n.ts",
+      "./files": "./src/files.ts"
+    },
+    "src": [
+      "src/file-runtime-provider.tsx",
+      "src/files.ts",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/pi-package-updates-query.ts",
+      "src/pi-resource-file-backend.ts",
+      "src/pi-resource-file-openers-bridge.tsx",
+      "src/pi-resource-file-openers.ts",
+      "src/skill-reading-extension.ts",
+      "src/toolbox-capability-presentation.tsx",
+      "src/toolbox-capability-surface.tsx",
+      "src/toolbox-capability.ts",
+      "src/toolbox-catalog.ts",
+      "src/toolbox-extension.ts",
+      "src/toolbox-index.ts",
+      "src/toolbox-installed-view.tsx",
+      "src/toolbox-main-view.tsx",
+      "src/toolbox-prompt-details.tsx",
+      "src/toolbox-prompt-dialogs.tsx",
+      "src/toolbox-prompts-view.tsx",
+      "src/toolbox-resource-group.tsx",
+      "src/toolbox-scope-select.tsx",
+      "src/toolbox-scope-store.ts",
+      "src/toolbox-sidebar.tsx",
+      "src/use-i18n.ts",
+      "src/use-pi-installed-package-details.ts",
+      "src/use-pi-package-catalog.ts",
+      "src/use-pi-package-details.ts",
+      "src/use-pi-package-updates.ts",
+      "src/use-pi-skill-details.ts"
+    ],
+    "lib": [
+      "lib/package-update-feedback.ts",
+      "lib/prompt-composer-draft.ts",
+      "lib/skill-reading-state.ts",
+      "lib/toolbox-scope.ts"
+    ],
+    "tests": [
+      "tests/package-update-feedback.test.ts",
+      "tests/pi-package-updates-query.test.ts",
+      "tests/pi-resource-file-backend.test.ts",
+      "tests/pi-resource-file-openers.test.ts",
+      "tests/prompt-composer-draft.test.ts",
+      "tests/skill-reading.test.tsx",
+      "tests/toolbox-capability-presentation-boundary.test.ts",
+      "tests/toolbox-capability.test.ts",
+      "tests/toolbox-installed-view.test.tsx",
+      "tests/toolbox-package-contents.test.tsx",
+      "tests/toolbox-scope.test.ts",
+      "tests/toolbox-sidebar.test.ts",
+      "tests/toolbox-skill-document.test.tsx"
+    ]
+  },
+  {
+    "directory": "packages/pi/tools",
+    "name": "@workbench/pi-tools",
+    "purpose": "Pi 内置工具及扩展工厂，通过依赖端口访问宿主与会话",
+    "exports": {
+      "./tool-availability": "./src/tool-availability.ts",
+      "./ask-user": "./src/ask-user.ts",
+      "./builtin-tools": "./src/builtin-tools.ts",
+      "./composer-context": "./src/composer-context.ts",
+      "./context-trace": "./src/context-trace.ts",
+      "./system-prompt-hook-trace": "./src/system-prompt-hook-trace.ts",
+      "./dependencies": "./src/dependencies.ts",
+      "./enhanced-search": "./src/enhanced-search.ts",
+      ".": "./src/index.ts",
+      "./message-termination": "./src/message-termination.ts",
+      "./legacy-message-termination-extension-source": "./src/legacy-message-termination-extension-source.ts",
+      "./legacy-message-termination": "./src/legacy-message-termination.ts",
+      "./rpiv-todo": "./src/rpiv-todo.ts",
+      "./invariants": "./src/todo/invariants.ts",
+      "./replay": "./src/todo/replay.ts",
+      "./state-reducer": "./src/todo/state-reducer.ts",
+      "./state": "./src/todo/state.ts",
+      "./task-graph": "./src/todo/task-graph.ts",
+      "./response-envelope": "./src/response-envelope.ts",
+      "./sanitize": "./src/sanitize.ts",
+      "./types": "./src/todo/types.ts",
+      "./workbench-settings": "./src/workbench-settings.ts",
+      "./workspace-review": "./src/workspace-review.ts",
+      "./resources": "./src/resources.ts"
+    },
+    "src": [
+      "src/ask-user.ts",
+      "src/builtin-tools.ts",
+      "src/composer-context.ts",
+      "src/context-trace.ts",
+      "src/dependencies.ts",
+      "src/enhanced-search.ts",
+      "src/index.ts",
+      "src/legacy-message-termination-extension-source.ts",
+      "src/legacy-message-termination.ts",
+      "src/message-termination.ts",
+      "src/resources.ts",
+      "src/response-envelope.ts",
+      "src/rpiv-todo.ts",
+      "src/sanitize.ts",
+      "src/system-prompt-hook-trace.ts",
+      "src/todo/invariants.ts",
+      "src/todo/replay.ts",
+      "src/todo/state-reducer.ts",
+      "src/todo/state.ts",
+      "src/todo/task-graph.ts",
+      "src/todo/types.ts",
+      "src/tool-availability.ts",
+      "src/workbench-settings.ts",
+      "src/workspace-review.ts"
+    ],
+    "lib": [
+      "lib/legacy-message-termination-extension-source.ts",
+      "lib/legacy-message-termination.ts",
+      "lib/system-prompt-hook-trace.ts",
+      "lib/todo/response-envelope.ts",
+      "lib/todo/sanitize.ts",
+      "lib/tool-availability.ts"
+    ],
+    "tests": [
+      "tests/ask-user.test.ts",
+      "tests/composer-context.test.ts",
+      "tests/enhanced-search.test.ts",
+      "tests/legacy-message-termination.test.ts",
+      "tests/workspace-review.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/pi/transport-client",
+    "name": "@workbench/pi-transport-client",
+    "purpose": "HTTP/WS 传输，不含消息物化器",
+    "exports": {
+      ".": "./src/index.ts",
+      "./api": "./src/api.ts",
+      "./connections": "./src/connections.ts"
+    },
+    "src": ["src/api.ts", "src/client-transport.ts", "src/connections.ts", "src/index.ts"],
+    "lib": ["lib/stream-frame-parser.ts"],
+    "tests": ["tests/connections.test.ts"]
+  },
+  {
+    "directory": "packages/server/automation",
+    "name": "@workbench/automation-server",
+    "purpose": "自动化持久化、调度服务与 RPC",
+    "exports": {
+      "./errors": {
+        "types": "./src/errors.ts",
+        "import": "./src/errors.ts",
+        "default": "./src/errors.ts"
+      },
+      "./repository": {
+        "types": "./src/repository.ts",
+        "import": "./src/repository.ts",
+        "default": "./src/repository.ts"
+      },
+      "./service": {
+        "types": "./src/service.ts",
+        "import": "./src/service.ts",
+        "default": "./src/service.ts"
+      },
+      "./rpc": {
+        "types": "./src/rpc.ts",
+        "import": "./src/rpc.ts",
+        "default": "./src/rpc.ts"
+      }
+    },
+    "src": ["src/errors.ts", "src/repository.ts", "src/rpc.ts", "src/service.ts"],
+    "lib": ["lib/values.ts"],
+    "tests": [
+      "tests/automation-rpc-routes.test.ts",
+      "tests/public-boundary.test.ts",
+      "tests/service.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/server/browser",
+    "name": "@workbench/browser-server",
+    "purpose": "浏览器会话、CDP、观察、权限、历史与诊断服务",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      }
+    },
+    "src": [
+      "src/cdp.ts",
+      "src/diagnostics.ts",
+      "src/errors.ts",
+      "src/imports.ts",
+      "src/index.ts",
+      "src/page-scripts.ts",
+      "src/profiles.ts",
+      "src/settings.ts"
+    ],
+    "lib": ["lib/pointer-motion.ts"],
+    "tests": [
+      "tests/browser.test.ts",
+      "tests/cdp.test.ts",
+      "tests/enhancements.test.ts",
+      "tests/external-chrome.test.ts",
+      "tests/history.test.ts",
+      "tests/iframe.test.ts",
+      "tests/local-file.test.ts",
+      "tests/observation.test.ts",
+      "tests/pointer-motion.test.ts",
+      "tests/popup.test.ts",
+      "tests/profile.test.ts",
+      "tests/settings.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/server/core",
+    "name": "@workbench/server-core",
+    "purpose": "服务端文件持久化、请求保护、关闭钩子与子进程环境",
+    "exports": {
+      "./child-process-environment": {
+        "types": "./src/child-process-environment.ts",
+        "import": "./src/child-process-environment.ts",
+        "default": "./src/child-process-environment.ts"
+      },
+      "./file-persistence": {
+        "types": "./src/file-persistence.ts",
+        "import": "./src/file-persistence.ts",
+        "default": "./src/file-persistence.ts"
+      },
+      "./rpc-domain-error": {
+        "types": "./src/rpc-domain-error.ts",
+        "import": "./src/rpc-domain-error.ts",
+        "default": "./src/rpc-domain-error.ts"
+      },
+      "./request-guard": {
+        "types": "./src/request-guard.ts",
+        "import": "./src/request-guard.ts",
+        "default": "./src/request-guard.ts"
+      },
+      "./request-trust": {
+        "types": "./src/request-trust.ts",
+        "import": "./src/request-trust.ts",
+        "default": "./src/request-trust.ts"
+      },
+      "./shutdown-hooks": {
+        "types": "./src/shutdown-hooks.ts",
+        "import": "./src/shutdown-hooks.ts",
+        "default": "./src/shutdown-hooks.ts"
+      },
+      "./workbench-settings-file": {
+        "types": "./src/workbench-settings-file.ts",
+        "import": "./src/workbench-settings-file.ts",
+        "default": "./src/workbench-settings-file.ts"
+      }
+    },
+    "src": [
+      "src/child-process-environment.ts",
+      "src/file-persistence.ts",
+      "src/request-guard.ts",
+      "src/request-trust.ts",
+      "src/rpc-domain-error.ts",
+      "src/shutdown-hooks.ts",
+      "src/workbench-settings-file.ts"
+    ],
+    "lib": ["lib/child-process-environment.ts"],
+    "tests": [
+      "tests/file-persistence.test-fs.ts",
+      "tests/file-persistence.test.ts",
+      "tests/request-guard.test.ts",
+      "tests/request-trust.test.ts",
+      "tests/rpc-domain-error.test.ts",
+      "tests/shutdown-hooks.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/server/local-host",
+    "name": "@workbench/local-host-server",
+    "purpose": "本机目录、选择器、应用检测与打开操作",
+    "exports": {
+      "./directories": {
+        "types": "./src/host-directories.ts",
+        "import": "./src/host-directories.ts",
+        "default": "./src/host-directories.ts"
+      },
+      "./picker": {
+        "types": "./src/native-workspace-picker.ts",
+        "import": "./src/native-workspace-picker.ts",
+        "default": "./src/native-workspace-picker.ts"
+      },
+      "./applications": {
+        "types": "./src/local-apps/service.ts",
+        "import": "./src/local-apps/service.ts",
+        "default": "./src/local-apps/service.ts"
+      },
+      "./service": {
+        "types": "./src/service.ts",
+        "import": "./src/service.ts",
+        "default": "./src/service.ts"
+      },
+      "./rpc": {
+        "types": "./src/rpc.ts",
+        "import": "./src/rpc.ts",
+        "default": "./src/rpc.ts"
+      }
+    },
+    "src": [
+      "src/host-directories.ts",
+      "src/host-rpc-routes.ts",
+      "src/local-app-rpc-routes.ts",
+      "src/local-apps/detector-linux.ts",
+      "src/local-apps/detector-macos.ts",
+      "src/local-apps/detector-windows.ts",
+      "src/local-apps/detectors.ts",
+      "src/local-apps/index.ts",
+      "src/local-apps/launcher-linux.ts",
+      "src/local-apps/launcher-macos.ts",
+      "src/local-apps/launcher-windows.ts",
+      "src/local-apps/launchers.ts",
+      "src/local-apps/registry.ts",
+      "src/local-apps/service.ts",
+      "src/local-apps/types.ts",
+      "src/native-workspace-picker.ts",
+      "src/rpc.ts",
+      "src/service.ts"
+    ],
+    "lib": ["lib/process.ts"],
+    "tests": [
+      "tests/host/host-directories.test.ts",
+      "tests/host/native-workspace-picker.test.ts",
+      "tests/host-rpc-routes.test.ts",
+      "tests/local-app-rpc-routes.test.ts",
+      "tests/local-apps/detectors-detectors.test.ts",
+      "tests/local-apps/launchers-launchers.test.ts",
+      "tests/local-apps/process.test.ts",
+      "tests/local-apps/service.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/server/settings",
+    "name": "@workbench/settings-server",
+    "purpose": "设置文件持久化、更新服务与 RPC",
+    "exports": {
+      "./file": {
+        "types": "./src/file.ts",
+        "import": "./src/file.ts",
+        "default": "./src/file.ts"
+      },
+      "./service": {
+        "types": "./src/service.ts",
+        "import": "./src/service.ts",
+        "default": "./src/service.ts"
+      },
+      "./rpc": {
+        "types": "./src/rpc.ts",
+        "import": "./src/rpc.ts",
+        "default": "./src/rpc.ts"
+      }
+    },
+    "src": ["src/file.ts", "src/rpc.ts", "src/service.ts"],
+    "lib": ["lib/values.ts"],
+    "tests": [
+      "tests/public-boundary.test.ts",
+      "tests/service.test.ts",
+      "tests/workbench-settings-rpc-routes.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/server/workspace",
+    "name": "@workbench/workspace-server",
+    "purpose": "工作区文件、Git、HTTP 与 RPC 服务",
+    "exports": {
+      "./local-files": {
+        "types": "./src/local-files.ts",
+        "import": "./src/local-files.ts",
+        "default": "./src/local-files.ts"
+      },
+      "./files": {
+        "types": "./src/files.ts",
+        "import": "./src/files.ts",
+        "default": "./src/files.ts"
+      },
+      "./git": {
+        "types": "./src/git.ts",
+        "import": "./src/git.ts",
+        "default": "./src/git.ts"
+      },
+      "./http": {
+        "types": "./src/http.ts",
+        "import": "./src/http.ts",
+        "default": "./src/http.ts"
+      },
+      "./rpc": {
+        "types": "./src/rpc.ts",
+        "import": "./src/rpc.ts",
+        "default": "./src/rpc.ts"
+      }
+    },
+    "src": [
+      "src/file-rpc-routes.ts",
+      "src/files.ts",
+      "src/git-review-snapshots.ts",
+      "src/git-rpc-routes.ts",
+      "src/git.ts",
+      "src/http.ts",
+      "src/local-files.ts",
+      "src/rpc.ts"
+    ],
+    "lib": ["lib/file-projection.ts"],
+    "tests": [
+      "tests/local-files.test.ts",
+      "tests/workspace-file-content.test.ts",
+      "tests/workspace-file-rpc-routes.test.ts",
+      "tests/workspace-files.test.ts",
+      "tests/workspace-git-diff.test.ts",
+      "tests/workspace-git-rpc-routes.test.ts",
+      "tests/workspace-git.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/terminal/client",
+    "name": "@workbench/terminal-client",
+    "purpose": "终端 WebSocket 客户端与连接 URL",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      }
+    },
+    "src": [
+      "src/index.ts",
+      "src/terminal-client-connection.ts",
+      "src/terminal-disclosure-policy.ts",
+      "src/terminal-frame-writer.ts",
+      "src/terminal-tab-title.ts"
+    ],
+    "lib": ["lib/terminal-socket-url.ts"],
+    "tests": [
+      "tests/terminal-client-connection.test.ts",
+      "tests/terminal-disclosure-policy.test.ts",
+      "tests/terminal-frame-writer.test.ts",
+      "tests/terminal-socket-url.test.ts",
+      "tests/terminal-tab-title.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/terminal/contracts",
+    "name": "@workbench/terminal-contracts",
+    "purpose": "终端帧、会话及 Bash 工具输入协议",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      },
+      "./bash-tool-input": {
+        "types": "./src/bash-tool-input.ts",
+        "import": "./src/bash-tool-input.ts",
+        "default": "./src/bash-tool-input.ts"
+      }
+    },
+    "src": ["src/bash-tool-input.ts", "src/index.ts", "src/shell.ts"],
+    "lib": ["lib/frame-validation.ts"],
+    "tests": ["tests/bash-tool-input.test.ts", "tests/contracts.test.ts"]
+  },
+  {
+    "directory": "packages/terminal/pi-tool",
+    "name": "@workbench/pi-terminal-tool",
+    "purpose": "Pi 的终端工具适配与命令策略",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      }
+    },
+    "src": ["src/index.ts"],
+    "lib": ["lib/command-options.ts"],
+    "tests": ["tests/interactive-bash-tool.test.ts"]
+  },
+  {
+    "directory": "packages/terminal/server",
+    "name": "@workbench/terminal-server",
+    "purpose": "终端网关、Shell 与工具会话管理及转录投影",
+    "exports": {
+      "./shell": {
+        "types": "./src/terminal-shell.ts",
+        "import": "./src/terminal-shell.ts",
+        "default": "./src/terminal-shell.ts"
+      },
+      "./bash-command-policy": {
+        "types": "./src/bash-command-policy.ts",
+        "import": "./src/bash-command-policy.ts",
+        "default": "./src/bash-command-policy.ts"
+      },
+      "./gateway": {
+        "types": "./src/terminal-gateway.ts",
+        "import": "./src/terminal-gateway.ts",
+        "default": "./src/terminal-gateway.ts"
+      },
+      "./shell-sessions": {
+        "types": "./src/terminal-session-manager.ts",
+        "import": "./src/terminal-session-manager.ts",
+        "default": "./src/terminal-session-manager.ts"
+      },
+      "./tool-sessions": {
+        "types": "./src/tool-terminal-session-manager.ts",
+        "import": "./src/tool-terminal-session-manager.ts",
+        "default": "./src/tool-terminal-session-manager.ts"
+      }
+    },
+    "src": [
+      "src/bash-command-policy.ts",
+      "src/terminal-environment.ts",
+      "src/terminal-gateway.ts",
+      "src/terminal-interaction-detector.ts",
+      "src/terminal-process-buffer.ts",
+      "src/terminal-session-manager.ts",
+      "src/terminal-shell.ts",
+      "src/tool-terminal-session-manager.ts"
+    ],
+    "lib": ["lib/terminal-transcript-projector.ts"],
+    "tests": [
+      "tests/bash-command-policy.test.ts",
+      "tests/terminal-environment.test.ts",
+      "tests/terminal-gateway.test.ts",
+      "tests/terminal-interaction-detector.test.ts",
+      "tests/terminal-process-buffer.test.ts",
+      "tests/terminal-session-manager.test.ts",
+      "tests/terminal-shell.test.ts",
+      "tests/terminal-transcript-projector.test.ts",
+      "tests/tool-terminal-session-manager.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/test-support/ui-testkit",
+    "name": "@workbench/ui-testkit",
+    "purpose": "共享 React DOM 测试环境，仅作为开发依赖",
+    "exports": {
+      ".": "./src/react-dom-environment.ts"
+    },
+    "src": ["src/react-dom-environment.ts"],
+    "lib": ["lib/minimal-dom.ts"],
+    "tests": ["tests/react-dom-environment.test.ts"]
+  },
+  {
+    "directory": "packages/workbench/desktop-contracts",
+    "name": "@workbench/desktop-contracts",
+    "purpose": "Desktop 桥接、标题栏与 Runtime 启动契约",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      },
+      "./title-bar": {
+        "types": "./src/title-bar.ts",
+        "import": "./src/title-bar.ts",
+        "default": "./src/title-bar.ts"
+      },
+      "./runtime-bootstrap": {
+        "types": "./src/runtime-bootstrap.ts",
+        "import": "./src/runtime-bootstrap.ts",
+        "default": "./src/runtime-bootstrap.ts"
+      }
+    },
+    "src": [
+      "src/index.ts",
+      "src/runtime-bootstrap.ts",
+      "src/settings.ts",
+      "src/system-fonts.ts",
+      "src/title-bar.ts"
+    ],
+    "lib": ["lib/title-bar-validation.ts"],
+    "tests": [
+      "tests/runtime-bootstrap.test.ts",
+      "tests/settings.test.ts",
+      "tests/system-fonts.test.ts",
+      "tests/title-bar.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/workbench/host-client",
+    "name": "@workbench/host-client",
+    "purpose": "Runtime HTTP、WebSocket 与 RPC 客户端",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      },
+      "./runtime-fetch": {
+        "types": "./src/runtime-fetch.ts",
+        "import": "./src/runtime-fetch.ts",
+        "default": "./src/runtime-fetch.ts"
+      },
+      "./runtime-websocket": {
+        "types": "./src/runtime-websocket.ts",
+        "import": "./src/runtime-websocket.ts",
+        "default": "./src/runtime-websocket.ts"
+      },
+      "./rpc": {
+        "types": "./src/rpc.ts",
+        "import": "./src/rpc.ts",
+        "default": "./src/rpc.ts"
+      }
+    },
+    "src": ["src/index.ts", "src/rpc.ts", "src/runtime-fetch.ts", "src/runtime-websocket.ts"],
+    "lib": ["lib/runtime-url.ts"],
+    "tests": ["tests/runtime-fetch.test.ts", "tests/runtime-websocket.test.ts"]
+  },
+  {
+    "directory": "packages/workbench/host-contracts",
+    "name": "@workbench/host-contracts",
+    "purpose": "Runtime 能力、连接及宿主控制协议",
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "import": "./src/index.ts",
+        "default": "./src/index.ts"
+      },
+      "./runtime-connection": {
+        "types": "./src/runtime-connection.ts",
+        "import": "./src/runtime-connection.ts",
+        "default": "./src/runtime-connection.ts"
+      },
+      "./runtime-capabilities": {
+        "types": "./src/runtime-capabilities.ts",
+        "import": "./src/runtime-capabilities.ts",
+        "default": "./src/runtime-capabilities.ts"
+      },
+      "./host-control": {
+        "types": "./src/host-control.ts",
+        "import": "./src/host-control.ts",
+        "default": "./src/host-control.ts"
+      },
+      "./runtime-connected-web-control": {
+        "types": "./src/runtime-connected-web-control.ts",
+        "import": "./src/runtime-connected-web-control.ts",
+        "default": "./src/runtime-connected-web-control.ts"
+      },
+      "./control-ndjson": {
+        "types": "./src/control-ndjson.ts",
+        "import": "./src/control-ndjson.ts",
+        "default": "./src/control-ndjson.ts"
+      },
+      "./runtime-host-control": {
+        "types": "./src/runtime-host-control.ts",
+        "import": "./src/runtime-host-control.ts",
+        "default": "./src/runtime-host-control.ts"
+      },
+      "./runtime-host-identity": {
+        "types": "./src/runtime-host-identity.ts",
+        "import": "./src/runtime-host-identity.ts",
+        "default": "./src/runtime-host-identity.ts"
+      },
+      "./runtime-artifact-manifest": {
+        "types": "./src/runtime-artifact-manifest.ts",
+        "import": "./src/runtime-artifact-manifest.ts",
+        "default": "./src/runtime-artifact-manifest.ts"
+      },
+      "./web-host-control": {
+        "types": "./src/web-host-control.ts",
+        "import": "./src/web-host-control.ts",
+        "default": "./src/web-host-control.ts"
+      },
+      "./web-artifact-manifest": {
+        "types": "./src/web-artifact-manifest.ts",
+        "import": "./src/web-artifact-manifest.ts",
+        "default": "./src/web-artifact-manifest.ts"
+      },
+      "./desktop-renderer-artifact-manifest": {
+        "types": "./src/desktop-renderer-artifact-manifest.ts",
+        "import": "./src/desktop-renderer-artifact-manifest.ts",
+        "default": "./src/desktop-renderer-artifact-manifest.ts"
+      },
+      "./rpc": {
+        "types": "./src/rpc.ts",
+        "import": "./src/rpc.ts",
+        "default": "./src/rpc.ts"
+      }
+    },
+    "src": [
+      "src/control-ndjson.ts",
+      "src/desktop-renderer-artifact-manifest.ts",
+      "src/host-control.ts",
+      "src/index.ts",
+      "src/rpc.ts",
+      "src/runtime-artifact-manifest.ts",
+      "src/runtime-capabilities.ts",
+      "src/runtime-connected-web-control.ts",
+      "src/runtime-connection.ts",
+      "src/runtime-host-control.ts",
+      "src/runtime-host-identity.ts",
+      "src/web-artifact-manifest.ts",
+      "src/web-host-control.ts"
+    ],
+    "lib": ["lib/control-ndjson.ts"],
+    "tests": [
+      "tests/desktop-renderer-artifact-manifest.test.ts",
+      "tests/host-control.test.ts",
+      "tests/runtime-artifact-manifest.test.ts",
+      "tests/runtime-connected-web-control.test.ts",
+      "tests/runtime-connection.test.ts",
+      "tests/runtime-host-control-golden.test.ts",
+      "tests/runtime-host-control.test.ts",
+      "tests/web-artifact-manifest.test.ts",
+      "tests/web-host-control.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/workbench/pi-product",
+    "name": "@workbench/pi-product",
+    "purpose": "Workbench 与 Pi 的应用及安装装配，拥有产品默认值与安装顺序",
+    "exports": {
+      "./application": {
+        "types": "./src/application.tsx",
+        "import": "./src/application.tsx",
+        "default": "./src/application.tsx"
+      },
+      "./installation": {
+        "types": "./src/installation.tsx",
+        "import": "./src/installation.tsx",
+        "default": "./src/installation.tsx"
+      }
+    },
+    "src": [
+      "src/application.tsx",
+      "src/extensions.ts",
+      "src/installation.tsx",
+      "src/running-indicator-defaults.tsx",
+      "src/runtime-provider.tsx",
+      "src/settings.ts"
+    ],
+    "lib": ["lib/thinking-orb-renderer.tsx"],
+    "tests": [
+      "tests/application.test.tsx",
+      "tests/installed-agent-runtime.test.tsx",
+      "tests/installed-workbench-settings.test.ts",
+      "tests/running-indicator-catalog.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/workbench/services-client",
+    "name": "@workbench/services-client",
+    "purpose": "设置、自动化、宿主和工作区服务的客户端 API",
+    "exports": {
+      "./settings": {
+        "types": "./src/settings.ts",
+        "import": "./src/settings.ts",
+        "default": "./src/settings.ts"
+      },
+      "./automation": {
+        "types": "./src/automation.ts",
+        "import": "./src/automation.ts",
+        "default": "./src/automation.ts"
+      },
+      "./host": {
+        "types": "./src/host.ts",
+        "import": "./src/host.ts",
+        "default": "./src/host.ts"
+      },
+      "./workspace": {
+        "types": "./src/workspace.ts",
+        "import": "./src/workspace.ts",
+        "default": "./src/workspace.ts"
+      },
+      "./errors": {
+        "types": "./src/errors.ts",
+        "import": "./src/errors.ts",
+        "default": "./src/errors.ts"
+      }
+    },
+    "src": [
+      "src/automation.ts",
+      "src/errors.ts",
+      "src/file-content.ts",
+      "src/host.ts",
+      "src/settings.ts",
+      "src/workspace.ts"
+    ],
+    "lib": ["lib/file-text.ts"],
+    "tests": [
+      "tests/automation-client-transport.test.ts",
+      "tests/host-client-transport.test.ts",
+      "tests/settings.test.ts",
+      "tests/workspace-file-content-transport.test.ts",
+      "tests/workspace-git-transport.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/workbench/shell",
+    "name": "@workbench/shell",
+    "purpose": "Workbench 布局、侧栏与应用 Shell 装配；通过公开包入口消费能力",
+    "exports": {
+      "./application": {
+        "types": "./src/application.tsx",
+        "import": "./src/application.tsx",
+        "default": "./src/application.tsx"
+      },
+      "./browser-session-persistence": {
+        "types": "./src/browser-session-persistence.ts",
+        "import": "./src/browser-session-persistence.ts",
+        "default": "./src/browser-session-persistence.ts"
+      },
+      "./extensions": {
+        "types": "./src/extensions/index.ts",
+        "import": "./src/extensions/index.ts",
+        "default": "./src/extensions/index.ts"
+      },
+      "./hosts/statusbar": {
+        "types": "./src/hosts/statusbar.tsx",
+        "import": "./src/hosts/statusbar.tsx",
+        "default": "./src/hosts/statusbar.tsx"
+      },
+      "./i18n": {
+        "types": "./src/i18n/index.ts",
+        "import": "./src/i18n/index.ts",
+        "default": "./src/i18n/index.ts"
+      },
+      "./i18n/runtime": {
+        "types": "./src/i18n/public-runtime.ts",
+        "import": "./src/i18n/public-runtime.ts",
+        "default": "./src/i18n/public-runtime.ts"
+      },
+      "./panels": {
+        "types": "./src/panels/index.ts",
+        "import": "./src/panels/index.ts",
+        "default": "./src/panels/index.ts"
+      },
+      "./styles.css": "./src/styles.css",
+      "./workbench": {
+        "types": "./src/workbench.ts",
+        "import": "./src/workbench.ts",
+        "default": "./src/workbench.ts"
+      }
+    },
+    "src": [
+      "src/application.tsx",
+      "src/browser-session-persistence.ts",
+      "src/extensions/AGENTS.md",
+      "src/extensions/builtin-extensions.ts",
+      "src/extensions/index.ts",
+      "src/extensions/workbench-brand-toggle.tsx",
+      "src/extensions/workbench-brand.ts",
+      "src/extensions/workspace-sidebar.ts",
+      "src/hosts/statusbar.tsx",
+      "src/i18n/extensions-en-US.ts",
+      "src/i18n/extensions-zh-CN.ts",
+      "src/i18n/index.ts",
+      "src/i18n/messages.ts",
+      "src/i18n/provider.tsx",
+      "src/i18n/public-runtime.ts",
+      "src/i18n/runtime.ts",
+      "src/i18n/workbench-en-US.ts",
+      "src/i18n/workbench-zh-CN.ts",
+      "src/panels/index.ts",
+      "src/panels/panel-container.tsx",
+      "src/panels/panel-dock.tsx",
+      "src/panels/panel-header.tsx",
+      "src/panels/panel-layout.tsx",
+      "src/panels/panel-resize-handle.tsx",
+      "src/panels/panel-tab-content.tsx",
+      "src/panels/terminal-drawer.tsx",
+      "src/shell/command-palette-host.tsx",
+      "src/shell/conversation-actions-menu.tsx",
+      "src/shell/layout-motion.ts",
+      "src/shell/shell-layout.css",
+      "src/shell/use-sidebar-settings-hydration.ts",
+      "src/shell/window-resize.ts",
+      "src/shell/workbench-global-layer.tsx",
+      "src/shell/workbench-header.tsx",
+      "src/shell/workbench-shell.tsx",
+      "src/shell/workbench-sidebar.tsx",
+      "src/sidebar/new-thread-button.tsx",
+      "src/sidebar/running-thread-indicator.tsx",
+      "src/sidebar/sidebar-move.ts",
+      "src/sidebar/sidebar-primary-navigation.module.css",
+      "src/sidebar/sidebar-primary-navigation.tsx",
+      "src/sidebar/sidebar-reorder.ts",
+      "src/sidebar/sidebar-resize-handle.tsx",
+      "src/sidebar/thread-list-groups.ts",
+      "src/sidebar/thread-list-index.ts",
+      "src/sidebar/thread-list-item.tsx",
+      "src/sidebar/thread-list.tsx",
+      "src/sidebar/thread-order-store.ts",
+      "src/sidebar/workspace-sidebar-context.tsx",
+      "src/sidebar/workspace-sidebar-section.tsx",
+      "src/sidebar/workspace-thread-list.tsx",
+      "src/styles.css",
+      "src/workbench.ts"
+    ],
+    "lib": ["lib/thread-sort.ts"],
+    "tests": [
+      "tests/chat/markdown-markdown-text.test.tsx",
+      "tests/conversation-node-subscription.test.tsx",
+      "tests/dependency-boundaries.test.ts",
+      "tests/dom-id-literals.test.ts",
+      "tests/extension-platform-boundary.test.ts",
+      "tests/extensions/builtin-extensions.test.ts",
+      "tests/extensions/builtin-workspace-explorer-material-icon-theme.test.ts",
+      "tests/extensions/session-capabilities.test.tsx",
+      "tests/hosts/statusbar.test.tsx",
+      "tests/i18n/config.test.ts",
+      "tests/i18n/runtime.test.ts",
+      "tests/i18n-provider.test.tsx",
+      "tests/public-exports.test.ts",
+      "tests/resize/proportional-panel-size.test.ts",
+      "tests/right-workspace/presentation-workspace-controller-i18n.test.ts",
+      "tests/right-workspace/right-workspace-provider.test.tsx",
+      "tests/right-workspace/surface-host-lifecycle.test.tsx",
+      "tests/right-workspace/workspace-surface-runtime-host.test.tsx",
+      "tests/right-workspace/workspace-tabs-shared.test.tsx",
+      "tests/shell/layout-motion.test.ts",
+      "tests/shell/window-resize.test.ts",
+      "tests/sidebar/sidebar-drag-session.test.ts",
+      "tests/sidebar/sidebar-move.test.ts",
+      "tests/sidebar/sidebar-reorder.test.ts",
+      "tests/sidebar/sidebar-resize-handle.test.ts",
+      "tests/sidebar/thread-list-groups.test.ts",
+      "tests/sidebar/thread-list-index.test.ts",
+      "tests/sidebar/thread-list.test.tsx",
+      "tests/sidebar/thread-order-store.test.ts",
+      "tests/sidebar/thread-sort.test.ts",
+      "tests/sidebar-settings-hydration.test.tsx",
+      "tests/styles-boundary.test.ts",
+      "tests/ui/workbench-portal-container.test.tsx",
+      "tests/ui-foundation-boundary.test.ts",
+      "tests/unit/application.test.ts",
+      "tests/unit/desktop-style-csp.test.ts",
+      "tests/unit/settings.test.tsx",
+      "tests/workbench-main.test.tsx",
+      "tests/workspace-directory-store.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/workspace/artifact",
+    "name": "@workbench/workspace-artifact",
+    "purpose": "Artifact Surface",
+    "exports": {
+      ".": "./src/index.ts",
+      "./service": "./src/artifact-preview-service.ts",
+      "./i18n": "./src/i18n.ts"
+    },
+    "src": [
+      "src/artifact-preview-service.ts",
+      "src/artifact-renderer-registry.tsx",
+      "src/artifact-runtime-bridge.tsx",
+      "src/artifact-surface.tsx",
+      "src/extension.ts",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/use-i18n.ts"
+    ],
+    "lib": ["lib/artifact-storage-key.ts"],
+    "tests": ["tests/artifact-preview-service.test.ts"]
+  },
+  {
+    "directory": "packages/workspace/browser",
+    "name": "@workbench/workspace-browser",
+    "purpose": "浏览器 Surface、设备工具栏、标注",
+    "exports": {
+      ".": "./src/index.ts",
+      "./service": "./src/browser-session-service.ts",
+      "./styles.css": "./src/browser-viewport.css",
+      "./i18n": "./src/i18n.ts"
+    },
+    "src": [
+      "src/browser-address-bar.tsx",
+      "src/browser-annotation-layer.tsx",
+      "src/browser-control-indicator.tsx",
+      "src/browser-device-toolbar.tsx",
+      "src/browser-downloads-dialog.tsx",
+      "src/browser-events-overlay.tsx",
+      "src/browser-file-opener.tsx",
+      "src/browser-menu-item.tsx",
+      "src/browser-runtime-bridge.tsx",
+      "src/browser-session-service.ts",
+      "src/browser-settings.tsx",
+      "src/browser-surface.tsx",
+      "src/browser-viewport.css",
+      "src/browser-viewport.tsx",
+      "src/extension.ts",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/memory-browser-session-service.ts",
+      "src/remote-browser-session-service.ts",
+      "src/use-i18n.ts"
+    ],
+    "lib": ["lib/browser-files.ts"],
+    "tests": [
+      "tests/browser-address-bar.test.tsx",
+      "tests/browser-annotation-layer.test.tsx",
+      "tests/browser-device-toolbar.test.tsx",
+      "tests/browser-events-overlay.test.tsx",
+      "tests/browser-file-opener.test.tsx",
+      "tests/browser-files.test.ts",
+      "tests/browser-runtime-bridge.test.tsx",
+      "tests/browser-session-service.test.ts",
+      "tests/browser-settings.test.tsx",
+      "tests/browser-surface.test.tsx",
+      "tests/browser-viewport.test.tsx",
+      "tests/i18n-provider.tsx",
+      "tests/remote-browser-session-service.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/workspace/directory-picker",
+    "name": "@workbench/workspace-directory-picker",
+    "purpose": "目录选择弹层及触发器",
+    "exports": {
+      ".": "./src/index.ts",
+      "./i18n": "./src/i18n.ts",
+      "./translations": "./src/use-i18n.ts"
+    },
+    "src": [
+      "src/directory-picker-button.tsx",
+      "src/directory-picker-capability.ts",
+      "src/directory-picker.module.css",
+      "src/extension.ts",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/new-thread-workspace-item.tsx",
+      "src/remote-directory-picker-dialog.tsx",
+      "src/use-i18n.ts",
+      "src/use-workspace-directory-admission.ts",
+      "src/workspace-activation.ts",
+      "src/workspace-directory-picker-dialog.tsx",
+      "src/workspace-directory-summary.tsx"
+    ],
+    "lib": [
+      "lib/new-thread-workspace-policy.ts",
+      "lib/project-trust-dialog-copy.ts",
+      "lib/workspace-admission.ts"
+    ],
+    "tests": [
+      "tests/capability-presence.test.tsx",
+      "tests/directory-picker-capability.test.ts",
+      "tests/new-thread-workspace-policy.test.ts",
+      "tests/workspace-activation.test.ts",
+      "tests/workspace-admission.test.ts",
+      "tests/workspace-directory-picker-dialog.test.tsx"
+    ]
+  },
+  {
+    "directory": "packages/workspace/explorer",
+    "name": "@workbench/workspace-explorer",
+    "purpose": "Explorer Surface",
+    "exports": {
+      ".": "./src/index.ts",
+      "./i18n": "./src/i18n.ts"
+    },
+    "src": [
+      "src/explorer-runtime-bridge.tsx",
+      "src/explorer-surface.tsx",
+      "src/extension.ts",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/use-i18n.ts"
+    ],
+    "lib": ["lib/explorer-runtime-policy.ts"],
+    "tests": ["tests/explorer-runtime-policy.test.ts"]
+  },
+  {
+    "directory": "packages/workspace/file-view",
+    "name": "@workbench/workspace-file-view",
+    "purpose": "工作区文件查看与编辑 Surface 及打开器",
+    "exports": {
+      ".": "./src/index.ts",
+      "./opener": "./src/file-opener.ts",
+      "./openers": "./src/file-openers-bridge.tsx",
+      "./surface": "./src/file-surface.tsx",
+      "./i18n": "./src/i18n.ts"
+    },
+    "src": [
+      "src/extension.ts",
+      "src/file-breadcrumb-tree.tsx",
+      "src/file-buffer-actions.ts",
+      "src/file-code-editor.tsx",
+      "src/file-diff-service.ts",
+      "src/file-diff-viewer.tsx",
+      "src/file-document-preview.tsx",
+      "src/file-document-viewer-runtime.module.css",
+      "src/file-document-viewer-runtime.tsx",
+      "src/file-image-preview.tsx",
+      "src/file-media-preview.tsx",
+      "src/file-menu-item.tsx",
+      "src/file-opener.ts",
+      "src/file-openers-bridge.tsx",
+      "src/file-preview-loading.tsx",
+      "src/file-preview-unavailable.tsx",
+      "src/file-surface-header.tsx",
+      "src/file-surface-messages.ts",
+      "src/file-surface.tsx",
+      "src/file-viewer-asset-base-lease.ts",
+      "src/file-viewer-source.ts",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/use-i18n.ts",
+      "src/use-progressive-text-document.ts",
+      "src/use-workspace-file-object-url.ts",
+      "src/virtualized-text-viewer.tsx"
+    ],
+    "lib": [
+      "lib/file-breadcrumb-model.ts",
+      "lib/file-buffer-draft.ts",
+      "lib/file-view-mode.ts",
+      "lib/progressive-text-document.ts",
+      "lib/virtualized-code-window.ts"
+    ],
+    "tests": [
+      "tests/extension.test.ts",
+      "tests/file-breadcrumb-model.test.ts",
+      "tests/file-buffer-draft.test.ts",
+      "tests/file-diff-service.test.ts",
+      "tests/file-opener.test.ts",
+      "tests/file-view-mode.test.ts",
+      "tests/file-viewer-asset-base-lease.test.ts",
+      "tests/file-viewer-source.test.ts",
+      "tests/progressive-text-document.test.ts",
+      "tests/virtualized-code-window.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/workspace/files",
+    "name": "@workbench/workspace-files",
+    "purpose": "文件服务、缓冲、树、链接、应用选择及下载",
+    "exports": {
+      ".": "./src/index.ts",
+      "./tree": "./src/tree/index.ts",
+      "./links": "./src/file-link-component.tsx",
+      "./classification": "./src/file-classification.ts",
+      "./open-apps": "./src/file-open-apps.ts",
+      "./open-preferences": "./src/file-open-preferences.ts",
+      "./app-icon": "./src/local-app-icon.tsx",
+      "./download": "./src/file-download.ts",
+      "./markdown-links": "./src/markdown-link-adapter.ts",
+      "./i18n": "./src/i18n.ts",
+      "./translations": "./src/use-i18n.ts"
+    },
+    "src": [
+      "src/buffered-file-workspace-service.ts",
+      "src/file-classification.ts",
+      "src/file-diff-service.ts",
+      "src/file-download.ts",
+      "src/file-link-component.tsx",
+      "src/file-link-menu.tsx",
+      "src/file-link.ts",
+      "src/file-open-apps.ts",
+      "src/file-open-preferences.ts",
+      "src/file-workspace-target-service.ts",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/icons/README.md",
+      "src/icons/chrome.svg",
+      "src/icons/chromium.svg",
+      "src/icons/cursor.svg",
+      "src/icons/datagrip.svg",
+      "src/icons/edge.svg",
+      "src/icons/firefox.svg",
+      "src/icons/idea.svg",
+      "src/icons/mpv.svg",
+      "src/icons/pycharm.svg",
+      "src/icons/qoder.svg",
+      "src/icons/safari.svg",
+      "src/icons/trae.svg",
+      "src/icons/vlc.svg",
+      "src/icons/vscode.svg",
+      "src/icons/webstorm.svg",
+      "src/index.ts",
+      "src/local-app-icon.tsx",
+      "src/markdown-link-adapter.ts",
+      "src/tree/explorer-tree-model.ts",
+      "src/tree/explorer-tree.tsx",
+      "src/tree/file-type-icon.tsx",
+      "src/tree/index.ts",
+      "src/use-i18n.ts",
+      "src/workspace-file-runtime.tsx",
+      "src/workspace-file-service.ts"
+    ],
+    "lib": [
+      "lib/asset-module-url.ts",
+      "lib/file-classification.ts",
+      "lib/file-link-content.ts",
+      "lib/tree/file-name-parts.ts",
+      "lib/tree/material-icon-theme.ts"
+    ],
+    "tests": [
+      "tests/asset-module-url.test.ts",
+      "tests/buffered-file-workspace-service.test.ts",
+      "tests/explorer-tree-model.test.ts",
+      "tests/file-download.test.ts",
+      "tests/file-link-content.test.ts",
+      "tests/file-link.test.ts",
+      "tests/file-name-parts.test.ts",
+      "tests/file-open-apps.test.ts",
+      "tests/file-open-preferences.test.ts",
+      "tests/file-workspace-target-service.test.ts",
+      "tests/material-icon-theme.test.ts"
+    ]
+  },
+  {
+    "directory": "packages/workspace/git-branch",
+    "name": "@workbench/workspace-git-branch",
+    "purpose": "分支选择、创建及切换",
+    "exports": {
+      ".": "./src/index.ts",
+      "./i18n": "./src/i18n.ts"
+    },
+    "src": [
+      "src/extension.ts",
+      "src/git-branch-selector.tsx",
+      "src/git-branch-status-bus.ts",
+      "src/git-graph-dialog.tsx",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/use-i18n.ts"
+    ],
+    "lib": ["lib/git-graph-layout.ts"],
+    "tests": ["tests/git-branch-status-bus.test.ts", "tests/git-graph-layout.test.ts"]
+  },
+  {
+    "directory": "packages/workspace/review",
+    "name": "@workbench/workspace-review",
+    "purpose": "Review Surface",
+    "exports": {
+      ".": "./src/index.ts",
+      "./styles.css": "./src/review.css",
+      "./i18n": "./src/i18n.ts"
+    },
+    "src": [
+      "src/commit-selection.tsx",
+      "src/extension.ts",
+      "src/git-review-service.ts",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/review-diff-hunk.tsx",
+      "src/review-menu-item.tsx",
+      "src/review-runtime-bridge.tsx",
+      "src/review-surface-header.tsx",
+      "src/review-surface.tsx",
+      "src/review-toolbar.tsx",
+      "src/review.css",
+      "src/use-git-diff.ts",
+      "src/use-i18n.ts"
+    ],
+    "lib": ["lib/review-options.ts"],
+    "tests": [
+      "tests/git-review-service.test.ts",
+      "tests/review-options.test.ts",
+      "tests/use-git-diff.test.tsx"
+    ]
+  },
+  {
+    "directory": "packages/workspace/runtime",
+    "name": "@workbench/workspace-runtime",
+    "purpose": "工作区 Surface 控制器、持久化、标签与 React Host",
+    "exports": {
+      ".": "./src/index.ts",
+      "./react": "./src/react.ts",
+      "./presentation": "./src/presentation/index.ts",
+      "./persistence": "./src/right-workspace-persistence.ts",
+      "./directory-store": "./src/workspace-directory-store.ts",
+      "./i18n": "./src/i18n.ts",
+      "./translations": "./src/use-i18n.ts",
+      "./styles.css": "./src/presentation/right-workspace.css"
+    },
+    "src": [
+      "src/feedback/composer-feedback.tsx",
+      "src/feedback/feedback-layer.tsx",
+      "src/feedback/inline-feedback-form.tsx",
+      "src/i18n/en-US.ts",
+      "src/i18n/zh-CN.ts",
+      "src/i18n.ts",
+      "src/index.ts",
+      "src/presentation/index.ts",
+      "src/presentation/right-workspace-toggle-button.tsx",
+      "src/presentation/right-workspace.css",
+      "src/presentation/right-workspace.tsx",
+      "src/presentation/surface-boundary.tsx",
+      "src/presentation/surface-header-host.tsx",
+      "src/presentation/surface-host.tsx",
+      "src/presentation/workspace-add-menu.tsx",
+      "src/presentation/workspace-empty-state.tsx",
+      "src/presentation/workspace-header.tsx",
+      "src/presentation/workspace-resize-handle.tsx",
+      "src/presentation/workspace-split-resize-handle.tsx",
+      "src/presentation/workspace-status-layer.tsx",
+      "src/presentation/workspace-tabs.tsx",
+      "src/react.ts",
+      "src/right-workspace-context.tsx",
+      "src/right-workspace-layout.ts",
+      "src/right-workspace-persistence.ts",
+      "src/right-workspace-prompt-feedback.ts",
+      "src/right-workspace-provider.tsx",
+      "src/surface-mount-contexts.ts",
+      "src/surface-types.ts",
+      "src/use-i18n.ts",
+      "src/workspace-controller.ts",
+      "src/workspace-directory-store.ts",
+      "src/workspace-draft-store.ts",
+      "src/workspace-feedback-store.ts",
+      "src/workspace-feedback-types.ts",
+      "src/workspace-resize-preview.ts",
+      "src/workspace-selectors.ts",
+      "src/workspace-split-resize-observer.ts",
+      "src/workspace-store.ts",
+      "src/workspace-surface-runtime-host.tsx"
+    ],
+    "lib": [
+      "lib/legacy-storage.ts",
+      "lib/surface-mount-policy.ts",
+      "lib/workspace-split-layout.ts",
+      "lib/workspace-tab-a11y.ts",
+      "lib/workspace-tab-layout.ts"
+    ],
+    "tests": [
+      "tests/dom-ownership.test.ts",
+      "tests/right-workspace-layout.test.ts",
+      "tests/right-workspace-persistence.test.ts",
+      "tests/right-workspace-prompt-feedback.test.ts",
+      "tests/surface-mount-policy.test.ts",
+      "tests/workspace-controller.test.ts",
+      "tests/workspace-draft-store.test.ts",
+      "tests/workspace-feedback-store.test.ts",
+      "tests/workspace-resize-preview.test.ts",
+      "tests/workspace-selectors.test.ts",
+      "tests/workspace-split-layout.test.ts",
+      "tests/workspace-split-resize-observer.test.ts",
+      "tests/workspace-store.test.ts",
+      "tests/workspace-tab-a11y.test.ts",
+      "tests/workspace-tab-layout.test.ts"
+    ]
+  }
+]

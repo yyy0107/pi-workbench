@@ -1,1 +1,0 @@
-export { workbenchBrandExtension } from "./extension";

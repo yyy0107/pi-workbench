@@ -1,0 +1,188 @@
+{
+  "packages/pi/server/src/sessions/cold-session-event-cache.ts": {
+    "path": "packages/pi/session-server/src/cold-session-event-cache.ts",
+    "export": "@workbench/pi-session-server/cold-session-event-cache"
+  },
+  "packages/pi/server/src/sessions/composer-conversation-context.ts": {
+    "path": "packages/pi/session-server/lib/composer-conversation-context.ts",
+    "export": "@workbench/pi-session-server/composer-conversation-context"
+  },
+  "packages/pi/server/src/sessions/composer-workspace-file-context.ts": {
+    "path": "packages/pi/session-server/lib/composer-workspace-file-context.ts",
+    "export": "@workbench/pi-session-server/composer-workspace-file-context"
+  },
+  "packages/pi/server/src/sessions/inline-image-admission.ts": {
+    "path": "packages/pi/session-server/src/inline-image-admission.ts",
+    "export": "@workbench/pi-session-server/inline-image-admission"
+  },
+  "packages/pi/server/src/sessions/interactive-response-registry.ts": {
+    "path": "packages/pi/session-server/src/interactive-response-registry.ts",
+    "export": "@workbench/pi-session-server/interactive"
+  },
+  "packages/pi/server/src/sessions/pi-scratch-session-store.ts": {
+    "path": "packages/pi/session-server/src/pi-scratch-session-store.ts",
+    "export": "@workbench/pi-session-server/scratch"
+  },
+  "packages/pi/server/src/sessions/pi-session-context-trace-service.ts": {
+    "path": "packages/pi/session-server/src/pi-session-context-trace-service.ts",
+    "export": "@workbench/pi-session-server/context-trace"
+  },
+  "packages/pi/server/src/sessions/pi-session-history-service.ts": {
+    "path": "packages/pi/session-server/src/pi-session-history-service.ts",
+    "export": "@workbench/pi-session-server/history"
+  },
+  "packages/pi/server/src/sessions/pi-session-model-context-service.ts": {
+    "path": "packages/pi/session-server/src/pi-session-model-context-service.ts",
+    "export": "@workbench/pi-session-server/model-context"
+  },
+  "packages/pi/server/src/sessions/pi-session-protocol-facade.ts": {
+    "path": "packages/pi/session-server/src/pi-session-protocol-facade.ts",
+    "export": "@workbench/pi-session-server/protocol"
+  },
+  "packages/pi/server/src/sessions/session-catalog-index.ts": {
+    "path": "packages/pi/session-server/src/session-catalog-index.ts",
+    "export": "@workbench/pi-session-server/session-catalog-index"
+  },
+  "packages/pi/server/src/sessions/session-context-breakdown.ts": {
+    "path": "packages/pi/session-server/src/session-context-breakdown.ts",
+    "export": "@workbench/pi-session-server/session-context-breakdown"
+  },
+  "packages/pi/server/src/sessions/session-context-policy.ts": {
+    "path": "packages/pi/session-server/src/session-context-policy.ts",
+    "export": "@workbench/pi-session-server/session-context-policy"
+  },
+  "packages/pi/server/src/sessions/session-context-trace-journal.ts": {
+    "path": "packages/pi/session-server/src/session-context-trace-journal.ts",
+    "export": "@workbench/pi-session-server/session-context-trace-journal"
+  },
+  "packages/pi/server/src/sessions/session-context-trace-summary.ts": {
+    "path": "packages/pi/session-server/lib/session-context-trace-summary.ts",
+    "export": "@workbench/pi-session-server/session-context-trace-summary"
+  },
+  "packages/pi/server/src/sessions/session-context-trace.ts": {
+    "path": "packages/pi/session-server/src/session-context-trace.ts",
+    "export": "@workbench/pi-session-server/session-context-trace"
+  },
+  "packages/pi/server/src/sessions/session-event-journal.ts": {
+    "path": "packages/pi/session-server/src/session-event-journal.ts",
+    "export": "@workbench/pi-session-server/session-event-journal"
+  },
+  "packages/pi/server/src/sessions/session-export.ts": {
+    "path": "packages/pi/session-server/src/session-export.ts",
+    "export": "@workbench/pi-session-server/export"
+  },
+  "packages/pi/server/src/sessions/session-initial-model.ts": {
+    "path": "packages/pi/session-server/lib/session-initial-model.ts",
+    "export": "@workbench/pi-session-server/session-initial-model"
+  },
+  "packages/pi/server/src/sessions/session-interruption.ts": {
+    "path": "packages/pi/session-server/src/session-interruption.ts",
+    "export": "@workbench/pi-session-server/session-interruption"
+  },
+  "packages/pi/server/src/sessions/session-queue.ts": {
+    "path": "packages/pi/session-server/lib/session-queue.ts",
+    "export": "@workbench/pi-session-server/session-queue"
+  },
+  "packages/pi/server/src/sessions/session-registry.ts": {
+    "path": "packages/pi/session-server/src/session-registry.ts",
+    "export": "@workbench/pi-session-server/registry"
+  },
+  "packages/pi/server/src/sessions/session-resume.ts": {
+    "path": "packages/pi/session-server/src/session-resume.ts",
+    "export": "@workbench/pi-session-server/session-resume"
+  },
+  "packages/pi/server/src/sessions/session-rpc-service.ts": {
+    "path": "packages/pi/session-server/src/session-rpc-service.ts",
+    "export": "@workbench/pi-session-server/session-rpc-service"
+  },
+  "packages/pi/server/src/sessions/session-runtime-dependencies.ts": {
+    "path": "packages/pi/session-server/src/session-runtime-dependencies.ts",
+    "export": "@workbench/pi-session-server/session-runtime-dependencies"
+  },
+  "packages/pi/server/src/sessions/system-prompt-placeholders.ts": {
+    "path": "packages/pi/session-server/lib/system-prompt-placeholders.ts",
+    "export": "@workbench/pi-session-server/system-prompt-placeholders"
+  },
+  "packages/pi/server/src/sessions/usage-statistics-aggregation.ts": {
+    "path": "packages/pi/session-server/lib/usage-statistics-aggregation.ts",
+    "export": "@workbench/pi-session-server/usage-statistics-aggregation"
+  },
+  "packages/pi/server/src/sessions/usage-statistics-store.ts": {
+    "path": "packages/pi/session-server/src/usage-statistics-store.ts",
+    "export": "@workbench/pi-session-server/usage-statistics-store"
+  },
+  "packages/pi/server/src/sessions/usage-statistics.ts": {
+    "path": "packages/pi/session-server/src/usage-statistics.ts",
+    "export": "@workbench/pi-session-server/usage"
+  },
+  "packages/pi/server/src/attachments/composer-text-attachments.ts": {
+    "path": "packages/pi/session-server/src/composer-text-attachments.ts",
+    "export": "@workbench/pi-session-server/composer-text-attachments"
+  },
+  "packages/pi/server/src/imports/claude-code-session-importer.ts": {
+    "path": "packages/pi/session-server/src/claude-code-session-importer.ts",
+    "export": "@workbench/pi-session-server/claude-code-session-importer"
+  },
+  "packages/pi/server/src/imports/codex-session-importer.ts": {
+    "path": "packages/pi/session-server/src/codex-session-importer.ts",
+    "export": "@workbench/pi-session-server/codex-session-importer"
+  },
+  "packages/pi/server/src/imports/cursor-session-importer.ts": {
+    "path": "packages/pi/session-server/src/cursor-session-importer.ts",
+    "export": "@workbench/pi-session-server/cursor-session-importer"
+  },
+  "packages/pi/server/src/imports/external-session-import-service.ts": {
+    "path": "packages/pi/session-server/src/external-session-import-service.ts",
+    "export": "@workbench/pi-session-server/imports"
+  },
+  "packages/pi/server/src/imports/external-session-types.ts": {
+    "path": "packages/pi/session-server/src/external-session-types.ts",
+    "export": "@workbench/pi-session-server/external-session-types"
+  },
+  "packages/pi/server/src/imports/source-utils.ts": {
+    "path": "packages/pi/session-server/lib/source-utils.ts",
+    "export": "@workbench/pi-session-server/source-utils"
+  },
+  "packages/pi/server/src/automations/pi-automation-service.ts": {
+    "path": "packages/pi/session-server/src/pi-automation-service.ts",
+    "export": "@workbench/pi-session-server/automation"
+  },
+  "packages/pi/server/src/agent-runtime/pi-agent-execution.ts": {
+    "path": "packages/pi/session-server/src/pi-agent-execution.ts",
+    "export": "@workbench/pi-session-server/execution"
+  },
+  "packages/pi/server/src/agent-runtime/pi-agent-thread-store.ts": {
+    "path": "packages/pi/session-server/src/pi-agent-thread-store.ts",
+    "export": "@workbench/pi-session-server/threads"
+  },
+  "packages/pi/server/tests/sessions/cold-session-event-cache.test.ts": {
+    "path": "packages/pi/session-server/tests/cold-session-event-cache.test.ts"
+  },
+  "packages/pi/server/tests/sessions/composer-conversation-context.test.ts": {
+    "path": "packages/pi/session-server/tests/composer-conversation-context.test.ts"
+  },
+  "packages/pi/server/tests/sessions/composer-workspace-file-context.test.ts": {
+    "path": "packages/pi/session-server/tests/composer-workspace-file-context.test.ts"
+  },
+  "packages/pi/server/tests/sessions/inline-image-admission.test.ts": {
+    "path": "packages/pi/session-server/tests/inline-image-admission.test.ts"
+  },
+  "packages/pi/server/tests/sessions/session-catalog-index.test.ts": {
+    "path": "packages/pi/session-server/tests/session-catalog-index.test.ts"
+  },
+  "packages/pi/server/tests/sessions/session-context-policy.test.ts": {
+    "path": "packages/pi/session-server/tests/session-context-policy.test.ts"
+  },
+  "packages/pi/server/tests/sessions/session-interruption.test.ts": {
+    "path": "packages/pi/session-server/tests/session-interruption.test.ts"
+  },
+  "packages/pi/server/tests/sessions/session-queue.test.ts": {
+    "path": "packages/pi/session-server/tests/session-queue.test.ts"
+  },
+  "packages/pi/server/tests/sessions/system-prompt-placeholders.test.ts": {
+    "path": "packages/pi/session-server/tests/system-prompt-placeholders.test.ts"
+  },
+  "packages/pi/server/tests/sessions/usage-statistics-store.test.ts": {
+    "path": "packages/pi/session-server/tests/usage-statistics-store.test.ts"
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "packages/pi/server/src/resources/internal-extension-path.ts": {
+    "path": "packages/pi/resources-server/lib/internal-extension-path.ts",
+    "export": "@workbench/pi-resources-server/internal-extensions"
+  },
+  "packages/pi/server/src/resources/pi-resource-mutation-coordinator.ts": {
+    "path": "packages/pi/resources-server/src/pi-resource-mutation-coordinator.ts",
+    "export": "@workbench/pi-resources-server/mutations"
+  },
+  "packages/pi/server/src/resources/resource-mutations.ts": {
+    "path": "packages/pi/resources-server/lib/resource-mutations.ts",
+    "export": "@workbench/pi-resources-server/resource-mutations"
+  },
+  "packages/pi/server/src/resources/resource-text-file.ts": {
+    "path": "packages/pi/resources-server/lib/resource-text-file.ts",
+    "export": "@workbench/pi-resources-server/resource-text-file"
+  },
+  "packages/pi/server/src/resources/scoped-resource-context.ts": {
+    "path": "packages/pi/resources-server/src/scoped-resource-context.ts",
+    "export": "@workbench/pi-resources-server/contexts"
+  },
+  "packages/pi/server/src/skills/builtin-skills.ts": {
+    "path": "packages/pi/resources-server/src/builtin-skills.ts",
+    "export": "@workbench/pi-resources-server/builtin-skills"
+  },
+  "packages/pi/server/src/skills/skill-enablement.ts": {
+    "path": "packages/pi/resources-server/lib/skill-enablement.ts",
+    "export": "@workbench/pi-resources-server/skill-enablement"
+  },
+  "packages/pi/server/src/skills/skill-service.ts": {
+    "path": "packages/pi/resources-server/src/skill-service.ts",
+    "export": "@workbench/pi-resources-server/skills"
+  },
+  "packages/pi/server/src/extensions/extension-name.ts": {
+    "path": "packages/pi/resources-server/lib/extension-name.ts",
+    "export": "@workbench/pi-resources-server/extension-name"
+  },
+  "packages/pi/server/src/extensions/extension-service.ts": {
+    "path": "packages/pi/resources-server/src/extension-service.ts",
+    "export": "@workbench/pi-resources-server/extensions"
+  },
+  "packages/pi/server/src/packages/builtin-packages.ts": {
+    "path": "packages/pi/resources-server/src/builtin-packages.ts",
+    "export": "@workbench/pi-resources-server/builtin-packages"
+  },
+  "packages/pi/server/src/packages/installed-package-service.ts": {
+    "path": "packages/pi/resources-server/src/installed-package-service.ts",
+    "export": "@workbench/pi-resources-server/packages"
+  },
+  "packages/pi/server/src/packages/package-catalog-service.ts": {
+    "path": "packages/pi/resources-server/src/package-catalog-service.ts",
+    "export": "@workbench/pi-resources-server/catalog"
+  },
+  "packages/pi/server/src/packages/package-resource-details.ts": {
+    "path": "packages/pi/resources-server/lib/package-resource-details.ts",
+    "export": "@workbench/pi-resources-server/package-resource-details"
+  },
+  "packages/pi/server/src/packages/package-update-metadata.ts": {
+    "path": "packages/pi/resources-server/lib/package-update-metadata.ts",
+    "export": "@workbench/pi-resources-server/package-update-metadata"
+  },
+  "packages/pi/server/src/commands/command-service.ts": {
+    "path": "packages/pi/resources-server/src/command-service.ts",
+    "export": "@workbench/pi-resources-server/commands"
+  },
+  "packages/pi/server/src/commands/composer-command-failure.ts": {
+    "path": "packages/pi/resources-server/src/composer-command-failure.ts",
+    "export": "@workbench/pi-resources-server/composer-command-failure"
+  },
+  "packages/pi/server/src/commands/composer-command-planner.ts": {
+    "path": "packages/pi/resources-server/src/composer-command-planner.ts",
+    "export": "@workbench/pi-resources-server/composer-command-planner"
+  },
+  "packages/pi/server/src/commands/pi-composer-command-arguments.ts": {
+    "path": "packages/pi/resources-server/src/pi-composer-command-arguments.ts",
+    "export": "@workbench/pi-resources-server/pi-composer-command-arguments"
+  },
+  "packages/pi/server/src/commands/pi-composer-command-catalog.ts": {
+    "path": "packages/pi/resources-server/src/pi-composer-command-catalog.ts",
+    "export": "@workbench/pi-resources-server/pi-composer-command-catalog"
+  },
+  "packages/pi/server/src/commands/pi-composer-prompt.ts": {
+    "path": "packages/pi/resources-server/src/pi-composer-prompt.ts",
+    "export": "@workbench/pi-resources-server/pi-composer-prompt"
+  },
+  "packages/pi/server/src/commands/prompt-template-expander.ts": {
+    "path": "packages/pi/resources-server/src/prompt-template-expander.ts",
+    "export": "@workbench/pi-resources-server/prompt-template-expander"
+  },
+  "packages/pi/server/src/prompts/prompt-service.ts": {
+    "path": "packages/pi/resources-server/src/prompt-service.ts",
+    "export": "@workbench/pi-resources-server/prompts"
+  },
+  "packages/pi/server/src/settings/agent-settings-service.ts": {
+    "path": "packages/pi/resources-server/src/agent-settings-service.ts",
+    "export": "@workbench/pi-resources-server/settings"
+  },
+  "packages/pi/server/src/trust/project-trust-service.ts": {
+    "path": "packages/pi/resources-server/src/project-trust-service.ts",
+    "export": "@workbench/pi-resources-server/trust"
+  },
+  "packages/pi/server/src/workspaces/workspace-paths.ts": {
+    "path": "packages/pi/resources-server/lib/workspace-paths.ts",
+    "export": "@workbench/pi-resources-server/workspace-paths"
+  },
+  "packages/pi/server/src/workspaces/workspace-protocol-service.ts": {
+    "path": "packages/pi/resources-server/src/workspace-protocol-service.ts",
+    "export": "@workbench/pi-resources-server/workspaces"
+  },
+  "packages/pi/server/src/workspaces/workspace-store.ts": {
+    "path": "packages/pi/resources-server/src/workspace-store.ts",
+    "export": "@workbench/pi-resources-server/workspace-store"
+  },
+  "packages/pi/server/src/builtin-resources.ts": {
+    "path": "packages/pi/resources-server/src/builtin-resources.ts",
+    "export": "@workbench/pi-resources-server/builtin-resources"
+  },
+  "packages/pi/server/src/builtin-resource-locations.ts": {
+    "path": "packages/pi/resources-server/src/builtin-resource-locations.ts",
+    "export": "@workbench/pi-resources-server/resource-locations"
+  },
+  "packages/pi/server/tests/commands/composer-command-failure.test.ts": {
+    "path": "packages/pi/resources-server/tests/composer-command-failure.test.ts",
+    "export": "@workbench/pi-resources-server"
+  },
+  "packages/pi/server/tests/commands/composer-command-planner.test.ts": {
+    "path": "packages/pi/resources-server/tests/composer-command-planner.test.ts",
+    "export": "@workbench/pi-resources-server"
+  },
+  "packages/pi/server/tests/commands/pi-composer-prompt.test.ts": {
+    "path": "packages/pi/resources-server/tests/pi-composer-prompt.test.ts",
+    "export": "@workbench/pi-resources-server"
+  },
+  "packages/pi/server/tests/commands/prompt-template-expander.test.ts": {
+    "path": "packages/pi/resources-server/tests/prompt-template-expander.test.ts",
+    "export": "@workbench/pi-resources-server"
+  },
+  "packages/pi/server/tests/packages/package-resource-details.test.ts": {
+    "path": "packages/pi/resources-server/tests/package-resource-details.test.ts",
+    "export": "@workbench/pi-resources-server"
+  },
+  "packages/pi/server/tests/packages/package-update-metadata.test.ts": {
+    "path": "packages/pi/resources-server/tests/package-update-metadata.test.ts",
+    "export": "@workbench/pi-resources-server"
+  }
+}

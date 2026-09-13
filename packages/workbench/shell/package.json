@@ -12,60 +12,15 @@
       "import": "./src/application.tsx",
       "default": "./src/application.tsx"
     },
-    "./appearance": {
-      "types": "./src/appearance.ts",
-      "import": "./src/appearance.ts",
-      "default": "./src/appearance.ts"
-    },
     "./browser-session-persistence": {
       "types": "./src/browser-session-persistence.ts",
       "import": "./src/browser-session-persistence.ts",
       "default": "./src/browser-session-persistence.ts"
     },
-    "./chat": {
-      "types": "./src/chat/index.ts",
-      "import": "./src/chat/index.ts",
-      "default": "./src/chat/index.ts"
-    },
-    "./code-highlighting": {
-      "types": "./src/code-highlighting/index.ts",
-      "import": "./src/code-highlighting/index.ts",
-      "default": "./src/code-highlighting/index.ts"
-    },
-    "./conversation-title": {
-      "types": "./src/conversation-title.ts",
-      "import": "./src/conversation-title.ts",
-      "default": "./src/conversation-title.ts"
-    },
-    "./directory-picker": {
-      "types": "./src/directory-picker.ts",
-      "import": "./src/directory-picker.ts",
-      "default": "./src/directory-picker.ts"
-    },
-    "./dom": {
-      "types": "./src/dom.tsx",
-      "import": "./src/dom.tsx",
-      "default": "./src/dom.tsx"
-    },
-    "./elements": {
-      "types": "./src/elements/index.ts",
-      "import": "./src/elements/index.ts",
-      "default": "./src/elements/index.ts"
-    },
     "./extensions": {
       "types": "./src/extensions/index.ts",
       "import": "./src/extensions/index.ts",
       "default": "./src/extensions/index.ts"
-    },
-    "./format-duration": {
-      "types": "./src/format-duration.ts",
-      "import": "./src/format-duration.ts",
-      "default": "./src/format-duration.ts"
-    },
-    "./hooks": {
-      "types": "./src/hooks/index.ts",
-      "import": "./src/hooks/index.ts",
-      "default": "./src/hooks/index.ts"
     },
     "./hosts/statusbar": {
       "types": "./src/hosts/statusbar.tsx",
@@ -82,106 +37,16 @@
       "import": "./src/i18n/public-runtime.ts",
       "default": "./src/i18n/public-runtime.ts"
     },
-    "./layout": {
-      "types": "./src/layout.tsx",
-      "import": "./src/layout.tsx",
-      "default": "./src/layout.tsx"
-    },
-    "./navigation": {
-      "types": "./src/navigation.tsx",
-      "import": "./src/navigation.tsx",
-      "default": "./src/navigation.tsx"
-    },
-    "./new-thread-policy": {
-      "types": "./src/new-thread-policy.ts",
-      "import": "./src/new-thread-policy.ts",
-      "default": "./src/new-thread-policy.ts"
-    },
     "./panels": {
       "types": "./src/panels/index.ts",
       "import": "./src/panels/index.ts",
       "default": "./src/panels/index.ts"
     },
-    "./presentation": {
-      "types": "./src/presentation.tsx",
-      "import": "./src/presentation.tsx",
-      "default": "./src/presentation.tsx"
-    },
-    "./resize": {
-      "types": "./src/resize.ts",
-      "import": "./src/resize.ts",
-      "default": "./src/resize.ts"
-    },
-    "./right-workspace": {
-      "types": "./src/right-workspace.ts",
-      "import": "./src/right-workspace.ts",
-      "default": "./src/right-workspace.ts"
-    },
-    "./right-workspace/presentation": {
-      "types": "./src/right-workspace/presentation/index.ts",
-      "import": "./src/right-workspace/presentation/index.ts",
-      "default": "./src/right-workspace/presentation/index.ts"
-    },
-    "./right-workspace/persistence": {
-      "types": "./src/right-workspace/right-workspace-persistence.ts",
-      "import": "./src/right-workspace/right-workspace-persistence.ts",
-      "default": "./src/right-workspace/right-workspace-persistence.ts"
-    },
-    "./right-workspace/react": {
-      "types": "./src/right-workspace-react.ts",
-      "import": "./src/right-workspace-react.ts",
-      "default": "./src/right-workspace-react.ts"
-    },
-    "./runtime-connection": {
-      "types": "./src/runtime-connection.ts",
-      "import": "./src/runtime-connection.ts",
-      "default": "./src/runtime-connection.ts"
-    },
-    "./running-indicator": {
-      "types": "./src/running-indicator.tsx",
-      "import": "./src/running-indicator.tsx",
-      "default": "./src/running-indicator.tsx"
-    },
-    "./settings": {
-      "types": "./src/settings.tsx",
-      "import": "./src/settings.tsx",
-      "default": "./src/settings.tsx"
-    },
     "./styles.css": "./src/styles.css",
-    "./tool-capability-preferences": {
-      "types": "./src/tool-capability-preferences.ts",
-      "import": "./src/tool-capability-preferences.ts",
-      "default": "./src/tool-capability-preferences.ts"
-    },
-    "./ui": {
-      "types": "./src/ui/index.ts",
-      "import": "./src/ui/index.ts",
-      "default": "./src/ui/index.ts"
-    },
-    "./utils": {
-      "types": "./src/utils.ts",
-      "import": "./src/utils.ts",
-      "default": "./src/utils.ts"
-    },
     "./workbench": {
       "types": "./src/workbench.ts",
       "import": "./src/workbench.ts",
       "default": "./src/workbench.ts"
-    },
-    "./workspace-file-tree": {
-      "types": "./src/workspace-file-tree/index.ts",
-      "import": "./src/workspace-file-tree/index.ts",
-      "default": "./src/workspace-file-tree/index.ts"
-    },
-    "./workspace-files": {
-      "types": "./src/workspace-files/index.ts",
-      "import": "./src/workspace-files/index.ts",
-      "default": "./src/workspace-files/index.ts"
-    },
-    "./workspace-directory-store": {
-      "types": "./src/workspace-directory-store.ts",
-      "import": "./src/workspace-directory-store.ts",
-      "default": "./src/workspace-directory-store.ts"
     }
   },
   "scripts": {
@@ -203,17 +68,39 @@
     "@shikijs/langs": "3.23.0",
     "@shikijs/themes": "3.23.0",
     "@tanstack/react-virtual": "3.14.10",
+    "@workbench/agent-controls": "workspace:*",
     "@workbench/agent-runtime-client": "workspace:*",
     "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/appearance": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
+    "@workbench/automation-ui": "workspace:*",
     "@workbench/browser-contracts": "workspace:*",
+    "@workbench/code-highlighting": "workspace:*",
+    "@workbench/composer": "workspace:*",
     "@workbench/contracts": "workspace:*",
+    "@workbench/conversation": "workspace:*",
     "@workbench/extension-host": "workspace:*",
     "@workbench/extension-sdk": "workspace:*",
     "@workbench/host-client": "workspace:*",
     "@workbench/host-contracts": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/markdown": "workspace:*",
+    "@workbench/settings-runtime": "workspace:*",
+    "@workbench/settings-ui": "workspace:*",
+    "@workbench/shell-context": "workspace:*",
     "@workbench/terminal-client": "workspace:*",
     "@workbench/terminal-contracts": "workspace:*",
+    "@workbench/terminal-ui": "workspace:*",
+    "@workbench/ui": "workspace:*",
+    "@workbench/workspace-artifact": "workspace:*",
+    "@workbench/workspace-browser": "workspace:*",
+    "@workbench/workspace-directory-picker": "workspace:*",
+    "@workbench/workspace-explorer": "workspace:*",
+    "@workbench/workspace-file-view": "workspace:*",
+    "@workbench/workspace-files": "workspace:*",
+    "@workbench/workspace-git-branch": "workspace:*",
+    "@workbench/workspace-review": "workspace:*",
+    "@workbench/workspace-runtime": "workspace:*",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "class-variance-authority": "^0.7.1",
@@ -251,6 +138,7 @@
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "@workbench/ui-testkit": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typescript": "^7.0.2"

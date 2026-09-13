@@ -8,3 +8,5 @@ RPC 领域错误、HTTP authority 信任判定/guard 和命名 shutdown hook。
 
 本包不得依赖 Pi、Automation、Execution、Next.js、React 或应用目录。具体 Runtime 和应用组合根只能从列出的
 公开 subpath 使用它，不能深导入 `src/**`。
+
+Source layout: src owns this capability and its contracts; lib contains consumed internal helpers; tests live at the package root. Example consumer: `src/child-process-environment.ts` imports `lib/child-process-environment.ts`. Capability and helper code remains TS/TSX; existing build tooling retains its language.

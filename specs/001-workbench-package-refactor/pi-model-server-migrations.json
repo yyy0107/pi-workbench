@@ -1,0 +1,22 @@
+{
+  "packages/pi/server/src/models/image-input-probe.ts": {
+    "path": "packages/pi/model-server/lib/image-input-probe.ts",
+    "export": "@workbench/pi-model-server"
+  },
+  "packages/pi/server/src/models/model-config-store.ts": {
+    "path": "packages/pi/model-server/src/model-config-store.ts",
+    "export": "@workbench/pi-model-server/config"
+  },
+  "packages/pi/server/src/models/model-service.ts": {
+    "path": "packages/pi/model-server/src/model-service.ts",
+    "export": "@workbench/pi-model-server"
+  },
+  "packages/pi/server/src/agent-runtime/agent-session-services.ts": {
+    "path": "packages/pi/model-server/src/agent-session-services.ts",
+    "export": "@workbench/pi-model-server/services"
+  },
+  "packages/pi/server/tests/models/model-config-store.test.ts": {
+    "path": "packages/pi/model-server/tests/model-config-store.test.ts",
+    "export": "@workbench/pi-model-server"
+  }
+}

@@ -1,3 +1,4 @@
+import { isRecord, hasOnlyKeys, isOpaqueHexColor } from "../lib/title-bar-validation.ts";
 /**
  * Container-neutral color data consumed by a desktop title-bar implementation.
  * Values deliberately match Electron's `titleBarOverlay` color representation
@@ -11,24 +12,6 @@ export interface TitleBarOverlay {
 /** The narrow desktop capability needed by Workbench's title-bar appearance sync. */
 export interface DesktopTitleBarPort {
   setOverlay(overlay: TitleBarOverlay): void;
-}
-
-const OPAQUE_HEX_COLOR_PATTERN = /^#[\da-f]{6}$/i;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function hasOnlyKeys(value: Record<string, unknown>, expectedKeys: readonly string[]): boolean {
-  const keys = Object.keys(value);
-  return (
-    keys.length === expectedKeys.length &&
-    expectedKeys.every((key) => Object.prototype.hasOwnProperty.call(value, key))
-  );
-}
-
-function isOpaqueHexColor(value: unknown): value is string {
-  return typeof value === "string" && OPAQUE_HEX_COLOR_PATTERN.test(value);
 }
 
 /**

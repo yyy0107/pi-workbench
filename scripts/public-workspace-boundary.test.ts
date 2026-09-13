@@ -3,15 +3,15 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const WORKSPACE_PROTOCOL_SERVICE = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/workspaces/workspace-protocol-service.ts",
+  "../packages/pi/resources-server/src/workspace-protocol-service.ts",
   import.meta.url,
 );
 const WORKSPACE_STORE = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/workspaces/workspace-store.ts",
+  "../packages/pi/resources-server/src/workspace-store.ts",
   import.meta.url,
 );
 const WORKSPACE_RPC_ROUTES = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/transport/routes/workspace-rpc-routes.ts",
+  "../packages/pi/server/src/routes/workspace-rpc-routes.ts",
   import.meta.url,
 );
 const WORKSPACE_FILE_RPC_ROUTES = new URL(
@@ -21,7 +21,7 @@ const WORKSPACE_FILE_RPC_ROUTES = new URL(
 const WORKSPACE_FILES = new URL("../packages/server/workspace/src/files.ts", import.meta.url);
 const WORKSPACE_FILE_CONTENT = new URL("../packages/server/workspace/src/http.ts", import.meta.url);
 const RPC_ROUTE_COMPOSITION = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/transport/rpc-route-composition.ts",
+  "../packages/pi/server/src/transport/rpc-route-composition.ts",
   import.meta.url,
 );
 
@@ -64,13 +64,13 @@ test("Workspace transport depends only on the protocol service", async () => {
   }
 });
 
-test("Workspace protocol service owns Session catalog, Trust migration, and resource invalidation", async () => {
+test("Workspace protocol service owns Session catalog and resource invalidation", async () => {
   const source = await readFile(WORKSPACE_PROTOCOL_SERVICE, "utf8");
 
-  assert.match(source, /from "\.\.\/sessions\/session-registry"/);
-  assert.match(source, /from "\.\/workspace-registry"/);
-  assert.match(source, /from "\.\.\/trust\/project-trust-service"/);
-  assert.match(source, /from "\.\.\/resources\/scoped-resource-context"/);
+  assert.match(source, /sessions: WorkspaceSessionCatalogPort/);
+  assert.doesNotMatch(source, /session-registry|workspace-registry|scoped-resource-context/);
+  assert.doesNotMatch(source, /from "\.\.\/trust\/project-trust-service"/);
+  assert.match(source, /resourceContexts: WorkspaceResourceContextPort/);
   assert.match(source, /resolveWorkspaceStore/);
   assert.doesNotMatch(source, /rpc-transport/);
   assert.doesNotMatch(source, /@earendil-works\/pi-coding-agent/);
@@ -155,7 +155,13 @@ test("the streaming content endpoint stays separate while sharing the default fi
 test("WorkspaceStore remains the owner of Host stream publication", async () => {
   const source = await readFile(WORKSPACE_STORE, "utf8");
 
-  assert.match(source, /getStreamHub/);
+  assert.match(source, /this\.publishHost\?\./);
+  assert.doesNotMatch(source, /getStreamHub/);
+  const adapter = await readFile(
+    new URL("../packages/pi/server/src/resource-composition/workspace-store.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(adapter, /getStreamHub\(\)\.publishHost\(payload\)/);
   assert.match(source, /host\/workspace-changed/);
   assert.match(source, /host\/session-archive-changed/);
 });

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const AGENT_SETTINGS_SERVICE = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/settings/agent-settings-service.ts",
+  "../packages/pi/resources-server/src/agent-settings-service.ts",
   import.meta.url,
 );
 const REPOSITORY_ROOT = new URL("..", import.meta.url);
@@ -20,7 +20,7 @@ const WORKBENCH_SETTINGS_PUBLIC_FILE = new URL(
   REPOSITORY_ROOT,
 );
 const AGENT_SETTINGS_ROUTES = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/transport/routes/agent-settings-rpc-routes.ts",
+  "../packages/pi/server/src/routes/agent-settings-rpc-routes.ts",
   import.meta.url,
 );
 const WORKBENCH_SETTINGS_ROUTES = new URL(
@@ -28,7 +28,7 @@ const WORKBENCH_SETTINGS_ROUTES = new URL(
   import.meta.url,
 );
 const RPC_ROUTE_COMPOSITION = new URL(
-  "../packages/agent-runtime/runtimes/pi/server/src/transport/rpc-route-composition.ts",
+  "../packages/pi/server/src/transport/rpc-route-composition.ts",
   import.meta.url,
 );
 
@@ -69,7 +69,7 @@ test("Settings routes preserve their distinct trust, budget, and lifecycle bound
     readFile(WORKBENCH_SETTINGS_ROUTES, "utf8"),
   ]);
 
-  assert.equal(agent.match(/loopbackOnly: true/g)?.length, 3);
+  assert.equal(agent.match(/loopbackOnly: true/g)?.length, 5);
   assert.match(agent, /RPC_REQUEST_BODY_LIMITS\.agentSettingsUpdate/);
   assert.match(agent, /service\.prepareDocument\(\)/);
   assert.match(agent, /openDocument\(settingsFile, signal\)/);

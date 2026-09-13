@@ -4,7 +4,7 @@ import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react
 
 import type { PanelLocation } from "@workbench/extension-sdk";
 import { useI18n } from "../i18n";
-import { cn } from "../utils";
+import { cn } from "@workbench/ui/utils";
 
 const KEYBOARD_STEP = 16;
 const DETACH_ANIMATION_MS = 150;

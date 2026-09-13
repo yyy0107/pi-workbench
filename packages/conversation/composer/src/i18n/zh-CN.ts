@@ -1,0 +1,151 @@
+import type { MessageFormatters } from "@workbench/i18n/runtime";
+export const messages = {
+  workbench: {
+    chat: {
+      composer: {
+        placeholder: "描述你想完成的任务，或粘贴需要处理的内容…",
+        runningPlaceholder: "按 Enter 加入队列，按 Ctrl/Cmd+Enter 调整当前运行的方向…",
+        runningSteerPlaceholder: "按 Enter 调整当前运行的方向，按 Ctrl/Cmd+Enter 加入队列…",
+        steerMessage: "调整方向",
+        selectWorkspacePlaceholder: "请先选择工作区，再开始会话…",
+        messageInput: "消息输入框",
+        commandSuggestions: "命令建议",
+        addMenu: {
+          open: "添加内容",
+          attachment: "添加附件",
+          context: "使用 @ 添加上下文",
+          capability: "使用 / 选择能力",
+        },
+        contextMentions: {
+          suggestions: "上下文建议",
+          conversations: "会话",
+          workspaceFiles: "工作区文件",
+          untitledConversation: "未命名会话",
+          loading: "正在加载工作区文件…",
+          empty: "未找到上下文",
+          loadError: "无法加载工作区文件",
+        },
+        commandParameters: {
+          close: "关闭命令参数面板",
+          disabled: "禁用",
+          done: "完成",
+          edit: ({ command }: { command: string }) => `编辑 ${command} 的参数`,
+          enabled: "启用",
+          notSet: "未设置",
+          optional: "可选",
+          required: "必填",
+          reset: "重置",
+          selectPlaceholder: "选择一个值",
+          title: "命令参数",
+          valuePlaceholder: ({ parameter }: { parameter: string }) => `填写${parameter}`,
+          errors: {
+            integer: "请输入整数。",
+            invalidChoice: "请选择有效的值。",
+            invalidNumber: "请输入有效数字。",
+            maximum: ({ limit }: { limit: string }) => `请输入不大于 ${limit} 的值。`,
+            maxLength: ({ limit }: { limit: string }) => `最多输入 ${limit} 个字符。`,
+            minimum: ({ limit }: { limit: string }) => `请输入不小于 ${limit} 的值。`,
+            minLength: ({ limit }: { limit: string }) => `至少输入 ${limit} 个字符。`,
+            required: "请填写此参数。",
+          },
+        },
+        commandGroups: {
+          builtin: (
+            { runtimeName, count }: { runtimeName: string; count: number },
+            { number }: MessageFormatters,
+          ) => `${runtimeName} 内置命令 (${number(count)})`,
+          extension: ({ count }: { count: number }, { number }: MessageFormatters) =>
+            `扩展命令 (${number(count)})`,
+          prompt: ({ count }: { count: number }, { number }: MessageFormatters) =>
+            `提示词模板 (${number(count)})`,
+          skill: ({ count }: { count: number }, { number }: MessageFormatters) =>
+            `Skills (${number(count)})`,
+          workbench: ({ count }: { count: number }, { number }: MessageFormatters) =>
+            `Workbench (${number(count)})`,
+        },
+        commandScopes: {
+          user: "用户",
+          project: "项目",
+          temporary: "临时",
+          manualOnly: "仅手动调用",
+        },
+        builtinCommands: {
+          compact: {
+            label: "压缩上下文",
+            description: "手动压缩当前会话上下文",
+            argumentHint: "[可选压缩指令]",
+          },
+          reload: {
+            label: "重新加载",
+            description: "重新加载扩展、Skills、提示词与上下文文件",
+          },
+        },
+        stopVoiceInput: "停止语音输入",
+        voiceInput: "语音输入",
+        stopGenerating: "停止生成",
+        sendMessage: "发送消息",
+        queueFollowUp: "加入后续队列",
+        dismissError: "关闭提示",
+      },
+    },
+  },
+  assistant: {
+    composer: {
+      placeholder: "发送消息…",
+      messageInput: "消息输入框",
+      addAttachment: "添加附件",
+      removeFile: "移除文件",
+      removeAttachment: ({ name }: { name: string }) => `移除 ${name}`,
+      stopVoiceInput: "停止语音输入",
+      voiceInput: "语音输入",
+      startVoiceInput: "开始语音输入",
+      transcribing: "正在转写",
+      stopGenerating: "停止生成",
+      sendMessage: "发送消息",
+    },
+    attachment: {
+      previewTitle: "图片附件预览",
+      previewAlt: "附件预览",
+      image: "图片",
+      document: "文档",
+      file: "文件",
+      uploadFailed: "上传失败",
+      accessibleLabel: ({ type, status }: { type: string; status: string }) =>
+        `${type}附件${status}`,
+      statusUploading: "，正在上传",
+      statusFailed: "，上传失败",
+    },
+  },
+  chatContent: {
+    textAttachment: {
+      title: "粘贴文本",
+      saving: "正在保存…",
+      ready: "已保存",
+      failed: "粘贴文本保存失败",
+      retry: "重试",
+      remove: "移除粘贴文本",
+      preview: "预览粘贴文本",
+      restore: "在文本框显示",
+      restoring: "正在恢复…",
+      restoreFailed: "无法恢复粘贴文本，附件已保留。",
+      unavailable: "此文本附件不可用。",
+      loadMore: "加载更多",
+      loading: "正在加载…",
+      tooLarge: "粘贴文本超过 5 MiB 上限。",
+      tooMany: "一条消息最多支持 20 个附件。",
+      characters: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `${number(count)} 个字符`,
+    },
+  },
+  composer: {
+    close: "关闭",
+    errors: {
+      modelDoesNotSupportAttachments: "当前路由无法接收此附件。请移除附件或选择兼容的识别路由。",
+      attachmentTooLarge: "附件过大，无法发送。请选择较小的文件。",
+      tooManyAttachments: "一次发送的附件过多。请移除部分文件后重试。",
+      invalidAttachment: "无法发送此附件。请使用有效的 PNG、JPEG、GIF 或 WebP 文件。",
+      queueSendFailedRestored: "消息排队失败，草稿已恢复，你可以再次尝试发送。",
+      commandCompileFailed: "无法发送当前命令组合。请删除冲突或已不可用的命令 Token 后重试。",
+    },
+  },
+};

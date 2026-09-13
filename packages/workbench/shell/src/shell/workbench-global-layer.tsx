@@ -3,8 +3,9 @@
 import type { ComponentType, RefObject } from "react";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 
-import { useI18n } from "../i18n";
-import { Toaster } from "../ui/toast";
+import { useTranslationBundle } from "@workbench/i18n";
+import { uiTranslationBundle } from "@workbench/ui/i18n";
+import { Toaster } from "@workbench/ui";
 import { CommandPaletteHost } from "./command-palette-host";
 
 export interface WorkbenchInstallationEffectsProps {
@@ -18,7 +19,7 @@ export function WorkbenchGlobalLayer({
   installationEffects?: ComponentType<WorkbenchInstallationEffectsProps>;
   ownerRootRef: RefObject<HTMLElement | null>;
 }>) {
-  const { t } = useI18n();
+  const { t } = useTranslationBundle(uiTranslationBundle);
 
   return (
     <>

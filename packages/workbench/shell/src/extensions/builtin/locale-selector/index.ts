@@ -1,1 +1,0 @@
-export { localeSelectorExtension } from "./extension";

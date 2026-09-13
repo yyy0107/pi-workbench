@@ -5,8 +5,8 @@ export {
   isLocale,
   matchLocale,
   type Locale,
-} from "./config";
-export { defineTranslationBundle } from "./bundle";
+} from "@workbench/i18n/runtime";
+export { defineTranslationBundle } from "@workbench/i18n/runtime";
 export {
   createI18n,
   createTranslationBundleMessageFactory,
@@ -32,4 +32,4 @@ export type {
   MessageVariables,
   TranslationArgs,
   TranslationBundle,
-} from "./types";
+} from "@workbench/i18n/runtime";

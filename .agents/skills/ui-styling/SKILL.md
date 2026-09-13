@@ -16,8 +16,8 @@ Follow the repository `AGENTS.md` and reuse the existing Shell component and app
 
 For new controls or layout/visual/interaction changes, inspect only the relevant owner:
 
-- `packages/workbench/shell/src/ui/`: shared primitives and variants; use the owning package's public exports instead of copying implementations.
-- `packages/workbench/shell/src/styles.css`: semantic Tailwind mappings and imported regional styles.
+- `packages/client/ui/src/components/`: shared primitives and variants; use the owning package's public exports instead of copying implementations.
+- `packages/client/ui/src/tokens.css`: shared semantic Tailwind mappings and control tokens; `packages/workbench/shell/src/styles.css` assembles shared and regional styles.
 - `packages/workbench/shell/src/extensions/builtin/appearance/`: appearance settings and their style derivation when the change touches them.
 - The feature's co-located CSS: regional layout and tokens. Reuse unchanged context already read.
 

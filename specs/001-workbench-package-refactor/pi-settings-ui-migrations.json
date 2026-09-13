@@ -1,0 +1,102 @@
+{
+  "packages/pi/contributions/src/extensions/agent-configuration/agent-settings-items.tsx": {
+    "path": "packages/pi/settings-ui/src/agent-settings-items.tsx",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/agent-configuration/cache-miss-notice.tsx": {
+    "path": "packages/pi/settings-ui/src/cache-miss-notice.tsx",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/agent-configuration/extension.ts": {
+    "path": "packages/pi/settings-ui/src/agent-configuration-extension.ts",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/agent-configuration/index.ts": {
+    "path": "packages/pi/settings-ui/src/agent-configuration-index.ts",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/agent-configuration/prompt-placeholder-highlight.module.css": {
+    "path": "packages/pi/settings-ui/src/prompt-placeholder-highlight.module.css",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/agent-configuration/prompt-placeholder-highlight.ts": {
+    "path": "packages/pi/settings-ui/lib/prompt-placeholder-highlight.ts",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/setting-model-config/extension.ts": {
+    "path": "packages/pi/settings-ui/src/setting-model-config-extension.ts",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/setting-model-config/index.ts": {
+    "path": "packages/pi/settings-ui/src/setting-model-config-index.ts",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/setting-model-config/model-config-draft.ts": {
+    "path": "packages/pi/settings-ui/lib/model-config-draft.ts",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/setting-model-config/model-config-model-row.tsx": {
+    "path": "packages/pi/settings-ui/src/model-config-model-row.tsx",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/setting-model-config/model-config-settings-item.tsx": {
+    "path": "packages/pi/settings-ui/src/model-config-settings-item.tsx",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/setting-model-config/model-provider-credential-links.ts": {
+    "path": "packages/pi/settings-ui/lib/model-provider-credential-links.ts",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/setting-model-config/use-model-config-autosave.ts": {
+    "path": "packages/pi/settings-ui/src/use-model-config-autosave.ts",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/setting-model-config/use-model-test-feedback.ts": {
+    "path": "packages/pi/settings-ui/src/use-model-test-feedback.ts",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/settings/extension.ts": {
+    "path": "packages/pi/settings-ui/src/settings-extension.ts",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/settings/index.ts": {
+    "path": "packages/pi/settings-ui/src/settings-index.ts",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/src/extensions/settings/settings-header-action.tsx": {
+    "path": "packages/pi/settings-ui/src/settings-header-action.tsx",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/tests/extensions/agent-configuration-cache-miss-notice.test.tsx": {
+    "path": "packages/pi/settings-ui/tests/cache-miss-notice.test.tsx",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/tests/extensions/agent-configuration-prompt-placeholder-highlight.browser.test.ts": {
+    "path": "packages/pi/settings-ui/tests/prompt-placeholder-highlight.browser.test.ts",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/tests/extensions/setting-model-config-model-config-draft.test.ts": {
+    "path": "packages/pi/settings-ui/tests/model-config-draft.test.ts",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/tests/extensions/setting-model-config-model-config-model-row.test.tsx": {
+    "path": "packages/pi/settings-ui/tests/model-config-model-row.test.tsx",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/tests/extensions/setting-model-config-model-provider-credential-links.test.ts": {
+    "path": "packages/pi/settings-ui/tests/model-provider-credential-links.test.ts",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/tests/extensions/setting-model-config-use-model-config-autosave.test.tsx": {
+    "path": "packages/pi/settings-ui/tests/use-model-config-autosave.test.tsx",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/tests/extensions/setting-model-config-use-model-test-feedback.test.tsx": {
+    "path": "packages/pi/settings-ui/tests/use-model-test-feedback.test.tsx",
+    "export": "@workbench/pi-settings-ui"
+  },
+  "packages/pi/contributions/tests/extensions/settings-settings-header-action.test.ts": {
+    "path": "packages/pi/settings-ui/tests/settings-header-action.test.ts",
+    "export": "@workbench/pi-settings-ui"
+  }
+}

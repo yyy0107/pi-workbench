@@ -23,7 +23,7 @@ import {
   SettingsGroup,
   SettingsRow,
   Switch,
-} from "@workbench/shell/ui";
+} from "@workbench/ui";
 import { desktopRendererTranslationBundle } from "@/app/i18n/bundle";
 import { playNotificationSound, stopNotificationSound } from "./notification-sounds";
 

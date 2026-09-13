@@ -59,21 +59,27 @@ activeExtensions = 应用组合层提供的完整有序扩展列表
 
 ## 2. 扩展的最小结构
 
-推荐每个扩展拥有独立目录：
+推荐独立能力使用同领域的兄弟包，例如：
 
 ```text
-packages/workbench/shell/src/extensions/builtin/notes/
-├── extension.ts
-├── notes-panel.tsx
-├── notes-trigger.tsx
-├── toggle-notes-command.ts
-└── index.ts
+packages/workspace/notes/
+├── src/
+│   ├── extension.ts
+│   ├── notes-panel.tsx
+│   ├── notes-trigger.tsx
+│   ├── toggle-notes-command.ts
+│   ├── i18n/
+│   │   ├── en-US.ts
+│   │   └── zh-CN.ts
+│   └── index.ts
+├── lib/
+│   └── note-selection.ts
+├── tests/
+└── package.json
 ```
 
-目录按能力所有者组织。Shell 拥有通用工作区、Terminal、交互请求、Side Chat、Automation、Model
-Selector、Image Understanding 和 Token Usage / Context Policy；Pi contributions 只保留 Pi 配置、
-Toolbox、Context Trace、外部会话导入、连接状态和 branding。应用组合层交错安装双方的语义化扩展组，
-保持完整、有序的静态扩展列表。使用 Pi 提供的能力并不意味着 UI 属于 Pi。
+这是新增能力的示例路径。src 放真实能力和契约，lib 只放该能力实际使用的辅助源码；两处均保留 TS/TSX，最多一级子目录。跨包使用公开 exports 和 workspace 依赖。
+公共界面归 `packages/client/*`，工作区归 `packages/workspace/*`，对话归 `packages/conversation/*`，Pi 专属界面归 `packages/pi/*-ui`。产品在 `packages/workbench/pi-product/src/extensions.ts` 按原顺序安装贡献，Shell 保留布局和侧栏装配。
 
 最小扩展只有一个 `extension.ts`：
 
@@ -117,7 +123,7 @@ export const exampleExtension = defineExtension({
 
 ### 第一步：创建 Panel 组件
 
-创建 `packages/workbench/shell/src/extensions/builtin/notes/notes-panel.tsx`：
+创建 `packages/workspace/notes/src/notes-panel.tsx`：
 
 ```tsx
 "use client";
@@ -160,7 +166,7 @@ export function NotesPanel({ panelId, close }: PanelComponentProps) {
 
 ### 第二步：创建 Slot 入口
 
-创建 `packages/workbench/shell/src/extensions/builtin/notes/notes-trigger.tsx`：
+创建 `packages/workspace/notes/src/notes-trigger.tsx`：
 
 ```tsx
 "use client";
@@ -210,7 +216,7 @@ export function NotesTrigger({ isRunning }: ComposerSlotContext) {
 
 ### 第三步：创建 Command
 
-创建 `packages/workbench/shell/src/extensions/builtin/notes/toggle-notes-command.ts`：
+创建 `packages/workspace/notes/src/toggle-notes-command.ts`：
 
 ```ts
 import { StickyNoteIcon } from "lucide-react";
@@ -248,7 +254,7 @@ export const toggleNotesCommand = {
 
 ### 第四步：注册三类贡献
 
-创建 `packages/workbench/shell/src/extensions/builtin/notes/extension.ts`：
+创建 `packages/workspace/notes/src/extension.ts`：
 
 ```ts
 import { StickyNoteIcon } from "lucide-react";
@@ -290,7 +296,7 @@ export const notesExtension = defineExtension({
 });
 ```
 
-再创建 `packages/workbench/shell/src/extensions/builtin/notes/index.ts`：
+再创建 `packages/workspace/notes/src/index.ts`：
 
 ```ts
 export { notesExtension } from "./extension";
@@ -448,7 +454,7 @@ export interface SlotPropsMap {
 ```
 
 ```tsx
-// packages/workbench/shell/src/chat/...
+// packages/conversation/conversation/src/...
 <SlotHost name="thread.toolbar" context={{ threadId }} />
 ```
 
@@ -565,12 +571,12 @@ const contribution = context.workspace.register({
 - `menuItem`：可选，挂载到核心加号菜单；
 - `runtime`：可选，在 AssistantRuntimeProvider 内挂载一次，用于监听 Agent 状态并打开或刷新该能力。
 
-扩展同时拥有对应的领域 Service 和 `extensions.*` 文案。不要把功能分支、图标映射、Service 或工具名判断写回 `packages/workbench/shell/src/right-workspace/`。扩展停用时定义会被撤销，但核心保留已持久化的标签实例；重新启用同一 kind 后可以恢复渲染。
+扩展同时拥有对应的领域 Service 和 `extensions.*` 文案。不要把功能分支、图标映射、Service 或工具名判断写回 `packages/workspace/runtime/src/`。扩展停用时定义会被撤销，但核心保留已持久化的标签实例；重新启用同一 kind 后可以恢复渲染。
 
 `open()`、`reveal()` 和 `update()` 中的 `title`、`statusMessage` 接受 `LocalizableText`。内置产品文案必须传入 `defineMessage(...)` 描述符，由 Host 在渲染时按当前 locale 解析；文件名、URL、用户或资源提供的标题保持 literal string。`defineMessage()` 是应用 catalog 唯一的公开描述符构造器，会同时校验包含 namespace 的组合键与参数；raw object literal 不能满足 SDK 的 opaque descriptor 类型。运行时仍使用 plain JSON `{ key }` / `{ key, values }` 形状，因此两种形态都可序列化，旧快照中的字符串会继续兼容恢复。异步失败应通过 `useExtensionErrorReporter()` 保存原始诊断，并只把稳定、面向用户的消息描述符写入 `statusMessage`，不得直接显示 `Error.message`。
 
-当前通用参考实现位于 `packages/workbench/shell/src/extensions/builtin/`；Pi/Runtime 专属参考实现位于
-`packages/agent-runtime/runtimes/pi/contributions/src/extensions/`。
+当前通用参考实现位于 `packages/workspace/explorer/src/` 和 `packages/client/terminal-ui/src/`；Pi/Runtime 专属参考实现位于
+`packages/pi/`。
 
 ### 跨 Contribution 打开资源：Opener
 
@@ -1092,7 +1098,7 @@ Workbench contracts，失败只按 `WorkbenchAgentCapabilityError.code` 处理�
 只有 Pi contributions 内的专属功能使用 `@workbench/agent-runtime-pi-client/*` 的有限公开入口。
 Pi Protocol、`PiApiError` 和原始 Pi 事件不能进入 Shell、Core 或 Extension SDK/Host；事件到
 Conversation snapshot、错误到 Workbench code 的投影均由 Pi Client 完成。完整边界见
-[Pi Runtime 架构](../packages/agent-runtime/runtimes/pi/README.md#架构)。
+[Pi Runtime 架构](../packages/pi/README.md#架构)。
 
 ## 14. ID 与注册规则
 
@@ -1143,14 +1149,14 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 
 ## 16. 可参考的现有扩展
 
-- 最小 Slot：[`connection-status`](../packages/agent-runtime/runtimes/pi/contributions/src/extensions/connection-status/extension.ts)
-- Model 选择与 Workbench capability：[`model-selector`](../packages/workbench/shell/src/extensions/builtin/model-selector/extension.ts)
-- Settings + Pi 专属配置：[`setting-model-config`](../packages/agent-runtime/runtimes/pi/contributions/src/extensions/setting-model-config/extension.ts)
-- Workspace Surface + Open Handler：[`workspace-file`](../packages/workbench/shell/src/extensions/builtin/workspace-file/extension.ts)
-- Workspace Surface + Command + Tool Renderer：[`terminal`](../packages/workbench/shell/src/extensions/builtin/terminal/extension.ts)
-- Sidebar/Header Slot + floating Settings：[`settings`](../packages/workbench/shell/src/extensions/builtin/settings/extension.ts)
-- Message 分组、reasoning 与 Tool/Data fallback：[`message-presentation`](../packages/workbench/shell/src/extensions/builtin/message-presentation/extension.ts)
-- Runtime 状态派生：[`token-usage`](../packages/workbench/shell/src/extensions/builtin/token-usage/extension.ts)
+- 最小 Slot：[`connection-status`](../packages/pi/status-ui/src/connection-status-extension.ts)
+- Model 选择与 Workbench capability：[`model-selector`](../packages/client/agent-controls/src/model-selector-extension.ts)
+- Settings + Pi 专属配置：[`setting-model-config`](../packages/pi/settings-ui/src/setting-model-config-extension.ts)
+- Workspace Surface + Open Handler：[`workspace-file`](../packages/workspace/file-view/src/extension.ts)
+- Workspace Surface + Command + Tool Renderer：[`terminal`](../packages/client/terminal-ui/src/extension.ts)
+- Sidebar/Header Slot + floating Settings：[`settings`](../packages/client/settings-ui/src/settings-extension.ts)
+- Message 分组、reasoning 与 Tool/Data fallback：[`message-presentation`](../packages/conversation/conversation/src/message-presentation/extension.ts)
+- Runtime 状态派生：[`token-usage`](../packages/client/agent-controls/src/token-usage-extension.ts)
 
 如果新需求无法自然归入 Slot、Panel、Command、Renderer 或 Settings，先判断它是不是：
 

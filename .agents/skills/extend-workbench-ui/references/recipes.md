@@ -24,7 +24,7 @@ co-located `en-US` and `zh-CN` dictionaries; use `defineMessage(...)` for regist
 ## Slot-only feature
 
 ```tsx
-// packages/workbench/shell/src/extensions/builtin/session-badge/session-badge.tsx
+// packages/client/session-badge/src/session-badge.tsx
 "use client";
 
 import { useSessionState } from "@workbench/agent-runtime-client";
@@ -44,7 +44,7 @@ export function SessionBadge() {
 ```
 
 ```ts
-// packages/workbench/shell/src/extensions/builtin/session-badge/extension.ts
+// packages/client/session-badge/src/extension.ts
 import { defineExtension } from "@workbench/extension-sdk";
 
 import { SessionBadge } from "./session-badge";
@@ -388,14 +388,14 @@ const opener = context.openers.register({
 });
 ```
 
-Client callers obtain `useOpenerService()` from `@workbench/shell/right-workspace/react` and handle the
+Client callers obtain `useOpenerService()` from `@workbench/workspace-runtime/react` and handle the
 Promise returned by `open()`. Do not import the owner's component, store, or internal service.
 
 ## Pi-backed extension
 
 Generic UI stays in Shell even when Pi implements its capability. Only Pi-specific configuration,
 resources, and diagnostics belong in Pi Contributions and may import Pi facades/protocol types.
-Read `packages/agent-runtime/runtimes/pi/README.md` for that implementation boundary. Use:
+Read `packages/pi/README.md` for that implementation boundary. Use:
 
 - Workbench session/thread hooks from `@workbench/agent-runtime-client` and its `/context` entry,
   plus `useWorkspaceSelection()` from `/workspaces`, for generic subscribed state;
@@ -619,7 +619,7 @@ Do not add a feature-specific Slot such as `notes.button`. Add a semantic host l
 - [ ] Register inspector kinds through `context.workspace`; keep feature branches and services out of RightWorkspace core.
 - [ ] Register cross-feature resource routing through `context.openers`; do not deep-import sibling builtin features.
 - [ ] Use `workspace.actions`/`workspace.empty.actions` only for compact controls outside a Surface lifecycle.
-- [ ] Read `packages/agent-runtime/runtimes/pi/README.md` before Pi-backed UI and route server SDK work through `$pi-coding-agent-sdk` or `$pi-ai-sdk`.
+- [ ] Read `packages/pi/README.md` before Pi-backed UI and route server SDK work through `$pi-coding-agent-sdk` or `$pi-ai-sdk`.
 - [ ] Audit registered shortcuts and standalone global `keydown` listeners.
 - [ ] Return Disposables for external resources.
 - [ ] Avoid duplicate Panel chrome.

@@ -4,7 +4,7 @@ import type {
   SettingsRegistry,
   SettingsSectionDefinition,
 } from "../api/settings";
-import { assertNonEmptyId, emitRegistryChange } from "./registry-utils";
+import { assertNonEmptyId, emitRegistryChange } from "../../lib/registry-utils";
 
 const EMPTY_SECTIONS = Object.freeze([]) as readonly SettingsSectionDefinition[];
 const EMPTY_ITEMS = Object.freeze([]) as readonly SettingsItemDefinition[];

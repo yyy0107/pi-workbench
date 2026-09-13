@@ -4,7 +4,7 @@ import type { SidebarSectionComponentProps } from "@workbench/extension-sdk";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 
 import { useI18n } from "../i18n";
-import { SidebarActions, SidebarGroup, SidebarSectionHeading } from "../ui/sidebar-items";
+import { SidebarActions, SidebarGroup, SidebarSectionHeading } from "@workbench/ui";
 import { WorkbenchPinnedThreadList, WorkbenchWorkspaceThreadList } from "./workspace-thread-list";
 import {
   WorkspaceSidebarProvider,

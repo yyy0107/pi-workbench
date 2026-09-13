@@ -1,0 +1,142 @@
+{
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-activation.ts": {
+    "path": "packages/pi/diagnostics-ui/lib/context-trace-activation.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-context-view.tsx": {
+    "path": "packages/pi/diagnostics-ui/src/context-trace-context-view.tsx",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-detail-cache.ts": {
+    "path": "packages/pi/diagnostics-ui/lib/context-trace-detail-cache.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-detail-selection.ts": {
+    "path": "packages/pi/diagnostics-ui/lib/context-trace-detail-selection.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-detail.tsx": {
+    "path": "packages/pi/diagnostics-ui/src/context-trace-detail.tsx",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-event-label.ts": {
+    "path": "packages/pi/diagnostics-ui/lib/context-trace-event-label.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-menu-item.tsx": {
+    "path": "packages/pi/diagnostics-ui/src/context-trace-menu-item.tsx",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-message-part.tsx": {
+    "path": "packages/pi/diagnostics-ui/src/context-trace-message-part.tsx",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-messages.ts": {
+    "path": "packages/pi/diagnostics-ui/lib/context-trace-messages.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-overview-spans.ts": {
+    "path": "packages/pi/diagnostics-ui/lib/context-trace-overview-spans.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-overview.module.css": {
+    "path": "packages/pi/diagnostics-ui/src/context-trace-overview.module.css",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-overview.tsx": {
+    "path": "packages/pi/diagnostics-ui/src/context-trace-overview.tsx",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-search.ts": {
+    "path": "packages/pi/diagnostics-ui/lib/context-trace-search.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-surface.tsx": {
+    "path": "packages/pi/diagnostics-ui/src/context-trace-surface.tsx",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-timeline-scale.ts": {
+    "path": "packages/pi/diagnostics-ui/lib/context-trace-timeline-scale.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-tree.ts": {
+    "path": "packages/pi/diagnostics-ui/lib/context-trace-tree.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-trigger.tsx": {
+    "path": "packages/pi/diagnostics-ui/src/context-trace-trigger.tsx",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/context-trace-workspace.ts": {
+    "path": "packages/pi/diagnostics-ui/src/context-trace-workspace.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/extension.ts": {
+    "path": "packages/pi/diagnostics-ui/src/context-trace-extension.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/index.ts": {
+    "path": "packages/pi/diagnostics-ui/src/context-trace-index.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/context-trace/use-context-trace.ts": {
+    "path": "packages/pi/diagnostics-ui/src/use-context-trace.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/usage-statistics/extension.ts": {
+    "path": "packages/pi/diagnostics-ui/src/usage-statistics-extension.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/usage-statistics/usage-statistics-data.ts": {
+    "path": "packages/pi/diagnostics-ui/lib/usage-statistics-data.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/usage-statistics/usage-statistics-settings-item.tsx": {
+    "path": "packages/pi/diagnostics-ui/src/usage-statistics-settings-item.tsx",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/src/extensions/usage-statistics/usage-statistics.module.css": {
+    "path": "packages/pi/diagnostics-ui/src/usage-statistics.module.css",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/tests/extensions/context-trace-context-trace-activation.test.ts": {
+    "path": "packages/pi/diagnostics-ui/tests/context-trace-activation.test.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/tests/extensions/context-trace-context-trace-detail-cache.test.ts": {
+    "path": "packages/pi/diagnostics-ui/tests/context-trace-detail-cache.test.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/tests/extensions/context-trace-context-trace-detail-selection.test.ts": {
+    "path": "packages/pi/diagnostics-ui/tests/context-trace-detail-selection.test.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/tests/extensions/context-trace-context-trace-detail.test.tsx": {
+    "path": "packages/pi/diagnostics-ui/tests/context-trace-detail.test.tsx",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/tests/extensions/context-trace-context-trace-messages.test.ts": {
+    "path": "packages/pi/diagnostics-ui/tests/context-trace-messages.test.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/tests/extensions/context-trace-context-trace-overview-spans.test.ts": {
+    "path": "packages/pi/diagnostics-ui/tests/context-trace-overview-spans.test.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/tests/extensions/context-trace-context-trace-search.test.ts": {
+    "path": "packages/pi/diagnostics-ui/tests/context-trace-search.test.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/tests/extensions/context-trace-context-trace-timeline-scale.test.ts": {
+    "path": "packages/pi/diagnostics-ui/tests/context-trace-timeline-scale.test.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/tests/extensions/context-trace-context-trace-tree.test.ts": {
+    "path": "packages/pi/diagnostics-ui/tests/context-trace-tree.test.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  },
+  "packages/pi/contributions/tests/extensions/usage-statistics-usage-statistics-data.test.ts": {
+    "path": "packages/pi/diagnostics-ui/tests/usage-statistics-data.test.ts",
+    "export": "@workbench/pi-diagnostics-ui"
+  }
+}

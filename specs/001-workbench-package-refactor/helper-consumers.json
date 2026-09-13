@@ -1,0 +1,1283 @@
+[
+  {
+    "package": "@workbench/agent-runtime-client",
+    "directory": "packages/agent-runtime/client",
+    "relations": [
+      {
+        "helper": "lib/metadata-values.ts",
+        "consumers": ["src/conversation/presentation-metadata.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/agent-runtime-contracts",
+    "directory": "packages/agent-runtime/contracts",
+    "relations": [
+      {
+        "helper": "lib/metadata-values.ts",
+        "consumers": ["src/message-metadata.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/agent-runtime-core",
+    "directory": "packages/agent-runtime/runtime",
+    "relations": [
+      {
+        "helper": "lib/notifier.ts",
+        "consumers": ["src/index.ts", "src/notifier.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/agent-runtime-server",
+    "directory": "packages/agent-runtime/server",
+    "relations": [
+      {
+        "helper": "lib/agent-server-error.ts",
+        "consumers": ["src/commands.ts", "src/execution.ts", "src/threads.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/agent-runtime-testkit",
+    "directory": "packages/agent-runtime/testkit",
+    "relations": [
+      {
+        "helper": "lib/mutable-observable.ts",
+        "consumers": ["src/runtime/fake-agent-runtime.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/agent-controls",
+    "directory": "packages/client/agent-controls",
+    "relations": [
+      {
+        "helper": "lib/model-selector-state.ts",
+        "consumers": ["src/model-selector.tsx", "src/models.ts", "lib/reasoning-effort-label.ts"]
+      },
+      {
+        "helper": "lib/reasoning-effort-label.ts",
+        "consumers": ["src/model-selector.tsx", "src/reasoning.ts"]
+      },
+      {
+        "helper": "lib/token-animation.ts",
+        "consumers": ["src/token-usage.tsx"]
+      },
+      {
+        "helper": "lib/token-throughput.ts",
+        "consumers": ["src/token-usage.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/appearance",
+    "directory": "packages/client/appearance",
+    "relations": [
+      {
+        "helper": "lib/legacy-preferences.ts",
+        "consumers": ["src/appearance-preferences.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/automation-ui",
+    "directory": "packages/client/automation-ui",
+    "relations": [
+      {
+        "helper": "lib/automation-invalid-focus.ts",
+        "consumers": ["src/automation-task-form.tsx"]
+      },
+      {
+        "helper": "lib/automation-save-error.ts",
+        "consumers": ["src/automation-task-form.tsx"]
+      },
+      {
+        "helper": "lib/automation-schedule.ts",
+        "consumers": ["src/automation-home.tsx", "src/automation-task-form.tsx"]
+      },
+      {
+        "helper": "lib/project-trust-dialog-copy.ts",
+        "consumers": ["src/automation-home.tsx", "src/automation-task-form.tsx"]
+      },
+      {
+        "helper": "lib/runtime-entries.tsx",
+        "consumers": ["src/automation-extension.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/code-highlighting",
+    "directory": "packages/client/code-highlighting",
+    "relations": [
+      {
+        "helper": "lib/code-highlight-policy.ts",
+        "consumers": [
+          "src/index.ts",
+          "src/markdown-code-block.tsx",
+          "src/use-workbench-highlighted-code.tsx",
+          "src/workbench-code-editor.tsx"
+        ]
+      },
+      {
+        "helper": "lib/diff/range.ts",
+        "consumers": ["src/index.ts"]
+      },
+      {
+        "helper": "lib/diff/unified-patch.ts",
+        "consumers": ["src/index.ts"]
+      },
+      {
+        "helper": "lib/shiki-token-style.ts",
+        "consumers": ["src/index.ts", "src/markdown-code-block.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/i18n",
+    "directory": "packages/client/i18n",
+    "relations": [
+      {
+        "helper": "lib/catalog-tree.ts",
+        "consumers": ["src/runtime.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/markdown",
+    "directory": "packages/client/markdown",
+    "relations": [
+      {
+        "helper": "lib/inline-citation-markers.ts",
+        "consumers": ["src/markdown-text.tsx"]
+      },
+      {
+        "helper": "lib/markdown-normalize.ts",
+        "consumers": ["src/markdown-text.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/settings-runtime",
+    "directory": "packages/client/settings-runtime",
+    "relations": [
+      {
+        "helper": "lib/dispose-resources.ts",
+        "consumers": ["src/index.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/settings-ui",
+    "directory": "packages/client/settings-ui",
+    "relations": [
+      {
+        "helper": "lib/appearance-settings-pages.ts",
+        "consumers": ["src/appearance-reset-action.tsx", "src/appearance-settings-item.tsx"]
+      },
+      {
+        "helper": "lib/locale-display-name.ts",
+        "consumers": ["src/locale-selector.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/shell-context",
+    "directory": "packages/client/shell-context",
+    "relations": [
+      {
+        "helper": "lib/layout/thread-content-width.ts",
+        "consumers": ["src/layout.tsx", "src/layout.tsx"]
+      },
+      {
+        "helper": "lib/workbench-shell-owner.ts",
+        "consumers": ["src/dom.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/terminal-ui",
+    "directory": "packages/client/terminal-ui",
+    "relations": [
+      {
+        "helper": "lib/terminal-resize-observer.ts",
+        "consumers": ["src/terminal-surface.tsx"]
+      },
+      {
+        "helper": "lib/terminal-tool-status.ts",
+        "consumers": ["src/terminal-surface.tsx"]
+      },
+      {
+        "helper": "lib/terminal-tool-transcript.ts",
+        "consumers": [
+          "src/bash-tool-disclosure-controller.tsx",
+          "src/bash-tool-renderer.tsx",
+          "src/terminal-surface.tsx",
+          "src/use-terminal-tool-call.ts"
+        ]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/ui",
+    "directory": "packages/client/ui",
+    "relations": [
+      {
+        "helper": "lib/clipboard.ts",
+        "consumers": ["src/clipboard.ts", "src/hooks/use-clipboard-copy.ts"]
+      },
+      {
+        "helper": "lib/components/model-selector-models.ts",
+        "consumers": [
+          "src/components/index.ts",
+          "src/components/model-selector.tsx",
+          "src/components/model-selector.tsx"
+        ]
+      },
+      {
+        "helper": "lib/disclosure/disclosure-scroll-policy.ts",
+        "consumers": ["src/disclosure/use-disclosure-scroll-lock.ts", "src/disclosure.ts"]
+      },
+      {
+        "helper": "lib/keyboard-shortcut-owner.ts",
+        "consumers": ["src/components/sidebar.tsx", "src/keyboard-shortcut-owner.ts"]
+      },
+      {
+        "helper": "lib/resize/observe-resize-handle.ts",
+        "consumers": ["src/resize.ts"]
+      },
+      {
+        "helper": "lib/resize/proportional-panel-size.ts",
+        "consumers": ["src/resize/use-proportional-panel-size.ts", "src/resize.ts"]
+      },
+      {
+        "helper": "lib/resize/resize-spring.ts",
+        "consumers": ["src/resize/use-collapsible-resize.ts", "src/resize.ts", "src/resize.ts"]
+      },
+      {
+        "helper": "lib/utils.ts",
+        "consumers": [
+          "src/components/avatar.tsx",
+          "src/components/button.tsx",
+          "src/components/collapsible-resize-handle.tsx",
+          "src/components/command.tsx",
+          "src/components/context-menu.tsx",
+          "src/components/dialog.tsx",
+          "src/components/dropdown-menu.tsx",
+          "src/components/input-group.tsx",
+          "src/components/input.tsx",
+          "src/components/menu-styles.ts",
+          "src/components/model-selector.tsx",
+          "src/components/path-ellipsis.tsx",
+          "src/components/popover.tsx",
+          "src/components/progress.tsx",
+          "src/components/project-trust-dialog.tsx",
+          "src/components/searchable-selector.tsx",
+          "src/components/select.tsx",
+          "src/components/selector-dropdown.tsx",
+          "src/components/settings-control.tsx",
+          "src/components/settings-layout.tsx",
+          "src/components/sheet.tsx",
+          "src/components/sidebar-items.tsx",
+          "src/components/sidebar.tsx",
+          "src/components/skeleton.tsx",
+          "src/components/status-badge.tsx",
+          "src/components/surface.tsx",
+          "src/components/switch.tsx",
+          "src/components/tabs.tsx",
+          "src/components/textarea.tsx",
+          "src/components/time-picker.tsx",
+          "src/components/toast.tsx",
+          "src/components/tooltip.tsx",
+          "src/components/workspace-selector.tsx",
+          "src/utils.ts"
+        ]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/automation-contracts",
+    "directory": "packages/contracts/automation",
+    "relations": [
+      {
+        "helper": "lib/validation.ts",
+        "consumers": ["src/index.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/browser-contracts",
+    "directory": "packages/contracts/browser",
+    "relations": [
+      {
+        "helper": "lib/validation.ts",
+        "consumers": ["src/index.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/contracts",
+    "directory": "packages/contracts/core",
+    "relations": [
+      {
+        "helper": "lib/validation.ts",
+        "consumers": ["src/composer/request.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/composer",
+    "directory": "packages/conversation/composer",
+    "relations": [
+      {
+        "helper": "lib/agent-command.ts",
+        "consumers": ["src/agent-command.ts", "src/workbench-composer.tsx"]
+      },
+      {
+        "helper": "lib/composer-command-argument-hint.ts",
+        "consumers": ["src/workbench-composer.tsx"]
+      },
+      {
+        "helper": "lib/composer-command-group-order.ts",
+        "consumers": ["src/workbench-composer.tsx"]
+      },
+      {
+        "helper": "lib/composer-command-icon-color.ts",
+        "consumers": ["src/workbench-composer-view.tsx", "src/workbench-composer.tsx"]
+      },
+      {
+        "helper": "lib/composer-image-paste.ts",
+        "consumers": ["src/workbench-composer.tsx"]
+      },
+      {
+        "helper": "lib/composer-input-history.ts",
+        "consumers": ["src/workbench-composer.tsx"]
+      },
+      {
+        "helper": "lib/composer-markdown-detection.ts",
+        "consumers": ["src/markdown-composer-input.tsx"]
+      },
+      {
+        "helper": "lib/composer-panel-styles.ts",
+        "consumers": ["src/composer-panel-styles.ts"]
+      },
+      {
+        "helper": "lib/composer-text-paste.ts",
+        "consumers": ["src/workbench-composer.tsx"]
+      },
+      {
+        "helper": "lib/legacy-pi-compat.ts",
+        "consumers": ["src/composer-document.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/conversation",
+    "directory": "packages/conversation/conversation",
+    "relations": [
+      {
+        "helper": "lib/archived-chats/archived-chat-group-a11y.ts",
+        "consumers": ["src/archived-chats/archived-chats-settings-item.tsx"]
+      },
+      {
+        "helper": "lib/completed-turn-model.ts",
+        "consumers": ["src/message-presentation/message-presentation.tsx", "src/steered-turn.tsx"]
+      },
+      {
+        "helper": "lib/interactive-requests/ask-user-tool-model.ts",
+        "consumers": [
+          "src/interactive-requests/ask-user-tool-renderer.tsx",
+          "src/interactive-requests/extension.ts"
+        ]
+      },
+      {
+        "helper": "lib/interactive-requests/interaction-form-state.ts",
+        "consumers": [
+          "src/interactive-requests/ask-user-panel.tsx",
+          "src/interactive-requests/ask-user-tool-renderer.tsx",
+          "src/interactive-requests/interactive-requests-overlay.tsx",
+          "lib/interactive-requests/ask-user-tool-model.ts"
+        ]
+      },
+      {
+        "helper": "lib/message-action-visibility.ts",
+        "consumers": [
+          "src/conversation-message-context.tsx",
+          "src/message-actions.tsx",
+          "src/workbench-message.tsx"
+        ]
+      },
+      {
+        "helper": "lib/message-actions/fork-availability.ts",
+        "consumers": ["src/message-actions/message-actions.tsx"]
+      },
+      {
+        "helper": "lib/message-actions/message-performance-statistics.ts",
+        "consumers": ["src/message-actions/message-actions.tsx"]
+      },
+      {
+        "helper": "lib/message-actions/message-performance-visibility.ts",
+        "consumers": ["src/message-actions/message-actions.tsx"]
+      },
+      {
+        "helper": "lib/message-presentation/message-citations.ts",
+        "consumers": ["src/message-presentation/message-presentation.tsx"]
+      },
+      {
+        "helper": "lib/message-presentation/message-presentation-policy.ts",
+        "consumers": [
+          "src/message-presentation/message-disclosure-context.tsx",
+          "src/message-presentation/message-presentation.tsx"
+        ]
+      },
+      {
+        "helper": "lib/message-presentation/tool-diff-model.ts",
+        "consumers": ["src/message-presentation/message-tool-timeline.tsx"]
+      },
+      {
+        "helper": "lib/message-presentation/tool-timeline-model.ts",
+        "consumers": [
+          "src/message-presentation/message-presentation.tsx",
+          "src/message-presentation/message-tool-timeline.tsx"
+        ]
+      },
+      {
+        "helper": "lib/message-queue/message-queue-preview.ts",
+        "consumers": ["src/message-queue/composer-message-queue.tsx"]
+      },
+      {
+        "helper": "lib/side-chat/scratch-session-lease.ts",
+        "consumers": [
+          "src/side-chat/side-chat-header.tsx",
+          "src/side-chat/side-chat-runtime-bridge.tsx"
+        ]
+      },
+      {
+        "helper": "lib/side-chat/side-chat-navigation.ts",
+        "consumers": ["src/side-chat/side-chat-header.tsx"]
+      },
+      {
+        "helper": "lib/todo-model.ts",
+        "consumers": [
+          "src/todo-list.tsx",
+          "src/todo-panel/extension.ts",
+          "src/todo-panel/todo-panel.tsx",
+          "lib/message-presentation/message-presentation-policy.ts"
+        ]
+      },
+      {
+        "helper": "lib/user-message-index/user-message-index-layout.ts",
+        "consumers": ["src/user-message-index/user-message-index.tsx"]
+      },
+      {
+        "helper": "lib/workbench-conversation-viewport.ts",
+        "consumers": ["src/viewport.ts", "src/workbench-conversation.tsx"]
+      },
+      {
+        "helper": "lib/workbench-message-error.ts",
+        "consumers": ["src/workbench-message.tsx"]
+      },
+      {
+        "helper": "lib/workbench-message-rows.ts",
+        "consumers": ["src/conversation-list.tsx", "src/rows.ts"]
+      },
+      {
+        "helper": "lib/workbench-thread-timing.ts",
+        "consumers": ["src/workbench-conversation.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/extension-host",
+    "directory": "packages/extension-platform/host",
+    "relations": [
+      {
+        "helper": "lib/breadcrumbs.ts",
+        "consumers": ["src/services/main-view-service.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/extension-sdk",
+    "directory": "packages/extension-platform/sdk",
+    "relations": [
+      {
+        "helper": "lib/registry-utils.ts",
+        "consumers": [
+          "src/registries/command-registry.ts",
+          "src/registries/composer-command-registry.ts",
+          "src/registries/main-view-registry.ts",
+          "src/registries/opener-registry.ts",
+          "src/registries/panel-registry.ts",
+          "src/registries/renderer-registry.ts",
+          "src/registries/settings-registry.ts",
+          "src/registries/sidebar-section-registry.ts",
+          "src/registries/slot-registry.ts",
+          "src/registries/workspace-surface-registry.ts"
+        ]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/host-artifact-policy",
+    "directory": "packages/host/artifact-policy",
+    "relations": [
+      {
+        "helper": "lib/filesystem.cjs",
+        "consumers": ["src/filesystem.cjs", "src/runtime-model-resources.cjs"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/host-server",
+    "directory": "packages/host/server",
+    "relations": [
+      {
+        "helper": "lib/runtime-transport-auth.ts",
+        "consumers": ["src/runtime-transport-auth.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-browser",
+    "directory": "packages/pi/browser",
+    "relations": [
+      {
+        "helper": "lib/script-worker.ts",
+        "consumers": ["src/script.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/agent-runtime-pi-client",
+    "directory": "packages/pi/client",
+    "relations": [
+      {
+        "helper": "lib/fork-title.ts",
+        "consumers": ["src/runtime/manager.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/agent-runtime-pi-contributions",
+    "directory": "packages/pi/contributions",
+    "relations": [
+      {
+        "helper": "lib/i18n-runtime.ts",
+        "consumers": ["src/i18n/index.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-conversation",
+    "directory": "packages/pi/conversation",
+    "relations": [
+      {
+        "helper": "lib/conversation-events.ts",
+        "consumers": [
+          "src/conversation-node-projection.ts",
+          "src/events.ts",
+          "src/messages.ts",
+          "src/session-rpc-projection.ts"
+        ]
+      },
+      {
+        "helper": "lib/live-token-meter.ts",
+        "consumers": ["src/live-tokens.ts"]
+      },
+      {
+        "helper": "lib/pi-usage.ts",
+        "consumers": ["src/messages.ts", "src/usage.ts", "lib/session-statistics.ts"]
+      },
+      {
+        "helper": "lib/session-statistics.ts",
+        "consumers": ["src/messages.ts", "src/statistics.ts"]
+      },
+      {
+        "helper": "lib/turn-timing.ts",
+        "consumers": ["src/messages.ts", "src/timing.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-diagnostics-ui",
+    "directory": "packages/pi/diagnostics-ui",
+    "relations": [
+      {
+        "helper": "lib/context-trace-activation.ts",
+        "consumers": ["src/use-context-trace.ts"]
+      },
+      {
+        "helper": "lib/context-trace-detail-cache.ts",
+        "consumers": ["src/context-trace-surface.tsx"]
+      },
+      {
+        "helper": "lib/context-trace-detail-selection.ts",
+        "consumers": ["src/context-trace-detail.tsx", "src/context-trace-message-part.tsx"]
+      },
+      {
+        "helper": "lib/context-trace-event-label.ts",
+        "consumers": ["src/context-trace-detail.tsx", "src/context-trace-detail.tsx"]
+      },
+      {
+        "helper": "lib/context-trace-messages.ts",
+        "consumers": [
+          "src/context-trace-context-view.tsx",
+          "src/context-trace-detail.tsx",
+          "lib/context-trace-detail-selection.ts",
+          "lib/context-trace-search.ts"
+        ]
+      },
+      {
+        "helper": "lib/context-trace-overview-spans.ts",
+        "consumers": ["src/context-trace-overview.tsx"]
+      },
+      {
+        "helper": "lib/context-trace-search.ts",
+        "consumers": ["src/context-trace-context-view.tsx", "src/context-trace-surface.tsx"]
+      },
+      {
+        "helper": "lib/context-trace-timeline-scale.ts",
+        "consumers": ["src/context-trace-overview.tsx"]
+      },
+      {
+        "helper": "lib/context-trace-tree.ts",
+        "consumers": ["src/context-trace-context-view.tsx", "src/context-trace-surface.tsx"]
+      },
+      {
+        "helper": "lib/usage-statistics-data.ts",
+        "consumers": ["src/usage-statistics-settings-item.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-model-server",
+    "directory": "packages/pi/model-server",
+    "relations": [
+      {
+        "helper": "lib/image-input-probe.ts",
+        "consumers": ["src/image-probe.ts", "src/model-service.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/agent-runtime-pi-protocol",
+    "directory": "packages/pi/protocol",
+    "relations": [
+      {
+        "helper": "lib/stream-validation.ts",
+        "consumers": ["src/stream.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-resources-server",
+    "directory": "packages/pi/resources-server",
+    "relations": [
+      {
+        "helper": "lib/extension-name.ts",
+        "consumers": ["src/extension-name.ts", "src/extension-service.ts"]
+      },
+      {
+        "helper": "lib/internal-extension-path.ts",
+        "consumers": ["src/extension-service.ts", "src/internal-extensions.ts"]
+      },
+      {
+        "helper": "lib/package-resource-details.ts",
+        "consumers": ["src/installed-package-service.ts", "src/package-resource-details.ts"]
+      },
+      {
+        "helper": "lib/package-update-metadata.ts",
+        "consumers": ["src/installed-package-service.ts", "src/package-update-metadata.ts"]
+      },
+      {
+        "helper": "lib/resource-mutations.ts",
+        "consumers": [
+          "src/builtin-packages.ts",
+          "src/builtin-resources.ts",
+          "src/extension-service.ts",
+          "src/prompt-service.ts",
+          "src/resource-mutations.ts",
+          "src/skill-service.ts",
+          "lib/package-resource-details.ts"
+        ]
+      },
+      {
+        "helper": "lib/resource-text-file.ts",
+        "consumers": [
+          "src/extension-service.ts",
+          "src/prompt-service.ts",
+          "src/resource-text-file.ts",
+          "src/skill-service.ts",
+          "lib/package-resource-details.ts"
+        ]
+      },
+      {
+        "helper": "lib/skill-enablement.ts",
+        "consumers": [
+          "src/builtin-skills.ts",
+          "src/scoped-resource-context.ts",
+          "src/skill-enablement.ts",
+          "src/skill-service.ts",
+          "lib/package-resource-details.ts"
+        ]
+      },
+      {
+        "helper": "lib/workspace-paths.ts",
+        "consumers": [
+          "src/agent-settings-service.ts",
+          "src/pi-resource-mutation-coordinator.ts",
+          "src/project-trust-service.ts",
+          "src/workspace-paths.ts"
+        ]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/agent-runtime-pi-server",
+    "directory": "packages/pi/server",
+    "relations": [
+      {
+        "helper": "lib/compaction-rpc-validator.ts",
+        "consumers": ["src/transport/compaction-rpc-validator.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-server-ports",
+    "directory": "packages/pi/server-ports",
+    "relations": [
+      {
+        "helper": "lib/read-builtin-preference.ts",
+        "consumers": ["src/resource-preference.ts"]
+      },
+      {
+        "helper": "lib/trace-capture.ts",
+        "consumers": ["src/trace-capture.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-session-import-ui",
+    "directory": "packages/pi/session-import-ui",
+    "relations": [
+      {
+        "helper": "lib/import-selection.ts",
+        "consumers": ["src/external-session-import-settings-item.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-session-server",
+    "directory": "packages/pi/session-server",
+    "relations": [
+      {
+        "helper": "lib/composer-conversation-context.ts",
+        "consumers": ["src/composer-conversation-context.ts", "src/session-registry.ts"]
+      },
+      {
+        "helper": "lib/composer-workspace-file-context.ts",
+        "consumers": ["src/composer-workspace-file-context.ts", "src/session-registry.ts"]
+      },
+      {
+        "helper": "lib/session-context-trace-summary.ts",
+        "consumers": [
+          "src/session-context-trace-journal.ts",
+          "src/session-context-trace-summary.ts",
+          "src/session-context-trace.ts"
+        ]
+      },
+      {
+        "helper": "lib/session-initial-model.ts",
+        "consumers": ["src/session-initial-model.ts", "src/session-registry.ts"]
+      },
+      {
+        "helper": "lib/session-queue.ts",
+        "consumers": ["src/session-queue.ts", "src/session-registry.ts"]
+      },
+      {
+        "helper": "lib/source-utils.ts",
+        "consumers": [
+          "src/claude-code-session-importer.ts",
+          "src/codex-session-importer.ts",
+          "src/cursor-session-importer.ts",
+          "src/external-session-import-service.ts",
+          "src/source-utils.ts"
+        ]
+      },
+      {
+        "helper": "lib/system-prompt-placeholders.ts",
+        "consumers": ["src/session-registry.ts", "src/system-prompt-placeholders.ts"]
+      },
+      {
+        "helper": "lib/usage-statistics-aggregation.ts",
+        "consumers": [
+          "src/usage-statistics-aggregation.ts",
+          "src/usage-statistics-store.ts",
+          "src/usage-statistics.ts"
+        ]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-settings-ui",
+    "directory": "packages/pi/settings-ui",
+    "relations": [
+      {
+        "helper": "lib/model-config-draft.ts",
+        "consumers": ["src/model-config-model-row.tsx", "src/model-config-settings-item.tsx"]
+      },
+      {
+        "helper": "lib/model-provider-credential-links.ts",
+        "consumers": ["src/model-config-settings-item.tsx"]
+      },
+      {
+        "helper": "lib/prompt-placeholder-highlight.ts",
+        "consumers": ["src/agent-settings-items.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/agent-runtime-pi-shared",
+    "directory": "packages/pi/shared",
+    "relations": [
+      {
+        "helper": "lib/prompt-template.ts",
+        "consumers": ["src/commands.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-status-ui",
+    "directory": "packages/pi/status-ui",
+    "relations": [
+      {
+        "helper": "lib/wordmark-pixels.ts",
+        "consumers": ["src/pi-running-indicator.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-toolbox-ui",
+    "directory": "packages/pi/toolbox-ui",
+    "relations": [
+      {
+        "helper": "lib/package-update-feedback.ts",
+        "consumers": ["src/toolbox-capability-surface.tsx", "src/toolbox-main-view.tsx"]
+      },
+      {
+        "helper": "lib/prompt-composer-draft.ts",
+        "consumers": ["src/toolbox-prompt-dialogs.tsx"]
+      },
+      {
+        "helper": "lib/skill-reading-state.ts",
+        "consumers": ["src/skill-reading-extension.ts"]
+      },
+      {
+        "helper": "lib/toolbox-scope.ts",
+        "consumers": [
+          "src/toolbox-capability-surface.tsx",
+          "src/toolbox-catalog.ts",
+          "src/toolbox-main-view.tsx",
+          "src/toolbox-prompt-details.tsx",
+          "src/toolbox-prompts-view.tsx",
+          "src/toolbox-scope-select.tsx",
+          "src/toolbox-scope-store.ts",
+          "src/toolbox-sidebar.tsx"
+        ]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-tools",
+    "directory": "packages/pi/tools",
+    "relations": [
+      {
+        "helper": "lib/legacy-message-termination-extension-source.ts",
+        "consumers": [
+          "src/legacy-message-termination-extension-source.ts",
+          "lib/legacy-message-termination.ts"
+        ]
+      },
+      {
+        "helper": "lib/legacy-message-termination.ts",
+        "consumers": ["src/legacy-message-termination.ts"]
+      },
+      {
+        "helper": "lib/system-prompt-hook-trace.ts",
+        "consumers": ["src/index.ts", "src/system-prompt-hook-trace.ts"]
+      },
+      {
+        "helper": "lib/todo/response-envelope.ts",
+        "consumers": ["src/response-envelope.ts", "src/rpiv-todo.ts"]
+      },
+      {
+        "helper": "lib/todo/sanitize.ts",
+        "consumers": ["src/sanitize.ts", "lib/todo/response-envelope.ts"]
+      },
+      {
+        "helper": "lib/tool-availability.ts",
+        "consumers": [
+          "src/ask-user.ts",
+          "src/builtin-tools.ts",
+          "src/index.ts",
+          "src/rpiv-todo.ts",
+          "src/tool-availability.ts",
+          "src/workbench-settings.ts"
+        ]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-transport-client",
+    "directory": "packages/pi/transport-client",
+    "relations": [
+      {
+        "helper": "lib/stream-frame-parser.ts",
+        "consumers": ["src/connections.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/automation-server",
+    "directory": "packages/server/automation",
+    "relations": [
+      {
+        "helper": "lib/values.ts",
+        "consumers": ["src/repository.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/browser-server",
+    "directory": "packages/server/browser",
+    "relations": [
+      {
+        "helper": "lib/pointer-motion.ts",
+        "consumers": ["src/index.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/server-core",
+    "directory": "packages/server/core",
+    "relations": [
+      {
+        "helper": "lib/child-process-environment.ts",
+        "consumers": ["src/child-process-environment.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/local-host-server",
+    "directory": "packages/server/local-host",
+    "relations": [
+      {
+        "helper": "lib/process.ts",
+        "consumers": [
+          "src/local-apps/detector-linux.ts",
+          "src/local-apps/detector-macos.ts",
+          "src/local-apps/detector-windows.ts",
+          "src/local-apps/launcher-linux.ts",
+          "src/local-apps/launcher-macos.ts",
+          "src/local-apps/launcher-windows.ts"
+        ]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/settings-server",
+    "directory": "packages/server/settings",
+    "relations": [
+      {
+        "helper": "lib/values.ts",
+        "consumers": ["src/service.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/workspace-server",
+    "directory": "packages/server/workspace",
+    "relations": [
+      {
+        "helper": "lib/file-projection.ts",
+        "consumers": ["src/local-files.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/terminal-client",
+    "directory": "packages/terminal/client",
+    "relations": [
+      {
+        "helper": "lib/terminal-socket-url.ts",
+        "consumers": ["src/index.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/terminal-contracts",
+    "directory": "packages/terminal/contracts",
+    "relations": [
+      {
+        "helper": "lib/frame-validation.ts",
+        "consumers": ["src/index.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-terminal-tool",
+    "directory": "packages/terminal/pi-tool",
+    "relations": [
+      {
+        "helper": "lib/command-options.ts",
+        "consumers": ["src/index.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/terminal-server",
+    "directory": "packages/terminal/server",
+    "relations": [
+      {
+        "helper": "lib/terminal-transcript-projector.ts",
+        "consumers": [
+          "src/terminal-interaction-detector.ts",
+          "src/tool-terminal-session-manager.ts"
+        ]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/ui-testkit",
+    "directory": "packages/test-support/ui-testkit",
+    "relations": [
+      {
+        "helper": "lib/minimal-dom.ts",
+        "consumers": ["src/react-dom-environment.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/desktop-contracts",
+    "directory": "packages/workbench/desktop-contracts",
+    "relations": [
+      {
+        "helper": "lib/title-bar-validation.ts",
+        "consumers": ["src/title-bar.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/host-client",
+    "directory": "packages/workbench/host-client",
+    "relations": [
+      {
+        "helper": "lib/runtime-url.ts",
+        "consumers": ["src/runtime-fetch.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/host-contracts",
+    "directory": "packages/workbench/host-contracts",
+    "relations": [
+      {
+        "helper": "lib/control-ndjson.ts",
+        "consumers": ["src/control-ndjson.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/pi-product",
+    "directory": "packages/workbench/pi-product",
+    "relations": [
+      {
+        "helper": "lib/thinking-orb-renderer.tsx",
+        "consumers": ["src/running-indicator-defaults.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/services-client",
+    "directory": "packages/workbench/services-client",
+    "relations": [
+      {
+        "helper": "lib/file-text.ts",
+        "consumers": ["src/file-content.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/shell",
+    "directory": "packages/workbench/shell",
+    "relations": [
+      {
+        "helper": "lib/thread-sort.ts",
+        "consumers": ["src/sidebar/workspace-sidebar-context.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/workspace-artifact",
+    "directory": "packages/workspace/artifact",
+    "relations": [
+      {
+        "helper": "lib/artifact-storage-key.ts",
+        "consumers": ["src/artifact-preview-service.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/workspace-browser",
+    "directory": "packages/workspace/browser",
+    "relations": [
+      {
+        "helper": "lib/browser-files.ts",
+        "consumers": [
+          "src/browser-downloads-dialog.tsx",
+          "src/browser-events-overlay.tsx",
+          "src/browser-surface.tsx"
+        ]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/workspace-directory-picker",
+    "directory": "packages/workspace/directory-picker",
+    "relations": [
+      {
+        "helper": "lib/new-thread-workspace-policy.ts",
+        "consumers": ["src/new-thread-workspace-item.tsx"]
+      },
+      {
+        "helper": "lib/project-trust-dialog-copy.ts",
+        "consumers": ["src/directory-picker-button.tsx", "src/workspace-directory-summary.tsx"]
+      },
+      {
+        "helper": "lib/workspace-admission.ts",
+        "consumers": ["src/use-workspace-directory-admission.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/workspace-explorer",
+    "directory": "packages/workspace/explorer",
+    "relations": [
+      {
+        "helper": "lib/explorer-runtime-policy.ts",
+        "consumers": ["src/explorer-runtime-bridge.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/workspace-file-view",
+    "directory": "packages/workspace/file-view",
+    "relations": [
+      {
+        "helper": "lib/file-breadcrumb-model.ts",
+        "consumers": ["src/file-breadcrumb-tree.tsx"]
+      },
+      {
+        "helper": "lib/file-buffer-draft.ts",
+        "consumers": ["src/file-buffer-actions.ts", "src/file-surface.tsx"]
+      },
+      {
+        "helper": "lib/file-view-mode.ts",
+        "consumers": ["src/file-opener.ts", "src/file-surface-header.tsx", "src/file-surface.tsx"]
+      },
+      {
+        "helper": "lib/progressive-text-document.ts",
+        "consumers": [
+          "src/file-surface-header.tsx",
+          "src/file-surface.tsx",
+          "src/use-progressive-text-document.ts",
+          "src/virtualized-text-viewer.tsx",
+          "lib/virtualized-code-window.ts"
+        ]
+      },
+      {
+        "helper": "lib/virtualized-code-window.ts",
+        "consumers": ["src/virtualized-text-viewer.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/workspace-files",
+    "directory": "packages/workspace/files",
+    "relations": [
+      {
+        "helper": "lib/asset-module-url.ts",
+        "consumers": ["src/index.ts", "src/local-app-icon.tsx"]
+      },
+      {
+        "helper": "lib/file-classification.ts",
+        "consumers": ["src/file-classification.ts", "src/index.ts"]
+      },
+      {
+        "helper": "lib/file-link-content.ts",
+        "consumers": ["src/file-link-menu.tsx", "src/index.ts"]
+      },
+      {
+        "helper": "lib/tree/file-name-parts.ts",
+        "consumers": ["src/tree/explorer-tree.tsx", "src/tree/index.ts"]
+      },
+      {
+        "helper": "lib/tree/material-icon-theme.ts",
+        "consumers": ["src/tree/file-type-icon.tsx", "src/tree/index.ts"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/workspace-git-branch",
+    "directory": "packages/workspace/git-branch",
+    "relations": [
+      {
+        "helper": "lib/git-graph-layout.ts",
+        "consumers": ["src/git-graph-dialog.tsx"]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/workspace-review",
+    "directory": "packages/workspace/review",
+    "relations": [
+      {
+        "helper": "lib/review-options.ts",
+        "consumers": [
+          "src/review-diff-hunk.tsx",
+          "src/review-surface-header.tsx",
+          "src/review-surface.tsx",
+          "src/review-toolbar.tsx"
+        ]
+      }
+    ]
+  },
+  {
+    "package": "@workbench/workspace-runtime",
+    "directory": "packages/workspace/runtime",
+    "relations": [
+      {
+        "helper": "lib/legacy-storage.ts",
+        "consumers": ["src/right-workspace-persistence.ts"]
+      },
+      {
+        "helper": "lib/surface-mount-policy.ts",
+        "consumers": ["src/index.ts"]
+      },
+      {
+        "helper": "lib/workspace-split-layout.ts",
+        "consumers": ["src/index.ts", "src/index.ts"]
+      },
+      {
+        "helper": "lib/workspace-tab-a11y.ts",
+        "consumers": ["src/index.ts"]
+      },
+      {
+        "helper": "lib/workspace-tab-layout.ts",
+        "consumers": ["src/index.ts", "src/presentation/workspace-tabs.tsx"]
+      }
+    ]
+  }
+]

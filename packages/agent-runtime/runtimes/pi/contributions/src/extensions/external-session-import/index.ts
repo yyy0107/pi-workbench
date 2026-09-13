@@ -1,1 +1,0 @@
-export { externalSessionImportExtension } from "./extension";

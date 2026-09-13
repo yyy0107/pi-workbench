@@ -6,18 +6,26 @@ import { fileURLToPath } from "node:url";
 const REPOSITORY_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const SOURCE_EXTENSIONS = new Set([".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"]);
 const SOURCE_ROOTS = [
+  "packages/client",
+  "packages/workspace",
+  "packages/conversation",
+  "packages/client/shell-context/src",
   "apps/desktop-electron/scripts",
   "apps/desktop-electron/src",
   "apps/desktop-renderer/src",
   "apps/runtime-node/scripts",
   "apps/runtime-node/src",
   "apps/web/src",
-  "packages/agent-runtime/runtimes/pi/contributions/src",
+  "packages/pi/contributions/src",
   "packages/workbench/shell/src",
   "packages/workbench/pi-product/src",
   "packages/workbench/services-client/src",
   "runtime",
-];
+].flatMap((root) =>
+  root.endsWith("/src") && root.startsWith("packages/")
+    ? [root, root.replace(/\/src$/u, "/lib")]
+    : [root],
+);
 const COMPOSITION_ROOTS = [
   "apps/desktop-electron/scripts/",
   "apps/desktop-electron/src/",
@@ -41,7 +49,7 @@ const NONLITERAL_MODULE_REFERENCE_EXCEPTIONS = new Map([
   ["apps/desktop-electron/src/packaged-runtime-lifecycle.cjs", "require:supportPath"],
 ]);
 const RUNTIME_CONNECTION_OWNER =
-  "packages/workbench/shell/src/runtime-connection/runtime-connection.ts";
+  "packages/client/shell-context/src/runtime-connection/runtime-connection.ts";
 
 export const INSTALLED_PI_COMPOSITION_OWNER =
   "apps/runtime-node/src/composition/installed-pi-server.ts";

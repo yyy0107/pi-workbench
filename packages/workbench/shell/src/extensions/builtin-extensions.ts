@@ -1,30 +1,30 @@
 import type { WorkbenchExtension } from "@workbench/extension-sdk";
 
-import { archivedChatsExtension } from "./builtin/archived-chats";
-import { appearanceExtension } from "./builtin/appearance";
-import { localeSelectorExtension } from "./builtin/locale-selector";
-import { messageActionsExtension } from "./builtin/message-actions";
-import { messagePresentationExtension } from "./builtin/message-presentation";
-import { messageQueueExtension } from "./builtin/message-queue";
-import { todoPanelExtension } from "./builtin/todo-panel";
-import { settingsExtension } from "./builtin/settings";
-import { terminalExtension } from "./builtin/terminal";
-import { userMessageIndexExtension } from "./builtin/user-message-index";
-import { workbenchBrandExtension } from "./builtin/workbench-brand";
-import { workspaceArtifactExtension } from "./builtin/workspace-artifact";
-import { workspaceBrowserExtension } from "./builtin/workspace-browser";
-import { workspaceExplorerExtension } from "./builtin/workspace-explorer";
-import { workspaceReviewExtension } from "./builtin/workspace-review";
-import { workspaceSidebarExtension } from "./builtin/workspace-sidebar";
-import { workspaceDirectoryPickerExtension } from "./builtin/workspace-directory-picker";
-import { workspaceFileExtension } from "./builtin/workspace-file";
-import { gitBranchExtension } from "./builtin/git-branch";
+import { archivedChatsExtension } from "@workbench/conversation/archived-chats";
+import { appearanceExtension } from "@workbench/settings-ui";
+import { localeSelectorExtension } from "@workbench/settings-ui";
+import { messageActionsExtension } from "@workbench/conversation/message-actions";
+import { messagePresentationExtension } from "@workbench/conversation/message-presentation";
+import { messageQueueExtension } from "@workbench/conversation/message-queue";
+import { todoPanelExtension } from "@workbench/conversation/todo-panel";
+import { settingsExtension } from "@workbench/settings-ui";
+import { terminalExtension } from "@workbench/terminal-ui";
+import { userMessageIndexExtension } from "@workbench/conversation/user-message-index";
+import { workbenchBrandExtension } from "./workbench-brand";
+import { workspaceArtifactExtension } from "@workbench/workspace-artifact";
+import { workspaceBrowserExtension } from "@workbench/workspace-browser";
+import { workspaceExplorerExtension } from "@workbench/workspace-explorer";
+import { workspaceReviewExtension } from "@workbench/workspace-review";
+import { workspaceSidebarExtension } from "./workspace-sidebar";
+import { workspaceDirectoryPickerExtension } from "@workbench/workspace-directory-picker";
+import { workspaceFileExtension } from "@workbench/workspace-file-view";
+import { gitBranchExtension } from "@workbench/workspace-git-branch";
 
-import { interactiveRequestsExtension } from "./builtin/interactive-requests";
-import { sideChatExtension } from "./builtin/side-chat";
-import { automationExtension } from "./builtin/automation";
-import { modelSelectorExtension } from "./builtin/model-selector";
-import { tokenUsageExtension } from "./builtin/token-usage";
+import { interactiveRequestsExtension } from "@workbench/conversation/interactive-requests";
+import { sideChatExtension } from "@workbench/conversation/side-chat";
+import { automationExtension } from "@workbench/automation-ui";
+import { modelSelectorExtension } from "@workbench/agent-controls";
+import { tokenUsageExtension } from "@workbench/agent-controls";
 
 /** Stable frame and conversation contributions mounted before runtime-specific setup. */
 export const shellCoreExtensions: readonly WorkbenchExtension[] = Object.freeze([

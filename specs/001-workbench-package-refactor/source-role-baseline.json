@@ -1,0 +1,100 @@
+{
+  "reason": "constitution 3.0.0 adds whole-root forwarding detection; T055/T048 must remove these exact existing violations",
+  "violations": [
+    {
+      "rule": "source-role",
+      "path": "packages/client/appearance/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/client/code-highlighting/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/client/i18n/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/client/markdown/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/client/settings-runtime/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/client/settings-ui/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/client/shell-context/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/client/ui/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/conversation/composer/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/test-support/ui-testkit/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/workspace/artifact/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/workspace/browser/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/workspace/directory-picker/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/workspace/explorer/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/workspace/file-view/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/workspace/files/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/workspace/git-branch/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/workspace/review/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    },
+    {
+      "rule": "source-role",
+      "path": "packages/workspace/runtime/package.json",
+      "detail": "src/ must contain implementation or contracts, not only forwarding entries"
+    }
+  ]
+}

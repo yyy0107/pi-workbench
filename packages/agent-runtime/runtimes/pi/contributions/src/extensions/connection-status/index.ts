@@ -1,1 +1,0 @@
-export { connectionStatusExtension } from "./extension";

@@ -86,10 +86,7 @@ test("bundled resources install into the Pi directory after relocation and pruni
   await build({
     ...createRuntimeArtifactBuildOptions({ outputDirectory }),
     entryPoints: [
-      path.join(
-        repositoryRoot,
-        "packages/agent-runtime/runtimes/pi/server/src/builtin-resources.ts",
-      ),
+      path.join(repositoryRoot, "packages/pi/server/src/resource-composition/builtin-resources.ts"),
     ],
   });
   await symlink(
@@ -114,11 +111,14 @@ test("bundled resources install into the Pi directory after relocation and pruni
   );
   assert.ok(
     (
-      await readFile(path.join(directories.packages, "browser", "skills/browser-use/SKILL.md"), "utf8")
+      await readFile(
+        path.join(directories.packages, "browser", "skills/browser-use/SKILL.md"),
+        "utf8",
+      )
     ).includes("name: browser-use"),
   );
   assert.ok(
-    (await readFile(path.join(directories.extensions, "rpiv-todo", "index.ts"), "utf8")).includes(
+    (await readFile(path.join(directories.extensions, "src", "rpiv-todo.ts"), "utf8")).includes(
       "createTodoExtension",
     ),
   );

@@ -1,0 +1,86 @@
+{
+  "packages/workbench/shell/src/code-highlighting/workbench-code-editor.css": {
+    "path": "packages/client/code-highlighting/src/workbench-code-editor.css",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/src/code-highlighting/shiki-highlighter.ts": {
+    "path": "packages/client/code-highlighting/src/shiki-highlighter.ts",
+    "export": "@workbench/code-highlighting/engine"
+  },
+  "packages/workbench/shell/src/code-highlighting/shiki-token-style.ts": {
+    "path": "packages/client/code-highlighting/src/shiki-token-style.ts",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/src/code-highlighting/shiki-catalog.ts": {
+    "path": "packages/client/code-highlighting/src/shiki-catalog.ts",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/src/code-highlighting/use-workbench-highlighted-lines.ts": {
+    "path": "packages/client/code-highlighting/src/use-workbench-highlighted-lines.ts",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/src/code-highlighting/index.ts": {
+    "path": "packages/client/code-highlighting/src/index.ts",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/src/code-highlighting/code-highlight-policy.ts": {
+    "path": "packages/client/code-highlighting/src/code-highlight-policy.ts",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/src/code-highlighting/code-theme-preview.tsx": {
+    "path": "packages/client/code-highlighting/src/code-theme-preview.tsx",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/src/code-highlighting/workbench-code-editor.tsx": {
+    "path": "packages/client/code-highlighting/src/workbench-code-editor.tsx",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/src/code-highlighting/use-workbench-highlighted-code.tsx": {
+    "path": "packages/client/code-highlighting/src/use-workbench-highlighted-code.tsx",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/src/chat/markdown/markdown-code-block.tsx": {
+    "path": "packages/client/code-highlighting/src/markdown-code-block.tsx",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/src/chat/markdown/codex-code-header.tsx": {
+    "path": "packages/client/code-highlighting/src/codex-code-header.tsx",
+    "export": "@workbench/code-highlighting/header"
+  },
+  "packages/workbench/shell/src/elements/code-diff.tsx": {
+    "path": "packages/client/code-highlighting/src/diff/code-diff.tsx",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/src/elements/reviewable-diff.tsx": {
+    "path": "packages/client/code-highlighting/src/diff/reviewable-diff.tsx",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/src/elements/reviewable-diff.css": {
+    "path": "packages/client/code-highlighting/src/diff/reviewable-diff.css",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/src/elements/unified-patch.ts": {
+    "path": "packages/client/code-highlighting/src/diff/unified-patch.ts",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/src/elements/range.ts": {
+    "path": "packages/client/code-highlighting/src/diff/range.ts",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/tests/code-highlighting/shiki-catalog.test.ts": {
+    "path": "packages/client/code-highlighting/tests/shiki-catalog.test.ts",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/tests/code-highlighting/code-highlight-policy.test.ts": {
+    "path": "packages/client/code-highlighting/tests/code-highlight-policy.test.ts",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/tests/code-highlighting/shiki-stream.test.ts": {
+    "path": "packages/client/code-highlighting/tests/shiki-stream.test.ts",
+    "export": "@workbench/code-highlighting"
+  },
+  "packages/workbench/shell/tests/elements/unified-patch.test.ts": {
+    "path": "packages/client/code-highlighting/tests/unified-patch.test.ts",
+    "export": "@workbench/code-highlighting"
+  }
+}

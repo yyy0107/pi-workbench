@@ -1,0 +1,47 @@
+{
+  "name": "@workbench/pi-settings-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./i18n": "./src/i18n.ts",
+    "./translations": "./src/use-i18n.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-client": "workspace:*",
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/agent-runtime-pi-client": "workspace:*",
+    "@workbench/agent-runtime-pi-protocol": "workspace:*",
+    "@workbench/agent-runtime-pi-shared": "workspace:*",
+    "@workbench/code-highlighting": "workspace:*",
+    "@workbench/extension-host": "workspace:*",
+    "@workbench/extension-sdk": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/markdown": "workspace:*",
+    "@workbench/settings-ui": "workspace:*",
+    "@workbench/ui": "workspace:*",
+    "lucide-react": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@workbench/settings-runtime": "workspace:*",
+    "@workbench/ui-testkit": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

@@ -5,7 +5,7 @@ import { useState, useSyncExternalStore } from "react";
 import { usePanelService } from "@workbench/extension-host";
 import type { PanelLocation } from "@workbench/extension-sdk";
 import { PanelHost, useActivePanel } from "@workbench/extension-host/hosts/panel-host";
-import { cn } from "../utils";
+import { cn } from "@workbench/ui/utils";
 
 import { PanelContainer } from "./panel-container";
 import { PanelHeader } from "./panel-header";

@@ -1,1 +1,1 @@
-export { RunningThreadIndicator } from "../elements/running-thread-indicator";
+export { RunningThreadIndicator } from "@workbench/ui/running-indicator";

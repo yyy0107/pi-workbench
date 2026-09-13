@@ -1,0 +1,170 @@
+{
+  "packages/pi/contributions/src/services/pi-resource-file-backend.ts": {
+    "path": "packages/pi/toolbox-ui/src/pi-resource-file-backend.ts",
+    "export": "@workbench/pi-toolbox-ui/files"
+  },
+  "packages/pi/contributions/src/services/pi-resource-file-openers-bridge.tsx": {
+    "path": "packages/pi/toolbox-ui/src/pi-resource-file-openers-bridge.tsx",
+    "export": "@workbench/pi-toolbox-ui/files"
+  },
+  "packages/pi/contributions/src/services/pi-resource-file-openers.ts": {
+    "path": "packages/pi/toolbox-ui/src/pi-resource-file-openers.ts",
+    "export": "@workbench/pi-toolbox-ui/files"
+  },
+  "packages/pi/contributions/tests/services/pi-resource-file-backend.test.ts": {
+    "path": "packages/pi/toolbox-ui/tests/pi-resource-file-backend.test.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/tests/services/pi-resource-file-openers.test.ts": {
+    "path": "packages/pi/toolbox-ui/tests/pi-resource-file-openers.test.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/extension.ts": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-extension.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/index.ts": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-index.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/package-update-feedback.ts": {
+    "path": "packages/pi/toolbox-ui/lib/package-update-feedback.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/pi-package-updates-query.ts": {
+    "path": "packages/pi/toolbox-ui/src/pi-package-updates-query.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/prompt-composer-draft.ts": {
+    "path": "packages/pi/toolbox-ui/lib/prompt-composer-draft.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/toolbox-capability-presentation.tsx": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-capability-presentation.tsx",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/toolbox-capability-surface.tsx": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-capability-surface.tsx",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/toolbox-capability.ts": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-capability.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/toolbox-catalog.ts": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-catalog.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/toolbox-installed-view.tsx": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-installed-view.tsx",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/toolbox-main-view.tsx": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-main-view.tsx",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/toolbox-prompt-details.tsx": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-prompt-details.tsx",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/toolbox-prompt-dialogs.tsx": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-prompt-dialogs.tsx",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/toolbox-prompts-view.tsx": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-prompts-view.tsx",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/toolbox-resource-group.tsx": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-resource-group.tsx",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/toolbox-scope-select.tsx": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-scope-select.tsx",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/toolbox-scope-store.ts": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-scope-store.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/toolbox-scope.ts": {
+    "path": "packages/pi/toolbox-ui/lib/toolbox-scope.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/toolbox-sidebar.tsx": {
+    "path": "packages/pi/toolbox-ui/src/toolbox-sidebar.tsx",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/use-pi-installed-package-details.ts": {
+    "path": "packages/pi/toolbox-ui/src/use-pi-installed-package-details.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/use-pi-package-catalog.ts": {
+    "path": "packages/pi/toolbox-ui/src/use-pi-package-catalog.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/use-pi-package-details.ts": {
+    "path": "packages/pi/toolbox-ui/src/use-pi-package-details.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/use-pi-package-updates.ts": {
+    "path": "packages/pi/toolbox-ui/src/use-pi-package-updates.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/toolbox/use-pi-skill-details.ts": {
+    "path": "packages/pi/toolbox-ui/src/use-pi-skill-details.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/skill-reading/extension.ts": {
+    "path": "packages/pi/toolbox-ui/src/skill-reading-extension.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/src/extensions/skill-reading/skill-reading-state.ts": {
+    "path": "packages/pi/toolbox-ui/lib/skill-reading-state.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/tests/extensions/skill-reading-skill-reading.test.tsx": {
+    "path": "packages/pi/toolbox-ui/tests/skill-reading.test.tsx",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/tests/extensions/toolbox-package-update-feedback.test.ts": {
+    "path": "packages/pi/toolbox-ui/tests/package-update-feedback.test.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/tests/extensions/toolbox-pi-package-updates-query.test.ts": {
+    "path": "packages/pi/toolbox-ui/tests/pi-package-updates-query.test.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/tests/extensions/toolbox-prompt-composer-draft.test.ts": {
+    "path": "packages/pi/toolbox-ui/tests/prompt-composer-draft.test.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/tests/extensions/toolbox-toolbox-capability-presentation-boundary.test.ts": {
+    "path": "packages/pi/toolbox-ui/tests/toolbox-capability-presentation-boundary.test.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/tests/extensions/toolbox-toolbox-capability.test.ts": {
+    "path": "packages/pi/toolbox-ui/tests/toolbox-capability.test.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/tests/extensions/toolbox-toolbox-installed-view.test.tsx": {
+    "path": "packages/pi/toolbox-ui/tests/toolbox-installed-view.test.tsx",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/tests/extensions/toolbox-toolbox-package-contents.test.tsx": {
+    "path": "packages/pi/toolbox-ui/tests/toolbox-package-contents.test.tsx",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/tests/extensions/toolbox-toolbox-scope.test.ts": {
+    "path": "packages/pi/toolbox-ui/tests/toolbox-scope.test.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/tests/extensions/toolbox-toolbox-sidebar.test.ts": {
+    "path": "packages/pi/toolbox-ui/tests/toolbox-sidebar.test.ts",
+    "export": "@workbench/pi-toolbox-ui"
+  },
+  "packages/pi/contributions/tests/extensions/toolbox-toolbox-skill-document.test.tsx": {
+    "path": "packages/pi/toolbox-ui/tests/toolbox-skill-document.test.tsx",
+    "export": "@workbench/pi-toolbox-ui"
+  }
+}

@@ -25,17 +25,26 @@
     "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/agent-runtime-pi-client": "workspace:*",
     "@workbench/agent-runtime-pi-contributions": "workspace:*",
+    "@workbench/conversation": "workspace:*",
     "@workbench/extension-sdk": "workspace:*",
     "@workbench/host-client": "workspace:*",
     "@workbench/host-contracts": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/markdown": "workspace:*",
     "@workbench/services-client": "workspace:*",
-    "@workbench/shell": "workspace:*"
+    "@workbench/settings-runtime": "workspace:*",
+    "@workbench/settings-ui": "workspace:*",
+    "@workbench/shell": "workspace:*",
+    "@workbench/shell-context": "workspace:*",
+    "@workbench/workspace-files": "workspace:*",
+    "thinking-orbs": "^0.3.1"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@workbench/agent-runtime-pi-shared": "workspace:*",
+    "@workbench/workspace-runtime": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typescript": "^7.0.2"

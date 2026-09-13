@@ -3,7 +3,7 @@
 import { useMemo, type ComponentProps } from "react";
 import {
   piRunningIndicatorDefinitions,
-  piTranslationBundle,
+  piTranslationBundles,
 } from "@workbench/agent-runtime-pi-contributions/installation";
 import type { WorkbenchExtension } from "@workbench/extension-sdk";
 import {
@@ -11,11 +11,15 @@ import {
   WorkbenchApplicationShell,
   type WorkbenchApplicationShellProps,
 } from "@workbench/shell/application";
+import { createRunningIndicatorCatalog } from "@workbench/shell-context/running-indicator";
+
 import {
-  createRunningIndicatorCatalog,
   DEFAULT_RUNNING_INDICATOR_STYLE_ID,
   shellRunningIndicatorDefinitions,
-} from "@workbench/shell/running-indicator";
+} from "./running-indicator-defaults";
+
+import { MarkdownLinkAdapterProvider } from "@workbench/markdown/links";
+import { workspaceMarkdownLinkAdapter } from "@workbench/workspace-files/markdown-links";
 
 import { piWorkbenchExtensions } from "./extensions";
 import { PiWorkbenchRuntimeProvider } from "./runtime-provider";
@@ -42,13 +46,15 @@ export function PiWorkbenchApplicationProviders({
   bundles,
   ...props
 }: Omit<ComponentProps<typeof WorkbenchApplicationProviders>, "createSettingsService">) {
-  const installedBundles = useMemo(() => [...bundles, piTranslationBundle], [bundles]);
+  const installedBundles = useMemo(() => [...bundles, ...piTranslationBundles], [bundles]);
   return (
-    <WorkbenchApplicationProviders
-      {...props}
-      bundles={installedBundles}
-      createSettingsService={createInstalledWorkbenchSettingsService}
-    />
+    <MarkdownLinkAdapterProvider adapter={workspaceMarkdownLinkAdapter}>
+      <WorkbenchApplicationProviders
+        {...props}
+        bundles={installedBundles}
+        createSettingsService={createInstalledWorkbenchSettingsService}
+      />
+    </MarkdownLinkAdapterProvider>
   );
 }
 

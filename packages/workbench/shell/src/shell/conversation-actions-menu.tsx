@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useId, useState } from "react";
 
-import { Button } from "../ui/button";
+import { Button } from "@workbench/ui";
 import {
   Dialog,
   DialogContent,
@@ -18,16 +18,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "../ui/dialog";
+} from "@workbench/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
-import { Input } from "../ui/input";
+} from "@workbench/ui";
+import { Input } from "@workbench/ui";
 import { useI18n } from "../i18n";
-import { useWorkbenchNavigation } from "../navigation";
+import { useWorkbenchNavigation } from "@workbench/shell-context/navigation";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 import { useAgentRuntime } from "@workbench/agent-runtime-client";
 

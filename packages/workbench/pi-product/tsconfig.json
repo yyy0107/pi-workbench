@@ -7,9 +7,11 @@
   },
   "include": [
     "src/**/*.ts",
+    "lib/**/*.ts",
     "src/**/*.tsx",
-    "test/**/*.ts",
-    "test/**/*.tsx",
+    "lib/**/*.tsx",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
     "../shell/src/styles.d.ts"
   ]
 }

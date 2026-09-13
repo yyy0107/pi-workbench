@@ -1,0 +1,26 @@
+{
+  "packages/workbench/shell/src/extensions/builtin/workspace-explorer/explorer-runtime-bridge.tsx": {
+    "path": "packages/workspace/explorer/src/explorer-runtime-bridge.tsx",
+    "export": "@workbench/workspace-explorer"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-explorer/explorer-runtime-policy.ts": {
+    "path": "packages/workspace/explorer/src/explorer-runtime-policy.ts",
+    "export": "@workbench/workspace-explorer"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-explorer/explorer-surface.tsx": {
+    "path": "packages/workspace/explorer/src/explorer-surface.tsx",
+    "export": "@workbench/workspace-explorer"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-explorer/extension.ts": {
+    "path": "packages/workspace/explorer/src/extension.ts",
+    "export": "@workbench/workspace-explorer"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-explorer/index.ts": {
+    "path": "packages/workspace/explorer/src/index.ts",
+    "export": "@workbench/workspace-explorer"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-explorer-explorer-runtime-policy.test.ts": {
+    "path": "packages/workspace/explorer/tests/explorer-runtime-policy.test.ts",
+    "export": "@workbench/workspace-explorer"
+  }
+}

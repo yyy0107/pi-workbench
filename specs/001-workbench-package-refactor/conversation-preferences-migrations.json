@@ -1,0 +1,10 @@
+{
+  "packages/workbench/shell/src/chat/conversation-preferences.ts": {
+    "path": "packages/client/settings-runtime/lib/conversation-preferences.ts",
+    "export": "@workbench/settings-runtime/conversation-preferences"
+  },
+  "packages/workbench/shell/tests/chat/conversation-preferences.test.ts": {
+    "path": "packages/client/settings-runtime/tests/conversation-preferences.test.ts",
+    "export": "@workbench/settings-runtime/conversation-preferences"
+  }
+}

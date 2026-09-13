@@ -101,7 +101,7 @@ React / assistant-ui
 
 When a UI feature needs new Pi data:
 
-1. Find an existing unary method or stream event in `packages/agent-runtime/runtimes/pi/README.md`.
+1. Find an existing unary method or stream event in `packages/pi/README.md`.
 2. Add a server adapter only when the current protocol lacks the capability.
 3. Define stable JSON-compatible fields in the owning Workbench contract.
 4. Keep Pi-specific classes, Maps, callbacks, error objects, credentials, and paths behind the server adapter.

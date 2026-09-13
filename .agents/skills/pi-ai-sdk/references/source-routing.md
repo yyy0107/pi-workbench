@@ -45,23 +45,23 @@ Do not edit `src/models.generated.ts` directly. Upstream catalog work changes th
 
 ## Workbench ownership map
 
-| Concern                                    | Workbench path                                                                           |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| Pi dependency and version                  | `package.json`, `pnpm-lock.yaml`                                                         |
-| Next server externalization                | `next.config.ts`                                                                         |
-| Product model/provider/auth implementation | `packages/agent-runtime/runtimes/pi/server/src/models/model-service.ts`                  |
-| Coding-agent model runtime construction    | `packages/agent-runtime/runtimes/pi/server/src/sessions/session-registry.ts`             |
-| Browser-facing model RPC types             | `packages/agent-runtime/runtimes/pi/protocol/src/rpc.ts`                                 |
-| Compact streamed-message wire types        | `packages/agent-runtime/runtimes/pi/protocol/src/stream.ts`                              |
-| Immutable message delta reducer            | `packages/agent-runtime/runtimes/pi/shared/src/messages.ts`                              |
-| Server stream compaction/snapshots         | `packages/agent-runtime/runtimes/pi/server/src/sessions/session-registry.ts`             |
-| Client stream accumulation                 | `packages/agent-runtime/runtimes/pi/client/src/transport/session-message-accumulator.ts` |
-| Multimodal model selection                 | `packages/agent-runtime/runtimes/pi/server/src/attachment-understanding/multimodal.ts`   |
+| Concern                                    | Workbench path                                                |
+| ------------------------------------------ | ------------------------------------------------------------- |
+| Pi dependency and version                  | `package.json`, `pnpm-lock.yaml`                              |
+| Next server externalization                | `apps/web/next.config.ts`                                     |
+| Product model/provider/auth implementation | `packages/pi/model-server/src/model-service.ts`               |
+| Coding-agent model runtime construction    | `packages/pi/session-server/src/session-registry.ts`          |
+| Browser-facing model RPC types             | `packages/pi/protocol/src/rpc.ts`                             |
+| Compact streamed-message wire types        | `packages/pi/protocol/src/stream.ts`                          |
+| Immutable message delta reducer            | `packages/pi/shared/src/messages.ts`                          |
+| Server stream compaction/snapshots         | `packages/pi/session-server/src/session-registry.ts`          |
+| Client stream accumulation                 | `packages/pi/conversation/src/session-message-accumulator.ts` |
+| Inline image admission                     | `packages/pi/session-server/src/inline-image-admission.ts`    |
 
 Search before adding an abstraction:
 
 ```bash
-rg -n '@earendil-works/pi-ai|PiMessagesEvent|parseStreamingJson|builtinProviders' packages/agent-runtime/runtimes/pi next.config.ts
+rg -n '@earendil-works/pi-ai|PiMessagesEvent|parseStreamingJson|builtinProviders' packages/pi apps/web/next.config.ts
 rg -n '<Symbol>' node_modules/@earendil-works/pi-ai/dist node_modules/@earendil-works/pi-ai/README.md
 rg -n '<Symbol>' /home/wy/projects/pi/packages/ai/src /home/wy/projects/pi/packages/ai/test
 ```

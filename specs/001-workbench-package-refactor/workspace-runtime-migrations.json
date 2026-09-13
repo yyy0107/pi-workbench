@@ -1,0 +1,226 @@
+{
+  "packages/workbench/shell/src/right-workspace.ts": {
+    "path": "packages/workspace/runtime/src/index.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace-react.ts": {
+    "path": "packages/workspace/runtime/src/react.ts",
+    "export": "@workbench/workspace-runtime/react"
+  },
+  "packages/workbench/shell/src/workspace-directory-store.ts": {
+    "path": "packages/workspace/runtime/src/workspace-directory-store.ts",
+    "export": "@workbench/workspace-runtime/directory-store"
+  },
+  "packages/workbench/shell/src/right-workspace/surface-mount-policy.ts": {
+    "path": "packages/workspace/runtime/src/surface-mount-policy.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/surface-types.ts": {
+    "path": "packages/workspace/runtime/src/surface-types.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/workspace-tab-layout.ts": {
+    "path": "packages/workspace/runtime/src/workspace-tab-layout.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/workspace-surface-runtime-host.tsx": {
+    "path": "packages/workspace/runtime/src/workspace-surface-runtime-host.tsx",
+    "export": "@workbench/workspace-runtime/react"
+  },
+  "packages/workbench/shell/src/right-workspace/right-workspace-provider.tsx": {
+    "path": "packages/workspace/runtime/src/right-workspace-provider.tsx",
+    "export": "@workbench/workspace-runtime/react"
+  },
+  "packages/workbench/shell/src/right-workspace/workspace-draft-store.ts": {
+    "path": "packages/workspace/runtime/src/workspace-draft-store.ts",
+    "export": "@workbench/workspace-runtime/react"
+  },
+  "packages/workbench/shell/src/right-workspace/right-workspace-context.tsx": {
+    "path": "packages/workspace/runtime/src/right-workspace-context.tsx",
+    "export": "@workbench/workspace-runtime/react"
+  },
+  "packages/workbench/shell/src/right-workspace/right-workspace-layout.ts": {
+    "path": "packages/workspace/runtime/src/right-workspace-layout.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/workspace-tab-a11y.ts": {
+    "path": "packages/workspace/runtime/src/workspace-tab-a11y.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/right-workspace-persistence.ts": {
+    "path": "packages/workspace/runtime/src/right-workspace-persistence.ts",
+    "export": "@workbench/workspace-runtime/persistence"
+  },
+  "packages/workbench/shell/src/right-workspace/workspace-split-resize-observer.ts": {
+    "path": "packages/workspace/runtime/src/workspace-split-resize-observer.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/workspace-resize-preview.ts": {
+    "path": "packages/workspace/runtime/src/workspace-resize-preview.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/workspace-feedback-types.ts": {
+    "path": "packages/workspace/runtime/src/workspace-feedback-types.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/workspace-feedback-store.ts": {
+    "path": "packages/workspace/runtime/src/workspace-feedback-store.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/workspace-selectors.ts": {
+    "path": "packages/workspace/runtime/src/workspace-selectors.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/workspace-split-layout.ts": {
+    "path": "packages/workspace/runtime/src/workspace-split-layout.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/workspace-controller.ts": {
+    "path": "packages/workspace/runtime/src/workspace-controller.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/surface-mount-contexts.ts": {
+    "path": "packages/workspace/runtime/src/surface-mount-contexts.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/right-workspace-prompt-feedback.ts": {
+    "path": "packages/workspace/runtime/src/right-workspace-prompt-feedback.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/workspace-store.ts": {
+    "path": "packages/workspace/runtime/src/workspace-store.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/workspace-status-layer.tsx": {
+    "path": "packages/workspace/runtime/src/presentation/workspace-status-layer.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/surface-boundary.tsx": {
+    "path": "packages/workspace/runtime/src/presentation/surface-boundary.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/workspace-tabs.tsx": {
+    "path": "packages/workspace/runtime/src/presentation/workspace-tabs.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/workspace-empty-state.tsx": {
+    "path": "packages/workspace/runtime/src/presentation/workspace-empty-state.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/surface-host.tsx": {
+    "path": "packages/workspace/runtime/src/presentation/surface-host.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/right-workspace.css": {
+    "path": "packages/workspace/runtime/src/presentation/right-workspace.css",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/workspace-resize-handle.tsx": {
+    "path": "packages/workspace/runtime/src/presentation/workspace-resize-handle.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/right-workspace.tsx": {
+    "path": "packages/workspace/runtime/src/presentation/right-workspace.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/workspace-split-resize-handle.tsx": {
+    "path": "packages/workspace/runtime/src/presentation/workspace-split-resize-handle.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/index.ts": {
+    "path": "packages/workspace/runtime/src/presentation/index.ts",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/right-workspace-toggle-button.tsx": {
+    "path": "packages/workspace/runtime/src/presentation/right-workspace-toggle-button.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/workspace-add-menu.tsx": {
+    "path": "packages/workspace/runtime/src/presentation/workspace-add-menu.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/surface-header-host.tsx": {
+    "path": "packages/workspace/runtime/src/presentation/surface-header-host.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/workspace-header.tsx": {
+    "path": "packages/workspace/runtime/src/presentation/workspace-header.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/feedback/inline-feedback-form.tsx": {
+    "path": "packages/workspace/runtime/src/feedback/inline-feedback-form.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/feedback/feedback-layer.tsx": {
+    "path": "packages/workspace/runtime/src/feedback/feedback-layer.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/feedback/composer-feedback.tsx": {
+    "path": "packages/workspace/runtime/src/feedback/composer-feedback.tsx",
+    "export": "@workbench/workspace-runtime/presentation"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/i18n/zh-CN.ts": {
+    "path": "packages/workspace/runtime/src/i18n/zh-CN.ts",
+    "export": "@workbench/workspace-runtime/i18n"
+  },
+  "packages/workbench/shell/src/right-workspace/presentation/i18n/en-US.ts": {
+    "path": "packages/workspace/runtime/src/i18n/en-US.ts",
+    "export": "@workbench/workspace-runtime/i18n"
+  },
+  "packages/workbench/shell/tests/right-workspace/workspace-draft-store.test.ts": {
+    "path": "packages/workspace/runtime/tests/workspace-draft-store.test.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/tests/right-workspace/workspace-selectors.test.ts": {
+    "path": "packages/workspace/runtime/tests/workspace-selectors.test.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/tests/right-workspace/workspace-split-resize-observer.test.ts": {
+    "path": "packages/workspace/runtime/tests/workspace-split-resize-observer.test.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/tests/right-workspace/surface-mount-policy.test.ts": {
+    "path": "packages/workspace/runtime/tests/surface-mount-policy.test.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/tests/right-workspace/right-workspace-prompt-feedback.test.ts": {
+    "path": "packages/workspace/runtime/tests/right-workspace-prompt-feedback.test.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/tests/right-workspace/workspace-feedback-store.test.ts": {
+    "path": "packages/workspace/runtime/tests/workspace-feedback-store.test.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/tests/right-workspace/workspace-store.test.ts": {
+    "path": "packages/workspace/runtime/tests/workspace-store.test.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/tests/right-workspace/workspace-controller.test.ts": {
+    "path": "packages/workspace/runtime/tests/workspace-controller.test.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/tests/right-workspace/right-workspace-layout.test.ts": {
+    "path": "packages/workspace/runtime/tests/right-workspace-layout.test.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/tests/right-workspace/workspace-resize-preview.test.ts": {
+    "path": "packages/workspace/runtime/tests/workspace-resize-preview.test.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/tests/right-workspace/workspace-tab-layout.test.ts": {
+    "path": "packages/workspace/runtime/tests/workspace-tab-layout.test.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/tests/right-workspace/right-workspace-persistence.test.ts": {
+    "path": "packages/workspace/runtime/tests/right-workspace-persistence.test.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/tests/right-workspace/workspace-split-layout.test.ts": {
+    "path": "packages/workspace/runtime/tests/workspace-split-layout.test.ts",
+    "export": "@workbench/workspace-runtime"
+  },
+  "packages/workbench/shell/tests/right-workspace/workspace-tab-a11y.test.ts": {
+    "path": "packages/workspace/runtime/tests/workspace-tab-a11y.test.ts",
+    "export": "@workbench/workspace-runtime"
+  }
+}

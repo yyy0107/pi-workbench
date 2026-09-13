@@ -1,0 +1,152 @@
+"use client";
+import { definePiSettingsMessage } from "@workbench/pi-settings-ui/i18n";
+import { usePiSettingsI18n } from "@workbench/pi-settings-ui/translations";
+
+import { BoxIcon, FileTextIcon, PackageIcon, PlugIcon } from "lucide-react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
+
+import { SidebarRow, SidebarStatus } from "@workbench/ui";
+import { type LocalizableText } from "@workbench/i18n";
+import { useMainViewService } from "@workbench/extension-host";
+import type { SidebarSectionComponentProps } from "@workbench/extension-sdk";
+import type { PiResourceCatalogTarget } from "@workbench/agent-runtime-pi-protocol/rpc";
+
+import { usePiI18n } from "./use-i18n";
+import { definePiMessage, type PiI18nRuntime } from "./i18n";
+import { type ToolboxMainSection } from "./toolbox-capability";
+import { useToolboxCatalogs } from "./toolbox-catalog";
+import { toolboxScopeTarget } from "../lib/toolbox-scope";
+import { ToolboxScopeSelect } from "./toolbox-scope-select";
+import { useToolboxScope } from "./toolbox-scope-store";
+
+export function formatToolboxCount(
+  loadState: string,
+  value: number,
+  number: PiI18nRuntime["number"],
+) {
+  return loadState === "ready" || value > 0 ? number(value) : loadState === "loading" ? "…" : "—";
+}
+
+const TOOLBOX_SECTION_TITLES = {
+  skills: definePiMessage("extensions.toolbox.skills.title"),
+  extensions: definePiMessage("extensions.toolbox.extensions.title"),
+  prompts: definePiMessage("extensions.toolbox.prompts.title"),
+  installed: definePiMessage("extensions.toolbox.packages.title"),
+  packages: definePiMessage("extensions.toolbox.packages.title"),
+  updates: definePiMessage("extensions.toolbox.updates"),
+} satisfies Readonly<Record<ToolboxMainSection, LocalizableText>>;
+
+export function ToolboxSidebar({ onNavigate }: SidebarSectionComponentProps) {
+  const { number, t, text } = usePiI18n();
+  const { t: settingsT } = usePiSettingsI18n();
+  const mainViews = useMainViewService();
+  const activeView = useSyncExternalStore(
+    mainViews.subscribe,
+    mainViews.getSnapshot,
+    mainViews.getSnapshot,
+  );
+  const scope = useToolboxScope();
+  const openSystemPrompts = useCallback(() => {
+    const active = mainViews.getSnapshot();
+    const target = toolboxScopeTarget(scope);
+    const currentTarget = active?.params.target as PiResourceCatalogTarget | undefined;
+    if (
+      active?.kind === "system-prompts" &&
+      currentTarget?.scope === target.scope &&
+      (target.scope === "user" ||
+        (currentTarget.scope === "project" && currentTarget.workspaceId === target.workspaceId))
+    )
+      return;
+    mainViews.open({
+      kind: "system-prompts",
+      title: definePiSettingsMessage("extensions.agentConfiguration.systemPrompt.title"),
+      params: { target },
+    });
+  }, [mainViews, scope]);
+  useEffect(() => {
+    if (mainViews.getSnapshot()?.kind !== "toolbox") openSystemPrompts();
+  }, [mainViews, openSystemPrompts]);
+  const catalogs = useToolboxCatalogs(scope);
+  const openSection = (section: ToolboxMainSection) => {
+    mainViews.open({
+      kind: "toolbox",
+      title: TOOLBOX_SECTION_TITLES[section],
+      params: { section },
+    });
+    onNavigate?.();
+  };
+  const categories = [
+    {
+      section: "skills",
+      icon: BoxIcon,
+      catalog: catalogs.skillsCatalog,
+      items: catalogs.skillItems,
+    },
+    {
+      section: "extensions",
+      icon: PlugIcon,
+      catalog: catalogs.extensionsCatalog,
+      items: catalogs.extensionItems,
+    },
+    {
+      section: "prompts",
+      icon: FileTextIcon,
+      catalog: catalogs.promptsCatalog,
+      items: catalogs.promptItems,
+    },
+    {
+      section: "installed",
+      icon: PackageIcon,
+      catalog: catalogs.packagesCatalog,
+      items: catalogs.packageItems,
+    },
+  ] as const;
+
+  return (
+    <section aria-label={t("extensions.toolbox.title")} className="flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
+        <div className="mb-4 flex items-center gap-2 px-2">
+          <span className="text-muted-foreground shrink-0 text-base">
+            {t("extensions.toolbox.scope.label")}
+          </span>
+          <div className="min-w-0 flex-1">
+            <ToolboxScopeSelect />
+          </div>
+        </div>
+        <nav
+          aria-label={t("extensions.toolbox.capabilities")}
+          className="flex flex-col gap-[var(--sidebar-list-gap)]"
+        >
+          <SidebarRow
+            icon={<FileTextIcon />}
+            label={settingsT("extensions.agentConfiguration.systemPrompt.title")}
+            active={activeView?.kind === "system-prompts"}
+            onActivate={() => {
+              openSystemPrompts();
+              onNavigate?.();
+            }}
+          />
+          {categories.map(({ section, icon: Icon, catalog, items }) => (
+            <SidebarRow
+              key={section}
+              icon={<Icon />}
+              label={text(TOOLBOX_SECTION_TITLES[section])}
+              active={
+                activeView?.kind === "toolbox" &&
+                (section === "installed"
+                  ? ["installed", "packages", "updates"].includes(String(activeView.params.section))
+                  : activeView.params.section === section)
+              }
+              status={
+                <SidebarStatus aria-live="polite" aria-busy={catalog.loadState === "loading"}>
+                  {formatToolboxCount(catalog.loadState, items.length, number)}
+                </SidebarStatus>
+              }
+              onActivate={() => openSection(section)}
+            />
+          ))}
+        </nav>
+      </div>
+    </section>
+  );
+}

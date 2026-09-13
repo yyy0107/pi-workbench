@@ -18,10 +18,10 @@ import {
   CommandItem,
   CommandList,
   CommandShortcut,
-} from "../ui/command";
+} from "@workbench/ui";
 import { useI18n } from "../i18n";
-import { shellOwnsKeyboardEvent } from "../keyboard-shortcut-owner";
-import { useWorkbenchPortalContainer } from "../ui/workbench-portal-container";
+import { shellOwnsKeyboardEvent } from "@workbench/ui/keyboard";
+import { useWorkbenchPortalContainer } from "@workbench/ui";
 import type { CommandDefinition } from "@workbench/extension-sdk";
 import { useCommandService, useExtensionErrorReporter } from "@workbench/extension-host";
 import { formatShortcut, matchesShortcut } from "@workbench/extension-host/services";

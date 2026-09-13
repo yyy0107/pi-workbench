@@ -25,14 +25,14 @@ import {
   useSidebarDragState,
   useSidebarPointerReorder,
   type SidebarDropPosition,
-} from "../hooks/use-sidebar-pointer-reorder";
+} from "@workbench/ui/hooks";
 import { useI18n } from "../i18n";
-import { useWorkbenchNavigation } from "../navigation";
-import { resolveSidebarThreadWorkspaceId } from "../new-thread-policy";
-import { DropdownMenuItem } from "../ui/dropdown-menu";
+import { useWorkbenchNavigation } from "@workbench/shell-context/navigation";
+import { resolveSidebarThreadWorkspaceId } from "@workbench/shell-context/navigation-policy";
+import { DropdownMenuItem } from "@workbench/ui";
 import { groupSidebarThreads } from "./thread-list-groups";
 import { useHydrateThreadOrderStore, useThreadOrderStore } from "./thread-order-store";
-import { resolveThreadOrder } from "./thread-sort";
+import { resolveThreadOrder } from "../../lib/thread-sort";
 import {
   commitSidebarMove,
   canStartSidebarDrag,

@@ -1,4 +1,4 @@
-import { WorkbenchThread } from "@workbench/shell/chat";
+import { WorkbenchThread } from "@workbench/conversation";
 
 export default function NewChatPage() {
   return <WorkbenchThread />;

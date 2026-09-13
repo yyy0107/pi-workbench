@@ -1,0 +1,18 @@
+{
+  "packages/pi/client/src/transport/api.ts": {
+    "path": "packages/pi/transport-client/src/api.ts",
+    "export": "@workbench/pi-transport-client/api"
+  },
+  "packages/pi/client/src/transport/connections.ts": {
+    "path": "packages/pi/transport-client/src/connections.ts",
+    "export": "@workbench/pi-transport-client/connections"
+  },
+  "packages/pi/client/src/transport/client-transport.ts": {
+    "path": "packages/pi/transport-client/src/client-transport.ts",
+    "export": "@workbench/pi-transport-client"
+  },
+  "packages/pi/client/tests/transport/connections.test.ts": {
+    "path": "packages/pi/transport-client/tests/connections.test.ts",
+    "export": "@workbench/pi-transport-client/connections"
+  }
+}

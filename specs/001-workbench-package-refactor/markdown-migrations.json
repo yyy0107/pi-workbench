@@ -1,0 +1,86 @@
+{
+  "packages/workbench/shell/src/chat/markdown/markdown.css": {
+    "path": "packages/client/markdown/src/markdown.css",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/src/chat/markdown/incremental-markdown.ts": {
+    "path": "packages/client/markdown/src/incremental-markdown.ts",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/src/chat/markdown/markdown-normalize.ts": {
+    "path": "packages/client/markdown/src/markdown-normalize.ts",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/src/chat/markdown/workbench-markdown.tsx": {
+    "path": "packages/client/markdown/src/workbench-markdown.tsx",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/src/chat/markdown/markdown-text.tsx": {
+    "path": "packages/client/markdown/src/markdown-text.tsx",
+    "export": "@workbench/markdown/render"
+  },
+  "packages/workbench/shell/src/chat/markdown/README.md": {
+    "path": "packages/client/markdown/README.md",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/src/chat/markdown/markdown-link-icons.tsx": {
+    "path": "packages/client/markdown/src/markdown-link-icons.tsx",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/src/chat/markdown/markdown-reveal.tsx": {
+    "path": "packages/client/markdown/src/markdown-reveal.tsx",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/src/chat/markdown/lazy-markdown-text.tsx": {
+    "path": "packages/client/markdown/src/lazy-markdown-text.tsx",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/src/chat/markdown/DEEPSEEK-LICENSE.txt": {
+    "path": "packages/client/markdown/DEEPSEEK-LICENSE.txt",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/src/chat/markdown/mermaid-code.tsx": {
+    "path": "packages/client/markdown/src/mermaid-code.tsx",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/src/chat/markdown/inline-citation-markers.ts": {
+    "path": "packages/client/markdown/src/inline-citation-markers.ts",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/src/chat/markdown/markdown-pipeline.ts": {
+    "path": "packages/client/markdown/src/markdown-pipeline.ts",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/src/chat/markdown/markdown-types.ts": {
+    "path": "packages/client/markdown/src/markdown-types.ts",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/src/chat/markdown-preview.tsx": {
+    "path": "packages/client/markdown/src/markdown-preview.tsx",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/src/chat/website-icon.ts": {
+    "path": "packages/client/markdown/src/website-icon.ts",
+    "export": "@workbench/markdown/website-icon"
+  },
+  "packages/workbench/shell/src/elements/inline-citation.tsx": {
+    "path": "packages/client/markdown/src/inline-citation.tsx",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/tests/chat/markdown-markdown-reveal.test.tsx": {
+    "path": "packages/client/markdown/tests/markdown-reveal.test.tsx",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/tests/chat/website-icon.test.ts": {
+    "path": "packages/client/markdown/tests/website-icon.test.ts",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/tests/chat/markdown-incremental-markdown.test.ts": {
+    "path": "packages/client/markdown/tests/incremental-markdown.test.ts",
+    "export": "@workbench/markdown"
+  },
+  "packages/workbench/shell/tests/chat/markdown-inline-citation-markers.test.ts": {
+    "path": "packages/client/markdown/tests/inline-citation-markers.test.ts",
+    "export": "@workbench/markdown"
+  }
+}

@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.85.1",
+    "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/agent-runtime-pi-protocol": "workspace:*",
     "@workbench/agent-runtime-pi-server": "workspace:*",
     "@workbench/agent-runtime-server": "workspace:*",
@@ -34,7 +35,6 @@
     "@types/node": "^26.2.0",
     "@types/ws": "^8.18.1",
     "@vercel/nft": "^1.11.0",
-    "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/host-artifact-policy": "workspace:*",
     "@workbench/host-contracts": "workspace:*",
     "esbuild": "^0.28.2",

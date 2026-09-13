@@ -1,14 +1,17 @@
 packages:
   - "apps/*"
+  - "packages/client/*"
+  - "packages/workspace/*"
+  - "packages/conversation/*"
   - "packages/contracts/*"
   - "packages/server/*"
-  - "packages/agent-runtime/core/*"
-  - "packages/agent-runtime/runtimes/pi/*"
-  - "packages/agent-runtime/runtimes/pi/server/src/internal-packages/*"
+  - "packages/agent-runtime/*"
+  - "packages/pi/*"
   - "packages/extension-platform/*"
   - "packages/host/*"
   - "packages/terminal/*"
   - "packages/workbench/*"
+  - "packages/test-support/*"
 
 allowBuilds:
   "@google/genai": false

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useThreadList } from "@workbench/agent-runtime-client";
 import { readDesktopSettingsPort } from "@workbench/desktop-contracts";
 import { useI18n } from "@workbench/shell/i18n";
-import { useWorkbenchNavigation } from "@workbench/shell/navigation";
+import { useWorkbenchNavigation } from "@workbench/shell-context/navigation";
 import { playNotificationSound, stopNotificationSound } from "./notification-sounds";
 
 export function DesktopTaskNotifications() {

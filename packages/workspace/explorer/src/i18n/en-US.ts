@@ -1,0 +1,26 @@
+export const messages = {
+  extensions: {
+    workspaceExplorer: {
+      title: "Explorer",
+      empty: "This workspace folder is empty.",
+      openFiles: "Open local files",
+      files: "Workspace files",
+      tree: "Workspace file tree",
+      filterLabel: "Filter workspace files",
+      filterPlaceholder: "Filter files…",
+      clearFilter: "Clear file filter",
+      refresh: "Refresh Explorer",
+      collapseAll: "Collapse all folders",
+      loading: "Loading workspace files…",
+      loadError: "The workspace files could not be loaded.",
+      retry: "Retry",
+      noMatches: "No files match this filter.",
+      loadingDirectory: ({ name }: { name: string }) => `Loading ${name}…`,
+      loadDirectoryError: ({ name }: { name: string }) => `${name} could not be loaded.`,
+      retryDirectory: ({ name }: { name: string }) => `Retry loading ${name}`,
+      emptyDirectory: ({ name }: { name: string }) => `${name} is empty.`,
+      openError: ({ name }: { name: string }) => `${name} could not be opened.`,
+      truncated: "Some entries are not shown because this folder is very large.",
+    },
+  },
+};

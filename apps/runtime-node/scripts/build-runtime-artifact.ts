@@ -582,6 +582,7 @@ export function createRuntimeArtifactBuildOptions({
     absWorkingDir: appRoot,
     bundle: true,
     entryPoints: ["src/main.ts"],
+    define: { __WORKBENCH_BUNDLED_RESOURCES__: "true" },
     external: externalSpecifiersForPackages(RUNTIME_ARTIFACT_EXTERNAL_PACKAGES),
     format: "esm",
     legalComments: "none",
@@ -3195,9 +3196,15 @@ export async function copyRuntimeBuiltinResources(
   outputDirectory: string,
 ): Promise<void> {
   // Workbench modules are bundled into server.mjs, so import.meta.url resolves at the artifact root.
-  for (const relative of ["internal-skills", "internal-prompts", "internal-extensions"]) {
+  for (const [source, relative] of [
+    ["resources-server/resources/skills", "internal-skills"],
+    ["resources-server/resources/prompts", "internal-prompts"],
+    ["tools/src", "internal-extensions/src"],
+    ["tools/lib", "internal-extensions/lib"],
+    ["tools/resources", "internal-extensions/resources"],
+  ]) {
     await cp(
-      path.join(repositoryRoot, "packages/agent-runtime/runtimes/pi/server/src", relative),
+      path.join(repositoryRoot, "packages/pi", source),
       path.join(outputDirectory, relative),
       { recursive: true },
     );
@@ -3205,10 +3212,7 @@ export async function copyRuntimeBuiltinResources(
   const browserBuild = spawnSync(
     process.execPath,
     [
-      path.join(
-        repositoryRoot,
-        "packages/agent-runtime/runtimes/pi/server/src/internal-packages/browser/build.mjs",
-      ),
+      path.join(repositoryRoot, "packages/pi/browser/build.mjs"),
       path.join(outputDirectory, "internal-packages/browser"),
     ],
     { encoding: "utf8" },

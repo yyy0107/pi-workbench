@@ -10,13 +10,13 @@ Store documentation screenshots and diagrams in this directory; keep logos and b
 <subject>-v<version>-<language>[-<variant>].<ext>
 ```
 
-| Part | Rule | Example |
-| --- | --- | --- |
-| `subject` | Use a short, lowercase English name with hyphens; use the same name across languages. | `home`, `toolbox`, `model-settings` |
-| `version` | Use the application version shown in the screenshot, matching that release's root `package.json`. | `0.1.0` |
-| `language` | Use lowercase language suffixes: `en` for English and `zh` for Simplified Chinese. | `en`, `zh` |
-| `variant` | Optional; add only to distinguish images of the same screen. | `dark`, `light`, `empty` |
-| `ext` | Use lowercase extensions; prefer PNG for screenshots and SVG for vector assets. | `png`, `webp`, `svg` |
+| Part       | Rule                                                                                              | Example                             |
+| ---------- | ------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `subject`  | Use a short, lowercase English name with hyphens; use the same name across languages.             | `home`, `toolbox`, `model-settings` |
+| `version`  | Use the application version shown in the screenshot, matching that release's root `package.json`. | `0.1.0`                             |
+| `language` | Use lowercase language suffixes: `en` for English and `zh` for Simplified Chinese.                | `en`, `zh`                          |
+| `variant`  | Optional; add only to distinguish images of the same screen.                                      | `dark`, `light`, `empty`            |
+| `ext`      | Use lowercase extensions; prefer PNG for screenshots and SVG for vector assets.                   | `png`, `webp`, `svg`                |
 
 Provide both English and Simplified Chinese screenshots for localized UI. Match the screen, version,
 and variant; use `en` images in the English README and `zh` images in the Chinese README.

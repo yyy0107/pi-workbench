@@ -1,0 +1,116 @@
+{
+  "packages/pi/server/src/internal-extensions/_shared/tool-availability.ts": {
+    "path": "packages/pi/tools/lib/tool-availability.ts",
+    "export": "@workbench/pi-tools/tool-availability"
+  },
+  "packages/pi/server/src/internal-extensions/ask-user/index.ts": {
+    "path": "packages/pi/tools/src/ask-user.ts",
+    "export": "@workbench/pi-tools/ask-user"
+  },
+  "packages/pi/server/src/internal-extensions/builtin-tools/index.ts": {
+    "path": "packages/pi/tools/src/builtin-tools.ts",
+    "export": "@workbench/pi-tools/builtin-tools"
+  },
+  "packages/pi/server/src/internal-extensions/composer-context/index.ts": {
+    "path": "packages/pi/tools/src/composer-context.ts",
+    "export": "@workbench/pi-tools/composer-context"
+  },
+  "packages/pi/server/src/internal-extensions/context-trace/index.ts": {
+    "path": "packages/pi/tools/src/context-trace.ts",
+    "export": "@workbench/pi-tools/context-trace"
+  },
+  "packages/pi/server/src/internal-extensions/context-trace/system-prompt-hook-trace.ts": {
+    "path": "packages/pi/tools/lib/system-prompt-hook-trace.ts",
+    "export": "@workbench/pi-tools/system-prompt-hook-trace"
+  },
+  "packages/pi/server/src/internal-extensions/dependencies.ts": {
+    "path": "packages/pi/tools/src/dependencies.ts",
+    "export": "@workbench/pi-tools/dependencies"
+  },
+  "packages/pi/server/src/internal-extensions/enhanced-search/index.ts": {
+    "path": "packages/pi/tools/src/enhanced-search.ts",
+    "export": "@workbench/pi-tools/enhanced-search"
+  },
+  "packages/pi/server/src/internal-extensions/index.ts": {
+    "path": "packages/pi/tools/src/index.ts",
+    "export": "@workbench/pi-tools"
+  },
+  "packages/pi/server/src/internal-extensions/message-termination/index.ts": {
+    "path": "packages/pi/tools/src/message-termination.ts",
+    "export": "@workbench/pi-tools/message-termination"
+  },
+  "packages/pi/server/src/internal-extensions/message-termination/legacy-message-termination-extension-source.ts": {
+    "path": "packages/pi/tools/lib/legacy-message-termination-extension-source.ts",
+    "export": "@workbench/pi-tools/legacy-message-termination-extension-source"
+  },
+  "packages/pi/server/src/internal-extensions/message-termination/legacy-message-termination.ts": {
+    "path": "packages/pi/tools/lib/legacy-message-termination.ts",
+    "export": "@workbench/pi-tools/legacy-message-termination"
+  },
+  "packages/pi/server/src/internal-extensions/rpiv-todo/index.ts": {
+    "path": "packages/pi/tools/src/rpiv-todo.ts",
+    "export": "@workbench/pi-tools/rpiv-todo"
+  },
+  "packages/pi/server/src/internal-extensions/rpiv-todo/state/invariants.ts": {
+    "path": "packages/pi/tools/src/todo/invariants.ts",
+    "export": "@workbench/pi-tools/invariants"
+  },
+  "packages/pi/server/src/internal-extensions/rpiv-todo/state/replay.ts": {
+    "path": "packages/pi/tools/src/todo/replay.ts",
+    "export": "@workbench/pi-tools/replay"
+  },
+  "packages/pi/server/src/internal-extensions/rpiv-todo/state/state-reducer.ts": {
+    "path": "packages/pi/tools/src/todo/state-reducer.ts",
+    "export": "@workbench/pi-tools/state-reducer"
+  },
+  "packages/pi/server/src/internal-extensions/rpiv-todo/state/state.ts": {
+    "path": "packages/pi/tools/src/todo/state.ts",
+    "export": "@workbench/pi-tools/state"
+  },
+  "packages/pi/server/src/internal-extensions/rpiv-todo/state/task-graph.ts": {
+    "path": "packages/pi/tools/src/todo/task-graph.ts",
+    "export": "@workbench/pi-tools/task-graph"
+  },
+  "packages/pi/server/src/internal-extensions/rpiv-todo/tool/response-envelope.ts": {
+    "path": "packages/pi/tools/lib/todo/response-envelope.ts",
+    "export": "@workbench/pi-tools/response-envelope"
+  },
+  "packages/pi/server/src/internal-extensions/rpiv-todo/tool/sanitize.ts": {
+    "path": "packages/pi/tools/lib/todo/sanitize.ts",
+    "export": "@workbench/pi-tools/sanitize"
+  },
+  "packages/pi/server/src/internal-extensions/rpiv-todo/tool/types.ts": {
+    "path": "packages/pi/tools/src/todo/types.ts",
+    "export": "@workbench/pi-tools/types"
+  },
+  "packages/pi/server/src/internal-extensions/workbench-settings/index.ts": {
+    "path": "packages/pi/tools/src/workbench-settings.ts",
+    "export": "@workbench/pi-tools/workbench-settings"
+  },
+  "packages/pi/server/src/internal-extensions/workspace-review/index.ts": {
+    "path": "packages/pi/tools/src/workspace-review.ts",
+    "export": "@workbench/pi-tools/workspace-review"
+  },
+  "packages/pi/server/tests/internal-extensions/ask-user.test.ts": {
+    "path": "packages/pi/tools/tests/ask-user.test.ts"
+  },
+  "packages/pi/server/tests/internal-extensions/builtin-tools.test.ts": {
+    "path": "packages/pi/tools/tests/builtin-tools.test.ts"
+  },
+  "packages/pi/server/tests/internal-extensions/composer-context.test.ts": {
+    "path": "packages/pi/tools/tests/composer-context.test.ts"
+  },
+  "packages/pi/server/tests/internal-extensions/enhanced-search.test.ts": {
+    "path": "packages/pi/tools/tests/enhanced-search.test.ts"
+  },
+  "packages/pi/server/tests/internal-extensions/legacy-message-termination.test.ts": {
+    "path": "packages/pi/tools/tests/legacy-message-termination.test.ts"
+  },
+  "packages/pi/server/tests/internal-extensions/workspace-review.test.ts": {
+    "path": "packages/pi/tools/tests/workspace-review.test.ts"
+  },
+  "packages/pi/resources-server/src/pi-composer-prompt.ts": {
+    "path": "packages/pi/shared/src/composer-prompt.ts",
+    "export": "@workbench/agent-runtime-pi-shared/composer-prompt"
+  }
+}

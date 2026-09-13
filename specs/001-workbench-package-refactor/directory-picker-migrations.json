@@ -1,0 +1,74 @@
+{
+  "packages/workbench/shell/src/extensions/builtin/workspace-directory-picker/directory-picker-button.tsx": {
+    "path": "packages/workspace/directory-picker/src/directory-picker-button.tsx",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-directory-picker/directory-picker-capability.ts": {
+    "path": "packages/workspace/directory-picker/src/directory-picker-capability.ts",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-directory-picker/directory-picker.module.css": {
+    "path": "packages/workspace/directory-picker/src/directory-picker.module.css",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-directory-picker/extension.ts": {
+    "path": "packages/workspace/directory-picker/src/extension.ts",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-directory-picker/index.ts": {
+    "path": "packages/workspace/directory-picker/src/index.ts",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-directory-picker/new-thread-workspace-item.tsx": {
+    "path": "packages/workspace/directory-picker/src/new-thread-workspace-item.tsx",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-directory-picker/project-trust-dialog-copy.ts": {
+    "path": "packages/workspace/directory-picker/src/project-trust-dialog-copy.ts",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-directory-picker/remote-directory-picker-dialog.tsx": {
+    "path": "packages/workspace/directory-picker/src/remote-directory-picker-dialog.tsx",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-directory-picker/use-workspace-directory-admission.ts": {
+    "path": "packages/workspace/directory-picker/src/use-workspace-directory-admission.ts",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-directory-picker/workspace-activation.ts": {
+    "path": "packages/workspace/directory-picker/src/workspace-activation.ts",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-directory-picker/workspace-admission.ts": {
+    "path": "packages/workspace/directory-picker/src/workspace-admission.ts",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-directory-picker/workspace-directory-picker-dialog.tsx": {
+    "path": "packages/workspace/directory-picker/src/workspace-directory-picker-dialog.tsx",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/src/extensions/builtin/workspace-directory-picker/workspace-directory-summary.tsx": {
+    "path": "packages/workspace/directory-picker/src/workspace-directory-summary.tsx",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-directory-picker-capability-presence.test.tsx": {
+    "path": "packages/workspace/directory-picker/tests/capability-presence.test.tsx",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-directory-picker-directory-picker-capability.test.ts": {
+    "path": "packages/workspace/directory-picker/tests/directory-picker-capability.test.ts",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-directory-picker-workspace-activation.test.ts": {
+    "path": "packages/workspace/directory-picker/tests/workspace-activation.test.ts",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-directory-picker-workspace-admission.test.ts": {
+    "path": "packages/workspace/directory-picker/tests/workspace-admission.test.ts",
+    "export": "@workbench/workspace-directory-picker"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-workspace-directory-picker-workspace-directory-picker-dialog.test.tsx": {
+    "path": "packages/workspace/directory-picker/tests/workspace-directory-picker-dialog.test.tsx",
+    "export": "@workbench/workspace-directory-picker"
+  }
+}

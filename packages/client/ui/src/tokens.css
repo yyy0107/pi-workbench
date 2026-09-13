@@ -1,0 +1,421 @@
+@custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
+@custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])));
+
+@theme inline {
+  @keyframes collapsible-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+    }
+  }
+  @keyframes collapsible-up {
+    from {
+      height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+    }
+    to {
+      height: 0;
+    }
+  }
+  --color-aui-accent: var(--aui-accent);
+  --color-aui-accent-foreground: var(--aui-accent-foreground);
+  --color-aui-background: var(--aui-background);
+  --color-aui-foreground: var(--aui-foreground);
+  --color-aui-muted-foreground: var(--aui-muted-foreground);
+  --color-aui-border: var(--aui-border);
+  --color-aui-user-message: var(--aui-user-message);
+  --color-aui-composer: var(--aui-composer);
+}
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --animate-shimmer: shimmer-sweep var(--shimmer-duration, 1000ms) linear infinite both;
+  @keyframes shimmer-sweep {
+    from {
+      background-position: 150% 0;
+    }
+    to {
+      background-position: -100% 0;
+    }
+  }
+}
+
+:root {
+  --radius: 0.625rem;
+
+  /* Control density */
+  --control-hit-compact: 24px;
+  --control-hit-default: 30px;
+  --control-hit-touch: 44px;
+  --form-control-height: var(--control-hit-default);
+  --control-text-line-height: 1.25;
+  --control-text-offset-y: 1px;
+  --control-content-padding-block-compact: 0.25rem;
+  --control-content-padding-block-compact-start: calc(
+    var(--control-content-padding-block-compact) + var(--control-text-offset-y)
+  );
+  --control-content-padding-block-compact-end: calc(
+    var(--control-content-padding-block-compact) - var(--control-text-offset-y)
+  );
+  --control-content-padding-block-default: 0.375rem;
+  --control-content-padding-block-default-start: calc(
+    var(--control-content-padding-block-default) + var(--control-text-offset-y)
+  );
+  --control-content-padding-block-default-end: calc(
+    var(--control-content-padding-block-default) - var(--control-text-offset-y)
+  );
+
+  /* Shared interaction states */
+  --control-state-background-hover: color-mix(in oklab, var(--foreground) 6%, transparent);
+  --control-state-background-active: color-mix(in oklab, var(--foreground) 10%, transparent);
+  --control-state-background-selected: var(--accent);
+  --control-state-foreground-selected: var(--accent-foreground);
+  --control-state-border-selected: color-mix(in oklab, var(--foreground) 10%, transparent);
+  --control-focus-ring: var(--ring);
+
+  /* Buttons */
+  --button-height-compact: calc(var(--form-control-height) - 2px);
+  --button-height-default: var(--input-control-height);
+  --button-height-large: calc(var(--form-control-height) + 10px);
+  /* Center the text and icon together; asymmetric padding offsets the entire flex row. */
+  --button-content-padding-block-start: 0px;
+  --button-content-padding-block-end: 0px;
+  --button-radius: var(--radius);
+  --button-background-hover: var(--control-state-background-hover);
+  --button-background-active: var(--control-state-background-active);
+  --button-background-selected: var(--control-state-background-selected);
+  --button-foreground-selected: var(--control-state-foreground-selected);
+
+  /* Icons and icon frames */
+  --icon-size-xs: 12px;
+  --icon-size-sm: 14px;
+  --icon-size-md: 16px;
+  --icon-size-md-lg: calc((var(--icon-size-md) + var(--icon-size-lg)) / 2);
+  --icon-size-lg: 18px;
+  --icon-size-xl: 20px;
+  --icon-size-xxl: 24px;
+  --icon-frame-background-hover: var(--control-state-background-hover);
+  --icon-frame-background-active: var(--control-state-background-active);
+  --icon-frame-background-selected: var(--control-state-background-selected);
+  --icon-frame-foreground-selected: var(--control-state-foreground-selected);
+  /* Backward-compatible aliases for extension styles. */
+  --icon-sm: var(--icon-size-sm);
+  --icon-md: var(--icon-size-md);
+  --icon-md-lg: var(--icon-size-md-lg);
+
+  /* Inputs */
+  --input-control-height: calc(var(--form-control-height) - 2px);
+  --dropdown-control-height: var(--input-control-height);
+  --input-control-padding-block: var(--control-content-padding-block-compact);
+  --input-control-padding-block-start: var(--control-content-padding-block-compact-start);
+  --input-control-padding-block-end: var(--control-content-padding-block-compact-end);
+  --input-control-radius: var(--radius);
+  --input-control-background: transparent;
+  --input-control-background-disabled: color-mix(in oklab, var(--input) 50%, transparent);
+  --input-control-border: var(--input);
+  --input-control-border-focus: var(--foreground);
+  --input-control-icon-size: var(--icon-size-sm);
+
+  /* Switches */
+  --switch-track-width: 34px;
+  --switch-track-height: 20px;
+  --switch-track-radius: 9999px;
+  --switch-track-padding: 2px;
+  --switch-track-background: var(--input);
+  --switch-track-background-checked: var(--primary);
+  --switch-thumb-size: 16px;
+  --switch-thumb-radius: 9999px;
+  --switch-thumb-background: var(--background);
+  --switch-thumb-translate: 14px;
+  --switch-compact-track-width: 28px;
+  --switch-compact-track-height: 16px;
+  --switch-compact-thumb-size: 12px;
+  --switch-compact-thumb-translate: 12px;
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.141 0.005 285.823);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.141 0.005 285.823);
+  --primary: oklch(0.21 0.006 285.885);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.552 0.016 285.938);
+  --accent: oklch(0.967 0.001 286.375);
+  --accent-foreground: oklch(0.21 0.006 285.885);
+  --destructive: oklch(0.577 0.245 27.325);
+  --danger: var(--destructive);
+  --danger-foreground: oklch(0.5 0.22 27.325);
+  --info: oklch(0.62 0.18 250);
+  --info-foreground: oklch(0.42 0.15 250);
+  --success: oklch(0.6 0.16 155);
+  --success-foreground: oklch(0.5 0.2 145);
+  --warning: oklch(0.75 0.17 70);
+  --warning-foreground: oklch(0.43 0.12 52);
+  --border: oklch(0.95 0.003 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --ring: oklch(0.705 0.015 286.067);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.141 0.005 285.823);
+  --sidebar-primary: oklch(0.21 0.006 285.885);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.967 0.001 286.375);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-border: oklch(0.95 0.003 286.32);
+  --sidebar-ring: oklch(0.705 0.015 286.067);
+  --aui-accent: #10a37f;
+  --aui-accent-foreground: #ffffff;
+  --aui-background: #ffffff;
+  --aui-foreground: #0d0d0d;
+  --aui-muted-foreground: #6e6e6e;
+  --aui-border: #f0f0f0;
+  --aui-user-message: #f7f7f8;
+  --aui-composer: #f7f7f8;
+  --aui-max-width: 48rem;
+  --aui-border-radius: 1.5rem;
+  --aui-font-family: system-ui;
+}
+
+.dark {
+  --input-control-background: color-mix(in oklab, var(--input) 30%, transparent);
+  --input-control-background-disabled: color-mix(in oklab, var(--input) 80%, transparent);
+  --background: oklch(0.141 0.005 285.823);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.21 0.006 285.885);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.21 0.006 285.885);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.92 0.004 286.32);
+  --primary-foreground: oklch(0.21 0.006 285.885);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.274 0.006 286.033);
+  --muted-foreground: oklch(0.705 0.015 286.067);
+  --accent: oklch(0.274 0.006 286.033);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --danger: var(--destructive);
+  --danger-foreground: oklch(0.7 0.22 27.325);
+  --info: oklch(0.72 0.14 250);
+  --info-foreground: oklch(0.83 0.09 250);
+  --success: oklch(0.7 0.14 155);
+  --success-foreground: oklch(0.7 0.2 145);
+  --warning: oklch(0.8 0.15 75);
+  --warning-foreground: oklch(0.87 0.11 78);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.552 0.016 285.938);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.21 0.006 285.885);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.274 0.006 286.033);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.552 0.016 285.938);
+  --aui-accent: #ffffff;
+  --aui-accent-foreground: #000000;
+  --aui-background: #212121;
+  --aui-foreground: #ececec;
+  --aui-muted-foreground: #9b9b9b;
+  --aui-border: #383838;
+  --aui-user-message: #2f2f2f;
+  --aui-composer: #2f2f2f;
+  --aui-max-width: 48rem;
+  --aui-border-radius: 1.5rem;
+  --aui-font-family: system-ui;
+}
+
+/* Seven icon profiles, resolved at the appearance boundary so density and radius stay live.
+   At default density and radius: XS 12/22/4, S 14/24/5, M 16/28/6,
+   M-L 17/30/6.5, L 18/32/7, XL 20/36/8, XXL 24/42/9 (glyph/frame/radius in px).
+   Per-side glyph clearance grows from 5px for compact controls to 9px for large entries. */
+:root,
+[data-workbench-shell] {
+  --icon-frame-density-offset: calc(var(--form-control-height) - var(--control-hit-default));
+  --icon-frame-size-xs: max(
+    calc(var(--icon-size-xs) + 4px),
+    calc(22px + var(--icon-frame-density-offset))
+  );
+  --icon-frame-radius-xs: calc(var(--radius) * 0.4);
+  --icon-frame-size-sm: max(
+    calc(var(--icon-size-sm) + 4px),
+    calc(24px + var(--icon-frame-density-offset))
+  );
+  --icon-frame-radius-sm: calc(var(--radius) * 0.5);
+  --icon-frame-size-md: max(
+    calc(var(--icon-size-md) + 4px),
+    calc(28px + var(--icon-frame-density-offset))
+  );
+  --icon-frame-radius-md: calc(var(--radius) * 0.6);
+  --icon-frame-size-md-lg: max(
+    calc(var(--icon-size-md-lg) + 4px),
+    calc(30px + var(--icon-frame-density-offset))
+  );
+  --icon-frame-radius-md-lg: calc(var(--radius) * 0.65);
+  --icon-frame-size-lg: max(
+    calc(var(--icon-size-lg) + 4px),
+    calc(32px + var(--icon-frame-density-offset))
+  );
+  --icon-frame-radius-lg: calc(var(--radius) * 0.7);
+  --icon-frame-size-xl: max(
+    calc(var(--icon-size-xl) + 4px),
+    calc(36px + var(--icon-frame-density-offset))
+  );
+  --icon-frame-radius-xl: calc(var(--radius) * 0.8);
+  --icon-frame-size-xxl: max(
+    calc(var(--icon-size-xxl) + 4px),
+    calc(42px + var(--icon-frame-density-offset))
+  );
+  --icon-frame-radius-xxl: calc(var(--radius) * 0.9);
+  --icon-frame-size-compact: var(--icon-frame-size-sm);
+  --icon-frame-size-default: var(--icon-frame-size-md);
+}
+
+/* Resolve scrollbar tokens at each Shell's theme boundary, not just the document root. */
+:root,
+[data-workbench-shell] {
+  --scrollbar-size: 8px;
+  --scrollbar-hit-padding: 4px;
+  --scrollbar-hit-size: calc(var(--scrollbar-size) + var(--scrollbar-hit-padding) * 2);
+  --scrollbar-width: auto;
+  --scrollbar-radius: min(var(--radius), calc(var(--scrollbar-size) / 4));
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: color-mix(in oklab, var(--foreground) 14%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklab, var(--foreground) 20%, transparent);
+  --scrollbar-thumb-active: color-mix(in oklab, var(--foreground) 28%, transparent);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  :where(:focus-visible, [data-focus-visible]:not([data-focus-visible="false"])) {
+    outline: 2px solid var(--control-focus-ring);
+    outline-offset: 2px;
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+      scrollbar-width: var(--scrollbar-width);
+    }
+  }
+
+  :where(
+    [data-slot="separator"],
+    [data-slot="sidebar-separator"],
+    [data-slot="dropdown-menu-separator"],
+    [data-slot="context-menu-separator"],
+    [data-slot="command-separator"],
+    [data-slot="model-selector-separator"]
+  ) {
+    filter: blur(0.35px);
+  }
+
+  *::-webkit-scrollbar {
+    width: var(--scrollbar-hit-size);
+    height: var(--scrollbar-hit-size);
+    background: var(--scrollbar-track);
+  }
+
+  *::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border: 0 solid transparent;
+    border-radius: calc(var(--scrollbar-radius) + var(--scrollbar-hit-padding));
+    background-color: var(--scrollbar-thumb);
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-thumb:vertical {
+    border-width: 0 var(--scrollbar-hit-padding);
+  }
+
+  *::-webkit-scrollbar-thumb:horizontal {
+    border-width: var(--scrollbar-hit-padding) 0;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  *::-webkit-scrollbar-thumb:active {
+    background-color: var(--scrollbar-thumb-active);
+  }
+
+  :root {
+    color-scheme: light;
+  }
+
+  :root.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply text-foreground;
+    background-color: var(--workbench-window-background, var(--background));
+  }
+}

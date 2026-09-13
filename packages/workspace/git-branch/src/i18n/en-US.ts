@@ -1,0 +1,83 @@
+import type { MessageFormatters } from "@workbench/i18n/runtime";
+export const messages = {
+  extensions: {
+    gitBranch: {
+      select: "Select Git branch",
+      loading: "Reading Git branches…",
+      loadError: "Git branches could not be read.",
+      retry: "Retry reading Git branches",
+      searchLabel: "Search branches",
+      searchPlaceholder: "Search branches",
+      branches: "Branches",
+      noBranches: "No local branches",
+      noSearchResults: "No matching branches",
+      detachedHead: "Detached HEAD",
+      detachedAt: ({ revision }: { revision: string }) => `Detached at ${revision}`,
+      changedFiles: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `${number(count)} changed ${count === 1 ? "file" : "files"}`,
+      createAction: "Create and switch to new branch…",
+      graph: {
+        action: "Git graph",
+        title: "Git graph",
+        description: "Explore the repository's commit history, refs, and parent topology.",
+        close: "Close Git graph",
+        refresh: "Refresh Git graph",
+        loading: "Loading Git history…",
+        loadError: "Git history could not be read.",
+        refreshError: "Git history could not be refreshed. The previous results are still shown.",
+        loadMoreError: "Older commits could not be loaded.",
+        retry: "Retry",
+        empty: "This repository does not have any commits yet.",
+        tableLabel: "Git commit history",
+        noSubject: "No commit subject",
+        commitCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `${number(count)} ${count === 1 ? "commit" : "commits"} in total`,
+        columns: {
+          graph: "Graph",
+          subject: "Description",
+          date: "Date",
+          author: "Author",
+          commit: "Commit",
+        },
+        details: {
+          label: "Selected commit details",
+          subject: "Subject",
+          commit: "Commit",
+          date: "Date",
+          author: "Author",
+          parents: "Parents",
+          noParents: "No parent",
+        },
+      },
+      createTitle: "Create Git branch",
+      createDescription: "Create a local branch from the current HEAD and switch to it.",
+      branchName: "Branch name",
+      branchNamePlaceholder: "feature/my-branch",
+      cancelCreate: "Cancel",
+      create: "Create branch",
+      creating: "Creating…",
+      switching: ({ branch }: { branch: string }) => `Switching to ${branch}…`,
+      switchTitle: "Switch Git branch?",
+      switchWithChangesTitle: "Review changes before switching branches",
+      switchDescription: "The working tree is clean and ready to switch branches.",
+      switchWarning:
+        "Git will carry these uncommitted changes to the target branch when possible. If they conflict with that branch, the switch will be rejected. Commit or stash them first if you do not want them to move.",
+      affectedFiles: "Uncommitted changes",
+      changedFilesTruncated: "Only the first 200 changed files are shown.",
+      lineChanges: ({ additions, deletions }: { additions: number; deletions: number }) =>
+        `${additions} additions and ${deletions} deletions`,
+      cancelSwitch: "Cancel",
+      confirmSwitch: "Continue switching",
+      switchingShort: "Switching…",
+      errors: {
+        sessionBusy:
+          "A conversation in this project is running. Wait for it to finish and try again.",
+        invalidName: "Enter a valid Git branch name.",
+        alreadyExists: "A local branch with this name already exists.",
+        switchFailed:
+          "The branch could not be switched. Resolve conflicting working-tree changes and try again.",
+        createFailed: "The branch could not be created. Check the name and repository state.",
+      },
+    },
+  },
+};

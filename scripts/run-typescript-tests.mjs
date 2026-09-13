@@ -66,7 +66,7 @@ function packageProjectDirectory() {
 
 export async function testGlobs({ projectDirectory } = {}) {
   const candidateDirectories = projectDirectory
-    ? ["src", "test"].map((directory) => path.join(projectDirectory, directory))
+    ? ["src", "lib", "test", "tests"].map((directory) => path.join(projectDirectory, directory))
     : ROOT_TEST_DIRECTORIES.map((directory) => path.join(REPOSITORY_ROOT, directory));
   const globs = [];
 

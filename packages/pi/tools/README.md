@@ -1,0 +1,5 @@
+# @workbench/pi-tools
+
+src holds actual inline extension factories, settings operations, context observers and Todo state/contracts. lib holds consumed availability, serialization, sanitization and legacy migration helpers. All source is TypeScript; each root permits one directory level. The server composition provides host settings, validators, workspace lookup and the live trace port. Extension IDs and order remain stable, with context trace installed last. Pure tool tests live in tests; session/settings integration remains in pi/server. resources retains third-party attribution. Runtime artifacts include src/lib/resources snapshots without dependencies or build output.
+
+Source layout: src owns this capability and its contracts; lib contains consumed internal helpers; tests live at the package root. Example consumer: `src/legacy-message-termination-extension-source.ts` imports `lib/legacy-message-termination-extension-source.ts`. Capability and helper code remains TS/TSX; existing build tooling retains its language.

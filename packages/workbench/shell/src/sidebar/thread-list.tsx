@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useI18n } from "../i18n";
-import { SidebarRow } from "../ui/sidebar-items";
-import { Skeleton } from "../ui/skeleton";
+import { SidebarRow } from "@workbench/ui";
+import { Skeleton } from "@workbench/ui";
 import { WorkbenchThreadListItem } from "./thread-list-item";
 import { sidebarThreadScope, useWorkspaceSidebar } from "./workspace-sidebar-context";
 

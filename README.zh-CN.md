@@ -34,16 +34,16 @@
 
 ## 功能
 
-| 功能 | 说明 |
-| --- | --- |
-| AI 会话 | 会话持久化、搜索、置顶、归档、分叉与后续消息队列 |
-| 模型配置 | Provider 登录、API Key、模型选择与自定义 Provider |
-| 项目与文件 | 管理项目，浏览、预览、编辑和保存工作区文件 |
-| 终端 | 真实本地终端，支持 Agent 发起的交互式命令 |
-| 扩展管理 | 通过 Toolbox 管理 Skills、提示词、Pi 扩展与扩展包 |
-| 会话导入 | 导入本地 Codex、Claude Code 和 Cursor 会话 |
-| 附件与诊断 | 图片/PDF 理解、Token 用量与工具调用时间线 |
-| 多语言 | 支持英文与简体中文切换 |
+| 功能       | 说明                                              |
+| ---------- | ------------------------------------------------- |
+| AI 会话    | 会话持久化、搜索、置顶、归档、分叉与后续消息队列  |
+| 模型配置   | Provider 登录、API Key、模型选择与自定义 Provider |
+| 项目与文件 | 管理项目，浏览、预览、编辑和保存工作区文件        |
+| 终端       | 真实本地终端，支持 Agent 发起的交互式命令         |
+| 扩展管理   | 通过 Toolbox 管理 Skills、提示词、Pi 扩展与扩展包 |
+| 会话导入   | 导入本地 Codex、Claude Code 和 Cursor 会话        |
+| 附件与诊断 | 图片/PDF 理解、Token 用量与工具调用时间线         |
+| 多语言     | 支持英文与简体中文切换                            |
 
 ## 环境要求
 
@@ -64,9 +64,9 @@ Provider，再选择模型即可开始对话。
 
 `pnpm dev` 会先构建再启动 Web 和 Runtime，默认不开启热更新。修改源码后需重新运行。
 
-| 模式 | 命令 |
-| --- | --- |
-| Web 热更新开发 | `pnpm dev -- --hot` |
+| 模式              | 命令                |
+| ----------------- | ------------------- |
+| Web 热更新开发    | `pnpm dev -- --hot` |
 | Electron 桌面开发 | `pnpm electron:dev` |
 
 Electron 命令会构建并打开桌面窗口，请在该窗口中使用应用。
@@ -113,7 +113,7 @@ pnpm test
 - [架构说明](./docs/workbench-public-layers.md)
 - [扩展开发](./docs/extensions.md)
 - [国际化](./docs/i18n.zh-CN.md)
-- [Pi Runtime](./packages/agent-runtime/runtimes/pi/README.md)
+- [Pi Runtime](./packages/pi/README.md)
 
 ## 开源协议
 

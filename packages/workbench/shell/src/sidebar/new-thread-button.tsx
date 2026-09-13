@@ -3,12 +3,12 @@
 import { PlusIcon } from "lucide-react";
 import { useAgentRuntime } from "@workbench/agent-runtime-client";
 import { useWorkspaceCapabilities } from "@workbench/agent-runtime-client/workspaces";
-import { Button } from "../ui/button";
-import { DropdownMenuItem } from "../ui/dropdown-menu";
-import { SidebarRow } from "../ui/sidebar-items";
+import { Button } from "@workbench/ui";
+import { DropdownMenuItem } from "@workbench/ui";
+import { SidebarRow } from "@workbench/ui";
 import { useI18n } from "../i18n";
 import { useWorkspaceSidebar } from "./workspace-sidebar-context";
-import { useNewThreadLayout } from "../layout/new-thread-layout";
+import { useNewThreadLayout } from "@workbench/shell-context/layout";
 
 export function NewThreadButton({
   className,

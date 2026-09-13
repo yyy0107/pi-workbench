@@ -1,0 +1,338 @@
+{
+  "packages/workbench/shell/src/ui/settings-control.tsx": {
+    "path": "packages/client/ui/src/components/settings-control.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/input.tsx": {
+    "path": "packages/client/ui/src/components/input.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/tooltip.tsx": {
+    "path": "packages/client/ui/src/components/tooltip.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/textarea.tsx": {
+    "path": "packages/client/ui/src/components/textarea.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/progress.tsx": {
+    "path": "packages/client/ui/src/components/progress.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/settings-layout.tsx": {
+    "path": "packages/client/ui/src/components/settings-layout.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/workspace-selector.tsx": {
+    "path": "packages/client/ui/src/components/workspace-selector.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/selector-dropdown.tsx": {
+    "path": "packages/client/ui/src/components/selector-dropdown.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/status-badge.tsx": {
+    "path": "packages/client/ui/src/components/status-badge.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/time-picker.tsx": {
+    "path": "packages/client/ui/src/components/time-picker.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/sidebar-items.tsx": {
+    "path": "packages/client/ui/src/components/sidebar-items.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/model-selector-models.ts": {
+    "path": "packages/client/ui/src/components/model-selector-models.ts",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/tabs.tsx": {
+    "path": "packages/client/ui/src/components/tabs.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/sidebar.tsx": {
+    "path": "packages/client/ui/src/components/sidebar.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/collapsible.tsx": {
+    "path": "packages/client/ui/src/components/collapsible.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/dropdown-menu.tsx": {
+    "path": "packages/client/ui/src/components/dropdown-menu.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/path-ellipsis.tsx": {
+    "path": "packages/client/ui/src/components/path-ellipsis.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/model-selector.tsx": {
+    "path": "packages/client/ui/src/components/model-selector.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/searchable-selector.tsx": {
+    "path": "packages/client/ui/src/components/searchable-selector.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/surface.tsx": {
+    "path": "packages/client/ui/src/components/surface.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/color-picker.tsx": {
+    "path": "packages/client/ui/src/components/color-picker.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/tooltip-icon-button.tsx": {
+    "path": "packages/client/ui/src/components/tooltip-icon-button.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/select.tsx": {
+    "path": "packages/client/ui/src/components/select.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/index.ts": {
+    "path": "packages/client/ui/src/components/index.ts",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/button.tsx": {
+    "path": "packages/client/ui/src/components/button.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/sheet.tsx": {
+    "path": "packages/client/ui/src/components/sheet.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/input-group.tsx": {
+    "path": "packages/client/ui/src/components/input-group.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/avatar.tsx": {
+    "path": "packages/client/ui/src/components/avatar.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/toast.tsx": {
+    "path": "packages/client/ui/src/components/toast.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/sidebar-items.css": {
+    "path": "packages/client/ui/src/components/sidebar-items.css",
+    "export": "@workbench/ui/components.css"
+  },
+  "packages/workbench/shell/src/ui/color-picker.css": {
+    "path": "packages/client/ui/src/components/color-picker.css",
+    "export": "@workbench/ui/components.css"
+  },
+  "packages/workbench/shell/src/ui/context-menu.tsx": {
+    "path": "packages/client/ui/src/components/context-menu.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/collapsible-resize-handle.tsx": {
+    "path": "packages/client/ui/src/components/collapsible-resize-handle.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/control-icons.css": {
+    "path": "packages/client/ui/src/components/control-icons.css",
+    "export": "@workbench/ui/components.css"
+  },
+  "packages/workbench/shell/src/ui/dialog.tsx": {
+    "path": "packages/client/ui/src/components/dialog.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/skeleton.tsx": {
+    "path": "packages/client/ui/src/components/skeleton.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/switch.tsx": {
+    "path": "packages/client/ui/src/components/switch.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/project-trust-dialog.tsx": {
+    "path": "packages/client/ui/src/components/project-trust-dialog.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/command.tsx": {
+    "path": "packages/client/ui/src/components/command.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/popover.tsx": {
+    "path": "packages/client/ui/src/components/popover.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/workbench-portal-container.tsx": {
+    "path": "packages/client/ui/src/components/workbench-portal-container.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/menu-styles.ts": {
+    "path": "packages/client/ui/src/components/menu-styles.ts",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/ui/i18n/zh-CN.ts": {
+    "path": "packages/client/ui/src/i18n/zh-CN.ts",
+    "export": "@workbench/ui/i18n"
+  },
+  "packages/workbench/shell/src/ui/i18n/en-US.ts": {
+    "path": "packages/client/ui/src/i18n/en-US.ts",
+    "export": "@workbench/ui/i18n"
+  },
+  "packages/workbench/shell/src/hooks/use-mobile.ts": {
+    "path": "packages/client/ui/src/hooks/use-mobile.ts",
+    "export": "@workbench/ui/hooks"
+  },
+  "packages/workbench/shell/src/hooks/use-media-query.ts": {
+    "path": "packages/client/ui/src/hooks/use-media-query.ts",
+    "export": "@workbench/ui/hooks"
+  },
+  "packages/workbench/shell/src/hooks/use-sidebar-pointer-reorder.tsx": {
+    "path": "packages/client/ui/src/hooks/use-sidebar-pointer-reorder.tsx",
+    "export": "@workbench/ui/hooks"
+  },
+  "packages/workbench/shell/src/hooks/use-reduced-motion.ts": {
+    "path": "packages/client/ui/src/hooks/use-reduced-motion.ts",
+    "export": "@workbench/ui/hooks"
+  },
+  "packages/workbench/shell/src/hooks/index.ts": {
+    "path": "packages/client/ui/src/hooks/index.ts",
+    "export": "@workbench/ui/hooks"
+  },
+  "packages/workbench/shell/src/hooks/use-clipboard-copy.ts": {
+    "path": "packages/client/ui/src/hooks/use-clipboard-copy.ts",
+    "export": "@workbench/ui/hooks"
+  },
+  "packages/workbench/shell/src/resize/resize-spring.ts": {
+    "path": "packages/client/ui/src/resize/resize-spring.ts",
+    "export": "@workbench/ui/resize"
+  },
+  "packages/workbench/shell/src/resize/proportional-panel-size.ts": {
+    "path": "packages/client/ui/src/resize/proportional-panel-size.ts",
+    "export": "@workbench/ui/resize"
+  },
+  "packages/workbench/shell/src/resize/proportional-panel.css": {
+    "path": "packages/client/ui/src/resize/proportional-panel.css",
+    "export": "@workbench/ui/proportional-panel.css"
+  },
+  "packages/workbench/shell/src/resize/use-proportional-panel-size.ts": {
+    "path": "packages/client/ui/src/resize/use-proportional-panel-size.ts",
+    "export": "@workbench/ui/resize"
+  },
+  "packages/workbench/shell/src/resize/use-collapsible-resize.ts": {
+    "path": "packages/client/ui/src/resize/use-collapsible-resize.ts",
+    "export": "@workbench/ui/resize"
+  },
+  "packages/workbench/shell/src/resize/observe-resize-handle.ts": {
+    "path": "packages/client/ui/src/resize/observe-resize-handle.ts",
+    "export": "@workbench/ui/resize"
+  },
+  "packages/workbench/shell/src/utils.ts": {
+    "path": "packages/client/ui/src/utils.ts",
+    "export": "@workbench/ui/utils"
+  },
+  "packages/workbench/shell/src/clipboard.ts": {
+    "path": "packages/client/ui/src/clipboard.ts",
+    "export": "@workbench/ui/clipboard"
+  },
+  "packages/workbench/shell/src/keyboard-shortcut-owner.ts": {
+    "path": "packages/client/ui/src/keyboard-shortcut-owner.ts",
+    "export": "@workbench/ui/keyboard"
+  },
+  "packages/workbench/shell/src/resize.ts": {
+    "path": "packages/client/ui/src/resize.ts",
+    "export": "@workbench/ui/resize"
+  },
+  "packages/workbench/shell/src/styles.d.ts": {
+    "path": "packages/client/ui/src/styles.d.ts",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/src/elements/disclosure-scroll-policy.ts": {
+    "path": "packages/client/ui/src/disclosure/disclosure-scroll-policy.ts",
+    "export": "@workbench/ui/disclosure"
+  },
+  "packages/workbench/shell/src/elements/scroll-compensated-details.tsx": {
+    "path": "packages/client/ui/src/disclosure/scroll-compensated-details.tsx",
+    "export": "@workbench/ui/disclosure"
+  },
+  "packages/workbench/shell/src/elements/use-disclosure-scroll-lock.ts": {
+    "path": "packages/client/ui/src/disclosure/use-disclosure-scroll-lock.ts",
+    "export": "@workbench/ui/disclosure"
+  },
+  "packages/workbench/shell/src/elements/disclosure-scroll-direction.tsx": {
+    "path": "packages/client/ui/src/disclosure/disclosure-scroll-direction.tsx",
+    "export": "@workbench/ui/disclosure"
+  },
+  "packages/workbench/shell/tests/ui/button.test.tsx": {
+    "path": "packages/client/ui/tests/ui/button.test.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/ui/model-selector.test.tsx": {
+    "path": "packages/client/ui/tests/ui/model-selector.test.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/ui/workspace-selector.test.tsx": {
+    "path": "packages/client/ui/tests/ui/workspace-selector.test.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/ui/surface.test.tsx": {
+    "path": "packages/client/ui/tests/ui/surface.test.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/ui/shared-foundations.test.tsx": {
+    "path": "packages/client/ui/tests/ui/shared-foundations.test.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/ui/sidebar-items.test.tsx": {
+    "path": "packages/client/ui/tests/ui/sidebar-items.test.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/ui/color-picker.test.ts": {
+    "path": "packages/client/ui/tests/ui/color-picker.test.ts",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/ui/path-ellipsis.test.tsx": {
+    "path": "packages/client/ui/tests/ui/path-ellipsis.test.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/ui/tooltip.test.tsx": {
+    "path": "packages/client/ui/tests/ui/tooltip.test.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/ui/selector-dropdown.test.tsx": {
+    "path": "packages/client/ui/tests/ui/selector-dropdown.test.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/ui/model-selector-models.test.ts": {
+    "path": "packages/client/ui/tests/ui/model-selector-models.test.ts",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/ui/toast.test.tsx": {
+    "path": "packages/client/ui/tests/ui/toast.test.tsx",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/resize/observe-resize-handle.test.ts": {
+    "path": "packages/client/ui/tests/resize/observe-resize-handle.test.ts",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/resize/resize-spring.test.ts": {
+    "path": "packages/client/ui/tests/resize/resize-spring.test.ts",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/resize/use-collapsible-resize.test.ts": {
+    "path": "packages/client/ui/tests/resize/use-collapsible-resize.test.ts",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/unit/clipboard.test.ts": {
+    "path": "packages/client/ui/tests/clipboard.test.ts",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/unit/keyboard-shortcut-owner.test.ts": {
+    "path": "packages/client/ui/tests/keyboard-shortcut-owner.test.ts",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/elements/disclosure-scroll-policy.test.ts": {
+    "path": "packages/client/ui/tests/disclosure-scroll-policy.test.ts",
+    "export": "@workbench/ui"
+  },
+  "packages/workbench/shell/tests/elements/use-disclosure-scroll-lock.test.tsx": {
+    "path": "packages/client/ui/tests/use-disclosure-scroll-lock.test.tsx",
+    "export": "@workbench/ui"
+  }
+}

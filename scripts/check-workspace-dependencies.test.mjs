@@ -12,8 +12,8 @@ import {
 const WORKSPACE_YAML = `packages:
   - "packages/contracts/*"
   - "packages/server/*"
-  - "packages/agent-runtime/core/*"
-  - "packages/agent-runtime/runtimes/pi/*"
+  - "packages/agent-runtime/*"
+  - "packages/pi/*"
   - "packages/terminal/*"
   - "apps/*"
 
@@ -42,11 +42,47 @@ test("reads only exact package entries from the pnpm workspace packages section"
   assert.deepEqual(parseWorkspacePackagePatterns(WORKSPACE_YAML), [
     "packages/contracts/*",
     "packages/server/*",
-    "packages/agent-runtime/core/*",
-    "packages/agent-runtime/runtimes/pi/*",
+    "packages/agent-runtime/*",
+    "packages/pi/*",
     "packages/terminal/*",
     "apps/*",
   ]);
+});
+
+test("lib implementation uses production dependencies and cannot import another package's lib", async (t) => {
+  const root = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await packageFixture(
+    root,
+    "packages/contracts/base",
+    { name: "@workbench/base" },
+    {
+      "src/index.ts": 'export * from "../lib/value";',
+      "lib/value.ts": "export const value = 1;",
+    },
+  );
+  await packageFixture(
+    root,
+    "packages/agent-runtime/client",
+    {
+      name: "@workbench/client",
+      dependencies: { "@workbench/base": "workspace:*" },
+      devDependencies: { "test-only": "1.0.0" },
+    },
+    {
+      "src/index.ts": 'export * from "../lib/client";',
+      "lib/client.ts":
+        'import "test-only"; import "@workbench/base/lib/value"; import "../../../contracts/base/lib/value";',
+      "tests/client.test.ts": 'import "test-only";',
+    },
+  );
+  const violations = await workspaceDependencyViolations(root);
+  assert.ok(
+    violations.some((value) => value.includes("lib/client.ts") && value.includes("test-only")),
+  );
+  assert.ok(violations.some((value) => value.includes("@workbench/base/lib/value")));
+  assert.ok(violations.some((value) => value.includes("another package source")));
+  assert.ok(violations.every((value) => !value.includes("tests/client.test.ts")));
 });
 
 test("accepts declared production, peer, development, builtin, and workspace imports", async (t) => {
@@ -58,7 +94,7 @@ test("accepts declared production, peer, development, builtin, and workspace imp
   });
   await packageFixture(
     root,
-    "packages/agent-runtime/core/client",
+    "packages/agent-runtime/client",
     {
       name: "@workbench/client",
       private: true,
@@ -147,7 +183,7 @@ test("rejects workspace source internals and non-workspace dependency protocols"
   });
   await packageFixture(
     root,
-    "packages/agent-runtime/core/client",
+    "packages/agent-runtime/client",
     {
       name: "@workbench/client",
       private: true,
@@ -157,7 +193,7 @@ test("rejects workspace source internals and non-workspace dependency protocols"
   );
 
   const violations = await workspaceDependencyViolations(root);
-  assert.ok(violations.some((violation) => violation.includes("must use the workspace: protocol")));
+  assert.ok(violations.some((violation) => violation.includes("must use workspace:*")));
   assert.ok(
     violations.some((violation) => violation.includes("do not import workspace source internals")),
   );
@@ -189,7 +225,7 @@ test("rejects production dependency cycles while allowing one-way package layeri
     private: true,
     dependencies: { "@workbench/client": "workspace:*" },
   });
-  await packageFixture(root, "packages/agent-runtime/core/client", {
+  await packageFixture(root, "packages/agent-runtime/client", {
     name: "@workbench/client",
     private: true,
     dependencies: { "@workbench/base": "workspace:*" },
@@ -385,8 +421,80 @@ test("rejects undeclared app imports and non-workspace app-to-package dependency
 
   const violations = await workspaceDependencyViolations(root);
   assert.deepEqual(violations, [
-    "apps/web/package.json: @workbench/base must use the workspace: protocol",
+    "apps/web/package.json: @workbench/base must use workspace:*",
     "apps/web/src/index.ts: do not import workspace source internals (@workbench/base/src/internal)",
     "apps/web/src/index.ts: react is imported from src/ but is not declared in the package manifest",
+    "apps/web/src/index.ts: workspace subpath is not publicly exported (@workbench/base/src/internal)",
   ]);
+});
+
+test("allows test-only dependencies in colocated and root tests but checks production sources", async (t) => {
+  const root = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await packageFixture(
+    root,
+    "packages/contracts/example",
+    {
+      name: "@workbench/example",
+      devDependencies: { "test-only": "1.0.0" },
+    },
+    {
+      "src/example.test.ts": 'import "test-only";',
+      "test/example.test.ts": 'import "test-only";',
+      "tests/example.spec.ts": 'import "test-only"; import "missing-tests-dependency";',
+      "src/example.ts": 'import "test-only";',
+    },
+  );
+  const violations = await workspaceDependencyViolations(root);
+  assert.equal(violations.length, 2);
+  assert.match(violations[0], /src\/example.ts: test-only/);
+  assert.match(violations[1], /tests\/example.spec.ts: missing-tests-dependency/);
+});
+
+test("enforces exact workspace versions, public exports and executable test imports", async (t) => {
+  const root = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await packageFixture(
+    root,
+    "packages/contracts/base",
+    {
+      name: "@workbench/base",
+      exports: {
+        ".": "./src/index.ts",
+        "./allowed": { types: "./src/index.ts", default: "./src/index.ts" },
+        "./hidden": null,
+      },
+    },
+    { "src/index.ts": "export const value = 1;" },
+  );
+  await packageFixture(
+    root,
+    "packages/contracts/consumer",
+    {
+      name: "@workbench/consumer",
+      dependencies: { "@workbench/base": "workspace:^" },
+    },
+    {
+      "src/index.ts":
+        'import "@workbench/base/allowed"; import "@workbench/base/hidden"; import "@workbench/base/missing";',
+      "tests/entry.test.ts":
+        'import(new URL("../../base/src/index.ts", import.meta.url).href); const fixture = \'import "@workbench/base/quoted"\';',
+      "tests/architecture.test.ts":
+        'import {readFile} from "node:fs/promises"; await readFile(new URL("../../base/src/index.ts", import.meta.url), "utf8");',
+    },
+  );
+  const violations = await workspaceDependencyViolations(root);
+  assert.equal(violations.length, 4);
+  assert.ok(violations.some((value) => value.includes("must use workspace:*")));
+  assert.equal(violations.filter((value) => value.includes("not publicly exported")).length, 2);
+  assert.ok(
+    violations.some(
+      (value) => value.includes("tests/entry.test.ts") && value.includes("module specifier"),
+    ),
+  );
+  assert.ok(
+    violations.every(
+      (value) => !value.includes("quoted") && !value.includes("architecture.test.ts"),
+    ),
+  );
 });

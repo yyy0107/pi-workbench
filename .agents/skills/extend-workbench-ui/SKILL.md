@@ -12,7 +12,7 @@ Implement frontend features through the repository's typed, statically bundled e
 1. Follow the repository `AGENTS.md` and applicable nested instructions, reuse unchanged context already read, and preserve unrelated worktree changes.
 2. Read the relevant contribution section of [references/contracts.md](references/contracts.md) when adding or changing an extension API use or resolving a contract question. Copy-only and styling-only edits do not require reading the full contract reference.
 3. Use the matching example in [references/recipes.md](references/recipes.md) when an implementation pattern is needed; do not read unrelated recipes.
-4. Generic host/session/workspace/model UI uses Workbench contracts, projections, and capability hooks from `@workbench/agent-runtime-client/context`; inspect their owners before choosing an API. For Pi-specific configuration, resources, or diagnostics, read [`packages/agent-runtime/runtimes/pi/README.md`](../../../packages/agent-runtime/runtimes/pi/README.md) and inspect the named Pi contract/client entry. Do not infer APIs from legacy routes or a generic Harness reference.
+4. Generic host/session/workspace/model UI uses Workbench contracts, projections, and capability hooks from `@workbench/agent-runtime-client/context`; inspect their owners before choosing an API. For Pi-specific configuration, resources, or diagnostics, read [`packages/pi/README.md`](../../../packages/pi/README.md) and inspect the named Pi contract/client entry. Do not infer APIs from legacy routes or a generic Harness reference.
 5. Use `$pi-coding-agent-sdk` when work reaches the server-side AgentSession, coding-agent extension, resource-loader, or `@earendil-works/pi-coding-agent` layer. Keep that SDK behind the Workbench Pi server boundary rather than importing it into browser components.
 6. Use `$pi-ai-sdk` when work directly uses `@earendil-works/pi-ai` models, providers, authentication, messages, tool schemas, image requests, or streaming events. Use both Pi SDK skills only when the task genuinely crosses both layers.
 7. Read `docs/extensions.md` only when the task asks for public documentation or a detailed tutorial.
@@ -49,20 +49,20 @@ Modify core layers instead when the task changes:
 - reusable shell structure, responsive layout, or a new insertion contract:
   `packages/workbench/shell/src/`; application-only composition stays in `apps/web/src/workbench/`;
 - Inspector controller lifecycle, generic persistence, and runtime-neutral feedback claim store:
-  `@workbench/shell/right-workspace`;
+  `@workbench/workspace-runtime`;
 - Inspector React context/hooks, immutable installation Provider, and generic Surface runtime host:
-  `@workbench/shell/right-workspace/react`;
+  `@workbench/workspace-runtime/react`;
 - Inspector product settings/i18n/runtime adapters and visual presentation:
   `apps/web/src/components/right-workspace/` plus `apps/web/src/workbench/providers/`;
 - a feature-owned inspector Surface, menu item, Runtime bridge, or single-feature domain service:
-  `<owner-package>/src/extensions/builtin/<feature>/`;
+  `packages/<domain>/<capability>/src/`;
 - a user-installable, statically trusted component contribution bundle:
   `packages/workbench/shell/src/extensions/installable/<feature>/`;
 - a capability consumed by multiple contributions: promote its contract/adapter to the owning
   workspace package's public capability module;
 - assistant runtime, persistence, transport, or adapters: the appropriate
   `packages/agent-runtime/**` leaf or application composition Provider;
-- shared UI primitives: `packages/workbench/shell/src/ui/`;
+- shared UI primitives: `packages/client/ui/src/components/`;
 - tool definition/execution or protocol behavior: the owning Workbench runtime or backend code.
 
 When no existing Slot fits, add a typed host Slot first, then register the feature against it. Do not invent an unknown Slot name inside a business extension.
@@ -75,7 +75,7 @@ When no existing Slot fits, add a typed host Slot first, then register the featu
   `packages/extension-platform/sdk/src/api/`, and runtime hooks in
   `packages/extension-platform/host/src/index.ts` when a mounted component needs Host state.
 - Inspect the owning package's extension groups, then the application composition in
-  `apps/web/src/workbench/runtime-contributions/installed-workbench-extensions.ts`.
+  `packages/workbench/pi-product/src/extensions.ts`.
 - Choose the closest builtin example:
   - `connection-status`: minimal Slot;
   - `token-usage`: derive the active browser conversation Runtime state;
@@ -97,7 +97,7 @@ When no existing Slot fits, add a typed host Slot first, then register the featu
 Prefer this layout for fixed Workbench features and omit files the feature does not need:
 
 ```text
-<owner-package>/src/extensions/builtin/<feature>/
+packages/<domain>/<capability>/src/
 ├── extension.ts
 ├── <feature>-panel.tsx
 ├── <feature>-trigger.tsx
@@ -146,12 +146,10 @@ Export a fixed feature from its local `index.ts` and add it to the owning packag
 Shell groups live in `packages/workbench/shell/src/extensions/builtin-extensions.ts`; Pi groups live
 behind `@workbench/agent-runtime-pi-contributions/installation`. The Web application interleaves
 those groups only in
-`apps/web/src/workbench/runtime-contributions/installed-workbench-extensions.ts`. Export an
-uninstallable component extension from
-`packages/workbench/shell/src/extensions/installable/<feature>/` and add it to
-`installableComponentExtensions` in
-`packages/workbench/shell/src/extensions/installable-extensions.ts`; its persisted installation
-state determines whether Workbench includes it in the active ExtensionProvider list.
+`packages/workbench/pi-product/src/extensions.ts`. Export independently installable contributions from their capability package and assemble them in
+`packages/workbench/pi-product/src/extensions.ts`. Keep Shell-owned brand and sidebar extensions in
+`packages/workbench/shell/src/extensions/`. Each capability package has real `src/` implementation,
+consumed TypeScript helpers in `lib/`, and root `tests/`; src/lib each allow one child directory.
 
 Keep extension objects and catalog array references stable. Installation and uninstallation only
 change the application registry and active contributions; the trusted code remains statically
@@ -169,7 +167,7 @@ pnpm --filter <owner-package-name> run typecheck
 ```
 
 For public contract or composition changes, also check directly affected consumers. Use an affected app/package build when bundling, routing, or client/server behavior needs verification; reserve root `pnpm build` for artifact composition or cross-host compatibility that narrower checks cannot establish.
-For Pi transport or session behavior, run the relevant tests identified in `packages/agent-runtime/runtimes/pi/README.md`. Documentation-only edits need static review, not TypeScript checks or builds. Once relevant checks pass, repeat them only after a further change or new evidence of a problem.
+For Pi transport or session behavior, run the relevant tests identified in `packages/pi/README.md`. Documentation-only edits need static review, not TypeScript checks or builds. Once relevant checks pass, repeat them only after a further change or new evidence of a problem.
 
 ## Enforce the guardrails
 
@@ -200,7 +198,7 @@ For Pi transport or session behavior, run the relevant tests identified in `pack
   `apps/web/src/components/right-workspace/`.
 - Do not assume registering a Renderer exposes or executes a model tool.
 - Shell, Core, and Extension SDK/Host must not import Pi packages, parse Pi raw events, or handle `PiApiError`. Generic UI consumes Workbench projections, optional capability hooks, and `WorkbenchAgentCapabilityError`; hide unsupported entries or show an unavailable state for restored UI, without Runtime ID branches or fake capabilities.
-- Only Pi-specific contributions use the narrow `@workbench/agent-runtime-pi-client/*` facades described in `packages/agent-runtime/runtimes/pi/README.md`. Do not call raw endpoints, open another event stream, or copy RPC payload types. Treat `/api/pi/**` as compatibility-only unless the README names an exception. Route server-side coding-agent work through `$pi-coding-agent-sdk` and direct Pi model/provider/stream work through `$pi-ai-sdk`.
+- Only Pi-specific contributions use the narrow `@workbench/agent-runtime-pi-client/*` facades described in `packages/pi/README.md`. Do not call raw endpoints, open another event stream, or copy RPC payload types. Treat `/api/pi/**` as compatibility-only unless the README names an exception. Route server-side coding-agent work through `$pi-coding-agent-sdk` and direct Pi model/provider/stream work through `$pi-ai-sdk`.
 - Handle rejected Promises in event handlers; React Error Boundaries do not catch event or arbitrary async errors.
 - Keep API keys, secrets, and privileged execution out of frontend extensions.
 

@@ -8,8 +8,8 @@ import {
   type WorkbenchAgentRuntimeInstallationOptions,
   type WorkbenchRuntimeContributionsProviderProps,
 } from "@workbench/shell/application";
-import { useWorkbenchSettingsService } from "@workbench/shell/settings";
-import { useI18n } from "@workbench/shell/i18n";
+import { useWorkbenchSettingsService } from "@workbench/settings-runtime";
+import { useConversationI18n as useI18n } from "@workbench/conversation/translations";
 
 import { createInstalledAgentRuntime } from "./installation";
 

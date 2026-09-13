@@ -1,23 +1,10 @@
+import { freezeBreadcrumbs } from "../../lib/breadcrumbs";
 import type {
   MainViewBreadcrumbs,
   MainViewInstance,
   MainViewRegistry,
   OpenMainViewRequest,
 } from "@workbench/extension-sdk";
-
-function freezeBreadcrumbs<P extends Record<string, unknown>>(
-  breadcrumbs: MainViewBreadcrumbs<P>,
-): MainViewBreadcrumbs<P> {
-  return Object.freeze(
-    breadcrumbs.map((item) =>
-      Object.freeze({
-        label: item.label,
-        ...(item.params !== undefined ? { params: Object.freeze({ ...item.params }) as P } : {}),
-        ...(item.closeView === true ? { closeView: true as const } : {}),
-      }),
-    ),
-  ) as unknown as MainViewBreadcrumbs<P>;
-}
 
 export class MainViewService {
   readonly #registry: MainViewRegistry;

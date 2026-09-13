@@ -30,7 +30,7 @@ import { parseCookieJson, parsePasswordCsv } from "./imports";
 import { BrowserSettingsStore } from "./settings";
 import { connectExternalBrowser, listBrowserProfiles } from "./profiles";
 import { BrowserDiagnostics } from "./diagnostics";
-import { createPointerTrajectory } from "./pointer-motion";
+import { createPointerTrajectory } from "../lib/pointer-motion";
 import {
   elementAction,
   keyEvent,

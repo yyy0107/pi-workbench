@@ -1,0 +1,18 @@
+{
+  "packages/pi/contributions/src/extensions/external-session-import/extension.ts": {
+    "path": "packages/pi/session-import-ui/src/external-session-import-extension.ts",
+    "export": "@workbench/pi-session-import-ui"
+  },
+  "packages/pi/contributions/src/extensions/external-session-import/external-session-import-settings-item.tsx": {
+    "path": "packages/pi/session-import-ui/src/external-session-import-settings-item.tsx",
+    "export": "@workbench/pi-session-import-ui"
+  },
+  "packages/pi/contributions/src/extensions/external-session-import/index.ts": {
+    "path": "packages/pi/session-import-ui/src/external-session-import-index.ts",
+    "export": "@workbench/pi-session-import-ui"
+  },
+  "packages/pi/contributions/tests/extensions/external-session-import-extension.test.ts": {
+    "path": "packages/pi/session-import-ui/tests/extension.test.ts",
+    "export": "@workbench/pi-session-import-ui"
+  }
+}

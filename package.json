@@ -30,18 +30,26 @@
     "typecheck:apps": "pnpm --recursive --filter './apps/**' --if-present run typecheck",
     "typecheck:packages": "pnpm --recursive --filter './packages/**' --if-present run typecheck",
     "check:workspace-dependencies": "node scripts/check-workspace-dependencies.mjs && node scripts/check-runtime-host-ownership.mjs",
-    "check": "pnpm lint && pnpm check:workspace-dependencies && pnpm typecheck && pnpm test",
+    "check": "pnpm lint && pnpm check:workspace-dependencies && pnpm check:package-structure && pnpm typecheck && pnpm test",
     "lint": "oxlint --ignore-pattern '**/node_modules/**' && oxfmt --check",
     "lint:fix": "oxlint --ignore-pattern '**/node_modules/**' --fix && oxfmt",
     "format": "oxfmt --check",
-    "format:fix": "oxfmt"
+    "format:fix": "oxfmt",
+    "check:package-structure": "node scripts/check-package-structure.mjs"
   },
   "devDependencies": {
     "@workbench/agent-runtime-pi-contributions": "workspace:*",
+    "@workbench/conversation": "workspace:*",
     "@workbench/extension-sdk": "workspace:*",
     "@workbench/host-contracts": "workspace:*",
     "@workbench/host-server": "workspace:*",
+    "@workbench/pi-conversation": "workspace:*",
+    "@workbench/settings-runtime": "workspace:*",
     "@workbench/shell": "workspace:*",
+    "@workbench/shell-context": "workspace:*",
+    "@workbench/ui": "workspace:*",
+    "@workbench/workspace-runtime": "workspace:*",
+    "oxc-parser": "^0.149.0",
     "oxfmt": "^0.62.0",
     "oxlint": "^1.77.0",
     "tsx": "^4.23.12"

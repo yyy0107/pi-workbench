@@ -80,7 +80,7 @@ settings 读取、写入或旧键删除失败都会保留迁移线索，留待�
 settings、Store 与 Controller 本身仍按 Provider installation 隔离。React 组件、Service、WebSocket、
 Browser Session、文件缓冲区和其他不可序列化资源不进入核心 Store。
 
-`@workbench/shell/right-workspace/react` 的通用 `RightWorkspaceProvider` 在一次挂载中固定捕获
+`@workbench/workspace-runtime/react` 的通用 `RightWorkspaceProvider` 在一次挂载中固定捕获
 persistence、validator、initial context、WorkspaceSurfaceRegistry 与 opener factory。它们属于不可变
 installation 输入；若上层更换任一 owner，必须通过 keyed remount 建立新 installation，不能把该
 Provider 当作响应式 prop adapter 使用。React Strict Effects replay 复用已提交 installation；真实卸载或

@@ -1,0 +1,82 @@
+.aui-workbench-code-block {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.aui-codex-code-header {
+  display: flex;
+  min-height: calc(var(--button-height-default) + 0.25rem);
+  margin-top: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: color-mix(in oklab, var(--muted) 45%, transparent);
+  padding: 0.25rem 0.5rem 0.25rem 1rem;
+}
+
+.aui-codex-code-language {
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: calc(var(--text-base) * 0.8125);
+  font-weight: 500;
+  line-height: calc(16 / 13);
+}
+
+.aui-codex-code-body > [data-markdown="code-block"] {
+  border-width: 1px;
+  margin-block: 0;
+  gap: 0;
+  overflow: hidden;
+  border-color: var(--border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: color-mix(in oklab, var(--muted) 45%, transparent);
+  padding: 0;
+}
+
+.aui-codex-code-body [data-markdown="code-block-body"] {
+  max-height: 20rem;
+  overflow: auto;
+  interpolate-size: allow-keywords;
+  transition: max-height var(--layout-motion-duration) var(--layout-motion-ease);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.875rem 1rem;
+  font-size: var(--workbench-code-font-size, 13px);
+  line-height: 1.625;
+}
+
+/* The expanded surface follows its content while the collapsed view stays bounded. */
+.aui-codex-code-body[data-expanded="true"] [data-markdown="code-block-body"] {
+  max-height: max-content;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aui-codex-code-body [data-markdown="code-block-body"] {
+    transition: none;
+  }
+}
+
+.aui-codex-code-body [data-markdown="code-block-body"] pre {
+  margin: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: inherit;
+  line-height: inherit;
+  tab-size: 2;
+}
+
+.aui-codex-code-body [data-markdown="code-block-body"] code > span {
+  display: block;
+}
+
+.aui-codex-code-preview {
+  overflow: hidden;
+  border-radius: var(--radius);
+}
+
+.aui-codex-code-preview .aui-codex-code-header {
+  margin-top: 0;
+}

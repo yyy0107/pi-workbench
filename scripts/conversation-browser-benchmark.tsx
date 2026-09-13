@@ -2,27 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { ExtensionProvider } from "../packages/extension-platform/host/src/extension-provider";
-import { SessionContext } from "../packages/agent-runtime/core/client/src/runtime-context";
-import { WorkbenchAgentRuntimeEnvironmentProvider } from "../packages/agent-runtime/core/client/src/agent-runtime-context";
+import { SessionContext } from "../packages/agent-runtime/client/src/runtime-context";
+import { WorkbenchAgentRuntimeEnvironmentProvider } from "../packages/agent-runtime/client/src/agent-runtime-context";
 import {
   useConversationSession,
   useSessionState,
-} from "../packages/agent-runtime/core/client/src/hooks";
-import { FakeConversationSession } from "../packages/agent-runtime/core/testkit/src/runtime/fake-agent-runtime";
-import { PiConversationAssembler } from "../packages/agent-runtime/runtimes/pi/client/src/conversation/conversation-assembler";
+} from "../packages/agent-runtime/client/src/hooks";
+import { FakeConversationSession } from "../packages/agent-runtime/testkit/src/runtime/fake-agent-runtime";
+import { PiConversationAssembler } from "@workbench/pi-conversation/assembler";
 import {
   longConversation,
   appendConversationDelta,
-} from "../packages/agent-runtime/runtimes/pi/client/test/fixtures/long-conversation";
-import { ConversationList } from "../packages/workbench/shell/src/chat/conversation-list";
-import { useWorkbenchConversationViewport } from "../packages/workbench/shell/src/chat/workbench-conversation-viewport";
-import { ThreadScrollStateProvider } from "../packages/workbench/shell/src/thread-scroll-state";
-import { WorkbenchSettingsProvider } from "../packages/workbench/shell/src/settings";
+} from "../packages/pi/client/tests/fixtures/long-conversation";
+import { ConversationList } from "@workbench/conversation/list";
+import { useWorkbenchConversationViewport } from "@workbench/conversation/viewport";
+import { ThreadScrollStateProvider } from "@workbench/conversation/scroll-state";
+import { WorkbenchSettingsProvider } from "@workbench/settings-runtime";
 import { I18nProvider } from "../packages/workbench/shell/src/i18n";
-import { createPanelStore } from "../packages/workbench/shell/src/panels/panel-store";
-import { messagePresentationExtension } from "../packages/workbench/shell/src/extensions/builtin/message-presentation";
-import { ToastProvider } from "../packages/workbench/shell/src/ui/toast";
-import { RightWorkspaceProvider } from "../packages/workbench/shell/src/right-workspace/right-workspace-provider";
+import { createPanelStore } from "@workbench/shell-context/panel-store";
+import { messagePresentationExtension } from "@workbench/conversation/message-presentation";
+import { ToastProvider } from "@workbench/ui";
+import { RightWorkspaceProvider } from "@workbench/workspace-runtime/react";
 import { WorkspaceSurfaceRegistryImpl } from "@workbench/extension-sdk/internal";
 import type { LocalizableText } from "@workbench/extension-sdk";
 

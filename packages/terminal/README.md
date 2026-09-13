@@ -158,4 +158,4 @@ tool timeouts use Pi's finite, positive, Node-timer-bounded validation before a 
 This is a privileged local terminal, not a sandbox. The server is loopback-only by default. If the
 Workbench is exposed through `PI_WORKBENCH_TRUSTED_HOSTS`, the outer deployment must provide
 authentication and TLS as described in the
-[Pi Runtime architecture](../agent-runtime/runtimes/pi/README.md).
+[Pi Runtime architecture](../pi/README.md).

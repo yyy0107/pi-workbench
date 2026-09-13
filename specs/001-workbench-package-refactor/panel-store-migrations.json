@@ -1,0 +1,10 @@
+{
+  "packages/workbench/shell/src/panels/panel-store.ts": {
+    "path": "packages/client/shell-context/src/panel-store.ts",
+    "export": "@workbench/shell-context/panel-store"
+  },
+  "packages/workbench/shell/tests/panels/panel-store.test.ts": {
+    "path": "packages/client/shell-context/tests/panel-store.test.ts",
+    "export": "@workbench/shell-context/panel-store"
+  }
+}

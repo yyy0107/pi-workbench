@@ -24,7 +24,7 @@ import {
   type TerminalInteractionDetectorOptions,
 } from "./terminal-interaction-detector";
 import { TerminalProcessBuffer } from "./terminal-process-buffer";
-import { TerminalTranscriptProjector } from "./terminal-transcript-projector";
+import { TerminalTranscriptProjector } from "../lib/terminal-transcript-projector";
 
 const DEFAULT_COLS = 100;
 const DEFAULT_ROWS = 30;

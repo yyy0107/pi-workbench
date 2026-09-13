@@ -1,0 +1,70 @@
+{
+  "packages/workbench/shell/src/dom.tsx": {
+    "path": "packages/client/shell-context/src/dom.tsx",
+    "export": "@workbench/shell-context/dom"
+  },
+  "packages/workbench/shell/src/navigation.tsx": {
+    "path": "packages/client/shell-context/src/navigation.tsx",
+    "export": "@workbench/shell-context/navigation"
+  },
+  "packages/workbench/shell/src/presentation.tsx": {
+    "path": "packages/client/shell-context/src/presentation.tsx",
+    "export": "@workbench/shell-context/presentation"
+  },
+  "packages/workbench/shell/src/runtime-connection.ts": {
+    "path": "packages/client/shell-context/src/runtime-connection.ts",
+    "export": "@workbench/shell-context/runtime-connection"
+  },
+  "packages/workbench/shell/src/layout.tsx": {
+    "path": "packages/client/shell-context/src/layout.tsx",
+    "export": "@workbench/shell-context/layout"
+  },
+  "packages/workbench/shell/src/layout-motion.ts": {
+    "path": "packages/client/shell-context/src/layout-motion.ts",
+    "export": "@workbench/shell-context/layout-motion"
+  },
+  "packages/workbench/shell/src/running-indicator.tsx": {
+    "path": "packages/client/shell-context/src/running-indicator.tsx",
+    "export": "@workbench/shell-context/running-indicator"
+  },
+  "packages/workbench/shell/src/runtime-connection/runtime-connection.ts": {
+    "path": "packages/client/shell-context/src/runtime-connection/runtime-connection.ts",
+    "export": "@workbench/shell-context/runtime-connection"
+  },
+  "packages/workbench/shell/src/runtime-connection/runtime-connection-provider.tsx": {
+    "path": "packages/client/shell-context/src/runtime-connection/runtime-connection-provider.tsx",
+    "export": "@workbench/shell-context/runtime-connection"
+  },
+  "packages/workbench/shell/src/layout/thread-content-width.ts": {
+    "path": "packages/client/shell-context/src/layout/thread-content-width.ts",
+    "export": "@workbench/shell-context/layout"
+  },
+  "packages/workbench/shell/src/layout/new-thread-layout.tsx": {
+    "path": "packages/client/shell-context/src/layout/new-thread-layout.tsx",
+    "export": "@workbench/shell-context/layout"
+  },
+  "packages/workbench/shell/src/shell/workbench-shell-owner.ts": {
+    "path": "packages/client/shell-context/src/workbench-shell-owner.ts",
+    "export": "@workbench/shell-context/dom"
+  },
+  "packages/workbench/shell/tests/unit/dom.test.tsx": {
+    "path": "packages/client/shell-context/tests/dom.test.tsx",
+    "export": "@workbench/shell-context"
+  },
+  "packages/workbench/shell/tests/unit/running-indicator.test.ts": {
+    "path": "packages/client/shell-context/tests/running-indicator.test.ts",
+    "export": "@workbench/shell-context"
+  },
+  "packages/workbench/shell/tests/layout/thread-content-width.test.ts": {
+    "path": "packages/client/shell-context/tests/thread-content-width.test.ts",
+    "export": "@workbench/shell-context"
+  },
+  "packages/workbench/shell/tests/runtime-connection/runtime-connection.test.ts": {
+    "path": "packages/client/shell-context/tests/runtime-connection.test.ts",
+    "export": "@workbench/shell-context"
+  },
+  "packages/workbench/shell/tests/shell/workbench-shell-owner.test.ts": {
+    "path": "packages/client/shell-context/tests/workbench-shell-owner.test.ts",
+    "export": "@workbench/shell-context"
+  }
+}

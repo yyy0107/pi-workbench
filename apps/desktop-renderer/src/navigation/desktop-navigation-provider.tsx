@@ -6,8 +6,8 @@ import {
   WorkbenchNavigationProvider,
   type WorkbenchNavigationOptions,
   type WorkbenchNavigationPort,
-} from "@workbench/shell/navigation";
-import { useWorkbenchSettingsService } from "@workbench/shell/settings";
+} from "@workbench/shell-context/navigation";
+import { useWorkbenchSettingsService } from "@workbench/settings-runtime";
 
 import {
   conversationIdFromDesktopUrl,

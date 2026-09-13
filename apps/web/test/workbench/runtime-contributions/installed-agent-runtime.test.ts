@@ -19,8 +19,8 @@ const IGNORED_DIRECTORIES = new Set([
   "node_modules",
   "out",
 ]);
-const PI_IMPLEMENTATION_PREFIX = "packages/agent-runtime/runtimes/pi/";
-const PI_CONTRIBUTIONS_PREFIX = "packages/agent-runtime/runtimes/pi/contributions/";
+const PI_IMPLEMENTATION_PREFIX = "packages/pi/";
+const PI_CONTRIBUTIONS_PREFIX = "packages/pi/contributions/";
 const LEGACY_PI_IMPLEMENTATION_PATH = ["packages", "agent-runtime", "adapters", "pi"] as const;
 const LEGACY_PI_FACADE_PATH = [
   "apps",
@@ -41,6 +41,13 @@ const PI_CLIENT_OR_SHARED_PREFIXES = [
  * unrelated application module must be an explicit architecture decision, not a prefix match.
  */
 const RUNTIME_NODE_PI_IMPORTS = new Map<string, readonly string[]>([
+  [
+    "apps/runtime-node/test/workbench-settings-tool.test.ts",
+    [
+      "@workbench/agent-runtime-pi-server/installation",
+      "@workbench/agent-runtime-pi-server/legacy",
+    ],
+  ],
   [
     "apps/runtime-node/test/runtime-http-router.test.ts",
     ["@workbench/agent-runtime-pi-server/http", "@workbench/agent-runtime-pi-server/legacy"],
@@ -78,7 +85,7 @@ const RUNTIME_NODE_PI_IMPORTS = new Map<string, readonly string[]>([
   ],
   [
     "apps/runtime-node/test/installed-pi-server-rpc.test.ts",
-    ["@workbench/agent-runtime-pi-protocol/rpc"],
+    ["@workbench/agent-runtime-pi-protocol/rpc", "@workbench/agent-runtime-pi-server/installation"],
   ],
   [
     "apps/runtime-node/test/session-extension-lifecycle.test.ts",
@@ -91,6 +98,10 @@ const RUNTIME_NODE_PI_IMPORTS = new Map<string, readonly string[]>([
 
 /** Application composition can select Pi packages only at these exact seams. */
 const APPLICATION_COMPOSITION_PI_IMPORTS = new Map<string, readonly string[]>([
+  [
+    "packages/workbench/pi-product/tests/running-indicator-catalog.test.ts",
+    ["@workbench/agent-runtime-pi-contributions/installation"],
+  ],
   [
     "apps/desktop-electron/scripts/runtime-artifact-admission.cjs",
     ["@workbench/agent-runtime-pi-protocol/stream"],
@@ -108,7 +119,7 @@ const APPLICATION_COMPOSITION_PI_IMPORTS = new Map<string, readonly string[]>([
     ["@workbench/agent-runtime-pi-client/installation"],
   ],
   [
-    "packages/workbench/pi-product/test/installed-agent-runtime.test.tsx",
+    "packages/workbench/pi-product/tests/installed-agent-runtime.test.tsx",
     [
       "@workbench/agent-runtime-pi-client/installation",
       "@workbench/agent-runtime-pi-shared/descriptor",
@@ -260,11 +271,13 @@ test("preserves the product-owned cross-package extension activation order", () 
     "workbench.side-chat",
     "workbench.setting-model-config",
     "workbench.pi.settings-action",
+    "workbench.usage-statistics",
     "workbench.toolbox",
     "workbench.automations",
     "workbench.model-selector",
     "workbench.connection-status",
     "workbench.context-trace",
+    "workbench.skill-reading",
     "workbench.about",
     "workbench.token-usage",
     "workbench.workspace-file",
@@ -272,10 +285,7 @@ test("preserves the product-owned cross-package extension activation order", () 
 });
 
 test("keeps the Pi Web contribution leaf independent of root aliases and host internals", () => {
-  const contributionsRoot = path.join(
-    repositoryRoot,
-    "packages/agent-runtime/runtimes/pi/contributions",
-  );
+  const contributionsRoot = path.join(repositoryRoot, "packages/pi/contributions");
   const violations = sourceFiles(contributionsRoot)
     .map(
       (file) =>
@@ -364,11 +374,11 @@ test("rejects Pi packages outside the implementation and exact composition allow
       `const pi = require("${piServerInstallation}"); import { STREAM_PATHS } from "${piProtocolStream}"; void pi; void STREAM_PATHS;`,
     ],
     [
-      "packages/agent-runtime/runtimes/pi/contributions/illegal-server-reexport.ts",
+      "packages/pi/contributions/illegal-server-reexport.ts",
       `export * from "${piServerInstallation}";`,
     ],
     [
-      "packages/agent-runtime/core/contracts/src/illegal-pi-protocol.ts",
+      "packages/agent-runtime/contracts/src/illegal-pi-protocol.ts",
       `export * from "${piProtocolStream}";`,
     ],
     [
@@ -386,19 +396,22 @@ test("rejects Pi packages outside the implementation and exact composition allow
     ],
   ]);
 
-  assert.deepEqual(directPiPackageImportViolations(sources), [
-    `app/illegal-pi-server.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
-    `apps/runtime-node/scripts/build-runtime-artifact.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
-    `apps/runtime-node/src/not-a-composition-owner.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
-    `apps/web/src/app/illegal-pi-server.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
-    `apps/web/src/server/runtime-sidecar-child.ts: direct Pi package import is outside its owner boundary (${piProtocolStream})`,
-    `apps/web/src/server/runtime-sidecar-child.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
-    `components/illegal-pi-client.tsx: direct Pi package import is outside its owner boundary (${piClientInstallation})`,
-    `packages/agent-runtime/core/contracts/src/illegal-pi-protocol.ts: direct Pi package import is outside its owner boundary (${piProtocolStream})`,
-    `packages/agent-runtime/runtimes/pi/contributions/illegal-server-reexport.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
-    `packages/extension-platform/host/src/illegal-pi-client.ts: direct Pi package import is outside its owner boundary (${piClientInstallation})`,
-    `packages/extension-platform/sdk/src/illegal-pi-contribution.ts: direct Pi package import is outside its owner boundary (${piContributionsInstallation})`,
-    `packages/host/artifact-policy/src/illegal-pi-policy.cjs: direct Pi package import is outside its owner boundary (${piProtocolStream})`,
-    `packages/workbench/shell/src/extensions/illegal-pi-client.tsx: direct Pi package import is outside its owner boundary (${piClientInstallation})`,
-  ]);
+  assert.deepEqual(
+    directPiPackageImportViolations(sources),
+    [
+      `app/illegal-pi-server.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
+      `apps/runtime-node/scripts/build-runtime-artifact.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
+      `apps/runtime-node/src/not-a-composition-owner.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
+      `apps/web/src/app/illegal-pi-server.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
+      `apps/web/src/server/runtime-sidecar-child.ts: direct Pi package import is outside its owner boundary (${piProtocolStream})`,
+      `apps/web/src/server/runtime-sidecar-child.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
+      `components/illegal-pi-client.tsx: direct Pi package import is outside its owner boundary (${piClientInstallation})`,
+      `packages/agent-runtime/contracts/src/illegal-pi-protocol.ts: direct Pi package import is outside its owner boundary (${piProtocolStream})`,
+      `packages/pi/contributions/illegal-server-reexport.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
+      `packages/extension-platform/host/src/illegal-pi-client.ts: direct Pi package import is outside its owner boundary (${piClientInstallation})`,
+      `packages/extension-platform/sdk/src/illegal-pi-contribution.ts: direct Pi package import is outside its owner boundary (${piContributionsInstallation})`,
+      `packages/host/artifact-policy/src/illegal-pi-policy.cjs: direct Pi package import is outside its owner boundary (${piProtocolStream})`,
+      `packages/workbench/shell/src/extensions/illegal-pi-client.tsx: direct Pi package import is outside its owner boundary (${piClientInstallation})`,
+    ].sort(),
+  );
 });

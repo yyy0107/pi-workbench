@@ -1,1 +1,0 @@
-export { contextTraceExtension } from "./extension";

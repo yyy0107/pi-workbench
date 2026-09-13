@@ -1,5 +1,7 @@
 # Workbench Agent Runtime 边界与 Pi Implementation 重构计划
 
+> 当前目录说明：本文保留当时的迁移步骤和验证记录。当前包布局以 [能力包映射](../specs/001-workbench-package-refactor/package-map.md) 为准；Pi 能力位于 `packages/pi/*`，公共界面位于 `packages/client/*`，对话与工作区分别位于 `packages/conversation/*`、`packages/workspace/*`。
+
 状态：阶段 1–8 已完成，最终验收通过（2026-09-04）。
 
 本计划是已完成的
@@ -210,9 +212,9 @@ Pi 实现内部已完成的结构性命名调整（旧名称仅用于迁移对�
 边界保护的主要测试：
 
 - `apps/web/test/workbench/runtime-contributions/installed-agent-runtime.test.ts`
-- `packages/workbench/shell/test/dependency-boundaries.test.ts`
+- `packages/workbench/shell/tests/dependency-boundaries.test.ts`
 - `apps/desktop-renderer/test/static-export-boundary.test.ts`
-- `packages/host/artifact-policy/test/runtime-admission.test.cjs`
+- `packages/host/artifact-policy/tests/runtime-admission.test.cjs`
 - `apps/desktop-electron/test/runtime-artifact-admission.test.cjs`
 
 Web 基线序列：

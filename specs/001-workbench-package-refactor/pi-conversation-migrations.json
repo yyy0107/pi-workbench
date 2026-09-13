@@ -1,0 +1,86 @@
+{
+  "packages/pi/client/src/conversation/conversation-assembler.ts": {
+    "path": "packages/pi/conversation/src/conversation-assembler.ts",
+    "export": "@workbench/pi-conversation/assembler"
+  },
+  "packages/pi/client/src/conversation/conversation-node-projection.ts": {
+    "path": "packages/pi/conversation/src/conversation-node-projection.ts",
+    "export": "@workbench/pi-conversation/projection"
+  },
+  "packages/pi/client/src/conversation/pi-conversation-message.ts": {
+    "path": "packages/pi/conversation/src/pi-conversation-message.ts",
+    "export": "@workbench/pi-conversation/model"
+  },
+  "packages/pi/client/src/messages/messages.ts": {
+    "path": "packages/pi/conversation/src/messages.ts",
+    "export": "@workbench/pi-conversation/messages"
+  },
+  "packages/pi/client/src/messages/queue.ts": {
+    "path": "packages/pi/conversation/src/queue.ts",
+    "export": "@workbench/pi-conversation/queue"
+  },
+  "packages/pi/client/src/messages/conversation-events.ts": {
+    "path": "packages/pi/conversation/lib/conversation-events.ts",
+    "export": "@workbench/pi-conversation/events"
+  },
+  "packages/pi/client/src/messages/live-token-meter.ts": {
+    "path": "packages/pi/conversation/lib/live-token-meter.ts",
+    "export": "@workbench/pi-conversation/live-tokens"
+  },
+  "packages/pi/client/src/messages/pi-usage.ts": {
+    "path": "packages/pi/conversation/lib/pi-usage.ts",
+    "export": "@workbench/pi-conversation/usage"
+  },
+  "packages/pi/client/src/messages/session-statistics.ts": {
+    "path": "packages/pi/conversation/lib/session-statistics.ts",
+    "export": "@workbench/pi-conversation/statistics"
+  },
+  "packages/pi/client/src/messages/turn-timing.ts": {
+    "path": "packages/pi/conversation/lib/turn-timing.ts",
+    "export": "@workbench/pi-conversation/timing"
+  },
+  "packages/pi/client/src/context-trace/data-part.ts": {
+    "path": "packages/pi/conversation/src/context-trace.ts",
+    "export": "@workbench/pi-conversation/context-trace"
+  },
+  "packages/pi/client/src/sessions/session-rpc-projection.ts": {
+    "path": "packages/pi/conversation/src/session-rpc-projection.ts",
+    "export": "@workbench/pi-conversation/rpc"
+  },
+  "packages/pi/client/src/transport/session-message-accumulator.ts": {
+    "path": "packages/pi/conversation/src/session-message-accumulator.ts",
+    "export": "@workbench/pi-conversation/accumulator"
+  },
+  "packages/pi/client/tests/messages/live-token-meter.test.ts": {
+    "path": "packages/pi/conversation/tests/live-token-meter.test.ts",
+    "export": "@workbench/pi-conversation"
+  },
+  "packages/pi/client/tests/messages/message-reconciliation.test.ts": {
+    "path": "packages/pi/conversation/tests/message-reconciliation.test.ts",
+    "export": "@workbench/pi-conversation"
+  },
+  "packages/pi/client/tests/messages/messages.test.ts": {
+    "path": "packages/pi/conversation/tests/messages.test.ts",
+    "export": "@workbench/pi-conversation"
+  },
+  "packages/pi/client/tests/messages/pi-usage.test.ts": {
+    "path": "packages/pi/conversation/tests/pi-usage.test.ts",
+    "export": "@workbench/pi-conversation"
+  },
+  "packages/pi/client/tests/messages/queue.test.ts": {
+    "path": "packages/pi/conversation/tests/queue.test.ts",
+    "export": "@workbench/pi-conversation"
+  },
+  "packages/pi/client/tests/messages/turn-timing.test.ts": {
+    "path": "packages/pi/conversation/tests/turn-timing.test.ts",
+    "export": "@workbench/pi-conversation"
+  },
+  "packages/pi/client/tests/sessions/session-rpc-projection.test.ts": {
+    "path": "packages/pi/conversation/tests/session-rpc-projection.test.ts",
+    "export": "@workbench/pi-conversation"
+  },
+  "packages/pi/client/tests/transport/session-message-accumulator.test.ts": {
+    "path": "packages/pi/conversation/tests/session-message-accumulator.test.ts",
+    "export": "@workbench/pi-conversation"
+  }
+}

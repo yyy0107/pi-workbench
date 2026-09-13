@@ -1,5 +1,7 @@
 # Agent Runtime Package Refactor Baseline
 
+> 当前目录说明：本文保留当时的迁移步骤和验证记录。当前包布局以 [能力包映射](../specs/001-workbench-package-refactor/package-map.md) 为准；Pi 能力位于 `packages/pi/*`，公共界面位于 `packages/client/*`，对话与工作区分别位于 `packages/conversation/*`、`packages/workspace/*`。
+
 Recorded: 2026-08-29
 
 Branch base: `46d72ae82a42a1d71443860f78e33a2bd31641a3` (`main`)
@@ -13,9 +15,9 @@ pnpm: `11.22.0`
 This baseline was recorded before workspace/package infrastructure changes. The working tree already
 contained user changes in these Pi files (paths below reflect the current Runtime layout):
 
-- `packages/agent-runtime/runtimes/pi/README.md`
-- `packages/agent-runtime/runtimes/pi/server/src/streams/websocket-gateway.ts`
-- `packages/agent-runtime/runtimes/pi/server/test/streams/websocket-gateway.test.ts`
+- `packages/pi/README.md`
+- `packages/pi/server/src/streams/websocket-gateway.ts`
+- `packages/pi/server/tests/streams/websocket-gateway.test.ts`
 
 Those changes are part of the observed baseline and must not be overwritten by the package migration.
 

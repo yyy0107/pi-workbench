@@ -1,7 +1,7 @@
 import type { ComponentPropsWithoutRef } from "react";
 
 import type { PanelLocation } from "@workbench/extension-sdk";
-import { cn } from "../utils";
+import { cn } from "@workbench/ui/utils";
 
 export interface PanelContainerProps extends ComponentPropsWithoutRef<"section"> {
   location: PanelLocation;

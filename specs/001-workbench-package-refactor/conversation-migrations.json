@@ -1,0 +1,522 @@
+{
+  "packages/workbench/shell/src/chat/chat-icons.css": {
+    "path": "packages/conversation/conversation/src/chat-icons.css",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/completed-turn-content.tsx": {
+    "path": "packages/conversation/conversation/src/completed-turn-content.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/completed-turn-header.tsx": {
+    "path": "packages/conversation/conversation/src/completed-turn-header.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/completed-turn-model.ts": {
+    "path": "packages/conversation/conversation/lib/completed-turn-model.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/composer-command-response.tsx": {
+    "path": "packages/conversation/conversation/src/composer-command-response.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/composer-message-text.tsx": {
+    "path": "packages/conversation/conversation/src/composer-message-text.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/conversation-layout.tsx": {
+    "path": "packages/conversation/conversation/src/conversation-layout.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/conversation-list.tsx": {
+    "path": "packages/conversation/conversation/src/conversation-list.tsx",
+    "export": "@workbench/conversation/list"
+  },
+  "packages/workbench/shell/src/chat/conversation-message-context.tsx": {
+    "path": "packages/conversation/conversation/src/conversation-message-context.tsx",
+    "export": "@workbench/conversation/context"
+  },
+  "packages/workbench/shell/src/chat/conversation.css": {
+    "path": "packages/conversation/conversation/src/conversation.css",
+    "export": "@workbench/conversation/styles.css"
+  },
+  "packages/workbench/shell/src/chat/index.ts": {
+    "path": "packages/conversation/conversation/src/index.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/message-action-visibility.ts": {
+    "path": "packages/conversation/conversation/lib/message-action-visibility.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/message-actions.tsx": {
+    "path": "packages/conversation/conversation/src/message-actions.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/message-parts.tsx": {
+    "path": "packages/conversation/conversation/src/message-parts.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/renderers/file.tsx": {
+    "path": "packages/conversation/conversation/src/renderers/file.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/renderers/image.css": {
+    "path": "packages/conversation/conversation/src/renderers/image.css",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/renderers/image.tsx": {
+    "path": "packages/conversation/conversation/src/renderers/image.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/renderers/message-blocks.tsx": {
+    "path": "packages/conversation/conversation/src/renderers/message-blocks.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/renderers/message-source.tsx": {
+    "path": "packages/conversation/conversation/src/renderers/message-source.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/steered-turn.tsx": {
+    "path": "packages/conversation/conversation/src/steered-turn.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/todo-list.tsx": {
+    "path": "packages/conversation/conversation/src/todo-list.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/todo-model.ts": {
+    "path": "packages/conversation/conversation/lib/todo-model.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/tool-group.tsx": {
+    "path": "packages/conversation/conversation/src/tool-group.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/user-message-text-bubble.tsx": {
+    "path": "packages/conversation/conversation/src/user-message-text-bubble.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/workbench-conversation-viewport.ts": {
+    "path": "packages/conversation/conversation/lib/workbench-conversation-viewport.ts",
+    "export": "@workbench/conversation/viewport"
+  },
+  "packages/workbench/shell/src/chat/workbench-conversation.tsx": {
+    "path": "packages/conversation/conversation/src/workbench-conversation.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/workbench-empty.tsx": {
+    "path": "packages/conversation/conversation/src/workbench-empty.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/workbench-message-error.ts": {
+    "path": "packages/conversation/conversation/lib/workbench-message-error.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/workbench-message-rows.ts": {
+    "path": "packages/conversation/conversation/lib/workbench-message-rows.ts",
+    "export": "@workbench/conversation/rows"
+  },
+  "packages/workbench/shell/src/chat/workbench-message.tsx": {
+    "path": "packages/conversation/conversation/src/workbench-message.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/workbench-thread-timing.ts": {
+    "path": "packages/conversation/conversation/lib/workbench-thread-timing.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/chat/workbench-thread.tsx": {
+    "path": "packages/conversation/conversation/src/workbench-thread.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/src/elements/conversation-separator.tsx": {
+    "path": "packages/conversation/conversation/src/elements/conversation-separator.tsx",
+    "export": "@workbench/conversation/elements"
+  },
+  "packages/workbench/shell/src/elements/error-state.tsx": {
+    "path": "packages/conversation/conversation/src/elements/error-state.tsx",
+    "export": "@workbench/conversation/elements"
+  },
+  "packages/workbench/shell/src/elements/index.ts": {
+    "path": "packages/conversation/conversation/src/elements/index.ts",
+    "export": "@workbench/conversation/elements"
+  },
+  "packages/workbench/shell/src/elements/message-pair.tsx": {
+    "path": "packages/conversation/conversation/src/elements/message-pair.tsx",
+    "export": "@workbench/conversation/elements"
+  },
+  "packages/workbench/shell/src/elements/reasoning-panel.tsx": {
+    "path": "packages/conversation/conversation/src/elements/reasoning-panel.tsx",
+    "export": "@workbench/conversation/elements"
+  },
+  "packages/workbench/shell/src/elements/running-thread-indicator.tsx": {
+    "path": "packages/conversation/conversation/src/elements/running-thread-indicator.tsx",
+    "export": "@workbench/conversation/elements"
+  },
+  "packages/workbench/shell/src/elements/streaming-text.tsx": {
+    "path": "packages/conversation/conversation/src/elements/streaming-text.tsx",
+    "export": "@workbench/conversation/elements"
+  },
+  "packages/workbench/shell/src/elements/terminal-block.tsx": {
+    "path": "packages/conversation/conversation/src/elements/terminal-block.tsx",
+    "export": "@workbench/conversation/elements"
+  },
+  "packages/workbench/shell/src/elements/tool-call.tsx": {
+    "path": "packages/conversation/conversation/src/elements/tool-call.tsx",
+    "export": "@workbench/conversation/elements"
+  },
+  "packages/workbench/shell/src/elements/typing-indicator.tsx": {
+    "path": "packages/conversation/conversation/src/elements/typing-indicator.tsx",
+    "export": "@workbench/conversation/elements"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-presentation/completed-turn-panel.tsx": {
+    "path": "packages/conversation/conversation/src/message-presentation/completed-turn-panel.tsx",
+    "export": "@workbench/conversation/message-presentation"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-presentation/extension.ts": {
+    "path": "packages/conversation/conversation/src/message-presentation/extension.ts",
+    "export": "@workbench/conversation/message-presentation"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-presentation/index.ts": {
+    "path": "packages/conversation/conversation/src/message-presentation/index.ts",
+    "export": "@workbench/conversation/message-presentation"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-presentation/message-citations.ts": {
+    "path": "packages/conversation/conversation/lib/message-presentation/message-citations.ts",
+    "export": "@workbench/conversation/message-presentation"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-presentation/message-disclosure-context.tsx": {
+    "path": "packages/conversation/conversation/src/message-presentation/message-disclosure-context.tsx",
+    "export": "@workbench/conversation/message-presentation"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-presentation/message-presentation-policy.ts": {
+    "path": "packages/conversation/conversation/lib/message-presentation/message-presentation-policy.ts",
+    "export": "@workbench/conversation/message-presentation"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-presentation/message-presentation.tsx": {
+    "path": "packages/conversation/conversation/src/message-presentation/message-presentation.tsx",
+    "export": "@workbench/conversation/message-presentation"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-presentation/message-tool-timeline.tsx": {
+    "path": "packages/conversation/conversation/src/message-presentation/message-tool-timeline.tsx",
+    "export": "@workbench/conversation/message-presentation"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-presentation/tool-diff-model.ts": {
+    "path": "packages/conversation/conversation/lib/message-presentation/tool-diff-model.ts",
+    "export": "@workbench/conversation/message-presentation"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-presentation/tool-timeline-model.ts": {
+    "path": "packages/conversation/conversation/lib/message-presentation/tool-timeline-model.ts",
+    "export": "@workbench/conversation/message-presentation"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-actions/extension.ts": {
+    "path": "packages/conversation/conversation/src/message-actions/extension.ts",
+    "export": "@workbench/conversation/message-actions"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-actions/fork-availability.ts": {
+    "path": "packages/conversation/conversation/lib/message-actions/fork-availability.ts",
+    "export": "@workbench/conversation/message-actions"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-actions/index.ts": {
+    "path": "packages/conversation/conversation/src/message-actions/index.ts",
+    "export": "@workbench/conversation/message-actions"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-actions/message-actions.tsx": {
+    "path": "packages/conversation/conversation/src/message-actions/message-actions.tsx",
+    "export": "@workbench/conversation/message-actions"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-actions/message-performance-statistics.ts": {
+    "path": "packages/conversation/conversation/lib/message-actions/message-performance-statistics.ts",
+    "export": "@workbench/conversation/message-actions"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-actions/message-performance-visibility.ts": {
+    "path": "packages/conversation/conversation/lib/message-actions/message-performance-visibility.ts",
+    "export": "@workbench/conversation/message-actions"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-queue/composer-message-queue.tsx": {
+    "path": "packages/conversation/conversation/src/message-queue/composer-message-queue.tsx",
+    "export": "@workbench/conversation/message-queue"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-queue/extension.ts": {
+    "path": "packages/conversation/conversation/src/message-queue/extension.ts",
+    "export": "@workbench/conversation/message-queue"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-queue/index.ts": {
+    "path": "packages/conversation/conversation/src/message-queue/index.ts",
+    "export": "@workbench/conversation/message-queue"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-queue/message-queue-preview.ts": {
+    "path": "packages/conversation/conversation/lib/message-queue/message-queue-preview.ts",
+    "export": "@workbench/conversation/message-queue"
+  },
+  "packages/workbench/shell/src/extensions/builtin/message-queue/message-queue.css": {
+    "path": "packages/conversation/conversation/src/message-queue/message-queue.css",
+    "export": "@workbench/conversation/message-queue"
+  },
+  "packages/workbench/shell/src/extensions/builtin/user-message-index/extension.ts": {
+    "path": "packages/conversation/conversation/src/user-message-index/extension.ts",
+    "export": "@workbench/conversation/user-message-index"
+  },
+  "packages/workbench/shell/src/extensions/builtin/user-message-index/index.ts": {
+    "path": "packages/conversation/conversation/src/user-message-index/index.ts",
+    "export": "@workbench/conversation/user-message-index"
+  },
+  "packages/workbench/shell/src/extensions/builtin/user-message-index/user-message-index-layout.ts": {
+    "path": "packages/conversation/conversation/lib/user-message-index/user-message-index-layout.ts",
+    "export": "@workbench/conversation/user-message-index"
+  },
+  "packages/workbench/shell/src/extensions/builtin/user-message-index/user-message-index.css": {
+    "path": "packages/conversation/conversation/src/user-message-index/user-message-index.css",
+    "export": "@workbench/conversation/user-message-index"
+  },
+  "packages/workbench/shell/src/extensions/builtin/user-message-index/user-message-index.tsx": {
+    "path": "packages/conversation/conversation/src/user-message-index/user-message-index.tsx",
+    "export": "@workbench/conversation/user-message-index"
+  },
+  "packages/workbench/shell/src/extensions/builtin/todo-panel/extension.ts": {
+    "path": "packages/conversation/conversation/src/todo-panel/extension.ts",
+    "export": "@workbench/conversation/todo-panel"
+  },
+  "packages/workbench/shell/src/extensions/builtin/todo-panel/index.ts": {
+    "path": "packages/conversation/conversation/src/todo-panel/index.ts",
+    "export": "@workbench/conversation/todo-panel"
+  },
+  "packages/workbench/shell/src/extensions/builtin/todo-panel/todo-panel.tsx": {
+    "path": "packages/conversation/conversation/src/todo-panel/todo-panel.tsx",
+    "export": "@workbench/conversation/todo-panel"
+  },
+  "packages/workbench/shell/src/extensions/builtin/interactive-requests/ask-user-panel.tsx": {
+    "path": "packages/conversation/conversation/src/interactive-requests/ask-user-panel.tsx",
+    "export": "@workbench/conversation/interactive-requests"
+  },
+  "packages/workbench/shell/src/extensions/builtin/interactive-requests/ask-user-preferences.ts": {
+    "path": "packages/conversation/conversation/src/interactive-requests/ask-user-preferences.ts",
+    "export": "@workbench/conversation/interactive-requests"
+  },
+  "packages/workbench/shell/src/extensions/builtin/interactive-requests/ask-user-recommended-mark.tsx": {
+    "path": "packages/conversation/conversation/src/interactive-requests/ask-user-recommended-mark.tsx",
+    "export": "@workbench/conversation/interactive-requests"
+  },
+  "packages/workbench/shell/src/extensions/builtin/interactive-requests/ask-user-tool-model.ts": {
+    "path": "packages/conversation/conversation/lib/interactive-requests/ask-user-tool-model.ts",
+    "export": "@workbench/conversation/interactive-requests"
+  },
+  "packages/workbench/shell/src/extensions/builtin/interactive-requests/ask-user-tool-renderer.tsx": {
+    "path": "packages/conversation/conversation/src/interactive-requests/ask-user-tool-renderer.tsx",
+    "export": "@workbench/conversation/interactive-requests"
+  },
+  "packages/workbench/shell/src/extensions/builtin/interactive-requests/extension.ts": {
+    "path": "packages/conversation/conversation/src/interactive-requests/extension.ts",
+    "export": "@workbench/conversation/interactive-requests"
+  },
+  "packages/workbench/shell/src/extensions/builtin/interactive-requests/index.ts": {
+    "path": "packages/conversation/conversation/src/interactive-requests/index.ts",
+    "export": "@workbench/conversation/interactive-requests"
+  },
+  "packages/workbench/shell/src/extensions/builtin/interactive-requests/interaction-form-state.ts": {
+    "path": "packages/conversation/conversation/lib/interactive-requests/interaction-form-state.ts",
+    "export": "@workbench/conversation/interactive-requests"
+  },
+  "packages/workbench/shell/src/extensions/builtin/interactive-requests/interactive-requests-overlay.tsx": {
+    "path": "packages/conversation/conversation/src/interactive-requests/interactive-requests-overlay.tsx",
+    "export": "@workbench/conversation/interactive-requests"
+  },
+  "packages/workbench/shell/src/extensions/builtin/side-chat/extension.ts": {
+    "path": "packages/conversation/conversation/src/side-chat/extension.ts",
+    "export": "@workbench/conversation/side-chat"
+  },
+  "packages/workbench/shell/src/extensions/builtin/side-chat/index.ts": {
+    "path": "packages/conversation/conversation/src/side-chat/index.ts",
+    "export": "@workbench/conversation/side-chat"
+  },
+  "packages/workbench/shell/src/extensions/builtin/side-chat/scratch-session-lease.ts": {
+    "path": "packages/conversation/conversation/lib/side-chat/scratch-session-lease.ts",
+    "export": "@workbench/conversation/side-chat"
+  },
+  "packages/workbench/shell/src/extensions/builtin/side-chat/side-chat-header.tsx": {
+    "path": "packages/conversation/conversation/src/side-chat/side-chat-header.tsx",
+    "export": "@workbench/conversation/side-chat"
+  },
+  "packages/workbench/shell/src/extensions/builtin/side-chat/side-chat-menu-item.tsx": {
+    "path": "packages/conversation/conversation/src/side-chat/side-chat-menu-item.tsx",
+    "export": "@workbench/conversation/side-chat"
+  },
+  "packages/workbench/shell/src/extensions/builtin/side-chat/side-chat-navigation.ts": {
+    "path": "packages/conversation/conversation/lib/side-chat/side-chat-navigation.ts",
+    "export": "@workbench/conversation/side-chat"
+  },
+  "packages/workbench/shell/src/extensions/builtin/side-chat/side-chat-runtime-bridge.tsx": {
+    "path": "packages/conversation/conversation/src/side-chat/side-chat-runtime-bridge.tsx",
+    "export": "@workbench/conversation/side-chat"
+  },
+  "packages/workbench/shell/src/extensions/builtin/side-chat/side-chat-surface.tsx": {
+    "path": "packages/conversation/conversation/src/side-chat/side-chat-surface.tsx",
+    "export": "@workbench/conversation/side-chat"
+  },
+  "packages/workbench/shell/src/extensions/builtin/side-chat/side-chat-workspace.ts": {
+    "path": "packages/conversation/conversation/src/side-chat/side-chat-workspace.ts",
+    "export": "@workbench/conversation/side-chat"
+  },
+  "packages/workbench/shell/src/extensions/builtin/archived-chats/archived-chat-group-a11y.ts": {
+    "path": "packages/conversation/conversation/lib/archived-chats/archived-chat-group-a11y.ts",
+    "export": "@workbench/conversation/archived-chats"
+  },
+  "packages/workbench/shell/src/extensions/builtin/archived-chats/archived-chats-settings-item.tsx": {
+    "path": "packages/conversation/conversation/src/archived-chats/archived-chats-settings-item.tsx",
+    "export": "@workbench/conversation/archived-chats"
+  },
+  "packages/workbench/shell/src/extensions/builtin/archived-chats/extension.ts": {
+    "path": "packages/conversation/conversation/src/archived-chats/extension.ts",
+    "export": "@workbench/conversation/archived-chats"
+  },
+  "packages/workbench/shell/src/extensions/builtin/archived-chats/index.ts": {
+    "path": "packages/conversation/conversation/src/archived-chats/index.ts",
+    "export": "@workbench/conversation/archived-chats"
+  },
+  "packages/workbench/shell/src/thread-scroll-state.tsx": {
+    "path": "packages/conversation/conversation/src/thread-scroll-state.tsx",
+    "export": "@workbench/conversation/scroll-state"
+  },
+  "packages/workbench/shell/src/conversation-title.ts": {
+    "path": "packages/conversation/conversation/src/conversation-title.ts",
+    "export": "@workbench/conversation/title"
+  },
+  "packages/workbench/shell/tests/chat/completed-turn-model.test.ts": {
+    "path": "packages/conversation/conversation/tests/completed-turn-model.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/chat/composer-command-response.test.tsx": {
+    "path": "packages/conversation/conversation/tests/composer-command-response.test.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/chat/conversation-layout.test.tsx": {
+    "path": "packages/conversation/conversation/tests/conversation-layout.test.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/chat/message-action-visibility.test.ts": {
+    "path": "packages/conversation/conversation/tests/message-action-visibility.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/chat/renderers-message-blocks.test.tsx": {
+    "path": "packages/conversation/conversation/tests/renderers-message-blocks.test.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/chat/todo-model.test.ts": {
+    "path": "packages/conversation/conversation/tests/todo-model.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/chat/workbench-conversation-viewport.test.ts": {
+    "path": "packages/conversation/conversation/tests/workbench-conversation-viewport.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/chat/workbench-message-error.test.ts": {
+    "path": "packages/conversation/conversation/tests/workbench-message-error.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/chat/workbench-message-rows.test.ts": {
+    "path": "packages/conversation/conversation/tests/workbench-message-rows.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/chat/workbench-thread-timing.test.ts": {
+    "path": "packages/conversation/conversation/tests/workbench-thread-timing.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/elements/streaming-text.test.tsx": {
+    "path": "packages/conversation/conversation/tests/streaming-text.test.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/elements/tool-call.test.tsx": {
+    "path": "packages/conversation/conversation/tests/tool-call.test.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-archived-chats-archived-chat-group-a11y.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-archived-chats-archived-chat-group-a11y.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-interactive-requests-ask-user-panel.test.tsx": {
+    "path": "packages/conversation/conversation/tests/builtin-interactive-requests-ask-user-panel.test.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-interactive-requests-ask-user-preferences.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-interactive-requests-ask-user-preferences.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-interactive-requests-ask-user-tool-model.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-interactive-requests-ask-user-tool-model.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-interactive-requests-ask-user-tool-presentation.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-interactive-requests-ask-user-tool-presentation.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-interactive-requests-interaction-form-state.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-interactive-requests-interaction-form-state.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-message-actions-fork-availability.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-message-actions-fork-availability.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-message-actions-message-performance-statistics.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-message-actions-message-performance-statistics.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-message-actions-message-performance-visibility.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-message-actions-message-performance-visibility.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-message-presentation-message-citations.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-message-presentation-message-citations.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-message-presentation-message-disclosure-context.test.tsx": {
+    "path": "packages/conversation/conversation/tests/builtin-message-presentation-message-disclosure-context.test.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-message-presentation-message-presentation-policy.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-message-presentation-message-presentation-policy.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-message-presentation-message-tool-timeline-stall.test.tsx": {
+    "path": "packages/conversation/conversation/tests/builtin-message-presentation-message-tool-timeline-stall.test.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-message-presentation-tool-diff-model.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-message-presentation-tool-diff-model.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-message-presentation-tool-timeline-model.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-message-presentation-tool-timeline-model.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-message-queue-message-queue-preview.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-message-queue-message-queue-preview.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-side-chat-scratch-session-lease.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-side-chat-scratch-session-lease.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-side-chat-side-chat-navigation.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-side-chat-side-chat-navigation.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-side-chat-side-chat-workspace.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-side-chat-side-chat-workspace.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-todo-panel-todo-panel.test.tsx": {
+    "path": "packages/conversation/conversation/tests/builtin-todo-panel-todo-panel.test.tsx",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-user-message-index-user-message-index-layout.test.ts": {
+    "path": "packages/conversation/conversation/tests/builtin-user-message-index-user-message-index-layout.test.ts",
+    "export": "@workbench/conversation"
+  },
+  "packages/workbench/shell/tests/conversation-title.test.ts": {
+    "path": "packages/conversation/conversation/tests/conversation-title.test.ts",
+    "export": "@workbench/conversation/title"
+  },
+  "packages/workbench/shell/tests/unit/thread-scroll-state.test.tsx": {
+    "path": "packages/conversation/conversation/tests/thread-scroll-state.test.tsx",
+    "export": "@workbench/conversation/scroll-state"
+  }
+}

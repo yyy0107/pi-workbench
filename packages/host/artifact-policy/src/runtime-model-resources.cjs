@@ -1,4 +1,4 @@
-const { isInside } = require("./filesystem.cjs");
+const { isInside } = require("../lib/filesystem.cjs");
 const { lstatSync, readFileSync, readdirSync, realpathSync } = require("node:fs");
 const path = require("node:path");
 

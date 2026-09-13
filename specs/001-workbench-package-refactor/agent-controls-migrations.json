@@ -1,0 +1,70 @@
+{
+  "packages/workbench/shell/src/model-selector/model-selector-state.ts": {
+    "path": "packages/client/agent-controls/lib/model-selector-state.ts",
+    "export": "@workbench/agent-controls/models"
+  },
+  "packages/workbench/shell/src/model-selector/reasoning-effort-label.ts": {
+    "path": "packages/client/agent-controls/lib/reasoning-effort-label.ts",
+    "export": "@workbench/agent-controls/reasoning"
+  },
+  "packages/workbench/shell/src/extensions/builtin/model-selector/extension.ts": {
+    "path": "packages/client/agent-controls/src/model-selector-extension.ts",
+    "export": "@workbench/agent-controls"
+  },
+  "packages/workbench/shell/src/extensions/builtin/model-selector/index.ts": {
+    "path": "packages/client/agent-controls/src/model-selector-index.ts",
+    "export": "@workbench/agent-controls"
+  },
+  "packages/workbench/shell/src/extensions/builtin/model-selector/model-selector-store.ts": {
+    "path": "packages/client/agent-controls/src/model-selector-store.ts",
+    "export": "@workbench/agent-controls"
+  },
+  "packages/workbench/shell/src/extensions/builtin/model-selector/model-selector.tsx": {
+    "path": "packages/client/agent-controls/src/model-selector.tsx",
+    "export": "@workbench/agent-controls/model-selector"
+  },
+  "packages/workbench/shell/src/extensions/builtin/token-usage/extension.ts": {
+    "path": "packages/client/agent-controls/src/token-usage-extension.ts",
+    "export": "@workbench/agent-controls"
+  },
+  "packages/workbench/shell/src/extensions/builtin/token-usage/index.ts": {
+    "path": "packages/client/agent-controls/src/token-usage-index.ts",
+    "export": "@workbench/agent-controls"
+  },
+  "packages/workbench/shell/src/extensions/builtin/token-usage/token-animation.ts": {
+    "path": "packages/client/agent-controls/lib/token-animation.ts",
+    "export": "@workbench/agent-controls"
+  },
+  "packages/workbench/shell/src/extensions/builtin/token-usage/token-throughput.ts": {
+    "path": "packages/client/agent-controls/lib/token-throughput.ts",
+    "export": "@workbench/agent-controls"
+  },
+  "packages/workbench/shell/src/extensions/builtin/token-usage/token-usage-section.tsx": {
+    "path": "packages/client/agent-controls/src/token-usage-section.tsx",
+    "export": "@workbench/agent-controls"
+  },
+  "packages/workbench/shell/src/extensions/builtin/token-usage/token-usage.tsx": {
+    "path": "packages/client/agent-controls/src/token-usage.tsx",
+    "export": "@workbench/agent-controls/token-usage"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-model-selector-model-selector-state.test.ts": {
+    "path": "packages/client/agent-controls/tests/model-selector-state.test.ts",
+    "export": "@workbench/agent-controls"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-model-selector-reasoning-effort-label.test.ts": {
+    "path": "packages/client/agent-controls/tests/reasoning-effort-label.test.ts",
+    "export": "@workbench/agent-controls"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-token-usage-token-animation.test.ts": {
+    "path": "packages/client/agent-controls/tests/token-animation.test.ts",
+    "export": "@workbench/agent-controls"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-token-usage-token-throughput.test.ts": {
+    "path": "packages/client/agent-controls/tests/token-throughput.test.ts",
+    "export": "@workbench/agent-controls"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-token-usage-token-usage-section.test.tsx": {
+    "path": "packages/client/agent-controls/tests/token-usage-section.test.tsx",
+    "export": "@workbench/agent-controls"
+  }
+}

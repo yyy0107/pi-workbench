@@ -1,4 +1,4 @@
-import type { RightWorkspaceDraftPersistencePort } from "./right-workspace";
+import type { RightWorkspaceDraftPersistencePort } from "@workbench/workspace-runtime";
 import type { ThreadScrollPersistencePort } from "./workbench";
 
 export interface WorkbenchSessionStorage {

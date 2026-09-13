@@ -7,7 +7,7 @@ import {
   WorkbenchNavigationProvider,
   type WorkbenchNavigationOptions,
   type WorkbenchNavigationPort,
-} from "@workbench/shell/navigation";
+} from "@workbench/shell-context/navigation";
 
 import { conversationIdFromWorkbenchPathname } from "./workbench-routes";
 

@@ -1,0 +1,41 @@
+{
+  "name": "@workbench/shell-context",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./dom": "./src/dom.tsx",
+    "./navigation": "./src/navigation.tsx",
+    "./presentation": "./src/presentation.tsx",
+    "./runtime-connection": "./src/runtime-connection.ts",
+    "./layout": "./src/layout.tsx",
+    "./layout-motion": "./src/layout-motion.ts",
+    "./running-indicator": "./src/running-indicator.tsx",
+    "./panel-store": "./src/panel-store.ts",
+    "./navigation-policy": "./src/navigation-policy.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/extension-sdk": "workspace:*",
+    "@workbench/host-contracts": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@workbench/ui-testkit": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8"
+  }
+}

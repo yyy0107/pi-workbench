@@ -18,7 +18,7 @@ import {
   type RuntimeWebSocketOptions,
 } from "@workbench/host-client";
 import type { RuntimeConnection } from "@workbench/host-contracts";
-import { snapshotRuntimeConnection } from "@workbench/shell/runtime-connection";
+import { snapshotRuntimeConnection } from "@workbench/shell-context/runtime-connection";
 import type { WorkbenchWorkspaceDirectoryStorePort } from "@workbench/agent-runtime-client/workspaces";
 
 export function createInstalledAgentRuntimeTransport(

@@ -1,0 +1,34 @@
+{
+  "packages/workbench/shell/src/extensions/builtin/git-branch/extension.ts": {
+    "path": "packages/workspace/git-branch/src/extension.ts",
+    "export": "@workbench/workspace-git-branch"
+  },
+  "packages/workbench/shell/src/extensions/builtin/git-branch/git-branch-selector.tsx": {
+    "path": "packages/workspace/git-branch/src/git-branch-selector.tsx",
+    "export": "@workbench/workspace-git-branch"
+  },
+  "packages/workbench/shell/src/extensions/builtin/git-branch/git-branch-status-bus.ts": {
+    "path": "packages/workspace/git-branch/src/git-branch-status-bus.ts",
+    "export": "@workbench/workspace-git-branch"
+  },
+  "packages/workbench/shell/src/extensions/builtin/git-branch/git-graph-dialog.tsx": {
+    "path": "packages/workspace/git-branch/src/git-graph-dialog.tsx",
+    "export": "@workbench/workspace-git-branch"
+  },
+  "packages/workbench/shell/src/extensions/builtin/git-branch/git-graph-layout.ts": {
+    "path": "packages/workspace/git-branch/src/git-graph-layout.ts",
+    "export": "@workbench/workspace-git-branch"
+  },
+  "packages/workbench/shell/src/extensions/builtin/git-branch/index.ts": {
+    "path": "packages/workspace/git-branch/src/index.ts",
+    "export": "@workbench/workspace-git-branch"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-git-branch-git-branch-status-bus.test.ts": {
+    "path": "packages/workspace/git-branch/tests/git-branch-status-bus.test.ts",
+    "export": "@workbench/workspace-git-branch"
+  },
+  "packages/workbench/shell/tests/extensions/builtin-git-branch-git-graph-layout.test.ts": {
+    "path": "packages/workspace/git-branch/tests/git-graph-layout.test.ts",
+    "export": "@workbench/workspace-git-branch"
+  }
+}

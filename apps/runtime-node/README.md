@@ -30,11 +30,11 @@ flowchart LR
 - [`src/composition/`](./src/composition/) is the sole installed-implementation selection layer. It
   may connect the concrete Pi implementation to Workbench ports and leaf services; reusable domain behavior
   belongs in the package that owns it, not in this app.
-- [`@workbench/agent-runtime-server`](../../packages/agent-runtime/core/server/README.md) owns the
+- [`@workbench/agent-runtime-server`](../../packages/agent-runtime/server/README.md) owns the
   Runtime-neutral command, execution, and thread ports plus the singular installation contract.
   Pi session, history, model, resource, and transport semantics remain in the
-  [Pi Runtime packages](../../packages/agent-runtime/runtimes/pi/README.md).
-  [`createPiAgentServerImplementation`](../../packages/agent-runtime/runtimes/pi/server/src/agent-runtime/pi-agent-server-implementation.ts)
+  [Pi Runtime packages](../../packages/pi/README.md).
+  [`createPiAgentServerImplementation`](../../packages/pi/server/src/agent-runtime/pi-agent-server-implementation.ts)
   implements `WorkbenchAgentServerAdapter`; Host, workspace, Terminal, and Automation retain their
   separate domain ports and composition bindings.
 - [`@workbench/automation-server`](../../packages/server/automation/) owns Automation definitions,

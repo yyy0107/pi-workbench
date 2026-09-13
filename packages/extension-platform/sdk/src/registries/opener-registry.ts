@@ -1,6 +1,6 @@
 import { createDisposable } from "../api/disposable";
 import type { OpenHandlerDefinition, OpenerRegistry } from "../api/opener";
-import { assertNonEmptyId, emitRegistryChange } from "./registry-utils";
+import { assertNonEmptyId, emitRegistryChange } from "../../lib/registry-utils";
 
 const EMPTY_HANDLERS = Object.freeze([]) as readonly OpenHandlerDefinition[];
 

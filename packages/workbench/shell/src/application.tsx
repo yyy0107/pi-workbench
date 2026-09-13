@@ -46,9 +46,9 @@ import {
   createWorkbenchThreadScrollPersistence,
 } from "./browser-session-persistence";
 import { I18nProvider, useI18n, type Locale, type TranslationBundle } from "./i18n";
-import { shouldCloseRightWorkspaceForNewThread } from "./new-thread-policy";
-import { createPanelStore } from "./panels";
-import { createRightWorkspacePromptFeedbackPort } from "./right-workspace";
+import { shouldCloseRightWorkspaceForNewThread } from "@workbench/shell-context/navigation-policy";
+import { createPanelStore } from "@workbench/shell-context/panel-store";
+import { createRightWorkspacePromptFeedbackPort } from "@workbench/workspace-runtime";
 import {
   RightWorkspaceProvider,
   WorkspaceSurfaceRuntimeHost,
@@ -58,24 +58,27 @@ import {
   useWorkspaceFeedbackStore,
   type RightWorkspaceOpenerFactory,
   type WorkspaceRuntimeErrorReporter,
-} from "./right-workspace-react";
+} from "@workbench/workspace-runtime/react";
 import {
   createRightWorkspacePersistence,
   type RightWorkspaceLegacyStorage,
-} from "./right-workspace/right-workspace-persistence";
+} from "@workbench/workspace-runtime/persistence";
 import {
   RuntimeConnectionProvider,
   useRuntimeConnection,
-} from "./runtime-connection/runtime-connection-provider";
-import { WorkbenchSettingsProvider, useWorkbenchSettingsService } from "./settings";
-import type { WorkbenchSettingsPort } from "./settings";
-import { ToastProvider } from "./ui";
+} from "@workbench/shell-context/runtime-connection";
+import {
+  WorkbenchSettingsProvider,
+  useWorkbenchSettingsService,
+} from "@workbench/settings-runtime";
+import type { WorkbenchSettingsPort } from "@workbench/settings-runtime";
+import { ToastProvider } from "@workbench/ui";
 import { WorkbenchShell, type WorkbenchShellProps } from "./shell/workbench-shell";
 import {
   createWorkspaceDirectoryStoreInstallation,
   type WorkspaceDirectoryStoreInstallation,
-} from "./workspace-directory-store";
-import type { RightWorkspaceDraftPersistencePort } from "./right-workspace";
+} from "@workbench/workspace-runtime/directory-store";
+import type { RightWorkspaceDraftPersistencePort } from "@workbench/workspace-runtime";
 import type { ThreadScrollPersistencePort } from "./workbench";
 
 const WorkbenchApplicationInstallationContext = createContext<string | undefined>(undefined);
