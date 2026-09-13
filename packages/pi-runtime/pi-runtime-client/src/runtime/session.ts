@@ -15,6 +15,7 @@ import type {
   ConversationSession,
   HostObservable,
 } from "@workbench/agent-runtime-core";
+import { stripWorkspaceFeedbackContext } from "@workbench/agent-runtime-client/prompt-feedback";
 import {
   isWorkbenchComposerCommandResponseCustomType,
   parseWorkbenchComposerCommandResponseDetails,
@@ -91,6 +92,7 @@ import {
 } from "@workbench/pi-conversation-adapter/live-tokens";
 import {
   BACKFILL_SESSION_HISTORY_MESSAGES,
+  deriveSessionDisplayText,
   INITIAL_SESSION_HISTORY_MESSAGES,
   SessionHistoryPaginationError,
 } from "@workbench/pi-runtime-adapters/sessions";
@@ -404,6 +406,23 @@ function sameComposerRetryUser(left: ThreadMessage, right: ThreadMessage): boole
     return false;
   }
   return sameUserPrompt(left, right);
+}
+
+/**
+ * A queued steer can retain managed attachments for display while Pi emits only its compiled
+ * transport text at message_start. Limit this relaxed match to the still-pending steer row so
+ * ordinary optimistic users continue to require exact attachment equality.
+ */
+function samePendingSteerPrompt(left: ThreadUserMessage, right: ThreadUserMessage): boolean {
+  if (
+    left.metadata.custom[WORKBENCH_MESSAGE_METADATA_KEYS.steeringPending] !== true ||
+    left.metadata.custom[WORKBENCH_MESSAGE_METADATA_KEYS.steering] !== true
+  ) {
+    return false;
+  }
+  const visibleText = (message: ThreadUserMessage) =>
+    deriveSessionDisplayText(stripWorkspaceFeedbackContext(appendMessageToPiPrompt(message).text));
+  return visibleText(left) === visibleText(right);
 }
 
 /** Matches the transient and journal-backed projections of one Pi assistant response. */
@@ -2091,7 +2110,9 @@ export class PiClientSession implements ConversationSession {
               candidate.metadata.custom.piOptimistic === true &&
               candidate.metadata.custom.piUserMessageStarted !== true &&
               (sameUserPrompt(candidate, rawUserMessage) ||
-                sameUserPrompt(candidate, projectedUserMessage)),
+                sameUserPrompt(candidate, projectedUserMessage) ||
+                samePendingSteerPrompt(candidate, rawUserMessage) ||
+                samePendingSteerPrompt(candidate, projectedUserMessage)),
           );
 
     let publishedId = generatedId;

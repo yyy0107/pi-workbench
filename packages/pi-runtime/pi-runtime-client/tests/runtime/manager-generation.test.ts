@@ -1739,6 +1739,97 @@ test("renders an authoritative steering item as an optimistic user message", (t)
   assert.equal(session.getSnapshot().messages[0]?.metadata.custom.workbenchSteeringPending, false);
 });
 
+test("coalesces a consumed managed-image steer with its compiled user event", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-image-steer", "remote-image-steer");
+  const internals = session as unknown as { handleEvent(event: PiEvent): void };
+  const attachment = {
+    id: "8b95d58b-3189-45f0-9be6-f7a9e4de7248",
+    name: "screenshot.png",
+    mediaType: "image/png",
+    path: "/runtime/attachments/screenshot.png",
+    bytes: 128,
+  };
+  const compiledPrompt = [
+    "<workbench-user-attachment-parts>",
+    JSON.stringify([
+      `[Attached ${attachment.mediaType}: ${attachment.name}]`,
+      `[File: source: ${attachment.path}]`,
+    ]),
+    "</workbench-user-attachment-parts>",
+    "",
+    "<user-request>",
+    "怎么样子了",
+    "</user-request>",
+  ].join("\n");
+
+  session.setRunningFromManager(true, { startedAt: 1_000, elapsedMs: 250 });
+  session.applyQueueSnapshot([
+    {
+      id: "queue-image-steer",
+      placement: "steering",
+      message: {
+        id: "queue-image-steer",
+        role: "user",
+        content: [
+          { type: "text", text: "怎么样子了" },
+          {
+            type: "file",
+            data: attachment.id,
+            mediaType: attachment.mediaType,
+            name: attachment.name,
+            attachment,
+          },
+        ],
+        source: { kind: "user", modelText: compiledPrompt, imageDelivery: "path" },
+      },
+    },
+  ]);
+  const optimisticId = session.getSnapshot().messages[0]?.id;
+  assert.ok(optimisticId);
+
+  session.applyQueueSnapshot([]);
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 10,
+    message: { role: "user", content: compiledPrompt, timestamp: 2_000 },
+  });
+
+  assert.equal(session.getSnapshot().messages.length, 1);
+  assert.equal(session.getSnapshot().messages[0]?.id, optimisticId);
+  assert.deepEqual(
+    session.getSnapshot().messages[0]?.content.map((part) => part.type),
+    ["text", "file"],
+  );
+  assert.equal(session.getSnapshot().messages[0]?.metadata.custom.workbenchSteeringPending, false);
+
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 11,
+    entryId: "image-steer-user",
+    workbenchComposer: {
+      version: 2,
+      submissionId: "image-steer-submission",
+      sourceText: "怎么样子了",
+      document: [{ type: "text", text: "怎么样子了" }],
+      hidden: true,
+    },
+    message: { role: "user", content: compiledPrompt, timestamp: 2_000 },
+  });
+
+  assert.equal(session.getSnapshot().messages.length, 1);
+  assert.equal(session.getSnapshot().messages[0]?.id, optimisticId);
+  assert.deepEqual(
+    session.getSnapshot().messages[0]?.content.map((part) => part.type),
+    ["text", "file"],
+  );
+  assert.equal(
+    session.getSnapshot().messages[0]?.metadata.custom.workbenchComposerSubmissionId,
+    "image-steer-submission",
+  );
+});
+
 test("keeps a streaming assistant segment before steering messages as they arrive", async (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
