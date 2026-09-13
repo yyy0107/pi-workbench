@@ -1826,6 +1826,9 @@ importers:
       '@workbench/ui':
         specifier: workspace:*
         version: link:../ui
+      '@workbench/ui-attachment':
+        specifier: workspace:*
+        version: link:../ui-attachment
       '@workbench/ui-composer':
         specifier: workspace:*
         version: link:../ui-composer

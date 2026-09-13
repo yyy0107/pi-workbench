@@ -5,6 +5,7 @@ export const messages = {
       removeFile: "Remove file",
     },
     attachment: {
+      listLabel: "Attachments",
       previewTitle: "Image attachment preview",
       previewAlt: "Attachment preview",
       image: "Image",

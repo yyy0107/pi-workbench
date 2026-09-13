@@ -17,6 +17,7 @@ import {
 import { useState, type DragEvent } from "react";
 
 import { composerPanel, composerPanelRow } from "@workbench/ui-composer/panels";
+import { ComposerAttachmentSummary } from "@workbench/ui-attachment/composer-attachment-summary";
 import { Button } from "@workbench/ui";
 import {
   DropdownMenu,
@@ -118,9 +119,15 @@ function ComposerQueueItem({
         <ListRestartIcon aria-hidden="true" />
       </Button>
 
-      <span className="min-w-0 flex-1 truncate">
-        {text || t("extensions.messageQueue.messageFallback")}
-      </span>
+      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
+        <ComposerAttachmentSummary
+          attachments={queueItem.attachments}
+          className="max-w-[40%] shrink-0"
+        />
+        <span className="min-w-0 flex-1 truncate">
+          {text || t("extensions.messageQueue.messageFallback")}
+        </span>
+      </div>
 
       <div className="ms-2 flex shrink-0 items-center gap-0.5">
         <Button

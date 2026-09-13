@@ -5,6 +5,7 @@ export const messages = {
       removeFile: "移除文件",
     },
     attachment: {
+      listLabel: "附件",
       previewTitle: "图片附件预览",
       previewAlt: "附件预览",
       image: "图片",
