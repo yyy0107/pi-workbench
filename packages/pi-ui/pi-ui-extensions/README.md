@@ -1,24 +1,64 @@
-# Pi contribution package
+# @workbench/pi-ui-extensions
 
-`@workbench/pi-ui-extensions` owns Agent Configuration, Provider/Model Configuration,
-Pi Settings, Toolbox, Context Trace, External Session Import, Pi Version/Connection Status, and Pi
-running indicators and branding. Its only public entry point is `./installation`.
+[中文](README.zh-CN.md) · [Package navigation](../../README.md) · [Layer overview](../README.md)
 
-The application composition owns transport creation, served asset URLs, branding, URL syntax, and
-the final extension activation order. Workbench Shell owns the generic workspace UI, file buffers,
-presentation assets, branding, and runtime-connection contexts. This package exports:
+Pi UI installation groups, translation aggregation and resource integration.
 
-- the frozen `agentConfiguration`, `configuration`, `toolbox`, and `diagnostics` extension groups;
-- `PiAgentRuntimeContributionsProvider`, which supplies only the Pi Skill/Extension resource backend
-  to Shell's capability-backed file runtime; Toolbox owns and disposes the four Pi resource openers,
-  while Shell's Workspace File extension owns the generic workspace-file opener and surface;
-- `piTranslationBundle` and `piRunningIndicatorDefinitions` for explicit application installation.
+Execution environment: Browser / React.
 
-Web and Desktop interleave these groups with Shell's groups in the original extension ID order.
-The provider only binds the Pi resource backend; Shell owns file buffers, diffs, drafts, asset
-leases, workspace targets, navigation, and runtime-connection contexts. Generic workspace and
-session features live in Shell and consume Workbench capabilities from the installed Pi Runtime.
+## Responsibilities
 
-Do not import Next, root aliases, Pi server modules, or Extension Host internals from this package.
+- Export frozen agentConfiguration, configuration, toolbox and diagnostics groups.
+- Aggregate Pi translation bundles, resource-provider integration and activity indicator definitions.
 
-Source layout: src owns this capability and its contracts; lib contains consumed internal helpers; tests live at the package root. Example consumer: `src/i18n/index.ts` imports `lib/i18n-runtime.ts`. Capability and helper code remains TS/TSX; existing build tooling retains its language.
+## Imports
+
+```ts
+import {
+  piAgentRuntimeExtensionGroups,
+  piTranslationBundles,
+} from "@workbench/pi-ui-extensions/installation";
+```
+
+These examples identify public imports. Supply the dependencies and options declared by the entry when constructing services or installing capabilities.
+
+This package has no root entry; select an explicit subpath from the table below.
+
+### Public entries and source
+
+[package.json](package.json) `exports` is authoritative. This table lists all current public entries. Source links locate implementations; cross-package code imports the package entry on the left.
+
+| Import path                                | Entry source                                                 |
+| ------------------------------------------ | ------------------------------------------------------------ |
+| `@workbench/pi-ui-extensions/installation` | [src/public/installation.tsx](./src/public/installation.tsx) |
+
+## Source navigation
+
+| Location                                                   | Purpose                           |
+| ---------------------------------------------------------- | --------------------------------- |
+| [src/public/installation.tsx](src/public/installation.tsx) | Public group/provider/bundle API  |
+| [src/i18n/index.ts](src/i18n/index.ts)                     | Pi translation bundle aggregation |
+| [lib/i18n-runtime.ts](lib/i18n-runtime.ts)                 | Dictionary registration helper    |
+
+## Boundaries and integration
+
+Individual UI implementations belong to pi-ui-* packages. pi-workbench interleaves these groups with Shell contributions and owns the final product activation order.
+
+PiAgentRuntimeContributionsProvider supplies Pi resource backends; Shell owns generic file buffers and surfaces. External Session Import is an explicit opt-in contribution, not a default group member.
+
+These are Workbench UI contributions. Agent-executed Pi extension defaults belong to pi-workbench-runtime.
+
+Related owners:
+
+- [@workbench/pi-workbench](../../product/pi-workbench/README.md)
+- [@workbench/pi-ui-toolbox](../pi-ui-toolbox/README.md)
+- [@workbench/pi-ui-status](../pi-ui-status/README.md)
+- [@workbench/pi-ui-session-import](../pi-ui-session-import/README.md)
+
+## Maintenance and validation
+
+```bash
+pnpm --filter @workbench/pi-ui-extensions typecheck
+```
+
+Keep implementation in `src/` and consumed internal helpers in `lib/`, preserving the current shallow TypeScript layout. Cross-package references use public exports and `workspace:*`. See the [validation record](../../../docs/package-layout-validation.md) for non-UI regression selection and build checks. Documentation-only edits require entry/path/format checks; UI/DOM/Hook tests and interactive smoke tests remain excluded for this refactor.

@@ -1,6 +1,64 @@
-# Browser for Pi
+# @workbench/pi-runtime-browser
 
-`@workbench/pi-runtime-browser` is a Pi package containing 40 `browser_*` tools, the compatible `workbench_browser` tool, and the `browser-use` skill. It works in Workbench and in standalone Pi CLI, using the same browser engine and command contracts.
+[中文](README.zh-CN.md) · [Package navigation](../../README.md) · [Layer overview](../README.md)
+
+A distributable Pi Browser package for Workbench and standalone Pi CLI.
+
+Execution environment: Node.js / server.
+
+## Responsibilities
+
+- Expose browser tools through the shared BrowserHost contract and Workbench browser engine.
+- Use the injected Workbench host or lazily own an isolated browser for a standalone Pi session.
+- Ship the browser-use skill with the extension so the package can be installed independently.
+
+## Imports
+
+```ts
+import browserExtension, { createBrowserExtension } from "@workbench/pi-runtime-browser";
+```
+
+These examples identify public imports. Supply the dependencies and options declared by the entry when constructing services or installing capabilities.
+
+### Public entries and source
+
+[package.json](package.json) `exports` is authoritative. This table lists all current public entries. Source links locate implementations; cross-package code imports the package entry on the left.
+
+| Import path                               | Entry source                           |
+| ----------------------------------------- | -------------------------------------- |
+| `@workbench/pi-runtime-browser`           | [src/index.ts](./src/index.ts)         |
+| `@workbench/pi-runtime-browser/resources` | [src/resources.ts](./src/resources.ts) |
+
+## Source navigation
+
+| Location                                                   | Purpose                                 |
+| ---------------------------------------------------------- | --------------------------------------- |
+| [src/index.ts](src/index.ts)                               | Extension and host integration          |
+| [src/tools.ts](src/tools.ts)                               | Named browser tool catalog              |
+| [src/standalone-host.ts](src/standalone-host.ts)           | Standalone session lifecycle            |
+| [src/resources.ts](src/resources.ts)                       | Development/artifact resource locations |
+| [lib/script-worker.ts](lib/script-worker.ts)               | Isolated script execution worker        |
+| [skills/browser-use/SKILL.md](skills/browser-use/SKILL.md) | Companion skill                         |
+
+## Boundaries and integration
+
+pi-workbench-runtime owns Workbench default package registration. Browser engine behavior belongs to browser-server; the SDK service layer does not own this extension or its companion skill.
+
+Related owners:
+
+- [@workbench/browser-server](../../server/browser-server/README.md)
+- [@workbench/browser-contracts](../../contracts/browser-contracts/README.md)
+- [@workbench/pi-workbench-runtime](../../product/pi-workbench-runtime/README.md)
+
+## Maintenance and validation
+
+```bash
+pnpm --filter @workbench/pi-runtime-browser typecheck
+```
+
+Keep implementation in `src/` and consumed internal helpers in `lib/`, preserving the current shallow TypeScript layout. Cross-package references use public exports and `workspace:*`. See the [validation record](../../../docs/package-layout-validation.md) for non-UI regression selection and build checks. Documentation-only edits require entry/path/format checks; UI/DOM/Hook tests and interactive smoke tests remain excluded for this refactor.
+
+## Browser operation guide
 
 In Workbench, the package uses the browser selected in **Settings → Browser → Browser connection**: the persistent in-app browser (default), or an existing Chrome connection with a selected user Profile. Both modes share the existing browser surfaces and permission UI. In standalone Pi, it lazily starts an isolated headless Chrome or Chromium instance for the current Pi session. Standalone mode does not open a visible browser window or attach to the user's normal Chrome, Edge, or Workbench profile.
 
@@ -12,7 +70,7 @@ From the Workbench repository, install its source directory into Pi:
 pi install /absolute/path/to/workbench-ui/packages/pi-runtime/pi-runtime-browser
 ```
 
-Pi records local directory packages by path. Keep the directory available after installation. Start a new Pi session, or run `/reload` in an idle session, to load the extension and skill. The source manifest loads `index.ts`, so a reload uses the latest source without a build. Workbench deploys and registers the same package at `packages/.builtin/browser` under its Pi agent directory; a second manual installation there is unnecessary.
+Pi records local directory packages by path. Keep the directory available after installation. Start a new Pi session, or run `/reload` in an idle session, to load the extension and skill. The source manifest loads `src/index.ts`, so a reload uses the latest source without a build. Workbench deploys and registers the same package at `packages/.builtin/browser` under its Pi agent directory; a second manual installation there is unnecessary.
 
 To create a distributable local archive, run from this package directory:
 
@@ -71,7 +129,7 @@ JavaScript and local script execution require the user's full CDP setting. A scr
 
 ## Use the tool and skill
 
-Ask Pi to use Browser, or invoke `/skill:browser` with your task. The skill explains how to choose a tab, observe the page, act on the current snapshot, and verify the result.
+Ask Pi to use Browser, or invoke `/skill:browser-use` with your task. The skill explains how to choose a tab, observe the page, act on the current snapshot, and verify the result.
 
 | Operation                                   | Tool arguments                                     |
 | ------------------------------------------- | -------------------------------------------------- |
@@ -118,5 +176,3 @@ File chooser requests, browser errors, and completed or canceled downloads appea
 Page dialogs are distinct from permission prompts: `dialog.respond` answers a page alert, confirmation, or prompt. It cannot grant download, upload, or history access. Full CDP access is disabled by default; ordinary snapshots, clicking, filling, navigation, and screenshots do not require it.
 
 Standalone mode has no Workbench sign-in window and does not import another browser's authentication. If a site requires authentication that cannot be completed in the current host, report that limitation instead of claiming access or silently substituting a different site.
-
-Source layout: src owns this capability and its contracts; lib contains consumed internal helpers; tests live at the package root. Example consumer: `src/script.ts` imports `lib/script-worker.ts`. Capability and helper code remains TS/TSX; existing build tooling retains its language.

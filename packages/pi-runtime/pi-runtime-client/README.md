@@ -1,58 +1,85 @@
-# `@workbench/pi-runtime-client`
+# @workbench/pi-runtime-client
 
-Pi 的浏览器侧 Headless Runtime 实现。
+[中文](README.zh-CN.md) · [Package navigation](../../README.md) · [Layer overview](../README.md)
 
-## State flow
+Browser-side Pi implementation of Workbench AgentRuntime and capability APIs.
 
-```text
-Pi transport events / history
-  -> PiClientSession
-  -> canonical PiConversationMessage repository
-  -> PiConversationAssembler
-  -> Workbench ConversationSnapshot + stable Node/Block observables
-  -> Shell renderers and extension Slots
+Execution environment: Browser / React.
+
+## Responsibilities
+
+- Install one Pi runtime and expose finite Host, workspace, model, session and interaction capabilities.
+- Coordinate the session directory, canonical history, attachment preparation, queues and live conversation state.
+- Adapt Pi-specific errors and expose configuration, resources, Trace, usage and import APIs through explicit entries.
+
+## Imports
+
+```ts
+import { createPiAgentRuntimeInstallation } from "@workbench/pi-runtime-client/installation";
+import type { PiAgentRuntimeInstallationOptions } from "@workbench/pi-runtime-client/installation";
 ```
 
-`PiClientSession` 是单个会话历史、实时流、乐观消息、队列、交互与运行状态的唯一可变 owner。
-`PiSessionManager` 实现 `AgentRuntime`，负责目录、选择、会话缓存与传输帧路由。应用安装层把同一个
-manager 放入 `RuntimeProvider`；不会创建第二套消息 store、reducer、连接或协议。
+These examples identify public imports. Supply the dependencies and options declared by the entry when constructing services or installing capabilities.
 
-Each client session receives the finite `PiClientSessionDependencies` contract. The manager binds
-installation-scoped transport, catalog, model, feedback, and fork operations through callbacks; the
-session never receives the manager object. Message projection remains in `pi-conversation-adapter`, and the
-single connection/generation owner remains in `pi-rpc-client`.
+This package has no root entry; select an explicit subpath from the table below.
 
-## Internal boundaries
+### Public entries and source
 
-- `transport/`：RPC/WebSocket、generation、watermark 与 gap detection
-- `runtime/manager.ts`：会话目录、选择、元数据、缓存与帧路由
-- `runtime/session.ts`：单个会话状态与 Headless actions
-- `conversation/`：规范化 Pi 消息、repository、Node/Block 投影与结构共享
-- `integration/`：React Provider、命令目录、workspace 与 thread store 接线
+[package.json](package.json) `exports` is authoritative. This table lists all current public entries. Source links locate implementations; cross-package code imports the package entry on the left.
 
-未变化的 Node/Block 引用保持稳定。普通发布使用 microtask，流式 delta 使用当前 animation-frame
-边界，终态立即发布。
+| Import path                                     | Entry source                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------------ |
+| `@workbench/pi-runtime-client/usage-statistics` | [src/public/usage-statistics.ts](./src/public/usage-statistics.ts) |
+| `@workbench/pi-runtime-client/installation`     | [src/public/installation.tsx](./src/public/installation.tsx)       |
+| `@workbench/pi-runtime-client/errors`           | [src/public/errors.ts](./src/public/errors.ts)                     |
+| `@workbench/pi-runtime-client/host`             | [src/public/host.ts](./src/public/host.ts)                         |
+| `@workbench/pi-runtime-client/resources`        | [src/public/resources.ts](./src/public/resources.ts)               |
+| `@workbench/pi-runtime-client/configuration`    | [src/public/configuration.ts](./src/public/configuration.ts)       |
+| `@workbench/pi-runtime-client/workspace`        | [src/public/workspace.ts](./src/public/workspace.ts)               |
+| `@workbench/pi-runtime-client/external-import`  | [src/public/external-import.ts](./src/public/external-import.ts)   |
+| `@workbench/pi-runtime-client/context-trace`    | [src/public/context-trace.ts](./src/public/context-trace.ts)       |
 
-## Public boundary
+## Source navigation
 
-消费者只能使用显式 feature subpath。该包不暴露 root barrel、原始 transport、manager class 或
-manager React Context；跨层代码直接导入能力 owner，而不是把 `runtime/manager.ts` 当内部 barrel。
+| Location                                                                                   | Purpose                             |
+| ------------------------------------------------------------------------------------------ | ----------------------------------- |
+| [src/public/installation.tsx](src/public/installation.tsx)                                 | Public installation entry           |
+| [src/integration/pi-runtime-installation.tsx](src/integration/pi-runtime-installation.tsx) | Installation and dependency binding |
+| [src/runtime/manager.ts](src/runtime/manager.ts)                                           | Runtime orchestration               |
+| [src/runtime/manager-catalog.ts](src/runtime/manager-catalog.ts)                           | Directory state owner               |
+| [src/runtime/session.ts](src/runtime/session.ts)                                           | Single-session orchestration        |
+| [src/runtime/session-history.ts](src/runtime/session-history.ts)                           | Canonical history owner             |
+| [src/runtime/session-attachments.ts](src/runtime/session-attachments.ts)                   | Attachment lifecycle owner          |
+| [lib/fork-title.ts](lib/fork-title.ts)                                                     | Fork title helper                   |
 
-应用组合入口使用 `./installation` 安装 Pi Runtime，使用 `./workbench-settings` 创建绑定当前 Host 的
-Workbench settings port。Pi Contributions 只消费以下专属入口：
+## Boundaries and integration
 
-- `./configuration`：Agent Settings、Provider 认证与模型配置；
-- `./resources`：Toolbox 的 Skill、Extension、Prompt、Package 及资源文件；
-- `./context-trace`：Pi trace 查询、事件订阅和 Data Block 投影；
-- `./external-import`：外部会话扫描与导入；
-- `./usage-statistics`：按本地日期读取已保存会话的 Token 与聊天活动汇总；按 Runtime 实例保留上次快照，页面重开先显示同一时区的缓存，再后台刷新；
-- `./host`、`./workspace`：Pi Version/Toolbox 所需的只读订阅；
-- `./errors`：Pi 专属错误及资源文件边界的 Workbench 错误映射。
+The manager binds a finite PiClientSessionDependencies contract; sessions do not receive the whole manager. Catalog, history and attachments have focused owners within the same authoritative state graph.
 
-Shell 的 host、workspace、model selection、interaction、scratch session、context、automation 和
-attachment 功能通过 `WorkbenchAgentRuntimeCapabilities` 访问同一个 manager。通用消息和线程状态
-使用 Workbench projection；相关 Pi RPC 和投影 helper 留在实现内部，不提供重复的公开 facade。
+Transport lives in pi-rpc-client and message projection in pi-conversation-adapter. There are no local transport/ or conversation/ ownership directories to import.
 
-Source layout: src owns this capability and its contracts; lib contains consumed internal helpers; tests live at the package root. Example consumer: `src/runtime/manager.ts` imports `lib/fork-title.ts`. Capability and helper code remains TS/TSX; existing build tooling retains its language.
+Workbench settings clients come from services-client/settings and are wired by pi-workbench. This package does not expose a workbench-settings entry.
 
-Spec008 internal owners: `runtime/manager-catalog.ts` owns directory snapshots, ordering, pin/archive deltas and request generation. `runtime/session-history.ts` owns canonical history, branch/page state, sequence acceptance, index invalidation and page deduplication; `runtime/session-attachments.ts` owns uploads, preparation and attachment cleanup. `manager.ts` coordinates the installed runtime and `session.ts` coordinates one conversation using the finite dependency contract. They retain one connection and authoritative message graph. Host event notification timing remains unchanged.
+Stable Node/Block references and the existing microtask/animation-frame/terminal publication timing are retained. Generic UI consumes Workbench capabilities instead of Pi protocol objects.
+
+Related owners:
+
+- [@workbench/pi-rpc-client](../pi-rpc-client/README.md)
+- [@workbench/pi-conversation-adapter](../pi-conversation-adapter/README.md)
+- [@workbench/pi-workbench](../../product/pi-workbench/README.md)
+- [@workbench/agent-runtime-client](../../agent-runtime/agent-runtime-client/README.md)
+- [@workbench/services-client](../../client/services-client/README.md)
+
+```text
+Pi transport / history → PiClientSession + focused state owners
+                      → PiConversationAssembler
+                      → Workbench ConversationSnapshot + Node/Block observables
+```
+
+## Maintenance and validation
+
+```bash
+pnpm --filter @workbench/pi-runtime-client typecheck
+```
+
+Keep implementation in `src/` and consumed internal helpers in `lib/`, preserving the current shallow TypeScript layout. Cross-package references use public exports and `workspace:*`. See the [validation record](../../../docs/package-layout-validation.md) for non-UI regression selection and build checks. Documentation-only edits require entry/path/format checks; UI/DOM/Hook tests and interactive smoke tests remain excluded for this refactor.

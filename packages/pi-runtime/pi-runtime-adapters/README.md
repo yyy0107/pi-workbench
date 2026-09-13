@@ -1,17 +1,64 @@
-# `@workbench/pi-runtime-adapters`
+# @workbench/pi-runtime-adapters
 
-Pi Runtime 的 client/server 共用纯逻辑：Runtime 身份、命令投影、消息 reducer、模型能力与会话展示/
-分页规则。
+[中文](README.zh-CN.md) · [Package navigation](../../README.md) · [Layer overview](../README.md)
 
-## Public entries
+Shared Pi Runtime identity and deterministic data adaptation.
 
-- `@workbench/pi-runtime-adapters/descriptor`
-- `@workbench/pi-runtime-adapters/commands`
-- `@workbench/pi-runtime-adapters/messages`
-- `@workbench/pi-runtime-adapters/models`
-- `@workbench/pi-runtime-adapters/sessions`
+Execution environment: Shared deterministic data/contracts for client and server.
 
-本包没有根入口，不拥有网络、文件系统、凭据、Pi coding-agent runtime 对象、React 或浏览器 UI
-状态。它只把 Pi protocol 投影为可在 Runtime 两端复用的确定性逻辑。
+## Responsibilities
 
-Source layout: src owns this capability and its contracts; lib contains consumed internal helpers; tests live at the package root. Example consumer: `src/commands.ts` imports `lib/prompt-template.ts`. Capability and helper code remains TS/TSX; existing build tooling retains its language.
+- Project commands, reduce streamed messages and interpret model capabilities and session presentation data.
+- Share composer prompt adaptation and existing formatting/pagination rules across consumers.
+
+## Imports
+
+```ts
+import { PI_AGENT_RUNTIME_DESCRIPTOR } from "@workbench/pi-runtime-adapters/descriptor";
+```
+
+These examples identify public imports. Supply the dependencies and options declared by the entry when constructing services or installing capabilities.
+
+This package has no root entry; select an explicit subpath from the table below.
+
+### Public entries and source
+
+[package.json](package.json) `exports` is authoritative. This table lists all current public entries. Source links locate implementations; cross-package code imports the package entry on the left.
+
+| Import path                                      | Entry source                                       |
+| ------------------------------------------------ | -------------------------------------------------- |
+| `@workbench/pi-runtime-adapters/descriptor`      | [src/descriptor.ts](./src/descriptor.ts)           |
+| `@workbench/pi-runtime-adapters/commands`        | [src/commands.ts](./src/commands.ts)               |
+| `@workbench/pi-runtime-adapters/messages`        | [src/messages.ts](./src/messages.ts)               |
+| `@workbench/pi-runtime-adapters/models`          | [src/models.ts](./src/models.ts)                   |
+| `@workbench/pi-runtime-adapters/sessions`        | [src/sessions.ts](./src/sessions.ts)               |
+| `@workbench/pi-runtime-adapters/composer-prompt` | [src/composer-prompt.ts](./src/composer-prompt.ts) |
+
+## Source navigation
+
+| Location                                         | Purpose                     |
+| ------------------------------------------------ | --------------------------- |
+| [src/descriptor.ts](src/descriptor.ts)           | Stable runtime identity     |
+| [src/models.ts](src/models.ts)                   | Model capability adaptation |
+| [src/messages.ts](src/messages.ts)               | Message adaptation entry    |
+| [src/composer-prompt.ts](src/composer-prompt.ts) | Composer prompt adaptation  |
+| [lib/prompt-template.ts](lib/prompt-template.ts) | Prompt formatting helper    |
+
+## Boundaries and integration
+
+The package does not own connections, credentials or SDK session lifecycle. Product resource installation and default extension selection live in pi-workbench-runtime.
+
+Related owners:
+
+- [@workbench/pi-runtime-client](../pi-runtime-client/README.md)
+- [@workbench/pi-sdk-models](../../pi-sdk/pi-sdk-models/README.md)
+- [@workbench/pi-conversation-adapter](../pi-conversation-adapter/README.md)
+- [@workbench/pi-workbench-runtime](../../product/pi-workbench-runtime/README.md)
+
+## Maintenance and validation
+
+```bash
+pnpm --filter @workbench/pi-runtime-adapters typecheck
+```
+
+Keep implementation in `src/` and consumed internal helpers in `lib/`, preserving the current shallow TypeScript layout. Cross-package references use public exports and `workspace:*`. See the [validation record](../../../docs/package-layout-validation.md) for non-UI regression selection and build checks. Documentation-only edits require entry/path/format checks; UI/DOM/Hook tests and interactive smoke tests remain excluded for this refactor.
