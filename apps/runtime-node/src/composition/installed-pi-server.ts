@@ -39,7 +39,7 @@ import {
   createPiAgentServerImplementation,
   shutdownPiPackageCatalogService,
   type PiAgentHostBindings,
-} from "@workbench/pi-server/installation";
+} from "@workbench/pi-runtime-server/installation";
 import {
   cancelSession as cancelPiSession,
   createSession as createPiSession,
@@ -53,12 +53,12 @@ import {
   sendPrompt as sendPiPrompt,
   setPromptQueuePaused as setPiPromptQueuePaused,
   steerQueuedPrompt as steerPiQueuedPrompt,
-} from "@workbench/pi-server/legacy";
+} from "@workbench/pi-runtime-server/legacy";
 import {
   createRunningEventResponse as createPiRunningEventResponse,
   createSessionEventResponse as createPiSessionEventResponse,
   pickWorkspaceDirectory as pickPiWorkspaceDirectory,
-} from "@workbench/pi-server/legacy";
+} from "@workbench/pi-runtime-server/legacy";
 import {
   createDefaultPiRpcRouteGroups,
   createPiRpcRouter,
@@ -67,8 +67,8 @@ import {
   handleSessionExportRequest as handlePiSessionExportRequest,
   type PiRpcPostHandler,
   type PiRuntimeHttpHandler,
-} from "@workbench/pi-server/http";
-import { createWorkbenchBashToolOverride } from "@workbench/pi-terminal-tool";
+} from "@workbench/pi-runtime-server/http";
+import { createWorkbenchBashToolOverride } from "@workbench/pi-runtime-terminal";
 import { createTerminalShellPreference } from "@workbench/terminal-server/shell";
 import { ToolTerminalSessionManager } from "@workbench/terminal-server/tool-sessions";
 import { runWorkbenchShutdownHooks } from "@workbench/server-core/shutdown-hooks";

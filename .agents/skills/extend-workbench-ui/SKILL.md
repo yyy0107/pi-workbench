@@ -12,7 +12,7 @@ Implement frontend features through the repository's typed, statically bundled e
 1. Follow the repository `AGENTS.md` and applicable nested instructions, reuse unchanged context already read, and preserve unrelated worktree changes.
 2. Read the relevant contribution section of [references/contracts.md](references/contracts.md) when adding or changing an extension API use or resolving a contract question. Copy-only and styling-only edits do not require reading the full contract reference.
 3. Use the matching example in [references/recipes.md](references/recipes.md) when an implementation pattern is needed; do not read unrelated recipes.
-4. Generic host/session/workspace/model UI uses Workbench contracts, projections, and capability hooks from `@workbench/agent-runtime-client/context`; inspect their owners before choosing an API. For Pi-specific configuration, resources, or diagnostics, read [`packages/pi/README.md`](../../../packages/pi/README.md) and inspect the named Pi contract/client entry. Do not infer APIs from legacy routes or a generic Harness reference.
+4. Generic host/session/workspace/model UI uses Workbench contracts, projections, and capability hooks from `@workbench/agent-runtime-client/context`; inspect their owners before choosing an API. For Pi-specific configuration, resources, or diagnostics, read [`packages/pi-runtime/integration.md`](../../../packages/pi-runtime/integration.md) and inspect the named Pi contract/client entry. Do not infer APIs from legacy routes or a generic Harness reference.
 5. Use `$pi-coding-agent-sdk` when work reaches the server-side AgentSession, coding-agent extension, resource-loader, or `@earendil-works/pi-coding-agent` layer. Keep that SDK behind the Workbench Pi server boundary rather than importing it into browser components.
 6. Use `$pi-ai-sdk` when work directly uses `@earendil-works/pi-ai` models, providers, authentication, messages, tool schemas, image requests, or streaming events. Use both Pi SDK skills only when the task genuinely crosses both layers.
 7. Read `docs/extensions.md` only when the task asks for public documentation or a detailed tutorial.
@@ -75,7 +75,7 @@ When no existing Slot fits, add a typed host Slot first, then register the featu
   `packages/extension-platform/extension-sdk/src/api/`, and runtime hooks in
   `packages/extension-platform/extension-host/src/index.ts` when a mounted component needs Host state.
 - Inspect the owning package's extension groups, then the application composition in
-  `packages/client/pi-product/src/extensions.ts`.
+  `packages/product/pi-workbench/src/extensions.ts`.
 - Choose the closest builtin example:
   - `connection-status`: minimal Slot;
   - `token-usage`: derive the active browser conversation Runtime state;
@@ -144,10 +144,10 @@ Keep `setup()` synchronous. Do not call React hooks in it. Return every custom e
 
 Export a fixed feature from its local `index.ts` and add it to the owning package's semantic group.
 Shell groups live in `packages/client/shell/src/extensions/builtin-extensions.ts`; Pi groups live
-behind `@workbench/pi-contributions/installation`. The Web application interleaves
+behind `@workbench/pi-ui-extensions/installation`. The Web application interleaves
 those groups only in
-`packages/client/pi-product/src/extensions.ts`. Export independently installable contributions from their capability package and assemble them in
-`packages/client/pi-product/src/extensions.ts`. Keep Shell-owned brand and sidebar extensions in
+`packages/product/pi-workbench/src/extensions.ts`. Export independently installable contributions from their capability package and assemble them in
+`packages/product/pi-workbench/src/extensions.ts`. Keep Shell-owned brand and sidebar extensions in
 `packages/client/shell/src/extensions/`. Each capability package has real `src/` implementation,
 consumed TypeScript helpers in `lib/`, and root `tests/`; src/lib each allow one child directory.
 
@@ -167,7 +167,7 @@ pnpm --filter <owner-package-name> run typecheck
 ```
 
 For public contract or composition changes, also check directly affected consumers. Use an affected app/package build when bundling, routing, or client/server behavior needs verification; reserve root `pnpm build` for artifact composition or cross-host compatibility that narrower checks cannot establish.
-For Pi transport or session behavior, run the relevant tests identified in `packages/pi/README.md`. Documentation-only edits need static review, not TypeScript checks or builds. Once relevant checks pass, repeat them only after a further change or new evidence of a problem.
+For Pi transport or session behavior, run the relevant tests identified in `packages/pi-runtime/integration.md`. Documentation-only edits need static review, not TypeScript checks or builds. Once relevant checks pass, repeat them only after a further change or new evidence of a problem.
 
 ## Enforce the guardrails
 
@@ -198,7 +198,7 @@ For Pi transport or session behavior, run the relevant tests identified in `pack
   `apps/web/src/components/right-workspace/`.
 - Do not assume registering a Renderer exposes or executes a model tool.
 - Shell, Core, and Extension SDK/Host must not import Pi packages, parse Pi raw events, or handle `PiApiError`. Generic UI consumes Workbench projections, optional capability hooks, and `WorkbenchAgentCapabilityError`; hide unsupported entries or show an unavailable state for restored UI, without Runtime ID branches or fake capabilities.
-- Only Pi-specific contributions use the narrow `@workbench/pi-client/*` facades described in `packages/pi/README.md`. Do not call raw endpoints, open another event stream, or copy RPC payload types. Treat `/api/pi/**` as compatibility-only unless the README names an exception. Route server-side coding-agent work through `$pi-coding-agent-sdk` and direct Pi model/provider/stream work through `$pi-ai-sdk`.
+- Only Pi-specific contributions use the narrow `@workbench/pi-runtime-client/*` facades described in `packages/pi-runtime/integration.md`. Do not call raw endpoints, open another event stream, or copy RPC payload types. Treat `/api/pi/**` as compatibility-only unless the README names an exception. Route server-side coding-agent work through `$pi-coding-agent-sdk` and direct Pi model/provider/stream work through `$pi-ai-sdk`.
 - Handle rejected Promises in event handlers; React Error Boundaries do not catch event or arbitrary async errors.
 - Keep API keys, secrets, and privileged execution out of frontend extensions.
 

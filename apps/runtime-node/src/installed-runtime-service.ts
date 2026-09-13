@@ -1,7 +1,7 @@
 import { WebSocketServer } from "ws";
 
-import { STREAM_PATHS } from "@workbench/pi-protocol/stream";
-import { createNoServerWebSocketGateway } from "@workbench/pi-server/websocket";
+import { STREAM_PATHS } from "@workbench/pi-rpc-contracts/stream";
+import { createNoServerWebSocketGateway } from "@workbench/pi-runtime-server/websocket";
 import {
   createAuthenticatedNoServerWebSocketServer,
   createRuntimeWebSocketAuthenticationAdmission,

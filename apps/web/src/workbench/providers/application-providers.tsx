@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import {
   PiWorkbenchApplicationProviders,
   useWorkbenchApplicationInstallationId,
-} from "@workbench/pi-product/application";
+} from "@workbench/pi-workbench/application";
 import type { Locale } from "@workbench/shell/i18n";
 import type { RuntimeConnection } from "@workbench/host-contracts";
 import { webAppTranslationBundle } from "@/app/i18n/bundle";

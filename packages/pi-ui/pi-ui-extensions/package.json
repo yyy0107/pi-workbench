@@ -1,0 +1,60 @@
+{
+  "name": "@workbench/pi-ui-extensions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./installation": {
+      "types": "./src/public/installation.tsx",
+      "import": "./src/public/installation.tsx",
+      "default": "./src/public/installation.tsx"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-client": "workspace:*",
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/code-highlighting": "workspace:*",
+    "@workbench/extension-host": "workspace:*",
+    "@workbench/extension-sdk": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/markdown": "workspace:*",
+    "@workbench/pi-rpc-contracts": "workspace:*",
+    "@workbench/pi-runtime-adapters": "workspace:*",
+    "@workbench/pi-runtime-client": "workspace:*",
+    "@workbench/pi-ui-diagnostics": "workspace:*",
+    "@workbench/pi-ui-session-import": "workspace:*",
+    "@workbench/pi-ui-settings": "workspace:*",
+    "@workbench/pi-ui-settings-models": "workspace:*",
+    "@workbench/pi-ui-status": "workspace:*",
+    "@workbench/pi-ui-toolbox": "workspace:*",
+    "@workbench/settings-runtime": "workspace:*",
+    "@workbench/shell": "workspace:*",
+    "@workbench/shell-context": "workspace:*",
+    "@workbench/ui": "workspace:*",
+    "@workbench/ui-conversation": "workspace:*",
+    "@workbench/ui-settings": "workspace:*",
+    "@workbench/workspace-files": "workspace:*",
+    "lucide-react": "^1.29.0",
+    "simple-icons": "^16.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@workbench/services-client": "workspace:*",
+    "@workbench/ui-testkit": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8"
+  }
+}

@@ -110,10 +110,11 @@ pnpm test
 
 ## 文档
 
+- [包导航与 Pi SDK 导入入口](./packages/README.md)
 - [架构说明](./docs/workbench-public-layers.md)
 - [扩展开发](./docs/extensions.md)
 - [国际化](./docs/i18n.zh-CN.md)
-- [Pi Runtime](./packages/pi/README.md)
+- [Pi Runtime](./packages/pi-runtime/integration.md)
 
 ## 开源协议
 

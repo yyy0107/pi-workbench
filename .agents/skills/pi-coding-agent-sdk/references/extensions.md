@@ -136,7 +136,7 @@ Tool authors own this boundary: `registerTool()` does not automatically truncate
 4. Prefer an existing readable source with offset/limit or a cursor. Otherwise follow the SDK's temporary-file example using Node's filesystem APIs; retain the complete, already filtered/redacted result. Use a private directory and `0600` files for potentially sensitive settings. Return an absolute path and retrieval instructions; long JSON strings need field extraction or string slices because `read` is line based. Keep successful files available after the call; clean incomplete files on error/cancellation.
 5. Preserve mutation semantics: if persistence succeeded but output spill failed, report the committed revision/status and a bounded output error. Do not imply that repeating the update is necessary. Respect the operation's AbortSignal where cancellation is still possible.
 
-The Workbench settings implementation at `packages/pi/pi-tools/src/workbench-settings.ts` demonstrates field selection and JSON offload for both describe and update. It reuses Pi's public budget checks without modifying the SDK or installing a parallel result middleware.
+The Workbench settings implementation at `packages/pi-runtime/pi-runtime-tools/src/workbench-settings.ts` demonstrates field selection and JSON offload for both describe and update. It reuses Pi's public budget checks without modifying the SDK or installing a parallel result middleware.
 
 Test the owning tool with ordinary data, byte-heavy Unicode, many short lines, and a single oversized line as relevant. Assert bounded model content/details, complete file contents, permissions, and a useful failure/cancellation result. A registration-only load check does not exercise these paths.
 

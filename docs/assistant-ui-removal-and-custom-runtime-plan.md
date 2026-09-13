@@ -1,6 +1,6 @@
 # Workbench 移除 assistant-ui 与自有会话 Runtime 迁移计划
 
-> 当前目录说明：本文保留当时的迁移步骤和验证记录。当前包布局以 [能力包映射](../specs/001-workbench-package-refactor/package-map.md) 为准；Pi 能力位于 `packages/pi/*`，公共界面位于 `packages/client/*`，对话与工作区分别位于 `packages/client/*`、`packages/workspace/*`。
+> 当前目录说明：本文保留当时的迁移步骤和验证记录。当前包布局与导入入口以 [包导航](../packages/README.md) 为准；Pi 按 `pi-sdk`、`pi-runtime`、`pi-ui` 分类，产品装配位于 `product/pi-workbench`。
 
 状态：Phase 1–9 已完成；浏览器 Runtime 迁移与 durable chunk 协议均已收口（2026-09-03）
 

@@ -14,7 +14,7 @@
 
 ## 包命名
 
-- 库包目录为 `packages/<domain>/<package-name>`，叶目录名必须等于 `package.json` 中 `@workbench/` 后的包名。命名约定及迁移映射见 [docs/package-naming.md](docs/package-naming.md)。包名变化不得修改扩展、协议、持久化或翻译 bundle 的稳定 ID。
+- 库包目录为 `packages/<domain>/<package-name>`，叶目录名必须等于 `package.json` 中 `@workbench/` 后的包名。命名约定及迁移映射见 [docs/package-naming.md](docs/package-naming.md)，能力与导入入口见 [packages/README.md](packages/README.md)。Pi 按 `pi-sdk`、`pi-runtime`、`pi-ui` 分类，前端产品装配位于 `product/pi-workbench`，Node 内置资源与默认扩展清单位于 `product/pi-workbench-runtime`；Workbench 工具实现放在 `pi-runtime`，不放进 SDK 服务包。包名变化不得修改扩展、协议、持久化或翻译 bundle 的稳定 ID。
 
 ## i18n 总则
 

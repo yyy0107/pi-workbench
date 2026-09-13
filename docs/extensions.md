@@ -79,7 +79,7 @@ packages/workspace/notes/
 ```
 
 这是新增能力的示例路径。src 放真实能力和契约，lib 只放该能力实际使用的辅助源码；两处均保留 TS/TSX，最多一级子目录。跨包使用公开 exports 和 workspace 依赖。
-公共界面归 `packages/client/*`，工作区归 `packages/workspace/*`，对话归 `packages/client/*`，Pi 专属界面归 `packages/pi/*-ui`。产品在 `packages/client/pi-product/src/extensions.ts` 按原顺序安装贡献，Shell 保留布局和侧栏装配。
+公共界面归 `packages/client/*`，工作区归 `packages/workspace/*`，对话归 `packages/client/*`，Pi 专属界面归 `packages/pi-ui/pi-ui-*`。产品在 `packages/product/pi-workbench/src/extensions.ts` 按原顺序安装贡献，Shell 保留布局和侧栏装配。
 
 最小扩展只有一个 `extension.ts`：
 
@@ -316,7 +316,7 @@ Panel Registry 只保存定义。打开状态、位置和尺寸由 Panel Store �
 在所属 package 的公开 extension group 中加入扩展；Shell 的入口是
 [`packages/client/shell/src/extensions/builtin-extensions.ts`](../packages/client/shell/src/extensions/builtin-extensions.ts)，
 最终顺序由
-[`apps/web/src/workbench/runtime-contributions/installed-workbench-extensions.ts`](../apps/web/src/workbench/runtime-contributions/installed-workbench-extensions.ts)
+[`packages/product/pi-workbench/src/extensions.ts`](../packages/product/pi-workbench/src/extensions.ts)
 组合：
 
 ```ts
@@ -576,7 +576,7 @@ const contribution = context.workspace.register({
 `open()`、`reveal()` 和 `update()` 中的 `title`、`statusMessage` 接受 `LocalizableText`。内置产品文案必须传入 `defineMessage(...)` 描述符，由 Host 在渲染时按当前 locale 解析；文件名、URL、用户或资源提供的标题保持 literal string。`defineMessage()` 是应用 catalog 唯一的公开描述符构造器，会同时校验包含 namespace 的组合键与参数；raw object literal 不能满足 SDK 的 opaque descriptor 类型。运行时仍使用 plain JSON `{ key }` / `{ key, values }` 形状，因此两种形态都可序列化，旧快照中的字符串会继续兼容恢复。异步失败应通过 `useExtensionErrorReporter()` 保存原始诊断，并只把稳定、面向用户的消息描述符写入 `statusMessage`，不得直接显示 `Error.message`。
 
 当前通用参考实现位于 `packages/workspace/workspace-explorer/src/` 和 `packages/client/ui-terminal/src/`；Pi/Runtime 专属参考实现位于
-`packages/pi/`。
+`packages/pi-ui/`。
 
 ### 跨 Contribution 打开资源：Opener
 
@@ -1095,10 +1095,10 @@ const node = useConversationNode(nodeKeys.at(-1) ?? "");
 Workbench contracts，失败只按 `WorkbenchAgentCapabilityError.code` 处理。能力缺失时隐藏入口，
 历史恢复的页面显示明确不可用状态；不要根据 Runtime ID 分支或创建假实现。
 
-只有 Pi contributions 内的专属功能使用 `@workbench/pi-client/*` 的有限公开入口。
+只有 Pi contributions 内的专属功能使用 `@workbench/pi-runtime-client/*` 的有限公开入口。
 Pi Protocol、`PiApiError` 和原始 Pi 事件不能进入 Shell、Core 或 Extension SDK/Host；事件到
 Conversation snapshot、错误到 Workbench code 的投影均由 Pi Client 完成。完整边界见
-[Pi Runtime 架构](../packages/pi/README.md#架构)。
+[Pi Runtime 架构](../packages/pi-runtime/integration.md#架构)。
 
 ## 14. ID 与注册规则
 
@@ -1149,9 +1149,9 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 
 ## 16. 可参考的现有扩展
 
-- 最小 Slot：[`connection-status`](../packages/pi/pi-ui-status/src/connection-status-extension.ts)
+- 最小 Slot：[`connection-status`](../packages/pi-ui/pi-ui-status/src/connection-status-extension.ts)
 - Model 选择与 Workbench capability：[`model-selector`](../packages/client/ui-model-selection/src/model-selector-extension.ts)
-- Settings + Pi 专属配置：[`setting-model-config`](../packages/pi/pi-ui-settings-models/src/setting-model-config-extension.ts)
+- Settings + Pi 专属配置：[`setting-model-config`](../packages/pi-ui/pi-ui-settings-models/src/setting-model-config-extension.ts)
 - Workspace Surface + Open Handler：[`workspace-file`](../packages/workspace/workspace-file-view/src/extension.ts)
 - Workspace Surface + Command + Tool Renderer：[`terminal`](../packages/client/ui-terminal/src/extension.ts)
 - Sidebar/Header Slot + floating Settings：[`settings`](../packages/client/ui-settings/src/settings-extension.ts)

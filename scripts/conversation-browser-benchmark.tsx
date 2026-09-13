@@ -9,11 +9,11 @@ import {
   useSessionState,
 } from "../packages/agent-runtime/agent-runtime-client/src/hooks";
 import { FakeConversationSession } from "../packages/agent-runtime/agent-runtime-testkit/src/runtime/fake-agent-runtime";
-import { PiConversationAssembler } from "@workbench/pi-conversation/assembler";
+import { PiConversationAssembler } from "@workbench/pi-conversation-adapter/assembler";
 import {
   longConversation,
   appendConversationDelta,
-} from "../packages/pi/pi-client/tests/fixtures/long-conversation";
+} from "../packages/pi-runtime/pi-runtime-client/tests/fixtures/long-conversation";
 import { ConversationList } from "@workbench/ui-conversation-messages/list";
 import { useWorkbenchConversationViewport } from "@workbench/ui-conversation-messages/viewport";
 import { ThreadScrollStateProvider } from "@workbench/ui-conversation-messages/scroll-state";

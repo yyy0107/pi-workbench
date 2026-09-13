@@ -26,7 +26,7 @@ React Workspace Surface
   gating, reconnect replay/close policy, the terminal gateway, transcript projection, and the
   Tree-sitter command policy. The gateway is attached only after the outer Runtime Host has
   accepted authentication and trust.
-- [`@workbench/pi-terminal-tool`](./pi-terminal-tool/) is the sole Pi SDK adapter. It owns the custom
+- [`@workbench/pi-runtime-terminal`](../pi-runtime/pi-runtime-terminal) is the sole Pi SDK adapter. It owns the custom
   `interactive-bash-tool` ToolDefinition and delegates execution to Terminal Server without
   leaking Pi types into the general Terminal packages.
 
@@ -158,4 +158,4 @@ tool timeouts use Pi's finite, positive, Node-timer-bounded validation before a 
 This is a privileged local terminal, not a sandbox. The server is loopback-only by default. If the
 Workbench is exposed through `PI_WORKBENCH_TRUSTED_HOSTS`, the outer deployment must provide
 authentication and TLS as described in the
-[Pi Runtime architecture](../pi/README.md).
+[Pi Runtime architecture](../pi-runtime/integration.md).

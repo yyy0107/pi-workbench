@@ -77,7 +77,7 @@ v0.2.2 更新：为规避 Electron / Chromium 在复制时触发的 `HitTestResu
 ## 检查结果与边界
 
 - 108 项定向测试通过：投影缓存、回放、分支、运行状态、完整及选择式订阅、steering 元数据修订、范围和 Session 切换、消息操作与错误可见性、Markdown、滚动恢复及重叠折叠锁。包含动画帧暂停时 Runtime 仍推进的回归测试。
-- `@workbench/agent-runtime-client`、`@workbench/pi-client`、`@workbench/shell` 类型检查通过；改动文件 oxlint、oxfmt 和 `git diff --check` 通过。
+- `@workbench/agent-runtime-client`、`@workbench/pi-runtime-client`、`@workbench/shell` 类型检查通过；改动文件 oxlint、oxfmt 和 `git diff --check` 通过。
 - `pnpm build` 通过，覆盖 Runtime、Web 和 Electron 构建。
 - 浏览器实际渲染与性能验证在 Chromium 中完成。当前工具无法操作原生应用，因此没有完成独立 Electron 宿主中的手动交互复核；Electron 构建和暂停动画帧的自动回归已通过。
 - 5,000 条只执行优化后的浏览器压力测试；该规模的投影有前后对比，未执行浏览器基线。不将性能时间阈值写入普通单测。
@@ -99,11 +99,11 @@ node scripts/serve-conversation-benchmark.mjs --serve
 **Verify anchors** 检查前插、缩窄与恢复；**Verify reading** 检查浏览器原生查找和跨消息选择；**Toggle conversation** 卸载后用 **Read selection** 读取订阅计数。展开代码、滚动离屏再返回，可检查组件状态保留。
 
 ```bash
-pnpm --filter @workbench/agent-runtime-client --filter @workbench/pi-client --filter @workbench/shell typecheck
+pnpm --filter @workbench/agent-runtime-client --filter @workbench/pi-runtime-client --filter @workbench/shell typecheck
 node --import ./scripts/register-typescript-test-loader.mjs --test \
   packages/agent-runtime/agent-runtime-client/tests/conversation-node-selection.test.ts \
-  packages/pi/pi-client/tests/conversation/conversation-assembler.test.ts \
-  packages/pi/pi-client/tests/runtime/manager-generation.test.ts \
+  packages/pi-runtime/pi-runtime-client/tests/conversation/conversation-assembler.test.ts \
+  packages/pi-runtime/pi-runtime-client/tests/runtime/manager-generation.test.ts \
   packages/client/shell/tests/conversation-node-subscription.test.tsx \
   packages/client/conversation/tests/workbench-conversation-viewport.test.ts \
   packages/client/conversation/tests/message-action-visibility.test.ts \

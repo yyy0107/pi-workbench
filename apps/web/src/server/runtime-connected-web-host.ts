@@ -1,6 +1,6 @@
 import runtimeArtifactAdmission from "@workbench/host-artifact-policy/runtime-admission";
 import type { DesktopSidecarRuntimeConnection } from "@workbench/host-contracts/runtime-connection";
-import { STREAM_PATHS } from "@workbench/pi-protocol/stream";
+import { STREAM_PATHS } from "@workbench/pi-rpc-contracts/stream";
 
 import {
   WEB_APPLICATION_HOST,

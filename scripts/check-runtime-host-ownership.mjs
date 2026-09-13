@@ -15,9 +15,9 @@ const SOURCE_ROOTS = [
   "apps/runtime-node/scripts",
   "apps/runtime-node/src",
   "apps/web/src",
-  "packages/pi/pi-contributions/src",
+  "packages/pi-ui/pi-ui-extensions/src",
   "packages/client/shell/src",
-  "packages/client/pi-product/src",
+  "packages/product/pi-workbench/src",
   "packages/client/services-client/src",
   "runtime",
 ].flatMap((root) =>

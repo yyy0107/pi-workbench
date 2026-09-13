@@ -9,7 +9,7 @@ not import Next.js, React, browser state, or Electron implementation code.
 flowchart LR
   OWNER["Root or Electron process owner"] -->|"versioned NDJSON control"| APP["apps/runtime-node"]
   APP --> HOST["@workbench/host-server"]
-  APP --> PI["@workbench/pi-server"]
+  APP --> PI["@workbench/pi-runtime-server"]
   APP --> TERMINAL["@workbench/terminal-server"]
   APP --> AUTOMATION["@workbench/automation-server"]
   APP --> SETTINGS["@workbench/settings-server"]
@@ -33,8 +33,8 @@ flowchart LR
 - [`@workbench/agent-runtime-server`](../../packages/agent-runtime/agent-runtime-server/README.md) owns the
   Runtime-neutral command, execution, and thread ports plus the singular installation contract.
   Pi session, history, model, resource, and transport semantics remain in the
-  [Pi Runtime packages](../../packages/pi/README.md).
-  [`createPiAgentServerImplementation`](../../packages/pi/pi-server/src/agent-runtime/pi-agent-server-implementation.ts)
+  [Pi Runtime packages](../../packages/pi-runtime/integration.md).
+  [`createPiAgentServerImplementation`](../../packages/pi-runtime/pi-runtime-server/src/agent-runtime/pi-agent-server-implementation.ts)
   implements `WorkbenchAgentServerAdapter`; Host, workspace, Terminal, and Automation retain their
   separate domain ports and composition bindings.
 - [`@workbench/automation-server`](../../packages/server/automation-server/) owns Automation definitions,
@@ -45,7 +45,7 @@ flowchart LR
   environment variables.
 - [`@workbench/terminal-server`](../../packages/terminal/terminal-server/README.md) owns PTY/session lifecycle
   and native dependencies. The Pi-specific Bash tool adapter is the separate
-  `@workbench/pi-terminal-tool` leaf.
+  `@workbench/pi-runtime-terminal` leaf.
 
 Packages do not import this app. The Web app, Electron app, and future native containers consume its
 public process/transport contract; they do not source-import its composition modules.

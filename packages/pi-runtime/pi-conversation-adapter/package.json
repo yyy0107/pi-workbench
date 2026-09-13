@@ -1,0 +1,46 @@
+{
+  "name": "@workbench/pi-conversation-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./assembler": "./src/conversation-assembler.ts",
+    "./projection": "./src/conversation-node-projection.ts",
+    "./model": "./src/pi-conversation-message.ts",
+    "./messages": "./src/messages.ts",
+    "./queue": "./src/queue.ts",
+    "./events": "./src/events.ts",
+    "./live-tokens": "./src/live-tokens.ts",
+    "./usage": "./src/usage.ts",
+    "./statistics": "./src/statistics.ts",
+    "./timing": "./src/timing.ts",
+    "./context-trace": "./src/context-trace.ts",
+    "./rpc": "./src/session-rpc-projection.ts",
+    "./accumulator": "./src/session-message-accumulator.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-client": "workspace:*",
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/agent-runtime-core": "workspace:*",
+    "@workbench/automation-contracts": "workspace:*",
+    "@workbench/core-contracts": "workspace:*",
+    "@workbench/pi-rpc-contracts": "workspace:*",
+    "@workbench/pi-runtime-adapters": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@workbench/agent-runtime-testkit": "workspace:*",
+    "@workbench/ui-testkit": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  }
+}

@@ -743,11 +743,11 @@ produce an unavailable state for restored UI; never branch on Runtime ID or inst
 Shell, Core, and Extension SDK/Host must not import Pi packages or interpret Pi raw events/errors.
 
 For Pi-specific configuration, resources, and diagnostics inside Pi Contributions, read
-`packages/pi/README.md` and verify exact shapes against:
+`packages/pi-runtime/integration.md` and verify exact shapes against:
 
-- `@workbench/pi-protocol/rpc` for unary RPC envelopes and payload/value types;
-- `@workbench/pi-protocol/stream` for mux/host WebSocket frames;
-- the owning `@workbench/pi-client/*` feature facade for browser-side RPC helpers and
+- `@workbench/pi-rpc-contracts/rpc` for unary RPC envelopes and payload/value types;
+- `@workbench/pi-rpc-contracts/stream` for mux/host WebSocket frames;
+- the owning `@workbench/pi-runtime-client/*` feature facade for browser-side RPC helpers and
   subscribed state.
 
 Pi Client owns authoritative snapshots and deltas through the shared paired mux/host WebSocket
@@ -756,7 +756,7 @@ second WebSocket/SSE connection, duplicate payload interfaces, or treat HTTP `20
 success without checking the RPC result envelope.
 
 `/api/pi/**`, legacy contracts, and `legacy-sse.ts` are compatibility paths, not the default for new
-features. Use one only when `packages/pi/README.md` explicitly identifies a remaining exception (for
+features. Use one only when `packages/pi-runtime/integration.md` explicitly identifies a remaining exception (for
 example the current queue-pause compatibility command). If a required method is missing, extend the
 wire contracts, validation/router, domain service, client helper, and tests before wiring the UI.
 Do not infer unimplemented Harness APIs or bypass the trust boundary from a component.
@@ -793,7 +793,7 @@ extensions normally register sections/items synchronously through `context.setti
 
 RightWorkspace and `useOpenerService()` hooks come from `@workbench/workspace-runtime/react`, Workspace
 Surface/Open Handler registration comes from `context.workspace`/`context.openers`, and Pi hooks come
-from the relevant `@workbench/pi-client/*` feature facade.
+from the relevant `@workbench/pi-runtime-client/*` feature facade.
 
 Use the Workbench Agent Runtime hooks for Session state. Message/Block renderers should prefer their
 Host-provided `node`/`block` props; do not mirror chat state in a separate extension store.

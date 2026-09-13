@@ -3,7 +3,7 @@ import { PassThrough, Readable } from "node:stream";
 import test from "node:test";
 
 import { RuntimeHostControlSessionResultCode } from "@workbench/host-server/runtime-host-control-session";
-import { isStdoutTakenOver } from "@workbench/pi-server/installation";
+import { isStdoutTakenOver } from "@workbench/pi-runtime-server/installation";
 
 import {
   disposeInstalledRuntimeLifecycleWithinDeadline,

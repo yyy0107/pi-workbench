@@ -32,7 +32,7 @@ import { fileURLToPath } from "node:url";
 
 import { build, type BuildOptions, type BuildResult, type Metafile } from "esbuild";
 
-import { STREAM_PATHS } from "@workbench/pi-protocol/stream";
+import { STREAM_PATHS } from "@workbench/pi-rpc-contracts/stream";
 import {
   RUNTIME_ARTIFACT_MANIFEST_FILENAME as CONTRACT_RUNTIME_ARTIFACT_MANIFEST_FILENAME,
   RUNTIME_ARTIFACT_MANIFEST_SCHEMA_VERSION,
@@ -3197,22 +3197,20 @@ export async function copyRuntimeBuiltinResources(
 ): Promise<void> {
   // Workbench modules are bundled into server.mjs, so import.meta.url resolves at the artifact root.
   for (const [source, relative] of [
-    ["pi-resources-server/resources/skills", "internal-skills"],
-    ["pi-resources-server/resources/prompts", "internal-prompts"],
-    ["pi-tools/src", "internal-extensions/src"],
-    ["pi-tools/lib", "internal-extensions/lib"],
-    ["pi-tools/resources", "internal-extensions/resources"],
+    ["packages/product/pi-workbench-runtime/resources/skills", "internal-skills"],
+    ["packages/product/pi-workbench-runtime/resources/prompts", "internal-prompts"],
+    ["packages/pi-runtime/pi-runtime-tools/src", "internal-extensions/src"],
+    ["packages/pi-runtime/pi-runtime-tools/lib", "internal-extensions/lib"],
+    ["packages/pi-runtime/pi-runtime-tools/resources", "internal-extensions/resources"],
   ]) {
-    await cp(
-      path.join(repositoryRoot, "packages/pi", source),
-      path.join(outputDirectory, relative),
-      { recursive: true },
-    );
+    await cp(path.join(repositoryRoot, source), path.join(outputDirectory, relative), {
+      recursive: true,
+    });
   }
   const browserBuild = spawnSync(
     process.execPath,
     [
-      path.join(repositoryRoot, "packages/pi/pi-browser/build.mjs"),
+      path.join(repositoryRoot, "packages/pi-runtime/pi-runtime-browser/build.mjs"),
       path.join(outputDirectory, "internal-packages/browser"),
     ],
     { encoding: "utf8" },

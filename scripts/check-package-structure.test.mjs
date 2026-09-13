@@ -38,11 +38,11 @@ test("accepts a two-level package with shallow src and lib and root tests", asyn
 
 test("detects unlisted deep roots, nested packages, deep assets, relative imports and old test locations", async (t) => {
   const root = await fixture(t, {
-    "packages/pi/pi-server/package.json": "{}",
-    "packages/pi/pi-server/src/styles/nested/theme.css": "",
-    "packages/pi/pi-server/src/internal/browser/package.json": "{}",
-    "packages/pi/pi-server/src/internal/browser/src/index.ts": "",
-    "packages/pi/pi-server/src/session.test.ts":
+    "packages/pi-runtime/pi-runtime-server/package.json": "{}",
+    "packages/pi-runtime/pi-runtime-server/src/styles/nested/theme.css": "",
+    "packages/pi-runtime/pi-runtime-server/src/internal/browser/package.json": "{}",
+    "packages/pi-runtime/pi-runtime-server/src/internal/browser/src/index.ts": "",
+    "packages/pi-runtime/pi-runtime-server/src/session.test.ts":
       'import "../../../contracts"; const fixture = `import "../../../../fake";`;',
   });
   const { violations } = await packageStructureInventory(root);

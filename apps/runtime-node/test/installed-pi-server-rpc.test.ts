@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { getAgentDir, VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
-import { getPiAgentHostBindings } from "@workbench/pi-server/installation";
+import { getPiAgentHostBindings } from "@workbench/pi-runtime-server/installation";
 import type { BrowserCommand } from "@workbench/browser-contracts";
 
 import type {
@@ -13,7 +13,7 @@ import type {
   ServerResponse,
   WorkbenchSettingsDescribeValue,
   WorkspaceView,
-} from "@workbench/pi-protocol/rpc";
+} from "@workbench/pi-rpc-contracts/rpc";
 import { DEFAULT_MAX_RPC_REQUEST_BODY_BYTES } from "@workbench/api/server";
 import applicationPackage from "../package.json" with { type: "json" };
 

@@ -1,0 +1,148 @@
+{
+  "baseline": "a2427637",
+  "packageCount": 97,
+  "moves": [
+    {
+      "oldPath": "packages/pi/pi-model-server",
+      "newPath": "packages/pi-sdk/pi-sdk-models",
+      "oldName": "@workbench/pi-model-server",
+      "newName": "@workbench/pi-sdk-models"
+    },
+    {
+      "oldPath": "packages/pi/pi-session-server",
+      "newPath": "packages/pi-sdk/pi-sdk-sessions",
+      "oldName": "@workbench/pi-session-server",
+      "newName": "@workbench/pi-sdk-sessions"
+    },
+    {
+      "oldPath": "packages/pi/pi-resources-server",
+      "newPath": "packages/pi-sdk/pi-sdk-resources",
+      "oldName": "@workbench/pi-resources-server",
+      "newName": "@workbench/pi-sdk-resources"
+    },
+    {
+      "oldPath": "packages/pi/pi-tools",
+      "newPath": "packages/pi-runtime/pi-runtime-tools",
+      "oldName": "@workbench/pi-tools",
+      "newName": "@workbench/pi-runtime-tools"
+    },
+    {
+      "oldPath": "packages/pi/pi-browser",
+      "newPath": "packages/pi-runtime/pi-runtime-browser",
+      "oldName": "@workbench/pi-browser",
+      "newName": "@workbench/pi-runtime-browser"
+    },
+    {
+      "oldPath": "packages/pi/pi-server-ports",
+      "newPath": "packages/pi-sdk/pi-sdk-ports",
+      "oldName": "@workbench/pi-server-ports",
+      "newName": "@workbench/pi-sdk-ports"
+    },
+    {
+      "oldPath": "packages/terminal/pi-terminal-tool",
+      "newPath": "packages/pi-runtime/pi-runtime-terminal",
+      "oldName": "@workbench/pi-terminal-tool",
+      "newName": "@workbench/pi-runtime-terminal"
+    },
+    {
+      "oldPath": "packages/pi/pi-client",
+      "newPath": "packages/pi-runtime/pi-runtime-client",
+      "oldName": "@workbench/pi-client",
+      "newName": "@workbench/pi-runtime-client"
+    },
+    {
+      "oldPath": "packages/pi/pi-server",
+      "newPath": "packages/pi-runtime/pi-runtime-server",
+      "oldName": "@workbench/pi-server",
+      "newName": "@workbench/pi-runtime-server"
+    },
+    {
+      "oldPath": "packages/pi/pi-conversation",
+      "newPath": "packages/pi-runtime/pi-conversation-adapter",
+      "oldName": "@workbench/pi-conversation",
+      "newName": "@workbench/pi-conversation-adapter"
+    },
+    {
+      "oldPath": "packages/pi/pi-protocol",
+      "newPath": "packages/pi-runtime/pi-rpc-contracts",
+      "oldName": "@workbench/pi-protocol",
+      "newName": "@workbench/pi-rpc-contracts"
+    },
+    {
+      "oldPath": "packages/pi/pi-transport-client",
+      "newPath": "packages/pi-runtime/pi-rpc-client",
+      "oldName": "@workbench/pi-transport-client",
+      "newName": "@workbench/pi-rpc-client"
+    },
+    {
+      "oldPath": "packages/pi/pi-shared",
+      "newPath": "packages/pi-runtime/pi-runtime-adapters",
+      "oldName": "@workbench/pi-shared",
+      "newName": "@workbench/pi-runtime-adapters"
+    },
+    {
+      "oldPath": "packages/pi/pi-contributions",
+      "newPath": "packages/pi-ui/pi-ui-extensions",
+      "oldName": "@workbench/pi-contributions",
+      "newName": "@workbench/pi-ui-extensions"
+    },
+    {
+      "oldPath": "packages/client/pi-product",
+      "newPath": "packages/product/pi-workbench",
+      "oldName": "@workbench/pi-product",
+      "newName": "@workbench/pi-workbench"
+    },
+    {
+      "oldPath": "packages/pi/pi-ui-diagnostics",
+      "newPath": "packages/pi-ui/pi-ui-diagnostics",
+      "oldName": "@workbench/pi-ui-diagnostics",
+      "newName": "@workbench/pi-ui-diagnostics"
+    },
+    {
+      "oldPath": "packages/pi/pi-ui-session-import",
+      "newPath": "packages/pi-ui/pi-ui-session-import",
+      "oldName": "@workbench/pi-ui-session-import",
+      "newName": "@workbench/pi-ui-session-import"
+    },
+    {
+      "oldPath": "packages/pi/pi-ui-settings",
+      "newPath": "packages/pi-ui/pi-ui-settings",
+      "oldName": "@workbench/pi-ui-settings",
+      "newName": "@workbench/pi-ui-settings"
+    },
+    {
+      "oldPath": "packages/pi/pi-ui-settings-models",
+      "newPath": "packages/pi-ui/pi-ui-settings-models",
+      "oldName": "@workbench/pi-ui-settings-models",
+      "newName": "@workbench/pi-ui-settings-models"
+    },
+    {
+      "oldPath": "packages/pi/pi-ui-status",
+      "newPath": "packages/pi-ui/pi-ui-status",
+      "oldName": "@workbench/pi-ui-status",
+      "newName": "@workbench/pi-ui-status"
+    },
+    {
+      "oldPath": "packages/pi/pi-ui-toolbox",
+      "newPath": "packages/pi-ui/pi-ui-toolbox",
+      "oldName": "@workbench/pi-ui-toolbox",
+      "newName": "@workbench/pi-ui-toolbox"
+    }
+  ],
+  "extractions": [
+    {
+      "newPath": "packages/product/pi-workbench-runtime",
+      "newName": "@workbench/pi-workbench-runtime",
+      "from": [
+        "packages/pi/pi-resources-server/resources",
+        "packages/pi/pi-resources-server/src/builtin-resources.ts",
+        "packages/pi/pi-tools/src/index.ts"
+      ],
+      "owns": [
+        "bundled skills and prompts",
+        "builtin resource deployment and default package registration",
+        "default inline extension selection and order"
+      ]
+    }
+  ]
+}

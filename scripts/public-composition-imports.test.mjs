@@ -4,7 +4,7 @@ import test from "node:test";
 test("the shared TypeScript loader imports public Shell and Pi composition entries", async () => {
   const [shell, piContributions] = await Promise.all([
     import("@workbench/ui-layout"),
-    import("@workbench/pi-contributions/installation"),
+    import("@workbench/pi-ui-extensions/installation"),
   ]);
 
   assert.equal(typeof shell.WorkbenchShell, "function");

@@ -9,8 +9,12 @@
 @source "../../../../packages/client/*/lib/**/*.{ts,tsx}";
 @source "../../../../packages/workspace/*/src/**/*.{ts,tsx}";
 @source "../../../../packages/workspace/*/lib/**/*.{ts,tsx}";
-@source "../../../../packages/pi/*/src/**/*.{ts,tsx}";
-@source "../../../../packages/pi/*/lib/**/*.{ts,tsx}";
+@source "../../../../packages/pi-ui/*/src/**/*.{ts,tsx}";
+@source "../../../../packages/pi-ui/*/lib/**/*.{ts,tsx}";
+@source "../../../../packages/pi-runtime/*/src/**/*.{ts,tsx}";
+@source "../../../../packages/pi-runtime/*/lib/**/*.{ts,tsx}";
+@source "../../../../packages/product/*/src/**/*.{ts,tsx}";
+@source "../../../../packages/product/*/lib/**/*.{ts,tsx}";
 
 /* The Web app owns its selected font implementation; Shell consumes these semantic variables. */
 @theme inline {

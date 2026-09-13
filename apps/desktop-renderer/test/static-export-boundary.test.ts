@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { piWorkbenchExtensions } from "@workbench/pi-product/application";
+import { piWorkbenchExtensions } from "@workbench/pi-workbench/application";
 
 const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 

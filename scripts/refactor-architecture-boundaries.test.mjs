@@ -277,10 +277,10 @@ function assertCapabilityClosure(entry, forbidden, { runtimeOnly = false, noDom 
 }
 
 test("portable ports and workspace catalog never depend on concrete Pi implementations", () => {
-  const ports = workspaceManifests.get("@workbench/pi-server-ports").manifest;
+  const ports = workspaceManifests.get("@workbench/pi-sdk-ports").manifest;
   for (const field of ["dependencies", "peerDependencies", "optionalDependencies"]) {
     for (const dependency of Object.keys(ports[field] ?? {}))
-      assert.doesNotMatch(dependency, /^@workbench\/(?:pi-browser|workspace-server)$/u);
+      assert.doesNotMatch(dependency, /^@workbench\/(?:pi-runtime-browser|workspace-server)$/u);
   }
   assertCapabilityClosure(
     "@workbench/browser-contracts/host",
@@ -297,7 +297,7 @@ test("portable ports and workspace catalog never depend on concrete Pi implement
     "pi-automation-service.ts",
   ]) {
     const source = readFileSync(
-      path.join(repositoryRoot, "packages/pi/pi-session-server/src", name),
+      path.join(repositoryRoot, "packages/pi-sdk/pi-sdk-sessions/src", name),
       "utf8",
     );
     assert.doesNotMatch(
@@ -336,7 +336,7 @@ test("file icons are independent from the tree and download has no React runtime
 
 test("Spec008 retired imports and aggregate session dependencies cannot return", () => {
   const retired =
-    /^@workbench\/(?:workspace-runtime\/(?:react|presentation|i18n|styles\.css)|workspace-files\/download|pi-resources-server\/workspace-store)$/u;
+    /^@workbench\/(?:workspace-runtime\/(?:react|presentation|i18n|styles\.css)|workspace-files\/download|pi-sdk-resources\/workspace-store)$/u;
   for (const workspace of workspaces) {
     for (const root of ["src", "lib", "tests", "test"]) {
       for (const file of filesUnder(path.join(workspace, root)).filter((file) =>
@@ -348,7 +348,7 @@ test("Spec008 retired imports and aggregate session dependencies cannot return",
     }
   }
   const session = readFileSync(
-    path.join(repositoryRoot, "packages/pi/pi-client/src/runtime/session.ts"),
+    path.join(repositoryRoot, "packages/pi-runtime/pi-runtime-client/src/runtime/session.ts"),
     "utf8",
   );
   assert.doesNotMatch(session, /\bPiSessionManager\b|this\.manager\b/u);
@@ -358,7 +358,7 @@ test("Spec008 retired imports and aggregate session dependencies cannot return",
     ["@workbench/workspace-runtime", "./i18n"],
     ["@workbench/workspace-runtime", "./styles.css"],
     ["@workbench/workspace-files", "./download"],
-    ["@workbench/pi-resources-server", "./workspace-store"],
+    ["@workbench/pi-sdk-resources", "./workspace-store"],
   ])
     assert.equal(
       workspaceManifests.get(name).manifest.exports[entry],
@@ -369,7 +369,7 @@ test("Spec008 retired imports and aggregate session dependencies cannot return",
 
 test("session behavior owners cannot reach back into the complete registry or manager", () => {
   const read = (file) => readFileSync(path.join(repositoryRoot, file), "utf8");
-  const registry = read("packages/pi/pi-session-server/src/session-registry.ts");
+  const registry = read("packages/pi-sdk/pi-sdk-sessions/src/session-registry.ts");
   assert.doesNotMatch(registry, /class\s+HostedPiSession\b/u);
   assert.match(registry, /from\s+["']\.\/hosted-pi-session["']/u);
   assert.doesNotMatch(
@@ -382,7 +382,7 @@ test("session behavior owners cannot reach back into the complete registry or ma
     "persisted-session-directory",
     "scratch-session-directory",
   ]) {
-    const file = `packages/pi/pi-session-server/src/${name}.ts`;
+    const file = `packages/pi-sdk/pi-sdk-sessions/src/${name}.ts`;
     const source = read(file);
     assert.doesNotMatch(
       source,
@@ -397,7 +397,7 @@ test("session behavior owners cannot reach back into the complete registry or ma
     "session-history",
     "manager-catalog",
   ]) {
-    const file = `packages/pi/pi-client/src/runtime/${name}.ts`;
+    const file = `packages/pi-runtime/pi-runtime-client/src/runtime/${name}.ts`;
     const source = read(file);
     assert.doesNotMatch(source, /\bPiSessionManager\b/u, file);
     assert.deepEqual(
@@ -408,4 +408,37 @@ test("session behavior owners cannot reach back into the complete registry or ma
       file,
     );
   }
+});
+
+test("Pi product resources and default extensions stay outside SDK services", () => {
+  const sdk = path.join(repositoryRoot, "packages/pi-sdk");
+  for (const file of filesUnder(sdk)) {
+    assert.ok(!/[/\\](?:resources|skills)[/\\]/u.test(file), `Product content in SDK: ${file}`);
+    if (!sourceFile.test(file) || /[/\\]tests[/\\]/u.test(file)) continue;
+    for (const specifier of moduleSpecifiers(readFileSync(file, "utf8"), file))
+      assert.doesNotMatch(specifier, /^@workbench\/pi-workbench(?:-runtime)?(?:\/|$)/u, file);
+  }
+  const owners = productionSources.filter((file) =>
+    /export function createWorkbenchInternalPiExtensions\s*\(/u.test(readFileSync(file, "utf8")),
+  );
+  assert.deepEqual(owners.map(repositoryRelative).sort(), [
+    "packages/pi-runtime/pi-runtime-server/src/tool-composition.ts",
+    "packages/product/pi-workbench-runtime/src/extensions.ts",
+  ]);
+  const sdkResources = workspaceManifests.get("@workbench/pi-sdk-resources").manifest;
+  assert.equal(sdkResources.exports["./builtin-resources"], undefined);
+  assert.equal(sdkResources.exports["./resource-locations"], undefined);
+  assert.equal(sdkResources.dependencies["@workbench/pi-runtime-browser"], undefined);
+  const product = path.join(repositoryRoot, "packages/product/pi-workbench-runtime");
+  assert.ok(existsSync(path.join(product, "resources/skills/pi-docs/SKILL.md")));
+  assert.ok(existsSync(path.join(product, "resources/prompts")));
+});
+
+test("Node Pi product entry points do not load UI or the server composition", () => {
+  for (const entry of ["resources", "extensions", "builtin-packages", "resource-locations"])
+    assertCapabilityClosure(
+      `@workbench/pi-workbench-runtime/${entry}`,
+      /^(?:react(?:-dom)?(?:\/|$)|next(?:\/|$)|@workbench\/(?:pi-workbench(?:\/|$)|pi-runtime-server(?:\/|$)|pi-ui-|ui(?:-|\/|$)|shell(?:-|\/|$)))/u,
+      { runtimeOnly: true },
+    );
 });

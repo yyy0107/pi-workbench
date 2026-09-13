@@ -395,17 +395,17 @@ Promise returned by `open()`. Do not import the owner's component, store, or int
 
 Generic UI stays in Shell even when Pi implements its capability. Only Pi-specific configuration,
 resources, and diagnostics belong in Pi Contributions and may import Pi facades/protocol types.
-Read `packages/pi/README.md` for that implementation boundary. Use:
+Read `packages/pi-runtime/integration.md` for that implementation boundary. Use:
 
 - Workbench session/thread hooks from `@workbench/agent-runtime-client` and its `/context` entry,
   plus `useWorkspaceSelection()` from `/workspaces`, for generic subscribed state;
 - Workbench capability hooks from `@workbench/agent-runtime-client/context` for generic operations;
-- `usePiThreadStateSnapshot()` from `@workbench/pi-client/context-trace` for Pi trace
-  diagnostics, and `usePiWorkspaces()` from `@workbench/pi-client/workspace` for Toolbox;
-- an installation-bound hook from the owning `@workbench/pi-client/*` feature facade
+- `usePiThreadStateSnapshot()` from `@workbench/pi-runtime-client/context-trace` for Pi trace
+  diagnostics, and `usePiWorkspaces()` from `@workbench/pi-runtime-client/workspace` for Toolbox;
+- an installation-bound hook from the owning `@workbench/pi-runtime-client/*` feature facade
   for Pi-specific unary RPC;
-- shared types from `@workbench/pi-protocol/rpc` or
-  `@workbench/pi-protocol/stream`.
+- shared types from `@workbench/pi-rpc-contracts/rpc` or
+  `@workbench/pi-rpc-contracts/stream`.
 
 Do not write raw `/api/pi/**` or `/api/<method>` fetches in a component, open a second WebSocket/SSE
 connection, or copy payload shapes into the extension. The shared manager already owns mux/host
@@ -619,7 +619,7 @@ Do not add a feature-specific Slot such as `notes.button`. Add a semantic host l
 - [ ] Register inspector kinds through `context.workspace`; keep feature branches and services out of RightWorkspace core.
 - [ ] Register cross-feature resource routing through `context.openers`; do not deep-import sibling builtin features.
 - [ ] Use `workspace.actions`/`workspace.empty.actions` only for compact controls outside a Surface lifecycle.
-- [ ] Read `packages/pi/README.md` before Pi-backed UI and route server SDK work through `$pi-coding-agent-sdk` or `$pi-ai-sdk`.
+- [ ] Read `packages/pi-runtime/integration.md` before Pi-backed UI and route server SDK work through `$pi-coding-agent-sdk` or `$pi-ai-sdk`.
 - [ ] Audit registered shortcuts and standalone global `keydown` listeners.
 - [ ] Return Disposables for external resources.
 - [ ] Avoid duplicate Panel chrome.

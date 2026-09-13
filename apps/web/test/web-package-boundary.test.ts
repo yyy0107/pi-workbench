@@ -9,7 +9,7 @@ const WEB_SOURCE_ROOT = path.join(WEB_ROOT, "src");
 const FORBIDDEN_PRODUCTION_DEPENDENCIES = Object.freeze([
   "@earendil-works/pi-ai",
   "@earendil-works/pi-coding-agent",
-  "@workbench/pi-server",
+  "@workbench/pi-runtime-server",
   "node-pty",
   "tree-sitter",
   "tree-sitter-bash",
@@ -34,8 +34,8 @@ test("@workbench/web declares only browser/server-safe production dependencies",
   };
   assert.equal(manifest.name, "@workbench/web");
   assert.equal(manifest.dependencies?.["@workbench/settings-server"], "workspace:*");
-  assert.equal(manifest.dependencies?.["@workbench/pi-product"], "workspace:*");
-  assert.equal(manifest.dependencies?.["@workbench/pi-client"], undefined);
+  assert.equal(manifest.dependencies?.["@workbench/pi-workbench"], "workspace:*");
+  assert.equal(manifest.dependencies?.["@workbench/pi-runtime-client"], undefined);
   for (const packageName of FORBIDDEN_PRODUCTION_DEPENDENCIES) {
     assert.equal(manifest.dependencies?.[packageName], undefined, packageName);
   }
@@ -67,7 +67,7 @@ test("Web composes the shared Pi product through its public application entry", 
     path.join(WEB_SOURCE_ROOT, "workbench/providers/workbench-providers.tsx"),
     "utf8",
   );
-  assert.match(source, /from\s+["']@workbench\/pi-product\/application["']/u);
+  assert.match(source, /from\s+["']@workbench\/pi-workbench\/application["']/u);
   assert.match(source, /<PiWorkbenchShell\b/u);
   assert.doesNotMatch(source, /@workbench\/pi-/u);
 });

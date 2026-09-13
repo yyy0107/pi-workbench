@@ -2,13 +2,15 @@
 
 Web 与 Desktop 共用产品装配；Runtime app 组合公共服务和 Pi 适配器。公共服务不导入 Pi SDK、Pi 实现或应用源码。HTTP/WS 地址、请求封装、扩展 ID、设置键和持久化格式保持兼容。
 
+当前包目录、Pi SDK / Runtime / UI 的职责和导入入口见 [Packages 导航](../packages/README.md)。
+
 ## 代码归属
 
 | 所有者                                                               | 公开入口与职责                                                                                                  |
 | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `scripts/sync-static-assets.mjs`                                     | 图标和文件预览资源清单、复制与版本指纹；两端脚本传入各自 public 目录及包内依赖解析器                            |
 | `@workbench/host-artifact-policy/filesystem`                         | 按路径段判断包含关系、规范路径校验、真实目录身份读取和比较                                                      |
-| `@workbench/pi-product`                                              | `/application` 安装公共 Shell Provider、Pi 文案、品牌、运行指示器和固定扩展顺序；`/installation` 装配连接及能力 |
+| `@workbench/pi-workbench`                                            | `/application` 安装公共 Shell Provider、Pi 文案、品牌、运行指示器和固定扩展顺序；`/installation` 装配连接及能力 |
 | `@workbench/host-contracts/rpc`                                      | ClientRequest、ServerResponse、错误与校验问题的公共封装                                                         |
 | `@workbench/host-client/rpc`                                         | 请求 ID、公共请求收发、响应匹配、取消信号与传输错误                                                             |
 | `@workbench/host-server/rpc`                                         | 校验器、信任与 loopback 检查、载体限制、首个匹配路由分发及领域错误投影                                          |

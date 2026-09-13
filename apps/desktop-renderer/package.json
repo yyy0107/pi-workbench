@@ -23,7 +23,7 @@
     "@workbench/extension-sdk": "workspace:*",
     "@workbench/host-client": "workspace:*",
     "@workbench/host-contracts": "workspace:*",
-    "@workbench/pi-product": "workspace:*",
+    "@workbench/pi-workbench": "workspace:*",
     "@workbench/settings-runtime": "workspace:*",
     "@workbench/shell": "workspace:*",
     "@workbench/shell-context": "workspace:*",

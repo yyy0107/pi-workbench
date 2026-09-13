@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const WORKSPACE_PROTOCOL_SERVICE = new URL(
-  "../packages/pi/pi-resources-server/src/workspace-protocol-service.ts",
+  "../packages/pi-sdk/pi-sdk-resources/src/workspace-protocol-service.ts",
   import.meta.url,
 );
 const WORKSPACE_STORE = new URL(
@@ -11,7 +11,7 @@ const WORKSPACE_STORE = new URL(
   import.meta.url,
 );
 const WORKSPACE_RPC_ROUTES = new URL(
-  "../packages/pi/pi-server/src/routes/workspace-rpc-routes.ts",
+  "../packages/pi-runtime/pi-runtime-server/src/routes/workspace-rpc-routes.ts",
   import.meta.url,
 );
 const WORKSPACE_FILE_RPC_ROUTES = new URL(
@@ -27,7 +27,7 @@ const WORKSPACE_FILE_CONTENT = new URL(
   import.meta.url,
 );
 const RPC_ROUTE_COMPOSITION = new URL(
-  "../packages/pi/pi-server/src/transport/rpc-route-composition.ts",
+  "../packages/pi-runtime/pi-runtime-server/src/transport/rpc-route-composition.ts",
   import.meta.url,
 );
 
@@ -165,7 +165,7 @@ test("Catalog emits neutral events and Pi composition owns Host stream publicati
   assert.doesNotMatch(source, /getStreamHub/);
   const adapter = await readFile(
     new URL(
-      "../packages/pi/pi-server/src/resource-composition/workspace-store.ts",
+      "../packages/pi-runtime/pi-runtime-server/src/resource-composition/workspace-store.ts",
       import.meta.url,
     ),
     "utf8",

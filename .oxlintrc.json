@@ -6,7 +6,7 @@
   },
   "overrides": [
     {
-      "files": ["packages/pi/pi-contributions/src/**/*"],
+      "files": ["packages/pi-ui/pi-ui-extensions/src/**/*"],
       "excludeFiles": ["**/*.test.*", "**/*.spec.*", "**/*.bench.*"],
       "rules": {
         "no-restricted-imports": [
@@ -21,8 +21,8 @@
                 "group": [
                   "@workbench/extension-host/internal",
                   "@workbench/extension-sdk/internal",
-                  "@workbench/pi-server",
-                  "@workbench/pi-server/**",
+                  "@workbench/pi-runtime-server",
+                  "@workbench/pi-runtime-server/**",
                   "@earendil-works/pi*"
                 ],
                 "message": "Use the public Extension Platform and Pi client seams."
@@ -94,12 +94,12 @@
             "patterns": [
               {
                 "group": [
-                  "@workbench/pi-client",
-                  "@workbench/pi-client/**",
-                  "@workbench/pi-protocol",
-                  "@workbench/pi-protocol/**",
-                  "@workbench/pi-shared",
-                  "@workbench/pi-shared/**"
+                  "@workbench/pi-runtime-client",
+                  "@workbench/pi-runtime-client/**",
+                  "@workbench/pi-rpc-contracts",
+                  "@workbench/pi-rpc-contracts/**",
+                  "@workbench/pi-runtime-adapters",
+                  "@workbench/pi-runtime-adapters/**"
                 ],
                 "message": "Install Pi once at the application composition root."
               }
@@ -118,10 +118,10 @@
           "error",
           {
             "patterns": [
-              "@workbench/pi-protocol",
-              "@workbench/pi-protocol/**",
-              "@workbench/pi-shared",
-              "@workbench/pi-shared/**"
+              "@workbench/pi-rpc-contracts",
+              "@workbench/pi-rpc-contracts/**",
+              "@workbench/pi-runtime-adapters",
+              "@workbench/pi-runtime-adapters/**"
             ]
           }
         ]
@@ -136,14 +136,14 @@
             "patterns": [
               {
                 "group": [
-                  "@workbench/pi-client",
-                  "@workbench/pi-client/**",
-                  "@workbench/pi-contributions",
-                  "@workbench/pi-contributions/**",
-                  "@workbench/pi-server",
-                  "@workbench/pi-server/**",
-                  "@workbench/pi-shared",
-                  "@workbench/pi-shared/**"
+                  "@workbench/pi-runtime-client",
+                  "@workbench/pi-runtime-client/**",
+                  "@workbench/pi-ui-extensions",
+                  "@workbench/pi-ui-extensions/**",
+                  "@workbench/pi-runtime-server",
+                  "@workbench/pi-runtime-server/**",
+                  "@workbench/pi-runtime-adapters",
+                  "@workbench/pi-runtime-adapters/**"
                 ],
                 "message": "The Runtime proxy composition may read only Pi's stable stream paths."
               }
@@ -160,17 +160,17 @@
           {
             "paths": [
               {
-                "name": "@workbench/pi-client/workbench-settings",
+                "name": "@workbench/pi-runtime-client/workbench-settings",
                 "allowImportNames": ["createPiWorkbenchSettingsClient"],
                 "allowTypeImports": true,
                 "message": "Install only the settings client at this composition root."
               }
             ],
             "patterns": [
-              "@workbench/pi-protocol",
-              "@workbench/pi-protocol/**",
-              "@workbench/pi-shared",
-              "@workbench/pi-shared/**"
+              "@workbench/pi-rpc-contracts",
+              "@workbench/pi-rpc-contracts/**",
+              "@workbench/pi-runtime-adapters",
+              "@workbench/pi-runtime-adapters/**"
             ]
           }
         ]
@@ -251,8 +251,8 @@
                 "group": [
                   "@workbench/shell",
                   "@workbench/shell/**",
-                  "@workbench/pi-product",
-                  "@workbench/pi-product/**"
+                  "@workbench/pi-workbench",
+                  "@workbench/pi-workbench/**"
                 ],
                 "message": "Client component capabilities must not depend on application composition."
               }

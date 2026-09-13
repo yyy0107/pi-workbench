@@ -53,10 +53,11 @@ export const nextConfig: NextConfig = {
   outputFileTracingRoot: WEB_REPOSITORY_ROOT,
   turbopack: {
     root: WEB_REPOSITORY_ROOT,
-    // ponytail: valid CSS; remove once bundled Lightning CSS fixes github.com/parcel-bundler/lightningcss/issues/1300.
+    // Valid Custom Highlight API CSS is emitted intact. Scope this upstream parser warning
+    // to its current owner; remove after lightningcss#1300 is fixed in bundled Next.
     ignoreIssue: [
       {
-        path: "**/agent-configuration/prompt-placeholder-highlight.module.css",
+        path: "**/pi-ui-settings/src/prompt-placeholder-highlight.module.css",
         title: "Parsing CSS source code failed",
         description: /'highlight' is not recognized as a valid pseudo-element/,
       },

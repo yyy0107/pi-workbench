@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import {
   PiWorkbenchApplicationProviders,
   PiWorkbenchShell,
-} from "@workbench/pi-product/application";
+} from "@workbench/pi-workbench/application";
 import { MainViewHost as ExtensionMainViewHost } from "@workbench/extension-host/hosts/main-view-host";
 import { defineExtension } from "@workbench/extension-sdk";
 import type { RuntimeConnection } from "@workbench/host-contracts";

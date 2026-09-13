@@ -1,0 +1,30 @@
+{
+  "name": "@workbench/pi-workbench-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node product resources, default Pi extensions and builtin installation policy.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./resources": "./src/builtin-resources.ts",
+    "./resource-locations": "./src/resource-locations.ts",
+    "./extensions": "./src/extensions.ts",
+    "./builtin-packages": "./src/builtin-packages.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.85.1",
+    "@workbench/pi-runtime-browser": "workspace:*",
+    "@workbench/pi-runtime-tools": "workspace:*",
+    "@workbench/pi-sdk-ports": "workspace:*",
+    "@workbench/pi-sdk-resources": "workspace:*",
+    "@workbench/server-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

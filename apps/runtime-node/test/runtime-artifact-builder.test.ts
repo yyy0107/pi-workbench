@@ -88,7 +88,7 @@ test("bundled resources install into the Pi directory after relocation and pruni
     entryPoints: [
       path.join(
         repositoryRoot,
-        "packages/pi/pi-server/src/resource-composition/builtin-resources.ts",
+        "packages/pi-runtime/pi-runtime-server/src/resource-composition/builtin-resources.ts",
       ),
     ],
   });

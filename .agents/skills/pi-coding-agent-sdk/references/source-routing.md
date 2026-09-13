@@ -51,27 +51,28 @@ They are coding-agent concerns, not `@earendil-works/pi-agent-core` types.
 
 Inspect these repository paths before adding a new abstraction:
 
-| Concern                                     | Workbench path                                                                |
-| ------------------------------------------- | ----------------------------------------------------------------------------- |
-| Embedded runtime contract and architecture  | `packages/pi/README.md`                                                       |
-| Session/service construction and binding    | `packages/pi/pi-session-server/src/session-registry.ts`                       |
-| Host-owned inline extensions                | `packages/pi/pi-tools/src/`                                                   |
-| User extension listing/mutation             | `packages/pi/pi-resources-server/src/`                                        |
-| Installed Pi package management             | `packages/pi/pi-resources-server/src/`                                        |
-| Browser-facing unary types                  | `packages/pi/pi-protocol/src/rpc.ts`                                          |
-| Browser-facing stream types                 | `packages/pi/pi-protocol/src/stream.ts`                                       |
-| Workbench conversation and capability DTOs  | `packages/agent-runtime/agent-runtime-contracts/src/`                         |
-| Workbench Headless Agent Runtime contract   | `packages/agent-runtime/agent-runtime-core/src/runtime.ts`                    |
-| Workbench capability contracts and errors   | `packages/agent-runtime/agent-runtime-client/src/environment/capabilities.ts` |
-| Pi session and conversation projection      | `packages/pi/pi-client/src/runtime/session.ts`                                |
-| Pi-to-Workbench capability/error projection | `packages/pi/pi-client/src/integration/capabilities.ts`                       |
-| Terminal-owned Pi bash `ToolDefinition`     | `packages/terminal/pi-terminal-tool/src/`                                     |
-| Terminal sessions and native process owner  | `packages/terminal/terminal-server/src/`                                      |
+| Concern                                      | Workbench path                                                                |
+| -------------------------------------------- | ----------------------------------------------------------------------------- |
+| Embedded runtime contract and architecture   | `packages/pi-runtime/integration.md`                                          |
+| Session/service construction and binding     | `packages/pi-sdk/pi-sdk-sessions/src/session-registry.ts`                     |
+| Product resources and default extension list | `packages/product/pi-workbench-runtime/`                                      |
+| Host-owned inline extensions                 | `packages/pi-runtime/pi-runtime-tools/src/`                                   |
+| User extension listing/mutation              | `packages/pi-sdk/pi-sdk-resources/src/`                                       |
+| Installed Pi package management              | `packages/pi-sdk/pi-sdk-resources/src/`                                       |
+| Browser-facing unary types                   | `packages/pi-runtime/pi-rpc-contracts/src/rpc.ts`                             |
+| Browser-facing stream types                  | `packages/pi-runtime/pi-rpc-contracts/src/stream.ts`                          |
+| Workbench conversation and capability DTOs   | `packages/agent-runtime/agent-runtime-contracts/src/`                         |
+| Workbench Headless Agent Runtime contract    | `packages/agent-runtime/agent-runtime-core/src/runtime.ts`                    |
+| Workbench capability contracts and errors    | `packages/agent-runtime/agent-runtime-client/src/environment/capabilities.ts` |
+| Pi session and conversation projection       | `packages/pi-runtime/pi-runtime-client/src/runtime/session.ts`                |
+| Pi-to-Workbench capability/error projection  | `packages/pi-runtime/pi-runtime-client/src/integration/capabilities.ts`       |
+| Terminal-owned Pi bash `ToolDefinition`      | `packages/pi-runtime/pi-runtime-terminal/src/`                                |
+| Terminal sessions and native process owner   | `packages/terminal/terminal-server/src/`                                      |
 
 Search before editing:
 
 ```bash
-rg -n '@earendil-works/pi-coding-agent|extensionFactories|bindExtensions|extensionsOverride' packages/pi apps/runtime-node/src apps/web/src/server
+rg -n '@earendil-works/pi-coding-agent|extensionFactories|bindExtensions|extensionsOverride' packages/pi-sdk packages/pi-runtime apps/runtime-node/src
 rg -n 'export (type|interface|class|function).*<Name>|<Name>' node_modules/@earendil-works/pi-coding-agent/dist
 rg -n '<Name>' /home/wy/projects/pi/packages/coding-agent/src /home/wy/projects/pi/packages/coding-agent/docs
 ```

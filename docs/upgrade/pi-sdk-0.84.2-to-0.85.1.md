@@ -29,13 +29,13 @@
 
 共 **5 个工作区包、6 处直接依赖声明**需要纳入后续版本更新。
 
-| 工作区                        | 当前直接依赖                               | 声明位置                                                                               |
-| ----------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------- |
-| `@workbench/runtime-node`     | `pi-coding-agent: 0.84.2`                  | [apps/runtime-node/package.json](../../apps/runtime-node/package.json)                 |
-| `@workbench/pi-server`        | `pi-ai: 0.84.2`、`pi-coding-agent: 0.84.2` | [server/package.json](../../packages/pi/pi-server/package.json)                        |
-| `@workbench/pi-protocol`      | `pi-ai: 0.84.2`                            | [protocol/package.json](../../packages/pi/pi-protocol/package.json)                    |
-| `@workbench/pi-shared`        | `pi-ai: 0.84.2`                            | [shared/package.json](../../packages/pi/pi-shared/package.json)                        |
-| `@workbench/pi-terminal-tool` | `pi-coding-agent: 0.84.2`                  | [terminal/pi-tool/package.json](../../packages/terminal/pi-terminal-tool/package.json) |
+| 工作区                           | 当前直接依赖                               | 声明位置                                                                            |
+| -------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `@workbench/runtime-node`        | `pi-coding-agent: 0.84.2`                  | [apps/runtime-node/package.json](../../apps/runtime-node/package.json)              |
+| `@workbench/pi-runtime-server`   | `pi-ai: 0.84.2`、`pi-coding-agent: 0.84.2` | [server/package.json](../../packages/pi-runtime/pi-runtime-server/package.json)     |
+| `@workbench/pi-rpc-contracts`    | `pi-ai: 0.84.2`                            | [protocol/package.json](../../packages/pi-runtime/pi-rpc-contracts/package.json)    |
+| `@workbench/pi-runtime-adapters` | `pi-ai: 0.84.2`                            | [shared/package.json](../../packages/pi-runtime/pi-runtime-adapters/package.json)   |
+| `@workbench/pi-sdk-terminal`     | `pi-coding-agent: 0.84.2`                  | [terminal/pi-tool/package.json](../../packages/pi-sdk/pi-sdk-terminal/package.json) |
 
 根 `package.json` 不直接声明 Pi SDK。当前锁文件中的 `pi-agent-core`、`pi-client`、`pi-protocol`、`pi-telemetry`、`pi-tui` 也均为 `0.84.2`；它们属于传递依赖，不应为了版本对齐而额外添加为 Workbench 的直接依赖。[当前锁文件](../../pnpm-lock.yaml)
 
@@ -45,7 +45,7 @@ Workbench 通过本地 Coding Agent SDK 创建服务和会话，保留 `ModelRun
 
 `createWorkbenchAgentSessionServices()` → `createAgentSessionServices()` → `createAgentSessionFromServices()` → `AgentSessionRuntime` → `session.bindExtensions({ mode: "rpc", uiContext })`。
 
-这里的 `mode: "rpc"` 是嵌入会话的扩展绑定模式；Workbench 的网络接口仍由自身 Host 提供。本次没有发现应用代码直接导入 `pi-coding-agent/client`；该字符串出现在 Runtime 构建脚本的解析分支中。[运行时边界说明](../../packages/pi/README.md)、[服务创建](../../packages/pi/pi-model-server/src/agent-session-services.ts)、[会话创建与绑定](../../packages/pi/pi-session-server/src/session-registry.ts)
+这里的 `mode: "rpc"` 是嵌入会话的扩展绑定模式；Workbench 的网络接口仍由自身 Host 提供。本次没有发现应用代码直接导入 `pi-coding-agent/client`；该字符串出现在 Runtime 构建脚本的解析分支中。[运行时边界说明](../../packages/pi-runtime/integration.md)、[服务创建](../../packages/pi-sdk/pi-sdk-models/src/agent-session-services.ts)、[会话创建与绑定](../../packages/pi-sdk/pi-sdk-sessions/src/session-registry.ts)
 
 ## 3. 跨版本变化概览
 
@@ -84,7 +84,7 @@ TUI 的全屏搜索、跳到最新消息、指示器、鼠标与选择器修复�
 - `restoreStdout`
 - `takeOverStdout`
 
-基线补丁 `patches/@earendil-works__pi-coding-agent@0.84.2.patch` 同时修改 `dist/index.js` 和 `dist/index.d.ts`（升级后由 [0.85.1 等效补丁](../../patches/@earendil-works__pi-coding-agent@0.85.1.patch)替换）。Workbench 通过 [public/installation.ts](../../packages/pi/pi-server/src/public/installation.ts) 将其提供给 [installed-api-only-runtime-host.ts](../../apps/runtime-node/src/installed-api-only-runtime-host.ts)，用于控制 stdout 的接管与恢复。
+基线补丁 `patches/@earendil-works__pi-coding-agent@0.84.2.patch` 同时修改 `dist/index.js` 和 `dist/index.d.ts`（升级后由 [0.85.1 等效补丁](../../patches/@earendil-works__pi-coding-agent@0.85.1.patch)替换）。Workbench 通过 [public/installation.ts](../../packages/pi-runtime/pi-runtime-server/src/public/installation.ts) 将其提供给 [installed-api-only-runtime-host.ts](../../apps/runtime-node/src/installed-api-only-runtime-host.ts)，用于控制 stdout 的接管与恢复。
 
 **已确认：**0.85.1 仍没有这三个根导出，但 `dist/core/output-guard.js` 仍存在，且与当前安装版本内容一致。在解包后的 0.85.1 上执行旧补丁的 `git apply --check`，失败于 `dist/index.d.ts` 的上下文匹配；新版导出列表已发生变化。
 
@@ -122,39 +122,39 @@ TUI 的全屏搜索、跳到最新消息、指示器、鼠标与选择器修复�
 | 可持久化消息帧           | `AssistantMessageFrameEncoder`、`reduceAssistantMessageFrames()`                    | 与现有 `pi-messages-v1` 有能力重叠，但结构并不相同；先验证旧协议，单独评估复用。[目标 frame 实现](https://github.com/earendil-works/pi/blob/v0.85.1/packages/ai/src/utils/assistant-message-frame.ts)                                                                                                                          |
 | Provider thinking effort | `AssistantMessage.providerThinkingLevel?`，Pi Messages 终态新增同名可选字段         | 需要确认 SDK 会话落盘/恢复保留该信息。Workbench 的 `PiAssistantMessage` 未声明该字段，但元数据复制使用对象展开，不能仅凭类型缺失断言运行时丢失。[目标消息类型](https://github.com/earendil-works/pi/blob/v0.85.1/packages/ai/src/types.ts)                                                                                     |
 | 压缩失败事件             | `pi.on("session_compact_failed", handler)`，包含原因、取消、重试和扩展来源信息      | 可改善诊断；这是扩展事件，不等于现有 Workbench 网络事件自动增加该类型。[目标扩展类型](https://github.com/earendil-works/pi/blob/v0.85.1/packages/coding-agent/src/core/extensions/types.ts)                                                                                                                                    |
-| UI prompt 事件           | `ui_prompt_start` / `ui_prompt_end`                                                 | Workbench 已由 `InteractiveResponseRegistry` 提供等待用户状态。若采用新事件，应通过现有状态所有者适配，避免重复计时或维护两套等待状态。[现有交互注册表](../../packages/pi/pi-session-server/src/interactive-response-registry.ts)                                                                                              |
+| UI prompt 事件           | `ui_prompt_start` / `ui_prompt_end`                                                 | Workbench 已由 `InteractiveResponseRegistry` 提供等待用户状态。若采用新事件，应通过现有状态所有者适配，避免重复计时或维护两套等待状态。[现有交互注册表](../../packages/pi-sdk/pi-sdk-sessions/src/interactive-response-registry.ts)                                                                                            |
 | RPC `clear_queue`        | 取出并清空 steering / follow-up 队列                                                | Workbench 已调用 `session.clearQueue()` 并维护自身队列 RPC；新增 stdio RPC 命令不构成替换理由。[目标 RPC 说明](https://github.com/earendil-works/pi/blob/v0.85.1/packages/coding-agent/docs/rpc.md)                                                                                                                            |
 | Deferred 流              | `Models.streamDeferred()`、`ModelRuntime.streamDeferred()`                          | 当前宿主包装 `stream`、`streamSimple`、`fetchDeferred`、`cancelDeferred` 以注入受控 fetch；未包装新增方法。现有 `fetchDeferred` 包装仍会传入 options，但未来直接调用 `streamDeferred` 时应纳入同一护栏。[目标 ModelRuntime](https://github.com/earendil-works/pi/blob/v0.85.1/packages/coding-agent/src/core/model-runtime.ts) |
 | 自定义模型兼容           | `vllmPriority`、`supportsMaxOutputTokens`，以及中间版本增加的 reasoning budget 配置 | 通过现有模型配置和 `ModelRuntime` 验证，无需为每个新增字段立即增加 UI。[Pi AI 类型](https://github.com/earendil-works/pi/blob/v0.85.1/packages/ai/src/types.ts)                                                                                                                                                                |
-| PowerShell               | `createPowerShellTool()` / `createPowerShellToolDefinition()` 等                    | Workbench 有自己的终端 bash override、工具偏好和来源标记；本次升级不自动增加独立 PowerShell 产品能力。[当前工具组合](../../packages/pi/pi-tools/src/builtin-tools.ts)                                                                                                                                                          |
+| PowerShell               | `createPowerShellTool()` / `createPowerShellToolDefinition()` 等                    | Workbench 有自己的终端 bash override、工具偏好和来源标记；本次升级不自动增加独立 PowerShell 产品能力。[当前工具组合](../../packages/pi-sdk/pi-sdk-tools/src/builtin-tools.ts)                                                                                                                                                  |
 
 ## 6. 现有行为的重点回归范围
 
 ### 6.1 消息流、持久化与恢复
 
-当前 [protocol/src/stream.ts](../../packages/pi/pi-protocol/src/stream.ts) 使用 `PiMessagesEvent` 的内容事件，并排除 `start`、`done`、`error`；服务器将它们写成 `format: "pi-messages-v1"` 的持久化 chunk，客户端由共享 reducer 和 accumulator 重建。
+当前 [protocol/src/stream.ts](../../packages/pi-runtime/pi-rpc-contracts/src/stream.ts) 使用 `PiMessagesEvent` 的内容事件，并排除 `start`、`done`、`error`；服务器将它们写成 `format: "pi-messages-v1"` 的持久化 chunk，客户端由共享 reducer 和 accumulator 重建。
 
 上游仍保留 `PiMessagesEvent`。新增的 `AssistantMessageFrame` 包含不同形状的 block 数据和 `toolcall_checkpoint`，其 encoder 不承担最终消息终态持久化。因此不能把现有 delta 类型直接替换成新 frame 类型；需要继续保留最终 `message_end` 的权威修正、revision、重连快照和历史兼容。[目标 Pi Messages 协议](https://github.com/earendil-works/pi/blob/v0.85.1/packages/ai/src/api/pi-messages.ts)、[目标 frame 协议](https://github.com/earendil-works/pi/blob/v0.85.1/packages/ai/src/utils/assistant-message-frame.ts)
 
-下一步应以交错 text/thinking/tool-call、部分 JSON、请求开始前失败、签名和最终消息元数据、重连与历史重放为代表场景。现有 `copyPiAssistantMessage()` 和 `assistantMessageMetadata()` 会复制额外字段；需验证端到端是否保留新字段，而不是先认定必须修改所有 DTO。[共享 reducer](../../packages/pi/pi-shared/src/messages/reducer.ts)、[客户端 accumulator](../../packages/pi/pi-conversation/src/session-message-accumulator.ts)
+下一步应以交错 text/thinking/tool-call、部分 JSON、请求开始前失败、签名和最终消息元数据、重连与历史重放为代表场景。现有 `copyPiAssistantMessage()` 和 `assistantMessageMetadata()` 会复制额外字段；需验证端到端是否保留新字段，而不是先认定必须修改所有 DTO。[共享 reducer](../../packages/pi-runtime/pi-runtime-adapters/src/messages/reducer.ts)、[客户端 accumulator](../../packages/pi-runtime/pi-conversation-adapter/src/session-message-accumulator.ts)
 
 ### 6.2 压缩、fork 与消息顺序
 
 中间版本和目标版涉及：工具结果后、下一次模型调用前的自动压缩；context-only 扩展消息插入顺序；JSONL 末尾缺少换行的追加；fork 压缩边界；活动 turn 尚未结束时的内存会话 fork；手动压缩取消和摘要截断处理。[0.84.4 发布说明](https://pi.dev/news/releases/0.84.4)、[0.85.0 发布说明](https://pi.dev/news/releases/0.85.0)
 
-Workbench 的 [session-registry.ts](../../packages/pi/pi-session-server/src/session-registry.ts) 同时拥有 prompt、队列、取消、上下文策略及会话状态投影；[session-context-trace.ts](../../packages/pi/pi-session-server/src/session-context-trace.ts) 消费 compaction/retry 生命周期。因此即使升级后类型检查通过，也需要针对事件顺序和运行结束状态做回归。
+Workbench 的 [session-registry.ts](../../packages/pi-sdk/pi-sdk-sessions/src/session-registry.ts) 同时拥有 prompt、队列、取消、上下文策略及会话状态投影；[session-context-trace.ts](../../packages/pi-sdk/pi-sdk-sessions/src/session-context-trace.ts) 消费 compaction/retry 生命周期。因此即使升级后类型检查通过，也需要针对事件顺序和运行结束状态做回归。
 
 ### 6.3 工具执行与扩展加载
 
 0.85.0 修复内置工具忽略 `ctx.cwd`；0.84.3 改善扩展工厂失败后的注册清理、skills 发现和 edit 参数兼容。[0.85.0 发布说明](https://pi.dev/news/releases/0.85.0)、[0.84.3 发布说明](https://pi.dev/news/releases/0.84.3)
 
-[终端适配器](../../packages/terminal/pi-terminal-tool/src/index.ts) 基于 `createBashToolDefinition()` 提供自定义 `operations.exec()`，并把执行上下文继续传给原工具。应验证最终到达终端的 cwd、超时、取消、输入归属和输出仍正确；增强搜索覆盖和失败扩展清理也应使用现有测试验证。不能因为 Pi 内置工具已修复，就假设所有 Workbench override 自动等价。
+[终端适配器](../../packages/pi-sdk/pi-sdk-terminal/src/index.ts) 基于 `createBashToolDefinition()` 提供自定义 `operations.exec()`，并把执行上下文继续传给原工具。应验证最终到达终端的 cwd、超时、取消、输入归属和输出仍正确；增强搜索覆盖和失败扩展清理也应使用现有测试验证。不能因为 Pi 内置工具已修复，就假设所有 Workbench override 自动等价。
 
 ### 6.4 模型、认证与请求参数
 
 模型目录和 provider 适配会随 SDK 更新：例如 GPT-6 Astra、Claude effort/签名恢复、Codex SSE 结束事件解析，以及 GPT-5.6+ Responses 使用 `prompt_cache_options.ttl: "30m"` 的长缓存修复。应通过现有模型服务验证目录解析与请求选项；不要在 Workbench 复制上游模型目录。[0.85.1 发布说明](https://pi.dev/news/releases/0.85.1)、[Pi AI changelog](https://github.com/earendil-works/pi/blob/v0.85.1/packages/ai/CHANGELOG.md)
 
-请求检查优先使用结构化 fake 或已安装的测试能力，不依赖真实付费模型请求。当前宿主 fetch 隔离逻辑需要保留，并检查新增 Deferred 入口是否进入实际调用范围。[模型请求适配](../../packages/pi/pi-model-server/src/agent-session-services.ts)
+请求检查优先使用结构化 fake 或已安装的测试能力，不依赖真实付费模型请求。当前宿主 fetch 隔离逻辑需要保留，并检查新增 Deferred 入口是否进入实际调用范围。[模型请求适配](../../packages/pi-sdk/pi-sdk-models/src/agent-session-services.ts)
 
 ## 7. 后续升级计划的输入
 
@@ -170,27 +170,27 @@ Workbench 的 [session-registry.ts](../../packages/pi/pi-session-server/src/sess
 | P1     | 检查随产品分发的 Pi 文档快照和开发技能引用                                         | 保持明确的版本标记；若更新快照，依据目标正文重新生成/核对，不能只替换版本号 |
 | P2     | 按实际需求评估 frame API、外部内存会话恢复、UI prompt 事件等                       | 独立确认收益和迁移边界，不作为完成基础升级的前置条件                        |
 
-文档同步范围包括 [内置 pi-docs](../../packages/pi/pi-server/resources/skills/pi-docs/SKILL.md) 及其 `references/`（当前明确标记 0.84.2），以及 [Pi AI 技能](../../.agents/skills/pi-ai-sdk/SKILL.md)、[Coding Agent source-routing](../../.agents/skills/pi-coding-agent-sdk/references/source-routing.md) 中的入口说明。后者当前将 `./client` 列为可用包入口，需在升级时按新发布条件修正。
+文档同步范围包括 [内置 pi-docs](../../packages/pi-sdk/pi-sdk-resources/resources/skills/pi-docs/SKILL.md) 及其 `references/`（当前明确标记 0.84.2），以及 [Pi AI 技能](../../.agents/skills/pi-ai-sdk/SKILL.md)、[Coding Agent source-routing](../../.agents/skills/pi-coding-agent-sdk/references/source-routing.md) 中的入口说明。后者当前将 `./client` 列为可用包入口，需在升级时按新发布条件修正。
 
 ### 7.1 可复用的验证入口
 
-| 验证面                 | 已有测试或命令                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 核心 SDK 与宿主类型    | 对 `@workbench/pi-protocol`、`@workbench/pi-shared`、`@workbench/pi-server`、`@workbench/pi-terminal-tool`、`@workbench/runtime-node` 运行各自 `typecheck`；接口变动时补查客户端                                                                                                                                                                                                                                                                                                                                     |
-| stdout / Host 生命周期 | [installed-api-only-runtime-host.test.ts](../../apps/runtime-node/test/installed-api-only-runtime-host.test.ts)、[package-control-stdout.test.ts](../../apps/runtime-node/test/package-control-stdout.test.ts)、[session-extension-lifecycle.test.ts](../../apps/runtime-node/test/session-extension-lifecycle.test.ts)                                                                                                                                                                                              |
-| Runtime 制品           | [runtime-artifact-builder.test.ts](../../apps/runtime-node/test/runtime-artifact-builder.test.ts)、`pnpm --filter @workbench/runtime-node build`；必要时运行该包的 `smoke:native`                                                                                                                                                                                                                                                                                                                                    |
-| 流重建                 | [reducer.test.ts](../../packages/pi/pi-shared/tests/reducer.test.ts)、[session-message-accumulator.test.ts](../../packages/pi/pi-conversation/tests/session-message-accumulator.test.ts)                                                                                                                                                                                                                                                                                                                             |
-| 会话与上下文           | [session-queue.test.ts](../../packages/pi/pi-session-server/tests/session-queue.test.ts)、[session-interruption.test.ts](../../packages/pi/pi-session-server/tests/session-interruption.test.ts)、[session-resume.test.ts](../../packages/pi/pi-server/tests/sessions/session-resume.test.ts)、[session-context-policy.test.ts](../../packages/pi/pi-session-server/tests/session-context-policy.test.ts)、[session-context-trace.test.ts](../../packages/pi/pi-server/tests/sessions/session-context-trace.test.ts) |
-| 模型与请求隔离         | [model-service.test.ts](../../packages/pi/pi-server/tests/models/model-service.test.ts)、[model-request-transport.test.ts](../../packages/pi/pi-server/tests/models/model-request-transport.test.ts)                                                                                                                                                                                                                                                                                                                 |
-| 内置工具与终端         | [builtin-tools.test.ts](../../packages/pi/pi-server/tests/internal-extensions/builtin-tools.test.ts)、[interactive-bash-tool.test.ts](../../packages/terminal/pi-terminal-tool/tests/interactive-bash-tool.test.ts)                                                                                                                                                                                                                                                                                                  |
+| 验证面                 | 已有测试或命令                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 核心 SDK 与宿主类型    | 对 `@workbench/pi-rpc-contracts`、`@workbench/pi-runtime-adapters`、`@workbench/pi-runtime-server`、`@workbench/pi-sdk-terminal`、`@workbench/runtime-node` 运行各自 `typecheck`；接口变动时补查客户端                                                                                                                                                                                                                                                                                                                                                     |
+| stdout / Host 生命周期 | [installed-api-only-runtime-host.test.ts](../../apps/runtime-node/test/installed-api-only-runtime-host.test.ts)、[package-control-stdout.test.ts](../../apps/runtime-node/test/package-control-stdout.test.ts)、[session-extension-lifecycle.test.ts](../../apps/runtime-node/test/session-extension-lifecycle.test.ts)                                                                                                                                                                                                                                    |
+| Runtime 制品           | [runtime-artifact-builder.test.ts](../../apps/runtime-node/test/runtime-artifact-builder.test.ts)、`pnpm --filter @workbench/runtime-node build`；必要时运行该包的 `smoke:native`                                                                                                                                                                                                                                                                                                                                                                          |
+| 流重建                 | [reducer.test.ts](../../packages/pi-runtime/pi-runtime-adapters/tests/reducer.test.ts)、[session-message-accumulator.test.ts](../../packages/pi-runtime/pi-conversation-adapter/tests/session-message-accumulator.test.ts)                                                                                                                                                                                                                                                                                                                                 |
+| 会话与上下文           | [session-queue.test.ts](../../packages/pi-sdk/pi-sdk-sessions/tests/session-queue.test.ts)、[session-interruption.test.ts](../../packages/pi-sdk/pi-sdk-sessions/tests/session-interruption.test.ts)、[session-resume.test.ts](../../packages/pi-runtime/pi-runtime-server/tests/sessions/session-resume.test.ts)、[session-context-policy.test.ts](../../packages/pi-sdk/pi-sdk-sessions/tests/session-context-policy.test.ts)、[session-context-trace.test.ts](../../packages/pi-runtime/pi-runtime-server/tests/sessions/session-context-trace.test.ts) |
+| 模型与请求隔离         | [model-service.test.ts](../../packages/pi-runtime/pi-runtime-server/tests/models/model-service.test.ts)、[model-request-transport.test.ts](../../packages/pi-runtime/pi-runtime-server/tests/models/model-request-transport.test.ts)                                                                                                                                                                                                                                                                                                                       |
+| 内置工具与终端         | [builtin-tools.test.ts](../../packages/pi-runtime/pi-runtime-server/tests/internal-extensions/builtin-tools.test.ts)、[interactive-bash-tool.test.ts](../../packages/pi-sdk/pi-sdk-terminal/tests/interactive-bash-tool.test.ts)                                                                                                                                                                                                                                                                                                                           |
 
 定向运行示例（仓库根目录执行，留给升级实施阶段）：
 
 ```bash
-pnpm --filter @workbench/pi-server typecheck
+pnpm --filter @workbench/pi-runtime-server typecheck
 node --no-warnings=ExperimentalWarning \
   --import ./scripts/register-typescript-test-loader.mjs \
-  --test packages/pi/pi-shared/tests/reducer.test.ts
+  --test packages/pi-runtime/pi-runtime-adapters/tests/reducer.test.ts
 ```
 
 现有测试是复用入口，不表示已覆盖所有新增边界。按实际改动选用检查；只有出现具体的浏览器同步、渲染或交互不确定性，才使用 Browser/E2E。静态对比阶段仅新增本文，未运行应用测试、构建、Browser 或真实模型请求；后续结果单独记录。

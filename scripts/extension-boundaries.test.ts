@@ -7,7 +7,7 @@ import test from "node:test";
 const PROJECT_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const SHELL_SOURCE_ROOT = resolve(PROJECT_ROOT, "packages/client/shell/src");
 const SHELL_EXTENSION_ROOT = resolve(SHELL_SOURCE_ROOT, "extensions");
-const PI_BUILTIN_ROOT = resolve(PROJECT_ROOT, "packages/pi/pi-contributions/src/extensions");
+const PI_BUILTIN_ROOT = resolve(PROJECT_ROOT, "packages/pi-ui/pi-ui-extensions/src/extensions");
 // Shell now assembles public capability packages; it has no nested builtin feature tree.
 const BUILTIN_ROOTS = [PI_BUILTIN_ROOT];
 const SHARED_BUILTIN_TARGETS = new Set([resolve(PI_BUILTIN_ROOT, "project-trust-dialog-copy")]);
@@ -18,19 +18,19 @@ const CONVERSATION_EXTENSION_ROOTS = ["ui-conversation-nodes", "ui-conversation-
 );
 const BUSINESS_EXTENSION_ROOTS = [
   ...["src", "lib"].map((directory) =>
-    resolve(PROJECT_ROOT, "packages/pi/pi-ui-session-import", directory),
+    resolve(PROJECT_ROOT, "packages/pi-ui/pi-ui-session-import", directory),
   ),
   ...["src", "lib"].map((directory) =>
-    resolve(PROJECT_ROOT, "packages/pi/pi-ui-status", directory),
+    resolve(PROJECT_ROOT, "packages/pi-ui/pi-ui-status", directory),
   ),
   ...["src", "lib"].map((directory) =>
-    resolve(PROJECT_ROOT, "packages/pi/pi-ui-diagnostics", directory),
+    resolve(PROJECT_ROOT, "packages/pi-ui/pi-ui-diagnostics", directory),
   ),
   ...["src", "lib"].map((directory) =>
-    resolve(PROJECT_ROOT, "packages/pi/pi-ui-toolbox", directory),
+    resolve(PROJECT_ROOT, "packages/pi-ui/pi-ui-toolbox", directory),
   ),
   ...["src", "lib"].map((directory) =>
-    resolve(PROJECT_ROOT, "packages/pi/pi-ui-settings", directory),
+    resolve(PROJECT_ROOT, "packages/pi-ui/pi-ui-settings", directory),
   ),
   ...["src", "lib"].map((directory) =>
     resolve(PROJECT_ROOT, "packages/client/ui-settings", directory),
@@ -55,7 +55,7 @@ const BUSINESS_EXTENSION_ROOTS = [
     resolve(PROJECT_ROOT, "packages/client/ui-settings-general", directory),
   ),
   ...["src", "lib"].map((directory) =>
-    resolve(PROJECT_ROOT, "packages/pi/pi-ui-settings-models", directory),
+    resolve(PROJECT_ROOT, "packages/pi-ui/pi-ui-settings-models", directory),
   ),
   ...["src", "lib"].map((directory) =>
     resolve(PROJECT_ROOT, "packages/client/ui-attachment", directory),
@@ -138,7 +138,9 @@ const RIGHT_WORKSPACE_ROOTS = [
 const RUNTIME_ROOTS = [
   resolve(PROJECT_ROOT, "apps/runtime-node/src"),
   resolve(PROJECT_ROOT, "packages/agent-runtime"),
-  resolve(PROJECT_ROOT, "packages/pi"),
+  resolve(PROJECT_ROOT, "packages/pi-sdk"),
+  resolve(PROJECT_ROOT, "packages/pi-runtime"),
+  resolve(PROJECT_ROOT, "packages/pi-ui"),
   resolve(PROJECT_ROOT, "packages/server"),
   resolve(PROJECT_ROOT, "packages/terminal"),
 ];

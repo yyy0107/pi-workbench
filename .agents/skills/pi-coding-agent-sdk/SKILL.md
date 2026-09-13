@@ -10,7 +10,7 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 ## Load the right context
 
 1. Follow the repository `AGENTS.md` and applicable nested instructions; reuse instructions already read and unchanged.
-2. For Pi session, transport, workspace, model, settings, package, skill, or extension changes, locate and read the relevant sections of `packages/pi/README.md`. Read additional sections only for unresolved ownership or behavior questions.
+2. For Pi session, transport, workspace, model, settings, package, skill, or extension changes, locate and read the relevant sections of `packages/pi-runtime/integration.md`. Read additional sections only for unresolved ownership or behavior questions.
 3. Read [references/source-routing.md](references/source-routing.md) before choosing or importing a Pi API. Resolve the installed package version first.
 4. Read [references/extensions.md](references/extensions.md) when authoring, registering, loading, filtering, or debugging Pi extensions.
 5. Read [references/session-sdk.md](references/session-sdk.md) when creating sessions/services, binding extension contexts, reloading resources, or exposing Pi behavior to Workbench.
@@ -37,9 +37,10 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 
 ### 3. Reuse the current Workbench composition
 
-- Put statically compiled, host-owned Pi extensions under `packages/pi/pi-tools/src/`.
+- Put statically compiled, host-owned Pi extensions under `packages/pi-runtime/pi-runtime-tools/src/`.
+- Product bundled Skills/Prompts and deployment live in `packages/product/pi-workbench-runtime/`; the SDK resource service owns loading and mutation, not product content.
 - Keep user/package extension discovery and mutation in the existing extension/package services; do not disguise internal extensions as user files.
-- Add internal extensions to `createWorkbenchInternalPiExtensions()` in `packages/pi/pi-tools/src/builtin-tools.ts`, receiving the existing collaborators through `WorkbenchToolDependencies`, with a `workbench.` name and `hidden: true` unless they should appear in Pi's startup extension list.
+- Add internal extensions to `createWorkbenchInternalPiExtensions()` in `packages/product/pi-workbench-runtime/src/extensions.ts`, receiving the existing collaborators through `WorkbenchToolDependencies`, with a `workbench.` name and `hidden: true` unless they should appear in Pi's startup extension list.
 - Preserve `extensionsOverride` composition and return the complete `LoadExtensionsResult`. Report scoped failures without discarding unrelated extensions, errors, or the shared runtime.
 - Bind embedded sessions with the correct mode and host-provided UI context after creation. Reuse the current `session.bindExtensions({ mode: "rpc", uiContext })` flow.
 
@@ -56,8 +57,8 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 ### 5. Preserve the boundary
 
 - Keep `@earendil-works/pi-coding-agent` imports in server/runtime modules. Never serialize `AgentSession`, `ExtensionAPI`, `ExtensionRuntime`, registries, callbacks, Maps, or tool definitions to the browser.
-- Promote only stable JSON-compatible request/response/event fields into `@workbench/pi-protocol` or the Workbench-owned adapter contracts when a frontend needs them.
-- Do not copy raw Pi RPC types into Workbench or call legacy `/api/pi/**` routes from a new feature. Follow the transport named by `packages/pi/README.md`.
+- Promote only stable JSON-compatible request/response/event fields into `@workbench/pi-rpc-contracts` or the Workbench-owned adapter contracts when a frontend needs them.
+- Do not copy raw Pi RPC types into Workbench or call legacy `/api/pi/**` routes from a new feature. Follow the transport named by `packages/pi-runtime/integration.md`.
 - Keep project-trust checks and filesystem/provider credentials on the server side.
 
 ## Validate proportionally
@@ -75,4 +76,4 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 - Never mutate `LoadExtensionsResult.runtime` casually; it is shared across the loaded extension set and is bound to the active runner.
 - Never start a second Pi service or event stream for a feature already covered by the embedded runtime.
 - Never infer the API from the local Pi checkout alone when its version differs from the installed dependency.
-- Preserve unrelated worktree changes, especially in `packages/pi/pi-session-server/src/` and `packages/pi/pi-resources-server/src/`.
+- Preserve unrelated worktree changes, especially in `packages/pi-sdk/pi-sdk-sessions/src/` and `packages/pi-sdk/pi-sdk-resources/src/`.

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-import { PiWorkbenchShell } from "@workbench/pi-product/application";
+import { PiWorkbenchShell } from "@workbench/pi-workbench/application";
 import { MainViewHost } from "@/workbench/shell/main-view-host";
 
 import {

@@ -110,11 +110,12 @@ not sandboxed. Sessions and settings stay local; model requests are sent to the 
 
 ## Documentation
 
+- [Package navigation and Pi SDK imports](./packages/README.md)
 - [Architecture](./docs/workbench-public-layers.md)
 - [Capability packages and Spec Kit refactor](./specs/001-workbench-package-refactor/package-map.md)
 - [Extensions](./docs/extensions.md)
 - [Internationalization](./docs/i18n.md)
-- [Pi Runtime](./packages/pi/README.md)
+- [Pi Runtime](./packages/pi-runtime/integration.md)
 
 ## License
 

@@ -1,6 +1,6 @@
 # Terminal package boundaries
 
-This directory owns the Terminal capability as four leaf packages. Keep the ownership and direction
+This directory owns the Terminal capability as three leaf packages. Keep the ownership and direction
 below intact when changing this slice.
 
 - `terminal-contracts` owns only serializable Terminal contracts and has no production dependencies.
@@ -10,9 +10,8 @@ below intact when changing this slice.
   `tree-sitter-bash`. It must not import Pi, React, or Host authentication framing. Host-side
   authentication and authorization must complete before the outer composition root attaches the
   Terminal gateway.
-- `pi-terminal-tool` is the only Terminal package that may import the public
-  `@earendil-works/pi-coding-agent` API. It owns the `interactive-bash-tool` ToolDefinition adapter
-  and must not deep-import Pi internals.
+- Pi SDK integration lives in `../pi-runtime/pi-runtime-terminal`; the three Terminal packages remain
+  independent of the Pi SDK.
 
 The shared Runtime artifact producer gets `node-pty`, `tree-sitter`, and `tree-sitter-bash` from
 `@workbench/terminal-server` and confines their physical package roots to the repository-local pnpm
