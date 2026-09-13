@@ -12,20 +12,9 @@ const PI_BUILTIN_ROOT = resolve(PROJECT_ROOT, "packages/pi/pi-contributions/src/
 const BUILTIN_ROOTS = [PI_BUILTIN_ROOT];
 const SHARED_BUILTIN_TARGETS = new Set([resolve(PI_BUILTIN_ROOT, "project-trust-dialog-copy")]);
 const INSTALLABLE_ROOT = resolve(SHELL_SOURCE_ROOT, "extensions/installable");
-const CONVERSATION_ROOTS = ["src", "lib"].map((directory) =>
-  resolve(PROJECT_ROOT, "packages/conversation/conversation", directory),
-);
-const CONVERSATION_EXTENSION_ROOTS = CONVERSATION_ROOTS.flatMap((root) =>
-  [
-    "message-presentation",
-    "message-actions",
-    "message-queue",
-    "user-message-index",
-    "todo-panel",
-    "interactive-requests",
-    "side-chat",
-    "archived-chats",
-  ].map((feature) => resolve(root, feature)),
+const CONVERSATION_EXTENSION_ROOTS = ["ui-conversation-nodes", "ui-conversation-list"].flatMap(
+  (name) =>
+    ["src", "lib"].map((directory) => resolve(PROJECT_ROOT, "packages/client", name, directory)),
 );
 const BUSINESS_EXTENSION_ROOTS = [
   ...["src", "lib"].map((directory) =>
@@ -54,13 +43,72 @@ const BUSINESS_EXTENSION_ROOTS = [
   INSTALLABLE_ROOT,
   ...CONVERSATION_EXTENSION_ROOTS,
   ...["src", "lib"].map((directory) =>
-    resolve(PROJECT_ROOT, "packages/client/ui-agent-controls", directory),
+    resolve(PROJECT_ROOT, "packages/client/ui-model-selection", directory),
   ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/ui-token-usage", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/ui-theme", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/ui-settings-general", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/pi/pi-ui-settings-models", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/ui-attachment", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/ui-input-trigger", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/ui-user-questions", directory),
+  ),
+  ...["src", "lib"].map((directory) => resolve(PROJECT_ROOT, "packages/client/ui-todo", directory)),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/ui-message-queue", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/ui-message-actions", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/ui-user-message-index", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/ui-settings-archived-chats", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/ui-side-chat", directory),
+  ),
+  ...["src", "lib"].map((directory) => resolve(PROJECT_ROOT, "packages/client/ui-tool", directory)),
+
   ...["src", "lib"].map((directory) =>
     resolve(PROJECT_ROOT, "packages/client/ui-terminal", directory),
   ),
 ].filter(existsSync);
 const COMPONENT_ROOTS = [
+  resolve(PROJECT_ROOT, "packages/client/ui-conversation-list/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-conversation-messages/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-conversation-nodes/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-message-blocks/src"),
+
+  resolve(PROJECT_ROOT, "packages/client/ui-model-selection/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-token-usage/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-theme/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-settings-general/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-attachment/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-input-trigger/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-user-questions/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-todo/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-message-queue/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-message-actions/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-user-message-index/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-settings-archived-chats/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-side-chat/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-tool/src"),
+
   resolve(PROJECT_ROOT, "packages/client/ui-sidebar/src"),
   resolve(PROJECT_ROOT, "packages/client/ui-panels/src"),
   resolve(PROJECT_ROOT, "packages/client/ui-layout/src"),
@@ -68,8 +116,8 @@ const COMPONENT_ROOTS = [
   resolve(PROJECT_ROOT, "packages/client/ui-selectors/src"),
   resolve(PROJECT_ROOT, "packages/client/ui-resize/src"),
   resolve(PROJECT_ROOT, "packages/client/ui-disclosure/src"),
-  resolve(PROJECT_ROOT, "packages/conversation/conversation/src"),
-  resolve(PROJECT_ROOT, "packages/conversation/composer/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-conversation/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-composer/src"),
   resolve(PROJECT_ROOT, "packages/workspace/workspace-runtime/src"),
   resolve(PROJECT_ROOT, "packages/workspace/workspace-files/src"),
 ].flatMap((root) =>
@@ -102,6 +150,7 @@ const ALLOWED_EXTENSION_SUBPATHS = new Set([
   "@workbench/extension-host",
   "@workbench/extension-host/hosts/extension-error-boundary",
   "@workbench/extension-host/hosts/renderer-host",
+  "@workbench/extension-host/hosts/slot-host",
 ]);
 const HOST_ROOT_RUNTIME_IMPORTS = new Set([
   "ExtensionErrorDetails",

@@ -79,7 +79,7 @@ packages/workspace/notes/
 ```
 
 这是新增能力的示例路径。src 放真实能力和契约，lib 只放该能力实际使用的辅助源码；两处均保留 TS/TSX，最多一级子目录。跨包使用公开 exports 和 workspace 依赖。
-公共界面归 `packages/client/*`，工作区归 `packages/workspace/*`，对话归 `packages/conversation/*`，Pi 专属界面归 `packages/pi/*-ui`。产品在 `packages/client/pi-product/src/extensions.ts` 按原顺序安装贡献，Shell 保留布局和侧栏装配。
+公共界面归 `packages/client/*`，工作区归 `packages/workspace/*`，对话归 `packages/client/*`，Pi 专属界面归 `packages/pi/*-ui`。产品在 `packages/client/pi-product/src/extensions.ts` 按原顺序安装贡献，Shell 保留布局和侧栏装配。
 
 最小扩展只有一个 `extension.ts`：
 
@@ -454,7 +454,7 @@ export interface SlotPropsMap {
 ```
 
 ```tsx
-// packages/conversation/conversation/src/...
+// packages/client/ui-conversation/src/...
 <SlotHost name="thread.toolbar" context={{ threadId }} />
 ```
 
@@ -1150,13 +1150,15 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 ## 16. 可参考的现有扩展
 
 - 最小 Slot：[`connection-status`](../packages/pi/pi-ui-status/src/connection-status-extension.ts)
-- Model 选择与 Workbench capability：[`model-selector`](../packages/client/ui-agent-controls/src/model-selector-extension.ts)
-- Settings + Pi 专属配置：[`setting-model-config`](../packages/pi/pi-ui-settings/src/setting-model-config-extension.ts)
+- Model 选择与 Workbench capability：[`model-selector`](../packages/client/ui-model-selection/src/model-selector-extension.ts)
+- Settings + Pi 专属配置：[`setting-model-config`](../packages/pi/pi-ui-settings-models/src/setting-model-config-extension.ts)
 - Workspace Surface + Open Handler：[`workspace-file`](../packages/workspace/workspace-file-view/src/extension.ts)
 - Workspace Surface + Command + Tool Renderer：[`terminal`](../packages/client/ui-terminal/src/extension.ts)
 - Sidebar/Header Slot + floating Settings：[`settings`](../packages/client/ui-settings/src/settings-extension.ts)
-- Message 分组、reasoning 与 Tool/Data fallback：[`message-presentation`](../packages/conversation/conversation/src/message-presentation/extension.ts)
-- Runtime 状态派生：[`token-usage`](../packages/client/ui-agent-controls/src/token-usage-extension.ts)
+- 会话 Sidebar Section 与 workspace/thread 导航：[`workspace-sidebar`](../packages/client/ui-conversation-list/src/extension.ts)
+- Message 节点分组与 presentation：[`message-presentation`](../packages/client/ui-conversation-nodes/src/message-presentation-extension.ts)
+- Message block renderer：[`message-blocks`](../packages/client/ui-message-blocks/src/message-blocks.tsx)
+- Runtime 状态派生：[`token-usage`](../packages/client/ui-token-usage/src/token-usage-extension.ts)
 
 如果新需求无法自然归入 Slot、Panel、Command、Renderer 或 Settings，先判断它是不是：
 
@@ -1166,3 +1168,7 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 4. 真正需要新增的 Workbench 宿主能力。
 
 只有第 4 类才应该扩展平台 API。
+
+### Tool presentation boundaries
+
+ToolPresentationDefinition may supply summaryComponent, getExpandable, showCompletionIcon, group and getResourceStats in addition to existing labels and summarize. Summary components receive node/block/label and are isolated by the Host error boundary; exact renderers still own details. Pure callbacks must tolerate partial arguments and failures. Unregistered tools use generic chrome; grouping and statistics require explicit contributions. Do not persist these React components or callbacks into conversation data.

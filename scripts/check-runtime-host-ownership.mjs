@@ -8,7 +8,6 @@ const SOURCE_EXTENSIONS = new Set([".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts"
 const SOURCE_ROOTS = [
   "packages/client",
   "packages/workspace",
-  "packages/conversation",
   "packages/client/shell-context/src",
   "apps/desktop-electron/scripts",
   "apps/desktop-electron/src",

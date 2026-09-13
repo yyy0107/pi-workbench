@@ -1,7 +1,6 @@
 packages:
   - "apps/*"
   - "packages/workspace/*"
-  - "packages/conversation/*"
   - "packages/contracts/*"
   - "packages/server/*"
   - "packages/agent-runtime/*"

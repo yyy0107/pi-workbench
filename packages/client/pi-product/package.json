@@ -23,7 +23,6 @@
   "dependencies": {
     "@workbench/agent-runtime-client": "workspace:*",
     "@workbench/agent-runtime-contracts": "workspace:*",
-    "@workbench/conversation": "workspace:*",
     "@workbench/extension-sdk": "workspace:*",
     "@workbench/host-client": "workspace:*",
     "@workbench/host-contracts": "workspace:*",
@@ -35,7 +34,9 @@
     "@workbench/settings-runtime": "workspace:*",
     "@workbench/shell": "workspace:*",
     "@workbench/shell-context": "workspace:*",
+    "@workbench/ui-conversation": "workspace:*",
     "@workbench/ui-settings": "workspace:*",
+    "@workbench/ui-theme": "workspace:*",
     "@workbench/workspace-files": "workspace:*",
     "thinking-orbs": "^0.3.1"
   },

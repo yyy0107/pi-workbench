@@ -9,3 +9,5 @@
 内部辅助：`lib/code-highlight-policy.ts`, `lib/diff/range.ts`, `lib/diff/unified-patch.ts`, `lib/shiki-token-style.ts`.
 
 实际调用示例：`src/index.ts` → `lib/code-highlight-policy.ts`.
+
+代码标题栏控件尺寸与标题栏共置于 code-block.css；工具协议适配不属于本渲染能力。

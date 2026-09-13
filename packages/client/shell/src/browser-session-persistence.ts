@@ -1,6 +1,6 @@
 import { resolveBrowserSessionStorage } from "../lib/browser-session-storage";
 import type { RightWorkspaceDraftPersistencePort } from "@workbench/workspace-runtime";
-import type { ThreadScrollPersistencePort } from "@workbench/conversation/scroll-state";
+import type { ThreadScrollPersistencePort } from "@workbench/ui-conversation-messages/scroll-state";
 
 export interface WorkbenchSessionStorage {
   getItem(key: string): string | null;

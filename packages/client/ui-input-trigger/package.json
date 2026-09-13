@@ -1,0 +1,52 @@
+{
+  "name": "@workbench/ui-input-trigger",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./i18n": "./src/i18n/index.ts",
+    "./composer-command-parameter-panel": "./src/composer-command-parameter-panel.tsx",
+    "./agent-command": "./src/agent-command.ts",
+    "./composer-command-argument-hint": "./src/composer-command-argument-hint.ts",
+    "./composer-command-arguments": "./src/composer-command-arguments.tsx",
+    "./composer-command-group-order": "./src/composer-command-group-order.ts",
+    "./composer-command-icon-color": "./src/composer-command-icon-color.ts",
+    "./composer-trigger-engine": "./src/composer-trigger-engine.ts",
+    "./composer-command-parameters": "./src/composer-command-parameters.ts",
+    "./types": "./src/types.ts",
+    "./public-composer-command-icon-color": "./src/public-composer-command-icon-color.ts",
+    "./public-composer-command-argument-hint": "./src/public-composer-command-argument-hint.ts",
+    "./public-composer-command-group-order": "./src/public-composer-command-group-order.ts",
+    "./public-agent-command": "./src/public-agent-command.ts",
+    "./styles.css": "./src/styles.css",
+    "./tokens": "./src/tokens.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/core-contracts": "workspace:*",
+    "@workbench/extension-sdk": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/ui": "workspace:*",
+    "lucide-react": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

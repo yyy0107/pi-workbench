@@ -19,3 +19,5 @@ The layout consumes sidebar and panel capabilities through their public packages
 ```bash
 pnpm --filter @workbench/ui-layout typecheck
 ```
+
+Layout consumes conversationHeader and conversationActions supplied by Shell. It no longer installs conversation scroll persistence or imports conversation feature packages.

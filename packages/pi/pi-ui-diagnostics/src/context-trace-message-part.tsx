@@ -7,7 +7,7 @@ import { ScanSearchIcon } from "lucide-react";
 
 import type { DataRendererComponent } from "@workbench/extension-sdk";
 import { field, mono } from "@workbench/ui";
-import { ToolCall } from "@workbench/conversation/elements";
+import { ToolCall } from "@workbench/ui-tool/tool-call";
 import { Button } from "@workbench/ui";
 
 import {

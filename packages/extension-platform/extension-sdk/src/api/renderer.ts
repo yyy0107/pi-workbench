@@ -108,6 +108,18 @@ export interface NamedRendererRegistry<TComponent> {
  * Lightweight timeline presentation for one Tool Block. These functions may run while arguments
  * are incomplete and must be pure. The renderer still owns the tool detail body.
  */
+export interface ToolPresentationSummaryProps {
+  readonly node: MessageBlockNode;
+  readonly block: ToolCallBlock;
+  readonly label: ReactNode;
+}
+
+export interface ToolPresentationResourceStat {
+  readonly file: string;
+  readonly added?: number;
+  readonly removed?: number;
+}
+
 export interface ToolPresentationDefinition {
   readonly label: LocalizableText;
   readonly activeLabel: LocalizableText;
@@ -125,6 +137,16 @@ export interface ToolPresentationDefinition {
   /** An empty string intentionally hides the argument summary. */
   readonly summarize?: (block: ToolCallBlock) => LocalizableText | undefined;
   readonly disclosureController?: ToolPresentationDisclosureController;
+  /** Optional query chrome, isolated by the host from renderer failures. */
+  readonly summaryComponent?: ComponentType<ToolPresentationSummaryProps>;
+  readonly getExpandable?: (block: ToolCallBlock, node?: MessageBlockNode) => boolean;
+  readonly showCompletionIcon?: boolean;
+  readonly group?: "exploration" | "terminal" | "changes";
+  /** Pure display statistics; protocol parsing belongs to the contribution. */
+  readonly getResourceStats?: (
+    block: ToolCallBlock,
+    node?: MessageBlockNode,
+  ) => readonly ToolPresentationResourceStat[];
 }
 
 export interface ToolPresentationRegistry {

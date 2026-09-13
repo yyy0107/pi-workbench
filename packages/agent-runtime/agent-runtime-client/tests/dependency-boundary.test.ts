@@ -20,8 +20,8 @@ const GENERIC_THREAD_PRESENTATION_CONSUMERS = [
   "packages/client/ui-layout/src/workbench-sidebar.tsx",
 ] as const;
 const GENERIC_AGENT_COMMAND_CONSUMERS = [
-  "packages/conversation/conversation/src/composer-message-text.tsx",
-  "packages/conversation/composer/src/workbench-composer.tsx",
+  "packages/client/ui-conversation/src/composer-message-text.tsx",
+  "packages/client/ui-composer/src/workbench-composer.tsx",
 ] as const;
 
 async function productionSources(directory: string): Promise<string[]> {

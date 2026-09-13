@@ -169,3 +169,16 @@
 .aui-markdown :where([data-markdown="table-header-cell"], [data-markdown="table-cell"]):last-child {
   padding-inline-end: 0.75rem;
 }
+
+@layer components {
+  [data-slot="markdown-preview"] :where(button[data-slot]) {
+    --button-icon-size: var(--icon-size-sm);
+    --button-icon-frame-size: var(--icon-frame-size-sm);
+    --button-icon-radius: var(--icon-frame-radius-sm);
+  }
+}
+
+:where([data-slot="workbench-conversation"]) .aui-markdown {
+  font-family: var(--workbench-content-font, var(--font-sans));
+  font-weight: var(--workbench-content-font-weight, 400);
+}

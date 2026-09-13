@@ -1,0 +1,55 @@
+{
+  "name": "@workbench/ui-conversation-nodes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./context": "./src/conversation-message-context.tsx",
+    "./node-seat": "./src/conversation-node-seat.tsx",
+    "./composer-message-text": "./src/composer-message-text.tsx",
+    "./message-actions": "./src/message-actions.tsx",
+    "./message-parts": "./src/message-parts.tsx",
+    "./steered-turn": "./src/steered-turn.tsx",
+    "./message-presentation": "./src/message-presentation-index.ts",
+    "./i18n": "./src/i18n/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-client": "workspace:*",
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/core-contracts": "workspace:*",
+    "@workbench/extension-host": "workspace:*",
+    "@workbench/extension-sdk": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/markdown": "workspace:*",
+    "@workbench/settings-runtime": "workspace:*",
+    "@workbench/ui": "workspace:*",
+    "@workbench/ui-composer": "workspace:*",
+    "@workbench/ui-disclosure": "workspace:*",
+    "@workbench/ui-input-trigger": "workspace:*",
+    "@workbench/ui-message-blocks": "workspace:*",
+    "@workbench/ui-todo": "workspace:*",
+    "@workbench/ui-tool": "workspace:*",
+    "lucide-react": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

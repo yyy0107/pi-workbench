@@ -14,3 +14,5 @@ pnpm --filter @workbench/markdown test
 ```
 
 源码分工：src 承载本包能力与契约，lib 仅放实际使用的内部辅助，tests 为包根测试。实际消费者示例：`src/markdown-text.tsx` 引用 `lib/inline-citation-markers.ts`。实现保留 TS/TSX；既有构建工具保持原语言。
+
+Markdown 预览控件与会话字体继承样式由本包提供，不再由消息列表样式定义。

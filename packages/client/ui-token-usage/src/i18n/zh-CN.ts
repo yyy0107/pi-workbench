@@ -1,0 +1,70 @@
+import type { MessageFormatters } from "@workbench/i18n/runtime";
+
+export const messages = {
+  extensions: {
+    tokenUsage: {
+      turns: ({ count }: { count: number }, { number }: MessageFormatters) => `${number(count)} 轮`,
+      steps: ({ count }: { count: number }, { number }: MessageFormatters) => `${number(count)} 步`,
+      llm: "LLM",
+      toolCalls: "工具调用",
+      averageFirstToken: "首 token 平均",
+      tokensPerSecondUnit: "tok/s",
+      averageCacheHit: "平均缓存命中",
+      input: "输入",
+      output: "输出",
+      tokenUnit: "tok",
+      unavailable: "—",
+      detailsTitle: "会话统计",
+      showDetails: "查看上下文与会话统计",
+      description: "当前上下文占用与会话累计统计",
+      currentContextTitle: "当前上下文",
+      currentContextValue: ({ used, budget }: { used: string; budget: string }) =>
+        `${used} / ${budget}`,
+      contextUsed: "上下文已用",
+      estimatedContextValue: ({ used, budget }: { used: string; budget: string }) =>
+        `${used} / ${budget}`,
+      estimatedTokenValue: ({ tokens }: { tokens: string }) => tokens,
+      nearingCompaction: "上下文已接近自动压缩点；压缩时 Pi 会尽量保留近期工作内容。",
+      modelInputBreakdown: "模型输入构成",
+      breakdownGroups: {
+        instructions: "指令与上下文",
+        tools: "工具定义",
+        conversation: "会话内容",
+      },
+      breakdownCategories: {
+        "system-prompt": "系统提示词",
+        skills: "Skills",
+        "context-files": "上下文文件与注入内容",
+        "builtin-tools": "内置工具 Schema",
+        "mcp-tools": "MCP 工具 Schema",
+        "extension-tools": "扩展工具 Schema",
+        "user-input": "用户输入",
+        "assistant-history": "助手历史",
+        "tool-results": "工具结果",
+        other: "其他模型输入",
+      },
+      contextSettings: "上下文设置",
+      contextBudget: "上下文上限",
+      contextBudgetControlLabel: ({ mode, tokens }: { mode: string; tokens: string }) =>
+        `会话上下文预算：${mode}，${tokens}`,
+      customContextBudget: "自定义会话上下文预算",
+      applyContextBudget: "应用",
+      customContextBudgetInvalid: ({ tokens }: { tokens: string }) =>
+        `请输入不超过当前模型 ${tokens} token 容量的整数。`,
+      contextBudgetModes: {
+        inherit: "跟随模型",
+        auto: "自动",
+        maximum: "最大",
+        custom: "自定义",
+      },
+      compactNow: "立即压缩",
+      viewContextTrace: "查看 Context Trace",
+      contextTooSmall: "当前上下文太短，没有可压缩的较早内容；继续对话后再试。",
+      contextAlreadyCompacted: "当前上下文已经压缩过；继续对话产生新内容后再试。",
+      contextCompactionCancelled: "上下文压缩已取消。",
+      contextActionBusy: "会话正在运行；请等待当前操作完成后再试。",
+      contextActionFailed: "无法完成上下文操作，请重试。",
+      cumulativeTitle: "累计用量与性能",
+    },
+  },
+} as const;

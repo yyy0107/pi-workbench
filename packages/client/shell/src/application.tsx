@@ -73,13 +73,16 @@ import {
 } from "@workbench/settings-runtime";
 import type { WorkbenchSettingsPort } from "@workbench/settings-runtime";
 import { ToastProvider } from "@workbench/ui";
-import { WorkbenchShell, type WorkbenchShellProps } from "@workbench/ui-layout";
+import { type WorkbenchShellProps } from "@workbench/ui-layout";
 import {
   createWorkspaceDirectoryStoreInstallation,
   type WorkspaceDirectoryStoreInstallation,
 } from "@workbench/workspace-runtime/directory-store";
 import type { RightWorkspaceDraftPersistencePort } from "@workbench/workspace-runtime";
-import type { ThreadScrollPersistencePort } from "@workbench/conversation/scroll-state";
+import {
+  ThreadScrollStateProvider,
+  type ThreadScrollPersistencePort,
+} from "@workbench/ui-conversation-messages/scroll-state";
 
 const WorkbenchApplicationInstallationContext = createContext<string | undefined>(undefined);
 
@@ -486,6 +489,8 @@ export interface WorkbenchApplicationShellProps extends WorkbenchApplicationShel
   readonly createThreadScrollPersistence?: (namespace: string) => ThreadScrollPersistencePort;
 }
 
+import { ConversationWorkbenchShell } from "./conversation-header";
+
 function WorkbenchApplicationShellInstallation({
   applicationId,
   assets,
@@ -515,16 +520,17 @@ function WorkbenchApplicationShellInstallation({
       registry={registry}
     >
       <RuntimeProvider>
-        <WorkbenchShell
-          assets={assets}
-          branding={branding}
-          installationEffects={installationEffects}
-          mainViewHost={mainViewHost}
-          runningIndicatorCatalog={runningIndicatorCatalog}
-          threadScrollPersistence={threadScrollPersistence}
-        >
-          {children}
-        </WorkbenchShell>
+        <ThreadScrollStateProvider persistence={threadScrollPersistence}>
+          <ConversationWorkbenchShell
+            assets={assets}
+            branding={branding}
+            installationEffects={installationEffects}
+            mainViewHost={mainViewHost}
+            runningIndicatorCatalog={runningIndicatorCatalog}
+          >
+            {children}
+          </ConversationWorkbenchShell>
+        </ThreadScrollStateProvider>
       </RuntimeProvider>
     </WorkbenchApplicationRightWorkspaceProvider>
   );

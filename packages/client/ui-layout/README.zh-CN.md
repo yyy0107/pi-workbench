@@ -19,3 +19,5 @@ Workbench 框架、标题栏、侧栏外框、全局层、状态栏、响应式�
 ```bash
 pnpm --filter @workbench/ui-layout typecheck
 ```
+
+布局消费 Shell 提供的 conversationHeader 与 conversationActions，不再安装会话滚动持久化或依赖会话能力包。

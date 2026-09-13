@@ -1,5 +1,6 @@
 import type { layoutTranslationBundle } from "@workbench/ui-layout/i18n";
 import type { panelsTranslationBundle } from "@workbench/ui-panels/i18n";
+import type { sidebarTranslationBundle as conversationListTranslationBundle } from "@workbench/ui-conversation-list/i18n";
 import type { sidebarTranslationBundle } from "@workbench/ui-sidebar/i18n";
 import { extensionsEnUS } from "./extensions-en-US";
 import { extensionsZhCN } from "./extensions-zh-CN";
@@ -13,6 +14,7 @@ const enUS = {
 
 export type Messages = CatalogShape<typeof enUS> &
   (typeof sidebarTranslationBundle.messages)["en-US"] &
+  (typeof conversationListTranslationBundle.messages)["en-US"] &
   (typeof panelsTranslationBundle.messages)["en-US"] &
   (typeof layoutTranslationBundle.messages)["en-US"];
 

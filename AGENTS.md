@@ -73,6 +73,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## 当前重构规划上下文
 
-当前实施为 `specs/003-ui-capability-extraction/spec.md`，设计与逐文件映射见同目录 `plan.md`、`package-map.md` 和 `migration-inventory.json`。本轮从基础 ui 提取 ui-selectors、ui-resize、ui-disclosure，并扩充 ui-agent-controls、ui-settings、ui-sidebar；实施状态见 tasks.md；Spec 001/002 保持原记录。当前目录与组件细则仍以实际代码和最近 AGENTS.md 为准。
+前一轮已提交实施为 `specs/003-ui-capability-extraction/spec.md`，设计与逐文件映射见同目录 `plan.md`、`package-map.md` 和 `migration-inventory.json`。本轮从基础 ui 提取 ui-selectors、ui-resize、ui-disclosure，并扩充 ui-agent-controls、ui-settings、ui-sidebar；实施状态见 tasks.md；Spec 001/002 保持原记录。当前目录与组件细则仍以实际代码和最近 AGENTS.md 为准。
 
 后续重构沿用用户约束：不新增、不运行 UI 测试或 UI 交互冒烟，仅做 UI 静态审查；保留非 UI 逻辑测试、类型/结构/依赖检查和构建。多 Agent 重构按能力派发，子 Agent 使用 `gpt-5.6-luna`（独立能力迁移）与 `gpt-5.6-sol`（跨包契约、生命周期、集成），详细边界见当前 Spec 的 plan.md/quickstart.md。
+
+当前已实施的产品能力拆分：`specs/004-ui-product-capabilities/plan.md`。参考产品职责细化 conversation/composer/settings/model UI，目标与边界见同目录 package-map.md；15 个能力包已完成，任务与验证见同目录 tasks.md、validation.md、migration-inventory.json；Spec 003 已提交记录保持不变。继续不执行 UI 测试，子 Agent 按能力使用 Luna/Sol。
+
+当前已实施的会话内部拆分：`specs/005-conversation-capability-split/plan.md`。ui-composer/ui-conversation 已改名，会话导航列表、消息流列表、节点呈现与消息块已独立；17 项任务及验证见同目录 tasks.md、validation.md，Spec 004 完成记录保持。
+
+会话与输入等前端 UI 能力统一放在 `packages/client/ui-*`，不再使用 `packages/conversation/`。Spec005 最终目录映射见 client-placement.json。
+
+当前 UI 边界解耦规划：`specs/006-ui-boundary-decoupling/plan.md`；职责映射、公开合同和验证见同目录 ownership-map.md、contracts/public-boundaries.md、quickstart.md。以当前未提交的 Spec004/005 与 client 迁移工作树为基线，目标保持 93 个库包；本期 36 项实施任务已完成，检查与构建证据见 validation.md；UI 测试仍排除执行。保留不新增、不执行 UI 测试与按能力使用 Luna/Sol 的约束。

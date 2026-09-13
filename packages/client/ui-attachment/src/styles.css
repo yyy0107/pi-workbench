@@ -1,0 +1,38 @@
+@layer components {
+  .aui-composer-attachments {
+    --composer-attachment-height: calc(var(--control-hit-compact) * 7 / 2);
+    --composer-attachment-width: calc(var(--control-hit-compact) * 9);
+    --composer-attachment-radius: max(
+      0px,
+      calc(var(--composer-radius, var(--radius-xl)) - var(--composer-padding, 8px))
+    );
+  }
+
+  .aui-composer-attachments:has(> :nth-child(3)) {
+    --composer-attachment-height: calc(var(--control-hit-touch) * 3 / 2);
+    --composer-attachment-width: calc(var(--control-hit-compact) * 8);
+  }
+
+  .aui-composer-attachment-image {
+    width: var(--composer-attachment-height);
+    height: var(--composer-attachment-height);
+  }
+
+  .aui-composer-attachment-text {
+    flex: 0 1 var(--composer-attachment-width);
+    min-width: min(100%, calc(var(--control-hit-compact) * 7));
+    max-width: min(100%, var(--composer-attachment-width));
+    height: var(--composer-attachment-height);
+  }
+
+  .aui-composer-icon-size-attachment {
+    --composer-icon-size: var(--icon-size-xxl);
+    stroke-width: 1.5;
+  }
+
+  .aui-composer-attachment-remove {
+    --button-icon-frame-size: calc(var(--icon-frame-size-xs) - 2px);
+    --button-icon-size: calc(var(--icon-size-xs) - 2px);
+    --button-icon-radius: var(--button-radius);
+  }
+}

@@ -1,0 +1,2249 @@
+{
+  "status": "complete",
+  "packages": [
+    {
+      "source": "packages/conversation/ui-attachment",
+      "target": "packages/client/ui-attachment",
+      "package": "@workbench/ui-attachment"
+    },
+    {
+      "source": "packages/conversation/ui-composer",
+      "target": "packages/client/ui-composer",
+      "package": "@workbench/ui-composer"
+    },
+    {
+      "source": "packages/conversation/ui-conversation",
+      "target": "packages/client/ui-conversation",
+      "package": "@workbench/ui-conversation"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list",
+      "target": "packages/client/ui-conversation-list",
+      "package": "@workbench/ui-conversation-list"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages",
+      "target": "packages/client/ui-conversation-messages",
+      "package": "@workbench/ui-conversation-messages"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes",
+      "target": "packages/client/ui-conversation-nodes",
+      "package": "@workbench/ui-conversation-nodes"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger",
+      "target": "packages/client/ui-input-trigger",
+      "package": "@workbench/ui-input-trigger"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions",
+      "target": "packages/client/ui-message-actions",
+      "package": "@workbench/ui-message-actions"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks",
+      "target": "packages/client/ui-message-blocks",
+      "package": "@workbench/ui-message-blocks"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue",
+      "target": "packages/client/ui-message-queue",
+      "package": "@workbench/ui-message-queue"
+    },
+    {
+      "source": "packages/conversation/ui-settings-archived-chats",
+      "target": "packages/client/ui-settings-archived-chats",
+      "package": "@workbench/ui-settings-archived-chats"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat",
+      "target": "packages/client/ui-side-chat",
+      "package": "@workbench/ui-side-chat"
+    },
+    {
+      "source": "packages/conversation/ui-todo",
+      "target": "packages/client/ui-todo",
+      "package": "@workbench/ui-todo"
+    },
+    {
+      "source": "packages/conversation/ui-tool",
+      "target": "packages/client/ui-tool",
+      "package": "@workbench/ui-tool"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index",
+      "target": "packages/client/ui-user-message-index",
+      "package": "@workbench/ui-user-message-index"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions",
+      "target": "packages/client/ui-user-questions",
+      "package": "@workbench/ui-user-questions"
+    }
+  ],
+  "files": [
+    {
+      "source": "packages/conversation/ui-attachment/README.zh-CN.md",
+      "target": "packages/client/ui-attachment/README.zh-CN.md",
+      "sha256": "67d898fe6fefde9ab5e42dd365ebb21d6ad1863c6c9a273083bdfef7d8993910",
+      "targetSha256": "67d898fe6fefde9ab5e42dd365ebb21d6ad1863c6c9a273083bdfef7d8993910"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/README.md",
+      "target": "packages/client/ui-attachment/README.md",
+      "sha256": "67d898fe6fefde9ab5e42dd365ebb21d6ad1863c6c9a273083bdfef7d8993910",
+      "targetSha256": "67d898fe6fefde9ab5e42dd365ebb21d6ad1863c6c9a273083bdfef7d8993910"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/tsconfig.json",
+      "target": "packages/client/ui-attachment/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/package.json",
+      "target": "packages/client/ui-attachment/package.json",
+      "sha256": "14e045506453b02dcc644f956de962932b0c0cb7f5f8fe2fd8e667171d6ee914",
+      "targetSha256": "14e045506453b02dcc644f956de962932b0c0cb7f5f8fe2fd8e667171d6ee914"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/AGENTS.md",
+      "target": "packages/client/ui-attachment/AGENTS.md",
+      "sha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "targetSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/src/composer-attachments.tsx",
+      "target": "packages/client/ui-attachment/src/composer-attachments.tsx",
+      "sha256": "99e7c9734fb9536ce525d03a65816235bdf61c2b3934a05eb6fd1e6b3e49b864",
+      "targetSha256": "99e7c9734fb9536ce525d03a65816235bdf61c2b3934a05eb6fd1e6b3e49b864"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/src/composer-text-paste.ts",
+      "target": "packages/client/ui-attachment/src/composer-text-paste.ts",
+      "sha256": "489e3b0c7f2b5bb5a0f79fd1a5025b1687186e7f47f8339c6c27225c9f5401e9",
+      "targetSha256": "489e3b0c7f2b5bb5a0f79fd1a5025b1687186e7f47f8339c6c27225c9f5401e9"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/src/pasted-text-attachment-preview.tsx",
+      "target": "packages/client/ui-attachment/src/pasted-text-attachment-preview.tsx",
+      "sha256": "cc269d4403b6abc61beccbc04e46c60eb30cbf3739563124e80399de2fe6ee8f",
+      "targetSha256": "cc269d4403b6abc61beccbc04e46c60eb30cbf3739563124e80399de2fe6ee8f"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/src/public-composer-text-paste.ts",
+      "target": "packages/client/ui-attachment/src/public-composer-text-paste.ts",
+      "sha256": "489e3b0c7f2b5bb5a0f79fd1a5025b1687186e7f47f8339c6c27225c9f5401e9",
+      "targetSha256": "489e3b0c7f2b5bb5a0f79fd1a5025b1687186e7f47f8339c6c27225c9f5401e9"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/src/composer-image-paste.ts",
+      "target": "packages/client/ui-attachment/src/composer-image-paste.ts",
+      "sha256": "79c138e62f8b63d15eb7b7dfbe9a132369c48a9ee9dcd3292b4319500269ea8c",
+      "targetSha256": "79c138e62f8b63d15eb7b7dfbe9a132369c48a9ee9dcd3292b4319500269ea8c"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/src/styles.css",
+      "target": "packages/client/ui-attachment/src/styles.css",
+      "sha256": "293db683f86d60a8ecd428833c36528658cb78471ac95b77c2f8ba273c07a7a6",
+      "targetSha256": "293db683f86d60a8ecd428833c36528658cb78471ac95b77c2f8ba273c07a7a6"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/src/attachments.ts",
+      "target": "packages/client/ui-attachment/src/attachments.ts",
+      "sha256": "577ee4daad9a90707b8957f260a4fbe8c317d7671d516327086afaf80666fcd2",
+      "targetSha256": "577ee4daad9a90707b8957f260a4fbe8c317d7671d516327086afaf80666fcd2"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/src/index.ts",
+      "target": "packages/client/ui-attachment/src/index.ts",
+      "sha256": "577ee4daad9a90707b8957f260a4fbe8c317d7671d516327086afaf80666fcd2",
+      "targetSha256": "577ee4daad9a90707b8957f260a4fbe8c317d7671d516327086afaf80666fcd2"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/src/public-composer-image-paste.ts",
+      "target": "packages/client/ui-attachment/src/public-composer-image-paste.ts",
+      "sha256": "79c138e62f8b63d15eb7b7dfbe9a132369c48a9ee9dcd3292b4319500269ea8c",
+      "targetSha256": "79c138e62f8b63d15eb7b7dfbe9a132369c48a9ee9dcd3292b4319500269ea8c"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/lib/composer-text-paste.ts",
+      "target": "packages/client/ui-attachment/lib/composer-text-paste.ts",
+      "sha256": "4d9b01cfe8c0a75013932bd213d27f4650a4228cdd0783be7ff6c69ea4248b1c",
+      "targetSha256": "4d9b01cfe8c0a75013932bd213d27f4650a4228cdd0783be7ff6c69ea4248b1c"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/lib/composer-image-paste.ts",
+      "target": "packages/client/ui-attachment/lib/composer-image-paste.ts",
+      "sha256": "c2dced6147ae0b1805bc85b544f940d25099dbbbd181130941cad1c11baa18ee",
+      "targetSha256": "c2dced6147ae0b1805bc85b544f940d25099dbbbd181130941cad1c11baa18ee"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/tests/composer-attachments.test.tsx",
+      "target": "packages/client/ui-attachment/tests/composer-attachments.test.tsx",
+      "sha256": "369d91678b631f63a9a10bd76aa07e333f071fbfb54ad3320b0edd20362badd3",
+      "targetSha256": "369d91678b631f63a9a10bd76aa07e333f071fbfb54ad3320b0edd20362badd3"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/tests/composer-image-paste.test.ts",
+      "target": "packages/client/ui-attachment/tests/composer-image-paste.test.ts",
+      "sha256": "8d377e86f458d9f418cf4ce88e05d0e7dcc4dff6307aa2d765d8efd52e6f5da7",
+      "targetSha256": "8d377e86f458d9f418cf4ce88e05d0e7dcc4dff6307aa2d765d8efd52e6f5da7"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/tests/composer-text-paste.test.ts",
+      "target": "packages/client/ui-attachment/tests/composer-text-paste.test.ts",
+      "sha256": "c37ecc03f47b6b0c4d1723335a7d9a0f4bd906a0c0ced4d2498bab1f5b2bb810",
+      "targetSha256": "c37ecc03f47b6b0c4d1723335a7d9a0f4bd906a0c0ced4d2498bab1f5b2bb810"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-attachment/src/i18n/zh-CN.ts",
+      "sha256": "25829529a3039bba6b04412c6f88dad0a2a61e95a47ce7f2eba4498e9c44ec4a",
+      "targetSha256": "25829529a3039bba6b04412c6f88dad0a2a61e95a47ce7f2eba4498e9c44ec4a"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/src/i18n/index.ts",
+      "target": "packages/client/ui-attachment/src/i18n/index.ts",
+      "sha256": "7cd687f8387ae58320061569ea434a2aa6aee6fde3ec6a526640bdb43c31432b",
+      "targetSha256": "7cd687f8387ae58320061569ea434a2aa6aee6fde3ec6a526640bdb43c31432b"
+    },
+    {
+      "source": "packages/conversation/ui-attachment/src/i18n/en-US.ts",
+      "target": "packages/client/ui-attachment/src/i18n/en-US.ts",
+      "sha256": "b136f076573e3533b222f16db96f37921045f96ce74dacd360aff46b59ea5d9f",
+      "targetSha256": "b136f076573e3533b222f16db96f37921045f96ce74dacd360aff46b59ea5d9f"
+    },
+    {
+      "source": "packages/conversation/ui-composer/README.zh-CN.md",
+      "target": "packages/client/ui-composer/README.zh-CN.md",
+      "sha256": "565679b10c5e5cb49b454b8499bae13ea69e0e595b2be0cde49e8fedd0f1390b",
+      "targetSha256": "565679b10c5e5cb49b454b8499bae13ea69e0e595b2be0cde49e8fedd0f1390b"
+    },
+    {
+      "source": "packages/conversation/ui-composer/README.md",
+      "target": "packages/client/ui-composer/README.md",
+      "sha256": "de12b16f75d0e8dd923edfdd13ef350ba96c3a275d7182c59427997d021c5b21",
+      "targetSha256": "de12b16f75d0e8dd923edfdd13ef350ba96c3a275d7182c59427997d021c5b21"
+    },
+    {
+      "source": "packages/conversation/ui-composer/tsconfig.json",
+      "target": "packages/client/ui-composer/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-composer/package.json",
+      "target": "packages/client/ui-composer/package.json",
+      "sha256": "1bb847be891da6d72a468387db40b195b74547d9c5bb59ef535461f62a991c3e",
+      "targetSha256": "1bb847be891da6d72a468387db40b195b74547d9c5bb59ef535461f62a991c3e"
+    },
+    {
+      "source": "packages/conversation/ui-composer/AGENTS.md",
+      "target": "packages/client/ui-composer/AGENTS.md",
+      "sha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "targetSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/composer-submit.ts",
+      "target": "packages/client/ui-composer/src/composer-submit.ts",
+      "sha256": "e5e6697e210ec09e416a57e5ca9130a949a4277f20124896a5b9b45b0374c22e",
+      "targetSha256": "e5e6697e210ec09e416a57e5ca9130a949a4277f20124896a5b9b45b0374c22e"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/composer-history-keyboard-plugin.tsx",
+      "target": "packages/client/ui-composer/src/composer-history-keyboard-plugin.tsx",
+      "sha256": "d23030d2fe173d604fbe1218c17ac48c1d255c03faf2ef7735070009b9e0ccc4",
+      "targetSha256": "d23030d2fe173d604fbe1218c17ac48c1d255c03faf2ef7735070009b9e0ccc4"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/markdown-composer-input.tsx",
+      "target": "packages/client/ui-composer/src/markdown-composer-input.tsx",
+      "sha256": "38b42d06cb5bd5831c7f758fa964046de1c419c7a14129d17d71d1ccee9eb38c",
+      "targetSha256": "38b42d06cb5bd5831c7f758fa964046de1c419c7a14129d17d71d1ccee9eb38c"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/composer-document.ts",
+      "target": "packages/client/ui-composer/src/composer-document.ts",
+      "sha256": "d0d740d7b94a8edcce408fe7eab96ce657bab1a5ba5171c9effd773622e31f79",
+      "targetSha256": "d0d740d7b94a8edcce408fe7eab96ce657bab1a5ba5171c9effd773622e31f79"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/composer-link-icons.tsx",
+      "target": "packages/client/ui-composer/src/composer-link-icons.tsx",
+      "sha256": "6d1d5d6339edf169c1a41a209220a27e825fb0c346f2ca8e5e8e5f14153bad29",
+      "targetSha256": "6d1d5d6339edf169c1a41a209220a27e825fb0c346f2ca8e5e8e5f14153bad29"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/tokens.ts",
+      "target": "packages/client/ui-composer/src/tokens.ts",
+      "sha256": "b7be231ae867007fc779493432d4b0c95243b164137974530884cefd9faccd82",
+      "targetSha256": "b7be231ae867007fc779493432d4b0c95243b164137974530884cefd9faccd82"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/composer-icons.css",
+      "target": "packages/client/ui-composer/src/composer-icons.css",
+      "sha256": "340c7121300be3f9640b505d8973a41e1ce351ae0b4165393861ef4ebc329cee",
+      "targetSha256": "340c7121300be3f9640b505d8973a41e1ce351ae0b4165393861ef4ebc329cee"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/styles.css",
+      "target": "packages/client/ui-composer/src/styles.css",
+      "sha256": "1792b2730c11e630a8656593f520947269a93705200629f150b302ed14c83de3",
+      "targetSha256": "1792b2730c11e630a8656593f520947269a93705200629f150b302ed14c83de3"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/index.ts",
+      "target": "packages/client/ui-composer/src/index.ts",
+      "sha256": "106c480a210f77e1e06fde4eb07826bcb449798df5fbf65d0300e0828bc48d3e",
+      "targetSha256": "106c480a210f77e1e06fde4eb07826bcb449798df5fbf65d0300e0828bc48d3e"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/workbench-composer-view.tsx",
+      "target": "packages/client/ui-composer/src/workbench-composer-view.tsx",
+      "sha256": "9467051ba350699207ec5424c7928e4f872441ad0d6cfcbc9293efe37ee03cbb",
+      "targetSha256": "9467051ba350699207ec5424c7928e4f872441ad0d6cfcbc9293efe37ee03cbb"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/composer.css",
+      "target": "packages/client/ui-composer/src/composer.css",
+      "sha256": "8b9ecaa801691e79cfa7e31340a9fdfc85c21b0ffcc4bd48198a049fd83eff42",
+      "targetSha256": "8b9ecaa801691e79cfa7e31340a9fdfc85c21b0ffcc4bd48198a049fd83eff42"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/composer-controls.tsx",
+      "target": "packages/client/ui-composer/src/composer-controls.tsx",
+      "sha256": "797212d0ad212e039a644a0d1c8bb0d3246d6ea66cd9ee6d167ad456ec8fc6f9",
+      "targetSha256": "797212d0ad212e039a644a0d1c8bb0d3246d6ea66cd9ee6d167ad456ec8fc6f9"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/workbench-composer.tsx",
+      "target": "packages/client/ui-composer/src/workbench-composer.tsx",
+      "sha256": "aae0918eec6d98ac19bb2cdd18879e170b0e2bd1455a3c6e53dee0c04f051c71",
+      "targetSha256": "aae0918eec6d98ac19bb2cdd18879e170b0e2bd1455a3c6e53dee0c04f051c71"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/composer-directive.tsx",
+      "target": "packages/client/ui-composer/src/composer-directive.tsx",
+      "sha256": "6a695bbcbc5fa55c82c441acd4c2fea21ab935cbb8e1b91e236a434007334424",
+      "targetSha256": "6a695bbcbc5fa55c82c441acd4c2fea21ab935cbb8e1b91e236a434007334424"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/composer-panel-styles.ts",
+      "target": "packages/client/ui-composer/src/composer-panel-styles.ts",
+      "sha256": "4324731c3e6fa55cdcdfb7c5723f5407d2c16bff2dc716a83f9f4f092fd199d6",
+      "targetSha256": "4324731c3e6fa55cdcdfb7c5723f5407d2c16bff2dc716a83f9f4f092fd199d6"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/composer-token-icon.tsx",
+      "target": "packages/client/ui-composer/src/composer-token-icon.tsx",
+      "sha256": "212d53182239c44aaf44ec3fe9062ecf141a71f4f66228625a0d8d4ea7defce9",
+      "targetSha256": "212d53182239c44aaf44ec3fe9062ecf141a71f4f66228625a0d8d4ea7defce9"
+    },
+    {
+      "source": "packages/conversation/ui-composer/lib/composer-input-history.ts",
+      "target": "packages/client/ui-composer/lib/composer-input-history.ts",
+      "sha256": "0f1bbc69f276e2f5c9a56917abbffbc01d9287effcffe21718422c0f498846ba",
+      "targetSha256": "0f1bbc69f276e2f5c9a56917abbffbc01d9287effcffe21718422c0f498846ba"
+    },
+    {
+      "source": "packages/conversation/ui-composer/lib/composer-markdown-detection.ts",
+      "target": "packages/client/ui-composer/lib/composer-markdown-detection.ts",
+      "sha256": "92c0f4548aff699282e8a8f250f98e4d1299949e88b7d666ff16c3ecbe0e9b92",
+      "targetSha256": "92c0f4548aff699282e8a8f250f98e4d1299949e88b7d666ff16c3ecbe0e9b92"
+    },
+    {
+      "source": "packages/conversation/ui-composer/lib/legacy-pi-compat.ts",
+      "target": "packages/client/ui-composer/lib/legacy-pi-compat.ts",
+      "sha256": "4e278b7446356fda7ef24ce85542ff92ea1c5066641e38e2965bfcaca17c0e2d",
+      "targetSha256": "4e278b7446356fda7ef24ce85542ff92ea1c5066641e38e2965bfcaca17c0e2d"
+    },
+    {
+      "source": "packages/conversation/ui-composer/lib/composer-panel-styles.ts",
+      "target": "packages/client/ui-composer/lib/composer-panel-styles.ts",
+      "sha256": "2c865f8ae7119a8943ed951b40433d3c4ba4a79608f1b090815852cc2220f2a8",
+      "targetSha256": "2c865f8ae7119a8943ed951b40433d3c4ba4a79608f1b090815852cc2220f2a8"
+    },
+    {
+      "source": "packages/conversation/ui-composer/tests/composer-markdown-detection.test.ts",
+      "target": "packages/client/ui-composer/tests/composer-markdown-detection.test.ts",
+      "sha256": "f8d32960c9cd2af76b07e6932966cf1cdb264209e0b19361ded4e38a66585165",
+      "targetSha256": "f8d32960c9cd2af76b07e6932966cf1cdb264209e0b19361ded4e38a66585165"
+    },
+    {
+      "source": "packages/conversation/ui-composer/tests/composer-input-history.test.ts",
+      "target": "packages/client/ui-composer/tests/composer-input-history.test.ts",
+      "sha256": "f3ca81f1608f6e049a040e649973f960df8bec77d1dca85bcad00548a6afea49",
+      "targetSha256": "f3ca81f1608f6e049a040e649973f960df8bec77d1dca85bcad00548a6afea49"
+    },
+    {
+      "source": "packages/conversation/ui-composer/tests/composer-document.test.ts",
+      "target": "packages/client/ui-composer/tests/composer-document.test.ts",
+      "sha256": "ebbf4109815594f7fed2b68c3a2da54a982197cff4876a6fcd4415672784cfd3",
+      "targetSha256": "ebbf4109815594f7fed2b68c3a2da54a982197cff4876a6fcd4415672784cfd3"
+    },
+    {
+      "source": "packages/conversation/ui-composer/tests/composer-token-icon.test.tsx",
+      "target": "packages/client/ui-composer/tests/composer-token-icon.test.tsx",
+      "sha256": "34d58c6f5b25dd92f2a3c6bc6bead4b5a5548259eb132c5a0dec159f1cad1fd3",
+      "targetSha256": "34d58c6f5b25dd92f2a3c6bc6bead4b5a5548259eb132c5a0dec159f1cad1fd3"
+    },
+    {
+      "source": "packages/conversation/ui-composer/tests/composer-submit.test.ts",
+      "target": "packages/client/ui-composer/tests/composer-submit.test.ts",
+      "sha256": "1c9efbc7fab5a345362c9da5e4691b53e3cc2dbcc027c070a970071d4aa00ec8",
+      "targetSha256": "1c9efbc7fab5a345362c9da5e4691b53e3cc2dbcc027c070a970071d4aa00ec8"
+    },
+    {
+      "source": "packages/conversation/ui-composer/tests/composer-history-keyboard-plugin.test.ts",
+      "target": "packages/client/ui-composer/tests/composer-history-keyboard-plugin.test.ts",
+      "sha256": "0c410948eb8b5ee3b6999298e38ba9af8ed0738f0ff29b9a24be1a3ec7e4a3b9",
+      "targetSha256": "0c410948eb8b5ee3b6999298e38ba9af8ed0738f0ff29b9a24be1a3ec7e4a3b9"
+    },
+    {
+      "source": "packages/conversation/ui-composer/tests/workbench-composer-boundary.test.ts",
+      "target": "packages/client/ui-composer/tests/workbench-composer-boundary.test.ts",
+      "sha256": "bc1718b2de83f443b064d7effa589504b230e6091cee5bb833e49bfe61e2994a",
+      "targetSha256": "bc1718b2de83f443b064d7effa589504b230e6091cee5bb833e49bfe61e2994a"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-composer/src/i18n/zh-CN.ts",
+      "sha256": "b7aaa5ec57717747e77356c0e5fec932f410d9f018240f313293d63a864684b9",
+      "targetSha256": "b7aaa5ec57717747e77356c0e5fec932f410d9f018240f313293d63a864684b9"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/i18n/index.ts",
+      "target": "packages/client/ui-composer/src/i18n/index.ts",
+      "sha256": "e2628599eba9614017b97d993c0296afdd0f417b3e7fcc067702ae7566f9e4a6",
+      "targetSha256": "e2628599eba9614017b97d993c0296afdd0f417b3e7fcc067702ae7566f9e4a6"
+    },
+    {
+      "source": "packages/conversation/ui-composer/src/i18n/en-US.ts",
+      "target": "packages/client/ui-composer/src/i18n/en-US.ts",
+      "sha256": "9c3b8f70ce373c2e6743f400436dc4dbfdb4439ea5382279d50b6f84c0719d1c",
+      "targetSha256": "9c3b8f70ce373c2e6743f400436dc4dbfdb4439ea5382279d50b6f84c0719d1c"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/README.zh-CN.md",
+      "target": "packages/client/ui-conversation/README.zh-CN.md",
+      "sha256": "73053ac7d36b292564354682c7f88e75bcca0d0de19dc0ca8885c16b569fafc9",
+      "targetSha256": "73053ac7d36b292564354682c7f88e75bcca0d0de19dc0ca8885c16b569fafc9"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/README.md",
+      "target": "packages/client/ui-conversation/README.md",
+      "sha256": "3cb91449b63945a998bdb3b56ac9a8b6af10f1091f7874f17426022a856ad1fb",
+      "targetSha256": "3cb91449b63945a998bdb3b56ac9a8b6af10f1091f7874f17426022a856ad1fb"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/tsconfig.json",
+      "target": "packages/client/ui-conversation/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/package.json",
+      "target": "packages/client/ui-conversation/package.json",
+      "sha256": "4f405dffd41763dead3fce08ea704ea7a8f65cce5a4b5ca9f5ac0aec6f329ba1",
+      "targetSha256": "4f405dffd41763dead3fce08ea704ea7a8f65cce5a4b5ca9f5ac0aec6f329ba1"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/AGENTS.md",
+      "target": "packages/client/ui-conversation/AGENTS.md",
+      "sha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "targetSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/src/workbench-empty.tsx",
+      "target": "packages/client/ui-conversation/src/workbench-empty.tsx",
+      "sha256": "2146b5b0d7ec8a0b5ff499626c6fccffa76d98a050887b33a8a552bb0cbe3363",
+      "targetSha256": "2146b5b0d7ec8a0b5ff499626c6fccffa76d98a050887b33a8a552bb0cbe3363"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/src/styles.css",
+      "target": "packages/client/ui-conversation/src/styles.css",
+      "sha256": "d27cda59f8e498f8feb103997f473d2d23e8abe66fdf578fdc1a6c4f5a585e7b",
+      "targetSha256": "d27cda59f8e498f8feb103997f473d2d23e8abe66fdf578fdc1a6c4f5a585e7b"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/src/index.ts",
+      "target": "packages/client/ui-conversation/src/index.ts",
+      "sha256": "8c300b34d7210d555e431f71ac9799ea6f2cc4dfdb118e8e6ccd7319b5fe6a81",
+      "targetSha256": "8c300b34d7210d555e431f71ac9799ea6f2cc4dfdb118e8e6ccd7319b5fe6a81"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/src/workbench-conversation.tsx",
+      "target": "packages/client/ui-conversation/src/workbench-conversation.tsx",
+      "sha256": "bcc99b88acf0502a48e33ca34baf690e881d35858e5dfb1937a5a1e76255aea4",
+      "targetSha256": "bcc99b88acf0502a48e33ca34baf690e881d35858e5dfb1937a5a1e76255aea4"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/src/workbench-thread.tsx",
+      "target": "packages/client/ui-conversation/src/workbench-thread.tsx",
+      "sha256": "08ca83b4c47e4290df7b752338c3a65805e1fceb127de48bdc38c28643b0bcf6",
+      "targetSha256": "08ca83b4c47e4290df7b752338c3a65805e1fceb127de48bdc38c28643b0bcf6"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/src/conversation-title.ts",
+      "target": "packages/client/ui-conversation/src/conversation-title.ts",
+      "sha256": "787cc7041bebb579c37e82f67d66dc08bcfb925639c59133ecef7be51bb07fbc",
+      "targetSha256": "787cc7041bebb579c37e82f67d66dc08bcfb925639c59133ecef7be51bb07fbc"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/lib/workbench-thread-timing.ts",
+      "target": "packages/client/ui-conversation/lib/workbench-thread-timing.ts",
+      "sha256": "b017ef144d8926f46004fd1fbd08607e1c822255ddcb28ba89523b4cb6fdbc41",
+      "targetSha256": "b017ef144d8926f46004fd1fbd08607e1c822255ddcb28ba89523b4cb6fdbc41"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/tests/i18n-test.tsx",
+      "target": "packages/client/ui-conversation/tests/i18n-test.tsx",
+      "sha256": "a8e8a4a2412f7d7f4101c092ea322a5276706865b96bf83da50005116cae7de7",
+      "targetSha256": "a8e8a4a2412f7d7f4101c092ea322a5276706865b96bf83da50005116cae7de7"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/tests/workbench-thread-timing.test.ts",
+      "target": "packages/client/ui-conversation/tests/workbench-thread-timing.test.ts",
+      "sha256": "153a1a23775972c5c4f05bc0a28ec5e2649b3d939bd0a44fb25b4a745eb963a0",
+      "targetSha256": "153a1a23775972c5c4f05bc0a28ec5e2649b3d939bd0a44fb25b4a745eb963a0"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/tests/conversation-title.test.ts",
+      "target": "packages/client/ui-conversation/tests/conversation-title.test.ts",
+      "sha256": "24997403ae4953763ed492e08f151c1e18fb73cbbdefee4a50e3944fc9024919",
+      "targetSha256": "24997403ae4953763ed492e08f151c1e18fb73cbbdefee4a50e3944fc9024919"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-conversation/src/i18n/zh-CN.ts",
+      "sha256": "da9c63ebd941d57643bdf12e3e03d3bf3d5f02bae4ca92fcf0197132fd6af8a6",
+      "targetSha256": "da9c63ebd941d57643bdf12e3e03d3bf3d5f02bae4ca92fcf0197132fd6af8a6"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/src/i18n/index.ts",
+      "target": "packages/client/ui-conversation/src/i18n/index.ts",
+      "sha256": "244cbb58dc957503bafa54c28c4cbabfd8a7f0829f81f53ac034b719b9a97535",
+      "targetSha256": "244cbb58dc957503bafa54c28c4cbabfd8a7f0829f81f53ac034b719b9a97535"
+    },
+    {
+      "source": "packages/conversation/ui-conversation/src/i18n/en-US.ts",
+      "target": "packages/client/ui-conversation/src/i18n/en-US.ts",
+      "sha256": "f30ad51a40e09e921705784d225a86058efa2a80603ecda33e685eb02dc4586e",
+      "targetSha256": "f30ad51a40e09e921705784d225a86058efa2a80603ecda33e685eb02dc4586e"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/README.zh-CN.md",
+      "target": "packages/client/ui-conversation-list/README.zh-CN.md",
+      "sha256": "02d188e3b4b4cc6c2e1171457c067f8928b13da87b2efcfb09eda1bbad8a7bc3",
+      "targetSha256": "02d188e3b4b4cc6c2e1171457c067f8928b13da87b2efcfb09eda1bbad8a7bc3"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/README.md",
+      "target": "packages/client/ui-conversation-list/README.md",
+      "sha256": "44602c53086a2e7a4ab3ef1c5a59f71ca3a6dfdc2e1b9600fa4d3d5aa9eed144",
+      "targetSha256": "44602c53086a2e7a4ab3ef1c5a59f71ca3a6dfdc2e1b9600fa4d3d5aa9eed144"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/tsconfig.json",
+      "target": "packages/client/ui-conversation-list/tsconfig.json",
+      "sha256": "4681e8bc551e9e7cb3c7918a07662ffeb994bdab9f83c804698d9d234f3c596f",
+      "targetSha256": "4681e8bc551e9e7cb3c7918a07662ffeb994bdab9f83c804698d9d234f3c596f"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/package.json",
+      "target": "packages/client/ui-conversation-list/package.json",
+      "sha256": "944ceb3787c24cb247683fda3ca2ab407203b083b80dc55b702091e4df86a2c8",
+      "targetSha256": "944ceb3787c24cb247683fda3ca2ab407203b083b80dc55b702091e4df86a2c8"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/thread-order-store.ts",
+      "target": "packages/client/ui-conversation-list/src/thread-order-store.ts",
+      "sha256": "72cbf567daf45868f4ab827b05c5914a45cd71e43b9ae5cd66b9bcfc6b0e1b26",
+      "targetSha256": "72cbf567daf45868f4ab827b05c5914a45cd71e43b9ae5cd66b9bcfc6b0e1b26"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/workspace-sidebar-context.tsx",
+      "target": "packages/client/ui-conversation-list/src/workspace-sidebar-context.tsx",
+      "sha256": "d75c8d94495f579d8b68c076cb0af749c5868583527973766ea0831fcd7274ed",
+      "targetSha256": "d75c8d94495f579d8b68c076cb0af749c5868583527973766ea0831fcd7274ed"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/thread-list.tsx",
+      "target": "packages/client/ui-conversation-list/src/thread-list.tsx",
+      "sha256": "b61069ab7fa847982d3cb1060f963424801dd234088892c1a08248a3a0e4801d",
+      "targetSha256": "b61069ab7fa847982d3cb1060f963424801dd234088892c1a08248a3a0e4801d"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/thread-list-groups.ts",
+      "target": "packages/client/ui-conversation-list/src/thread-list-groups.ts",
+      "sha256": "d2c735b37c81914d5e346135b3a62c349c798b507d798c68dbb220703b43df3a",
+      "targetSha256": "d2c735b37c81914d5e346135b3a62c349c798b507d798c68dbb220703b43df3a"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/workspace-sidebar-section.tsx",
+      "target": "packages/client/ui-conversation-list/src/workspace-sidebar-section.tsx",
+      "sha256": "12d09d739152efaa63c21f3886974365a8869f4a1518eaf25bb133bb51bf6a53",
+      "targetSha256": "12d09d739152efaa63c21f3886974365a8869f4a1518eaf25bb133bb51bf6a53"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/new-thread-button.tsx",
+      "target": "packages/client/ui-conversation-list/src/new-thread-button.tsx",
+      "sha256": "cb1ebd58f8555b7f2282274be7a97dc42ca6380f637ce8ad6309590e57be2f24",
+      "targetSha256": "cb1ebd58f8555b7f2282274be7a97dc42ca6380f637ce8ad6309590e57be2f24"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/running-thread-indicator.tsx",
+      "target": "packages/client/ui-conversation-list/src/running-thread-indicator.tsx",
+      "sha256": "1dec0508027b13c76c19c2062d9c01f69cde23ea9c7165f4f7f58cb03e7b8e69",
+      "targetSha256": "1dec0508027b13c76c19c2062d9c01f69cde23ea9c7165f4f7f58cb03e7b8e69"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/workspace-thread-list.tsx",
+      "target": "packages/client/ui-conversation-list/src/workspace-thread-list.tsx",
+      "sha256": "b8c673cad2e98dcaa70530b5a3dfb12332854c4a2f133116fac505bbeed305ec",
+      "targetSha256": "b8c673cad2e98dcaa70530b5a3dfb12332854c4a2f133116fac505bbeed305ec"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/index.ts",
+      "target": "packages/client/ui-conversation-list/src/index.ts",
+      "sha256": "8c0990ce77b40d4f54d6e0233bd2817bfc1890f0ccb30c950f9bc7989dca0293",
+      "targetSha256": "8c0990ce77b40d4f54d6e0233bd2817bfc1890f0ccb30c950f9bc7989dca0293"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/conversation-actions-menu.tsx",
+      "target": "packages/client/ui-conversation-list/src/conversation-actions-menu.tsx",
+      "sha256": "bf443bc96fec42ce3e3143852f1398e94ac74d5d766387e823bd1d39ce1b9242",
+      "targetSha256": "bf443bc96fec42ce3e3143852f1398e94ac74d5d766387e823bd1d39ce1b9242"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/extension.ts",
+      "target": "packages/client/ui-conversation-list/src/extension.ts",
+      "sha256": "3470e3e5e56202a16c715402e0292c2290f39f49391bd46622a6f31af04ee8e6",
+      "targetSha256": "3470e3e5e56202a16c715402e0292c2290f39f49391bd46622a6f31af04ee8e6"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/sidebar-move.ts",
+      "target": "packages/client/ui-conversation-list/src/sidebar-move.ts",
+      "sha256": "ffab7d85c60641325b42a3a2230e7be66f31ad49ef99a2c8807b1832e9e5833b",
+      "targetSha256": "ffab7d85c60641325b42a3a2230e7be66f31ad49ef99a2c8807b1832e9e5833b"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/thread-list-index.ts",
+      "target": "packages/client/ui-conversation-list/src/thread-list-index.ts",
+      "sha256": "cd7b0a817ed2d0c4aba60398751494de817fc4e0823175071c0e1b9fc50c131b",
+      "targetSha256": "cd7b0a817ed2d0c4aba60398751494de817fc4e0823175071c0e1b9fc50c131b"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/thread-list-item.tsx",
+      "target": "packages/client/ui-conversation-list/src/thread-list-item.tsx",
+      "sha256": "da57e733c6a5409ddd2b236cfdffad10114e8b51ba620b3abd590624f6b346a3",
+      "targetSha256": "da57e733c6a5409ddd2b236cfdffad10114e8b51ba620b3abd590624f6b346a3"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/lib/thread-sort.ts",
+      "target": "packages/client/ui-conversation-list/lib/thread-sort.ts",
+      "sha256": "c16b6d7eb83c85ffcf91eefc612949b2324d0da70af45ca27dad9dac82463a10",
+      "targetSha256": "c16b6d7eb83c85ffcf91eefc612949b2324d0da70af45ca27dad9dac82463a10"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/tests/thread-order-store.test.ts",
+      "target": "packages/client/ui-conversation-list/tests/thread-order-store.test.ts",
+      "sha256": "611490e4953103a19ef214ea78a9f4a22ea914740c4fcae56c8e7459dc4cfcf4",
+      "targetSha256": "611490e4953103a19ef214ea78a9f4a22ea914740c4fcae56c8e7459dc4cfcf4"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/tests/thread-list.test.tsx",
+      "target": "packages/client/ui-conversation-list/tests/thread-list.test.tsx",
+      "sha256": "58a6efc9052a61d2d1242540c483e9056a4f969148018d0309cb6b0cafb03f4b",
+      "targetSha256": "58a6efc9052a61d2d1242540c483e9056a4f969148018d0309cb6b0cafb03f4b"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/tests/thread-list-groups.test.ts",
+      "target": "packages/client/ui-conversation-list/tests/thread-list-groups.test.ts",
+      "sha256": "8449327e48b53500bcf4de3b4e63e3646601217abc289ac2dc85d4c5ce0ac806",
+      "targetSha256": "8449327e48b53500bcf4de3b4e63e3646601217abc289ac2dc85d4c5ce0ac806"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/tests/thread-sort.test.ts",
+      "target": "packages/client/ui-conversation-list/tests/thread-sort.test.ts",
+      "sha256": "b2773f1708ffca2ef2d2b9b58d9b3980c9e37733bed9f8f24b416b8daa1b074b",
+      "targetSha256": "b2773f1708ffca2ef2d2b9b58d9b3980c9e37733bed9f8f24b416b8daa1b074b"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/tests/sidebar-move.test.ts",
+      "target": "packages/client/ui-conversation-list/tests/sidebar-move.test.ts",
+      "sha256": "4dc82995229e060e0d87bdb0c49c20e1075cbe03755807e125de818f9da197b5",
+      "targetSha256": "4dc82995229e060e0d87bdb0c49c20e1075cbe03755807e125de818f9da197b5"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/tests/thread-list-index.test.ts",
+      "target": "packages/client/ui-conversation-list/tests/thread-list-index.test.ts",
+      "sha256": "5a78656e3af51b94f400359509432a744d2d418df1a7c0ead4739bf9500be976",
+      "targetSha256": "5a78656e3af51b94f400359509432a744d2d418df1a7c0ead4739bf9500be976"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-conversation-list/src/i18n/zh-CN.ts",
+      "sha256": "e0a8afe038b5be28a956e56c23853eef29f28948ae20cbc14530589b72aba7dc",
+      "targetSha256": "e0a8afe038b5be28a956e56c23853eef29f28948ae20cbc14530589b72aba7dc"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/i18n/index.ts",
+      "target": "packages/client/ui-conversation-list/src/i18n/index.ts",
+      "sha256": "18ee89b4f76e2d3ea7f910781e471999c2de0c281b4ca30f28729b49656d47a9",
+      "targetSha256": "18ee89b4f76e2d3ea7f910781e471999c2de0c281b4ca30f28729b49656d47a9"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-list/src/i18n/en-US.ts",
+      "target": "packages/client/ui-conversation-list/src/i18n/en-US.ts",
+      "sha256": "90e93aebfbbd845cf7636e0da73a686a51a56d781afa522dc12dad2c717974e2",
+      "targetSha256": "90e93aebfbbd845cf7636e0da73a686a51a56d781afa522dc12dad2c717974e2"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/README.zh-CN.md",
+      "target": "packages/client/ui-conversation-messages/README.zh-CN.md",
+      "sha256": "f0c8fab768cef93bb79692d6e48b6219ac6f53b3fb07a62872795ca04cd6ae73",
+      "targetSha256": "f0c8fab768cef93bb79692d6e48b6219ac6f53b3fb07a62872795ca04cd6ae73"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/README.md",
+      "target": "packages/client/ui-conversation-messages/README.md",
+      "sha256": "54648eef6a9ee5999bc843d8875e94aa91f3e19a15f0165a1ce17707b5e542f1",
+      "targetSha256": "54648eef6a9ee5999bc843d8875e94aa91f3e19a15f0165a1ce17707b5e542f1"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/tsconfig.json",
+      "target": "packages/client/ui-conversation-messages/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/package.json",
+      "target": "packages/client/ui-conversation-messages/package.json",
+      "sha256": "f7766591e948764ca41e38c35e71257814f6b0981571ffbc2d47ced763571b0e",
+      "targetSha256": "f7766591e948764ca41e38c35e71257814f6b0981571ffbc2d47ced763571b0e"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/AGENTS.md",
+      "target": "packages/client/ui-conversation-messages/AGENTS.md",
+      "sha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "targetSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/src/conversation-list.tsx",
+      "target": "packages/client/ui-conversation-messages/src/conversation-list.tsx",
+      "sha256": "68b1f942147871c18ecd5c013e145447eb3d49108b01e6b666fa0cfad3fb4544",
+      "targetSha256": "68b1f942147871c18ecd5c013e145447eb3d49108b01e6b666fa0cfad3fb4544"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/src/viewport.ts",
+      "target": "packages/client/ui-conversation-messages/src/viewport.ts",
+      "sha256": "a464fe9fd9d7feeef2dbd57fa5a3b040f5f9d369e0e29670bd8979df15aa81de",
+      "targetSha256": "a464fe9fd9d7feeef2dbd57fa5a3b040f5f9d369e0e29670bd8979df15aa81de"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/src/rows.ts",
+      "target": "packages/client/ui-conversation-messages/src/rows.ts",
+      "sha256": "eabd6e2b9a0c04302ee8e7cd2cd086b3e40469c3e41208a27848cf2088285057",
+      "targetSha256": "eabd6e2b9a0c04302ee8e7cd2cd086b3e40469c3e41208a27848cf2088285057"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/src/conversation.css",
+      "target": "packages/client/ui-conversation-messages/src/conversation.css",
+      "sha256": "67d0b235b9606eeebb22bd8f7ada3f2dacec1a72d1027d4f73f71c26bf546103",
+      "targetSha256": "67d0b235b9606eeebb22bd8f7ada3f2dacec1a72d1027d4f73f71c26bf546103"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/src/typing-indicator.tsx",
+      "target": "packages/client/ui-conversation-messages/src/typing-indicator.tsx",
+      "sha256": "82886ce5bf4a016b94ea120362216d5fae41f0b3a34eb71eaa0aad2bc5b8a6d5",
+      "targetSha256": "82886ce5bf4a016b94ea120362216d5fae41f0b3a34eb71eaa0aad2bc5b8a6d5"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/src/index.ts",
+      "target": "packages/client/ui-conversation-messages/src/index.ts",
+      "sha256": "2b11ff35db7e771d89330d945ea0d8c662601cdac704ffa7dc2db5463eb1bf27",
+      "targetSha256": "2b11ff35db7e771d89330d945ea0d8c662601cdac704ffa7dc2db5463eb1bf27"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/src/thread-scroll-state.tsx",
+      "target": "packages/client/ui-conversation-messages/src/thread-scroll-state.tsx",
+      "sha256": "538f6a95f900f4d3a87baa596fdab4ede2184b4dbf67d57fdf5ca24032b8709f",
+      "targetSha256": "538f6a95f900f4d3a87baa596fdab4ede2184b4dbf67d57fdf5ca24032b8709f"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/src/chat-icons.css",
+      "target": "packages/client/ui-conversation-messages/src/chat-icons.css",
+      "sha256": "66c45f3996253e275c60e50625634f10b9e76944efc317da5165fdcc7d62b5be",
+      "targetSha256": "66c45f3996253e275c60e50625634f10b9e76944efc317da5165fdcc7d62b5be"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/src/conversation-layout.tsx",
+      "target": "packages/client/ui-conversation-messages/src/conversation-layout.tsx",
+      "sha256": "4fbfa6d3a4a026b9b27d9b8b0296c2e75fe70b9ed966573ef5756969cf248c1e",
+      "targetSha256": "4fbfa6d3a4a026b9b27d9b8b0296c2e75fe70b9ed966573ef5756969cf248c1e"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/src/message-pair.tsx",
+      "target": "packages/client/ui-conversation-messages/src/message-pair.tsx",
+      "sha256": "ff160a909467cb545ee23882acf7e4eb309240d7ec4d05290278c87846585110",
+      "targetSha256": "ff160a909467cb545ee23882acf7e4eb309240d7ec4d05290278c87846585110"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/lib/workbench-conversation-viewport.ts",
+      "target": "packages/client/ui-conversation-messages/lib/workbench-conversation-viewport.ts",
+      "sha256": "62b35df25e49b9ab458ad2f9b951f8ca195e0d6a89576d50f39f2b1772ba6d8b",
+      "targetSha256": "62b35df25e49b9ab458ad2f9b951f8ca195e0d6a89576d50f39f2b1772ba6d8b"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/lib/conversation-row.ts",
+      "target": "packages/client/ui-conversation-messages/lib/conversation-row.ts",
+      "sha256": "5cf392f25dc9bdc57fdbb5872a01f9b67a29eba9c3c1729f8da570327f460af6",
+      "targetSha256": "5cf392f25dc9bdc57fdbb5872a01f9b67a29eba9c3c1729f8da570327f460af6"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/lib/workbench-message-rows.ts",
+      "target": "packages/client/ui-conversation-messages/lib/workbench-message-rows.ts",
+      "sha256": "19444e0b5ea69dfb82c4e7af639d316973978e7e26ae186b8eeded3e90e4ac96",
+      "targetSha256": "19444e0b5ea69dfb82c4e7af639d316973978e7e26ae186b8eeded3e90e4ac96"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/tests/workbench-conversation-viewport.test.ts",
+      "target": "packages/client/ui-conversation-messages/tests/workbench-conversation-viewport.test.ts",
+      "sha256": "11d3b68c87cca783107b0b3482130cf7b2f56b946e97967488384b6efb8fc8c8",
+      "targetSha256": "11d3b68c87cca783107b0b3482130cf7b2f56b946e97967488384b6efb8fc8c8"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/tests/thread-scroll-state.test.tsx",
+      "target": "packages/client/ui-conversation-messages/tests/thread-scroll-state.test.tsx",
+      "sha256": "7764441f55b0f2befe7c471a9bd5bd7605c2bca904df53abbd9267e9f83be45b",
+      "targetSha256": "7764441f55b0f2befe7c471a9bd5bd7605c2bca904df53abbd9267e9f83be45b"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/tests/conversation-layout.test.tsx",
+      "target": "packages/client/ui-conversation-messages/tests/conversation-layout.test.tsx",
+      "sha256": "26b0352d57abab0e6921343ca8e9e6b61158a8f4561b38f86244fbbf38da4050",
+      "targetSha256": "26b0352d57abab0e6921343ca8e9e6b61158a8f4561b38f86244fbbf38da4050"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-messages/tests/workbench-message-rows.test.ts",
+      "target": "packages/client/ui-conversation-messages/tests/workbench-message-rows.test.ts",
+      "sha256": "38edc1813f47f6cda525bdfdbfdfd369748bc50bbda07a6c897c3b9ef8454ded",
+      "targetSha256": "38edc1813f47f6cda525bdfdbfdfd369748bc50bbda07a6c897c3b9ef8454ded"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/README.zh-CN.md",
+      "target": "packages/client/ui-conversation-nodes/README.zh-CN.md",
+      "sha256": "f72448374ce7b5ec4b1e250843689d827804b29f66c3ca5c4496a44fe1fe94bb",
+      "targetSha256": "f72448374ce7b5ec4b1e250843689d827804b29f66c3ca5c4496a44fe1fe94bb"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/README.md",
+      "target": "packages/client/ui-conversation-nodes/README.md",
+      "sha256": "01a1a9c0b7f64c15be3da47a4c402f8919a831d10cdfa215a5cb3f0711c6009a",
+      "targetSha256": "01a1a9c0b7f64c15be3da47a4c402f8919a831d10cdfa215a5cb3f0711c6009a"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/tsconfig.json",
+      "target": "packages/client/ui-conversation-nodes/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/package.json",
+      "target": "packages/client/ui-conversation-nodes/package.json",
+      "sha256": "bcbb5f5d3bd02d15df4a28f40360c3358192528c32a37a361e02effca65e4d9b",
+      "targetSha256": "bcbb5f5d3bd02d15df4a28f40360c3358192528c32a37a361e02effca65e4d9b"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/AGENTS.md",
+      "target": "packages/client/ui-conversation-nodes/AGENTS.md",
+      "sha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "targetSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/conversation-node-seat.tsx",
+      "target": "packages/client/ui-conversation-nodes/src/conversation-node-seat.tsx",
+      "sha256": "1ec12502325c338473ee06a3956d07f3d81d65bb5ef2f68921b3fd96647dafb2",
+      "targetSha256": "1ec12502325c338473ee06a3956d07f3d81d65bb5ef2f68921b3fd96647dafb2"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/conversation-message-context.tsx",
+      "target": "packages/client/ui-conversation-nodes/src/conversation-message-context.tsx",
+      "sha256": "6f31ec065ae0c321bedd81793cbc73606a13c181f7440b27db44109ab895e8db",
+      "targetSha256": "6f31ec065ae0c321bedd81793cbc73606a13c181f7440b27db44109ab895e8db"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/message-presentation-completed-turn-panel.tsx",
+      "target": "packages/client/ui-conversation-nodes/src/message-presentation-completed-turn-panel.tsx",
+      "sha256": "818e5ef8f28f6479ad68122ec5497e6ff21441e382d13c4b794acb97a258e71b",
+      "targetSha256": "818e5ef8f28f6479ad68122ec5497e6ff21441e382d13c4b794acb97a258e71b"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/workbench-message.tsx",
+      "target": "packages/client/ui-conversation-nodes/src/workbench-message.tsx",
+      "sha256": "c458b660ffff8611ba5f051a946c7a219bfa93b57a588d1271d42fe495b4b8d3",
+      "targetSha256": "c458b660ffff8611ba5f051a946c7a219bfa93b57a588d1271d42fe495b4b8d3"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/completed-turn-content.tsx",
+      "target": "packages/client/ui-conversation-nodes/src/completed-turn-content.tsx",
+      "sha256": "6e9c49fbcdee1868fd801b9d642cc564cf370da2954d3e935f23c925ea626993",
+      "targetSha256": "6e9c49fbcdee1868fd801b9d642cc564cf370da2954d3e935f23c925ea626993"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/message-actions.tsx",
+      "target": "packages/client/ui-conversation-nodes/src/message-actions.tsx",
+      "sha256": "691dbc895cf363e32760010475e9a74d564aafbc14c93d482a59450ef88db77f",
+      "targetSha256": "691dbc895cf363e32760010475e9a74d564aafbc14c93d482a59450ef88db77f"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/message-parts.tsx",
+      "target": "packages/client/ui-conversation-nodes/src/message-parts.tsx",
+      "sha256": "eba784542dd17834d0a3d426a4414b2bc7fddb1b4377dff5f29a36a8ec5c3b9c",
+      "targetSha256": "eba784542dd17834d0a3d426a4414b2bc7fddb1b4377dff5f29a36a8ec5c3b9c"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/index.ts",
+      "target": "packages/client/ui-conversation-nodes/src/index.ts",
+      "sha256": "09ca705928251ec04531cff4bf16f1a07b2390cd1b8be50c6e3bad9045331367",
+      "targetSha256": "09ca705928251ec04531cff4bf16f1a07b2390cd1b8be50c6e3bad9045331367"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/steered-turn.tsx",
+      "target": "packages/client/ui-conversation-nodes/src/steered-turn.tsx",
+      "sha256": "49312e4acfd12182d20cb64ef4e2d5a50e5ff86abeae6ef22c125e46fc7f6a67",
+      "targetSha256": "49312e4acfd12182d20cb64ef4e2d5a50e5ff86abeae6ef22c125e46fc7f6a67"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/completed-turn-header.tsx",
+      "target": "packages/client/ui-conversation-nodes/src/completed-turn-header.tsx",
+      "sha256": "b86e9056332f28981b34b8657b56660d6cbb4ecb9ef220f20247f509039c62ac",
+      "targetSha256": "b86e9056332f28981b34b8657b56660d6cbb4ecb9ef220f20247f509039c62ac"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/message-presentation-index.ts",
+      "target": "packages/client/ui-conversation-nodes/src/message-presentation-index.ts",
+      "sha256": "82f0dca0440aa2e8248d3d148e9954d4ef6aaab2651cbdd2a46cd677022d0eb8",
+      "targetSha256": "82f0dca0440aa2e8248d3d148e9954d4ef6aaab2651cbdd2a46cd677022d0eb8"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/composer-message-text.tsx",
+      "target": "packages/client/ui-conversation-nodes/src/composer-message-text.tsx",
+      "sha256": "ec6d4afb1c86ae633527eda2d98bfd64d39a5975fc4169778d02e963743a1fca",
+      "targetSha256": "ec6d4afb1c86ae633527eda2d98bfd64d39a5975fc4169778d02e963743a1fca"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/message-presentation-extension.ts",
+      "target": "packages/client/ui-conversation-nodes/src/message-presentation-extension.ts",
+      "sha256": "197cdf56b76f505b435e40cfefbe9206ec0bec0c54444025b6a534d830c711c2",
+      "targetSha256": "197cdf56b76f505b435e40cfefbe9206ec0bec0c54444025b6a534d830c711c2"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/message-presentation-message-presentation.tsx",
+      "target": "packages/client/ui-conversation-nodes/src/message-presentation-message-presentation.tsx",
+      "sha256": "62a5b2fca21f5c206ca1ce15fc7318f770daf5232b2b309560abf262460d8e07",
+      "targetSha256": "62a5b2fca21f5c206ca1ce15fc7318f770daf5232b2b309560abf262460d8e07"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/lib/completed-turn-model.ts",
+      "target": "packages/client/ui-conversation-nodes/lib/completed-turn-model.ts",
+      "sha256": "0e3688fa532b3b372d8a69974b23fa36a3a5fab84d086361b19cb6ea94bec68c",
+      "targetSha256": "0e3688fa532b3b372d8a69974b23fa36a3a5fab84d086361b19cb6ea94bec68c"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/lib/workbench-message-error.ts",
+      "target": "packages/client/ui-conversation-nodes/lib/workbench-message-error.ts",
+      "sha256": "53c4a5655b51f6381e5eee4f3f6d00997c56fdc8ef942ca439d8837dcdbb8d2f",
+      "targetSha256": "53c4a5655b51f6381e5eee4f3f6d00997c56fdc8ef942ca439d8837dcdbb8d2f"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/lib/message-presentation-policy.ts",
+      "target": "packages/client/ui-conversation-nodes/lib/message-presentation-policy.ts",
+      "sha256": "58e1fc2a7de3d851f466e936bf9a0925dd0467924f98faddfb5143a3ace225ac",
+      "targetSha256": "58e1fc2a7de3d851f466e936bf9a0925dd0467924f98faddfb5143a3ace225ac"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/lib/message-citations.ts",
+      "target": "packages/client/ui-conversation-nodes/lib/message-citations.ts",
+      "sha256": "d3380b19f874ff81883974068548dd5a9b6828493f34fd5a34883944b6e4265c",
+      "targetSha256": "d3380b19f874ff81883974068548dd5a9b6828493f34fd5a34883944b6e4265c"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/lib/message-action-visibility.ts",
+      "target": "packages/client/ui-conversation-nodes/lib/message-action-visibility.ts",
+      "sha256": "7cb4b012fad95791d2b25297eac7ff48082bd73044f8b88150879c0ba134fa4d",
+      "targetSha256": "7cb4b012fad95791d2b25297eac7ff48082bd73044f8b88150879c0ba134fa4d"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/tests/builtin-message-presentation-message-citations.test.ts",
+      "target": "packages/client/ui-conversation-nodes/tests/builtin-message-presentation-message-citations.test.ts",
+      "sha256": "d890ea92335deb3199cd504a2d64064ba047c44aebae87be29530520884dd61d",
+      "targetSha256": "d890ea92335deb3199cd504a2d64064ba047c44aebae87be29530520884dd61d"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/tests/builtin-message-presentation-message-presentation-policy.test.ts",
+      "target": "packages/client/ui-conversation-nodes/tests/builtin-message-presentation-message-presentation-policy.test.ts",
+      "sha256": "a5bf875503edd1b32b0538325853f1c9fe0583b43831b746abac376f31e79869",
+      "targetSha256": "a5bf875503edd1b32b0538325853f1c9fe0583b43831b746abac376f31e79869"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/tests/workbench-message-error.test.ts",
+      "target": "packages/client/ui-conversation-nodes/tests/workbench-message-error.test.ts",
+      "sha256": "3867a508ac40244aaef6d7260a3c84bb176bad41056a50991df1f716b8c3955e",
+      "targetSha256": "3867a508ac40244aaef6d7260a3c84bb176bad41056a50991df1f716b8c3955e"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/tests/message-action-visibility.test.ts",
+      "target": "packages/client/ui-conversation-nodes/tests/message-action-visibility.test.ts",
+      "sha256": "1981a0b7eb3437ad3adf00a2186ff0c1e1453601af93b9cd3625954d7cea61ba",
+      "targetSha256": "1981a0b7eb3437ad3adf00a2186ff0c1e1453601af93b9cd3625954d7cea61ba"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/tests/completed-turn-model.test.ts",
+      "target": "packages/client/ui-conversation-nodes/tests/completed-turn-model.test.ts",
+      "sha256": "0d2da980ff9fff5f5affb0b27421de437943f8a40be455604980a8dfeab10e8e",
+      "targetSha256": "0d2da980ff9fff5f5affb0b27421de437943f8a40be455604980a8dfeab10e8e"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-conversation-nodes/src/i18n/zh-CN.ts",
+      "sha256": "8f6f0154d03c3cc521621120a126a4fd39521b4a3b8f050579e3d73dd31ac081",
+      "targetSha256": "8f6f0154d03c3cc521621120a126a4fd39521b4a3b8f050579e3d73dd31ac081"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/i18n/index.ts",
+      "target": "packages/client/ui-conversation-nodes/src/i18n/index.ts",
+      "sha256": "ff0f312e9b651a28205c87f8cc76e773f73c9eaa6b09f5bcf58cafec234b69bb",
+      "targetSha256": "ff0f312e9b651a28205c87f8cc76e773f73c9eaa6b09f5bcf58cafec234b69bb"
+    },
+    {
+      "source": "packages/conversation/ui-conversation-nodes/src/i18n/en-US.ts",
+      "target": "packages/client/ui-conversation-nodes/src/i18n/en-US.ts",
+      "sha256": "966d82cf095a6cb051053c38db01fe7f7c052167495637a8ca237da16032be5a",
+      "targetSha256": "966d82cf095a6cb051053c38db01fe7f7c052167495637a8ca237da16032be5a"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/README.zh-CN.md",
+      "target": "packages/client/ui-input-trigger/README.zh-CN.md",
+      "sha256": "8e4a75c8aed3a1185d582ee645a57375a75f59d8e16a6684f799e97d0459c561",
+      "targetSha256": "8e4a75c8aed3a1185d582ee645a57375a75f59d8e16a6684f799e97d0459c561"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/README.md",
+      "target": "packages/client/ui-input-trigger/README.md",
+      "sha256": "8e4a75c8aed3a1185d582ee645a57375a75f59d8e16a6684f799e97d0459c561",
+      "targetSha256": "8e4a75c8aed3a1185d582ee645a57375a75f59d8e16a6684f799e97d0459c561"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/tsconfig.json",
+      "target": "packages/client/ui-input-trigger/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/package.json",
+      "target": "packages/client/ui-input-trigger/package.json",
+      "sha256": "73c857140af21a22c4c4288b9d2e3ca1583be8777821c22ad166859834e8b747",
+      "targetSha256": "73c857140af21a22c4c4288b9d2e3ca1583be8777821c22ad166859834e8b747"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/AGENTS.md",
+      "target": "packages/client/ui-input-trigger/AGENTS.md",
+      "sha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "targetSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/public-composer-command-group-order.ts",
+      "target": "packages/client/ui-input-trigger/src/public-composer-command-group-order.ts",
+      "sha256": "d2ff073639a90bc3345ddc98dd97910e1442a876bdb198c2c9e99f30f85e2c48",
+      "targetSha256": "d2ff073639a90bc3345ddc98dd97910e1442a876bdb198c2c9e99f30f85e2c48"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/composer-command-parameter-panel.tsx",
+      "target": "packages/client/ui-input-trigger/src/composer-command-parameter-panel.tsx",
+      "sha256": "c28b28a04cae964ccf00b7ae4546a6e363b5bb00cab9eb0e7c4292a3a1f2a44c",
+      "targetSha256": "c28b28a04cae964ccf00b7ae4546a6e363b5bb00cab9eb0e7c4292a3a1f2a44c"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/agent-command.ts",
+      "target": "packages/client/ui-input-trigger/src/agent-command.ts",
+      "sha256": "16c2763c6e93c432f5c8c4ada61041bbf3a705fda2c3d4689bcbc8e4a9e83f8a",
+      "targetSha256": "16c2763c6e93c432f5c8c4ada61041bbf3a705fda2c3d4689bcbc8e4a9e83f8a"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/public-composer-command-icon-color.ts",
+      "target": "packages/client/ui-input-trigger/src/public-composer-command-icon-color.ts",
+      "sha256": "c30602e97e565fd7f9a3931397728c27004751833283a7791a8dbc175438beb5",
+      "targetSha256": "c30602e97e565fd7f9a3931397728c27004751833283a7791a8dbc175438beb5"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/types.ts",
+      "target": "packages/client/ui-input-trigger/src/types.ts",
+      "sha256": "fc29c16a98709c76f73d1442fee6e1dcf6f4fff8749e2cd5268a19833ee0f934",
+      "targetSha256": "fc29c16a98709c76f73d1442fee6e1dcf6f4fff8749e2cd5268a19833ee0f934"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/composer-command-argument-hint.ts",
+      "target": "packages/client/ui-input-trigger/src/composer-command-argument-hint.ts",
+      "sha256": "fab639258eab6197001d943f36b6beddafadb80d0cc05a01cc9676eaa52ca0cb",
+      "targetSha256": "fab639258eab6197001d943f36b6beddafadb80d0cc05a01cc9676eaa52ca0cb"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/composer-command-arguments.tsx",
+      "target": "packages/client/ui-input-trigger/src/composer-command-arguments.tsx",
+      "sha256": "e2e76007f375696d11b36c62574f3b698b3fee0024b9d271c7409b7acf30cd72",
+      "targetSha256": "e2e76007f375696d11b36c62574f3b698b3fee0024b9d271c7409b7acf30cd72"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/styles.css",
+      "target": "packages/client/ui-input-trigger/src/styles.css",
+      "sha256": "7493cf409c33e8bf6bc067e00e2a3248f4a43ddc39dac6e27b00a12637dacb33",
+      "targetSha256": "7493cf409c33e8bf6bc067e00e2a3248f4a43ddc39dac6e27b00a12637dacb33"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/public-agent-command.ts",
+      "target": "packages/client/ui-input-trigger/src/public-agent-command.ts",
+      "sha256": "16c2763c6e93c432f5c8c4ada61041bbf3a705fda2c3d4689bcbc8e4a9e83f8a",
+      "targetSha256": "16c2763c6e93c432f5c8c4ada61041bbf3a705fda2c3d4689bcbc8e4a9e83f8a"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/index.ts",
+      "target": "packages/client/ui-input-trigger/src/index.ts",
+      "sha256": "0d7d2c1f5c6400fb949587b6dd34af4e9f9221dccdbd6c9a3993574fecaadb67",
+      "targetSha256": "0d7d2c1f5c6400fb949587b6dd34af4e9f9221dccdbd6c9a3993574fecaadb67"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/composer-command-group-order.ts",
+      "target": "packages/client/ui-input-trigger/src/composer-command-group-order.ts",
+      "sha256": "d2ff073639a90bc3345ddc98dd97910e1442a876bdb198c2c9e99f30f85e2c48",
+      "targetSha256": "d2ff073639a90bc3345ddc98dd97910e1442a876bdb198c2c9e99f30f85e2c48"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/public-composer-command-argument-hint.ts",
+      "target": "packages/client/ui-input-trigger/src/public-composer-command-argument-hint.ts",
+      "sha256": "fab639258eab6197001d943f36b6beddafadb80d0cc05a01cc9676eaa52ca0cb",
+      "targetSha256": "fab639258eab6197001d943f36b6beddafadb80d0cc05a01cc9676eaa52ca0cb"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/composer-command-icon-color.ts",
+      "target": "packages/client/ui-input-trigger/src/composer-command-icon-color.ts",
+      "sha256": "c30602e97e565fd7f9a3931397728c27004751833283a7791a8dbc175438beb5",
+      "targetSha256": "c30602e97e565fd7f9a3931397728c27004751833283a7791a8dbc175438beb5"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/composer-trigger-engine.ts",
+      "target": "packages/client/ui-input-trigger/src/composer-trigger-engine.ts",
+      "sha256": "219e844ac92cfa851268ac32c6ba82599d7f606e11e0abc2b8ae054a76a9ae19",
+      "targetSha256": "219e844ac92cfa851268ac32c6ba82599d7f606e11e0abc2b8ae054a76a9ae19"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/composer-command-parameters.ts",
+      "target": "packages/client/ui-input-trigger/src/composer-command-parameters.ts",
+      "sha256": "b476287ed44b97222ee3c3609a29812c306b3ae369cedb2eb3dc16d27b875708",
+      "targetSha256": "b476287ed44b97222ee3c3609a29812c306b3ae369cedb2eb3dc16d27b875708"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/lib/agent-command.ts",
+      "target": "packages/client/ui-input-trigger/lib/agent-command.ts",
+      "sha256": "e893fa9e7e57eaac977e040a2c57545fc97dce12f9a2f3572a71ac734ebca7ef",
+      "targetSha256": "e893fa9e7e57eaac977e040a2c57545fc97dce12f9a2f3572a71ac734ebca7ef"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/lib/composer-command-argument-hint.ts",
+      "target": "packages/client/ui-input-trigger/lib/composer-command-argument-hint.ts",
+      "sha256": "88b56023e56be839f7f43f0aeae090589b6801dabd870e99a4a7e0ec6914ddc7",
+      "targetSha256": "88b56023e56be839f7f43f0aeae090589b6801dabd870e99a4a7e0ec6914ddc7"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/lib/composer-command-group-order.ts",
+      "target": "packages/client/ui-input-trigger/lib/composer-command-group-order.ts",
+      "sha256": "52c333e4f40182c2284f935dc34d5ab85885a820f934969195a476b09ee046bb",
+      "targetSha256": "52c333e4f40182c2284f935dc34d5ab85885a820f934969195a476b09ee046bb"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/lib/composer-command-icon-color.ts",
+      "target": "packages/client/ui-input-trigger/lib/composer-command-icon-color.ts",
+      "sha256": "4af73f91008196cad87ee77f8defca07d74674dcdcdec62a8add40d14a34b083",
+      "targetSha256": "4af73f91008196cad87ee77f8defca07d74674dcdcdec62a8add40d14a34b083"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/tests/composer-command-icon-color.test.ts",
+      "target": "packages/client/ui-input-trigger/tests/composer-command-icon-color.test.ts",
+      "sha256": "3dd574728ed80d5c4010e8547e3039d2fe85c46b44dc5e7e498f91f573705368",
+      "targetSha256": "3dd574728ed80d5c4010e8547e3039d2fe85c46b44dc5e7e498f91f573705368"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/tests/composer-command-arguments.test.ts",
+      "target": "packages/client/ui-input-trigger/tests/composer-command-arguments.test.ts",
+      "sha256": "e31a2d8e5914ba3481b2e3cf41aa594638269ae1c569a9f47070317adcfd838d",
+      "targetSha256": "e31a2d8e5914ba3481b2e3cf41aa594638269ae1c569a9f47070317adcfd838d"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/tests/composer-command-argument-hint.test.ts",
+      "target": "packages/client/ui-input-trigger/tests/composer-command-argument-hint.test.ts",
+      "sha256": "b428270c5e11a0e16747019e9c45a8d2496f6818aa2c78d39d11fb86a3aa10e7",
+      "targetSha256": "b428270c5e11a0e16747019e9c45a8d2496f6818aa2c78d39d11fb86a3aa10e7"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/tests/composer-command-parameter-panel.test.ts",
+      "target": "packages/client/ui-input-trigger/tests/composer-command-parameter-panel.test.ts",
+      "sha256": "60266ec04cf341543d2d3eba057d864ccb7a42a0ab8fc5107c9e287f515aa042",
+      "targetSha256": "60266ec04cf341543d2d3eba057d864ccb7a42a0ab8fc5107c9e287f515aa042"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/tests/composer-command-group-order.test.ts",
+      "target": "packages/client/ui-input-trigger/tests/composer-command-group-order.test.ts",
+      "sha256": "af06a152120468c104c4d0733e60e6c9df929194d094c333fcc5a0fdd60f2ed5",
+      "targetSha256": "af06a152120468c104c4d0733e60e6c9df929194d094c333fcc5a0fdd60f2ed5"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/tests/composer-trigger-engine.test.ts",
+      "target": "packages/client/ui-input-trigger/tests/composer-trigger-engine.test.ts",
+      "sha256": "1bf54e0e5a531ca90df3b88dc44554108c7fd849170511e5ee339b1e0aa80696",
+      "targetSha256": "1bf54e0e5a531ca90df3b88dc44554108c7fd849170511e5ee339b1e0aa80696"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/tests/agent-command.test.ts",
+      "target": "packages/client/ui-input-trigger/tests/agent-command.test.ts",
+      "sha256": "184528b466209bba1e05f65b801a9559ef99f194580dd033bbb0b9ca60aac564",
+      "targetSha256": "184528b466209bba1e05f65b801a9559ef99f194580dd033bbb0b9ca60aac564"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-input-trigger/src/i18n/zh-CN.ts",
+      "sha256": "919f9ddc6d05a2a7c869f02e4cde04d8899030a93053dcecc8fedc857fa03378",
+      "targetSha256": "919f9ddc6d05a2a7c869f02e4cde04d8899030a93053dcecc8fedc857fa03378"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/i18n/index.ts",
+      "target": "packages/client/ui-input-trigger/src/i18n/index.ts",
+      "sha256": "f7355454ab1ca58c61d9e5359d59927dc8d68a120d85d7e30144a4e78cefdc3d",
+      "targetSha256": "f7355454ab1ca58c61d9e5359d59927dc8d68a120d85d7e30144a4e78cefdc3d"
+    },
+    {
+      "source": "packages/conversation/ui-input-trigger/src/i18n/en-US.ts",
+      "target": "packages/client/ui-input-trigger/src/i18n/en-US.ts",
+      "sha256": "a800e8b58899c6d77bd24f2238fa3f64e426432c80ef2a01270abd5270baa681",
+      "targetSha256": "a800e8b58899c6d77bd24f2238fa3f64e426432c80ef2a01270abd5270baa681"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/README.zh-CN.md",
+      "target": "packages/client/ui-message-actions/README.zh-CN.md",
+      "sha256": "902abd4d8a9f44c7d204527356a848595ab8c95c02406cb77a1297de766a1072",
+      "targetSha256": "902abd4d8a9f44c7d204527356a848595ab8c95c02406cb77a1297de766a1072"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/README.md",
+      "target": "packages/client/ui-message-actions/README.md",
+      "sha256": "9c181afac98c4d7f70bbb92b9e3172e11f32419731cbc66b6f3c3cf9c130fb73",
+      "targetSha256": "9c181afac98c4d7f70bbb92b9e3172e11f32419731cbc66b6f3c3cf9c130fb73"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/tsconfig.json",
+      "target": "packages/client/ui-message-actions/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/package.json",
+      "target": "packages/client/ui-message-actions/package.json",
+      "sha256": "5d0f7ccad42c1b50985ab2f5f5a8c628200761d815ee312bebd4b5ec8e67851c",
+      "targetSha256": "5d0f7ccad42c1b50985ab2f5f5a8c628200761d815ee312bebd4b5ec8e67851c"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/AGENTS.md",
+      "target": "packages/client/ui-message-actions/AGENTS.md",
+      "sha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "targetSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/src/message-actions.tsx",
+      "target": "packages/client/ui-message-actions/src/message-actions.tsx",
+      "sha256": "4489e5304a168c39376d0d7e96aa40a20d47a240ee0ec6eecfda617437f65d39",
+      "targetSha256": "4489e5304a168c39376d0d7e96aa40a20d47a240ee0ec6eecfda617437f65d39"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/src/index.ts",
+      "target": "packages/client/ui-message-actions/src/index.ts",
+      "sha256": "daf01a62135c3e05d5e9e7eabbd8bad14c66f0497382ee1f77a50c992fdafe95",
+      "targetSha256": "daf01a62135c3e05d5e9e7eabbd8bad14c66f0497382ee1f77a50c992fdafe95"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/src/extension.ts",
+      "target": "packages/client/ui-message-actions/src/extension.ts",
+      "sha256": "cad696499feaf7cc6919b9e968cba08b838f4682e6fdcb77c101b466e3af95b0",
+      "targetSha256": "cad696499feaf7cc6919b9e968cba08b838f4682e6fdcb77c101b466e3af95b0"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/lib/message-performance-statistics.ts",
+      "target": "packages/client/ui-message-actions/lib/message-performance-statistics.ts",
+      "sha256": "eaeaeadc587828d94c2375b7978da423f0a4073e90468be62f92beeafdc687b7",
+      "targetSha256": "eaeaeadc587828d94c2375b7978da423f0a4073e90468be62f92beeafdc687b7"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/lib/fork-availability.ts",
+      "target": "packages/client/ui-message-actions/lib/fork-availability.ts",
+      "sha256": "641a4a5105062beba59690f7a68c6de41d12a00419c31a3fb72e6876618acc47",
+      "targetSha256": "641a4a5105062beba59690f7a68c6de41d12a00419c31a3fb72e6876618acc47"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/lib/message-performance-visibility.ts",
+      "target": "packages/client/ui-message-actions/lib/message-performance-visibility.ts",
+      "sha256": "9828ef75201498418d3659c3adf0936d6bf2aaf96ef5fd6177119e06f274ab32",
+      "targetSha256": "9828ef75201498418d3659c3adf0936d6bf2aaf96ef5fd6177119e06f274ab32"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/tests/builtin-message-actions-message-performance-visibility.test.ts",
+      "target": "packages/client/ui-message-actions/tests/builtin-message-actions-message-performance-visibility.test.ts",
+      "sha256": "751b8c4fa1229f91a068d4c704b6322a12c3b635dc57c94b5aa475ae6ecc10c7",
+      "targetSha256": "751b8c4fa1229f91a068d4c704b6322a12c3b635dc57c94b5aa475ae6ecc10c7"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/tests/builtin-message-actions-fork-availability.test.ts",
+      "target": "packages/client/ui-message-actions/tests/builtin-message-actions-fork-availability.test.ts",
+      "sha256": "4cc9dc5752f8c8e7fdd09886dc055d5053937285565517fb0df1c925333e4ab0",
+      "targetSha256": "4cc9dc5752f8c8e7fdd09886dc055d5053937285565517fb0df1c925333e4ab0"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/tests/builtin-message-actions-message-performance-statistics.test.ts",
+      "target": "packages/client/ui-message-actions/tests/builtin-message-actions-message-performance-statistics.test.ts",
+      "sha256": "3920f2142a5e86da6126be5e84ed1dc77b8cdc6d57709150b3eff3b790700360",
+      "targetSha256": "3920f2142a5e86da6126be5e84ed1dc77b8cdc6d57709150b3eff3b790700360"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-message-actions/src/i18n/zh-CN.ts",
+      "sha256": "c8e628f7319ba74210ed03fe439f8fc7caa5cd38c03dc9bab2cc662b5b7f3f5a",
+      "targetSha256": "c8e628f7319ba74210ed03fe439f8fc7caa5cd38c03dc9bab2cc662b5b7f3f5a"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/src/i18n/index.ts",
+      "target": "packages/client/ui-message-actions/src/i18n/index.ts",
+      "sha256": "58b6d67b1710c53713ff751b582ec32601f1b9252145fc3f3b7dfa4cd743aa61",
+      "targetSha256": "58b6d67b1710c53713ff751b582ec32601f1b9252145fc3f3b7dfa4cd743aa61"
+    },
+    {
+      "source": "packages/conversation/ui-message-actions/src/i18n/en-US.ts",
+      "target": "packages/client/ui-message-actions/src/i18n/en-US.ts",
+      "sha256": "e460773e58cb1da43fffeb9dbecf25afb94fbf095f11d2afc5e07499d5769d34",
+      "targetSha256": "e460773e58cb1da43fffeb9dbecf25afb94fbf095f11d2afc5e07499d5769d34"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/README.zh-CN.md",
+      "target": "packages/client/ui-message-blocks/README.zh-CN.md",
+      "sha256": "39ecdce8bf3892ec2da6c69cb95ba63fda3fb01feae2de37b31c0b659f866b53",
+      "targetSha256": "39ecdce8bf3892ec2da6c69cb95ba63fda3fb01feae2de37b31c0b659f866b53"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/README.md",
+      "target": "packages/client/ui-message-blocks/README.md",
+      "sha256": "ad8157ac4f3ff2a7232572a7daf2d5e9de9573c98dd340dabf9d868814a46518",
+      "targetSha256": "ad8157ac4f3ff2a7232572a7daf2d5e9de9573c98dd340dabf9d868814a46518"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/tsconfig.json",
+      "target": "packages/client/ui-message-blocks/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/package.json",
+      "target": "packages/client/ui-message-blocks/package.json",
+      "sha256": "a041286131ad21ef5eb4fcd0008557b0f466c802d2d600ac943dd1ac920af7bb",
+      "targetSha256": "a041286131ad21ef5eb4fcd0008557b0f466c802d2d600ac943dd1ac920af7bb"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/streaming-text.tsx",
+      "target": "packages/client/ui-message-blocks/src/streaming-text.tsx",
+      "sha256": "f53d90ddf152a7181c46d69b7b2a32dd0ca00b20b045aa3a43d3ea0ef7854741",
+      "targetSha256": "f53d90ddf152a7181c46d69b7b2a32dd0ca00b20b045aa3a43d3ea0ef7854741"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/error-state.tsx",
+      "target": "packages/client/ui-message-blocks/src/error-state.tsx",
+      "sha256": "fd64fcfed9d0e6dceddb7124c7abb32141281fbc480fb8c82ba1575b85ed73bf",
+      "targetSha256": "fd64fcfed9d0e6dceddb7124c7abb32141281fbc480fb8c82ba1575b85ed73bf"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/image.css",
+      "target": "packages/client/ui-message-blocks/src/image.css",
+      "sha256": "deedc0ad66a15dd560cfc3d4a2e90d3f595ec13b85d42e0fa29bee0bee7b6d7b",
+      "targetSha256": "deedc0ad66a15dd560cfc3d4a2e90d3f595ec13b85d42e0fa29bee0bee7b6d7b"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/composer-command-response.tsx",
+      "target": "packages/client/ui-message-blocks/src/composer-command-response.tsx",
+      "sha256": "6a87f494930ce68a201043ce1a682fc5e79f02b47b857425c285285d637e0295",
+      "targetSha256": "6a87f494930ce68a201043ce1a682fc5e79f02b47b857425c285285d637e0295"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/file.tsx",
+      "target": "packages/client/ui-message-blocks/src/file.tsx",
+      "sha256": "3850d82b9d43dde11e4163fae60858b0f709de17044c11ea6bda3a400bfb71eb",
+      "targetSha256": "3850d82b9d43dde11e4163fae60858b0f709de17044c11ea6bda3a400bfb71eb"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/message-source.tsx",
+      "target": "packages/client/ui-message-blocks/src/message-source.tsx",
+      "sha256": "6512f7be1f3a5ebd7d6ddf5cbb097b9491bc279857043d7e4588e91c451f1394",
+      "targetSha256": "6512f7be1f3a5ebd7d6ddf5cbb097b9491bc279857043d7e4588e91c451f1394"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/terminal-block.tsx",
+      "target": "packages/client/ui-message-blocks/src/terminal-block.tsx",
+      "sha256": "384379c658d5eb69459d50732430f743da2dd86bd30cf7460ff28aefe8b089e9",
+      "targetSha256": "384379c658d5eb69459d50732430f743da2dd86bd30cf7460ff28aefe8b089e9"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/image.tsx",
+      "target": "packages/client/ui-message-blocks/src/image.tsx",
+      "sha256": "e44d0bf09162b47824892d155f619020d4196d5d5705796b0eab7221cf0887ac",
+      "targetSha256": "e44d0bf09162b47824892d155f619020d4196d5d5705796b0eab7221cf0887ac"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/index.ts",
+      "target": "packages/client/ui-message-blocks/src/index.ts",
+      "sha256": "811e1dff56a8f758f662bea3b268a9044a7c0dffbe2a06cb0c77bf6364daddae",
+      "targetSha256": "811e1dff56a8f758f662bea3b268a9044a7c0dffbe2a06cb0c77bf6364daddae"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/conversation-separator.tsx",
+      "target": "packages/client/ui-message-blocks/src/conversation-separator.tsx",
+      "sha256": "ebfdc8c2925a32c2ac16d237c5364e6d3a9986e2bdef6e3a9369b53231fa046b",
+      "targetSha256": "ebfdc8c2925a32c2ac16d237c5364e6d3a9986e2bdef6e3a9369b53231fa046b"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/user-message-text-bubble.tsx",
+      "target": "packages/client/ui-message-blocks/src/user-message-text-bubble.tsx",
+      "sha256": "989112e8ed2949e0410957db8feb28d91d6a28763851e33bd9c0f81b1e25bc1a",
+      "targetSha256": "989112e8ed2949e0410957db8feb28d91d6a28763851e33bd9c0f81b1e25bc1a"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/composer-message-content.tsx",
+      "target": "packages/client/ui-message-blocks/src/composer-message-content.tsx",
+      "sha256": "03fd5d07e93b20424fcc5b83bcebc55f245195cedc798b95c2f861c80761c8a8",
+      "targetSha256": "03fd5d07e93b20424fcc5b83bcebc55f245195cedc798b95c2f861c80761c8a8"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/message-blocks.tsx",
+      "target": "packages/client/ui-message-blocks/src/message-blocks.tsx",
+      "sha256": "fe81999a9f2de267975aacf9604a82f294153b2106d856a89bf0fe7b846a857b",
+      "targetSha256": "fe81999a9f2de267975aacf9604a82f294153b2106d856a89bf0fe7b846a857b"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/lib/file-data.ts",
+      "target": "packages/client/ui-message-blocks/lib/file-data.ts",
+      "sha256": "d4346d998b44065218a00e60504e4bef125b33694e4152e6ab4394d9673051b4",
+      "targetSha256": "d4346d998b44065218a00e60504e4bef125b33694e4152e6ab4394d9673051b4"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/tests/i18n-test.tsx",
+      "target": "packages/client/ui-message-blocks/tests/i18n-test.tsx",
+      "sha256": "a8e8a4a2412f7d7f4101c092ea322a5276706865b96bf83da50005116cae7de7",
+      "targetSha256": "a8e8a4a2412f7d7f4101c092ea322a5276706865b96bf83da50005116cae7de7"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/tests/streaming-text.test.tsx",
+      "target": "packages/client/ui-message-blocks/tests/streaming-text.test.tsx",
+      "sha256": "e5820dc0651c983b0d3621e424f20922972a401b0b3bbc6c905f7bcfe4f936c2",
+      "targetSha256": "e5820dc0651c983b0d3621e424f20922972a401b0b3bbc6c905f7bcfe4f936c2"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/tests/message-blocks.test.tsx",
+      "target": "packages/client/ui-message-blocks/tests/message-blocks.test.tsx",
+      "sha256": "8baaacb16be3c41e03ca5b25ebfd29f7a19848849793c6901db973300a8721b1",
+      "targetSha256": "8baaacb16be3c41e03ca5b25ebfd29f7a19848849793c6901db973300a8721b1"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/tests/composer-command-response.test.tsx",
+      "target": "packages/client/ui-message-blocks/tests/composer-command-response.test.tsx",
+      "sha256": "9ef4a81a62faeafe87c36afe3c2aed033f30053a9a47b46a1b3f24a8b57f0847",
+      "targetSha256": "9ef4a81a62faeafe87c36afe3c2aed033f30053a9a47b46a1b3f24a8b57f0847"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-message-blocks/src/i18n/zh-CN.ts",
+      "sha256": "5b01fa73a67bbeffcd42a2b5c0794797816a5af8af95a7d12bbf7cd65f591f4a",
+      "targetSha256": "5b01fa73a67bbeffcd42a2b5c0794797816a5af8af95a7d12bbf7cd65f591f4a"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/i18n/index.ts",
+      "target": "packages/client/ui-message-blocks/src/i18n/index.ts",
+      "sha256": "a9b6d3ef1342a8bbcda8e7bdaf857b226de02c71b2ffb649a9593485d8a73770",
+      "targetSha256": "a9b6d3ef1342a8bbcda8e7bdaf857b226de02c71b2ffb649a9593485d8a73770"
+    },
+    {
+      "source": "packages/conversation/ui-message-blocks/src/i18n/en-US.ts",
+      "target": "packages/client/ui-message-blocks/src/i18n/en-US.ts",
+      "sha256": "5f11e8fc8f6e409a8800a3f5829b16fc17967dcf1dd0a7467f8ef062e5e03db8",
+      "targetSha256": "5f11e8fc8f6e409a8800a3f5829b16fc17967dcf1dd0a7467f8ef062e5e03db8"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue/README.zh-CN.md",
+      "target": "packages/client/ui-message-queue/README.zh-CN.md",
+      "sha256": "b5779dde6e0ec55179d4dddbdddac195c29aa5b5b687700a6b9315156631505a",
+      "targetSha256": "b5779dde6e0ec55179d4dddbdddac195c29aa5b5b687700a6b9315156631505a"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue/README.md",
+      "target": "packages/client/ui-message-queue/README.md",
+      "sha256": "f496631e463b76660c553d68b809bd635fa8bb8d7c01fbf198ec7569a54b4c6d",
+      "targetSha256": "f496631e463b76660c553d68b809bd635fa8bb8d7c01fbf198ec7569a54b4c6d"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue/tsconfig.json",
+      "target": "packages/client/ui-message-queue/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue/package.json",
+      "target": "packages/client/ui-message-queue/package.json",
+      "sha256": "bbd45cc95224dafce173513eff1785d946bcadb760ca8553b98a33b45e858064",
+      "targetSha256": "bbd45cc95224dafce173513eff1785d946bcadb760ca8553b98a33b45e858064"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue/AGENTS.md",
+      "target": "packages/client/ui-message-queue/AGENTS.md",
+      "sha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "targetSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue/src/message-queue.css",
+      "target": "packages/client/ui-message-queue/src/message-queue.css",
+      "sha256": "a217d7efc17955f4eab3f476920817c758d6bde8219c8f53e343a02d5bb0ae0d",
+      "targetSha256": "a217d7efc17955f4eab3f476920817c758d6bde8219c8f53e343a02d5bb0ae0d"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue/src/index.ts",
+      "target": "packages/client/ui-message-queue/src/index.ts",
+      "sha256": "d128183549f5af0654e9ad8938c64991fd7b6a4d3a5eb2a62cf8e9319ae6b883",
+      "targetSha256": "d128183549f5af0654e9ad8938c64991fd7b6a4d3a5eb2a62cf8e9319ae6b883"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue/src/extension.ts",
+      "target": "packages/client/ui-message-queue/src/extension.ts",
+      "sha256": "e0ea35af87bbc9f03ad37d89d6bfe0c4a1c648f31e692f2ef043217920edf070",
+      "targetSha256": "e0ea35af87bbc9f03ad37d89d6bfe0c4a1c648f31e692f2ef043217920edf070"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue/src/composer-message-queue.tsx",
+      "target": "packages/client/ui-message-queue/src/composer-message-queue.tsx",
+      "sha256": "6f1156a668c7ae3ec6192e0712c91b87b35a1b3fbb948e1c58d064c541ed318d",
+      "targetSha256": "6f1156a668c7ae3ec6192e0712c91b87b35a1b3fbb948e1c58d064c541ed318d"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue/lib/message-queue-preview.ts",
+      "target": "packages/client/ui-message-queue/lib/message-queue-preview.ts",
+      "sha256": "0cd997c474e12356f3e8c4612e5d51145ad36b33e1e7cd5685e5ad79368e9412",
+      "targetSha256": "0cd997c474e12356f3e8c4612e5d51145ad36b33e1e7cd5685e5ad79368e9412"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue/tests/builtin-message-queue-message-queue-preview.test.ts",
+      "target": "packages/client/ui-message-queue/tests/builtin-message-queue-message-queue-preview.test.ts",
+      "sha256": "7121dbd873cdffdc6754711714b3c31b5d1a5ab9118b3da73994799d66bb3577",
+      "targetSha256": "7121dbd873cdffdc6754711714b3c31b5d1a5ab9118b3da73994799d66bb3577"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-message-queue/src/i18n/zh-CN.ts",
+      "sha256": "397ebd78aa6647a3a47899252226f43099807cde2e03c9ea69b30084da86ab50",
+      "targetSha256": "397ebd78aa6647a3a47899252226f43099807cde2e03c9ea69b30084da86ab50"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue/src/i18n/index.ts",
+      "target": "packages/client/ui-message-queue/src/i18n/index.ts",
+      "sha256": "f0b6a4a36500fa55ad4efd13270958b55ebb2e24a36654e2129ec2503d0b4f4c",
+      "targetSha256": "f0b6a4a36500fa55ad4efd13270958b55ebb2e24a36654e2129ec2503d0b4f4c"
+    },
+    {
+      "source": "packages/conversation/ui-message-queue/src/i18n/en-US.ts",
+      "target": "packages/client/ui-message-queue/src/i18n/en-US.ts",
+      "sha256": "be7091042ac59afe2fe2f70acc7f5eefa2f867921afd7083ad00bff66de16d0b",
+      "targetSha256": "be7091042ac59afe2fe2f70acc7f5eefa2f867921afd7083ad00bff66de16d0b"
+    },
+    {
+      "source": "packages/conversation/ui-settings-archived-chats/README.zh-CN.md",
+      "target": "packages/client/ui-settings-archived-chats/README.zh-CN.md",
+      "sha256": "a8e5cf9ad2eb138d874478f1978b3b4e05c07f1e8679f8620b3f27bb86065c63",
+      "targetSha256": "a8e5cf9ad2eb138d874478f1978b3b4e05c07f1e8679f8620b3f27bb86065c63"
+    },
+    {
+      "source": "packages/conversation/ui-settings-archived-chats/README.md",
+      "target": "packages/client/ui-settings-archived-chats/README.md",
+      "sha256": "111573472f72964e279124adade45e623ae194c3dd2947fe7af268e38d4ae745",
+      "targetSha256": "111573472f72964e279124adade45e623ae194c3dd2947fe7af268e38d4ae745"
+    },
+    {
+      "source": "packages/conversation/ui-settings-archived-chats/tsconfig.json",
+      "target": "packages/client/ui-settings-archived-chats/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-settings-archived-chats/package.json",
+      "target": "packages/client/ui-settings-archived-chats/package.json",
+      "sha256": "27da85581f885c5b621fb5a9d7c5a5627e85e4f78125d972ff12dc6213be08f6",
+      "targetSha256": "27da85581f885c5b621fb5a9d7c5a5627e85e4f78125d972ff12dc6213be08f6"
+    },
+    {
+      "source": "packages/conversation/ui-settings-archived-chats/AGENTS.md",
+      "target": "packages/client/ui-settings-archived-chats/AGENTS.md",
+      "sha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "targetSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd"
+    },
+    {
+      "source": "packages/conversation/ui-settings-archived-chats/src/index.ts",
+      "target": "packages/client/ui-settings-archived-chats/src/index.ts",
+      "sha256": "371bc3d431aa6d2ad4ef4bb376d2cb707eb463e01054eceb9d212c94eb30d894",
+      "targetSha256": "371bc3d431aa6d2ad4ef4bb376d2cb707eb463e01054eceb9d212c94eb30d894"
+    },
+    {
+      "source": "packages/conversation/ui-settings-archived-chats/src/extension.ts",
+      "target": "packages/client/ui-settings-archived-chats/src/extension.ts",
+      "sha256": "bef606f4532ed497e0bf3f73b5031384a0c0d6f6c10fe4bf8855713d02c0f424",
+      "targetSha256": "bef606f4532ed497e0bf3f73b5031384a0c0d6f6c10fe4bf8855713d02c0f424"
+    },
+    {
+      "source": "packages/conversation/ui-settings-archived-chats/src/archived-chats-settings-item.tsx",
+      "target": "packages/client/ui-settings-archived-chats/src/archived-chats-settings-item.tsx",
+      "sha256": "3dc7969e9ba0152e092120176bd684f718df673705f55809cb0b6cefd89f8122",
+      "targetSha256": "3dc7969e9ba0152e092120176bd684f718df673705f55809cb0b6cefd89f8122"
+    },
+    {
+      "source": "packages/conversation/ui-settings-archived-chats/lib/archived-chat-group-a11y.ts",
+      "target": "packages/client/ui-settings-archived-chats/lib/archived-chat-group-a11y.ts",
+      "sha256": "91d2d6e642e93c704829cce78962c9a00593d91bb3468455fdaf641a84aa3f87",
+      "targetSha256": "91d2d6e642e93c704829cce78962c9a00593d91bb3468455fdaf641a84aa3f87"
+    },
+    {
+      "source": "packages/conversation/ui-settings-archived-chats/tests/builtin-archived-chats-archived-chat-group-a11y.test.ts",
+      "target": "packages/client/ui-settings-archived-chats/tests/builtin-archived-chats-archived-chat-group-a11y.test.ts",
+      "sha256": "7a3e353e8cd84a35df5c766336678851e428d75ff2de1d237dd10e680923fbe8",
+      "targetSha256": "7a3e353e8cd84a35df5c766336678851e428d75ff2de1d237dd10e680923fbe8"
+    },
+    {
+      "source": "packages/conversation/ui-settings-archived-chats/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-settings-archived-chats/src/i18n/zh-CN.ts",
+      "sha256": "b1af3d3d60fa413b829e919d65e69d5fdb5d2863020163e9ab1f101d3f3bc9a3",
+      "targetSha256": "b1af3d3d60fa413b829e919d65e69d5fdb5d2863020163e9ab1f101d3f3bc9a3"
+    },
+    {
+      "source": "packages/conversation/ui-settings-archived-chats/src/i18n/index.ts",
+      "target": "packages/client/ui-settings-archived-chats/src/i18n/index.ts",
+      "sha256": "d6e18eb53fe0ffb746832a97881a366825e133bdb806625df1b806362280658f",
+      "targetSha256": "d6e18eb53fe0ffb746832a97881a366825e133bdb806625df1b806362280658f"
+    },
+    {
+      "source": "packages/conversation/ui-settings-archived-chats/src/i18n/en-US.ts",
+      "target": "packages/client/ui-settings-archived-chats/src/i18n/en-US.ts",
+      "sha256": "2ce916d94ae139e76e8aff26fde736f4dbf5fec522a47f2e79b92fe536685a36",
+      "targetSha256": "2ce916d94ae139e76e8aff26fde736f4dbf5fec522a47f2e79b92fe536685a36"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/README.zh-CN.md",
+      "target": "packages/client/ui-side-chat/README.zh-CN.md",
+      "sha256": "30c7a978635590c7be1fb6f19ff81e40032b169d7134a6c082c8c1618f372644",
+      "targetSha256": "30c7a978635590c7be1fb6f19ff81e40032b169d7134a6c082c8c1618f372644"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/README.md",
+      "target": "packages/client/ui-side-chat/README.md",
+      "sha256": "d816bbc06344444c63002b327e23246b2e0832aa8cf01ef0494895ec51a39dea",
+      "targetSha256": "d816bbc06344444c63002b327e23246b2e0832aa8cf01ef0494895ec51a39dea"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/tsconfig.json",
+      "target": "packages/client/ui-side-chat/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/package.json",
+      "target": "packages/client/ui-side-chat/package.json",
+      "sha256": "3bba603ad912ccd024e11467dfcb91006020b23e2c8fdccf2e21b3ab48937d6f",
+      "targetSha256": "3bba603ad912ccd024e11467dfcb91006020b23e2c8fdccf2e21b3ab48937d6f"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/AGENTS.md",
+      "target": "packages/client/ui-side-chat/AGENTS.md",
+      "sha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "targetSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/src/side-chat-surface.tsx",
+      "target": "packages/client/ui-side-chat/src/side-chat-surface.tsx",
+      "sha256": "9d5c1c6f89d013b746185e4bb629a12d244ae3275750f0deabab3e18bd7548b0",
+      "targetSha256": "9d5c1c6f89d013b746185e4bb629a12d244ae3275750f0deabab3e18bd7548b0"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/src/side-chat-header.tsx",
+      "target": "packages/client/ui-side-chat/src/side-chat-header.tsx",
+      "sha256": "f3ef53b02d370163aca957ef322f4d56e8bc14903356bfc873977f7d8fcf0e5b",
+      "targetSha256": "f3ef53b02d370163aca957ef322f4d56e8bc14903356bfc873977f7d8fcf0e5b"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/src/index.ts",
+      "target": "packages/client/ui-side-chat/src/index.ts",
+      "sha256": "f483e8752ceda5dc5ee6fadfb680800e41c06164f4d161810371ac989174d6c2",
+      "targetSha256": "f483e8752ceda5dc5ee6fadfb680800e41c06164f4d161810371ac989174d6c2"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/src/side-chat-workspace.ts",
+      "target": "packages/client/ui-side-chat/src/side-chat-workspace.ts",
+      "sha256": "ba08a97b73f0df0911221cec61251dc93933c3164e233aaff16309254d7106f7",
+      "targetSha256": "ba08a97b73f0df0911221cec61251dc93933c3164e233aaff16309254d7106f7"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/src/extension.ts",
+      "target": "packages/client/ui-side-chat/src/extension.ts",
+      "sha256": "f56a06c0c54a1f92bdebc34b26526bc773f9b524f06c0a64b0f908493445ab6c",
+      "targetSha256": "f56a06c0c54a1f92bdebc34b26526bc773f9b524f06c0a64b0f908493445ab6c"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/src/side-chat-runtime-bridge.tsx",
+      "target": "packages/client/ui-side-chat/src/side-chat-runtime-bridge.tsx",
+      "sha256": "c23acff5d96f43688177bde9af445dd8cb95a85336fae7de3f4193ddc2710407",
+      "targetSha256": "c23acff5d96f43688177bde9af445dd8cb95a85336fae7de3f4193ddc2710407"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/src/side-chat-menu-item.tsx",
+      "target": "packages/client/ui-side-chat/src/side-chat-menu-item.tsx",
+      "sha256": "d5a35e70e1efcfeaf3b1b64348d791e348813cca908ae1b3818344cf58bfcabe",
+      "targetSha256": "d5a35e70e1efcfeaf3b1b64348d791e348813cca908ae1b3818344cf58bfcabe"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/lib/side-chat-navigation.ts",
+      "target": "packages/client/ui-side-chat/lib/side-chat-navigation.ts",
+      "sha256": "e3a6cb7fbbf813193f1611165210a2449e68be7f5fdbaafe27b29b82b5db4ed7",
+      "targetSha256": "e3a6cb7fbbf813193f1611165210a2449e68be7f5fdbaafe27b29b82b5db4ed7"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/lib/scratch-session-lease.ts",
+      "target": "packages/client/ui-side-chat/lib/scratch-session-lease.ts",
+      "sha256": "d6563df1ff1775e121964ec2914d4deb4c610e5dace3ea9b58ee0832af507ae5",
+      "targetSha256": "d6563df1ff1775e121964ec2914d4deb4c610e5dace3ea9b58ee0832af507ae5"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/tests/builtin-side-chat-side-chat-navigation.test.ts",
+      "target": "packages/client/ui-side-chat/tests/builtin-side-chat-side-chat-navigation.test.ts",
+      "sha256": "896e2058d227d0284227d81e8524331a8ff34a25edda413bf4af533606ea98cb",
+      "targetSha256": "896e2058d227d0284227d81e8524331a8ff34a25edda413bf4af533606ea98cb"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/tests/builtin-side-chat-scratch-session-lease.test.ts",
+      "target": "packages/client/ui-side-chat/tests/builtin-side-chat-scratch-session-lease.test.ts",
+      "sha256": "8efbe9828392c2c29c5f499c50b68968839a6dd4672e5d748f12edb23f73ad15",
+      "targetSha256": "8efbe9828392c2c29c5f499c50b68968839a6dd4672e5d748f12edb23f73ad15"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/tests/builtin-side-chat-side-chat-workspace.test.ts",
+      "target": "packages/client/ui-side-chat/tests/builtin-side-chat-side-chat-workspace.test.ts",
+      "sha256": "ecbe75df4b1f3d35aec7f0f6e159ef50149453396fd2e721b301e6947b4c7816",
+      "targetSha256": "ecbe75df4b1f3d35aec7f0f6e159ef50149453396fd2e721b301e6947b4c7816"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-side-chat/src/i18n/zh-CN.ts",
+      "sha256": "f6a9394ba66d881a32f4ed4fd731fc13fd7198e51fc58e690be03b5cd22ac2ad",
+      "targetSha256": "f6a9394ba66d881a32f4ed4fd731fc13fd7198e51fc58e690be03b5cd22ac2ad"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/src/i18n/index.ts",
+      "target": "packages/client/ui-side-chat/src/i18n/index.ts",
+      "sha256": "60cb789a4000582233d7f96c9e92d6e68695cafce513fd9d1c8320d9262ff4b4",
+      "targetSha256": "60cb789a4000582233d7f96c9e92d6e68695cafce513fd9d1c8320d9262ff4b4"
+    },
+    {
+      "source": "packages/conversation/ui-side-chat/src/i18n/en-US.ts",
+      "target": "packages/client/ui-side-chat/src/i18n/en-US.ts",
+      "sha256": "23f3b961e7bbee29be8f290b675bb850297913d18bbe6a37929bede49ec97b7e",
+      "targetSha256": "23f3b961e7bbee29be8f290b675bb850297913d18bbe6a37929bede49ec97b7e"
+    },
+    {
+      "source": "packages/conversation/ui-todo/README.zh-CN.md",
+      "target": "packages/client/ui-todo/README.zh-CN.md",
+      "sha256": "e55d65a286ab258006516c30dc5bb272cbc36a135b618a92774d9bbe43d6dd91",
+      "targetSha256": "e55d65a286ab258006516c30dc5bb272cbc36a135b618a92774d9bbe43d6dd91"
+    },
+    {
+      "source": "packages/conversation/ui-todo/README.md",
+      "target": "packages/client/ui-todo/README.md",
+      "sha256": "2d59e5124e3f3d2371119b6ee0954ce18103ae1ddc0ddf03feadf6eacef8ef67",
+      "targetSha256": "2d59e5124e3f3d2371119b6ee0954ce18103ae1ddc0ddf03feadf6eacef8ef67"
+    },
+    {
+      "source": "packages/conversation/ui-todo/tsconfig.json",
+      "target": "packages/client/ui-todo/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-todo/package.json",
+      "target": "packages/client/ui-todo/package.json",
+      "sha256": "e177c47323b598857b14b5e636ccf85101d97fc23a89e698309f03461ebc6519",
+      "targetSha256": "e177c47323b598857b14b5e636ccf85101d97fc23a89e698309f03461ebc6519"
+    },
+    {
+      "source": "packages/conversation/ui-todo/src/todo-panel.tsx",
+      "target": "packages/client/ui-todo/src/todo-panel.tsx",
+      "sha256": "f5ff4668549775ffcc67e7ae0edb447b7bcbf773bc7b07de189c1d40e1027633",
+      "targetSha256": "f5ff4668549775ffcc67e7ae0edb447b7bcbf773bc7b07de189c1d40e1027633"
+    },
+    {
+      "source": "packages/conversation/ui-todo/src/todo-list.tsx",
+      "target": "packages/client/ui-todo/src/todo-list.tsx",
+      "sha256": "f3935b8b33b226f4c5d9aa71804c41554e6b331b46828d1a803809326db5b19c",
+      "targetSha256": "f3935b8b33b226f4c5d9aa71804c41554e6b331b46828d1a803809326db5b19c"
+    },
+    {
+      "source": "packages/conversation/ui-todo/src/index.ts",
+      "target": "packages/client/ui-todo/src/index.ts",
+      "sha256": "826160d9c0343dcb22146736a2b5082ab6cc6a72f40bfbd11ceefa3a4001e915",
+      "targetSha256": "826160d9c0343dcb22146736a2b5082ab6cc6a72f40bfbd11ceefa3a4001e915"
+    },
+    {
+      "source": "packages/conversation/ui-todo/src/model.ts",
+      "target": "packages/client/ui-todo/src/model.ts",
+      "sha256": "e75a298c3e9ab70ce1a02097344e798e0626805d64b810678e8a46be0014f91c",
+      "targetSha256": "e75a298c3e9ab70ce1a02097344e798e0626805d64b810678e8a46be0014f91c"
+    },
+    {
+      "source": "packages/conversation/ui-todo/src/extension.ts",
+      "target": "packages/client/ui-todo/src/extension.ts",
+      "sha256": "f7b853edeadb22e444346095927f36f8804bc0c9951b011fe82b9e8e393b1282",
+      "targetSha256": "f7b853edeadb22e444346095927f36f8804bc0c9951b011fe82b9e8e393b1282"
+    },
+    {
+      "source": "packages/conversation/ui-todo/lib/todo-model.ts",
+      "target": "packages/client/ui-todo/lib/todo-model.ts",
+      "sha256": "e25655d41bdb943710f95e2c06dbc85527da5fbcabda26827579a43f9ac3f2e2",
+      "targetSha256": "e25655d41bdb943710f95e2c06dbc85527da5fbcabda26827579a43f9ac3f2e2"
+    },
+    {
+      "source": "packages/conversation/ui-todo/tests/i18n-test.tsx",
+      "target": "packages/client/ui-todo/tests/i18n-test.tsx",
+      "sha256": "797eb1374f74a51915fb65727a0589110225322b732482e2ee8dc20bfb8fa573",
+      "targetSha256": "797eb1374f74a51915fb65727a0589110225322b732482e2ee8dc20bfb8fa573"
+    },
+    {
+      "source": "packages/conversation/ui-todo/tests/builtin-todo-panel-todo-panel.test.tsx",
+      "target": "packages/client/ui-todo/tests/builtin-todo-panel-todo-panel.test.tsx",
+      "sha256": "dfb62dc35debef66bbee16f0e46324a8b8ceccc72ee63cb3f040b42160f6e9a7",
+      "targetSha256": "dfb62dc35debef66bbee16f0e46324a8b8ceccc72ee63cb3f040b42160f6e9a7"
+    },
+    {
+      "source": "packages/conversation/ui-todo/tests/todo-model.test.ts",
+      "target": "packages/client/ui-todo/tests/todo-model.test.ts",
+      "sha256": "0357f6519895b1dbe513d0caa4e35400782ddd25479bc4f5728a0c63185eb0e4",
+      "targetSha256": "0357f6519895b1dbe513d0caa4e35400782ddd25479bc4f5728a0c63185eb0e4"
+    },
+    {
+      "source": "packages/conversation/ui-todo/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-todo/src/i18n/zh-CN.ts",
+      "sha256": "dc394cdcbe21ea7af76779ff6b5d871e286928dad558e0c9e7fac3ad4b9693f2",
+      "targetSha256": "dc394cdcbe21ea7af76779ff6b5d871e286928dad558e0c9e7fac3ad4b9693f2"
+    },
+    {
+      "source": "packages/conversation/ui-todo/src/i18n/index.ts",
+      "target": "packages/client/ui-todo/src/i18n/index.ts",
+      "sha256": "6373c6db2d4bf9ce7c450a3692c9299302bfbde3f7cf4f212c7232ae4bd28067",
+      "targetSha256": "6373c6db2d4bf9ce7c450a3692c9299302bfbde3f7cf4f212c7232ae4bd28067"
+    },
+    {
+      "source": "packages/conversation/ui-todo/src/i18n/en-US.ts",
+      "target": "packages/client/ui-todo/src/i18n/en-US.ts",
+      "sha256": "2ce515ef6a0666616de19aa6c5ee3a444836e640c717f19da7a1a76c27a1a551",
+      "targetSha256": "2ce515ef6a0666616de19aa6c5ee3a444836e640c717f19da7a1a76c27a1a551"
+    },
+    {
+      "source": "packages/conversation/ui-tool/README.zh-CN.md",
+      "target": "packages/client/ui-tool/README.zh-CN.md",
+      "sha256": "857a47dbcbcbb9d6dc6bd1bf292436d60fa58e024293f966b5bff806339618b9",
+      "targetSha256": "857a47dbcbcbb9d6dc6bd1bf292436d60fa58e024293f966b5bff806339618b9"
+    },
+    {
+      "source": "packages/conversation/ui-tool/README.md",
+      "target": "packages/client/ui-tool/README.md",
+      "sha256": "857a47dbcbcbb9d6dc6bd1bf292436d60fa58e024293f966b5bff806339618b9",
+      "targetSha256": "857a47dbcbcbb9d6dc6bd1bf292436d60fa58e024293f966b5bff806339618b9"
+    },
+    {
+      "source": "packages/conversation/ui-tool/tsconfig.json",
+      "target": "packages/client/ui-tool/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-tool/package.json",
+      "target": "packages/client/ui-tool/package.json",
+      "sha256": "005f77b1a0961f45f258756cb3ae425c2219cbabbd40423c517872cb3c7481ad",
+      "targetSha256": "005f77b1a0961f45f258756cb3ae425c2219cbabbd40423c517872cb3c7481ad"
+    },
+    {
+      "source": "packages/conversation/ui-tool/AGENTS.md",
+      "target": "packages/client/ui-tool/AGENTS.md",
+      "sha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "targetSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd"
+    },
+    {
+      "source": "packages/conversation/ui-tool/src/tool-group.tsx",
+      "target": "packages/client/ui-tool/src/tool-group.tsx",
+      "sha256": "1deaee4fa0a1174d19ca6583cb28e1c3c03ccabbad7ecff83056d59fa94d2fed",
+      "targetSha256": "1deaee4fa0a1174d19ca6583cb28e1c3c03ccabbad7ecff83056d59fa94d2fed"
+    },
+    {
+      "source": "packages/conversation/ui-tool/src/tool-diff-model.ts",
+      "target": "packages/client/ui-tool/src/tool-diff-model.ts",
+      "sha256": "cac6be2d80ae7d290f36c88dfa2ce9123e0009cafd876b41cd3f2d36c13c6d6c",
+      "targetSha256": "cac6be2d80ae7d290f36c88dfa2ce9123e0009cafd876b41cd3f2d36c13c6d6c"
+    },
+    {
+      "source": "packages/conversation/ui-tool/src/public-tool-timeline-model.ts",
+      "target": "packages/client/ui-tool/src/public-tool-timeline-model.ts",
+      "sha256": "c1a36d73eaf6961a276d482b0732da94ea307a14253507b37065a0693317dffc",
+      "targetSha256": "c1a36d73eaf6961a276d482b0732da94ea307a14253507b37065a0693317dffc"
+    },
+    {
+      "source": "packages/conversation/ui-tool/src/message-disclosure-context.tsx",
+      "target": "packages/client/ui-tool/src/message-disclosure-context.tsx",
+      "sha256": "81ecea9a818b75525caa485c280233c878c0ae4fa39ceeb469c07d3463de753d",
+      "targetSha256": "81ecea9a818b75525caa485c280233c878c0ae4fa39ceeb469c07d3463de753d"
+    },
+    {
+      "source": "packages/conversation/ui-tool/src/message-disclosure-policy.ts",
+      "target": "packages/client/ui-tool/src/message-disclosure-policy.ts",
+      "sha256": "ca7964021c2c37dfea6d820a5ae1e306df2be42b47ec335a8c106e3b46b8cd2b",
+      "targetSha256": "ca7964021c2c37dfea6d820a5ae1e306df2be42b47ec335a8c106e3b46b8cd2b"
+    },
+    {
+      "source": "packages/conversation/ui-tool/src/message-tool-timeline.tsx",
+      "target": "packages/client/ui-tool/src/message-tool-timeline.tsx",
+      "sha256": "254898f395a4254b5e76b30683384ee77e0b922b49ec7280fb9d8c4406bcc686",
+      "targetSha256": "254898f395a4254b5e76b30683384ee77e0b922b49ec7280fb9d8c4406bcc686"
+    },
+    {
+      "source": "packages/conversation/ui-tool/src/index.ts",
+      "target": "packages/client/ui-tool/src/index.ts",
+      "sha256": "410e3b22baa5ebdbb5f6d62eb4789968ae917ba74ce702dad988782a08968213",
+      "targetSha256": "410e3b22baa5ebdbb5f6d62eb4789968ae917ba74ce702dad988782a08968213"
+    },
+    {
+      "source": "packages/conversation/ui-tool/src/tool-call.tsx",
+      "target": "packages/client/ui-tool/src/tool-call.tsx",
+      "sha256": "8f1efa59837b2dfe22515619570d19a188ba01ca3615502ddb1b24951ad81e5a",
+      "targetSha256": "8f1efa59837b2dfe22515619570d19a188ba01ca3615502ddb1b24951ad81e5a"
+    },
+    {
+      "source": "packages/conversation/ui-tool/src/reasoning-panel.tsx",
+      "target": "packages/client/ui-tool/src/reasoning-panel.tsx",
+      "sha256": "6f1cf9b35403c04a9785d283ba816ae033388ae32d05316fe40cb4e5abbce0cc",
+      "targetSha256": "6f1cf9b35403c04a9785d283ba816ae033388ae32d05316fe40cb4e5abbce0cc"
+    },
+    {
+      "source": "packages/conversation/ui-tool/src/tool-timeline-model.ts",
+      "target": "packages/client/ui-tool/src/tool-timeline-model.ts",
+      "sha256": "c1a36d73eaf6961a276d482b0732da94ea307a14253507b37065a0693317dffc",
+      "targetSha256": "c1a36d73eaf6961a276d482b0732da94ea307a14253507b37065a0693317dffc"
+    },
+    {
+      "source": "packages/conversation/ui-tool/lib/tool-diff-model.ts",
+      "target": "packages/client/ui-tool/lib/tool-diff-model.ts",
+      "sha256": "78588cefe3887999216efac939b803fea06e3b470b81a514e67aa6dee8b5975c",
+      "targetSha256": "78588cefe3887999216efac939b803fea06e3b470b81a514e67aa6dee8b5975c"
+    },
+    {
+      "source": "packages/conversation/ui-tool/lib/message-disclosure-policy.ts",
+      "target": "packages/client/ui-tool/lib/message-disclosure-policy.ts",
+      "sha256": "200689947a8900c3d29c677c0a8bd0c7816c8dd12dee378177cc0075cd031863",
+      "targetSha256": "200689947a8900c3d29c677c0a8bd0c7816c8dd12dee378177cc0075cd031863"
+    },
+    {
+      "source": "packages/conversation/ui-tool/lib/tool-timeline-model.ts",
+      "target": "packages/client/ui-tool/lib/tool-timeline-model.ts",
+      "sha256": "ffeaab76c54dfffbf13a49e0e581861b145764608913fef7ff84df6cae52cf25",
+      "targetSha256": "ffeaab76c54dfffbf13a49e0e581861b145764608913fef7ff84df6cae52cf25"
+    },
+    {
+      "source": "packages/conversation/ui-tool/tests/builtin-message-presentation-tool-timeline-model.test.ts",
+      "target": "packages/client/ui-tool/tests/builtin-message-presentation-tool-timeline-model.test.ts",
+      "sha256": "f7502c5b7fd09400808b264a38e1af2578ca28a80aa1eba753ecedf99738728a",
+      "targetSha256": "f7502c5b7fd09400808b264a38e1af2578ca28a80aa1eba753ecedf99738728a"
+    },
+    {
+      "source": "packages/conversation/ui-tool/tests/tool-call.test.tsx",
+      "target": "packages/client/ui-tool/tests/tool-call.test.tsx",
+      "sha256": "5b854c6fee2b8f4a7177fd99d1c5693ca88e27dcb2d1c97a494686157ee26453",
+      "targetSha256": "5b854c6fee2b8f4a7177fd99d1c5693ca88e27dcb2d1c97a494686157ee26453"
+    },
+    {
+      "source": "packages/conversation/ui-tool/tests/builtin-message-presentation-message-tool-timeline-stall.test.tsx",
+      "target": "packages/client/ui-tool/tests/builtin-message-presentation-message-tool-timeline-stall.test.tsx",
+      "sha256": "657486cb8bc151019cc6cc800cbca4376b7155e1e69c570425f3e54dfa161887",
+      "targetSha256": "657486cb8bc151019cc6cc800cbca4376b7155e1e69c570425f3e54dfa161887"
+    },
+    {
+      "source": "packages/conversation/ui-tool/tests/builtin-message-presentation-message-disclosure-context.test.tsx",
+      "target": "packages/client/ui-tool/tests/builtin-message-presentation-message-disclosure-context.test.tsx",
+      "sha256": "b699e025787e3eb11f159ab7619b94f4bf150522ebc4c95775baaf210727091e",
+      "targetSha256": "b699e025787e3eb11f159ab7619b94f4bf150522ebc4c95775baaf210727091e"
+    },
+    {
+      "source": "packages/conversation/ui-tool/tests/builtin-message-presentation-tool-diff-model.test.ts",
+      "target": "packages/client/ui-tool/tests/builtin-message-presentation-tool-diff-model.test.ts",
+      "sha256": "e4ff499703fc435a880b96e4a34e8ca9548f70c5ee6a34eb775b5e4f92e4670e",
+      "targetSha256": "e4ff499703fc435a880b96e4a34e8ca9548f70c5ee6a34eb775b5e4f92e4670e"
+    },
+    {
+      "source": "packages/conversation/ui-tool/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-tool/src/i18n/zh-CN.ts",
+      "sha256": "2057a87f3cca686a241c4e08af800beabf8baa2c2906a0804bc3b275caecaf99",
+      "targetSha256": "2057a87f3cca686a241c4e08af800beabf8baa2c2906a0804bc3b275caecaf99"
+    },
+    {
+      "source": "packages/conversation/ui-tool/src/i18n/index.ts",
+      "target": "packages/client/ui-tool/src/i18n/index.ts",
+      "sha256": "82237b560ffe55ae77e598584085cb968f4b63054517e0ae3b48f5de339423d8",
+      "targetSha256": "82237b560ffe55ae77e598584085cb968f4b63054517e0ae3b48f5de339423d8"
+    },
+    {
+      "source": "packages/conversation/ui-tool/src/i18n/en-US.ts",
+      "target": "packages/client/ui-tool/src/i18n/en-US.ts",
+      "sha256": "c0e8b75bc0e8e5f5d15458f8d8154bb1e2719bca5a8fc8c326eef6ec618906fd",
+      "targetSha256": "c0e8b75bc0e8e5f5d15458f8d8154bb1e2719bca5a8fc8c326eef6ec618906fd"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index/README.zh-CN.md",
+      "target": "packages/client/ui-user-message-index/README.zh-CN.md",
+      "sha256": "632bd3bfa90cb08642377f56b019acae047ef07c6e060702accf0988da48fd06",
+      "targetSha256": "632bd3bfa90cb08642377f56b019acae047ef07c6e060702accf0988da48fd06"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index/README.md",
+      "target": "packages/client/ui-user-message-index/README.md",
+      "sha256": "c923b0815c1fa465f67424a6f3525441367f068dfd762f166ec46e6258533576",
+      "targetSha256": "c923b0815c1fa465f67424a6f3525441367f068dfd762f166ec46e6258533576"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index/tsconfig.json",
+      "target": "packages/client/ui-user-message-index/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index/package.json",
+      "target": "packages/client/ui-user-message-index/package.json",
+      "sha256": "c13d85548817494f3f0423dad086aa8ec918b54edd35791679030e0b6ae8400b",
+      "targetSha256": "c13d85548817494f3f0423dad086aa8ec918b54edd35791679030e0b6ae8400b"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index/AGENTS.md",
+      "target": "packages/client/ui-user-message-index/AGENTS.md",
+      "sha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "targetSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index/src/index.ts",
+      "target": "packages/client/ui-user-message-index/src/index.ts",
+      "sha256": "62c1d06eb4e9fc72c91a34c3498c453c774873b892574b916c7ba5856a6d47a1",
+      "targetSha256": "62c1d06eb4e9fc72c91a34c3498c453c774873b892574b916c7ba5856a6d47a1"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index/src/user-message-index.tsx",
+      "target": "packages/client/ui-user-message-index/src/user-message-index.tsx",
+      "sha256": "0b59bb7c760d8eb3438c2b90194ba63ebf0dd586ecf850d941d030e37478561d",
+      "targetSha256": "0b59bb7c760d8eb3438c2b90194ba63ebf0dd586ecf850d941d030e37478561d"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index/src/extension.ts",
+      "target": "packages/client/ui-user-message-index/src/extension.ts",
+      "sha256": "ea25e40170ae52862ce2b5bfef768d5fde1e1af680a99412e97e4bbfecbffb32",
+      "targetSha256": "ea25e40170ae52862ce2b5bfef768d5fde1e1af680a99412e97e4bbfecbffb32"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index/src/user-message-index.css",
+      "target": "packages/client/ui-user-message-index/src/user-message-index.css",
+      "sha256": "580bbfcbf7ef82b8b888e8b760cb73db3f0aec5839459b4ec90fb4945635406b",
+      "targetSha256": "580bbfcbf7ef82b8b888e8b760cb73db3f0aec5839459b4ec90fb4945635406b"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index/lib/user-message-index-layout.ts",
+      "target": "packages/client/ui-user-message-index/lib/user-message-index-layout.ts",
+      "sha256": "b738e35c72011a6deab8e7546e72e90bc39e0437cec4ecd74945b4b9e99316a4",
+      "targetSha256": "b738e35c72011a6deab8e7546e72e90bc39e0437cec4ecd74945b4b9e99316a4"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index/tests/builtin-user-message-index-user-message-index-layout.test.ts",
+      "target": "packages/client/ui-user-message-index/tests/builtin-user-message-index-user-message-index-layout.test.ts",
+      "sha256": "a03f6c0bac68061c34fb14d3a21ea244972ce6c86c13ad54a5c2e32ac4f5a5e1",
+      "targetSha256": "a03f6c0bac68061c34fb14d3a21ea244972ce6c86c13ad54a5c2e32ac4f5a5e1"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-user-message-index/src/i18n/zh-CN.ts",
+      "sha256": "79ac8b5b0cc55bb8493586686958d8b32db6a060c6959b62f91408e9962c846c",
+      "targetSha256": "79ac8b5b0cc55bb8493586686958d8b32db6a060c6959b62f91408e9962c846c"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index/src/i18n/index.ts",
+      "target": "packages/client/ui-user-message-index/src/i18n/index.ts",
+      "sha256": "f4478e51be7cb863792d74c4a0d7eb43889f3967df3ba35f52f0934ccb24c492",
+      "targetSha256": "f4478e51be7cb863792d74c4a0d7eb43889f3967df3ba35f52f0934ccb24c492"
+    },
+    {
+      "source": "packages/conversation/ui-user-message-index/src/i18n/en-US.ts",
+      "target": "packages/client/ui-user-message-index/src/i18n/en-US.ts",
+      "sha256": "38a0deffc4fabc8d06c9bc2c2e52e7430896ed30a901e32f9c13ac3a4e7ef005",
+      "targetSha256": "38a0deffc4fabc8d06c9bc2c2e52e7430896ed30a901e32f9c13ac3a4e7ef005"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/README.zh-CN.md",
+      "target": "packages/client/ui-user-questions/README.zh-CN.md",
+      "sha256": "8721d437409a51db801cfad8ba9c0fe26efd164b07c87122383989d1701f9e5a",
+      "targetSha256": "8721d437409a51db801cfad8ba9c0fe26efd164b07c87122383989d1701f9e5a"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/README.md",
+      "target": "packages/client/ui-user-questions/README.md",
+      "sha256": "c8b78ee7e3417be2475480e03e5e71a3c525ae6a0bcd1e07e5785f8efeeed35e",
+      "targetSha256": "c8b78ee7e3417be2475480e03e5e71a3c525ae6a0bcd1e07e5785f8efeeed35e"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/tsconfig.json",
+      "target": "packages/client/ui-user-questions/tsconfig.json",
+      "sha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/package.json",
+      "target": "packages/client/ui-user-questions/package.json",
+      "sha256": "59f059d3685f9fdc2bb59731a86354a28ce3974f7a6faa0774c1351ba0b51b08",
+      "targetSha256": "59f059d3685f9fdc2bb59731a86354a28ce3974f7a6faa0774c1351ba0b51b08"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/src/interactive-requests-overlay.tsx",
+      "target": "packages/client/ui-user-questions/src/interactive-requests-overlay.tsx",
+      "sha256": "a41b6016d013c13b3aa588977701cac0e7909e8895b639b67100fa73484d0033",
+      "targetSha256": "a41b6016d013c13b3aa588977701cac0e7909e8895b639b67100fa73484d0033"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/src/index.ts",
+      "target": "packages/client/ui-user-questions/src/index.ts",
+      "sha256": "efdcb8215b006c45d80b36badd323274109e483c454dd7dd417b0a501de039e4",
+      "targetSha256": "efdcb8215b006c45d80b36badd323274109e483c454dd7dd417b0a501de039e4"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/src/ask-user-tool-renderer.tsx",
+      "target": "packages/client/ui-user-questions/src/ask-user-tool-renderer.tsx",
+      "sha256": "2679c177c928f0a718e0fdb3d4f33408749b60f868a383811cf441c02d958b02",
+      "targetSha256": "2679c177c928f0a718e0fdb3d4f33408749b60f868a383811cf441c02d958b02"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/src/extension.ts",
+      "target": "packages/client/ui-user-questions/src/extension.ts",
+      "sha256": "a59cce8d93acb090dff07840bfe7fd82f525a3e70a362112354e46f59d7b9606",
+      "targetSha256": "a59cce8d93acb090dff07840bfe7fd82f525a3e70a362112354e46f59d7b9606"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/src/ask-user-panel.tsx",
+      "target": "packages/client/ui-user-questions/src/ask-user-panel.tsx",
+      "sha256": "43617141bc5659e7c079c90b154cba9efb85765c63c81c5281b1f897b4f9aa97",
+      "targetSha256": "43617141bc5659e7c079c90b154cba9efb85765c63c81c5281b1f897b4f9aa97"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/src/ask-user-preferences.ts",
+      "target": "packages/client/ui-user-questions/src/ask-user-preferences.ts",
+      "sha256": "195cb3286f61547aae1af1e21e42133e66d65b2f48da8cec5097e06daa8232e4",
+      "targetSha256": "195cb3286f61547aae1af1e21e42133e66d65b2f48da8cec5097e06daa8232e4"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/src/ask-user-recommended-mark.tsx",
+      "target": "packages/client/ui-user-questions/src/ask-user-recommended-mark.tsx",
+      "sha256": "9673273a5be9a2afd5b6ff1908c0c91c3107e7873adbddfcee2f61ebb5c61408",
+      "targetSha256": "9673273a5be9a2afd5b6ff1908c0c91c3107e7873adbddfcee2f61ebb5c61408"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/lib/ask-user-tool-model.ts",
+      "target": "packages/client/ui-user-questions/lib/ask-user-tool-model.ts",
+      "sha256": "87e1a3539d47a660ece47091dd5f00a480c4a096508d166716b72f6815320b71",
+      "targetSha256": "87e1a3539d47a660ece47091dd5f00a480c4a096508d166716b72f6815320b71"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/lib/interaction-form-state.ts",
+      "target": "packages/client/ui-user-questions/lib/interaction-form-state.ts",
+      "sha256": "66b04242450d641aea3b5b3ad0199dc6f172a47ab52bccf23bdac00c8bc96e43",
+      "targetSha256": "66b04242450d641aea3b5b3ad0199dc6f172a47ab52bccf23bdac00c8bc96e43"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-ask-user-tool-model.test.ts",
+      "target": "packages/client/ui-user-questions/tests/builtin-interactive-requests-ask-user-tool-model.test.ts",
+      "sha256": "bec790a1da58ffee50fb056778892ded097b2f7896c908137f267a5a05366d94",
+      "targetSha256": "bec790a1da58ffee50fb056778892ded097b2f7896c908137f267a5a05366d94"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/tests/i18n-test.tsx",
+      "target": "packages/client/ui-user-questions/tests/i18n-test.tsx",
+      "sha256": "59aa0e22e7faabc40dfad4de91dfc0edd84b6abcb13d5f4c6d8b84612bcba5bb",
+      "targetSha256": "59aa0e22e7faabc40dfad4de91dfc0edd84b6abcb13d5f4c6d8b84612bcba5bb"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-interaction-form-state.test.ts",
+      "target": "packages/client/ui-user-questions/tests/builtin-interactive-requests-interaction-form-state.test.ts",
+      "sha256": "0f788ea961ef8245972cf653c2fce459dbe6d4525918f1e454e552bb6494548b",
+      "targetSha256": "0f788ea961ef8245972cf653c2fce459dbe6d4525918f1e454e552bb6494548b"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-ask-user-panel.test.tsx",
+      "target": "packages/client/ui-user-questions/tests/builtin-interactive-requests-ask-user-panel.test.tsx",
+      "sha256": "d93443ed46169ccbaa4f7a8c4ed14b521f0257e7a010df760100840b9f3ddcd1",
+      "targetSha256": "d93443ed46169ccbaa4f7a8c4ed14b521f0257e7a010df760100840b9f3ddcd1"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-ask-user-preferences.test.ts",
+      "target": "packages/client/ui-user-questions/tests/builtin-interactive-requests-ask-user-preferences.test.ts",
+      "sha256": "d8c4aec88598445b73772c8151be4348c4f65f5b3211aaddd50abf5b480ac2a9",
+      "targetSha256": "d8c4aec88598445b73772c8151be4348c4f65f5b3211aaddd50abf5b480ac2a9"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-ask-user-tool-presentation.test.ts",
+      "target": "packages/client/ui-user-questions/tests/builtin-interactive-requests-ask-user-tool-presentation.test.ts",
+      "sha256": "9e548e1b4a9db20acbba268da628cac5e0dd783147f862eea1e061c3af203e47",
+      "targetSha256": "9e548e1b4a9db20acbba268da628cac5e0dd783147f862eea1e061c3af203e47"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui-user-questions/src/i18n/zh-CN.ts",
+      "sha256": "1ce68ef31126c060b680d52b41735b6409eefff3a037d41392197528ce6a5e4c",
+      "targetSha256": "1ce68ef31126c060b680d52b41735b6409eefff3a037d41392197528ce6a5e4c"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/src/i18n/index.ts",
+      "target": "packages/client/ui-user-questions/src/i18n/index.ts",
+      "sha256": "685048cbf6be79a11c1dc129bcd2b7081a4c734762db563546f7877d1e64952f",
+      "targetSha256": "685048cbf6be79a11c1dc129bcd2b7081a4c734762db563546f7877d1e64952f"
+    },
+    {
+      "source": "packages/conversation/ui-user-questions/src/i18n/en-US.ts",
+      "target": "packages/client/ui-user-questions/src/i18n/en-US.ts",
+      "sha256": "8b03e85daebf86feeb49bc57e7a023b48c58c31832e21e65b94e1124a8a86208",
+      "targetSha256": "8b03e85daebf86feeb49bc57e7a023b48c58c31832e21e65b94e1124a8a86208"
+    }
+  ],
+  "fileCount": 358,
+  "missing": [],
+  "testsPreserved": 636,
+  "verification": {
+    "filesPreserved": 358,
+    "testsPreserved": 636,
+    "libraries": 93,
+    "staticBoundaryTestsPassed": 13,
+    "typecheck": "pass",
+    "lint": "pass",
+    "build": "pass",
+    "frozenLockfile": "pass",
+    "uiTests": "excluded-by-user"
+  }
+}

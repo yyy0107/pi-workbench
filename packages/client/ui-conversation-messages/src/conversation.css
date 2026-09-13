@@ -1,0 +1,5 @@
+@import "@workbench/ui-conversation-nodes/styles.css";
+
+:where([data-slot="workbench-conversation"]) {
+  --thread-index-motion-duration: var(--layout-state-motion-duration);
+}

@@ -183,7 +183,25 @@
         "packages/client/ui-resize/{src,lib}/**/*",
         "packages/client/ui-disclosure/{src,lib}/**/*",
         "packages/client/ui-panels/{src,lib}/**/*",
-        "packages/client/ui-layout/{src,lib}/**/*"
+        "packages/client/ui-layout/{src,lib}/**/*",
+        "packages/client/ui-model-selection/{src,lib}/**/*",
+        "packages/client/ui-token-usage/{src,lib}/**/*",
+        "packages/client/ui-theme/{src,lib}/**/*",
+        "packages/client/ui-settings-general/{src,lib}/**/*",
+        "packages/client/ui-attachment/{src,lib}/**/*",
+        "packages/client/ui-input-trigger/{src,lib}/**/*",
+        "packages/client/ui-user-questions/{src,lib}/**/*",
+        "packages/client/ui-todo/{src,lib}/**/*",
+        "packages/client/ui-message-queue/{src,lib}/**/*",
+        "packages/client/ui-message-actions/{src,lib}/**/*",
+        "packages/client/ui-user-message-index/{src,lib}/**/*",
+        "packages/client/ui-settings-archived-chats/{src,lib}/**/*",
+        "packages/client/ui-side-chat/{src,lib}/**/*",
+        "packages/client/ui-tool/{src,lib}/**/*",
+        "packages/client/ui-conversation-list/{src,lib}/**/*",
+        "packages/client/ui-conversation-messages/{src,lib}/**/*",
+        "packages/client/ui-conversation-nodes/{src,lib}/**/*",
+        "packages/client/ui-message-blocks/{src,lib}/**/*"
       ],
       "rules": {
         "no-restricted-imports": [

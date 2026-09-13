@@ -66,7 +66,7 @@ let css = (
 if (!baseline)
   css += (
     await readFile(
-      path.join(root, "packages/conversation/conversation/src/conversation.css"),
+      path.join(root, "packages/client/ui-conversation-messages/src/conversation.css"),
       "utf8",
     )
   ).replace(/^@import .*;$/gm, "");

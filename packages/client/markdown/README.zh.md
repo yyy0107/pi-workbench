@@ -11,3 +11,5 @@
 内部辅助：`lib/inline-citation-markers.ts`, `lib/markdown-normalize.ts`.
 
 实际调用示例：`src/markdown-text.tsx` → `lib/markdown-normalize.ts`.
+
+Markdown 预览控件与会话字体继承样式由本包提供，不再由消息列表样式定义。

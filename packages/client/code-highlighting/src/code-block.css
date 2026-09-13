@@ -80,3 +80,11 @@
 .aui-codex-code-preview .aui-codex-code-header {
   margin-top: 0;
 }
+
+@layer components {
+  .aui-codex-code-header :where(button[data-slot]) {
+    --button-icon-size: var(--icon-size-sm);
+    --button-icon-frame-size: var(--icon-frame-size-sm);
+    --button-icon-radius: var(--icon-frame-radius-sm);
+  }
+}

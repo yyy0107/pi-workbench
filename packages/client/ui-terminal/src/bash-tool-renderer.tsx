@@ -9,7 +9,7 @@ import { useWorkbenchAgentThreadId } from "@workbench/agent-runtime-client/conte
 import { normalizeTerminalTabTitle } from "@workbench/terminal-client";
 import { workbenchBashInputFromArgs, type WorkbenchBashInput } from "@workbench/terminal-contracts";
 
-import { TerminalBlock } from "@workbench/conversation/elements";
+import { TerminalBlock } from "@workbench/ui-message-blocks/terminal-block";
 
 import { useRightWorkspace, useWorkspaceContext } from "@workbench/workspace-runtime/react";
 import { Button, TooltipIconButton } from "@workbench/ui";

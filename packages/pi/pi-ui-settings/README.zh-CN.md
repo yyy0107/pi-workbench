@@ -1,5 +1,7 @@
 # @workbench/pi-ui-settings
 
-src 拥有 Pi 模型配置、Agent 设置、缓存提示、配置文件操作及双语词典/样式；lib 拥有草稿转换、凭据链接及提示词占位符高亮辅助模块。保留 TS/TSX，最多一级子目录。产品保持原有扩展安装顺序、Pi 客户端实例、自动保存和资源释放行为。测试位于 tests/。
+负责 Pi Agent 配置设置、系统提示词与追加提示词编辑器、动态提示词占位符、缓存未命中提示和配置文件操作。Pi provider/model 配置现归 `@workbench/pi-ui-settings-models`。
 
-源码分工：src 承载本包能力与契约，lib 仅放实际使用的内部辅助，tests 为包根测试。实际消费者示例：`src/model-config-model-row.tsx` 引用 `lib/model-config-draft.ts`。实现保留 TS/TSX；既有构建工具保持原语言。
+`src/` 放 Agent 配置扩展、设置项、缓存提示、配置操作、本地词典和提示词占位符样式；`lib/` 放实际使用的提示词占位符高亮辅助模块。测试位于 `tests/`；Pi client/protocol 行为继续通过公开 Pi client 边界访问。
+
+本包保持既有 Agent 配置扩展 ID、设置项 ID、提示词持久化和资源释放行为。消费者使用公开包入口和 `./i18n` bundle；模型配置消费者使用 `@workbench/pi-ui-settings-models`。

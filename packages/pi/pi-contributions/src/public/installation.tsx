@@ -6,7 +6,7 @@ import { aboutExtension } from "@workbench/pi-ui-status";
 import { agentConfigurationExtension } from "@workbench/pi-ui-settings";
 import { connectionStatusExtension } from "@workbench/pi-ui-status";
 import { contextTraceExtension } from "@workbench/pi-ui-diagnostics";
-import { settingModelConfigExtension } from "@workbench/pi-ui-settings";
+import { settingModelConfigExtension } from "@workbench/pi-ui-settings-models";
 import { piSettingsActionExtension } from "@workbench/pi-ui-settings";
 import { toolboxExtension } from "@workbench/pi-ui-toolbox";
 import { usageStatisticsExtension } from "@workbench/pi-ui-diagnostics";

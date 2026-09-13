@@ -1,19 +1,14 @@
 "use client";
 
 import { ChevronRightIcon, FolderIcon } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 
 import { Button } from "@workbench/ui";
 import { useSidebar } from "@workbench/ui-sidebar/primitives";
 import { useI18n } from "@workbench/i18n";
-import { sidebarTranslationBundle } from "@workbench/ui-sidebar/i18n";
 import { cn } from "@workbench/ui/utils";
 import { useMainViewService } from "@workbench/extension-host";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
-import { useCurrentSession, useThreadList } from "@workbench/agent-runtime-client";
-import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
-import { truncateConversationTitle } from "@workbench/conversation/title";
-import { ConversationActionsMenu } from "@workbench/ui-sidebar";
 import { layoutTranslationBundle } from "./i18n";
 import { withTooltip } from "@workbench/ui";
 
@@ -74,9 +69,21 @@ function MainViewBreadcrumbs({
   );
 }
 
-export function WorkbenchHeader() {
+export interface ConversationHeaderModel {
+  fullTitle: string;
+  displayTitle: string;
+  workspaceName?: string;
+  workspacePath?: string;
+}
+
+export function WorkbenchHeader({
+  conversationHeader,
+  conversationActions,
+}: {
+  conversationHeader?: ConversationHeaderModel;
+  conversationActions?: ReactNode;
+}) {
   const { text, t: layoutT } = useI18n(layoutTranslationBundle);
-  const { t: sidebarT } = useI18n(sidebarTranslationBundle);
   const { isMobile, state: sidebarState } = useSidebar();
   const mainViews = useMainViewService();
   const activeMainView = useSyncExternalStore(
@@ -84,24 +91,13 @@ export function WorkbenchHeader() {
     mainViews.getSnapshot,
     mainViews.getInitialSnapshot,
   );
-  const current = useCurrentSession();
-  const currentThread = useThreadList((snapshot) =>
-    snapshot.threads.find((thread) => thread.threadId === current.threadId),
-  );
-  const { draftWorkspace } = useWorkspaceSelection();
-  const currentThreadTitle = currentThread?.title;
-  const currentWorkspace =
-    currentThread?.workspace ?? (current.isNewThread ? draftWorkspace : undefined);
-  const currentWorkspaceName =
-    currentWorkspace?.name ?? currentWorkspace?.rootPath ?? currentWorkspace?.id;
-  const title = activeMainView
-    ? text(activeMainView.title)
-    : currentThreadTitle || sidebarT("workbench.sidebar.newThread");
+  const currentWorkspaceName = conversationHeader?.workspaceName;
+  const title = activeMainView ? text(activeMainView.title) : (conversationHeader?.fullTitle ?? "");
   const breadcrumbs = activeMainView?.breadcrumbs?.map((item) => ({
     label: text(item.label),
     navigable: item.params !== undefined || item.closeView === true,
   }));
-  const visibleTitle = activeMainView ? title : truncateConversationTitle(title);
+  const visibleTitle = activeMainView ? title : (conversationHeader?.displayTitle ?? title);
   const sidebarCollapsed = isMobile || sidebarState === "collapsed";
 
   return (
@@ -140,7 +136,7 @@ export function WorkbenchHeader() {
                   name: currentWorkspaceName,
                 })}
                 title={layoutT("workbench.shell.currentWorkspace", {
-                  name: currentWorkspace?.rootPath ?? currentWorkspaceName,
+                  name: conversationHeader?.workspacePath ?? currentWorkspaceName,
                 })}
                 className="border-border/60 bg-muted/70 text-muted-foreground inline-flex h-[var(--button-height-default)] min-w-0 shrink items-center gap-1 overflow-hidden rounded-md border px-2 text-sm font-medium whitespace-nowrap"
               >
@@ -152,13 +148,7 @@ export function WorkbenchHeader() {
         {activeMainView?.chrome?.headerLeft !== "hidden" ? (
           <SlotHost name="header.left" className="flex shrink-0 items-center gap-1 sm:gap-2" />
         ) : null}
-        {!activeMainView && currentThread ? (
-          <ConversationActionsMenu
-            threadId={currentThread.threadId}
-            isPinned={currentThread.isPinned}
-            title={currentThreadTitle}
-          />
-        ) : null}
+        {!activeMainView ? conversationActions : null}
       </div>
 
       <SlotHost

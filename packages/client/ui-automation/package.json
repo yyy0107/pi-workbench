@@ -24,7 +24,7 @@
     "@workbench/i18n": "workspace:*",
     "@workbench/shell-context": "workspace:*",
     "@workbench/ui": "workspace:*",
-    "@workbench/ui-agent-controls": "workspace:*",
+    "@workbench/ui-model-selection": "workspace:*",
     "@workbench/ui-selectors": "workspace:*",
     "@workbench/workspace-directory-picker": "workspace:*",
     "cronstrue": "^3.24.0",

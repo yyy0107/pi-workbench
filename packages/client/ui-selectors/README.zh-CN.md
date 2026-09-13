@@ -5,3 +5,5 @@
 
 `lib/selector-dropdown-metrics.ts` 存放动画选择器 Hook 实际使用的过渡时间辅助函数，现有
 选择器行为和公开组件类型保持不变。
+
+SearchableSelector 的基础断言归本包保留；按当前不执行 UI 测试约束排除执行。

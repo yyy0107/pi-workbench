@@ -24,7 +24,6 @@
     "@workbench/markdown": "workspace:*",
     "@workbench/pi-client": "workspace:*",
     "@workbench/pi-protocol": "workspace:*",
-    "@workbench/pi-shared": "workspace:*",
     "@workbench/ui": "workspace:*",
     "@workbench/ui-settings": "workspace:*",
     "lucide-react": "^1.29.0"
@@ -34,7 +33,6 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@workbench/settings-runtime": "workspace:*",
-    "@workbench/ui-testkit": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typescript": "^7.0.2"

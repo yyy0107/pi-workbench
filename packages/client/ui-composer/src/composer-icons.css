@@ -1,0 +1,44 @@
+@import "@workbench/ui-attachment/styles.css";
+@import "@workbench/ui-input-trigger/styles.css";
+/* Composer controls and detached menus have their own icon scale. */
+:where([data-slot="workbench-composer-shell"], [data-workbench-composer-popup]) {
+  --composer-icon-size: var(--icon-size-md);
+  --composer-stop-icon-size: calc(var(--icon-size-sm) * 0.7071);
+  --composer-attachment-action-size: var(--icon-frame-size-md);
+  --composer-primary-action-size: var(--icon-frame-size-lg);
+}
+
+@layer components {
+  /* Explicit size-* classes also opt out of the shared menu's fallback icon sizing. */
+  .aui-composer-icon-size-default,
+  .aui-composer-icon-size-attachment {
+    --button-icon-size: var(--composer-icon-size, var(--icon-size-sm));
+    width: var(--button-icon-size);
+    height: var(--button-icon-size);
+    flex-shrink: 0;
+  }
+
+  .aui-composer-icon-size-md-lg {
+    --button-icon-size: var(--icon-size-md-lg);
+    width: var(--button-icon-size);
+    height: var(--button-icon-size);
+  }
+
+  :where([data-slot="workbench-composer-shell"], [data-workbench-composer-popup])
+    :where(button[data-slot]) {
+    --button-icon-size: var(--composer-icon-size, var(--icon-size-md));
+    --button-icon-frame-size: var(--icon-frame-size-md);
+    --button-icon-radius: var(--icon-frame-radius-md);
+  }
+
+  [data-slot="workbench-composer-actions"] .aui-composer-add-menu {
+    --button-icon-frame-size: var(--composer-attachment-action-size);
+    --button-icon-radius: var(--icon-frame-radius-md);
+  }
+
+  [data-slot="workbench-composer-actions"] .aui-composer-primary-action {
+    --button-icon-frame-size: var(--composer-primary-action-size);
+    --button-icon-size: var(--icon-size-lg);
+    --button-icon-radius: var(--icon-frame-radius-lg);
+  }
+}

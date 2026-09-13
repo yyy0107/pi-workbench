@@ -38,7 +38,6 @@
     "check:package-structure": "node scripts/check-package-structure.mjs"
   },
   "devDependencies": {
-    "@workbench/conversation": "workspace:*",
     "@workbench/extension-sdk": "workspace:*",
     "@workbench/host-contracts": "workspace:*",
     "@workbench/host-server": "workspace:*",
@@ -48,6 +47,7 @@
     "@workbench/shell": "workspace:*",
     "@workbench/shell-context": "workspace:*",
     "@workbench/ui": "workspace:*",
+    "@workbench/ui-conversation": "workspace:*",
     "@workbench/ui-layout": "workspace:*",
     "@workbench/workspace-runtime": "workspace:*",
     "oxc-parser": "^0.149.0",

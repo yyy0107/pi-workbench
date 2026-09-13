@@ -1,1 +1,1 @@
-export { settingsExtension } from "./settings-extension";
+export { createSettingsExtension } from "./settings-extension";

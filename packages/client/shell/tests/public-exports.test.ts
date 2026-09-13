@@ -13,7 +13,7 @@ import {
   createWorkbenchDraftPersistence,
   createWorkbenchThreadScrollPersistence,
 } from "@workbench/shell/browser-session-persistence";
-import { truncateConversationTitle } from "@workbench/conversation/title";
+import { truncateConversationTitle } from "@workbench/ui-conversation/title";
 import {
   WorkbenchDomIdsProvider,
   resolveWorkbenchShellOwner,

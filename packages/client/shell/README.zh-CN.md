@@ -53,3 +53,5 @@ Context，也不复制能力包的 Hook。
 pnpm --filter @workbench/shell typecheck
 pnpm check:package-structure
 ```
+
+安装层在 RuntimeProvider 内装配会话标题/动作与唯一 ThreadScrollStateProvider，覆盖主会话和 SideChat。

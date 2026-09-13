@@ -1,6 +1,6 @@
 # Workbench Agent Runtime 边界与 Pi 实现重构计划
 
-> 当前目录说明：本文保留当时的迁移步骤和验证记录。当前包布局以 [能力包映射](../specs/001-workbench-package-refactor/package-map.md) 为准；Pi 能力位于 `packages/pi/*`，公共界面位于 `packages/client/*`，对话与工作区分别位于 `packages/conversation/*`、`packages/workspace/*`。
+> 当前目录说明：本文保留当时的迁移步骤和验证记录。当前包布局以 [能力包映射](../specs/001-workbench-package-refactor/package-map.md) 为准；Pi 能力位于 `packages/pi/*`，公共界面位于 `packages/client/*`，对话与工作区分别位于 `packages/client/*`、`packages/workspace/*`。
 
 实施状态与逐阶段提交、验证记录维护在
 [`agent-runtime-pi-implementation-refactor-plan.md`](./agent-runtime-pi-implementation-refactor-plan.md)。

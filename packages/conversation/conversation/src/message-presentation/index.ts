@@ -1,1 +1,0 @@
-export { messagePresentationExtension } from "./extension";

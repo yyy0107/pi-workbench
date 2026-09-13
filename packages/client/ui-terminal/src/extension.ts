@@ -63,6 +63,12 @@ export const terminalExtension = defineExtension({
       activeLabel: defineMessage("extensions.terminal.tool.activityRunning"),
       icon: SquareTerminalIcon,
       disclosureController: BashToolDisclosureController,
+      group: "terminal",
+      summarize: (block) => {
+        const command = (block.arguments as { command?: unknown } | undefined)?.command;
+        const summary = typeof command === "string" ? command.replace(/\s+/g, " ").trim() : "";
+        return summary || block.toolName;
+      },
     });
     const mobileTrigger = context.slots.register("header.right", {
       id: "workbench.terminal.mobile-trigger",

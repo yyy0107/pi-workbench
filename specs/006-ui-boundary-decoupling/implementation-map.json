@@ -1,0 +1,463 @@
+{
+  "baseline": "source-inventory.json",
+  "changedBaselineSources": [
+    {
+      "path": "packages/client/ui-tool/lib/tool-diff-model.ts",
+      "before": "78588cefe3887999216efac939b803fea06e3b470b81a514e67aa6dee8b5975c",
+      "after": null
+    },
+    {
+      "path": "packages/client/ui-tool/lib/tool-timeline-model.ts",
+      "before": "ffeaab76c54dfffbf13a49e0e581861b145764608913fef7ff84df6cae52cf25",
+      "after": "2b665645b9bbf0721dd17c91f6bf63604a20494a5b6361f682a86d65e00460ae"
+    },
+    {
+      "path": "packages/client/ui-tool/package.json",
+      "before": "005f77b1a0961f45f258756cb3ae425c2219cbabbd40423c517872cb3c7481ad",
+      "after": "4542228014962c8b5015edaf8153587b5a4494ffc7849f0ccbee8c034fe9335a"
+    },
+    {
+      "path": "packages/client/ui-tool/src/message-tool-timeline.tsx",
+      "before": "254898f395a4254b5e76b30683384ee77e0b922b49ec7280fb9d8c4406bcc686",
+      "after": "ee2fd7d4124d4242c25f46da2c265672a8313fd643e0460a426c2f773e4014ba"
+    },
+    {
+      "path": "packages/client/ui-tool/src/reasoning-panel.tsx",
+      "before": "6f1cf9b35403c04a9785d283ba816ae033388ae32d05316fe40cb4e5abbce0cc",
+      "after": "a49aa0072888793b8c16b1ed0391d010e22a2bcb9e1c93d66ef70d87acd82a2f"
+    },
+    {
+      "path": "packages/client/ui-tool/src/tool-call.tsx",
+      "before": "8f1efa59837b2dfe22515619570d19a188ba01ca3615502ddb1b24951ad81e5a",
+      "after": "17a66a237aaa2ed8481438c31f0be7d56abf6fcb9567bc022171505c33fa8a86"
+    },
+    {
+      "path": "packages/client/ui-tool/src/tool-diff-model.ts",
+      "before": "cac6be2d80ae7d290f36c88dfa2ce9123e0009cafd876b41cd3f2d36c13c6d6c",
+      "after": null
+    },
+    {
+      "path": "packages/client/ui-tool/src/tool-group.tsx",
+      "before": "1deaee4fa0a1174d19ca6583cb28e1c3c03ccabbad7ecff83056d59fa94d2fed",
+      "after": "cf0069532748d2b9689bdfbf5c61a1b5a12892626de124b7e788761e1983a2d7"
+    },
+    {
+      "path": "packages/client/ui-tool/tests/builtin-message-presentation-tool-diff-model.test.ts",
+      "before": "e4ff499703fc435a880b96e4a34e8ca9548f70c5ee6a34eb775b5e4f92e4670e",
+      "after": null
+    },
+    {
+      "path": "packages/client/ui-tool/tests/builtin-message-presentation-tool-timeline-model.test.ts",
+      "before": "f7502c5b7fd09400808b264a38e1af2578ca28a80aa1eba753ecedf99738728a",
+      "after": "1c5118a687459fd5d777331391a75fc3655dc663d543f43a4a24e542dfa8e0b6"
+    },
+    {
+      "path": "packages/client/ui-message-blocks/package.json",
+      "before": "a041286131ad21ef5eb4fcd0008557b0f466c802d2d600ac943dd1ac920af7bb",
+      "after": "71a156d451c0ee179ed789c02adb92d04630e296c22161e74be367b270cc80de"
+    },
+    {
+      "path": "packages/client/ui-message-blocks/src/composer-command-response.tsx",
+      "before": "6a87f494930ce68a201043ce1a682fc5e79f02b47b857425c285285d637e0295",
+      "after": "451841e5fd9b013852a18ed38d70910845ba7ccdd251666900206450b98b8240"
+    },
+    {
+      "path": "packages/client/ui-message-blocks/src/composer-message-content.tsx",
+      "before": "03fd5d07e93b20424fcc5b83bcebc55f245195cedc798b95c2f861c80761c8a8",
+      "after": "b333ad30f5cf7e652fa835145eac801d65634f0a67e5964f31dc0fc654eb0a01"
+    },
+    {
+      "path": "packages/client/ui-message-blocks/src/conversation-separator.tsx",
+      "before": "ebfdc8c2925a32c2ac16d237c5364e6d3a9986e2bdef6e3a9369b53231fa046b",
+      "after": "367cee1d5d982e7320e89bc3d0a5ca5557842112ab7279933e13e1f9b19510c6"
+    },
+    {
+      "path": "packages/client/ui-message-blocks/src/error-state.tsx",
+      "before": "fd64fcfed9d0e6dceddb7124c7abb32141281fbc480fb8c82ba1575b85ed73bf",
+      "after": "0ffb8c228948d05ac80a43d4697aa35d6cc33ad64a22ec08e54d615a26f73766"
+    },
+    {
+      "path": "packages/client/ui-message-blocks/src/file.tsx",
+      "before": "3850d82b9d43dde11e4163fae60858b0f709de17044c11ea6bda3a400bfb71eb",
+      "after": "4b0de4f58388466f396b3c7d8acfb1929ec59d3a0e92feb8378e718be2d475bb"
+    },
+    {
+      "path": "packages/client/ui-message-blocks/src/image.tsx",
+      "before": "e44d0bf09162b47824892d155f619020d4196d5d5705796b0eab7221cf0887ac",
+      "after": "0142d29646042083e1ea2c92be66e858759835da0e1d04c1321b58d7b18349d5"
+    },
+    {
+      "path": "packages/client/ui-message-blocks/src/message-blocks.tsx",
+      "before": "fe81999a9f2de267975aacf9604a82f294153b2106d856a89bf0fe7b846a857b",
+      "after": "c679352115650c21909d8893e83778358f11413f77d58ff46e800f819c89bd1e"
+    },
+    {
+      "path": "packages/client/ui-message-blocks/src/message-source.tsx",
+      "before": "6512f7be1f3a5ebd7d6ddf5cbb097b9491bc279857043d7e4588e91c451f1394",
+      "after": "ef379657e9099c2464b6c4efce09f853abec1bfffefe2abf9d267261e91573aa"
+    },
+    {
+      "path": "packages/client/ui-message-blocks/src/terminal-block.tsx",
+      "before": "384379c658d5eb69459d50732430f743da2dd86bd30cf7460ff28aefe8b089e9",
+      "after": "e617c243b7e38d3a620a90ef7a832f5ba0e1732a074fc88d35294519d7d88bfc"
+    },
+    {
+      "path": "packages/client/ui-message-blocks/tests/i18n-test.tsx",
+      "before": "a8e8a4a2412f7d7f4101c092ea322a5276706865b96bf83da50005116cae7de7",
+      "after": "194f8972da3426cab05267ce2ba684db46a6196e7639db78a69974bda55d676a"
+    },
+    {
+      "path": "packages/client/ui-conversation-nodes/package.json",
+      "before": "bcbb5f5d3bd02d15df4a28f40360c3358192528c32a37a361e02effca65e4d9b",
+      "after": "74cf18d5246ba8c72044bcbed1f16a0565ad23457367b1aa773f02a304bf298f"
+    },
+    {
+      "path": "packages/client/ui-conversation-nodes/src/completed-turn-header.tsx",
+      "before": "b86e9056332f28981b34b8657b56660d6cbb4ecb9ef220f20247f509039c62ac",
+      "after": "319be100e786b7ebe7167cbf19055d86a637884053beff41c252d2e194c88f7f"
+    },
+    {
+      "path": "packages/client/ui-conversation-nodes/src/composer-message-text.tsx",
+      "before": "ec6d4afb1c86ae633527eda2d98bfd64d39a5975fc4169778d02e963743a1fca",
+      "after": "69f438c0ab17dd7aeaffaf78ef78c393da3f14e1f084aa11a4893875cd265c7b"
+    },
+    {
+      "path": "packages/client/ui-conversation-nodes/src/conversation-node-seat.tsx",
+      "before": "1ec12502325c338473ee06a3956d07f3d81d65bb5ef2f68921b3fd96647dafb2",
+      "after": "a6700f55e3d2e53b15d7ba5637be4b2fd1ece958eda18c893a3d7845ba1cda0e"
+    },
+    {
+      "path": "packages/client/ui-conversation-nodes/src/message-parts.tsx",
+      "before": "eba784542dd17834d0a3d426a4414b2bc7fddb1b4377dff5f29a36a8ec5c3b9c",
+      "after": "d44a9a04663926ace9bba80df608cff51c16be2c4034ccf0eb9e760367318c38"
+    },
+    {
+      "path": "packages/client/ui-conversation-nodes/src/message-presentation-message-presentation.tsx",
+      "before": "62a5b2fca21f5c206ca1ce15fc7318f770daf5232b2b309560abf262460d8e07",
+      "after": "5697d121858fc9d6f24626f22797890009d173c19d2cd6536a93677fd46c0224"
+    },
+    {
+      "path": "packages/client/ui-input-trigger/package.json",
+      "before": "73c857140af21a22c4c4288b9d2e3ca1583be8777821c22ad166859834e8b747",
+      "after": "ad95d4aa36bd98b4535f0eca03b1ce551fb827b48b181a886a784cb015cf6555"
+    },
+    {
+      "path": "packages/client/ui-input-trigger/src/styles.css",
+      "before": "7493cf409c33e8bf6bc067e00e2a3248f4a43ddc39dac6e27b00a12637dacb33",
+      "after": "7c70efd6bce3678efb27c3f2cc1861b946acb5fb21256177eba31748083aa5af"
+    },
+    {
+      "path": "packages/client/ui-layout/package.json",
+      "before": "8860b544c3f0d425cfedbd09ca7e3f86e2404824329945cce3b7b000515a3895",
+      "after": "96c2e4e0794606e25f84867508cd53deda134bd87b57efce2b2357d59b648b57"
+    },
+    {
+      "path": "packages/client/ui-layout/src/workbench-header.tsx",
+      "before": "9362ba0ed3281e6e78b2017fd4ae7709354b9cdeeadd952ac182ddcf10ef8b62",
+      "after": "1cb808c16a5170f280914ff6818cb18471ea6bf4ce28f0c22b961178530319de"
+    },
+    {
+      "path": "packages/client/ui-layout/src/workbench-shell.tsx",
+      "before": "d3cf787d8fc5139724792546a076c253741f60b209a89f0affa82d0add65abd0",
+      "after": "6b54fc7442f4e3c40acebd2e11721af8a8f0640a5813206d8dbfb86a0ad9fa0c"
+    },
+    {
+      "path": "packages/client/shell/src/application.tsx",
+      "before": "716b70ead67fbf164a9d88351f8ecc48d5806441036d29fbb6a644d7fbcea45e",
+      "after": "8f588e0283380b95e62f75287f7ab742603702e6ba9a2fa02b8e5ac573360c47"
+    },
+    {
+      "path": "packages/client/ui-composer/package.json",
+      "before": "1bb847be891da6d72a468387db40b195b74547d9c5bb59ef535461f62a991c3e",
+      "after": "e9a1d319b47a8629892261a81d5a6c5aed39fdb613332c7a5791d4245d56a0c6"
+    },
+    {
+      "path": "packages/client/ui-composer/src/composer-controls.tsx",
+      "before": "797212d0ad212e039a644a0d1c8bb0d3246d6ea66cd9ee6d167ad456ec8fc6f9",
+      "after": "093b89cf9501bf6d8fee1f9aa549b98bd40adff7d5d66c8ee16d2e17ace807e5"
+    },
+    {
+      "path": "packages/client/ui-composer/src/composer-token-icon.tsx",
+      "before": "212d53182239c44aaf44ec3fe9062ecf141a71f4f66228625a0d8d4ea7defce9",
+      "after": null
+    },
+    {
+      "path": "packages/client/ui-composer/src/tokens.ts",
+      "before": "b7be231ae867007fc779493432d4b0c95243b164137974530884cefd9faccd82",
+      "after": null
+    },
+    {
+      "path": "packages/client/ui-composer/src/workbench-composer-view.tsx",
+      "before": "9467051ba350699207ec5424c7928e4f872441ad0d6cfcbc9293efe37ee03cbb",
+      "after": "760562beaf2bdb848999b8d41ab35e33ca99d4453902cc2e8d042293eebd874f"
+    },
+    {
+      "path": "packages/client/ui-composer/src/workbench-composer.tsx",
+      "before": "aae0918eec6d98ac19bb2cdd18879e170b0e2bd1455a3c6e53dee0c04f051c71",
+      "after": "09b834faea89e95cbae6589f1567d726e702dc8fbb37dbf749aa91644fbc22fd"
+    },
+    {
+      "path": "packages/client/ui-composer/tests/composer-token-icon.test.tsx",
+      "before": "34d58c6f5b25dd92f2a3c6bc6bead4b5a5548259eb132c5a0dec159f1cad1fd3",
+      "after": "86345ae7d0320202493f374771e9158d4cb136d4d866ea834f04d3b7887f0918"
+    },
+    {
+      "path": "packages/client/ui-conversation-list/src/new-thread-button.tsx",
+      "before": "cb1ebd58f8555b7f2282274be7a97dc42ca6380f637ce8ad6309590e57be2f24",
+      "after": "6915b73159221401e69de43f2e146a3631030cdbeb13541b1ba8f0654eb60a7c"
+    },
+    {
+      "path": "packages/client/ui-conversation-list/src/thread-list-item.tsx",
+      "before": "da57e733c6a5409ddd2b236cfdffad10114e8b51ba620b3abd590624f6b346a3",
+      "after": "3dfda7b5e6cd0c236baae590d9dc7fb37e1237de8418e134c1d7cfd55eb31e46"
+    },
+    {
+      "path": "packages/client/ui-conversation-list/src/thread-list.tsx",
+      "before": "b61069ab7fa847982d3cb1060f963424801dd234088892c1a08248a3a0e4801d",
+      "after": "0394cc84bbff19c5f5259e7a7bbd9d2f58e04088134dec99f94f2f81823f58c9"
+    },
+    {
+      "path": "packages/client/ui-conversation-list/src/workspace-sidebar-context.tsx",
+      "before": "d75c8d94495f579d8b68c076cb0af749c5868583527973766ea0831fcd7274ed",
+      "after": null
+    },
+    {
+      "path": "packages/client/ui-conversation-list/src/workspace-sidebar-section.tsx",
+      "before": "12d09d739152efaa63c21f3886974365a8869f4a1518eaf25bb133bb51bf6a53",
+      "after": "d336c92e3bb457ad7ff3df66b2c7aab5b2469700b4da53fc8425b1766a4b38e8"
+    },
+    {
+      "path": "packages/client/ui-conversation-list/src/workspace-thread-list.tsx",
+      "before": "b8c673cad2e98dcaa70530b5a3dfb12332854c4a2f133116fac505bbeed305ec",
+      "after": "a0a5287ef8b636094c8c07b8afa7947e942eb85e895b2ef75cecaa6e22675b76"
+    },
+    {
+      "path": "packages/client/ui-conversation-list/tests/thread-list.test.tsx",
+      "before": "58a6efc9052a61d2d1242540c483e9056a4f969148018d0309cb6b0cafb03f4b",
+      "after": "d6fd063c7d66d355ae13b870a49e3576af9022fd9d008c118f931035c5340bbd"
+    },
+    {
+      "path": "packages/client/ui-conversation-messages/package.json",
+      "before": "f7766591e948764ca41e38c35e71257814f6b0981571ffbc2d47ced763571b0e",
+      "after": "c86b7d5f5178836ef6ca2ffbb78f8d24a126c463e639e5d3327b8950797465d7"
+    },
+    {
+      "path": "packages/client/ui-conversation-messages/src/chat-icons.css",
+      "before": "66c45f3996253e275c60e50625634f10b9e76944efc317da5165fdcc7d62b5be",
+      "after": null
+    },
+    {
+      "path": "packages/client/ui-conversation-messages/src/conversation.css",
+      "before": "67d0b235b9606eeebb22bd8f7ada3f2dacec1a72d1027d4f73f71c26bf546103",
+      "after": "d77255db685613703861712159c938560c974f803e72d996d17bf39952ab4cc3"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/styles.css",
+      "before": "d27cda59f8e498f8feb103997f473d2d23e8abe66fdf578fdc1a6c4f5a585e7b",
+      "after": "2e0fead84b2d762a93e14ef6bcb970922ae1d9f0c477fc20cc5c89e12db3a792"
+    },
+    {
+      "path": "packages/client/markdown/src/inline-citation.tsx",
+      "before": "abcdd86d850a9fd7d0d4f070af2bd5d8f3bb1dfbc4d107d00515ed88d0dc1215",
+      "after": "6491fac79badded731b1ba8991c885c77382ee927000f55d01083425cf271289"
+    },
+    {
+      "path": "packages/client/markdown/src/markdown.css",
+      "before": "656a0da7553400ab2aaa4e15a1bdbbd9318c598bf0cddca04f8f3417a527ff9f",
+      "after": "4f144d8af7c11de043a3c0782db1fc25ed1da8485ce3627d997121d399da2544"
+    },
+    {
+      "path": "packages/client/code-highlighting/src/code-block.css",
+      "before": "29c0ee7f87360edbfb3e00f16fb8f44df2096d067a2ff763240f523ca45fa166",
+      "after": "e51e8d3f8e8fa2c9aa75fed5a326ceb9541141b93300917ecd69a77a9ac2e8d1"
+    },
+    {
+      "path": "packages/client/ui-theme/src/appearance-settings-item.tsx",
+      "before": "31f559fd56aef2057edc78741212b085d7ac45077755598cf8b99b0aaa1048a1",
+      "after": "0a6d7d9b3ca92cd8b7e392ad5de1d536fa5db5034f9dfdcdf8722882719cf84c"
+    },
+    {
+      "path": "packages/client/ui/package.json",
+      "before": "865b5a2ff3a97302a6c386b598d180e1a72e5bc56424bf3bf8be9715323144c5",
+      "after": "f25079c9939e78f66f03ef88636b87610b18779447b5e744028d07b29c386af4"
+    },
+    {
+      "path": "packages/client/ui/tests/ui/shared-foundations.test.tsx",
+      "before": "cb0614f5e4645b40847b7d37348f5cb94671bb94107ccfd33aa7dd2be04ccefe",
+      "after": "5760fc45b41f402289c9752eff096cc51c378f4f68e26b571d5a2be8c03d9c04"
+    },
+    {
+      "path": "packages/pi/pi-ui-toolbox/package.json",
+      "before": "6a127c6cd824cc69a33dd8232f4e0fa0fd705d8ed1bf982c5cd133d07682d442",
+      "after": "ce0b87853ae0f5ce3272348bbf98cc422076568378a970cbaa247b8e47919bb2"
+    },
+    {
+      "path": "packages/pi/pi-ui-toolbox/src/i18n/en-US.ts",
+      "before": "c6f2144d102630d9d9fbeccceb6426ba0551dc30efdc8b448ee1134ba3a77f11",
+      "after": "f11fb1984a43161246ea6e60d1a1ec3a72619d467ceabaf49676e7f1d63d1cb1"
+    },
+    {
+      "path": "packages/pi/pi-ui-toolbox/src/i18n/zh-CN.ts",
+      "before": "8ecd905356e8d60405241dcc8da3c41dbf6de44905cd77c85a7bc2106cf98dd1",
+      "after": "9eaf5af4eab5cbcecc6788060a6bffd74a4732360c91322359f279bc05c13c6c"
+    },
+    {
+      "path": "packages/pi/pi-ui-toolbox/src/index.ts",
+      "before": "86c299a6aa4909593e44e0d8f26bdd8e26079df56c2607748c306af2592ce94b",
+      "after": "b04681a55bbba75483c01c0bc0bcb0d092f14c3155d864ade1e7d876034f982f"
+    },
+    {
+      "path": "packages/pi/pi-ui-toolbox/src/skill-reading-extension.ts",
+      "before": "101060a878af5e1004161a716c1b347d359c3c11247da79c9f3d20c6da83a93f",
+      "after": "3b3d3ddd7147387163f64118aaf91df350df5541212699779a88ec34ed1f2251"
+    },
+    {
+      "path": "packages/extension-platform/extension-sdk/src/api/renderer.ts",
+      "before": "8aec3638a205a6ea78f315c53484c5efc9a9797dd1e07fe6d8dbe4b9f18c297d",
+      "after": "a43eb46dd9100cdadbee93e2d8c455ac89bb9884c6c8093ec9956e0908f54aaa"
+    }
+  ],
+  "note": "Baseline and new source hashes record Spec006 implementation in the current uncommitted worktree; not a Git commit.",
+  "newSourceFiles": [
+    {
+      "path": "packages/client/shell/src/conversation-header.tsx",
+      "sha256": "6c465aca914a9b4041e9477d207230f03b39e8c406b7f046f77c3352793999ee"
+    },
+    {
+      "path": "packages/client/ui-composer/src/use-composer-mentions.ts",
+      "sha256": "b4fa41d31578ad92d2119ee78ac4f7359acb030ec02f809b49a388ea5b8ca644"
+    },
+    {
+      "path": "packages/client/ui-composer/src/use-composer-attachments.ts",
+      "sha256": "2aaebf5562cba3ab6112343ce7214339095374728188cfd25d3000253f1ca3d4"
+    },
+    {
+      "path": "packages/client/ui-composer/src/use-composer-submission.ts",
+      "sha256": "00acab6f6be4d17b273c599808dba5446c520000b49c9eb73365d9b9fdec63e0"
+    },
+    {
+      "path": "packages/client/ui-composer/src/use-composer-command-parameters.ts",
+      "sha256": "1508614825e7833807d6561294243689e4a53665f21e8a0dc2b11a8e516a348b"
+    },
+    {
+      "path": "packages/client/ui-composer/src/composer-editor-plugins.tsx",
+      "sha256": "8e095ad17de296b93a52f6a5d3eac5127faf630edf0248f58c30e32320b004e4"
+    },
+    {
+      "path": "packages/client/ui-composer/src/use-composer-suggestions.ts",
+      "sha256": "5ada45f2b0396bd4c2e20e905ddc2f3e76e1cfe335e972fc74f2cb63f9dac2cc"
+    },
+    {
+      "path": "packages/client/ui-composer/lib/composer-suggestion-model.ts",
+      "sha256": "8e37273295b54cfd34d21b266baab4549622b05dd449595517e8d3d14e5add28"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/conversation-dock.css",
+      "sha256": "0abd0e3a4738c068059c51803af2e783f29d79713a21092eab0797b5c5a86841"
+    },
+    {
+      "path": "packages/client/ui-conversation-list/src/sidebar-move-menu-items.tsx",
+      "sha256": "9a3d1954e551e603db4ab76adb5f2807a33f605eebcd546af7055849864e8a85"
+    },
+    {
+      "path": "packages/client/ui-conversation-list/src/use-workspace-sidebar-controller.ts",
+      "sha256": "d13ac4a27459cebaa98ec06a342f0f3458201cde101663c30374e309dd0a2a95"
+    },
+    {
+      "path": "packages/client/ui-conversation-list/src/sidebar-context.tsx",
+      "sha256": "27593383a02605a385552aa28749921e391a6fa0f2ce72cd3780fd43979fa33c"
+    },
+    {
+      "path": "packages/client/ui-conversation-list/src/sidebar-contracts.ts",
+      "sha256": "c1f92388bdbe8d7ac63897c7303df8a91255f8d24e70149087ba15ddc4a83afd"
+    },
+    {
+      "path": "packages/client/ui-conversation-list/src/workspace-sidebar-item.tsx",
+      "sha256": "2a06a196c0eee55fd86c26efa2b4d19242f1c7c8204048bb689ea3d52f92bc23"
+    },
+    {
+      "path": "packages/client/ui-conversation-list/lib/sidebar-projection.ts",
+      "sha256": "ec2266f0429ef72daa04e363881149d1082fe1f0679cc39b5e22eef50e2703de"
+    },
+    {
+      "path": "packages/client/ui-conversation-nodes/src/message-block-adapter.tsx",
+      "sha256": "8ea9253668287c727e85c5f128d872a3aecd899eb1bb285cae51b9f05c34b59b"
+    },
+    {
+      "path": "packages/client/ui-conversation-nodes/src/styles.css",
+      "sha256": "c4f4a9594583a3848ab1eea5b8b6d96abe80a530c44d47300c8af0149f51c311"
+    },
+    {
+      "path": "packages/client/ui-conversation-nodes/src/message-actions.css",
+      "sha256": "836b9b1a84251e3161c9b12d7913355074ac66e9d67527dca1535a35c20ea8c4"
+    },
+    {
+      "path": "packages/client/ui-input-trigger/src/tokens.ts",
+      "sha256": "dc559faa3aad18acf312397cfcbb3ad1b10897c4a9258ed92e5885f64324d8ca"
+    },
+    {
+      "path": "packages/client/ui-input-trigger/src/composer-command-token.tsx",
+      "sha256": "9cda3d780065536e8261e41bf88bdf0ec98ddce5e8c679451befd9353ace1d16"
+    },
+    {
+      "path": "packages/client/ui-input-trigger/src/composer-token-icon.tsx",
+      "sha256": "212d53182239c44aaf44ec3fe9062ecf141a71f4f66228625a0d8d4ea7defce9"
+    },
+    {
+      "path": "packages/client/ui-message-blocks/src/styles.css",
+      "sha256": "48750f7a5623bb4f8c21dcab73bf80d8de6caeb7303ac1c18cb8e9b807eadd7a"
+    },
+    {
+      "path": "packages/client/ui-selectors/tests/searchable-selector.test.tsx",
+      "sha256": "41fe1f2df91bbf817d2c4bf86ae77db7bf7956650932f7321965c5c1e36168bf"
+    },
+    {
+      "path": "packages/client/ui-theme/src/appearance-interface-page.tsx",
+      "sha256": "b566ebc11f6f7c1720b2bd7b741b85ac8351fe96f921d5f69ed8e7547aed26b6"
+    },
+    {
+      "path": "packages/client/ui-theme/src/appearance-font-page.tsx",
+      "sha256": "eaace67d1989ea25e77bf32903fa12c0ce1f899b13313142121f8b7369468ae0"
+    },
+    {
+      "path": "packages/client/ui-theme/src/appearance-background-page.tsx",
+      "sha256": "8d3ff50465929496fef29c3eabda75b7168ec2818d0e9c6fa3b195d0fa2bf8d5"
+    },
+    {
+      "path": "packages/client/ui-theme/src/appearance-controls.tsx",
+      "sha256": "698248bcb1c532fce99e6258bb4ee185d6b605404f5aabd05cfb3423c5c20c12"
+    },
+    {
+      "path": "packages/client/ui-theme/src/appearance-setting-controls.tsx",
+      "sha256": "098446a55f159d7387c30d14a095759f66d9d55dc784f53c11e0d3d7fb1b550a"
+    },
+    {
+      "path": "packages/client/ui-theme/src/appearance-page-model.ts",
+      "sha256": "ac12ec7eeabc95a6253004b041ae2b3db0ede68b316eb495f86a7397655bc704"
+    },
+    {
+      "path": "packages/client/ui-theme/src/appearance-theme-page.tsx",
+      "sha256": "b3426cb67086bf182b912e64580cfaa67ffd46500cbd4405fd100c8e14f1adb4"
+    },
+    {
+      "path": "packages/pi/pi-ui-toolbox/src/file-mutation-tool-renderer.tsx",
+      "sha256": "b05609a4ad2ff706b38f4f9f698397bc76650732b3b7005355e4b83be4bd5354"
+    },
+    {
+      "path": "packages/pi/pi-ui-toolbox/src/file-mutation-tool-summary.tsx",
+      "sha256": "d5be9252f18422b53d882f6276940aec8946e3dc491032d34c729e72113c9301"
+    },
+    {
+      "path": "packages/pi/pi-ui-toolbox/src/file-mutation-tool-presentation.tsx",
+      "sha256": "790c672befa20cee5240e552e3153961f4e6cbf98e4cba3fa27c8a65b433367d"
+    },
+    {
+      "path": "packages/pi/pi-ui-toolbox/lib/file-mutation-tool-model.ts",
+      "sha256": "3e0d3319baf1ba3927ab07959ad3bed52b65e5cbf128a1f5383b1bd71e82dd00"
+    },
+    {
+      "path": "packages/pi/pi-ui-toolbox/tests/file-mutation-tool-model.test.ts",
+      "sha256": "b6968151f60e41652053c56b0e9fceee57d3c841168e0da0f61fe9686f0fd218"
+    }
+  ]
+}

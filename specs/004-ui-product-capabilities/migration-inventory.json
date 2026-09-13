@@ -1,0 +1,1360 @@
+{
+  "baseline": "8ee7ee24",
+  "files": [
+    {
+      "source": "packages/conversation/conversation/src/message-queue/message-queue.css",
+      "target": "packages/conversation/ui-message-queue/src/message-queue.css",
+      "baselineSha256": "a217d7efc17955f4eab3f476920817c758d6bde8219c8f53e343a02d5bb0ae0d",
+      "currentSha256": "a217d7efc17955f4eab3f476920817c758d6bde8219c8f53e343a02d5bb0ae0d",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/message-queue/index.ts",
+      "target": "packages/conversation/ui-message-queue/src/index.ts",
+      "baselineSha256": "d128183549f5af0654e9ad8938c64991fd7b6a4d3a5eb2a62cf8e9319ae6b883",
+      "currentSha256": "d128183549f5af0654e9ad8938c64991fd7b6a4d3a5eb2a62cf8e9319ae6b883",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/message-queue/extension.ts",
+      "target": "packages/conversation/ui-message-queue/src/extension.ts",
+      "baselineSha256": "e0ea35af87bbc9f03ad37d89d6bfe0c4a1c648f31e692f2ef043217920edf070",
+      "currentSha256": "e0ea35af87bbc9f03ad37d89d6bfe0c4a1c648f31e692f2ef043217920edf070",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/message-queue/composer-message-queue.tsx",
+      "target": "packages/conversation/ui-message-queue/src/composer-message-queue.tsx",
+      "baselineSha256": "87fa5735d06191181dec6cb444c980395e0940d24945cabbd3b93a12247d4eff",
+      "currentSha256": "d51ecf182ec1b0563b0bd9dfb24d4826b751f838844f1494951fb6194f604cc5",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/message-queue/message-queue-preview.ts",
+      "target": "packages/conversation/ui-message-queue/lib/message-queue-preview.ts",
+      "baselineSha256": "0cd997c474e12356f3e8c4612e5d51145ad36b33e1e7cd5685e5ad79368e9412",
+      "currentSha256": "0cd997c474e12356f3e8c4612e5d51145ad36b33e1e7cd5685e5ad79368e9412",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-message-queue-message-queue-preview.test.ts",
+      "target": "packages/conversation/ui-message-queue/tests/builtin-message-queue-message-queue-preview.test.ts",
+      "baselineSha256": "19b1c76b91d144ed1c1b8fdefdeae92dea2175ad53e394c22a9ab849a85c9692",
+      "currentSha256": "7121dbd873cdffdc6754711714b3c31b5d1a5ab9118b3da73994799d66bb3577",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/src/message-actions/message-actions.tsx",
+      "target": "packages/conversation/ui-message-actions/src/message-actions.tsx",
+      "baselineSha256": "7b69c980aac66f8bf99795fe9c2dfe749205840848a88d3f92263d8739c1c2a6",
+      "currentSha256": "4489e5304a168c39376d0d7e96aa40a20d47a240ee0ec6eecfda617437f65d39",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/message-actions/index.ts",
+      "target": "packages/conversation/ui-message-actions/src/index.ts",
+      "baselineSha256": "daf01a62135c3e05d5e9e7eabbd8bad14c66f0497382ee1f77a50c992fdafe95",
+      "currentSha256": "daf01a62135c3e05d5e9e7eabbd8bad14c66f0497382ee1f77a50c992fdafe95",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/message-actions/extension.ts",
+      "target": "packages/conversation/ui-message-actions/src/extension.ts",
+      "baselineSha256": "cad696499feaf7cc6919b9e968cba08b838f4682e6fdcb77c101b466e3af95b0",
+      "currentSha256": "cad696499feaf7cc6919b9e968cba08b838f4682e6fdcb77c101b466e3af95b0",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/message-actions/message-performance-statistics.ts",
+      "target": "packages/conversation/ui-message-actions/lib/message-performance-statistics.ts",
+      "baselineSha256": "eaeaeadc587828d94c2375b7978da423f0a4073e90468be62f92beeafdc687b7",
+      "currentSha256": "eaeaeadc587828d94c2375b7978da423f0a4073e90468be62f92beeafdc687b7",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/message-actions/fork-availability.ts",
+      "target": "packages/conversation/ui-message-actions/lib/fork-availability.ts",
+      "baselineSha256": "641a4a5105062beba59690f7a68c6de41d12a00419c31a3fb72e6876618acc47",
+      "currentSha256": "641a4a5105062beba59690f7a68c6de41d12a00419c31a3fb72e6876618acc47",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/message-actions/message-performance-visibility.ts",
+      "target": "packages/conversation/ui-message-actions/lib/message-performance-visibility.ts",
+      "baselineSha256": "9828ef75201498418d3659c3adf0936d6bf2aaf96ef5fd6177119e06f274ab32",
+      "currentSha256": "9828ef75201498418d3659c3adf0936d6bf2aaf96ef5fd6177119e06f274ab32",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-message-actions-message-performance-visibility.test.ts",
+      "target": "packages/conversation/ui-message-actions/tests/builtin-message-actions-message-performance-visibility.test.ts",
+      "baselineSha256": "99385d6b77a3d43695aa1b846152bedf5315647311855c73c8bd34158565c390",
+      "currentSha256": "751b8c4fa1229f91a068d4c704b6322a12c3b635dc57c94b5aa475ae6ecc10c7",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-message-actions-fork-availability.test.ts",
+      "target": "packages/conversation/ui-message-actions/tests/builtin-message-actions-fork-availability.test.ts",
+      "baselineSha256": "04da7e4779d20380d23b28e31f16eb7ce69f7e13473cf2994109a63bdbecc231",
+      "currentSha256": "4cc9dc5752f8c8e7fdd09886dc055d5053937285565517fb0df1c925333e4ab0",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-message-actions-message-performance-statistics.test.ts",
+      "target": "packages/conversation/ui-message-actions/tests/builtin-message-actions-message-performance-statistics.test.ts",
+      "baselineSha256": "5fa0d8866428d7e2fcbeb9f5934cb1aea9fca9e8f79369314bebbc7ab53fc471",
+      "currentSha256": "3920f2142a5e86da6126be5e84ed1dc77b8cdc6d57709150b3eff3b790700360",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/src/user-message-index/index.ts",
+      "target": "packages/conversation/ui-user-message-index/src/index.ts",
+      "baselineSha256": "62c1d06eb4e9fc72c91a34c3498c453c774873b892574b916c7ba5856a6d47a1",
+      "currentSha256": "62c1d06eb4e9fc72c91a34c3498c453c774873b892574b916c7ba5856a6d47a1",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/user-message-index/user-message-index.tsx",
+      "target": "packages/conversation/ui-user-message-index/src/user-message-index.tsx",
+      "baselineSha256": "0bc54e9e2fed1b6018c6f373af4840e0f39e72a3296f1ea48e0fb5d79897427d",
+      "currentSha256": "0b59bb7c760d8eb3438c2b90194ba63ebf0dd586ecf850d941d030e37478561d",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/user-message-index/extension.ts",
+      "target": "packages/conversation/ui-user-message-index/src/extension.ts",
+      "baselineSha256": "ea25e40170ae52862ce2b5bfef768d5fde1e1af680a99412e97e4bbfecbffb32",
+      "currentSha256": "ea25e40170ae52862ce2b5bfef768d5fde1e1af680a99412e97e4bbfecbffb32",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/user-message-index/user-message-index.css",
+      "target": "packages/conversation/ui-user-message-index/src/user-message-index.css",
+      "baselineSha256": "580bbfcbf7ef82b8b888e8b760cb73db3f0aec5839459b4ec90fb4945635406b",
+      "currentSha256": "580bbfcbf7ef82b8b888e8b760cb73db3f0aec5839459b4ec90fb4945635406b",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/user-message-index/user-message-index-layout.ts",
+      "target": "packages/conversation/ui-user-message-index/lib/user-message-index-layout.ts",
+      "baselineSha256": "b738e35c72011a6deab8e7546e72e90bc39e0437cec4ecd74945b4b9e99316a4",
+      "currentSha256": "b738e35c72011a6deab8e7546e72e90bc39e0437cec4ecd74945b4b9e99316a4",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-user-message-index-user-message-index-layout.test.ts",
+      "target": "packages/conversation/ui-user-message-index/tests/builtin-user-message-index-user-message-index-layout.test.ts",
+      "baselineSha256": "398504c1ddfe4357b1fc7b273ed6ccc8053a730a149363df9284149212c13489",
+      "currentSha256": "a03f6c0bac68061c34fb14d3a21ea244972ce6c86c13ad54a5c2e32ac4f5a5e1",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/src/archived-chats/index.ts",
+      "target": "packages/conversation/ui-settings-archived-chats/src/index.ts",
+      "baselineSha256": "371bc3d431aa6d2ad4ef4bb376d2cb707eb463e01054eceb9d212c94eb30d894",
+      "currentSha256": "371bc3d431aa6d2ad4ef4bb376d2cb707eb463e01054eceb9d212c94eb30d894",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/archived-chats/extension.ts",
+      "target": "packages/conversation/ui-settings-archived-chats/src/extension.ts",
+      "baselineSha256": "3af1f66d9b91d45f3e3f56552dedd28396bcd55bc0648a6009c19385b6c78a7b",
+      "currentSha256": "bef606f4532ed497e0bf3f73b5031384a0c0d6f6c10fe4bf8855713d02c0f424",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/archived-chats/archived-chats-settings-item.tsx",
+      "target": "packages/conversation/ui-settings-archived-chats/src/archived-chats-settings-item.tsx",
+      "baselineSha256": "068a7de2807637d2e3ff637d15e3fc6d8ab535a6b94a77ca947c3f6c5f525622",
+      "currentSha256": "3dc7969e9ba0152e092120176bd684f718df673705f55809cb0b6cefd89f8122",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/archived-chats/archived-chat-group-a11y.ts",
+      "target": "packages/conversation/ui-settings-archived-chats/lib/archived-chat-group-a11y.ts",
+      "baselineSha256": "91d2d6e642e93c704829cce78962c9a00593d91bb3468455fdaf641a84aa3f87",
+      "currentSha256": "91d2d6e642e93c704829cce78962c9a00593d91bb3468455fdaf641a84aa3f87",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-archived-chats-archived-chat-group-a11y.test.ts",
+      "target": "packages/conversation/ui-settings-archived-chats/tests/builtin-archived-chats-archived-chat-group-a11y.test.ts",
+      "baselineSha256": "858f6ee990b13612cd4e5dab215197199bd1d7a9080fa3c7ec9f569612a57838",
+      "currentSha256": "7a3e353e8cd84a35df5c766336678851e428d75ff2de1d237dd10e680923fbe8",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/src/side-chat/side-chat-surface.tsx",
+      "target": "packages/conversation/ui-side-chat/src/side-chat-surface.tsx",
+      "baselineSha256": "131f7f9f8bc9e5e658be311d7d322bc7e9d1c65d47587be653d223617351d30e",
+      "currentSha256": "f90d216312b668f347328c09f3b84a0b1815515df5d4434a04285d6d498e8a1d",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/side-chat/side-chat-header.tsx",
+      "target": "packages/conversation/ui-side-chat/src/side-chat-header.tsx",
+      "baselineSha256": "a0ed26c773ff9b0de5f9a6a54a0f829b3debdac9f755d7a06b81fa04e17ee194",
+      "currentSha256": "f3ef53b02d370163aca957ef322f4d56e8bc14903356bfc873977f7d8fcf0e5b",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/side-chat/index.ts",
+      "target": "packages/conversation/ui-side-chat/src/index.ts",
+      "baselineSha256": "f483e8752ceda5dc5ee6fadfb680800e41c06164f4d161810371ac989174d6c2",
+      "currentSha256": "f483e8752ceda5dc5ee6fadfb680800e41c06164f4d161810371ac989174d6c2",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/side-chat/side-chat-workspace.ts",
+      "target": "packages/conversation/ui-side-chat/src/side-chat-workspace.ts",
+      "baselineSha256": "a063b3e9370ea9daaedc696be279d09b6fe9c32bf8a04f087bf81815cdb292c9",
+      "currentSha256": "ba08a97b73f0df0911221cec61251dc93933c3164e233aaff16309254d7106f7",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/side-chat/extension.ts",
+      "target": "packages/conversation/ui-side-chat/src/extension.ts",
+      "baselineSha256": "f56a06c0c54a1f92bdebc34b26526bc773f9b524f06c0a64b0f908493445ab6c",
+      "currentSha256": "f56a06c0c54a1f92bdebc34b26526bc773f9b524f06c0a64b0f908493445ab6c",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/side-chat/side-chat-runtime-bridge.tsx",
+      "target": "packages/conversation/ui-side-chat/src/side-chat-runtime-bridge.tsx",
+      "baselineSha256": "2c9bf76b3e2cfb201ba1427047355d87d6d94f38bc435118396530a75890ff4f",
+      "currentSha256": "c23acff5d96f43688177bde9af445dd8cb95a85336fae7de3f4193ddc2710407",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/side-chat/side-chat-menu-item.tsx",
+      "target": "packages/conversation/ui-side-chat/src/side-chat-menu-item.tsx",
+      "baselineSha256": "20713d54eb8df54f67adbcffe04375f1dfc707abd6f13a74be67bf7441fa4e94",
+      "currentSha256": "d5a35e70e1efcfeaf3b1b64348d791e348813cca908ae1b3818344cf58bfcabe",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/side-chat/side-chat-navigation.ts",
+      "target": "packages/conversation/ui-side-chat/lib/side-chat-navigation.ts",
+      "baselineSha256": "e3a6cb7fbbf813193f1611165210a2449e68be7f5fdbaafe27b29b82b5db4ed7",
+      "currentSha256": "e3a6cb7fbbf813193f1611165210a2449e68be7f5fdbaafe27b29b82b5db4ed7",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/side-chat/scratch-session-lease.ts",
+      "target": "packages/conversation/ui-side-chat/lib/scratch-session-lease.ts",
+      "baselineSha256": "d6563df1ff1775e121964ec2914d4deb4c610e5dace3ea9b58ee0832af507ae5",
+      "currentSha256": "d6563df1ff1775e121964ec2914d4deb4c610e5dace3ea9b58ee0832af507ae5",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-side-chat-side-chat-navigation.test.ts",
+      "target": "packages/conversation/ui-side-chat/tests/builtin-side-chat-side-chat-navigation.test.ts",
+      "baselineSha256": "f37a438abe19b916b6d12908645527e8affc43db4e61622441c4da73063aa63b",
+      "currentSha256": "896e2058d227d0284227d81e8524331a8ff34a25edda413bf4af533606ea98cb",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-side-chat-scratch-session-lease.test.ts",
+      "target": "packages/conversation/ui-side-chat/tests/builtin-side-chat-scratch-session-lease.test.ts",
+      "baselineSha256": "0c98e3c5bbbcca0549aff04ac00e3c1d8e2756c735f65eb7415a88f360ccdfa6",
+      "currentSha256": "8efbe9828392c2c29c5f499c50b68968839a6dd4672e5d748f12edb23f73ad15",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-side-chat-side-chat-workspace.test.ts",
+      "target": "packages/conversation/ui-side-chat/tests/builtin-side-chat-side-chat-workspace.test.ts",
+      "baselineSha256": "90c382242479876998a943bf50ab3f6830b05f09142f467612b135527d3d101c",
+      "currentSha256": "ecbe75df4b1f3d35aec7f0f6e159ef50149453396fd2e721b301e6947b4c7816",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/lib/composer-image-paste.ts",
+      "target": "packages/conversation/ui-attachment/lib/composer-image-paste.ts",
+      "baselineSha256": "c2dced6147ae0b1805bc85b544f940d25099dbbbd181130941cad1c11baa18ee",
+      "currentSha256": "c2dced6147ae0b1805bc85b544f940d25099dbbbd181130941cad1c11baa18ee",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/lib/composer-text-paste.ts",
+      "target": "packages/conversation/ui-attachment/lib/composer-text-paste.ts",
+      "baselineSha256": "4d9b01cfe8c0a75013932bd213d27f4650a4228cdd0783be7ff6c69ea4248b1c",
+      "currentSha256": "4d9b01cfe8c0a75013932bd213d27f4650a4228cdd0783be7ff6c69ea4248b1c",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/attachments.ts",
+      "target": "packages/conversation/ui-attachment/src/attachments.ts",
+      "baselineSha256": "577ee4daad9a90707b8957f260a4fbe8c317d7671d516327086afaf80666fcd2",
+      "currentSha256": "577ee4daad9a90707b8957f260a4fbe8c317d7671d516327086afaf80666fcd2",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-attachments.tsx",
+      "target": "packages/conversation/ui-attachment/src/composer-attachments.tsx",
+      "baselineSha256": "99e7c9734fb9536ce525d03a65816235bdf61c2b3934a05eb6fd1e6b3e49b864",
+      "currentSha256": "99e7c9734fb9536ce525d03a65816235bdf61c2b3934a05eb6fd1e6b3e49b864",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/pasted-text-attachment-preview.tsx",
+      "target": "packages/conversation/ui-attachment/src/pasted-text-attachment-preview.tsx",
+      "baselineSha256": "cc269d4403b6abc61beccbc04e46c60eb30cbf3739563124e80399de2fe6ee8f",
+      "currentSha256": "cc269d4403b6abc61beccbc04e46c60eb30cbf3739563124e80399de2fe6ee8f",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-attachments.test.tsx",
+      "target": "packages/conversation/ui-attachment/tests/composer-attachments.test.tsx",
+      "baselineSha256": "369d91678b631f63a9a10bd76aa07e333f071fbfb54ad3320b0edd20362badd3",
+      "currentSha256": "369d91678b631f63a9a10bd76aa07e333f071fbfb54ad3320b0edd20362badd3",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-image-paste.test.ts",
+      "target": "packages/conversation/ui-attachment/tests/composer-image-paste.test.ts",
+      "baselineSha256": "8d377e86f458d9f418cf4ce88e05d0e7dcc4dff6307aa2d765d8efd52e6f5da7",
+      "currentSha256": "8d377e86f458d9f418cf4ce88e05d0e7dcc4dff6307aa2d765d8efd52e6f5da7",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-text-paste.test.ts",
+      "target": "packages/conversation/ui-attachment/tests/composer-text-paste.test.ts",
+      "baselineSha256": "c37ecc03f47b6b0c4d1723335a7d9a0f4bd906a0c0ced4d2498bab1f5b2bb810",
+      "currentSha256": "c37ecc03f47b6b0c4d1723335a7d9a0f4bd906a0c0ced4d2498bab1f5b2bb810",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/lib/agent-command.ts",
+      "target": "packages/conversation/ui-input-trigger/lib/agent-command.ts",
+      "baselineSha256": "e893fa9e7e57eaac977e040a2c57545fc97dce12f9a2f3572a71ac734ebca7ef",
+      "currentSha256": "e893fa9e7e57eaac977e040a2c57545fc97dce12f9a2f3572a71ac734ebca7ef",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/lib/composer-command-argument-hint.ts",
+      "target": "packages/conversation/ui-input-trigger/lib/composer-command-argument-hint.ts",
+      "baselineSha256": "88b56023e56be839f7f43f0aeae090589b6801dabd870e99a4a7e0ec6914ddc7",
+      "currentSha256": "88b56023e56be839f7f43f0aeae090589b6801dabd870e99a4a7e0ec6914ddc7",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/lib/composer-command-group-order.ts",
+      "target": "packages/conversation/ui-input-trigger/lib/composer-command-group-order.ts",
+      "baselineSha256": "87c679d951f3431253ebdf57fac2ef4373881a1fa0394559e8e0ae6bf9ded27a",
+      "currentSha256": "52c333e4f40182c2284f935dc34d5ab85885a820f934969195a476b09ee046bb",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/lib/composer-command-icon-color.ts",
+      "target": "packages/conversation/ui-input-trigger/lib/composer-command-icon-color.ts",
+      "baselineSha256": "b9d156a7e77306717ae2e295abee9c4611799c24391db279383f6f34555eef46",
+      "currentSha256": "4af73f91008196cad87ee77f8defca07d74674dcdcdec62a8add40d14a34b083",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/agent-command.ts",
+      "target": "packages/conversation/ui-input-trigger/src/agent-command.ts",
+      "baselineSha256": "16c2763c6e93c432f5c8c4ada61041bbf3a705fda2c3d4689bcbc8e4a9e83f8a",
+      "currentSha256": "16c2763c6e93c432f5c8c4ada61041bbf3a705fda2c3d4689bcbc8e4a9e83f8a",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-command-arguments.tsx",
+      "target": "packages/conversation/ui-input-trigger/src/composer-command-arguments.tsx",
+      "baselineSha256": "e2e76007f375696d11b36c62574f3b698b3fee0024b9d271c7409b7acf30cd72",
+      "currentSha256": "e2e76007f375696d11b36c62574f3b698b3fee0024b9d271c7409b7acf30cd72",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-command-parameter-panel.tsx",
+      "target": "packages/conversation/ui-input-trigger/src/composer-command-parameter-panel.tsx",
+      "baselineSha256": "c28b28a04cae964ccf00b7ae4546a6e363b5bb00cab9eb0e7c4292a3a1f2a44c",
+      "currentSha256": "c28b28a04cae964ccf00b7ae4546a6e363b5bb00cab9eb0e7c4292a3a1f2a44c",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-command-parameters.ts",
+      "target": "packages/conversation/ui-input-trigger/src/composer-command-parameters.ts",
+      "baselineSha256": "b476287ed44b97222ee3c3609a29812c306b3ae369cedb2eb3dc16d27b875708",
+      "currentSha256": "b476287ed44b97222ee3c3609a29812c306b3ae369cedb2eb3dc16d27b875708",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-trigger-engine.ts",
+      "target": "packages/conversation/ui-input-trigger/src/composer-trigger-engine.ts",
+      "baselineSha256": "219e844ac92cfa851268ac32c6ba82599d7f606e11e0abc2b8ae054a76a9ae19",
+      "currentSha256": "219e844ac92cfa851268ac32c6ba82599d7f606e11e0abc2b8ae054a76a9ae19",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/tests/agent-command.test.ts",
+      "target": "packages/conversation/ui-input-trigger/tests/agent-command.test.ts",
+      "baselineSha256": "184528b466209bba1e05f65b801a9559ef99f194580dd033bbb0b9ca60aac564",
+      "currentSha256": "184528b466209bba1e05f65b801a9559ef99f194580dd033bbb0b9ca60aac564",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-command-argument-hint.test.ts",
+      "target": "packages/conversation/ui-input-trigger/tests/composer-command-argument-hint.test.ts",
+      "baselineSha256": "b428270c5e11a0e16747019e9c45a8d2496f6818aa2c78d39d11fb86a3aa10e7",
+      "currentSha256": "b428270c5e11a0e16747019e9c45a8d2496f6818aa2c78d39d11fb86a3aa10e7",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-command-arguments.test.ts",
+      "target": "packages/conversation/ui-input-trigger/tests/composer-command-arguments.test.ts",
+      "baselineSha256": "e31a2d8e5914ba3481b2e3cf41aa594638269ae1c569a9f47070317adcfd838d",
+      "currentSha256": "e31a2d8e5914ba3481b2e3cf41aa594638269ae1c569a9f47070317adcfd838d",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-command-group-order.test.ts",
+      "target": "packages/conversation/ui-input-trigger/tests/composer-command-group-order.test.ts",
+      "baselineSha256": "af06a152120468c104c4d0733e60e6c9df929194d094c333fcc5a0fdd60f2ed5",
+      "currentSha256": "af06a152120468c104c4d0733e60e6c9df929194d094c333fcc5a0fdd60f2ed5",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-command-icon-color.test.ts",
+      "target": "packages/conversation/ui-input-trigger/tests/composer-command-icon-color.test.ts",
+      "baselineSha256": "3dd574728ed80d5c4010e8547e3039d2fe85c46b44dc5e7e498f91f573705368",
+      "currentSha256": "3dd574728ed80d5c4010e8547e3039d2fe85c46b44dc5e7e498f91f573705368",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-command-parameter-panel.test.ts",
+      "target": "packages/conversation/ui-input-trigger/tests/composer-command-parameter-panel.test.ts",
+      "baselineSha256": "60266ec04cf341543d2d3eba057d864ccb7a42a0ab8fc5107c9e287f515aa042",
+      "currentSha256": "60266ec04cf341543d2d3eba057d864ccb7a42a0ab8fc5107c9e287f515aa042",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-trigger-engine.test.ts",
+      "target": "packages/conversation/ui-input-trigger/tests/composer-trigger-engine.test.ts",
+      "baselineSha256": "1bf54e0e5a531ca90df3b88dc44554108c7fd849170511e5ee339b1e0aa80696",
+      "currentSha256": "1bf54e0e5a531ca90df3b88dc44554108c7fd849170511e5ee339b1e0aa80696",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/lib/interactive-requests/ask-user-tool-model.ts",
+      "target": "packages/conversation/ui-user-questions/lib/ask-user-tool-model.ts",
+      "baselineSha256": "87e1a3539d47a660ece47091dd5f00a480c4a096508d166716b72f6815320b71",
+      "currentSha256": "87e1a3539d47a660ece47091dd5f00a480c4a096508d166716b72f6815320b71",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/interactive-requests/interaction-form-state.ts",
+      "target": "packages/conversation/ui-user-questions/lib/interaction-form-state.ts",
+      "baselineSha256": "66b04242450d641aea3b5b3ad0199dc6f172a47ab52bccf23bdac00c8bc96e43",
+      "currentSha256": "66b04242450d641aea3b5b3ad0199dc6f172a47ab52bccf23bdac00c8bc96e43",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/interactive-requests/ask-user-panel.tsx",
+      "target": "packages/conversation/ui-user-questions/src/ask-user-panel.tsx",
+      "baselineSha256": "bcbc9224fe79d29a8ffd497037f7c94b90063b3a6d9f494407e7d5cf5dc8f407",
+      "currentSha256": "43617141bc5659e7c079c90b154cba9efb85765c63c81c5281b1f897b4f9aa97",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/interactive-requests/ask-user-preferences.ts",
+      "target": "packages/conversation/ui-user-questions/src/ask-user-preferences.ts",
+      "baselineSha256": "195cb3286f61547aae1af1e21e42133e66d65b2f48da8cec5097e06daa8232e4",
+      "currentSha256": "195cb3286f61547aae1af1e21e42133e66d65b2f48da8cec5097e06daa8232e4",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/interactive-requests/ask-user-recommended-mark.tsx",
+      "target": "packages/conversation/ui-user-questions/src/ask-user-recommended-mark.tsx",
+      "baselineSha256": "f2c38e3e5b3eb908b8685b47361ae5e147528efe2b764632fbfc218ac4518ac5",
+      "currentSha256": "9673273a5be9a2afd5b6ff1908c0c91c3107e7873adbddfcee2f61ebb5c61408",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/interactive-requests/ask-user-tool-renderer.tsx",
+      "target": "packages/conversation/ui-user-questions/src/ask-user-tool-renderer.tsx",
+      "baselineSha256": "411aeca37189797d2931fce66b576b000e915a5e2af2ab77fa633220658765b7",
+      "currentSha256": "2679c177c928f0a718e0fdb3d4f33408749b60f868a383811cf441c02d958b02",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/interactive-requests/extension.ts",
+      "target": "packages/conversation/ui-user-questions/src/extension.ts",
+      "baselineSha256": "99b34832b382a628b2a948bf226e877fecf69f888c0d4f9fd3a91478f2daa417",
+      "currentSha256": "a59cce8d93acb090dff07840bfe7fd82f525a3e70a362112354e46f59d7b9606",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/interactive-requests/index.ts",
+      "target": "packages/conversation/ui-user-questions/src/index.ts",
+      "baselineSha256": "efdcb8215b006c45d80b36badd323274109e483c454dd7dd417b0a501de039e4",
+      "currentSha256": "efdcb8215b006c45d80b36badd323274109e483c454dd7dd417b0a501de039e4",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/interactive-requests/interactive-requests-overlay.tsx",
+      "target": "packages/conversation/ui-user-questions/src/interactive-requests-overlay.tsx",
+      "baselineSha256": "7815753a2cfc7a120c4a2c5cc36d9d9198b8b3020df52673a4c2b02c1e50bf1f",
+      "currentSha256": "a41b6016d013c13b3aa588977701cac0e7909e8895b639b67100fa73484d0033",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-interactive-requests-ask-user-panel.test.tsx",
+      "target": "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-ask-user-panel.test.tsx",
+      "baselineSha256": "a751aa4a16c9b9665ebeb0cd590fa758173dd6556b4a9a403cc4115dfdfee05f",
+      "currentSha256": "d93443ed46169ccbaa4f7a8c4ed14b521f0257e7a010df760100840b9f3ddcd1",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-interactive-requests-ask-user-preferences.test.ts",
+      "target": "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-ask-user-preferences.test.ts",
+      "baselineSha256": "5839ddf2b33d22517ff9e97c366fe169b44b31c84e313e2ab7d95336cd3bfd46",
+      "currentSha256": "d8c4aec88598445b73772c8151be4348c4f65f5b3211aaddd50abf5b480ac2a9",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-interactive-requests-ask-user-tool-model.test.ts",
+      "target": "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-ask-user-tool-model.test.ts",
+      "baselineSha256": "0083cf131edbb43034a39f1f7e0e7bd2865f5c1758bd4bf8825006a4e9401055",
+      "currentSha256": "bec790a1da58ffee50fb056778892ded097b2f7896c908137f267a5a05366d94",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-interactive-requests-ask-user-tool-presentation.test.ts",
+      "target": "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-ask-user-tool-presentation.test.ts",
+      "baselineSha256": "0d24e9c408cfc48b60f94c3e8b968a5610037992a7ec551caf27183ab9d539ee",
+      "currentSha256": "9e548e1b4a9db20acbba268da628cac5e0dd783147f862eea1e061c3af203e47",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-interactive-requests-interaction-form-state.test.ts",
+      "target": "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-interaction-form-state.test.ts",
+      "baselineSha256": "c47e2ba8698048e9318cdaeb22c5dcc4c1db25fcd38cd231212a6bffc536b6dd",
+      "currentSha256": "0f788ea961ef8245972cf653c2fce459dbe6d4525918f1e454e552bb6494548b",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/lib/todo-model.ts",
+      "target": "packages/conversation/ui-todo/lib/todo-model.ts",
+      "baselineSha256": "e25655d41bdb943710f95e2c06dbc85527da5fbcabda26827579a43f9ac3f2e2",
+      "currentSha256": "e25655d41bdb943710f95e2c06dbc85527da5fbcabda26827579a43f9ac3f2e2",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/todo-list.tsx",
+      "target": "packages/conversation/ui-todo/src/todo-list.tsx",
+      "baselineSha256": "cfe7e85248358e73f4542a0cf2e02a01ca2679cbc40c93eb1d2c7a9dfffad138",
+      "currentSha256": "f3935b8b33b226f4c5d9aa71804c41554e6b331b46828d1a803809326db5b19c",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/todo-panel/extension.ts",
+      "target": "packages/conversation/ui-todo/src/extension.ts",
+      "baselineSha256": "485650f7d77a73579dfb3c11347368a68c19cb035093911b339c845e8b51a595",
+      "currentSha256": "f7b853edeadb22e444346095927f36f8804bc0c9951b011fe82b9e8e393b1282",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/todo-panel/index.ts",
+      "target": "packages/conversation/ui-todo/src/index.ts",
+      "baselineSha256": "826160d9c0343dcb22146736a2b5082ab6cc6a72f40bfbd11ceefa3a4001e915",
+      "currentSha256": "826160d9c0343dcb22146736a2b5082ab6cc6a72f40bfbd11ceefa3a4001e915",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/todo-panel/todo-panel.tsx",
+      "target": "packages/conversation/ui-todo/src/todo-panel.tsx",
+      "baselineSha256": "a65d45a7079eb424d461e36540ea3b798aa21078ca027e304102e3dbd9457a7b",
+      "currentSha256": "e273efd14ce34244252e3157fe779edb46fe5c5ef6274fbe7567f31a97d51b9f",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-todo-panel-todo-panel.test.tsx",
+      "target": "packages/conversation/ui-todo/tests/builtin-todo-panel-todo-panel.test.tsx",
+      "baselineSha256": "049d7e9964fcae68fbd7a1093db00273cf2962098c09c140231e7f01c7ea242d",
+      "currentSha256": "dfb62dc35debef66bbee16f0e46324a8b8ceccc72ee63cb3f040b42160f6e9a7",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/todo-model.test.ts",
+      "target": "packages/conversation/ui-todo/tests/todo-model.test.ts",
+      "baselineSha256": "0357f6519895b1dbe513d0caa4e35400782ddd25479bc4f5728a0c63185eb0e4",
+      "currentSha256": "0357f6519895b1dbe513d0caa4e35400782ddd25479bc4f5728a0c63185eb0e4",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/lib/message-presentation/tool-diff-model.ts",
+      "target": "packages/conversation/ui-tool/lib/tool-diff-model.ts",
+      "baselineSha256": "78588cefe3887999216efac939b803fea06e3b470b81a514e67aa6dee8b5975c",
+      "currentSha256": "78588cefe3887999216efac939b803fea06e3b470b81a514e67aa6dee8b5975c",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/message-presentation/tool-timeline-model.ts",
+      "target": "packages/conversation/ui-tool/lib/tool-timeline-model.ts",
+      "baselineSha256": "ffeaab76c54dfffbf13a49e0e581861b145764608913fef7ff84df6cae52cf25",
+      "currentSha256": "ffeaab76c54dfffbf13a49e0e581861b145764608913fef7ff84df6cae52cf25",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/elements/reasoning-panel.tsx",
+      "target": "packages/conversation/ui-tool/src/reasoning-panel.tsx",
+      "baselineSha256": "6f1cf9b35403c04a9785d283ba816ae033388ae32d05316fe40cb4e5abbce0cc",
+      "currentSha256": "6f1cf9b35403c04a9785d283ba816ae033388ae32d05316fe40cb4e5abbce0cc",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/elements/tool-call.tsx",
+      "target": "packages/conversation/ui-tool/src/tool-call.tsx",
+      "baselineSha256": "8f1efa59837b2dfe22515619570d19a188ba01ca3615502ddb1b24951ad81e5a",
+      "currentSha256": "8f1efa59837b2dfe22515619570d19a188ba01ca3615502ddb1b24951ad81e5a",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/message-presentation/message-disclosure-context.tsx",
+      "target": "packages/conversation/ui-tool/src/message-disclosure-context.tsx",
+      "baselineSha256": "da8466ad67105f6de76cadcab59ee67b87ce4bcd049e1a9e578f3f86f9afae09",
+      "currentSha256": "81ecea9a818b75525caa485c280233c878c0ae4fa39ceeb469c07d3463de753d",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/message-presentation/message-tool-timeline.tsx",
+      "target": "packages/conversation/ui-tool/src/message-tool-timeline.tsx",
+      "baselineSha256": "c6e48bc8621afed1f1b61ffe22d46cdda3bdf81bf40803151e82c85b1ff66292",
+      "currentSha256": "254898f395a4254b5e76b30683384ee77e0b922b49ec7280fb9d8c4406bcc686",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/tool-group.tsx",
+      "target": "packages/conversation/ui-tool/src/tool-group.tsx",
+      "baselineSha256": "1deaee4fa0a1174d19ca6583cb28e1c3c03ccabbad7ecff83056d59fa94d2fed",
+      "currentSha256": "1deaee4fa0a1174d19ca6583cb28e1c3c03ccabbad7ecff83056d59fa94d2fed",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-message-presentation-message-disclosure-context.test.tsx",
+      "target": "packages/conversation/ui-tool/tests/builtin-message-presentation-message-disclosure-context.test.tsx",
+      "baselineSha256": "0df4f4d58cf1695ac0e0367f5c16dbe7c992d2b2f7fc48c0d52cc7f29f842279",
+      "currentSha256": "b699e025787e3eb11f159ab7619b94f4bf150522ebc4c95775baaf210727091e",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-message-presentation-message-tool-timeline-stall.test.tsx",
+      "target": "packages/conversation/ui-tool/tests/builtin-message-presentation-message-tool-timeline-stall.test.tsx",
+      "baselineSha256": "2acd9b1d5fd3bcbc7a4a44307f16b702c1f2e9551eb9ff8c7d8b2223b98abf7f",
+      "currentSha256": "657486cb8bc151019cc6cc800cbca4376b7155e1e69c570425f3e54dfa161887",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-message-presentation-tool-diff-model.test.ts",
+      "target": "packages/conversation/ui-tool/tests/builtin-message-presentation-tool-diff-model.test.ts",
+      "baselineSha256": "2c9cdf4671ade12f6a2939c9353c137107a59b21770d5059537d884efdc73095",
+      "currentSha256": "e4ff499703fc435a880b96e4a34e8ca9548f70c5ee6a34eb775b5e4f92e4670e",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-message-presentation-tool-timeline-model.test.ts",
+      "target": "packages/conversation/ui-tool/tests/builtin-message-presentation-tool-timeline-model.test.ts",
+      "baselineSha256": "f104f4aa55a5c365bd94cff75e6234ff271c70bda463c9a27ee0d666264c8c2e",
+      "currentSha256": "f7502c5b7fd09400808b264a38e1af2578ca28a80aa1eba753ecedf99738728a",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/tool-call.test.tsx",
+      "target": "packages/conversation/ui-tool/tests/tool-call.test.tsx",
+      "baselineSha256": "9511b36a41d027d04f1a650d4e86912ff6eddf43869c7e7d6bb5a49525fcd76c",
+      "currentSha256": "5b854c6fee2b8f4a7177fd99d1c5693ca88e27dcb2d1c97a494686157ee26453",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-agent-controls/lib/model-selector-models.ts",
+      "target": "packages/client/ui-model-selection/lib/model-selector-models.ts",
+      "baselineSha256": "d6a0e4d28ed2459f9b54d4575f896e571a2b6bd5afa72c1fb3c03a149eb76813",
+      "currentSha256": "d6a0e4d28ed2459f9b54d4575f896e571a2b6bd5afa72c1fb3c03a149eb76813",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/lib/model-selector-state.ts",
+      "target": "packages/client/ui-model-selection/lib/model-selector-state.ts",
+      "baselineSha256": "5477732a83fd5c4537c0f23a84a29aeaf30350524cc5df3c66deca22b7fd5e89",
+      "currentSha256": "5477732a83fd5c4537c0f23a84a29aeaf30350524cc5df3c66deca22b7fd5e89",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/lib/reasoning-effort-label.ts",
+      "target": "packages/client/ui-model-selection/lib/reasoning-effort-label.ts",
+      "baselineSha256": "cf9ff0f0428fe43d7b1f6b2783da783ed3b33037436d86186f427e3ec15fa9fa",
+      "currentSha256": "740cc121f1b58836d8aa393a0782558010e9a9257b3b0d7c03eeead0c2d97a9f",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/src/model-selector-extension.ts",
+      "target": "packages/client/ui-model-selection/src/model-selector-extension.ts",
+      "baselineSha256": "b356dd68b90c868fadd979eb7ed9b082e56a7bf90bc23ed9a214f894c4efbf77",
+      "currentSha256": "b356dd68b90c868fadd979eb7ed9b082e56a7bf90bc23ed9a214f894c4efbf77",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/src/model-selector-index.ts",
+      "target": "packages/client/ui-model-selection/src/model-selector-index.ts",
+      "baselineSha256": "be00492ecf8f775cfbc515d965d966020b87e4b8347fa820a1d7bbeecc9e4f2b",
+      "currentSha256": "be00492ecf8f775cfbc515d965d966020b87e4b8347fa820a1d7bbeecc9e4f2b",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/src/model-selector-store.ts",
+      "target": "packages/client/ui-model-selection/src/model-selector-store.ts",
+      "baselineSha256": "3790c504929d53fdb1a0c7c059ad3ab6910ca3aa762f3f103f55b306677a1d52",
+      "currentSha256": "3790c504929d53fdb1a0c7c059ad3ab6910ca3aa762f3f103f55b306677a1d52",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/src/model-selector-view.tsx",
+      "target": "packages/client/ui-model-selection/src/model-selector-view.tsx",
+      "baselineSha256": "70f45c5193d432fc73a2cbe5262bf44bf68ba7c7ac4f1fe3538d5cc68c3d51c5",
+      "currentSha256": "70f45c5193d432fc73a2cbe5262bf44bf68ba7c7ac4f1fe3538d5cc68c3d51c5",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/src/model-selector.tsx",
+      "target": "packages/client/ui-model-selection/src/model-selector.tsx",
+      "baselineSha256": "abfefc9077422927a94f4447f5ee2cc37228d397eeee394d39af4f54e42254fb",
+      "currentSha256": "baff36a4b32875accb70ae23abcbec4b15d3475e2ef1ba5804764e341b4f0ab1",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/src/models.ts",
+      "target": "packages/client/ui-model-selection/src/models.ts",
+      "baselineSha256": "9da18e8e849f1e95756c12ddf2182af45c32aeb8ec1c45ffa498872b389c7ac7",
+      "currentSha256": "9da18e8e849f1e95756c12ddf2182af45c32aeb8ec1c45ffa498872b389c7ac7",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/src/reasoning.ts",
+      "target": "packages/client/ui-model-selection/src/reasoning.ts",
+      "baselineSha256": "4992f5ae55772dc6e40da8ba7e4b900a09a50f44f5b5bb1ddd6315e617a35b8c",
+      "currentSha256": "4992f5ae55772dc6e40da8ba7e4b900a09a50f44f5b5bb1ddd6315e617a35b8c",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/tests/model-selector-models.test.ts",
+      "target": "packages/client/ui-model-selection/tests/model-selector-models.test.ts",
+      "baselineSha256": "81d9bdc4cfcfb22e1e03657da3c32ab432766107e6b6f30e4e0b16ab9795a9e6",
+      "currentSha256": "81d9bdc4cfcfb22e1e03657da3c32ab432766107e6b6f30e4e0b16ab9795a9e6",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-agent-controls/tests/model-selector-state.test.ts",
+      "target": "packages/client/ui-model-selection/tests/model-selector-state.test.ts",
+      "baselineSha256": "a06c0a1332ab5bfafb386ce4b9e428090351d749ef757087d99f65003866eeb0",
+      "currentSha256": "a06c0a1332ab5bfafb386ce4b9e428090351d749ef757087d99f65003866eeb0",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-agent-controls/tests/model-selector-view.test.tsx",
+      "target": "packages/client/ui-model-selection/tests/model-selector-view.test.tsx",
+      "baselineSha256": "c9f0b02f55b857603a76b7652a21e4391f4a7687190cec4891754a2bbdd422d5",
+      "currentSha256": "c9f0b02f55b857603a76b7652a21e4391f4a7687190cec4891754a2bbdd422d5",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-agent-controls/tests/reasoning-effort-label.test.ts",
+      "target": "packages/client/ui-model-selection/tests/reasoning-effort-label.test.ts",
+      "baselineSha256": "708d00b9ee06879ec938de118e6fbe5d64e922ff3a9a1d02d49acb13f3a1ed9e",
+      "currentSha256": "e47a18835fd92fd6d49040ffc7ababf0d05ffcbb693030005f299a3fd8987a38",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-agent-controls/lib/token-animation.ts",
+      "target": "packages/client/ui-token-usage/lib/token-animation.ts",
+      "baselineSha256": "c59d1ae3feb1997bd5b803333d8d60530b280f760eefb98aaae89abddb1204b3",
+      "currentSha256": "c59d1ae3feb1997bd5b803333d8d60530b280f760eefb98aaae89abddb1204b3",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/lib/token-throughput.ts",
+      "target": "packages/client/ui-token-usage/lib/token-throughput.ts",
+      "baselineSha256": "a539882a628588d712df70f4b49dcbe6b177fa24f515c4de83d49870eeeb1aa2",
+      "currentSha256": "a539882a628588d712df70f4b49dcbe6b177fa24f515c4de83d49870eeeb1aa2",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/src/token-usage-extension.ts",
+      "target": "packages/client/ui-token-usage/src/token-usage-extension.ts",
+      "baselineSha256": "67891f64089ca5399903d5ddb5c68fd19b2a844249a53aee70ce7a13cf11a128",
+      "currentSha256": "67891f64089ca5399903d5ddb5c68fd19b2a844249a53aee70ce7a13cf11a128",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/src/token-usage-index.ts",
+      "target": "packages/client/ui-token-usage/src/token-usage-index.ts",
+      "baselineSha256": "328648205609efdd90e407c9cb87f6a8b7f807d47d5a3df407c585dc9dcfaec5",
+      "currentSha256": "328648205609efdd90e407c9cb87f6a8b7f807d47d5a3df407c585dc9dcfaec5",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/src/token-usage-section.tsx",
+      "target": "packages/client/ui-token-usage/src/token-usage-section.tsx",
+      "baselineSha256": "7072a9cee2428d98c49e8c1ea7ebe20a88b44f00e4cbd73079257efe5b98c93e",
+      "currentSha256": "7072a9cee2428d98c49e8c1ea7ebe20a88b44f00e4cbd73079257efe5b98c93e",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/src/token-usage.tsx",
+      "target": "packages/client/ui-token-usage/src/token-usage.tsx",
+      "baselineSha256": "4dde82c391e5d31af4067c00bce38a3da69aee8aefbf2f3cec53b514bde82ed0",
+      "currentSha256": "29f1cb3b6f3feeb13659d915e4db064606fb8a9ea8113bba6c87df85a20030c9",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-agent-controls/tests/token-animation.test.ts",
+      "target": "packages/client/ui-token-usage/tests/token-animation.test.ts",
+      "baselineSha256": "fc3628695e74bf24ac6a54828c727591934549839e976dde32fd2e551407ec17",
+      "currentSha256": "fc3628695e74bf24ac6a54828c727591934549839e976dde32fd2e551407ec17",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-agent-controls/tests/token-throughput.test.ts",
+      "target": "packages/client/ui-token-usage/tests/token-throughput.test.ts",
+      "baselineSha256": "9bb87f27f9f6b8a9c197b553daeeb7fb38ae490294e293f0edf40da4cbbf83d1",
+      "currentSha256": "9bb87f27f9f6b8a9c197b553daeeb7fb38ae490294e293f0edf40da4cbbf83d1",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-agent-controls/tests/token-usage-section.test.tsx",
+      "target": "packages/client/ui-token-usage/tests/token-usage-section.test.tsx",
+      "baselineSha256": "73dc6826c51c5a80c645976dc2f7d88f10c326666040a89669f7e988515f8cfa",
+      "currentSha256": "73dc6826c51c5a80c645976dc2f7d88f10c326666040a89669f7e988515f8cfa",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-settings/lib/appearance-settings-pages.ts",
+      "target": "packages/client/ui-theme/lib/appearance-settings-pages.ts",
+      "baselineSha256": "6cc7e69b2edf800c27344aa46a449b2184decc70ac528152cff9af3fb1f9bdc2",
+      "currentSha256": "6cc7e69b2edf800c27344aa46a449b2184decc70ac528152cff9af3fb1f9bdc2",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/lib/normalize-hex-color.ts",
+      "target": "packages/client/ui-theme/lib/normalize-hex-color.ts",
+      "baselineSha256": "1d847b0367bc132047ebc5ddbfb148988d322f8d1be18d7165629dc1f928671e",
+      "currentSha256": "1d847b0367bc132047ebc5ddbfb148988d322f8d1be18d7165629dc1f928671e",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/src/appearance-background.css",
+      "target": "packages/client/ui-theme/src/appearance-background.css",
+      "baselineSha256": "113a889b99013f400e150e69d9e029e75924313cda0fe7e7c7484d3227326010",
+      "currentSha256": "113a889b99013f400e150e69d9e029e75924313cda0fe7e7c7484d3227326010",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/src/appearance-background.tsx",
+      "target": "packages/client/ui-theme/src/appearance-background.tsx",
+      "baselineSha256": "11f472a238d83af38e8c44040e7f45397654bf134a0e95a720447d1887160491",
+      "currentSha256": "11f472a238d83af38e8c44040e7f45397654bf134a0e95a720447d1887160491",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/src/appearance-extension.ts",
+      "target": "packages/client/ui-theme/src/appearance-extension.ts",
+      "baselineSha256": "da4ed1056255be8c4d42d08d1e1c6689dddc8c89e81527d1e919a18c0379caab",
+      "currentSha256": "5ca6171bd62e375d99040c099d26b8837feb66d42e1020624307c544a07e2b14",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/src/appearance-index.ts",
+      "target": "packages/client/ui-theme/src/appearance-index.ts",
+      "baselineSha256": "637b3f7f7045aa11824a97404a9989c2f3f0a193ec6095cdea0e82da087c38c4",
+      "currentSha256": "637b3f7f7045aa11824a97404a9989c2f3f0a193ec6095cdea0e82da087c38c4",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/src/appearance-reset-action.tsx",
+      "target": "packages/client/ui-theme/src/appearance-reset-action.tsx",
+      "baselineSha256": "03ad4473e3926a7ae3590d5f6961d4539d0239e141d446f320cc011a8f7071d8",
+      "currentSha256": "03c3f60d14cce3c1d6afcdd1092bb633b71dfcd4c2aec27f268a7a11843c6d9a",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/src/appearance-settings-item.tsx",
+      "target": "packages/client/ui-theme/src/appearance-settings-item.tsx",
+      "baselineSha256": "4e988391ce1d87e8d9827f6cbc3543fbdd4ba7596d93d63e9d3453a211cddadb",
+      "currentSha256": "31f559fd56aef2057edc78741212b085d7ac45077755598cf8b99b0aaa1048a1",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/src/background-image-store.ts",
+      "target": "packages/client/ui-theme/src/background-image-store.ts",
+      "baselineSha256": "64f07c67c4b7cb9f19eb5522458d910e2fbb915536560670ee06fd04161a68d1",
+      "currentSha256": "64f07c67c4b7cb9f19eb5522458d910e2fbb915536560670ee06fd04161a68d1",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/src/color-picker.css",
+      "target": "packages/client/ui-theme/src/color-picker.css",
+      "baselineSha256": "f895a5d34db13f4707aa25377d2a44e37ad906558797cd385f513c3731b5ae6e",
+      "currentSha256": "f895a5d34db13f4707aa25377d2a44e37ad906558797cd385f513c3731b5ae6e",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/src/color-picker.tsx",
+      "target": "packages/client/ui-theme/src/color-picker.tsx",
+      "baselineSha256": "4cd4518cba554f75006e0be4bdfb991b4aca90d078205bb4ef03abd76f493f62",
+      "currentSha256": "7565635236d9476d0a808a15f4d4b83a4bd1a6da52d9a9818326155995870e08",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/tests/appearance-background.test.ts",
+      "target": "packages/client/ui-theme/tests/appearance-background.test.ts",
+      "baselineSha256": "e3d70cf80113bf0e88c7e84c7bc46dcf56fc988520229ecb3eeb94423544b0e9",
+      "currentSha256": "e3d70cf80113bf0e88c7e84c7bc46dcf56fc988520229ecb3eeb94423544b0e9",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-settings/tests/appearance-settings-pages.test.ts",
+      "target": "packages/client/ui-theme/tests/appearance-settings-pages.test.ts",
+      "baselineSha256": "d3f51bd3f9ad1b5fc79273ac92f4e8f14fbc4eba5d70a7fabade360dedc5b81c",
+      "currentSha256": "d3f51bd3f9ad1b5fc79273ac92f4e8f14fbc4eba5d70a7fabade360dedc5b81c",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-settings/tests/background-image-store.test.ts",
+      "target": "packages/client/ui-theme/tests/background-image-store.test.ts",
+      "baselineSha256": "8a9f9ab78d20fed1fbffa9220049ceb4af177d175bbaf4f72e8b4d30d0757606",
+      "currentSha256": "8a9f9ab78d20fed1fbffa9220049ceb4af177d175bbaf4f72e8b4d30d0757606",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-settings/tests/color-picker.test.ts",
+      "target": "packages/client/ui-theme/tests/color-picker.test.ts",
+      "baselineSha256": "33404f54c726e837605528ae2c025209d7e23c654d60dd9db1db53f4acca5b3a",
+      "currentSha256": "33404f54c726e837605528ae2c025209d7e23c654d60dd9db1db53f4acca5b3a",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-settings/lib/locale-display-name.ts",
+      "target": "packages/client/ui-settings-general/lib/locale-display-name.ts",
+      "baselineSha256": "30c5333c083b9c2a0618d16c816ff916107d2adf6d6b9660c4de782c62fb4f8b",
+      "currentSha256": "30c5333c083b9c2a0618d16c816ff916107d2adf6d6b9660c4de782c62fb4f8b",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/src/conversation-settings-item.tsx",
+      "target": "packages/client/ui-settings-general/src/conversation-settings-item.tsx",
+      "baselineSha256": "13524c62a9cbaf72ae067b215c933cf5c43e0bd9e780487279f7f543a42186b4",
+      "currentSha256": "a3e12ee13490e0cfec59a03018455709f8ac2ae07bb096c0c879f30f0cc49528",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/src/locale-selector-extension.ts",
+      "target": "packages/client/ui-settings-general/src/locale-selector-extension.ts",
+      "baselineSha256": "105de02fde6f84b240965739a6427e4663e3a1f4ece7677b0bbd267eca4d9fb5",
+      "currentSha256": "5624d3dca09dfbe8491c413db2cf7748559f108af2ca4b0c47fb3f91b5c7a1b5",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/src/locale-selector-index.ts",
+      "target": "packages/client/ui-settings-general/src/locale-selector-index.ts",
+      "baselineSha256": "47dca0c64d92bfb67c149c64c2006cf0167dccbd94baa83132f23cbb7bfb647b",
+      "currentSha256": "47dca0c64d92bfb67c149c64c2006cf0167dccbd94baa83132f23cbb7bfb647b",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/src/locale-selector.tsx",
+      "target": "packages/client/ui-settings-general/src/locale-selector.tsx",
+      "baselineSha256": "aa9a16acc503968b01ea8eade01fafbce5bcf8649532e1f85c5bc93c2c0ec1ef",
+      "currentSha256": "f66f57d6173f7483ad76899457a82a99a742448517843b948ddf3aedfca82bea",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-settings/tests/locale-display-name.test.ts",
+      "target": "packages/client/ui-settings-general/tests/locale-display-name.test.ts",
+      "baselineSha256": "6929f8851a32490efc2d734da9999a2ab503f4cd76ea885aae408e1e5a3111b4",
+      "currentSha256": "6929f8851a32490efc2d734da9999a2ab503f4cd76ea885aae408e1e5a3111b4",
+      "test": true
+    },
+    {
+      "source": "packages/pi/pi-ui-settings/lib/model-config-draft.ts",
+      "target": "packages/pi/pi-ui-settings-models/lib/model-config-draft.ts",
+      "baselineSha256": "9d8ef08f0c0053d468804bf9069717e9ce28925879e425c3d31c5f23e55e768d",
+      "currentSha256": "9d8ef08f0c0053d468804bf9069717e9ce28925879e425c3d31c5f23e55e768d",
+      "test": false
+    },
+    {
+      "source": "packages/pi/pi-ui-settings/lib/model-provider-credential-links.ts",
+      "target": "packages/pi/pi-ui-settings-models/lib/model-provider-credential-links.ts",
+      "baselineSha256": "ff87f2383dffae4c371a017d491fe6f01d55947f991feb34332131417cd748bb",
+      "currentSha256": "ff87f2383dffae4c371a017d491fe6f01d55947f991feb34332131417cd748bb",
+      "test": false
+    },
+    {
+      "source": "packages/pi/pi-ui-settings/src/model-config-model-row.tsx",
+      "target": "packages/pi/pi-ui-settings-models/src/model-config-model-row.tsx",
+      "baselineSha256": "8c2f36a95380d64776a7f1de6a49196d5d8751da817143b5a468aeb2be5c8fbd",
+      "currentSha256": "6b7fa082309b1c3e604e307e688a93a78d93a53b75c76195dea9ab0b939fa032",
+      "test": false
+    },
+    {
+      "source": "packages/pi/pi-ui-settings/src/model-config-settings-item.tsx",
+      "target": "packages/pi/pi-ui-settings-models/src/model-config-settings-item.tsx",
+      "baselineSha256": "01be722efb7f2656f4ec8d4080c3f25496c9fba5232a506961df09c21366bbc1",
+      "currentSha256": "6d37b92efb790ce169bad8c33886c4c024bcf489a587e225d8576d308410f743",
+      "test": false
+    },
+    {
+      "source": "packages/pi/pi-ui-settings/src/setting-model-config-extension.ts",
+      "target": "packages/pi/pi-ui-settings-models/src/setting-model-config-extension.ts",
+      "baselineSha256": "3f45ad0c55b4846d1cab8013c7472326db7b34b3ca3209727ed1995250f2a4ef",
+      "currentSha256": "8d48ab558949a97866479f0540d1fe47b6768630f813400a2082e637c355d53a",
+      "test": false
+    },
+    {
+      "source": "packages/pi/pi-ui-settings/src/setting-model-config-index.ts",
+      "target": "packages/pi/pi-ui-settings-models/src/setting-model-config-index.ts",
+      "baselineSha256": "cd7d47fe30aac4d290a767c522c4bf8911bdd6be38be51a58c07677bdca1948d",
+      "currentSha256": "cd7d47fe30aac4d290a767c522c4bf8911bdd6be38be51a58c07677bdca1948d",
+      "test": false
+    },
+    {
+      "source": "packages/pi/pi-ui-settings/src/use-model-config-autosave.ts",
+      "target": "packages/pi/pi-ui-settings-models/src/use-model-config-autosave.ts",
+      "baselineSha256": "f5403e8ca451dd437becd2b562e4850631ed64bf677ba78f2084ce3b075cff45",
+      "currentSha256": "f5403e8ca451dd437becd2b562e4850631ed64bf677ba78f2084ce3b075cff45",
+      "test": false
+    },
+    {
+      "source": "packages/pi/pi-ui-settings/src/use-model-test-feedback.ts",
+      "target": "packages/pi/pi-ui-settings-models/src/use-model-test-feedback.ts",
+      "baselineSha256": "67a6b292195605406793730559c49b0d775d1c7a8346a9061bab0d95df8f135c",
+      "currentSha256": "67a6b292195605406793730559c49b0d775d1c7a8346a9061bab0d95df8f135c",
+      "test": false
+    },
+    {
+      "source": "packages/pi/pi-ui-settings/tests/model-config-draft.test.ts",
+      "target": "packages/pi/pi-ui-settings-models/tests/model-config-draft.test.ts",
+      "baselineSha256": "fa19ec4e90073c17a0442f52e49ef45c8ea26340fad50e8f6a25ce114160d5db",
+      "currentSha256": "fa19ec4e90073c17a0442f52e49ef45c8ea26340fad50e8f6a25ce114160d5db",
+      "test": true
+    },
+    {
+      "source": "packages/pi/pi-ui-settings/tests/model-config-model-row.test.tsx",
+      "target": "packages/pi/pi-ui-settings-models/tests/model-config-model-row.test.tsx",
+      "baselineSha256": "126bd41cdde473ddc5778309abdd79062a3a666d428483376e05263e1b72db4c",
+      "currentSha256": "9c483a6a2ee2432298ced782de5c1952b24b2a4a067ddaf72259e52f77936be6",
+      "test": true
+    },
+    {
+      "source": "packages/pi/pi-ui-settings/tests/model-provider-credential-links.test.ts",
+      "target": "packages/pi/pi-ui-settings-models/tests/model-provider-credential-links.test.ts",
+      "baselineSha256": "27f85c921d6b6d547c861f775c6cc3f6075040afbd9a7b6990ff97e9a9efc0bd",
+      "currentSha256": "27f85c921d6b6d547c861f775c6cc3f6075040afbd9a7b6990ff97e9a9efc0bd",
+      "test": true
+    },
+    {
+      "source": "packages/pi/pi-ui-settings/tests/use-model-config-autosave.test.tsx",
+      "target": "packages/pi/pi-ui-settings-models/tests/use-model-config-autosave.test.tsx",
+      "baselineSha256": "7baa680fe70a4ca8d2705ed3200808a9387690e8d13c7ed4180b7fb2511d732d",
+      "currentSha256": "7baa680fe70a4ca8d2705ed3200808a9387690e8d13c7ed4180b7fb2511d732d",
+      "test": true
+    },
+    {
+      "source": "packages/pi/pi-ui-settings/tests/use-model-test-feedback.test.tsx",
+      "target": "packages/pi/pi-ui-settings-models/tests/use-model-test-feedback.test.tsx",
+      "baselineSha256": "8e294fbe1a326335c6b59cf8e1156d66a1d5f63eba2c5522b0bc207d3faacad1",
+      "currentSha256": "8e294fbe1a326335c6b59cf8e1156d66a1d5f63eba2c5522b0bc207d3faacad1",
+      "test": true
+    }
+  ],
+  "partialExtractions": [
+    {
+      "source": "packages/client/ui-settings/src/settings-sidebar.tsx",
+      "target": "packages/client/ui-settings/lib/settings-section-search.ts",
+      "contract": "Unchanged normalizeSearchText/matchesSearchText/groupSettingsSections consumed by sidebar"
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-directive.tsx",
+      "target": "packages/conversation/ui-input-trigger/src/types.ts",
+      "contract": "ComposerTriggerItem type; original module type re-export only"
+    },
+    {
+      "source": "packages/conversation/composer/src/workbench-composer-view.tsx",
+      "target": "packages/conversation/ui-input-trigger/src/types.ts",
+      "contract": "WorkbenchComposerSuggestionGroup type; original module type re-export only"
+    },
+    {
+      "source": "packages/conversation/conversation/lib/message-presentation/message-presentation-policy.ts",
+      "target": "packages/conversation/ui-tool/lib/message-disclosure-policy.ts",
+      "contract": "Shared disclosure policy and default-open mapping, unique Context remains ui-tool"
+    }
+  ],
+  "publicEntryMoves": {
+    "@workbench/conversation/message-queue": "@workbench/ui-message-queue",
+    "@workbench/conversation/message-actions": "@workbench/ui-message-actions",
+    "@workbench/conversation/user-message-index.css": "@workbench/ui-user-message-index/styles.css",
+    "@workbench/conversation/user-message-index": "@workbench/ui-user-message-index",
+    "@workbench/conversation/archived-chats": "@workbench/ui-settings-archived-chats",
+    "@workbench/conversation/side-chat": "@workbench/ui-side-chat",
+    "@workbench/conversation/todo-panel": "@workbench/ui-todo",
+    "@workbench/conversation/interactive-requests": "@workbench/ui-user-questions",
+    "@workbench/ui-settings/color-picker.css": "@workbench/ui-theme/color-picker.css",
+    "@workbench/ui-settings/color-picker": "@workbench/ui-theme/color-picker",
+    "@workbench/ui-settings/styles.css": "@workbench/ui-theme/styles.css",
+    "@workbench/ui-settings/background-image": "@workbench/ui-theme/background-image",
+    "@workbench/ui-settings/background": "@workbench/ui-theme/background",
+    "@workbench/ui-agent-controls/model-selector": "@workbench/ui-model-selection/model-selector",
+    "@workbench/ui-agent-controls/selector": "@workbench/ui-model-selection/selector",
+    "@workbench/ui-agent-controls/models": "@workbench/ui-model-selection/models",
+    "@workbench/ui-agent-controls/reasoning": "@workbench/ui-model-selection/reasoning",
+    "@workbench/ui-agent-controls/token-usage": "@workbench/ui-token-usage/token-usage",
+    "@workbench/composer/attachments": "@workbench/ui-attachment"
+  },
+  "catalogAudit": {
+    "en-US": {
+      "original": 1042,
+      "current": 1042,
+      "missing": [],
+      "extra": [],
+      "changed": [],
+      "duplicates": []
+    },
+    "zh-CN": {
+      "original": 1042,
+      "current": 1042,
+      "missing": [],
+      "extra": [],
+      "changed": [],
+      "duplicates": []
+    }
+  },
+  "css": {
+    "sourceOrder": [
+      "composer shared variables",
+      "attachment dimensions",
+      "shared icon sizing",
+      "attachment icon override",
+      "shared md-lg sizing",
+      "input-trigger command colors",
+      "shared button/action sizing",
+      "attachment remove sizing"
+    ],
+    "expandedOrderAfter": [
+      "attachment dimensions/icon override/remove sizing",
+      "input-trigger command colors",
+      "retained composer shared variables/icon/button sizing"
+    ],
+    "equivalence": "Target rules are imported first by composer/src/composer-icons.css, the existing Shell/conversation icons entry. Moved declarations do not compete with retained declarations on the same element/property at equal specificity; inherited custom properties resolve at computed-value time. Text and scope are preserved.",
+    "moves": [
+      {
+        "source": "packages/conversation/composer/src/composer-icons.css",
+        "target": "packages/conversation/ui-attachment/src/styles.css",
+        "selectors": [
+          ".aui-composer-attachments",
+          ".aui-composer-attachments:has(> :nth-child(3))",
+          ".aui-composer-attachment-image",
+          ".aui-composer-attachment-text",
+          ".aui-composer-icon-size-attachment override",
+          ".aui-composer-attachment-remove"
+        ]
+      },
+      {
+        "source": "packages/conversation/composer/src/composer-icons.css",
+        "target": "packages/conversation/ui-input-trigger/src/styles.css",
+        "selectors": [".aui-composer-command-icon-*", ".aui-composer-command-token-icon-accent"]
+      }
+    ],
+    "retained": [
+      {
+        "source": "packages/conversation/conversation/src/chat-icons.css",
+        "reason": "Every rule is shared with remaining conversation renderers/message actions; tool only consumes the shared .aui-chat-icon-size-default selector."
+      }
+    ],
+    "wholeFiles": [
+      {
+        "source": "packages/conversation/conversation/src/message-queue/message-queue.css",
+        "target": "packages/conversation/ui-message-queue/src/message-queue.css",
+        "baselineSha256": "a217d7efc17955f4eab3f476920817c758d6bde8219c8f53e343a02d5bb0ae0d",
+        "currentSha256": "a217d7efc17955f4eab3f476920817c758d6bde8219c8f53e343a02d5bb0ae0d",
+        "test": false
+      },
+      {
+        "source": "packages/conversation/conversation/src/user-message-index/user-message-index.css",
+        "target": "packages/conversation/ui-user-message-index/src/user-message-index.css",
+        "baselineSha256": "580bbfcbf7ef82b8b888e8b760cb73db3f0aec5839459b4ec90fb4945635406b",
+        "currentSha256": "580bbfcbf7ef82b8b888e8b760cb73db3f0aec5839459b4ec90fb4945635406b",
+        "test": false
+      },
+      {
+        "source": "packages/client/ui-settings/src/appearance-background.css",
+        "target": "packages/client/ui-theme/src/appearance-background.css",
+        "baselineSha256": "113a889b99013f400e150e69d9e029e75924313cda0fe7e7c7484d3227326010",
+        "currentSha256": "113a889b99013f400e150e69d9e029e75924313cda0fe7e7c7484d3227326010",
+        "test": false
+      },
+      {
+        "source": "packages/client/ui-settings/src/color-picker.css",
+        "target": "packages/client/ui-theme/src/color-picker.css",
+        "baselineSha256": "f895a5d34db13f4707aa25377d2a44e37ad906558797cd385f513c3731b5ae6e",
+        "currentSha256": "f895a5d34db13f4707aa25377d2a44e37ad906558797cd385f513c3731b5ae6e",
+        "test": false
+      }
+    ]
+  },
+  "tests": {
+    "baselineCount": 636,
+    "preservedCount": 636,
+    "missing": [],
+    "safeFiles": [
+      "packages/client/ui-model-selection/tests/model-selector-models.test.ts",
+      "packages/client/ui-model-selection/tests/reasoning-effort-label.test.ts",
+      "packages/client/ui-settings-general/tests/locale-display-name.test.ts",
+      "packages/client/ui-theme/tests/color-picker.test.ts",
+      "packages/client/ui-token-usage/tests/token-animation.test.ts",
+      "packages/client/ui-token-usage/tests/token-throughput.test.ts",
+      "packages/conversation/ui-attachment/tests/composer-image-paste.test.ts",
+      "packages/conversation/ui-attachment/tests/composer-text-paste.test.ts",
+      "packages/conversation/ui-input-trigger/tests/agent-command.test.ts",
+      "packages/conversation/ui-input-trigger/tests/composer-command-argument-hint.test.ts",
+      "packages/conversation/ui-input-trigger/tests/composer-command-arguments.test.ts",
+      "packages/conversation/ui-input-trigger/tests/composer-command-group-order.test.ts",
+      "packages/conversation/ui-input-trigger/tests/composer-command-icon-color.test.ts",
+      "packages/conversation/ui-input-trigger/tests/composer-command-parameter-panel.test.ts",
+      "packages/conversation/ui-input-trigger/tests/composer-trigger-engine.test.ts",
+      "packages/conversation/ui-message-actions/tests/builtin-message-actions-fork-availability.test.ts",
+      "packages/conversation/ui-message-actions/tests/builtin-message-actions-message-performance-statistics.test.ts",
+      "packages/conversation/ui-message-actions/tests/builtin-message-actions-message-performance-visibility.test.ts",
+      "packages/conversation/ui-message-queue/tests/builtin-message-queue-message-queue-preview.test.ts",
+      "packages/conversation/ui-settings-archived-chats/tests/builtin-archived-chats-archived-chat-group-a11y.test.ts",
+      "packages/conversation/ui-side-chat/tests/builtin-side-chat-scratch-session-lease.test.ts",
+      "packages/conversation/ui-side-chat/tests/builtin-side-chat-side-chat-navigation.test.ts",
+      "packages/conversation/ui-side-chat/tests/builtin-side-chat-side-chat-workspace.test.ts",
+      "packages/conversation/ui-todo/tests/todo-model.test.ts",
+      "packages/conversation/ui-user-message-index/tests/builtin-user-message-index-user-message-index-layout.test.ts",
+      "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-ask-user-tool-model.test.ts",
+      "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-interaction-form-state.test.ts",
+      "packages/pi/pi-ui-settings-models/tests/model-provider-credential-links.test.ts"
+    ],
+    "excluded": {
+      "packages/client/ui-model-selection/tests/model-selector-state.test.ts": ["react", "window."],
+      "packages/client/ui-model-selection/tests/model-selector-view.test.tsx": [
+        "ResizeObserver",
+        "act(",
+        "cancelAnimationFrame",
+        "createRoot",
+        "document.",
+        "react",
+        "requestAnimationFrame",
+        "window."
+      ],
+      "packages/client/ui-theme/tests/appearance-background.test.ts": [
+        "document.",
+        "instanceof HTMLElement",
+        "react",
+        "window."
+      ],
+      "packages/client/ui-theme/tests/appearance-settings-pages.test.ts": ["react", "window."],
+      "packages/client/ui-theme/tests/background-image-store.test.ts": ["react", "window."],
+      "packages/client/ui-token-usage/tests/token-usage-section.test.tsx": [
+        "ResizeObserver",
+        "act(",
+        "createRoot",
+        "react",
+        "renderToStaticMarkup",
+        "window."
+      ],
+      "packages/conversation/ui-attachment/tests/composer-attachments.test.tsx": [
+        "ResizeObserver",
+        "cancelAnimationFrame",
+        "react",
+        "renderToStaticMarkup",
+        "requestAnimationFrame",
+        "window."
+      ],
+      "packages/conversation/ui-todo/tests/builtin-todo-panel-todo-panel.test.tsx": [
+        "ResizeObserver",
+        "act(",
+        "createRoot",
+        "react",
+        "renderToStaticMarkup",
+        "requestAnimationFrame",
+        "window."
+      ],
+      "packages/conversation/ui-tool/tests/builtin-message-presentation-message-disclosure-context.test.tsx": [
+        "act(",
+        "createRoot",
+        "react"
+      ],
+      "packages/conversation/ui-tool/tests/builtin-message-presentation-message-tool-timeline-stall.test.tsx": [
+        "MutationObserver",
+        "ResizeObserver",
+        "act(",
+        "createRoot",
+        "document.",
+        "instanceof HTMLElement",
+        "react",
+        "requestAnimationFrame",
+        "setInterval",
+        "window."
+      ],
+      "packages/conversation/ui-tool/tests/builtin-message-presentation-tool-diff-model.test.ts": [
+        "MutationObserver",
+        "ResizeObserver",
+        "document.",
+        "instanceof HTMLElement",
+        "react",
+        "requestAnimationFrame",
+        "window."
+      ],
+      "packages/conversation/ui-tool/tests/builtin-message-presentation-tool-timeline-model.test.ts": [
+        "react"
+      ],
+      "packages/conversation/ui-tool/tests/tool-call.test.tsx": [
+        "ResizeObserver",
+        "react",
+        "renderToStaticMarkup",
+        "window."
+      ],
+      "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-ask-user-panel.test.tsx": [
+        "ResizeObserver",
+        "react",
+        "renderToStaticMarkup",
+        "setInterval",
+        "window."
+      ],
+      "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-ask-user-preferences.test.ts": [
+        "react",
+        "window."
+      ],
+      "packages/conversation/ui-user-questions/tests/builtin-interactive-requests-ask-user-tool-presentation.test.ts": [
+        "ResizeObserver",
+        "react",
+        "setInterval",
+        "window."
+      ],
+      "packages/pi/pi-ui-settings-models/tests/model-config-draft.test.ts": ["window."],
+      "packages/pi/pi-ui-settings-models/tests/model-config-model-row.test.tsx": [
+        "ResizeObserver",
+        "react",
+        "renderToStaticMarkup",
+        "window."
+      ],
+      "packages/pi/pi-ui-settings-models/tests/use-model-config-autosave.test.tsx": [
+        "act(",
+        "createRoot",
+        "react",
+        "window."
+      ],
+      "packages/pi/pi-ui-settings-models/tests/use-model-test-feedback.test.tsx": [
+        "act(",
+        "createRoot",
+        "react"
+      ]
+    },
+    "exclusionSummary": {
+      "React/render/hook load chain": 19,
+      "DOM/browser/observer/RAF": 17,
+      "timer-driven": 3
+    },
+    "note": "The supplied baseline artifact contains 636 paths, not 535; all 636 resolve after applying spec004-all-map.json."
+  }
+}

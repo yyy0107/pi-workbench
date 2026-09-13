@@ -9,3 +9,5 @@ Shell assembles capability CSS and global tokens in the original cascade order. 
 Source roles: src/ owns real primitive implementation and dictionaries/styles; lib/ contains consumed clipboard, keyboard and class-name helpers. Both source roots remain shallow TypeScript. tests/ preserves existing coverage; UI tests are excluded by user for Spec 003.
 
 源码职责：src 为真实控件实现及共置资源，lib 为被消费的内部辅助，均保留浅层 TS/TSX。示例：src/components/avatar.tsx → lib/utils.ts。
+
+Base UI tests no longer import ui-selectors; selector assertions belong to that capability package.

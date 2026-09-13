@@ -14,3 +14,5 @@ pnpm --filter @workbench/code-highlighting test
 ```
 
 源码分工：src 承载本包能力与契约，lib 仅放实际使用的内部辅助，tests 为包根测试。实际消费者示例：`src/index.ts` 引用 `lib/code-highlight-policy.ts`。实现保留 TS/TSX；既有构建工具保持原语言。
+
+代码标题栏控件尺寸与标题栏共置于 code-block.css；工具协议适配不属于本渲染能力。

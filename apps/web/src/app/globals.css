@@ -9,8 +9,6 @@
 @source "../../../../packages/client/*/lib/**/*.{ts,tsx}";
 @source "../../../../packages/workspace/*/src/**/*.{ts,tsx}";
 @source "../../../../packages/workspace/*/lib/**/*.{ts,tsx}";
-@source "../../../../packages/conversation/*/src/**/*.{ts,tsx}";
-@source "../../../../packages/conversation/*/lib/**/*.{ts,tsx}";
 @source "../../../../packages/pi/*/src/**/*.{ts,tsx}";
 @source "../../../../packages/pi/*/lib/**/*.{ts,tsx}";
 

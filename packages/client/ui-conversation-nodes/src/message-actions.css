@@ -1,0 +1,54 @@
+@layer components {
+  [data-slot="message-actions"] :where(button[data-slot]) {
+    --button-icon-size: var(--icon-size-sm);
+    --button-icon-frame-size: var(--icon-frame-size-sm);
+    --button-icon-radius: var(--icon-frame-radius-sm);
+  }
+  [data-slot="message-actions"] .aui-button-icon {
+    --button-icon-frame-size: var(--message-action-size, var(--icon-frame-size-compact));
+    --button-icon-radius: var(--icon-frame-radius-sm);
+    --message-action-hit-padding: max(
+      0px,
+      calc((var(--icon-frame-size-default) - var(--button-icon-frame-size)) / 2)
+    );
+    position: relative;
+    margin: var(--message-action-hit-padding);
+  }
+
+  /* Preserve the original hit area around the compact visible action frame. */
+  [data-slot="message-actions"] .aui-button-icon::after {
+    content: "";
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: var(--icon-frame-size-default);
+    height: var(--icon-frame-size-default);
+    translate: -50% -50%;
+  }
+}
+[data-slot="user-message-content"] {
+  --message-enter-duration: var(--layout-state-motion-duration);
+  --message-enter-distance: calc(var(--control-hit-default) / 3);
+}
+:where([data-slot="workbench-conversation"])
+  [data-slot="user-message-content"][data-animate-enter] {
+  transform-origin: bottom right;
+  animation: user-message-enter var(--message-enter-duration) var(--layout-motion-ease) backwards;
+}
+
+@keyframes user-message-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--message-enter-distance)) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where([data-slot="workbench-conversation"])
+    [data-slot="user-message-content"][data-animate-enter] {
+    animation: none;
+  }
+}

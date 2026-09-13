@@ -10,7 +10,7 @@
 
 ## Conversation UI
 
-- Conversation UI 的共享实现与词典由 `packages/conversation/conversation/src/` 与 `src/i18n/chat/` 拥有；Web wrapper 只注入
+- Conversation UI 的共享实现与词典由 `packages/client/ui-conversation/src/` 与 `src/i18n/chat/` 拥有；Web wrapper 只注入
   已安装 bundle 或产品能力，不从 package source 深导入。
 - 用户消息、agent 输出、reasoning、Markdown、代码、附件名和工具原始输入/输出保持原样，只翻译外围控件、状态、错误和无障碍文案。
 - 数量使用复数规则；模型/provider 名保持原值。语言切换后历史消息不重写，但控件与状态标签必须重新渲染。

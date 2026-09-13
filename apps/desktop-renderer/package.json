@@ -18,7 +18,6 @@
   "dependencies": {
     "@workbench/agent-runtime-client": "workspace:*",
     "@workbench/appearance": "workspace:*",
-    "@workbench/conversation": "workspace:*",
     "@workbench/desktop-contracts": "workspace:*",
     "@workbench/extension-host": "workspace:*",
     "@workbench/extension-sdk": "workspace:*",
@@ -29,6 +28,7 @@
     "@workbench/shell": "workspace:*",
     "@workbench/shell-context": "workspace:*",
     "@workbench/ui": "workspace:*",
+    "@workbench/ui-conversation": "workspace:*",
     "katex": "^0.16.47",
     "next": "^16.3.0",
     "react": "^19.2.8",

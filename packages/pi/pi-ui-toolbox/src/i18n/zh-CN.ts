@@ -1,6 +1,10 @@
 import type { MessageFormatters } from "@workbench/i18n/runtime";
 export const messages = {
   extensions: {
+    fileMutation: {
+      edit: { complete: "已编辑", active: "正在编辑" },
+      write: { complete: "已新增", active: "正在新增" },
+    },
     toolbox: {
       title: "工具箱",
       back: "返回工具箱",

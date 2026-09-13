@@ -1,0 +1,58 @@
+{
+  "name": "@workbench/ui-message-blocks",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./file": "./src/file.tsx",
+    "./image": "./src/image.tsx",
+    "./message-blocks": "./src/message-blocks.tsx",
+    "./message-source": "./src/message-source.tsx",
+    "./composer-command-response": "./src/composer-command-response.tsx",
+    "./composer-message-content": "./src/composer-message-content.tsx",
+    "./user-message-text-bubble": "./src/user-message-text-bubble.tsx",
+    "./error-state": "./src/error-state.tsx",
+    "./streaming-text": "./src/streaming-text.tsx",
+    "./terminal-block": "./src/terminal-block.tsx",
+    "./conversation-separator": "./src/conversation-separator.tsx",
+    "./i18n": "./src/i18n/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/code-highlighting": "workspace:*",
+    "@workbench/core-contracts": "workspace:*",
+    "@workbench/extension-host": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/markdown": "workspace:*",
+    "@workbench/ui": "workspace:*",
+    "@workbench/ui-attachment": "workspace:*",
+    "@workbench/ui-disclosure": "workspace:*",
+    "@workbench/ui-input-trigger": "workspace:*",
+    "@workbench/workspace-files": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "lucide-react": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@workbench/settings-runtime": "workspace:*",
+    "@workbench/workspace-runtime": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

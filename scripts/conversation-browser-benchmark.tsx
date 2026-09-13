@@ -14,13 +14,13 @@ import {
   longConversation,
   appendConversationDelta,
 } from "../packages/pi/pi-client/tests/fixtures/long-conversation";
-import { ConversationList } from "@workbench/conversation/list";
-import { useWorkbenchConversationViewport } from "@workbench/conversation/viewport";
-import { ThreadScrollStateProvider } from "@workbench/conversation/scroll-state";
+import { ConversationList } from "@workbench/ui-conversation-messages/list";
+import { useWorkbenchConversationViewport } from "@workbench/ui-conversation-messages/viewport";
+import { ThreadScrollStateProvider } from "@workbench/ui-conversation-messages/scroll-state";
 import { WorkbenchSettingsProvider } from "@workbench/settings-runtime";
 import { I18nProvider } from "../packages/client/shell/src/i18n";
 import { createPanelStore } from "@workbench/shell-context/panel-store";
-import { messagePresentationExtension } from "@workbench/conversation/message-presentation";
+import { messagePresentationExtension } from "@workbench/ui-conversation-nodes/message-presentation";
 import { ToastProvider } from "@workbench/ui";
 import { RightWorkspaceProvider } from "@workbench/workspace-runtime/react";
 import { WorkspaceSurfaceRegistryImpl } from "@workbench/extension-sdk/internal";

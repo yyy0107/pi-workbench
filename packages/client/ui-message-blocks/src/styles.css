@@ -1,0 +1,21 @@
+@import "./image.css";
+@import "@workbench/ui-input-trigger/styles.css";
+
+:where([data-slot="workbench-conversation"]) [data-slot="user-message-bubble"] {
+  font-family: var(--workbench-content-font, var(--font-sans));
+  font-weight: var(--workbench-content-font-weight, 400);
+}
+
+@layer components {
+  :where(
+    [data-slot="file-download"],
+    [data-slot="image-download"],
+    [data-slot="image-copy"],
+    [data-slot="image-regenerate"],
+    [data-slot="error-state"] button[data-slot]
+  ) {
+    --button-icon-size: var(--icon-size-sm);
+    --button-icon-frame-size: var(--icon-frame-size-sm);
+    --button-icon-radius: var(--icon-frame-radius-sm);
+  }
+}

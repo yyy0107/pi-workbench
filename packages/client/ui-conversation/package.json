@@ -1,0 +1,49 @@
+{
+  "name": "@workbench/ui-conversation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./title": "./src/conversation-title.ts",
+    "./i18n": "./src/i18n/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-client": "workspace:*",
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/appearance": "workspace:*",
+    "@workbench/extension-host": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/shell-context": "workspace:*",
+    "@workbench/ui": "workspace:*",
+    "@workbench/ui-composer": "workspace:*",
+    "@workbench/ui-conversation-messages": "workspace:*",
+    "get-east-asian-width": "1.6.0",
+    "lucide-react": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@workbench/code-highlighting": "workspace:*",
+    "@workbench/markdown": "workspace:*",
+    "@workbench/ui-attachment": "workspace:*",
+    "@workbench/workspace-files": "workspace:*",
+    "@workbench/workspace-runtime": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

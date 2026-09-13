@@ -1,5 +1,5 @@
 "use client";
-import { agentControlsTranslationBundle } from "@workbench/ui-agent-controls/i18n";
+import { modelSelectionTranslationBundle } from "@workbench/ui-model-selection/i18n";
 import { directoryPickerTranslationBundle } from "@workbench/workspace-directory-picker/i18n";
 import { automationUiTranslationBundle } from "./i18n";
 import { useI18n } from "@workbench/i18n";
@@ -36,8 +36,8 @@ import {
 } from "@workbench/ui";
 import { Input } from "@workbench/ui";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@workbench/ui";
-import { ModelSelector as ModelSelectorControl } from "@workbench/ui-agent-controls/selector";
-import type { ModelSelectorOption } from "@workbench/ui-agent-controls/models";
+import { ModelSelector as ModelSelectorControl } from "@workbench/ui-model-selection/selector";
+import type { ModelSelectorOption } from "@workbench/ui-model-selection/models";
 import { ProjectTrustDialog } from "@workbench/ui";
 import { Textarea } from "@workbench/ui";
 import { TimePicker } from "@workbench/ui";
@@ -68,8 +68,8 @@ import {
   modelSelection,
   modelSelectorId,
   resolveDraftSelectorModel,
-} from "@workbench/ui-agent-controls/models";
-import { reasoningEffortLabel } from "@workbench/ui-agent-controls/reasoning";
+} from "@workbench/ui-model-selection/models";
+import { reasoningEffortLabel } from "@workbench/ui-model-selection/reasoning";
 import { automationMainViewRequest, type AutomationMainViewParams } from "./automation-main-view";
 import { useAutomationTrustAdmission } from "./use-automation-trust-admission";
 import {
@@ -139,7 +139,7 @@ export function AutomationTaskForm({
   const promptId = `${domScopeId}-automation-task-prompt`;
   const workspaceTriggerId = `${domScopeId}-automation-task-workspace-trigger`;
   const { locale, t } = useI18n(automationUiTranslationBundle);
-  const { t: controlsT } = useI18n(agentControlsTranslationBundle);
+  const { t: controlsT } = useI18n(modelSelectionTranslationBundle);
   const { t: directoryT } = useI18n(directoryPickerTranslationBundle);
   const trustDialogCopy = automationProjectTrustDialogCopy(t);
   const mainViews = useMainViewService();

@@ -9,18 +9,18 @@ import { ExtensionManager } from "@workbench/extension-sdk/internal";
 import { I18nProvider } from "../../src/i18n";
 import { WorkbenchSettingsProvider } from "@workbench/settings-runtime";
 import { installMinimalReactDomEnvironment } from "@workbench/ui-testkit";
-import { interactiveRequestsExtension } from "@workbench/conversation/interactive-requests";
+import { interactiveRequestsExtension } from "@workbench/ui-user-questions";
 import {
   InteractiveQuestionComposerOverlay,
   InteractiveRequestsOverlay,
-} from "@workbench/conversation/interactive-requests";
-import { SideChatThreadMenuItem } from "@workbench/conversation/side-chat";
-import { SideChatSurface } from "@workbench/conversation/side-chat";
+} from "@workbench/ui-user-questions";
+import { SideChatThreadMenuItem } from "@workbench/ui-side-chat";
+import { SideChatSurface } from "@workbench/ui-side-chat";
 import { automationExtension } from "@workbench/ui-automation";
 import { AutomationSidebar } from "@workbench/ui-automation/sidebar";
 import { AutomationMainView } from "@workbench/ui-automation/surface";
-import { ModelSelector } from "@workbench/ui-agent-controls/model-selector";
-import { TokenUsage } from "@workbench/ui-agent-controls/token-usage";
+import { ModelSelector } from "@workbench/ui-model-selection/model-selector";
+import { TokenUsage } from "@workbench/ui-token-usage/token-usage";
 
 test("session entry points stay hidden without capabilities and restored surfaces explain why", () => {
   const wrap = (children: React.ReactNode) => (

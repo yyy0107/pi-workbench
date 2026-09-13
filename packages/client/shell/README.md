@@ -58,3 +58,5 @@ Useful checks:
 pnpm --filter @workbench/shell typecheck
 pnpm check:package-structure
 ```
+
+The installation composes conversation header data/actions and one ThreadScrollStateProvider inside RuntimeProvider for both main conversation and SideChat.

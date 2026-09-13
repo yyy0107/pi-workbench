@@ -168,14 +168,14 @@
     "nameAfter": "@workbench/core-contracts"
   },
   {
-    "from": "packages/conversation/composer",
-    "to": "packages/conversation/composer",
+    "from": "packages/client/composer",
+    "to": "packages/client/composer",
     "nameBefore": "@workbench/composer",
     "nameAfter": "@workbench/composer"
   },
   {
-    "from": "packages/conversation/conversation",
-    "to": "packages/conversation/conversation",
+    "from": "packages/client/conversation",
+    "to": "packages/client/conversation",
     "nameBefore": "@workbench/conversation",
     "nameAfter": "@workbench/conversation"
   },

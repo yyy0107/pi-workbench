@@ -105,11 +105,11 @@ node --import ./scripts/register-typescript-test-loader.mjs --test \
   packages/pi/pi-client/tests/conversation/conversation-assembler.test.ts \
   packages/pi/pi-client/tests/runtime/manager-generation.test.ts \
   packages/client/shell/tests/conversation-node-subscription.test.tsx \
-  packages/conversation/conversation/tests/workbench-conversation-viewport.test.ts \
-  packages/conversation/conversation/tests/message-action-visibility.test.ts \
-  packages/conversation/conversation/tests/workbench-message-error.test.ts \
+  packages/client/conversation/tests/workbench-conversation-viewport.test.ts \
+  packages/client/conversation/tests/message-action-visibility.test.ts \
+  packages/client/conversation/tests/workbench-message-error.test.ts \
   packages/client/shell/tests/chat/markdown-markdown-text.test.tsx \
-  packages/conversation/conversation/tests/thread-scroll-state.test.tsx \
+  packages/client/conversation/tests/thread-scroll-state.test.tsx \
   packages/client/ui/tests/use-disclosure-scroll-lock.test.tsx
 ```
 

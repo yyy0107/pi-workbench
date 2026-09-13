@@ -1,0 +1,1164 @@
+{
+  "baseline": "Spec004 implemented uncommitted working tree, HEAD 8ee7ee24 is insufficient",
+  "state": "implemented",
+  "files": [
+    {
+      "source": "packages/client/ui-sidebar/src/thread-list.tsx",
+      "target": "packages/conversation/ui-conversation-list/src/thread-list.tsx",
+      "sourceSha256": "0398f67fc9596945d1e8eaa841ef568894eb497646adf587198496a159cd9c24",
+      "targetSha256": "b61069ab7fa847982d3cb1060f963424801dd234088892c1a08248a3a0e4801d",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/thread-list-item.tsx",
+      "target": "packages/conversation/ui-conversation-list/src/thread-list-item.tsx",
+      "sourceSha256": "e6c1ffe24a2daa797103b19f10a56b94e7b1acd010c2262ba8a44bd9a9990e82",
+      "targetSha256": "da57e733c6a5409ddd2b236cfdffad10114e8b51ba620b3abd590624f6b346a3",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/thread-list-groups.ts",
+      "target": "packages/conversation/ui-conversation-list/src/thread-list-groups.ts",
+      "sourceSha256": "d2c735b37c81914d5e346135b3a62c349c798b507d798c68dbb220703b43df3a",
+      "targetSha256": "d2c735b37c81914d5e346135b3a62c349c798b507d798c68dbb220703b43df3a",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/thread-list-index.ts",
+      "target": "packages/conversation/ui-conversation-list/src/thread-list-index.ts",
+      "sourceSha256": "cd7b0a817ed2d0c4aba60398751494de817fc4e0823175071c0e1b9fc50c131b",
+      "targetSha256": "cd7b0a817ed2d0c4aba60398751494de817fc4e0823175071c0e1b9fc50c131b",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/workspace-thread-list.tsx",
+      "target": "packages/conversation/ui-conversation-list/src/workspace-thread-list.tsx",
+      "sourceSha256": "7b4bad3b8c7466fa3daae0f13319b545d1a703141a6719547479d03d2fe27a4e",
+      "targetSha256": "b8c673cad2e98dcaa70530b5a3dfb12332854c4a2f133116fac505bbeed305ec",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/workspace-sidebar-context.tsx",
+      "target": "packages/conversation/ui-conversation-list/src/workspace-sidebar-context.tsx",
+      "sourceSha256": "2cf80593efeecbc96bf0ee246c78f37bba7902ccb3717bab36afcddfd5f52d46",
+      "targetSha256": "d75c8d94495f579d8b68c076cb0af749c5868583527973766ea0831fcd7274ed",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/workspace-sidebar-section.tsx",
+      "target": "packages/conversation/ui-conversation-list/src/workspace-sidebar-section.tsx",
+      "sourceSha256": "3e895477bbe07022d6b8550a26d8df2c3de5869dc76df908f2a7d4975d2aed4f",
+      "targetSha256": "12d09d739152efaa63c21f3886974365a8869f4a1518eaf25bb133bb51bf6a53",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/thread-order-store.ts",
+      "target": "packages/conversation/ui-conversation-list/src/thread-order-store.ts",
+      "sourceSha256": "72cbf567daf45868f4ab827b05c5914a45cd71e43b9ae5cd66b9bcfc6b0e1b26",
+      "targetSha256": "72cbf567daf45868f4ab827b05c5914a45cd71e43b9ae5cd66b9bcfc6b0e1b26",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/sidebar-move.ts",
+      "target": "packages/conversation/ui-conversation-list/src/sidebar-move.ts",
+      "sourceSha256": "4813eb03d8c4b9aae11d64526f71bb6bf2b119b96a253dc31554d1fffd92f3d8",
+      "targetSha256": "ffab7d85c60641325b42a3a2230e7be66f31ad49ef99a2c8807b1832e9e5833b",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/conversation-actions-menu.tsx",
+      "target": "packages/conversation/ui-conversation-list/src/conversation-actions-menu.tsx",
+      "sourceSha256": "bf443bc96fec42ce3e3143852f1398e94ac74d5d766387e823bd1d39ce1b9242",
+      "targetSha256": "bf443bc96fec42ce3e3143852f1398e94ac74d5d766387e823bd1d39ce1b9242",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/new-thread-button.tsx",
+      "target": "packages/conversation/ui-conversation-list/src/new-thread-button.tsx",
+      "sourceSha256": "e759f15c30d1f260d08d4198dd91bdd79e3096a50b9cc5edf7cdca085a4d8d84",
+      "targetSha256": "cb1ebd58f8555b7f2282274be7a97dc42ca6380f637ce8ad6309590e57be2f24",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/running-thread-indicator.tsx",
+      "target": "packages/conversation/ui-conversation-list/src/running-thread-indicator.tsx",
+      "sourceSha256": "1dec0508027b13c76c19c2062d9c01f69cde23ea9c7165f4f7f58cb03e7b8e69",
+      "targetSha256": "1dec0508027b13c76c19c2062d9c01f69cde23ea9c7165f4f7f58cb03e7b8e69",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/extension.ts",
+      "target": "packages/conversation/ui-conversation-list/src/extension.ts",
+      "sourceSha256": "3470e3e5e56202a16c715402e0292c2290f39f49391bd46622a6f31af04ee8e6",
+      "targetSha256": "3470e3e5e56202a16c715402e0292c2290f39f49391bd46622a6f31af04ee8e6",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/tests/thread-list-index.test.ts",
+      "target": "packages/conversation/ui-conversation-list/tests/thread-list-index.test.ts",
+      "sourceSha256": "5a78656e3af51b94f400359509432a744d2d418df1a7c0ead4739bf9500be976",
+      "targetSha256": "5a78656e3af51b94f400359509432a744d2d418df1a7c0ead4739bf9500be976",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-sidebar/tests/sidebar-move.test.ts",
+      "target": "packages/conversation/ui-conversation-list/tests/sidebar-move.test.ts",
+      "sourceSha256": "4dc82995229e060e0d87bdb0c49c20e1075cbe03755807e125de818f9da197b5",
+      "targetSha256": "4dc82995229e060e0d87bdb0c49c20e1075cbe03755807e125de818f9da197b5",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-sidebar/tests/thread-sort.test.ts",
+      "target": "packages/conversation/ui-conversation-list/tests/thread-sort.test.ts",
+      "sourceSha256": "b2773f1708ffca2ef2d2b9b58d9b3980c9e37733bed9f8f24b416b8daa1b074b",
+      "targetSha256": "b2773f1708ffca2ef2d2b9b58d9b3980c9e37733bed9f8f24b416b8daa1b074b",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-sidebar/tests/thread-list-groups.test.ts",
+      "target": "packages/conversation/ui-conversation-list/tests/thread-list-groups.test.ts",
+      "sourceSha256": "8449327e48b53500bcf4de3b4e63e3646601217abc289ac2dc85d4c5ce0ac806",
+      "targetSha256": "8449327e48b53500bcf4de3b4e63e3646601217abc289ac2dc85d4c5ce0ac806",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-sidebar/tests/thread-list.test.tsx",
+      "target": "packages/conversation/ui-conversation-list/tests/thread-list.test.tsx",
+      "sourceSha256": "524c61baf0fd33aff1abc7fc88925d32f60ed113d3172ad4a089f4e2ca58d35f",
+      "targetSha256": "58a6efc9052a61d2d1242540c483e9056a4f969148018d0309cb6b0cafb03f4b",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-sidebar/tests/thread-order-store.test.ts",
+      "target": "packages/conversation/ui-conversation-list/tests/thread-order-store.test.ts",
+      "sourceSha256": "611490e4953103a19ef214ea78a9f4a22ea914740c4fcae56c8e7459dc4cfcf4",
+      "targetSha256": "611490e4953103a19ef214ea78a9f4a22ea914740c4fcae56c8e7459dc4cfcf4",
+      "test": true
+    },
+    {
+      "source": "packages/client/ui-sidebar/lib/thread-sort.ts",
+      "target": "packages/conversation/ui-conversation-list/lib/thread-sort.ts",
+      "sourceSha256": "345f067b4d8334bbf9c7394d4fca9ad18cf4618361913032052e8d446fd9455a",
+      "targetSha256": "c16b6d7eb83c85ffcf91eefc612949b2324d0da70af45ca27dad9dac82463a10",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/i18n/zh-CN.ts",
+      "target": "packages/conversation/ui-conversation-list/src/i18n/zh-CN.ts",
+      "sourceSha256": "1f31d47456d517e48ffa7060d45fadd8f750af31abddbb962879244079a2f6e0",
+      "targetSha256": "e0a8afe038b5be28a956e56c23853eef29f28948ae20cbc14530589b72aba7dc",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/i18n/index.ts",
+      "target": "packages/conversation/ui-conversation-list/src/i18n/index.ts",
+      "sourceSha256": "6985e5fea63133cfa5ab9a3428ccda97eba228c2b42ee135d0a486951f5d8839",
+      "targetSha256": "18ee89b4f76e2d3ea7f910781e471999c2de0c281b4ca30f28729b49656d47a9",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/i18n/en-US.ts",
+      "target": "packages/conversation/ui-conversation-list/src/i18n/en-US.ts",
+      "sourceSha256": "f4d5ccbe7dd6a425d35dcffd2fbd619e3758c54c8e026882a7b4b4585b259f83",
+      "targetSha256": "90e93aebfbbd845cf7636e0da73a686a51a56d781afa522dc12dad2c717974e2",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/completed-turn-content.tsx",
+      "target": "packages/conversation/ui-conversation-nodes/src/completed-turn-content.tsx",
+      "sourceSha256": "6e9c49fbcdee1868fd801b9d642cc564cf370da2954d3e935f23c925ea626993",
+      "targetSha256": "6e9c49fbcdee1868fd801b9d642cc564cf370da2954d3e935f23c925ea626993",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/completed-turn-header.tsx",
+      "target": "packages/conversation/ui-conversation-nodes/src/completed-turn-header.tsx",
+      "sourceSha256": "b86e9056332f28981b34b8657b56660d6cbb4ecb9ef220f20247f509039c62ac",
+      "targetSha256": "b86e9056332f28981b34b8657b56660d6cbb4ecb9ef220f20247f509039c62ac",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/conversation-message-context.tsx",
+      "target": "packages/conversation/ui-conversation-nodes/src/conversation-message-context.tsx",
+      "sourceSha256": "6f31ec065ae0c321bedd81793cbc73606a13c181f7440b27db44109ab895e8db",
+      "targetSha256": "6f31ec065ae0c321bedd81793cbc73606a13c181f7440b27db44109ab895e8db",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/message-actions.tsx",
+      "target": "packages/conversation/ui-conversation-nodes/src/message-actions.tsx",
+      "sourceSha256": "91771653a5e8ab30c441895c69f753de1dc35a3f4a16833ec7f21403e0c6f922",
+      "targetSha256": "691dbc895cf363e32760010475e9a74d564aafbc14c93d482a59450ef88db77f",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/message-parts.tsx",
+      "target": "packages/conversation/ui-conversation-nodes/src/message-parts.tsx",
+      "sourceSha256": "51767fc66ff2096d67811d50934ea012bd8518261058bf46a97edf6509004761",
+      "targetSha256": "eba784542dd17834d0a3d426a4414b2bc7fddb1b4377dff5f29a36a8ec5c3b9c",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/steered-turn.tsx",
+      "target": "packages/conversation/ui-conversation-nodes/src/steered-turn.tsx",
+      "sourceSha256": "49312e4acfd12182d20cb64ef4e2d5a50e5ff86abeae6ef22c125e46fc7f6a67",
+      "targetSha256": "49312e4acfd12182d20cb64ef4e2d5a50e5ff86abeae6ef22c125e46fc7f6a67",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/workbench-message.tsx",
+      "target": "packages/conversation/ui-conversation-nodes/src/workbench-message.tsx",
+      "sourceSha256": "3af2b430285eb6d35724652e632f3c2c8ff3472bcde0231df931768a8a8485ce",
+      "targetSha256": "c458b660ffff8611ba5f051a946c7a219bfa93b57a588d1271d42fe495b4b8d3",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/composer-message-text.tsx",
+      "target": "packages/conversation/ui-conversation-nodes/src/composer-message-text.tsx",
+      "sourceSha256": "402a5e16056db5ac081144157a9c5c51e44f801fbee64df6f05c0a4c778efa94",
+      "targetSha256": "ec6d4afb1c86ae633527eda2d98bfd64d39a5975fc4169778d02e963743a1fca",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/message-presentation/completed-turn-panel.tsx",
+      "target": "packages/conversation/ui-conversation-nodes/src/message-presentation-completed-turn-panel.tsx",
+      "sourceSha256": "7195cb58eff074db2dac43d697a41be578a45f2b233d94984e46b700be3c6697",
+      "targetSha256": "818e5ef8f28f6479ad68122ec5497e6ff21441e382d13c4b794acb97a258e71b",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/message-presentation/extension.ts",
+      "target": "packages/conversation/ui-conversation-nodes/src/message-presentation-extension.ts",
+      "sourceSha256": "407124992f5d5628abd80c3fc8461161275c5ae0c8ac6819996b5cc7be4ab1c7",
+      "targetSha256": "197cdf56b76f505b435e40cfefbe9206ec0bec0c54444025b6a534d830c711c2",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/message-presentation/index.ts",
+      "target": "packages/conversation/ui-conversation-nodes/src/message-presentation-index.ts",
+      "sourceSha256": "58a0750e33d5943503df66ebe4b866bad5c94f2049726d2570b13da5a8f0b6e6",
+      "targetSha256": "82f0dca0440aa2e8248d3d148e9954d4ef6aaab2651cbdd2a46cd677022d0eb8",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/message-presentation/message-presentation.tsx",
+      "target": "packages/conversation/ui-conversation-nodes/src/message-presentation-message-presentation.tsx",
+      "sourceSha256": "0d9726382e7f3b053a6deae0d566a2fb4fb27c507497ab591d806a20a6f4ded7",
+      "targetSha256": "62a5b2fca21f5c206ca1ce15fc7318f770daf5232b2b309560abf262460d8e07",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/completed-turn-model.ts",
+      "target": "packages/conversation/ui-conversation-nodes/lib/completed-turn-model.ts",
+      "sourceSha256": "0e3688fa532b3b372d8a69974b23fa36a3a5fab84d086361b19cb6ea94bec68c",
+      "targetSha256": "0e3688fa532b3b372d8a69974b23fa36a3a5fab84d086361b19cb6ea94bec68c",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/message-action-visibility.ts",
+      "target": "packages/conversation/ui-conversation-nodes/lib/message-action-visibility.ts",
+      "sourceSha256": "7cb4b012fad95791d2b25297eac7ff48082bd73044f8b88150879c0ba134fa4d",
+      "targetSha256": "7cb4b012fad95791d2b25297eac7ff48082bd73044f8b88150879c0ba134fa4d",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/workbench-message-error.ts",
+      "target": "packages/conversation/ui-conversation-nodes/lib/workbench-message-error.ts",
+      "sourceSha256": "53c4a5655b51f6381e5eee4f3f6d00997c56fdc8ef942ca439d8837dcdbb8d2f",
+      "targetSha256": "53c4a5655b51f6381e5eee4f3f6d00997c56fdc8ef942ca439d8837dcdbb8d2f",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/message-presentation/message-citations.ts",
+      "target": "packages/conversation/ui-conversation-nodes/lib/message-citations.ts",
+      "sourceSha256": "d3380b19f874ff81883974068548dd5a9b6828493f34fd5a34883944b6e4265c",
+      "targetSha256": "d3380b19f874ff81883974068548dd5a9b6828493f34fd5a34883944b6e4265c",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/message-presentation/message-presentation-policy.ts",
+      "target": "packages/conversation/ui-conversation-nodes/lib/message-presentation-policy.ts",
+      "sourceSha256": "58e1fc2a7de3d851f466e936bf9a0925dd0467924f98faddfb5143a3ace225ac",
+      "targetSha256": "58e1fc2a7de3d851f466e936bf9a0925dd0467924f98faddfb5143a3ace225ac",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-message-presentation-message-citations.test.ts",
+      "target": "packages/conversation/ui-conversation-nodes/tests/builtin-message-presentation-message-citations.test.ts",
+      "sourceSha256": "dee6aeb348250206f15a87b336e3278f576fa08f61e5e9306c4bf1bef66b6944",
+      "targetSha256": "d890ea92335deb3199cd504a2d64064ba047c44aebae87be29530520884dd61d",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/builtin-message-presentation-message-presentation-policy.test.ts",
+      "target": "packages/conversation/ui-conversation-nodes/tests/builtin-message-presentation-message-presentation-policy.test.ts",
+      "sourceSha256": "37bfd7f86c3135c5e7bf9dd27f785ba8b3d685c783f588404e180ccd7d359d3c",
+      "targetSha256": "a5bf875503edd1b32b0538325853f1c9fe0583b43831b746abac376f31e79869",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/completed-turn-model.test.ts",
+      "target": "packages/conversation/ui-conversation-nodes/tests/completed-turn-model.test.ts",
+      "sourceSha256": "0d2da980ff9fff5f5affb0b27421de437943f8a40be455604980a8dfeab10e8e",
+      "targetSha256": "0d2da980ff9fff5f5affb0b27421de437943f8a40be455604980a8dfeab10e8e",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/message-action-visibility.test.ts",
+      "target": "packages/conversation/ui-conversation-nodes/tests/message-action-visibility.test.ts",
+      "sourceSha256": "1981a0b7eb3437ad3adf00a2186ff0c1e1453601af93b9cd3625954d7cea61ba",
+      "targetSha256": "1981a0b7eb3437ad3adf00a2186ff0c1e1453601af93b9cd3625954d7cea61ba",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/workbench-message-error.test.ts",
+      "target": "packages/conversation/ui-conversation-nodes/tests/workbench-message-error.test.ts",
+      "sourceSha256": "3867a508ac40244aaef6d7260a3c84bb176bad41056a50991df1f716b8c3955e",
+      "targetSha256": "3867a508ac40244aaef6d7260a3c84bb176bad41056a50991df1f716b8c3955e",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/src/conversation-layout.tsx",
+      "target": "packages/conversation/ui-conversation-messages/src/conversation-layout.tsx",
+      "sourceSha256": "4fbfa6d3a4a026b9b27d9b8b0296c2e75fe70b9ed966573ef5756969cf248c1e",
+      "targetSha256": "4fbfa6d3a4a026b9b27d9b8b0296c2e75fe70b9ed966573ef5756969cf248c1e",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/conversation-list.tsx",
+      "target": "packages/conversation/ui-conversation-messages/src/conversation-list.tsx",
+      "sourceSha256": "a22ffca633e6fb30e7cd6fa0afd0344a15553a02a32ed1dfb6507026ffefb27b",
+      "targetSha256": "68b1f942147871c18ecd5c013e145447eb3d49108b01e6b666fa0cfad3fb4544",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/thread-scroll-state.tsx",
+      "target": "packages/conversation/ui-conversation-messages/src/thread-scroll-state.tsx",
+      "sourceSha256": "538f6a95f900f4d3a87baa596fdab4ede2184b4dbf67d57fdf5ca24032b8709f",
+      "targetSha256": "538f6a95f900f4d3a87baa596fdab4ede2184b4dbf67d57fdf5ca24032b8709f",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/viewport.ts",
+      "target": "packages/conversation/ui-conversation-messages/src/viewport.ts",
+      "sourceSha256": "a464fe9fd9d7feeef2dbd57fa5a3b040f5f9d369e0e29670bd8979df15aa81de",
+      "targetSha256": "a464fe9fd9d7feeef2dbd57fa5a3b040f5f9d369e0e29670bd8979df15aa81de",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/rows.ts",
+      "target": "packages/conversation/ui-conversation-messages/src/rows.ts",
+      "sourceSha256": "eabd6e2b9a0c04302ee8e7cd2cd086b3e40469c3e41208a27848cf2088285057",
+      "targetSha256": "eabd6e2b9a0c04302ee8e7cd2cd086b3e40469c3e41208a27848cf2088285057",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/elements/message-pair.tsx",
+      "target": "packages/conversation/ui-conversation-messages/src/message-pair.tsx",
+      "sourceSha256": "fff539cae4335397e4917e20587f30e2c4502e650c03c1ed3c6e993b539f4f76",
+      "targetSha256": "ff160a909467cb545ee23882acf7e4eb309240d7ec4d05290278c87846585110",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/elements/typing-indicator.tsx",
+      "target": "packages/conversation/ui-conversation-messages/src/typing-indicator.tsx",
+      "sourceSha256": "82886ce5bf4a016b94ea120362216d5fae41f0b3a34eb71eaa0aad2bc5b8a6d5",
+      "targetSha256": "82886ce5bf4a016b94ea120362216d5fae41f0b3a34eb71eaa0aad2bc5b8a6d5",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/workbench-message-rows.ts",
+      "target": "packages/conversation/ui-conversation-messages/lib/workbench-message-rows.ts",
+      "sourceSha256": "19444e0b5ea69dfb82c4e7af639d316973978e7e26ae186b8eeded3e90e4ac96",
+      "targetSha256": "19444e0b5ea69dfb82c4e7af639d316973978e7e26ae186b8eeded3e90e4ac96",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/workbench-conversation-viewport.ts",
+      "target": "packages/conversation/ui-conversation-messages/lib/workbench-conversation-viewport.ts",
+      "sourceSha256": "62b35df25e49b9ab458ad2f9b951f8ca195e0d6a89576d50f39f2b1772ba6d8b",
+      "targetSha256": "62b35df25e49b9ab458ad2f9b951f8ca195e0d6a89576d50f39f2b1772ba6d8b",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/tests/conversation-layout.test.tsx",
+      "target": "packages/conversation/ui-conversation-messages/tests/conversation-layout.test.tsx",
+      "sourceSha256": "26b0352d57abab0e6921343ca8e9e6b61158a8f4561b38f86244fbbf38da4050",
+      "targetSha256": "26b0352d57abab0e6921343ca8e9e6b61158a8f4561b38f86244fbbf38da4050",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/thread-scroll-state.test.tsx",
+      "target": "packages/conversation/ui-conversation-messages/tests/thread-scroll-state.test.tsx",
+      "sourceSha256": "a8e89b71b7c58972d03e6eb58463a79689b1bae1c8f4f8e25b75bfc04d7f5d27",
+      "targetSha256": "7764441f55b0f2befe7c471a9bd5bd7605c2bca904df53abbd9267e9f83be45b",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/workbench-conversation-viewport.test.ts",
+      "target": "packages/conversation/ui-conversation-messages/tests/workbench-conversation-viewport.test.ts",
+      "sourceSha256": "11d3b68c87cca783107b0b3482130cf7b2f56b946e97967488384b6efb8fc8c8",
+      "targetSha256": "11d3b68c87cca783107b0b3482130cf7b2f56b946e97967488384b6efb8fc8c8",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/workbench-message-rows.test.ts",
+      "target": "packages/conversation/ui-conversation-messages/tests/workbench-message-rows.test.ts",
+      "sourceSha256": "38edc1813f47f6cda525bdfdbfdfd369748bc50bbda07a6c897c3b9ef8454ded",
+      "targetSha256": "38edc1813f47f6cda525bdfdbfdfd369748bc50bbda07a6c897c3b9ef8454ded",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/src/renderers/file.tsx",
+      "target": "packages/conversation/ui-message-blocks/src/file.tsx",
+      "sourceSha256": "6c63d4882cc51779e7b87e60ffbd9c7aa7262dda22aa663cc7dcba3779de1879",
+      "targetSha256": "3850d82b9d43dde11e4163fae60858b0f709de17044c11ea6bda3a400bfb71eb",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/renderers/image.tsx",
+      "target": "packages/conversation/ui-message-blocks/src/image.tsx",
+      "sourceSha256": "13fc2c98a00ba57c89a131dbe450aef15716d6840c3ccada4bced2df4a7aefea",
+      "targetSha256": "e44d0bf09162b47824892d155f619020d4196d5d5705796b0eab7221cf0887ac",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/renderers/image.css",
+      "target": "packages/conversation/ui-message-blocks/src/image.css",
+      "sourceSha256": "deedc0ad66a15dd560cfc3d4a2e90d3f595ec13b85d42e0fa29bee0bee7b6d7b",
+      "targetSha256": "deedc0ad66a15dd560cfc3d4a2e90d3f595ec13b85d42e0fa29bee0bee7b6d7b",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/renderers/message-blocks.tsx",
+      "target": "packages/conversation/ui-message-blocks/src/message-blocks.tsx",
+      "sourceSha256": "108debbfc2ef288dde21b2c59146bc40cbd3977cfb1641bca821dce83465a20e",
+      "targetSha256": "fe81999a9f2de267975aacf9604a82f294153b2106d856a89bf0fe7b846a857b",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/renderers/message-source.tsx",
+      "target": "packages/conversation/ui-message-blocks/src/message-source.tsx",
+      "sourceSha256": "6512f7be1f3a5ebd7d6ddf5cbb097b9491bc279857043d7e4588e91c451f1394",
+      "targetSha256": "6512f7be1f3a5ebd7d6ddf5cbb097b9491bc279857043d7e4588e91c451f1394",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/composer-command-response.tsx",
+      "target": "packages/conversation/ui-message-blocks/src/composer-command-response.tsx",
+      "sourceSha256": "f7f938591e5490bdb1785f041581cae065968121a10a3bcbfbc2212df898337d",
+      "targetSha256": "6a87f494930ce68a201043ce1a682fc5e79f02b47b857425c285285d637e0295",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/user-message-text-bubble.tsx",
+      "target": "packages/conversation/ui-message-blocks/src/user-message-text-bubble.tsx",
+      "sourceSha256": "989112e8ed2949e0410957db8feb28d91d6a28763851e33bd9c0f81b1e25bc1a",
+      "targetSha256": "989112e8ed2949e0410957db8feb28d91d6a28763851e33bd9c0f81b1e25bc1a",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/elements/error-state.tsx",
+      "target": "packages/conversation/ui-message-blocks/src/error-state.tsx",
+      "sourceSha256": "fd64fcfed9d0e6dceddb7124c7abb32141281fbc480fb8c82ba1575b85ed73bf",
+      "targetSha256": "fd64fcfed9d0e6dceddb7124c7abb32141281fbc480fb8c82ba1575b85ed73bf",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/elements/streaming-text.tsx",
+      "target": "packages/conversation/ui-message-blocks/src/streaming-text.tsx",
+      "sourceSha256": "f53d90ddf152a7181c46d69b7b2a32dd0ca00b20b045aa3a43d3ea0ef7854741",
+      "targetSha256": "f53d90ddf152a7181c46d69b7b2a32dd0ca00b20b045aa3a43d3ea0ef7854741",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/elements/terminal-block.tsx",
+      "target": "packages/conversation/ui-message-blocks/src/terminal-block.tsx",
+      "sourceSha256": "384379c658d5eb69459d50732430f743da2dd86bd30cf7460ff28aefe8b089e9",
+      "targetSha256": "384379c658d5eb69459d50732430f743da2dd86bd30cf7460ff28aefe8b089e9",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/elements/conversation-separator.tsx",
+      "target": "packages/conversation/ui-message-blocks/src/conversation-separator.tsx",
+      "sourceSha256": "ebfdc8c2925a32c2ac16d237c5364e6d3a9986e2bdef6e3a9369b53231fa046b",
+      "targetSha256": "ebfdc8c2925a32c2ac16d237c5364e6d3a9986e2bdef6e3a9369b53231fa046b",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/tests/composer-command-response.test.tsx",
+      "target": "packages/conversation/ui-message-blocks/tests/composer-command-response.test.tsx",
+      "sourceSha256": "9ef4a81a62faeafe87c36afe3c2aed033f30053a9a47b46a1b3f24a8b57f0847",
+      "targetSha256": "9ef4a81a62faeafe87c36afe3c2aed033f30053a9a47b46a1b3f24a8b57f0847",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/renderers-message-blocks.test.tsx",
+      "target": "packages/conversation/ui-message-blocks/tests/message-blocks.test.tsx",
+      "sourceSha256": "bb4a71fd4ae13188cb34a930f962d82b87863681eadab2373440b5f478e12feb",
+      "targetSha256": "8baaacb16be3c41e03ca5b25ebfd29f7a19848849793c6901db973300a8721b1",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/streaming-text.test.tsx",
+      "target": "packages/conversation/ui-message-blocks/tests/streaming-text.test.tsx",
+      "sourceSha256": "7fb5ade1ce07cc35abe870ac633dc013cb6eb57ea6d0506c9df98d9a5c48774c",
+      "targetSha256": "e5820dc0651c983b0d3621e424f20922972a401b0b3bbc6c905f7bcfe4f936c2",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/AGENTS.md",
+      "target": "packages/conversation/ui-composer/AGENTS.md",
+      "sourceSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "targetSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/package.json",
+      "target": "packages/conversation/ui-composer/package.json",
+      "sourceSha256": "8e697cb6664378286514400474a909dc806daec10beb5839e22b66ef00bce754",
+      "targetSha256": "1bb847be891da6d72a468387db40b195b74547d9c5bb59ef535461f62a991c3e",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/tsconfig.json",
+      "target": "packages/conversation/ui-composer/tsconfig.json",
+      "sourceSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/README.md",
+      "target": "packages/conversation/ui-composer/README.md",
+      "sourceSha256": "b5cea9c99890428e3de620c27646c9ee2591e9d281606e7c3dabcfea60d4cd89",
+      "targetSha256": "de12b16f75d0e8dd923edfdd13ef350ba96c3a275d7182c59427997d021c5b21",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/README.zh-CN.md",
+      "target": "packages/conversation/ui-composer/README.zh-CN.md",
+      "sourceSha256": "46ece0ddc2a0c741555314b9ef76a756d2bb79f263331799670f6efbc408d5a0",
+      "targetSha256": "565679b10c5e5cb49b454b8499bae13ea69e0e595b2be0cde49e8fedd0f1390b",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/tests/workbench-composer-boundary.test.ts",
+      "target": "packages/conversation/ui-composer/tests/workbench-composer-boundary.test.ts",
+      "sourceSha256": "bc1718b2de83f443b064d7effa589504b230e6091cee5bb833e49bfe61e2994a",
+      "targetSha256": "bc1718b2de83f443b064d7effa589504b230e6091cee5bb833e49bfe61e2994a",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-history-keyboard-plugin.test.ts",
+      "target": "packages/conversation/ui-composer/tests/composer-history-keyboard-plugin.test.ts",
+      "sourceSha256": "0c410948eb8b5ee3b6999298e38ba9af8ed0738f0ff29b9a24be1a3ec7e4a3b9",
+      "targetSha256": "0c410948eb8b5ee3b6999298e38ba9af8ed0738f0ff29b9a24be1a3ec7e4a3b9",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-submit.test.ts",
+      "target": "packages/conversation/ui-composer/tests/composer-submit.test.ts",
+      "sourceSha256": "1c9efbc7fab5a345362c9da5e4691b53e3cc2dbcc027c070a970071d4aa00ec8",
+      "targetSha256": "1c9efbc7fab5a345362c9da5e4691b53e3cc2dbcc027c070a970071d4aa00ec8",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-token-icon.test.tsx",
+      "target": "packages/conversation/ui-composer/tests/composer-token-icon.test.tsx",
+      "sourceSha256": "34d58c6f5b25dd92f2a3c6bc6bead4b5a5548259eb132c5a0dec159f1cad1fd3",
+      "targetSha256": "34d58c6f5b25dd92f2a3c6bc6bead4b5a5548259eb132c5a0dec159f1cad1fd3",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-document.test.ts",
+      "target": "packages/conversation/ui-composer/tests/composer-document.test.ts",
+      "sourceSha256": "ebbf4109815594f7fed2b68c3a2da54a982197cff4876a6fcd4415672784cfd3",
+      "targetSha256": "ebbf4109815594f7fed2b68c3a2da54a982197cff4876a6fcd4415672784cfd3",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-input-history.test.ts",
+      "target": "packages/conversation/ui-composer/tests/composer-input-history.test.ts",
+      "sourceSha256": "f3ca81f1608f6e049a040e649973f960df8bec77d1dca85bcad00548a6afea49",
+      "targetSha256": "f3ca81f1608f6e049a040e649973f960df8bec77d1dca85bcad00548a6afea49",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/tests/composer-markdown-detection.test.ts",
+      "target": "packages/conversation/ui-composer/tests/composer-markdown-detection.test.ts",
+      "sourceSha256": "f8d32960c9cd2af76b07e6932966cf1cdb264209e0b19361ded4e38a66585165",
+      "targetSha256": "f8d32960c9cd2af76b07e6932966cf1cdb264209e0b19361ded4e38a66585165",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/composer/lib/composer-panel-styles.ts",
+      "target": "packages/conversation/ui-composer/lib/composer-panel-styles.ts",
+      "sourceSha256": "2c865f8ae7119a8943ed951b40433d3c4ba4a79608f1b090815852cc2220f2a8",
+      "targetSha256": "2c865f8ae7119a8943ed951b40433d3c4ba4a79608f1b090815852cc2220f2a8",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/lib/legacy-pi-compat.ts",
+      "target": "packages/conversation/ui-composer/lib/legacy-pi-compat.ts",
+      "sourceSha256": "4e278b7446356fda7ef24ce85542ff92ea1c5066641e38e2965bfcaca17c0e2d",
+      "targetSha256": "4e278b7446356fda7ef24ce85542ff92ea1c5066641e38e2965bfcaca17c0e2d",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/lib/composer-markdown-detection.ts",
+      "target": "packages/conversation/ui-composer/lib/composer-markdown-detection.ts",
+      "sourceSha256": "92c0f4548aff699282e8a8f250f98e4d1299949e88b7d666ff16c3ecbe0e9b92",
+      "targetSha256": "92c0f4548aff699282e8a8f250f98e4d1299949e88b7d666ff16c3ecbe0e9b92",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/lib/composer-input-history.ts",
+      "target": "packages/conversation/ui-composer/lib/composer-input-history.ts",
+      "sourceSha256": "0f1bbc69f276e2f5c9a56917abbffbc01d9287effcffe21718422c0f498846ba",
+      "targetSha256": "0f1bbc69f276e2f5c9a56917abbffbc01d9287effcffe21718422c0f498846ba",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-token-icon.tsx",
+      "target": "packages/conversation/ui-composer/src/composer-token-icon.tsx",
+      "sourceSha256": "212d53182239c44aaf44ec3fe9062ecf141a71f4f66228625a0d8d4ea7defce9",
+      "targetSha256": "212d53182239c44aaf44ec3fe9062ecf141a71f4f66228625a0d8d4ea7defce9",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-panel-styles.ts",
+      "target": "packages/conversation/ui-composer/src/composer-panel-styles.ts",
+      "sourceSha256": "4324731c3e6fa55cdcdfb7c5723f5407d2c16bff2dc716a83f9f4f092fd199d6",
+      "targetSha256": "4324731c3e6fa55cdcdfb7c5723f5407d2c16bff2dc716a83f9f4f092fd199d6",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-directive.tsx",
+      "target": "packages/conversation/ui-composer/src/composer-directive.tsx",
+      "sourceSha256": "6a695bbcbc5fa55c82c441acd4c2fea21ab935cbb8e1b91e236a434007334424",
+      "targetSha256": "6a695bbcbc5fa55c82c441acd4c2fea21ab935cbb8e1b91e236a434007334424",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/workbench-composer.tsx",
+      "target": "packages/conversation/ui-composer/src/workbench-composer.tsx",
+      "sourceSha256": "aae0918eec6d98ac19bb2cdd18879e170b0e2bd1455a3c6e53dee0c04f051c71",
+      "targetSha256": "aae0918eec6d98ac19bb2cdd18879e170b0e2bd1455a3c6e53dee0c04f051c71",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-controls.tsx",
+      "target": "packages/conversation/ui-composer/src/composer-controls.tsx",
+      "sourceSha256": "797212d0ad212e039a644a0d1c8bb0d3246d6ea66cd9ee6d167ad456ec8fc6f9",
+      "targetSha256": "797212d0ad212e039a644a0d1c8bb0d3246d6ea66cd9ee6d167ad456ec8fc6f9",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer.css",
+      "target": "packages/conversation/ui-composer/src/composer.css",
+      "sourceSha256": "8b9ecaa801691e79cfa7e31340a9fdfc85c21b0ffcc4bd48198a049fd83eff42",
+      "targetSha256": "8b9ecaa801691e79cfa7e31340a9fdfc85c21b0ffcc4bd48198a049fd83eff42",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/workbench-composer-view.tsx",
+      "target": "packages/conversation/ui-composer/src/workbench-composer-view.tsx",
+      "sourceSha256": "9467051ba350699207ec5424c7928e4f872441ad0d6cfcbc9293efe37ee03cbb",
+      "targetSha256": "9467051ba350699207ec5424c7928e4f872441ad0d6cfcbc9293efe37ee03cbb",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/index.ts",
+      "target": "packages/conversation/ui-composer/src/index.ts",
+      "sourceSha256": "106c480a210f77e1e06fde4eb07826bcb449798df5fbf65d0300e0828bc48d3e",
+      "targetSha256": "106c480a210f77e1e06fde4eb07826bcb449798df5fbf65d0300e0828bc48d3e",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/styles.css",
+      "target": "packages/conversation/ui-composer/src/styles.css",
+      "sourceSha256": "1792b2730c11e630a8656593f520947269a93705200629f150b302ed14c83de3",
+      "targetSha256": "1792b2730c11e630a8656593f520947269a93705200629f150b302ed14c83de3",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-icons.css",
+      "target": "packages/conversation/ui-composer/src/composer-icons.css",
+      "sourceSha256": "340c7121300be3f9640b505d8973a41e1ce351ae0b4165393861ef4ebc329cee",
+      "targetSha256": "340c7121300be3f9640b505d8973a41e1ce351ae0b4165393861ef4ebc329cee",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/tokens.ts",
+      "target": "packages/conversation/ui-composer/src/tokens.ts",
+      "sourceSha256": "b7be231ae867007fc779493432d4b0c95243b164137974530884cefd9faccd82",
+      "targetSha256": "b7be231ae867007fc779493432d4b0c95243b164137974530884cefd9faccd82",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-link-icons.tsx",
+      "target": "packages/conversation/ui-composer/src/composer-link-icons.tsx",
+      "sourceSha256": "6d1d5d6339edf169c1a41a209220a27e825fb0c346f2ca8e5e8e5f14153bad29",
+      "targetSha256": "6d1d5d6339edf169c1a41a209220a27e825fb0c346f2ca8e5e8e5f14153bad29",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-document.ts",
+      "target": "packages/conversation/ui-composer/src/composer-document.ts",
+      "sourceSha256": "d0d740d7b94a8edcce408fe7eab96ce657bab1a5ba5171c9effd773622e31f79",
+      "targetSha256": "d0d740d7b94a8edcce408fe7eab96ce657bab1a5ba5171c9effd773622e31f79",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/markdown-composer-input.tsx",
+      "target": "packages/conversation/ui-composer/src/markdown-composer-input.tsx",
+      "sourceSha256": "38b42d06cb5bd5831c7f758fa964046de1c419c7a14129d17d71d1ccee9eb38c",
+      "targetSha256": "38b42d06cb5bd5831c7f758fa964046de1c419c7a14129d17d71d1ccee9eb38c",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-history-keyboard-plugin.tsx",
+      "target": "packages/conversation/ui-composer/src/composer-history-keyboard-plugin.tsx",
+      "sourceSha256": "d23030d2fe173d604fbe1218c17ac48c1d255c03faf2ef7735070009b9e0ccc4",
+      "targetSha256": "d23030d2fe173d604fbe1218c17ac48c1d255c03faf2ef7735070009b9e0ccc4",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/composer-submit.ts",
+      "target": "packages/conversation/ui-composer/src/composer-submit.ts",
+      "sourceSha256": "e5e6697e210ec09e416a57e5ca9130a949a4277f20124896a5b9b45b0374c22e",
+      "targetSha256": "e5e6697e210ec09e416a57e5ca9130a949a4277f20124896a5b9b45b0374c22e",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/i18n/en-US.ts",
+      "target": "packages/conversation/ui-composer/src/i18n/en-US.ts",
+      "sourceSha256": "9c3b8f70ce373c2e6743f400436dc4dbfdb4439ea5382279d50b6f84c0719d1c",
+      "targetSha256": "9c3b8f70ce373c2e6743f400436dc4dbfdb4439ea5382279d50b6f84c0719d1c",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/i18n/index.ts",
+      "target": "packages/conversation/ui-composer/src/i18n/index.ts",
+      "sourceSha256": "e2628599eba9614017b97d993c0296afdd0f417b3e7fcc067702ae7566f9e4a6",
+      "targetSha256": "e2628599eba9614017b97d993c0296afdd0f417b3e7fcc067702ae7566f9e4a6",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/composer/src/i18n/zh-CN.ts",
+      "target": "packages/conversation/ui-composer/src/i18n/zh-CN.ts",
+      "sourceSha256": "b7aaa5ec57717747e77356c0e5fec932f410d9f018240f313293d63a864684b9",
+      "targetSha256": "b7aaa5ec57717747e77356c0e5fec932f410d9f018240f313293d63a864684b9",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/AGENTS.md",
+      "target": "packages/conversation/ui-conversation/AGENTS.md",
+      "sourceSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "targetSha256": "ec5b4395f30dc8c9b7bae7ccbc4b22e302e9bdfe8c78b3aa4f599fde389a29cd",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/package.json",
+      "target": "packages/conversation/ui-conversation/package.json",
+      "sourceSha256": "61c16b6a92b90bb016ac35cdd35b82b323b2f3cfc651c271eebf6c497265d7a9",
+      "targetSha256": "4f405dffd41763dead3fce08ea704ea7a8f65cce5a4b5ca9f5ac0aec6f329ba1",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/tsconfig.json",
+      "target": "packages/conversation/ui-conversation/tsconfig.json",
+      "sourceSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "targetSha256": "e94206877523f170d182b785be2e7575834d9944945d06fe5f45984b9d5fe49c",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/README.md",
+      "target": "packages/conversation/ui-conversation/README.md",
+      "sourceSha256": "647d3909e0ef543379dd581ba387eda386862157883db413c7e818a944b2f70b",
+      "targetSha256": "3cb91449b63945a998bdb3b56ac9a8b6af10f1091f7874f17426022a856ad1fb",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/README.zh-CN.md",
+      "target": "packages/conversation/ui-conversation/README.zh-CN.md",
+      "sourceSha256": "bd9d2324e6c99666bcf884b8553fc91745e4e85c8a59052a58436fd7aa3e68e3",
+      "targetSha256": "73053ac7d36b292564354682c7f88e75bcca0d0de19dc0ca8885c16b569fafc9",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/tests/conversation-title.test.ts",
+      "target": "packages/conversation/ui-conversation/tests/conversation-title.test.ts",
+      "sourceSha256": "a574a9a63410bbea9bc87a453e1447ada8a0d295e0303f28bffb5914d3e7cdff",
+      "targetSha256": "24997403ae4953763ed492e08f151c1e18fb73cbbdefee4a50e3944fc9024919",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/workbench-thread-timing.test.ts",
+      "target": "packages/conversation/ui-conversation/tests/workbench-thread-timing.test.ts",
+      "sourceSha256": "153a1a23775972c5c4f05bc0a28ec5e2649b3d939bd0a44fb25b4a745eb963a0",
+      "targetSha256": "153a1a23775972c5c4f05bc0a28ec5e2649b3d939bd0a44fb25b4a745eb963a0",
+      "test": true
+    },
+    {
+      "source": "packages/conversation/conversation/tests/i18n-test.tsx",
+      "target": "packages/conversation/ui-conversation/tests/i18n-test.tsx",
+      "sourceSha256": "09262c42c9800cd3f6afba880b2fad86cb93afa63a74d44821e7432f7df33e4b",
+      "targetSha256": "a8e8a4a2412f7d7f4101c092ea322a5276706865b96bf83da50005116cae7de7",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/lib/workbench-thread-timing.ts",
+      "target": "packages/conversation/ui-conversation/lib/workbench-thread-timing.ts",
+      "sourceSha256": "b017ef144d8926f46004fd1fbd08607e1c822255ddcb28ba89523b4cb6fdbc41",
+      "targetSha256": "b017ef144d8926f46004fd1fbd08607e1c822255ddcb28ba89523b4cb6fdbc41",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/conversation-title.ts",
+      "target": "packages/conversation/ui-conversation/src/conversation-title.ts",
+      "sourceSha256": "787cc7041bebb579c37e82f67d66dc08bcfb925639c59133ecef7be51bb07fbc",
+      "targetSha256": "787cc7041bebb579c37e82f67d66dc08bcfb925639c59133ecef7be51bb07fbc",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/chat-icons.css",
+      "target": "packages/conversation/ui-conversation-messages/src/chat-icons.css",
+      "sourceSha256": "66c45f3996253e275c60e50625634f10b9e76944efc317da5165fdcc7d62b5be",
+      "targetSha256": "66c45f3996253e275c60e50625634f10b9e76944efc317da5165fdcc7d62b5be",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/workbench-thread.tsx",
+      "target": "packages/conversation/ui-conversation/src/workbench-thread.tsx",
+      "sourceSha256": "e21b34456b6b6272e1cd20d30eb9e645b3565f78e382362f2ec58e588b70c184",
+      "targetSha256": "08ca83b4c47e4290df7b752338c3a65805e1fceb127de48bdc38c28643b0bcf6",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/workbench-conversation.tsx",
+      "target": "packages/conversation/ui-conversation/src/workbench-conversation.tsx",
+      "sourceSha256": "a45cda3c702a7dd2f4946c44c0ccf62fcb0c3920b6edca93e35752411ff908ae",
+      "targetSha256": "bcc99b88acf0502a48e33ca34baf690e881d35858e5dfb1937a5a1e76255aea4",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/index.ts",
+      "target": "packages/conversation/ui-conversation/src/index.ts",
+      "sourceSha256": "8c300b34d7210d555e431f71ac9799ea6f2cc4dfdb118e8e6ccd7319b5fe6a81",
+      "targetSha256": "8c300b34d7210d555e431f71ac9799ea6f2cc4dfdb118e8e6ccd7319b5fe6a81",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/conversation.css",
+      "target": "packages/conversation/ui-conversation-messages/src/conversation.css",
+      "sourceSha256": "27257615b13a82c8d78bda6d31e2879fde023318ef744065bc28daa8858091f8",
+      "targetSha256": "67d0b235b9606eeebb22bd8f7ada3f2dacec1a72d1027d4f73f71c26bf546103",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/workbench-empty.tsx",
+      "target": "packages/conversation/ui-conversation/src/workbench-empty.tsx",
+      "sourceSha256": "2146b5b0d7ec8a0b5ff499626c6fccffa76d98a050887b33a8a552bb0cbe3363",
+      "targetSha256": "2146b5b0d7ec8a0b5ff499626c6fccffa76d98a050887b33a8a552bb0cbe3363",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/i18n/en-US.ts",
+      "target": "packages/conversation/ui-conversation/src/i18n/en-US.ts",
+      "sourceSha256": "ba0e891ebd991b8eaa94cd1c5c7414a387186843067deaf85a129d02c0a39a23",
+      "targetSha256": "f30ad51a40e09e921705784d225a86058efa2a80603ecda33e685eb02dc4586e",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/i18n/index.ts",
+      "target": "packages/conversation/ui-conversation/src/i18n/index.ts",
+      "sourceSha256": "cb67c52c1c0dbee0ac7f9d0ad1f4be1099ae6aabbeccf338ce734fe6a4996b9e",
+      "targetSha256": "244cbb58dc957503bafa54c28c4cbabfd8a7f0829f81f53ac034b719b9a97535",
+      "test": false
+    },
+    {
+      "source": "packages/conversation/conversation/src/i18n/zh-CN.ts",
+      "target": "packages/conversation/ui-conversation/src/i18n/zh-CN.ts",
+      "sourceSha256": "487429224b04d0b41f01702f33402658d0e2b7436bc4ecb9a0e59a5cb237ce3e",
+      "targetSha256": "da9c63ebd941d57643bdf12e3e03d3bf3d5f02bae4ca92fcf0197132fd6af8a6",
+      "test": false
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/sidebar-reorder.ts",
+      "target": "packages/client/ui-sidebar/lib/sidebar-reorder.ts",
+      "sourceSha256": "dc6afd9d1baddb88ede9fa7a4e374ecad71bd2b3848d797611027c61412bcd48",
+      "targetSha256": "dc6afd9d1baddb88ede9fa7a4e374ecad71bd2b3848d797611027c61412bcd48",
+      "test": false
+    }
+  ],
+  "retired": [
+    {
+      "source": "packages/conversation/conversation/src/elements/index.ts",
+      "reason": "Removed obsolete elements forwarding barrel; consumers now use the owning public capability."
+    }
+  ],
+  "partial": [
+    {
+      "source": "packages/conversation/conversation/src/conversation-list.tsx",
+      "target": "packages/conversation/ui-conversation-nodes/src/conversation-node-seat.tsx",
+      "symbol": "ConversationNodeSeat"
+    },
+    {
+      "source": "packages/conversation/conversation/src/composer-message-text.tsx",
+      "target": "packages/conversation/ui-message-blocks/src/composer-message-content.tsx",
+      "symbol": "WorkbenchComposerMessageTextContent; Context wrapper remains nodes"
+    },
+    {
+      "source": "packages/conversation/conversation/src/renderers/file.tsx",
+      "target": "packages/conversation/ui-message-blocks/lib/file-data.ts",
+      "symbol": "getBase64Size/getFileDataKind/formatFileSize, consumed by file.tsx"
+    },
+    {
+      "source": "packages/conversation/conversation/src/conversation-list.tsx",
+      "target": "packages/conversation/ui-conversation-messages/lib/conversation-row.ts",
+      "symbol": "select/equality/role/date helpers consumed by list and NodeSeat"
+    },
+    {
+      "source": "packages/client/ui-sidebar/src/i18n",
+      "target": "packages/client/ui-sidebar/src/i18n + packages/conversation/ui-conversation-list/src/i18n",
+      "symbol": "13 shared sidebar strings remain; business catalog moves with list"
+    },
+    {
+      "source": "packages/conversation/conversation/src/i18n",
+      "target": "ui-conversation + ui-conversation-nodes + ui-message-blocks",
+      "symbol": "Disjoint leaf catalogs; shared block descriptors translated using blocks bundle; no empty messages bundle"
+    }
+  ],
+  "catalogAudit": {
+    "en-US": {
+      "original": 271,
+      "current": 271,
+      "missing": [],
+      "extra": [],
+      "changed": [],
+      "duplicates": []
+    },
+    "zh-CN": {
+      "original": 271,
+      "current": 271,
+      "missing": [],
+      "extra": [],
+      "changed": [],
+      "duplicates": []
+    }
+  },
+  "catalogOwners": {
+    "workbench.chat.empty.question": "ui-conversation",
+    "workbench.chat.empty.description": "ui-conversation",
+    "workbench.chat.empty.planProject": "ui-conversation",
+    "workbench.chat.empty.explainConcept": "ui-conversation",
+    "workbench.chat.empty.reviewIdea": "ui-conversation",
+    "workbench.chat.titles.attachmentAnalysis": "ui-conversation",
+    "workbench.chat.titles.imageConversation": "ui-conversation",
+    "workbench.chat.actions.copyMessage": "ui-conversation-nodes",
+    "workbench.chat.actions.copyResponse": "ui-conversation-nodes",
+    "workbench.chat.edit.label": "ui-conversation",
+    "workbench.chat.edit.cancel": "ui-conversation",
+    "workbench.chat.edit.update": "ui-conversation",
+    "workbench.chat.sourceFallback": "ui-conversation-nodes",
+    "workbench.chat.generating": "ui-conversation-nodes",
+    "workbench.chat.loadingHistory": "ui-conversation",
+    "workbench.chat.commandArguments.customInstructions": "ui-message-blocks",
+    "workbench.chat.working": "ui-conversation",
+    "workbench.chat.workingElapsed": "ui-conversation",
+    "workbench.chat.elapsedOnly": "ui-conversation",
+    "workbench.chat.connectionInterruptedRetrying": "ui-conversation",
+    "workbench.chat.connectionInterruptedRetryingElapsed": "ui-conversation",
+    "workbench.chat.commandResponses.compactRunning": "ui-message-blocks",
+    "workbench.chat.commandResponses.compactSucceeded": "ui-message-blocks",
+    "workbench.chat.commandResponses.compactFailed": "ui-message-blocks",
+    "workbench.chat.commandResponses.reloadRunning": "ui-message-blocks",
+    "workbench.chat.commandResponses.reloadSucceeded": "ui-message-blocks",
+    "workbench.chat.commandResponses.reloadFailed": "ui-message-blocks",
+    "workbench.chat.commandResponses.reloadConfiguration.title": "ui-message-blocks",
+    "workbench.chat.commandResponses.reloadConfiguration.extensions": "ui-message-blocks",
+    "workbench.chat.commandResponses.reloadConfiguration.skills": "ui-message-blocks",
+    "workbench.chat.commandResponses.reloadConfiguration.prompts": "ui-message-blocks",
+    "workbench.chat.commandResponses.reloadConfiguration.contextFiles": "ui-message-blocks",
+    "workbench.chat.commandResponses.reloadConfiguration.none": "ui-message-blocks",
+    "workbench.chat.commandResponses.commandRunning": "ui-message-blocks",
+    "workbench.chat.commandResponses.commandSucceeded": "ui-message-blocks",
+    "workbench.chat.commandResponses.commandFailed": "ui-message-blocks",
+    "workbench.chat.commandResponses.failureReasons.contextTooSmall": "ui-message-blocks",
+    "workbench.chat.commandResponses.failureReasons.alreadyCompacted": "ui-message-blocks",
+    "workbench.chat.commandResponses.failureReasons.cancelled": "ui-message-blocks",
+    "workbench.chat.commandResponses.failureReasons.modelUnavailable": "ui-message-blocks",
+    "workbench.chat.commandResponses.failureReasons.authenticationFailed": "ui-message-blocks",
+    "workbench.chat.commandResponses.failureReasons.quotaExhausted": "ui-message-blocks",
+    "workbench.chat.commandResponses.failureReasons.rateLimited": "ui-message-blocks",
+    "workbench.chat.commandResponses.failureReasons.networkError": "ui-message-blocks",
+    "workbench.chat.commandResponses.failureReasons.timeout": "ui-message-blocks",
+    "workbench.chat.commandResponses.failureReasons.providerUnavailable": "ui-message-blocks",
+    "workbench.chat.commandResponses.failureReasons.sessionDataInvalid": "ui-message-blocks",
+    "workbench.chat.commandResponses.failureReasons.summaryGenerationFailed": "ui-message-blocks",
+    "workbench.chat.commandResponses.failureReasons.reloadFailed": "ui-message-blocks",
+    "workbench.chat.commandResponses.failureReasons.unknown": "ui-message-blocks",
+    "workbench.chat.separators.continuedFromChat": "ui-conversation-nodes",
+    "workbench.chat.separators.modelChanged": "ui-conversation-nodes",
+    "workbench.chat.separators.modelChangedAnnouncement": "ui-conversation-nodes",
+    "workbench.chat.separators.contextCompacted": "ui-conversation-nodes",
+    "workbench.chat.separators.contextCompactionReason": "ui-message-blocks",
+    "workbench.chat.separators.contextCompactedTokens": "ui-conversation-nodes",
+    "workbench.chat.separators.contextCompactedBefore": "ui-conversation-nodes",
+    "workbench.chat.separators.contextCompactedAnnouncement": "ui-conversation-nodes",
+    "workbench.chat.errors.sessionBusy": "ui-conversation",
+    "workbench.chat.errors.emptyPrompt": "ui-conversation",
+    "workbench.chat.errors.sessionNotFound": "ui-conversation",
+    "workbench.chat.errors.invalidWorkingDirectory": "ui-conversation",
+    "workbench.chat.errors.invalidWorkspace": "ui-conversation",
+    "workbench.chat.errors.modelNotAvailable": "ui-conversation",
+    "workbench.chat.errors.modelDoesNotSupportAttachments": "ui-conversation-nodes",
+    "workbench.chat.errors.invalidAttachment": "ui-conversation-nodes",
+    "workbench.chat.errors.attachmentTooLarge": "ui-conversation-nodes",
+    "workbench.chat.errors.tooManyAttachments": "ui-conversation-nodes",
+    "workbench.chat.errors.requestFailed": "ui-conversation",
+    "workbench.chat.errors.commandCompileFailed": "ui-conversation-nodes",
+    "workbench.chat.errors.retry": "ui-message-blocks",
+    "workbench.chat.errors.retrying": "ui-message-blocks",
+    "workbench.chat.errors.continue": "ui-conversation-nodes",
+    "workbench.chat.errors.continuing": "ui-conversation-nodes",
+    "workbench.chat.errors.generationStopped": "ui-conversation-nodes",
+    "workbench.chat.errors.generationInterrupted": "ui-conversation-nodes",
+    "workbench.chat.errors.connectionFailed": "ui-conversation-nodes",
+    "workbench.chat.errors.requestFailedTitle": "ui-message-blocks",
+    "workbench.chat.errors.imageInputUnsupportedTitle": "ui-conversation-nodes",
+    "workbench.chat.errors.imageInputUnsupported": "ui-conversation-nodes",
+    "workbench.chat.errors.stoppedByUser": "ui-conversation-nodes",
+    "workbench.chat.errors.interrupted": "ui-conversation-nodes",
+    "workbench.chat.errors.stoppedCanContinue": "ui-conversation-nodes",
+    "workbench.chat.errors.interruptedCanContinue": "ui-conversation-nodes",
+    "workbench.chat.errors.continueFailed": "ui-conversation-nodes",
+    "workbench.chat.errors.resumeRequiresConfirmation": "ui-conversation-nodes",
+    "workbench.chat.errors.resumeRequiresModelChange": "ui-conversation-nodes",
+    "workbench.chat.errors.outputLimit": "ui-conversation-nodes",
+    "workbench.chat.errors.networkFailure": "ui-conversation-nodes",
+    "workbench.chat.errors.apiFailure": "ui-conversation-nodes",
+    "workbench.chat.errors.providerFailure": "ui-conversation-nodes",
+    "workbench.chat.errors.queueSendFailedRestored": "ui-conversation-nodes",
+    "workbench.chat.errors.unknownFailure": "ui-message-blocks",
+    "workbench.chat.scrollLatest": "ui-conversation",
+    "assistant.common.close": "ui-conversation",
+    "assistant.common.cancel": "ui-conversation",
+    "assistant.common.update": "ui-conversation",
+    "assistant.thread.greeting": "ui-conversation",
+    "assistant.thread.help": "ui-conversation",
+    "assistant.thread.thinking": "ui-conversation",
+    "assistant.thread.scrollLatest": "ui-conversation",
+    "assistant.actions.edit": "ui-message-blocks",
+    "assistant.actions.copy": "ui-message-blocks",
+    "assistant.actions.copied": "ui-message-blocks",
+    "assistant.actions.copyFailed": "ui-message-blocks",
+    "assistant.actions.refresh": "ui-message-blocks",
+    "assistant.markdown.footnotes": "ui-conversation",
+    "assistant.markdown.backToReference": "ui-conversation",
+    "assistant.codeBlock.expand": "ui-conversation",
+    "assistant.codeBlock.collapse": "ui-conversation",
+    "assistant.codeBlock.plainText": "ui-conversation",
+    "assistant.codeBlock.mermaidDiagram": "ui-conversation",
+    "assistant.codeBlock.mermaidLoading": "ui-conversation",
+    "assistant.codeBlock.mermaidError": "ui-conversation",
+    "assistant.linkSafety.title": "ui-conversation",
+    "assistant.linkSafety.description": "ui-conversation",
+    "assistant.linkSafety.copy": "ui-conversation",
+    "assistant.linkSafety.copied": "ui-conversation",
+    "assistant.linkSafety.copyFailed": "ui-conversation",
+    "assistant.linkSafety.open": "ui-conversation",
+    "assistant.branch.previous": "ui-conversation",
+    "assistant.branch.next": "ui-conversation",
+    "assistant.threads.search": "ui-conversation",
+    "assistant.threads.newChat": "ui-conversation",
+    "assistant.threads.newThread": "ui-conversation",
+    "assistant.threads.loading": "ui-conversation",
+    "assistant.threads.running": "ui-conversation",
+    "assistant.threads.rename": "ui-conversation",
+    "assistant.threads.renameAction": "ui-conversation",
+    "assistant.threads.moreOptions": "ui-conversation",
+    "assistant.threads.archive": "ui-conversation",
+    "assistant.threads.delete": "ui-conversation",
+    "assistant.threads.noResults": "ui-conversation",
+    "assistant.threads.today": "ui-conversation",
+    "assistant.threads.yesterday": "ui-conversation",
+    "assistant.threads.earlier": "ui-conversation",
+    "assistant.threads.sidebarTitle": "ui-conversation",
+    "assistant.threads.sidebarDescription": "ui-conversation",
+    "assistant.threads.toggleSidebar": "ui-conversation",
+    "assistant.image.zoom": "ui-message-blocks",
+    "assistant.image.closeZoom": "ui-message-blocks",
+    "assistant.image.generating": "ui-message-blocks",
+    "assistant.image.failed": "ui-message-blocks",
+    "assistant.image.stopped": "ui-message-blocks",
+    "assistant.image.loadFailed": "ui-message-blocks",
+    "assistant.image.providerBlocked": "ui-message-blocks",
+    "assistant.image.regenerate": "ui-message-blocks",
+    "assistant.image.download": "ui-message-blocks",
+    "assistant.image.copy": "ui-message-blocks",
+    "assistant.image.contentAlt": "ui-message-blocks",
+    "assistant.file.unnamed": "ui-message-blocks",
+    "assistant.context.title": "ui-conversation",
+    "assistant.context.system": "ui-conversation",
+    "assistant.context.tools": "ui-conversation",
+    "assistant.context.messages": "ui-conversation",
+    "assistant.context.total": "ui-conversation",
+    "assistant.context.usage": "ui-conversation",
+    "assistant.sourceLink": "ui-conversation",
+    "chatContent.userMessage.showMore": "ui-message-blocks",
+    "chatContent.userMessage.showLess": "ui-message-blocks",
+    "extensions.messagePresentation.generating": "ui-conversation-nodes",
+    "extensions.messagePresentation.sourceFallback": "ui-conversation-nodes",
+    "extensions.messagePresentation.attachmentReference.image": "ui-conversation-nodes",
+    "extensions.messagePresentation.attachmentReference.pdf": "ui-conversation-nodes",
+    "extensions.messagePresentation.continuedTurn": "ui-conversation-nodes",
+    "extensions.messagePresentation.completedTurn": "ui-conversation-nodes"
+  },
+  "tests": {
+    "basis": "/tmp/spec005-baseline/packages/conversation/conversation",
+    "policy": "Pure node:test files are safe candidates only when they do not render React, import react-dom/ui-testkit, use DOM globals, or require a browser/runtime provider. No tests were executed.",
+    "safeFiles": [
+      "packages/conversation/ui-conversation-nodes/tests/builtin-message-presentation-message-citations.test.ts",
+      "packages/conversation/ui-conversation-nodes/tests/builtin-message-presentation-message-presentation-policy.test.ts",
+      "packages/conversation/ui-conversation-nodes/tests/completed-turn-model.test.ts",
+      "packages/conversation/ui-conversation-nodes/tests/message-action-visibility.test.ts",
+      "packages/conversation/ui-conversation-nodes/tests/workbench-message-error.test.ts",
+      "packages/conversation/ui-conversation-messages/tests/workbench-message-rows.test.ts",
+      "packages/conversation/ui-conversation-list/tests/sidebar-move.test.ts",
+      "packages/conversation/ui-conversation-list/tests/thread-list-groups.test.ts",
+      "packages/conversation/ui-conversation-list/tests/thread-list-index.test.ts",
+      "packages/conversation/ui-conversation-list/tests/thread-order-store.test.ts",
+      "packages/conversation/ui-conversation-list/tests/thread-sort.test.ts",
+      "packages/conversation/ui-conversation/tests/conversation-title.test.ts",
+      "packages/conversation/ui-conversation/tests/workbench-thread-timing.test.ts",
+      "packages/client/ui-sidebar/tests/sidebar-reorder.test.ts"
+    ],
+    "excluded": {
+      "packages/conversation/ui-message-blocks/tests/composer-command-response.test.tsx": "React server rendering, I18nProvider and settings provider; UI test",
+      "packages/conversation/ui-message-blocks/tests/message-blocks.test.tsx": "React server rendering, image/file UI and providers; UI test",
+      "packages/conversation/ui-message-blocks/tests/streaming-text.test.tsx": "React server rendering; UI test",
+      "packages/conversation/ui-conversation-messages/tests/conversation-layout.test.tsx": "React DOM root, ui-testkit and matchMedia; UI test",
+      "packages/conversation/ui-conversation-messages/tests/thread-scroll-state.test.tsx": "React DOM root, browser globals and persistence lifecycle; UI test",
+      "packages/conversation/ui-conversation-messages/tests/workbench-conversation-viewport.test.ts": "React DOM root, ResizeObserver/window and ui-testkit; DOM interaction test",
+      "packages/conversation/ui-conversation-list/tests/thread-list.test.tsx": "React DOM/provider/interaction fixture; excluded-by-user"
+    },
+    "notes": [
+      "thread-order-store.test.ts has no window/document/localStorage reference; it uses an in-memory WorkbenchSettingsPort and async promises, so it is a safe pure logic candidate.",
+      "The safe list is a static classification only; package dependencies and current integration state still need the root agent's type/structure validation.",
+      "The original three blocks UI tests were moved with unchanged assertions; only relative source imports changed for the new flat layout."
+    ],
+    "baselineCount": 636,
+    "preservedCount": 636,
+    "missing": []
+  },
+  "css": {
+    "wholeFiles": [
+      "conversation.css and chat-icons.css → ui-conversation-messages/src",
+      "image.css → ui-message-blocks/src"
+    ],
+    "cascade": "Shell → ui-conversation/styles.css → ui-conversation-messages/styles.css; existing chat-icons → ui-composer/icons → ui-message-blocks/styles order preserved. Rule bodies unchanged.",
+    "sidebar": "All existing sidebar styles remain shared primitives/region rules in ui-sidebar; list uses same classes and Portal scope, no new duplicate CSS."
+  }
+}

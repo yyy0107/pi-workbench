@@ -14,7 +14,6 @@ import type {
   MainViewSidebarProps,
   SettingsItemDefinition,
   SettingsSectionDefinition,
-  SettingsSectionGroupDefinition,
 } from "@workbench/extension-sdk";
 
 import {
@@ -23,14 +22,14 @@ import {
 } from "@workbench/ui-settings/request";
 import { withTooltip } from "@workbench/ui";
 
+import {
+  normalizeSearchText,
+  matchesSearchText,
+  groupSettingsSections,
+} from "../lib/settings-section-search";
+
 const EMPTY_SECTIONS = Object.freeze([]) as readonly SettingsSectionDefinition[];
 const EMPTY_ITEMS = Object.freeze([]) as readonly SettingsItemDefinition[];
-
-interface SettingsNavigationGroup {
-  id: string;
-  title?: SettingsSectionGroupDefinition["title"];
-  sections: SettingsSectionDefinition[];
-}
 
 interface SettingsSearchResultGroup {
   section: SettingsSectionDefinition;
@@ -46,42 +45,6 @@ interface SettingsSearchResult {
 interface SettingsSearchCandidate extends SettingsSearchResult {
   section: SettingsSectionDefinition;
   primary: boolean;
-}
-
-function normalizeSearchText(value: string): string {
-  return value.normalize("NFKC").toLocaleLowerCase().replace(/\s+/gu, "");
-}
-
-function matchesSearchText(
-  value: LocalizableText | undefined,
-  query: string,
-  resolve: (message: LocalizableText) => string,
-): boolean {
-  return value !== undefined && normalizeSearchText(resolve(value)).includes(query);
-}
-
-function groupSettingsSections(
-  sections: readonly SettingsSectionDefinition[],
-): SettingsNavigationGroup[] {
-  const groups: SettingsNavigationGroup[] = [];
-  const groupsById = new Map<string, SettingsNavigationGroup>();
-
-  for (const section of sections) {
-    const groupId = section.group ? `group:${section.group.id}` : "ungrouped";
-    let group = groupsById.get(groupId);
-    if (!group) {
-      group = {
-        id: groupId,
-        title: section.group?.title,
-        sections: [],
-      };
-      groupsById.set(groupId, group);
-      groups.push(group);
-    }
-    group.sections.push(section);
-  }
-
-  return groups;
 }
 
 export function SettingsSidebar({

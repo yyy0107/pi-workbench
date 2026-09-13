@@ -1,4 +1,4 @@
-import { conversationTranslationBundle } from "@workbench/conversation/i18n";
+import { conversationTranslationBundle } from "@workbench/ui-conversation/i18n";
 import { useI18n } from "@workbench/i18n";
 
 import assert from "node:assert/strict";

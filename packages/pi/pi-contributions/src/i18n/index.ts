@@ -1,4 +1,5 @@
 "use client";
+import { piSettingsModelsTranslationBundle } from "@workbench/pi-ui-settings-models/i18n";
 import { bindPiI18nRuntime } from "../../lib/i18n-runtime";
 import { sessionImportUiTranslationBundle } from "@workbench/pi-ui-session-import/i18n";
 import { statusUiTranslationBundle } from "@workbench/pi-ui-status/i18n";
@@ -69,4 +70,5 @@ export const piTranslationBundles = Object.freeze([
   toolboxUiTranslationBundle,
   piTranslationBundle,
   piSettingsUiTranslationBundle,
+  piSettingsModelsTranslationBundle,
 ]);

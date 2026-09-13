@@ -46,7 +46,7 @@ test("bundles Shell style rules without runtime style elements or cssText", asyn
   for (const stylesheet of [
     "@workbench/code-highlighting/editor.css",
     "@workbench/code-highlighting/diff.css",
-    "@workbench/ui-settings/styles.css",
+    "@workbench/ui-theme/styles.css",
   ]) {
     assert.equal(styles.includes(`@import "${stylesheet}";`), true, stylesheet);
   }

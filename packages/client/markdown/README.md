@@ -41,3 +41,5 @@ Source roles: src/ owns capability implementation, contracts, components and com
 Internal helpers: `lib/inline-citation-markers.ts`, `lib/markdown-normalize.ts`.
 
 Example consumer: `src/markdown-text.tsx` → `lib/markdown-normalize.ts`.
+
+Markdown preview controls and conversation font inheritance are owned by this package rather than the message-list stylesheet.

@@ -1274,7 +1274,7 @@ Pi 按具体能力组织为 `packages/pi/<capability>`。每包同时拥有真�
 
 `server/src/session-composition/registry.ts` 每个模块代际调用一次 `createPiSessionRegistry`。原进程注册表、交互注册表 Symbol、资源协调器、SDK 会话和关闭钩子的作用域保持。资源和工具服务通过明确端口取得这些实例，具体默认选择由装配层拥有。
 
-Workbench 通用 UI、对话与工作区分别归 `packages/client/*`、`packages/conversation/*`、`packages/workspace/*`。产品安装顺序由 `packages/client/pi-product` 持有，Shell 保留布局与侧栏。完整公开入口和源码清单见 [能力包映射](../../specs/001-workbench-package-refactor/package-map.md)。
+Workbench 通用 UI、对话与工作区分别归 `packages/client/*`、`packages/client/*`、`packages/workspace/*`。产品安装顺序由 `packages/client/pi-product` 持有，Shell 保留布局与侧栏。完整公开入口和源码清单见 [能力包映射](../../specs/001-workbench-package-refactor/package-map.md)。
 
 ## 配置
 

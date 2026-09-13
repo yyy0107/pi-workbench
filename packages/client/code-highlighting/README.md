@@ -9,3 +9,5 @@ Source roles: src/ owns capability implementation, contracts, components and com
 Internal helpers: `lib/code-highlight-policy.ts`, `lib/diff/range.ts`, `lib/diff/unified-patch.ts`, `lib/shiki-token-style.ts`.
 
 Example consumer: `src/index.ts` → `lib/code-highlight-policy.ts`.
+
+Code-header control sizing lives in code-block.css beside the header; tool protocol adapters are not part of this rendering capability.

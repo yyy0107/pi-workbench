@@ -1,0 +1,295 @@
+{
+  "baseline": "8ee7ee24",
+  "state": "implemented",
+  "capabilities": [
+    {
+      "owner": "@workbench/ui-model-selection",
+      "target": "packages/client/ui-model-selection",
+      "sourcePackage": "packages/client/ui-agent-controls",
+      "wave": "W1",
+      "sourceFiles": [
+        "packages/client/ui-agent-controls/lib/model-selector-models.ts",
+        "packages/client/ui-agent-controls/lib/model-selector-state.ts",
+        "packages/client/ui-agent-controls/lib/reasoning-effort-label.ts",
+        "packages/client/ui-agent-controls/src/model-selector-extension.ts",
+        "packages/client/ui-agent-controls/src/model-selector-index.ts",
+        "packages/client/ui-agent-controls/src/model-selector-store.ts",
+        "packages/client/ui-agent-controls/src/model-selector-view.tsx",
+        "packages/client/ui-agent-controls/src/model-selector.tsx",
+        "packages/client/ui-agent-controls/src/models.ts",
+        "packages/client/ui-agent-controls/src/reasoning.ts"
+      ],
+      "boundary": "模型视图、连接器、store、扩展；Shell/automation 消费；不依赖旧 agent-controls",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    },
+    {
+      "owner": "@workbench/ui-token-usage",
+      "target": "packages/client/ui-token-usage",
+      "sourcePackage": "packages/client/ui-agent-controls",
+      "wave": "W1",
+      "sourceFiles": [
+        "packages/client/ui-agent-controls/lib/token-animation.ts",
+        "packages/client/ui-agent-controls/lib/token-throughput.ts",
+        "packages/client/ui-agent-controls/src/token-usage-extension.ts",
+        "packages/client/ui-agent-controls/src/token-usage-index.ts",
+        "packages/client/ui-agent-controls/src/token-usage-section.tsx",
+        "packages/client/ui-agent-controls/src/token-usage.tsx"
+      ],
+      "boundary": "Token 用量、上下文统计与动画；推理标签随模型选择迁移；两包不互相回引",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    },
+    {
+      "owner": "@workbench/ui-theme",
+      "target": "packages/client/ui-theme",
+      "sourcePackage": "packages/client/ui-settings",
+      "wave": "W1",
+      "sourceFiles": [
+        "packages/client/ui-settings/lib/appearance-settings-pages.ts",
+        "packages/client/ui-settings/lib/normalize-hex-color.ts",
+        "packages/client/ui-settings/src/appearance-background.css",
+        "packages/client/ui-settings/src/appearance-background.tsx",
+        "packages/client/ui-settings/src/appearance-extension.ts",
+        "packages/client/ui-settings/src/appearance-index.ts",
+        "packages/client/ui-settings/src/appearance-reset-action.tsx",
+        "packages/client/ui-settings/src/appearance-settings-item.tsx",
+        "packages/client/ui-settings/src/background-image-store.ts",
+        "packages/client/ui-settings/src/color-picker.css",
+        "packages/client/ui-settings/src/color-picker.tsx"
+      ],
+      "boundary": "外观、背景、颜色和外观设置扩展；复用 appearance 状态；Shell 直接安装",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    },
+    {
+      "owner": "@workbench/ui-settings-general",
+      "target": "packages/client/ui-settings-general",
+      "sourcePackage": "packages/client/ui-settings",
+      "wave": "W1",
+      "sourceFiles": [
+        "packages/client/ui-settings/lib/locale-display-name.ts",
+        "packages/client/ui-settings/src/conversation-settings-item.tsx",
+        "packages/client/ui-settings/src/locale-selector-extension.ts",
+        "packages/client/ui-settings/src/locale-selector-index.ts",
+        "packages/client/ui-settings/src/locale-selector.tsx"
+      ],
+      "boundary": "语言与通用会话偏好设置项；设置容器仍留 ui-settings，通过注册表贡献项目",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    },
+    {
+      "owner": "@workbench/pi-ui-settings-models",
+      "target": "packages/pi/pi-ui-settings-models",
+      "sourcePackage": "packages/pi/pi-ui-settings",
+      "wave": "W2",
+      "sourceFiles": [
+        "packages/pi/pi-ui-settings/lib/model-config-draft.ts",
+        "packages/pi/pi-ui-settings/lib/model-provider-credential-links.ts",
+        "packages/pi/pi-ui-settings/src/model-config-model-row.tsx",
+        "packages/pi/pi-ui-settings/src/model-config-settings-item.tsx",
+        "packages/pi/pi-ui-settings/src/setting-model-config-extension.ts",
+        "packages/pi/pi-ui-settings/src/setting-model-config-index.ts",
+        "packages/pi/pi-ui-settings/src/use-model-config-autosave.ts",
+        "packages/pi/pi-ui-settings/src/use-model-test-feedback.ts"
+      ],
+      "boundary": "Pi provider/model 配置、凭据链接、自动保存与反馈；Pi contributions 安装，保持 Pi 依赖在 Pi 领域",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    },
+    {
+      "owner": "@workbench/ui-attachment",
+      "target": "packages/conversation/ui-attachment",
+      "sourcePackage": "packages/conversation/composer",
+      "wave": "W1",
+      "sourceFiles": [
+        "packages/conversation/composer/lib/composer-image-paste.ts",
+        "packages/conversation/composer/lib/composer-text-paste.ts",
+        "packages/conversation/composer/src/attachments.ts",
+        "packages/conversation/composer/src/composer-attachments.tsx",
+        "packages/conversation/composer/src/pasted-text-attachment-preview.tsx"
+      ],
+      "boundary": "附件条、文本附件预览与粘贴辅助；payload 复用 agent-runtime-contracts；composer 传状态/回调",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    },
+    {
+      "owner": "@workbench/ui-input-trigger",
+      "target": "packages/conversation/ui-input-trigger",
+      "sourcePackage": "packages/conversation/composer",
+      "wave": "W2",
+      "sourceFiles": [
+        "packages/conversation/composer/lib/agent-command.ts",
+        "packages/conversation/composer/lib/composer-command-argument-hint.ts",
+        "packages/conversation/composer/lib/composer-command-group-order.ts",
+        "packages/conversation/composer/lib/composer-command-icon-color.ts",
+        "packages/conversation/composer/src/agent-command.ts",
+        "packages/conversation/composer/src/composer-command-arguments.tsx",
+        "packages/conversation/composer/src/composer-command-parameter-panel.tsx",
+        "packages/conversation/composer/src/composer-command-parameters.ts",
+        "packages/conversation/composer/src/composer-trigger-engine.ts"
+      ],
+      "boundary": "命令触发/候选/参数；编辑器、document、提交与 history 留 composer，通过稳定结构参数与回调协作",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    },
+    {
+      "owner": "@workbench/ui-user-questions",
+      "target": "packages/conversation/ui-user-questions",
+      "sourcePackage": "packages/conversation/conversation",
+      "wave": "W1",
+      "sourceFiles": [
+        "packages/conversation/conversation/lib/interactive-requests/ask-user-tool-model.ts",
+        "packages/conversation/conversation/lib/interactive-requests/interaction-form-state.ts",
+        "packages/conversation/conversation/src/interactive-requests/ask-user-panel.tsx",
+        "packages/conversation/conversation/src/interactive-requests/ask-user-preferences.ts",
+        "packages/conversation/conversation/src/interactive-requests/ask-user-recommended-mark.tsx",
+        "packages/conversation/conversation/src/interactive-requests/ask-user-tool-renderer.tsx",
+        "packages/conversation/conversation/src/interactive-requests/extension.ts",
+        "packages/conversation/conversation/src/interactive-requests/index.ts",
+        "packages/conversation/conversation/src/interactive-requests/interactive-requests-overlay.tsx"
+      ],
+      "boundary": "问题/审批面板、表单状态、渲染器与扩展；Pi server ask_user 保持原 owner",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    },
+    {
+      "owner": "@workbench/ui-todo",
+      "target": "packages/conversation/ui-todo",
+      "sourcePackage": "packages/conversation/conversation",
+      "wave": "W1",
+      "sourceFiles": [
+        "packages/conversation/conversation/lib/todo-model.ts",
+        "packages/conversation/conversation/src/todo-list.tsx",
+        "packages/conversation/conversation/src/todo-panel/extension.ts",
+        "packages/conversation/conversation/src/todo-panel/index.ts",
+        "packages/conversation/conversation/src/todo-panel/todo-panel.tsx"
+      ],
+      "boundary": "Todo 适配模型、列表、面板与扩展；公开 ./model 给 presentation 消费，不冒充 plan-mode",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    },
+    {
+      "owner": "@workbench/ui-message-queue",
+      "target": "packages/conversation/ui-message-queue",
+      "sourcePackage": "packages/conversation/conversation",
+      "wave": "W1",
+      "sourceFiles": [
+        "packages/conversation/conversation/lib/message-queue/message-queue-preview.ts",
+        "packages/conversation/conversation/src/message-queue/composer-message-queue.tsx",
+        "packages/conversation/conversation/src/message-queue/extension.ts",
+        "packages/conversation/conversation/src/message-queue/index.ts",
+        "packages/conversation/conversation/src/message-queue/message-queue.css"
+      ],
+      "boundary": "待发送消息队列、预览、拖放与扩展；依赖 composer/panels，无反向包引用",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    },
+    {
+      "owner": "@workbench/ui-message-actions",
+      "target": "packages/conversation/ui-message-actions",
+      "sourcePackage": "packages/conversation/conversation",
+      "wave": "W1",
+      "sourceFiles": [
+        "packages/conversation/conversation/lib/message-actions/fork-availability.ts",
+        "packages/conversation/conversation/lib/message-actions/message-performance-statistics.ts",
+        "packages/conversation/conversation/lib/message-actions/message-performance-visibility.ts",
+        "packages/conversation/conversation/src/message-actions/extension.ts",
+        "packages/conversation/conversation/src/message-actions/index.ts",
+        "packages/conversation/conversation/src/message-actions/message-actions.tsx"
+      ],
+      "boundary": "消息分支/重试/统计操作扩展；根 src/message-actions.tsx 的基础行操作暂留 conversation，二者职责不同",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    },
+    {
+      "owner": "@workbench/ui-user-message-index",
+      "target": "packages/conversation/ui-user-message-index",
+      "sourcePackage": "packages/conversation/conversation",
+      "wave": "W1",
+      "sourceFiles": [
+        "packages/conversation/conversation/lib/user-message-index/user-message-index-layout.ts",
+        "packages/conversation/conversation/src/user-message-index/extension.ts",
+        "packages/conversation/conversation/src/user-message-index/index.ts",
+        "packages/conversation/conversation/src/user-message-index/user-message-index.css",
+        "packages/conversation/conversation/src/user-message-index/user-message-index.tsx"
+      ],
+      "boundary": "用户消息导航、布局辅助与 CSS；Shell 直接注册，保留 DOM 定位合同",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    },
+    {
+      "owner": "@workbench/ui-settings-archived-chats",
+      "target": "packages/conversation/ui-settings-archived-chats",
+      "sourcePackage": "packages/conversation/conversation",
+      "wave": "W1",
+      "sourceFiles": [
+        "packages/conversation/conversation/lib/archived-chats/archived-chat-group-a11y.ts",
+        "packages/conversation/conversation/src/archived-chats/archived-chats-settings-item.tsx",
+        "packages/conversation/conversation/src/archived-chats/extension.ts",
+        "packages/conversation/conversation/src/archived-chats/index.ts"
+      ],
+      "boundary": "归档列表设置、恢复操作和 a11y helper；依赖 settings request 的公开入口",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    },
+    {
+      "owner": "@workbench/ui-side-chat",
+      "target": "packages/conversation/ui-side-chat",
+      "sourcePackage": "packages/conversation/conversation",
+      "wave": "W3",
+      "sourceFiles": [
+        "packages/conversation/conversation/lib/side-chat/scratch-session-lease.ts",
+        "packages/conversation/conversation/lib/side-chat/side-chat-navigation.ts",
+        "packages/conversation/conversation/src/side-chat/extension.ts",
+        "packages/conversation/conversation/src/side-chat/index.ts",
+        "packages/conversation/conversation/src/side-chat/side-chat-header.tsx",
+        "packages/conversation/conversation/src/side-chat/side-chat-menu-item.tsx",
+        "packages/conversation/conversation/src/side-chat/side-chat-runtime-bridge.tsx",
+        "packages/conversation/conversation/src/side-chat/side-chat-surface.tsx",
+        "packages/conversation/conversation/src/side-chat/side-chat-workspace.ts"
+      ],
+      "boundary": "侧聊租约/导航/工作区 surface；单向依赖 conversation+composer，Shell直接注册，conversation不得回导该扩展",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    },
+    {
+      "owner": "@workbench/ui-tool",
+      "target": "packages/conversation/ui-tool",
+      "sourcePackage": "packages/conversation/conversation",
+      "wave": "W3",
+      "sourceFiles": [
+        "packages/conversation/conversation/lib/message-presentation/tool-diff-model.ts",
+        "packages/conversation/conversation/lib/message-presentation/tool-timeline-model.ts",
+        "packages/conversation/conversation/src/elements/reasoning-panel.tsx",
+        "packages/conversation/conversation/src/elements/tool-call.tsx",
+        "packages/conversation/conversation/src/message-presentation/message-disclosure-context.tsx",
+        "packages/conversation/conversation/src/message-presentation/message-tool-timeline.tsx",
+        "packages/conversation/conversation/src/tool-group.tsx"
+      ],
+      "boundary": "完整工具/推理时间线、Diff、Disclosure Context；先抽纯 disclosure policy，消除对 conversation 的回引",
+      "status": "implemented",
+      "tests": "按来源包既有测试的实际 imports/能力归属移动；混合测试留原装配包，仅改导入，全部UI测试excluded-by-user"
+    }
+  ],
+  "partialExtractions": [
+    {
+      "source": "packages/client/ui-settings/src/settings-sidebar.tsx",
+      "target": "packages/client/ui-settings/lib/settings-section-search.ts",
+      "symbols": ["normalizeSearchText", "matchesSearchText", "groupSettingsSections"],
+      "reason": "settings 容器保留真实src及实际被调用的lib"
+    },
+    {
+      "source": "packages/conversation/conversation/lib/message-presentation/message-presentation-policy.ts",
+      "target": "packages/conversation/ui-tool/lib/message-disclosure-policy.ts",
+      "symbols": [
+        "defaultMessageDisclosureOpen",
+        "MessagePresentationDisclosure",
+        "MessagePresentationPhase"
+      ],
+      "reason": "Context与conversation都消费同一公开policy，防止ui-tool回引conversation"
+    }
+  ],
+  "validation": "validation.md",
+  "migrationInventory": "migration-inventory.json"
+}

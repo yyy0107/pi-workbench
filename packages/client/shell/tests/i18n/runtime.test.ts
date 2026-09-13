@@ -1,8 +1,13 @@
+import { conversationTranslationBundle } from "@workbench/ui-message-blocks/i18n";
 import {
-  conversationTranslationBundle,
-  defineConversationMessage as defineMessage,
-  type ConversationMessageDescriptor as MessageDescriptor,
-} from "@workbench/conversation/i18n";
+  defineMessage,
+  uiSettingsArchivedChatsTranslationBundle,
+} from "@workbench/ui-settings-archived-chats/i18n";
+import type { MessageKeyOf, MessageDescriptorFor } from "@workbench/i18n/runtime";
+type ArchivedCatalog = (typeof uiSettingsArchivedChatsTranslationBundle.messages)["en-US"];
+type MessageDescriptor = {
+  [K in MessageKeyOf<ArchivedCatalog>]: MessageDescriptorFor<ArchivedCatalog, K>;
+}[MessageKeyOf<ArchivedCatalog>];
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { LocalizableText as ExtensionLocalizableText } from "@workbench/extension-sdk";

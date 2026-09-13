@@ -1,6 +1,10 @@
 import type { MessageFormatters } from "@workbench/i18n/runtime";
 export const messages = {
   extensions: {
+    fileMutation: {
+      edit: { complete: "Edited", active: "Editing" },
+      write: { complete: "Created", active: "Creating" },
+    },
     toolbox: {
       title: "Toolbox",
       back: "Back to Toolbox",
