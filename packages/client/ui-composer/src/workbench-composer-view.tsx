@@ -33,7 +33,7 @@ import { composerCommandIconColorClassName } from "@workbench/ui-input-trigger/p
 import { ComposerCommandIcon } from "@workbench/ui-input-trigger/tokens";
 import { withTooltip } from "@workbench/ui";
 
-const COMPOSER_PRIMARY_ACTION_CLASS_NAME = "aui-composer-primary-action hover:bg-primary";
+const COMPOSER_PRIMARY_ACTION_CLASS_NAME = "aui-composer-primary-action";
 const COMPOSER_INTERACTIVE_TARGET_SELECTOR = [
   "button",
   "a",
@@ -418,7 +418,8 @@ export function ComposerPrimaryActionView({
       type="button"
       size="icon"
       variant="default"
-      className={COMPOSER_PRIMARY_ACTION_CLASS_NAME}
+      interaction="static"
+      className={cn(COMPOSER_PRIMARY_ACTION_CLASS_NAME, "bg-primary/10 text-primary")}
       onClick={onCancel}
     >
       <span
@@ -434,9 +435,10 @@ export function ComposerPrimaryActionView({
       size="icon"
       disabled={!canSend}
       variant="default"
+      interaction="static"
       className={cn(
         COMPOSER_PRIMARY_ACTION_CLASS_NAME,
-        "bg-primary/10 text-primary hover:bg-primary/20",
+        "bg-primary/10 text-primary",
         "disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100",
       )}
       onClick={onSend}
