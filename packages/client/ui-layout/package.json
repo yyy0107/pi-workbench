@@ -25,9 +25,11 @@
     "@workbench/settings-runtime": "workspace:*",
     "@workbench/shell-context": "workspace:*",
     "@workbench/ui": "workspace:*",
+    "@workbench/ui-file-presentation": "workspace:*",
     "@workbench/ui-panels": "workspace:*",
     "@workbench/ui-resize": "workspace:*",
     "@workbench/ui-sidebar": "workspace:*",
+    "@workbench/ui-workspace": "workspace:*",
     "@workbench/workspace-runtime": "workspace:*",
     "lucide-react": "^1.29.0"
   },

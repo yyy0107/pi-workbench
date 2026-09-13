@@ -15,10 +15,13 @@ import { CodexSessionImporter } from "./codex-session-importer";
 import { CursorSessionImporter } from "./cursor-session-importer";
 import { hasAssistantMessage, importedSessionId, workspaceIssue } from "../lib/source-utils";
 import type { PiSessionRegistry } from "./session-registry";
-import type { WorkspaceStore } from "@workbench/pi-resources-server/workspace-store";
+import type {
+  WorkspaceCreationPort,
+  WorkspaceSessionAttachmentPort,
+} from "@workbench/agent-runtime-contracts/workspace-catalog";
 export interface ExternalSessionImportDependencies {
   registerImportedSessionManager: PiSessionRegistry["registerImportedSessionManager"];
-  getWorkspaceStore(): Pick<WorkspaceStore, "create" | "attachSession">;
+  getWorkspaceStore(): WorkspaceCreationPort & WorkspaceSessionAttachmentPort;
 }
 
 export type ExternalSessionImportSelection = ExternalSessionImportPayload["sessions"][number];

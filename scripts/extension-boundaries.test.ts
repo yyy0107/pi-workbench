@@ -118,6 +118,8 @@ const COMPONENT_ROOTS = [
   resolve(PROJECT_ROOT, "packages/client/ui-disclosure/src"),
   resolve(PROJECT_ROOT, "packages/client/ui-conversation/src"),
   resolve(PROJECT_ROOT, "packages/client/ui-composer/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-workspace/src"),
+  resolve(PROJECT_ROOT, "packages/client/ui-file-presentation/src"),
   resolve(PROJECT_ROOT, "packages/workspace/workspace-runtime/src"),
   resolve(PROJECT_ROOT, "packages/workspace/workspace-files/src"),
 ].flatMap((root) =>
@@ -127,8 +129,11 @@ const PLATFORM_API_ROOT = resolve(
   PROJECT_ROOT,
   "packages/extension-platform/extension-sdk/src/api",
 );
-const RIGHT_WORKSPACE_ROOTS = ["src", "lib"]
-  .map((directory) => resolve(PROJECT_ROOT, "packages/workspace/workspace-runtime", directory))
+const RIGHT_WORKSPACE_ROOTS = [
+  "packages/workspace/workspace-runtime",
+  "packages/client/ui-workspace",
+]
+  .flatMap((root) => ["src", "lib"].map((directory) => resolve(PROJECT_ROOT, root, directory)))
   .filter(existsSync);
 const RUNTIME_ROOTS = [
   resolve(PROJECT_ROOT, "apps/runtime-node/src"),
@@ -147,6 +152,7 @@ const EXTENSION_AUTHORING_ENTRY = resolve(
 );
 const ALLOWED_EXTENSION_SUBPATHS = new Set([
   "@workbench/extension-sdk",
+  "@workbench/extension-sdk/workspace-surfaces",
   "@workbench/extension-host",
   "@workbench/extension-host/hosts/extension-error-boundary",
   "@workbench/extension-host/hosts/renderer-host",

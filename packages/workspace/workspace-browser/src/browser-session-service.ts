@@ -5,7 +5,7 @@ import { useRuntimeConnection } from "@workbench/shell-context/runtime-connectio
 import {
   useRightWorkspaceInstallationResource,
   useRightWorkspaceStateStore,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 import type { BrowserSessionService } from "./memory-browser-session-service";
 import { RemoteBrowserSessionService } from "./remote-browser-session-service";
 

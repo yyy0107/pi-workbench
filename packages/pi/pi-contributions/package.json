@@ -41,7 +41,6 @@
     "@workbench/ui-conversation": "workspace:*",
     "@workbench/ui-settings": "workspace:*",
     "@workbench/workspace-files": "workspace:*",
-    "@workbench/workspace-runtime": "workspace:*",
     "lucide-react": "^1.29.0",
     "simple-icons": "^16.29.0"
   },

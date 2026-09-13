@@ -2,22 +2,11 @@ import type { ExtensionContext, ExtensionFactory } from "@earendil-works/pi-codi
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
-import {
-  parseBrowserCommand,
-  type BrowserCommand,
-  type BrowserFile,
-} from "@workbench/browser-contracts";
+import { parseBrowserCommand, type BrowserFile } from "@workbench/browser-contracts";
 import { createBrowserHostResolver } from "./standalone-host";
 import { registerHarnessTools } from "./tools";
 
-export interface BrowserHost {
-  command(
-    command: BrowserCommand,
-    signal?: AbortSignal,
-    controlSignal?: AbortSignal,
-  ): Promise<unknown>;
-  resolveProjectId?(cwd: string): Promise<string>;
-}
+import type { BrowserHost } from "@workbench/browser-contracts/host";
 
 const actions = [
   "tabs.list",

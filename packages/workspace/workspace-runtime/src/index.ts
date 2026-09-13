@@ -17,26 +17,6 @@ export {
   selectContextSurfaces,
   selectContextSurfacesByPlacement,
 } from "./workspace-selectors";
-export { shouldMountWorkspaceSurface } from "../lib/surface-mount-policy";
-export {
-  MIN_HORIZONTAL_SPLIT_WIDTH,
-  MIN_PRIMARY_SURFACE_WIDTH,
-  WIDE_AUXILIARY_SURFACE_WIDTH,
-  auxiliarySurfaceSnapPoints,
-  clampAuxiliarySurfaceWidth,
-  resolveWorkspaceSplitLayout,
-} from "../lib/workspace-split-layout";
-export type { WorkspaceSplitLayout } from "../lib/workspace-split-layout";
-export {
-  MIN_CONVERSATION_WIDTH,
-  MIN_DOCKED_RIGHT_WORKSPACE_HOST_WIDTH,
-  resolveRightWorkspacePresentation,
-  shouldCollapseRightWorkspaceBeforeSidebar,
-} from "./right-workspace-layout";
-export type { RightWorkspacePresentation } from "./right-workspace-layout";
-export { workspaceTabId, workspaceTabPanelId } from "../lib/workspace-tab-a11y";
-export { workspaceTabScrollDelta } from "../lib/workspace-tab-layout";
-export { applyRightWorkspaceResizePreview } from "./workspace-resize-preview";
 export {
   DefaultRightWorkspaceController,
   RightWorkspaceControllerDisposedError,
@@ -64,4 +44,12 @@ export type {
   RightWorkspaceDraftPersistencePort,
   WorkspaceDraftStore,
 } from "./workspace-draft-store";
+export { createWorkspaceDraftStore } from "./workspace-draft-store";
 export { createRightWorkspacePromptFeedbackPort } from "./right-workspace-prompt-feedback";
+export { createRightWorkspaceInstallation } from "./workspace-installation";
+export type {
+  RightWorkspaceInstallation,
+  RightWorkspaceInstallationInputs,
+  RightWorkspaceOpenerFactory,
+  RightWorkspaceStateStore,
+} from "./workspace-installation";

@@ -16,8 +16,8 @@ import {
   useRightWorkspace,
   useSetWorkspaceContext,
   useWorkspaceContext,
-} from "@workbench/workspace-runtime/react";
-import { SurfaceHost } from "@workbench/workspace-runtime/presentation";
+} from "@workbench/ui-workspace/react";
+import { SurfaceHost } from "@workbench/ui-workspace/presentation";
 import { installMinimalReactDomEnvironment } from "@workbench/ui-testkit";
 
 test("Shell chrome hides RightWorkspace without conditionally removing its mount", async () => {

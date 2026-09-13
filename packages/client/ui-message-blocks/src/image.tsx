@@ -27,7 +27,7 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@workbench/ui
 import { useCopyFeedback } from "@workbench/ui/hooks";
 
 import { cn } from "@workbench/ui/utils";
-import { downloadBlob } from "@workbench/workspace-files/download";
+import { downloadBlob } from "@workbench/ui-file-presentation/download";
 
 interface ImageMessagePart {
   readonly image: string;

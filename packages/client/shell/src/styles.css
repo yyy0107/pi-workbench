@@ -5,7 +5,7 @@
 @import "@workbench/ui-user-message-index/styles.css";
 @import "@workbench/workspace-browser/styles.css";
 @import "@workbench/ui-layout/styles.css";
-@import "@workbench/workspace-runtime/styles.css";
+@import "@workbench/ui-workspace/styles.css";
 @import "@workbench/ui-sidebar/styles.css";
 @import "@workbench/ui/components.css";
 @import "@workbench/ui-theme/color-picker.css";

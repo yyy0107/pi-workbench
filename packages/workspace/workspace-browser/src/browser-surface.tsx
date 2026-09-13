@@ -1,5 +1,5 @@
 "use client";
-import { workspaceTranslationBundle } from "@workbench/workspace-runtime/i18n";
+import { workspaceTranslationBundle } from "@workbench/ui-workspace/i18n";
 import { browserTranslationBundle } from "./i18n";
 import { useI18n } from "@workbench/i18n";
 
@@ -33,7 +33,7 @@ import type { BrowserDevice, BrowserFile, BrowserPage } from "@workbench/browser
 
 import { defineBrowserMessage as defineMessage } from "./i18n";
 
-import { useRightWorkspace, useWorkspaceDraftStore } from "@workbench/workspace-runtime/react";
+import { useRightWorkspace, useWorkspaceDraftStore } from "@workbench/ui-workspace/react";
 import { createSettingsMainViewRequest } from "@workbench/ui-settings/request";
 import {
   Button,

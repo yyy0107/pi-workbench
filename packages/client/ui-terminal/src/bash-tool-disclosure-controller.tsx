@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-import { useRightWorkspace, useWorkspaceContext } from "@workbench/workspace-runtime/react";
+import { useRightWorkspace, useWorkspaceContext } from "@workbench/ui-workspace/react";
 import type { ToolPresentationDisclosureControllerProps } from "@workbench/extension-sdk";
 import { useWorkbenchAgentThreadId } from "@workbench/agent-runtime-client/context";
 import {

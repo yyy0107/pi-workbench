@@ -32,7 +32,7 @@ import { directoryPickerTranslationBundle } from "@workbench/workspace-directory
 import { explorerTranslationBundle } from "@workbench/workspace-explorer/i18n";
 import { fileViewTranslationBundle } from "@workbench/workspace-file-view/i18n";
 import { filesTranslationBundle } from "@workbench/workspace-files/i18n";
-import { workspaceTranslationBundle } from "@workbench/workspace-runtime/i18n";
+import { workspaceTranslationBundle } from "@workbench/ui-workspace/i18n";
 import { markdownTranslationBundle } from "@workbench/markdown/i18n";
 import { codeHighlightingTranslationBundle } from "@workbench/code-highlighting/i18n";
 import { uiTranslationBundle } from "@workbench/ui/i18n";

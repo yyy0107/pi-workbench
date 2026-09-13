@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 
-import { useActiveWorkspaceSurface, useOpenerService } from "@workbench/workspace-runtime/react";
+import { useActiveWorkspaceSurface, useOpenerService } from "@workbench/ui-workspace/react";
 import { Button, Input, useToastManager } from "@workbench/ui";
 import {
   fileWorkspaceContext,

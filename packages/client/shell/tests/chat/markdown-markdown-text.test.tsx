@@ -11,7 +11,7 @@ import {
   WorkspaceSurfaceRegistryImpl,
 } from "@workbench/extension-sdk/internal";
 import { DefaultOpenerService } from "@workbench/extension-host/services";
-import { RightWorkspaceProvider } from "@workbench/workspace-runtime/react";
+import { RightWorkspaceProvider } from "@workbench/ui-workspace/react";
 import { ToastProvider } from "@workbench/ui";
 import { parseLocalFileHref } from "@workbench/workspace-files";
 

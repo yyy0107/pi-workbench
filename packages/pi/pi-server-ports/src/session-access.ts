@@ -17,10 +17,3 @@ export interface LoadedPiResourceMutationSessionHost extends PiResourceMutationS
 export interface PiResourceMutationCoordinatorDependencies {
   getLoadedSessions(): readonly LoadedPiResourceMutationSessionHost[];
 }
-export interface WorkspaceSessionSnapshot {
-  id: string;
-  cwd: string;
-}
-export interface WorkspaceSessionCatalogPort {
-  list(): Promise<readonly WorkspaceSessionSnapshot[]>;
-}

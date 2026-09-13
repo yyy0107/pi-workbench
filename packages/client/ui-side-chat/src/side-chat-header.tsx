@@ -5,7 +5,7 @@ import { useI18n } from "@workbench/i18n";
 import { ArrowUpRightIcon, LoaderCircleIcon, MessagesSquareIcon } from "lucide-react";
 import { useState } from "react";
 
-import { useRightWorkspace } from "@workbench/workspace-runtime/react";
+import { useRightWorkspace } from "@workbench/ui-workspace/react";
 import { Button } from "@workbench/ui";
 import { useWorkbenchNavigation } from "@workbench/shell-context/navigation";
 

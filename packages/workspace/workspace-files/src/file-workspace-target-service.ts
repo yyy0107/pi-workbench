@@ -2,7 +2,7 @@
 
 import type { OpenableResource } from "@workbench/extension-sdk";
 
-import { useRightWorkspaceInstallationResource } from "@workbench/workspace-runtime/react";
+import { useRightWorkspaceInstallationResource } from "@workbench/ui-workspace/react";
 
 interface ActiveFileWorkspaceTarget {
   readonly resource: OpenableResource;

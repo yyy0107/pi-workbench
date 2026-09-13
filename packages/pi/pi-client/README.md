@@ -17,6 +17,11 @@ Pi transport events / history
 `PiSessionManager` 实现 `AgentRuntime`，负责目录、选择、会话缓存与传输帧路由。应用安装层把同一个
 manager 放入 `RuntimeProvider`；不会创建第二套消息 store、reducer、连接或协议。
 
+Each client session receives the finite `PiClientSessionDependencies` contract. The manager binds
+installation-scoped transport, catalog, model, feedback, and fork operations through callbacks; the
+session never receives the manager object. Message projection remains in `pi-conversation`, and the
+single connection/generation owner remains in `pi-transport-client`.
+
 ## Internal boundaries
 
 - `transport/`：RPC/WebSocket、generation、watermark 与 gap detection
@@ -49,3 +54,5 @@ attachment 功能通过 `WorkbenchAgentRuntimeCapabilities` 访问同一个 mana
 使用 Workbench projection；相关 Pi RPC 和投影 helper 留在实现内部，不提供重复的公开 facade。
 
 Source layout: src owns this capability and its contracts; lib contains consumed internal helpers; tests live at the package root. Example consumer: `src/runtime/manager.ts` imports `lib/fork-title.ts`. Capability and helper code remains TS/TSX; existing build tooling retains its language.
+
+Spec008 internal owners: `runtime/manager-catalog.ts` owns directory snapshots, ordering, pin/archive deltas and request generation. `runtime/session-history.ts` owns canonical history, branch/page state, sequence acceptance, index invalidation and page deduplication; `runtime/session-attachments.ts` owns uploads, preparation and attachment cleanup. `manager.ts` coordinates the installed runtime and `session.ts` coordinates one conversation using the finite dependency contract. They retain one connection and authoritative message graph. Host event notification timing remains unchanged.

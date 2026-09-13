@@ -14,3 +14,5 @@ pnpm --filter @workbench/extension-sdk test
 ```
 
 源码分工：src 承载本包能力与契约，lib 仅放实际使用的内部辅助，tests 为包根测试。实际消费者示例：`src/registries/command-registry.ts` 引用 `lib/registry-utils.ts`。实现保留 TS/TSX；既有构建工具保持原语言。
+
+`@workbench/extension-sdk/workspace-surfaces` 直接公开既有工作区 surface 常量与类型，不加载 React authoring helper。无界面控制器从此入口读取运行时常量；扩展作者继续使用原根 API。

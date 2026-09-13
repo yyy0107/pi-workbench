@@ -6,7 +6,7 @@ import { useI18n } from "@workbench/i18n";
 import { AlertCircleIcon, ChevronRightIcon, LoaderCircleIcon } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useOpenerService } from "@workbench/workspace-runtime/react";
+import { useOpenerService } from "@workbench/ui-workspace/react";
 import { Button, useToastManager } from "@workbench/ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@workbench/ui";
 import { ExplorerTree } from "@workbench/workspace-files/tree";

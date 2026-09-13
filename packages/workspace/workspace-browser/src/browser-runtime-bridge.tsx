@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 
-import { useRightWorkspace, useWorkspaceContext } from "@workbench/workspace-runtime/react";
+import { useRightWorkspace, useWorkspaceContext } from "@workbench/ui-workspace/react";
 import { toolStringArg, useCompletedToolCalls } from "@workbench/agent-runtime-client";
 import { useExtensionErrorReporter } from "@workbench/extension-host";
 import { BROWSER_TOOL_ACTIONS } from "@workbench/browser-contracts";
@@ -11,7 +11,7 @@ import { useBrowserSessionService } from "./browser-session-service";
 import {
   useRightWorkspaceStateStore,
   useRightWorkspaceInstallationResource,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 
 const BROWSER_HANDLED_CALLS = Symbol("workbench.browser-handled-calls");
 

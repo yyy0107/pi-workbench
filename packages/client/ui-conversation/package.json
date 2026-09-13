@@ -36,6 +36,7 @@
     "@workbench/code-highlighting": "workspace:*",
     "@workbench/markdown": "workspace:*",
     "@workbench/ui-attachment": "workspace:*",
+    "@workbench/ui-workspace": "workspace:*",
     "@workbench/workspace-files": "workspace:*",
     "@workbench/workspace-runtime": "workspace:*",
     "react": "^19.2.8",

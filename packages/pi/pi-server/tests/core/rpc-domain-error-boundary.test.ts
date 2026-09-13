@@ -8,7 +8,7 @@ const RPC_ROUTE_COMPOSITION = new URL(
   import.meta.url,
 );
 const RPC_DOMAIN_ERROR_PROJECTOR = new URL(
-  "../../../../host/host-server/src/rpc.ts",
+  "../../../../transport/api/src/server.ts",
   import.meta.url,
 );
 const REPOSITORY_ROOT = new URL("../../../../../", import.meta.url);
@@ -42,7 +42,7 @@ const EXPOSED_DOMAIN_ERRORS = [
     "packages/pi/pi-resources-server/src/workspace-protocol-service.ts",
     "WorkspaceProtocolServiceError",
   ],
-  ["packages/pi/pi-resources-server/src/workspace-store.ts", "WorkspaceStoreError"],
+  ["packages/server/workspace-server/src/catalog.ts", "WorkspaceStoreError"],
 ] as const;
 
 test("every browser-visible domain error opts into the explicit RPC-safe brand", async () => {

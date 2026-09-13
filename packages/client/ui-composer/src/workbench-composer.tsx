@@ -37,7 +37,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { ComposerCommandToken } from "@workbench/ui-input-trigger/tokens";
-import { ComposerWorkspaceFeedback } from "@workbench/workspace-runtime/presentation";
+import { ComposerWorkspaceFeedback } from "@workbench/ui-workspace/presentation";
 import {
   COMPOSER_CONVERSATION_MENTION_TYPE,
   COMPOSER_WORKSPACE_FILE_MENTION_TYPE,

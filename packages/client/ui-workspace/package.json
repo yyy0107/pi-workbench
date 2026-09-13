@@ -1,0 +1,42 @@
+{
+  "name": "@workbench/ui-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./react": "./src/react.ts",
+    "./presentation": "./src/presentation/index.ts",
+    "./i18n": "./src/i18n/index.ts",
+    "./styles.css": "./src/presentation/right-workspace.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.7.0",
+    "@workbench/extension-host": "workspace:*",
+    "@workbench/extension-sdk": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/shell-context": "workspace:*",
+    "@workbench/ui": "workspace:*",
+    "@workbench/ui-resize": "workspace:*",
+    "@workbench/workspace-runtime": "workspace:*",
+    "lucide-react": "^1.29.0",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

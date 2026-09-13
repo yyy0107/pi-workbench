@@ -18,9 +18,9 @@ import {
   RightWorkspaceProvider,
   WorkspaceSurfaceRuntimeHost,
   useRightWorkspaceState,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 import type { RightWorkspaceState } from "@workbench/workspace-runtime";
-import { useRightWorkspaceInstallationResource } from "@workbench/workspace-runtime/react";
+import { useRightWorkspaceInstallationResource } from "@workbench/ui-workspace/react";
 import {
   RuntimeConnectionProvider,
   createSameOriginRuntimeConnection,

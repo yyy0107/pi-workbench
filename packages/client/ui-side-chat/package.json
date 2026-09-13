@@ -23,6 +23,7 @@
     "@workbench/ui": "workspace:*",
     "@workbench/ui-composer": "workspace:*",
     "@workbench/ui-conversation": "workspace:*",
+    "@workbench/ui-workspace": "workspace:*",
     "@workbench/workspace-runtime": "workspace:*",
     "lucide-react": "^1.29.0"
   },

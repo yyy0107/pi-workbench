@@ -21,7 +21,7 @@
     "@workbench/extension-sdk": "workspace:*",
     "@workbench/i18n": "workspace:*",
     "@workbench/markdown": "workspace:*",
-    "@workbench/workspace-runtime": "workspace:*",
+    "@workbench/ui-workspace": "workspace:*",
     "lucide-react": "^1.29.0"
   },
   "devDependencies": {

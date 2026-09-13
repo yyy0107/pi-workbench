@@ -44,7 +44,8 @@
       "types": "./src/settings.ts",
       "import": "./src/settings.ts",
       "default": "./src/settings.ts"
-    }
+    },
+    "./workspace-catalog": "./src/workspace-catalog.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",

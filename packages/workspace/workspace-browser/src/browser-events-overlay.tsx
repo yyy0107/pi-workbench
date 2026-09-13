@@ -12,7 +12,7 @@ import {
   useRightWorkspace,
   useRightWorkspaceState,
   useWorkspaceContext,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 import {
   Button,
   Dialog,
@@ -25,7 +25,7 @@ import {
   useToastManager,
 } from "@workbench/ui";
 import { useBrowserSessionService } from "./browser-session-service";
-import { useRightWorkspaceStateStore } from "@workbench/workspace-runtime/react";
+import { useRightWorkspaceStateStore } from "@workbench/ui-workspace/react";
 import { saveBrowserFile, uploadBrowserFiles } from "../lib/browser-files";
 
 type PromptEvent = Extract<

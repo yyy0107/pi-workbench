@@ -32,7 +32,6 @@
     "./trust": "./src/project-trust-service.ts",
     "./workspace-paths": "./src/workspace-paths.ts",
     "./workspaces": "./src/workspace-protocol-service.ts",
-    "./workspace-store": "./src/workspace-store.ts",
     "./builtin-resources": "./src/builtin-resources.ts",
     "./resource-locations": "./src/builtin-resource-locations.ts"
   },
@@ -43,6 +42,7 @@
   "dependencies": {
     "@earendil-works/pi-ai": "0.85.1",
     "@earendil-works/pi-coding-agent": "0.85.1",
+    "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/agent-runtime-server": "workspace:*",
     "@workbench/api": "workspace:*",
     "@workbench/core-contracts": "workspace:*",

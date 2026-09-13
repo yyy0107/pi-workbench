@@ -1,5 +1,5 @@
 import type { PromptFeedbackPort } from "@workbench/agent-runtime-client/prompt-feedback";
-import type { WorkspaceFeedbackClaimPort } from "./index";
+import type { WorkspaceFeedbackClaimPort } from "./workspace-feedback-types";
 
 /** Explicitly adapts Shell-owned claim semantics to the installed Agent Runtime boundary. */
 export function createRightWorkspacePromptFeedbackPort(

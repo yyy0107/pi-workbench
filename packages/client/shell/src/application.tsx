@@ -58,7 +58,7 @@ import {
   useWorkspaceFeedbackStore,
   type RightWorkspaceOpenerFactory,
   type WorkspaceRuntimeErrorReporter,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 import {
   createRightWorkspacePersistence,
   type RightWorkspaceLegacyStorage,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { useWorkspaceContext } from "@workbench/workspace-runtime/react";
+import { useWorkspaceContext } from "@workbench/ui-workspace/react";
 import { useCompletedToolCalls, useSessionState } from "@workbench/agent-runtime-client";
 import { useGitReviewService } from "./git-review-service";
 

@@ -9,7 +9,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { Type, type TSchema } from "typebox";
 import { BROWSER_TOOL_ACTIONS, type BrowserFile } from "@workbench/browser-contracts";
-import type { BrowserHost } from "./index";
+import type { BrowserHost } from "@workbench/browser-contracts/host";
 import { runBrowserScript } from "./script";
 
 const text = (maxLength = 65536) => Type.String({ maxLength });

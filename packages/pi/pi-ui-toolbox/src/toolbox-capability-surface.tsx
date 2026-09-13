@@ -24,7 +24,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { ToolboxPromptDetails } from "./toolbox-prompt-details";
 import { useMainViewService } from "@workbench/extension-host";
 
-import { useOpenerService, useWorkspaceContext } from "@workbench/workspace-runtime/react";
+import { useOpenerService, useWorkspaceContext } from "@workbench/ui-workspace/react";
 import {
   Button,
   SettingsGroup,

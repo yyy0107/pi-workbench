@@ -26,16 +26,16 @@ import {
   WorkspaceFeedbackStoreDisposedError,
   createRightWorkspacePromptFeedbackPort,
   createRightWorkspaceStore,
-  resolveRightWorkspacePresentation,
 } from "@workbench/workspace-runtime";
 import * as rightWorkspace from "@workbench/workspace-runtime";
+import { resolveRightWorkspacePresentation } from "@workbench/ui-workspace";
 import {
   RightWorkspaceProvider,
   WorkspaceSurfaceRuntimeHost,
   useRightWorkspace,
   useWorkspaceDraftStore,
-} from "@workbench/workspace-runtime/react";
-import * as rightWorkspaceReact from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
+import * as rightWorkspaceReact from "@workbench/ui-workspace/react";
 import { resolveCollapsibleResizePreview } from "@workbench/ui-resize";
 import { WorkbenchStatusbar } from "@workbench/ui-layout/statusbar";
 import { createI18n as createServerI18n } from "@workbench/shell/i18n/runtime";

@@ -7,7 +7,7 @@ const WORKSPACE_PROTOCOL_SERVICE = new URL(
   import.meta.url,
 );
 const WORKSPACE_STORE = new URL(
-  "../packages/pi/pi-resources-server/src/workspace-store.ts",
+  "../packages/server/workspace-server/src/catalog.ts",
   import.meta.url,
 );
 const WORKSPACE_RPC_ROUTES = new URL(
@@ -158,10 +158,10 @@ test("the streaming content endpoint stays separate while sharing the default fi
   assert.match(contentSource, /handleWorkspaceFileContentRequest/);
 });
 
-test("WorkspaceStore remains the owner of Host stream publication", async () => {
+test("Catalog emits neutral events and Pi composition owns Host stream publication", async () => {
   const source = await readFile(WORKSPACE_STORE, "utf8");
 
-  assert.match(source, /this\.publishHost\?\./);
+  assert.match(source, /this\.onEvent\?\./);
   assert.doesNotMatch(source, /getStreamHub/);
   const adapter = await readFile(
     new URL(
@@ -171,6 +171,7 @@ test("WorkspaceStore remains the owner of Host stream publication", async () => 
     "utf8",
   );
   assert.match(adapter, /getStreamHub\(\)\.publishHost\(payload\)/);
-  assert.match(source, /host\/workspace-changed/);
-  assert.match(source, /host\/session-archive-changed/);
+  assert.doesNotMatch(source, /host\/|@workbench\/pi-/);
+  assert.match(adapter, /host\/workspace-changed/);
+  assert.match(adapter, /host\/session-archive-changed/);
 });

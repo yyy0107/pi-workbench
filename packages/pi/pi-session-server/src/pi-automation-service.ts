@@ -8,7 +8,10 @@ import {
 import type { ModelSelection } from "@workbench/core-contracts/model-selection";
 
 import type { PiSessionRegistry } from "./session-registry";
-import type { WorkspaceStore } from "@workbench/pi-resources-server/workspace-store";
+import type {
+  WorkspaceCatalogListPort,
+  WorkspaceSessionAttachmentPort,
+} from "@workbench/agent-runtime-contracts/workspace-catalog";
 import { getProjectTrustService } from "@workbench/pi-resources-server/trust";
 
 export interface PiAutomationWorkspace {
@@ -63,7 +66,7 @@ export function createPiAutomationRuntimeBindings({
   createSession,
   getRunningSessionIds,
 }: PiAutomationRuntimeBindingOptions & {
-  workspaceStore: Pick<WorkspaceStore, "list" | "attachSession">;
+  workspaceStore: WorkspaceCatalogListPort & WorkspaceSessionAttachmentPort;
 } & Pick<
     PiSessionRegistry,
     "createSession" | "getRunningSessionIds"

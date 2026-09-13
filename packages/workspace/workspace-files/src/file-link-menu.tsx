@@ -10,9 +10,9 @@ import type {
   WorkbenchLocalFileDescriptor,
 } from "@workbench/host-contracts/runtime-capabilities";
 import { writeClipboardText } from "@workbench/ui/clipboard";
-import { saveFileAs } from "./file-download";
+import { saveFileAs } from "@workbench/ui-file-presentation/download";
 
-import { useOpenerService, useWorkspaceContext } from "@workbench/workspace-runtime/react";
+import { useOpenerService, useWorkspaceContext } from "@workbench/ui-workspace/react";
 import { useWorkbenchSettingsResource } from "@workbench/settings-runtime";
 import {
   ContextMenu,

@@ -360,7 +360,7 @@ Cookie session 或 Bearer Token；如需跨机器暴露，必须在外层增加�
 Session Registry、WorkspaceStore、Project Trust 或资源目录缓存。服务通过窄的 Session catalog 端口只接收
 `{ id, cwd }` 快照，在 `workspace.list` 前完成会话对账，并在删除 Workspace 后失效对应的
 project resource context。工作区导入、列举与取消归档不会写入项目信任决定。可热更新的
-WorkspaceStore 仍按调用延迟解析；Store 自己继续拥有持久化和 `events.host` 发布。四个
+WorkspaceStore 仍按调用延迟解析；中立 Store 的持久化与领域事件归 `@workbench/workspace-server/catalog`，`events.host` 发布由 Pi 装配适配，保持原事件顺序。四个
 `workspace.files.*` unary 方法不属于这个 route group；它们的 validator、写入载体预算、取消错误映射和
 handler 由 `transport/routes/workspace-file-rpc-routes.ts` 独立拥有。该 route 只依赖窄的
 `WorkspaceFileProtocol`，实际路径、真实路径、软链接、文件容量和并发版本检查仍由

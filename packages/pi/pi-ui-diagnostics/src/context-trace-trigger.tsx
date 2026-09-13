@@ -9,7 +9,7 @@ import {
   useRightWorkspace,
   useWorkspaceContext,
   useWorkspaceOpen,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 import { DropdownMenuItem } from "@workbench/ui";
 
 import type { ThreadMenuSlotContext } from "@workbench/extension-sdk";

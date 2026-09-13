@@ -25,7 +25,7 @@ import {
   useRightWorkspace,
   useRightWorkspaceState,
   useWorkspaceContext,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 import {
   Button,
   Dialog,

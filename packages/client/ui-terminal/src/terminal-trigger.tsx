@@ -4,7 +4,7 @@ import { useI18n } from "@workbench/i18n";
 
 import { TerminalIcon } from "lucide-react";
 
-import { useRightWorkspace, useWorkspaceContext } from "@workbench/workspace-runtime/react";
+import { useRightWorkspace, useWorkspaceContext } from "@workbench/ui-workspace/react";
 import { Button } from "@workbench/ui";
 
 import { useTerminalLaunchContext } from "./terminal-target";

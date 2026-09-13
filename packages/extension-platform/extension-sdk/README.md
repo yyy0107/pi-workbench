@@ -14,3 +14,5 @@ pnpm --filter @workbench/extension-sdk test
 ```
 
 Source layout: src owns this capability and its contracts; lib contains consumed internal helpers; tests live at the package root. Example consumer: `src/registries/command-registry.ts` imports `lib/registry-utils.ts`. Capability and helper code remains TS/TSX; existing build tooling retains its language.
+
+The `@workbench/extension-sdk/workspace-surfaces` entry exposes existing workspace surface constants and types without evaluating React authoring helpers. Headless controllers use this entry for runtime constants; contribution authors retain the normal root API.

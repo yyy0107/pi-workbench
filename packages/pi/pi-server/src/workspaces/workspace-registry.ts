@@ -14,7 +14,7 @@ interface WorkspaceRegistryGlobal {
 }
 
 const registryGlobal = globalThis as typeof globalThis & WorkspaceRegistryGlobal;
-const WORKSPACE_STORE_IMPLEMENTATION_VERSION = 4;
+const WORKSPACE_STORE_IMPLEMENTATION_VERSION = 5;
 
 export async function resolvePiWorkspaceRoot(workspaceId: string): Promise<string | undefined> {
   return (await getWorkspaceStore().list()).items.find((item) => item.workspaceId === workspaceId)
@@ -60,6 +60,7 @@ export function getWorkspaceStore(): WorkspaceStore {
     registryGlobal.__workbenchWorkspaceStoreImplementationVersion !==
       WORKSPACE_STORE_IMPLEMENTATION_VERSION
   ) {
+    registryGlobal.__workbenchWorkspaceStore?.dispose?.();
     registryGlobal.__workbenchWorkspaceStore = new WorkspaceStore({
       stateFile,
       ...(useLegacyStandaloneFile ? {} : { documentSection: "workspaces", legacyStateFile }),

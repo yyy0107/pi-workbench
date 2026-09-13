@@ -35,7 +35,7 @@ import {
   type ExplorerTreeNode,
 } from "./explorer-tree-model";
 import { splitFileName } from "../../lib/tree/file-name-parts";
-import { FileTypeIcon, FolderTypeIcon } from "./file-type-icon";
+import { FileTypeIcon, FolderTypeIcon } from "@workbench/ui-file-presentation/icons";
 import { withTooltip } from "@workbench/ui";
 
 export interface ExplorerTreeLabels {

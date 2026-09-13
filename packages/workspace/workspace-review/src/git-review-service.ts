@@ -1,6 +1,6 @@
 "use client";
 
-import { useRightWorkspaceInstallationResource } from "@workbench/workspace-runtime/react";
+import { useRightWorkspaceInstallationResource } from "@workbench/ui-workspace/react";
 
 /** Invalidates review data; the workspace capability owns all Git reads. */
 export class GitReviewChanges {

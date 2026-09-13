@@ -6,10 +6,10 @@ import type {
   BuiltinToolSettings,
 } from "@workbench/pi-server-ports/tools";
 import type { InlineExtension, LoadExtensionsResult } from "@earendil-works/pi-coding-agent";
-import type { WorkspaceStore } from "@workbench/pi-resources-server/workspace-store";
+import type { WorkspaceSessionRemovalPort } from "@workbench/agent-runtime-contracts/workspace-catalog";
 export interface PiSessionRuntimeDependencies {
   getPublisher(): PiStreamPublisher;
-  getWorkspaceStore(): Pick<WorkspaceStore, "removeSession">;
+  getWorkspaceStore(): WorkspaceSessionRemovalPort;
   getHostBindings(): PiAgentHostBindings;
   ensureBuiltinResources(): Promise<unknown>;
   createExtensions(

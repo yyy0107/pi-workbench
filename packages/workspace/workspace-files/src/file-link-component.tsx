@@ -4,7 +4,7 @@ import { useI18n } from "@workbench/i18n";
 
 import type { ComponentProps } from "react";
 
-import { useOpenerService, useWorkspaceContext } from "@workbench/workspace-runtime/react";
+import { useOpenerService, useWorkspaceContext } from "@workbench/ui-workspace/react";
 import { openFileLink } from "./file-link";
 import { cn } from "@workbench/ui/utils";
 import { useToastManager } from "@workbench/ui";

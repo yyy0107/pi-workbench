@@ -9,6 +9,7 @@ import { I18nProvider } from "@workbench/i18n";
 import { composerTranslationBundle } from "../src/i18n";
 import { uiTranslationBundle } from "@workbench/ui/i18n";
 import { WorkbenchPresentationProvider } from "@workbench/shell-context/presentation";
+import { FilePresentationProvider } from "@workbench/ui-file-presentation/icons";
 import { WorkbenchSettingsProvider } from "@workbench/settings-runtime";
 import { ComposerAttachments } from "../src/composer-attachments";
 
@@ -26,20 +27,22 @@ function renderAttachment(attachment: ManagedFileComposerAttachment): string {
       }}
       branding={{ productName: "Workbench", runtimeName: "Runtime" }}
     >
-      <WorkbenchSettingsProvider service={SETTINGS}>
-        <I18nProvider
-          locale="en-US"
-          onLocaleChange={() => {}}
-          bundles={[composerTranslationBundle, uiTranslationBundle]}
-        >
-          <ComposerAttachments
-            attachments={[attachment]}
-            onRemove={() => undefined}
-            onRetry={() => undefined}
-            onRestore={async () => undefined}
-          />
-        </I18nProvider>
-      </WorkbenchSettingsProvider>
+      <FilePresentationProvider materialIconThemeBaseUrl="/material-icons">
+        <WorkbenchSettingsProvider service={SETTINGS}>
+          <I18nProvider
+            locale="en-US"
+            onLocaleChange={() => {}}
+            bundles={[composerTranslationBundle, uiTranslationBundle]}
+          >
+            <ComposerAttachments
+              attachments={[attachment]}
+              onRemove={() => undefined}
+              onRetry={() => undefined}
+              onRestore={async () => undefined}
+            />
+          </I18nProvider>
+        </WorkbenchSettingsProvider>
+      </FilePresentationProvider>
     </WorkbenchPresentationProvider>,
   );
 }

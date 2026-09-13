@@ -45,7 +45,7 @@ import {
   SearchableSelectorList,
   SearchableSelectorTrigger,
 } from "@workbench/ui-selectors";
-import { FileTypeIcon } from "@workbench/workspace-files/tree";
+import { FileTypeIcon } from "@workbench/ui-file-presentation/icons";
 
 import { cn } from "@workbench/ui/utils";
 import { useMainViewService } from "@workbench/extension-host";

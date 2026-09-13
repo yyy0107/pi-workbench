@@ -7,7 +7,7 @@ import {
   materialFileIconIds,
   materialFolderIconIds,
   materialIconAssetUrl,
-} from "@workbench/workspace-files/tree";
+} from "@workbench/ui-file-presentation/icons";
 
 const manifest = {
   iconDefinitions: {

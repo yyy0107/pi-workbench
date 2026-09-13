@@ -983,6 +983,9 @@ importers:
       '@workbench/ui-user-questions':
         specifier: workspace:*
         version: link:../ui-user-questions
+      '@workbench/ui-workspace':
+        specifier: workspace:*
+        version: link:../ui-workspace
       '@workbench/workspace-artifact':
         specifier: workspace:*
         version: link:../../workspace/workspace-artifact
@@ -1026,6 +1029,9 @@ importers:
       '@workbench/appearance':
         specifier: workspace:*
         version: link:../appearance
+      '@workbench/ui-file-presentation':
+        specifier: workspace:*
+        version: link:../ui-file-presentation
       '@workbench/ui-resize':
         specifier: workspace:*
         version: link:../ui-resize
@@ -1148,9 +1154,9 @@ importers:
       '@workbench/ui':
         specifier: workspace:*
         version: link:../ui
-      '@workbench/workspace-files':
+      '@workbench/ui-file-presentation':
         specifier: workspace:*
-        version: link:../../workspace/workspace-files
+        version: link:../ui-file-presentation
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -1300,9 +1306,9 @@ importers:
       '@workbench/ui-input-trigger':
         specifier: workspace:*
         version: link:../ui-input-trigger
-      '@workbench/workspace-runtime':
+      '@workbench/ui-workspace':
         specifier: workspace:*
-        version: link:../../workspace/workspace-runtime
+        version: link:../ui-workspace
       lexical:
         specifier: 0.49.0
         version: 0.49.0(typescript@7.0.2)
@@ -1383,6 +1389,9 @@ importers:
       '@workbench/ui-attachment':
         specifier: workspace:*
         version: link:../ui-attachment
+      '@workbench/ui-workspace':
+        specifier: workspace:*
+        version: link:../ui-workspace
       '@workbench/workspace-files':
         specifier: workspace:*
         version: link:../../workspace/workspace-files
@@ -1603,6 +1612,37 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  packages/client/ui-file-presentation:
+    dependencies:
+      '@workbench/ui':
+        specifier: workspace:*
+        version: link:../ui
+      lucide-react:
+        specifier: ^1.29.0
+        version: 1.31.0(react@19.2.8)
+      material-icon-theme:
+        specifier: ^5.37.0
+        version: 5.37.0
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   packages/client/ui-input-trigger:
     dependencies:
       '@workbench/agent-runtime-contracts':
@@ -1666,6 +1706,9 @@ importers:
       '@workbench/ui':
         specifier: workspace:*
         version: link:../ui
+      '@workbench/ui-file-presentation':
+        specifier: workspace:*
+        version: link:../ui-file-presentation
       '@workbench/ui-panels':
         specifier: workspace:*
         version: link:../ui-panels
@@ -1675,6 +1718,9 @@ importers:
       '@workbench/ui-sidebar':
         specifier: workspace:*
         version: link:../ui-sidebar
+      '@workbench/ui-workspace':
+        specifier: workspace:*
+        version: link:../ui-workspace
       '@workbench/workspace-runtime':
         specifier: workspace:*
         version: link:../../workspace/workspace-runtime
@@ -1779,12 +1825,12 @@ importers:
       '@workbench/ui-disclosure':
         specifier: workspace:*
         version: link:../ui-disclosure
+      '@workbench/ui-file-presentation':
+        specifier: workspace:*
+        version: link:../ui-file-presentation
       '@workbench/ui-input-trigger':
         specifier: workspace:*
         version: link:../ui-input-trigger
-      '@workbench/workspace-files':
-        specifier: workspace:*
-        version: link:../../workspace/workspace-files
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1804,6 +1850,12 @@ importers:
       '@workbench/settings-runtime':
         specifier: workspace:*
         version: link:../settings-runtime
+      '@workbench/ui-workspace':
+        specifier: workspace:*
+        version: link:../ui-workspace
+      '@workbench/workspace-files':
+        specifier: workspace:*
+        version: link:../../workspace/workspace-files
       '@workbench/workspace-runtime':
         specifier: workspace:*
         version: link:../../workspace/workspace-runtime
@@ -2178,6 +2230,9 @@ importers:
       '@workbench/ui-conversation':
         specifier: workspace:*
         version: link:../ui-conversation
+      '@workbench/ui-workspace':
+        specifier: workspace:*
+        version: link:../ui-workspace
       '@workbench/workspace-runtime':
         specifier: workspace:*
         version: link:../../workspace/workspace-runtime
@@ -2276,6 +2331,9 @@ importers:
       '@workbench/ui-message-blocks':
         specifier: workspace:*
         version: link:../ui-message-blocks
+      '@workbench/ui-workspace':
+        specifier: workspace:*
+        version: link:../ui-workspace
       '@workbench/workspace-runtime':
         specifier: workspace:*
         version: link:../../workspace/workspace-runtime
@@ -2435,9 +2493,9 @@ importers:
       '@workbench/ui-disclosure':
         specifier: workspace:*
         version: link:../ui-disclosure
-      '@workbench/workspace-runtime':
+      '@workbench/ui-workspace':
         specifier: workspace:*
-        version: link:../../workspace/workspace-runtime
+        version: link:../ui-workspace
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -2604,6 +2662,58 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/client/ui-workspace:
+    dependencies:
+      '@base-ui/react':
+        specifier: ^1.7.0
+        version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@workbench/extension-host':
+        specifier: workspace:*
+        version: link:../../extension-platform/extension-host
+      '@workbench/extension-sdk':
+        specifier: workspace:*
+        version: link:../../extension-platform/extension-sdk
+      '@workbench/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@workbench/shell-context':
+        specifier: workspace:*
+        version: link:../shell-context
+      '@workbench/ui':
+        specifier: workspace:*
+        version: link:../ui
+      '@workbench/ui-resize':
+        specifier: workspace:*
+        version: link:../ui-resize
+      '@workbench/workspace-runtime':
+        specifier: workspace:*
+        version: link:../../workspace/workspace-runtime
+      lucide-react:
+        specifier: ^1.29.0
+        version: 1.31.0(react@19.2.8)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      zustand:
+        specifier: ^5.0.14
+        version: 5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -2909,9 +3019,6 @@ importers:
       '@workbench/workspace-files':
         specifier: workspace:*
         version: link:../../workspace/workspace-files
-      '@workbench/workspace-runtime':
-        specifier: workspace:*
-        version: link:../../workspace/workspace-runtime
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -3066,6 +3173,9 @@ importers:
       '@earendil-works/pi-coding-agent':
         specifier: 0.85.1
         version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
+      '@workbench/agent-runtime-contracts':
+        specifier: workspace:*
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/agent-runtime-server':
         specifier: workspace:*
         version: link:../../agent-runtime/agent-runtime-server
@@ -3200,15 +3310,12 @@ importers:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../agent-runtime/agent-runtime-contracts
-      '@workbench/pi-browser':
+      '@workbench/browser-contracts':
         specifier: workspace:*
-        version: link:../pi-browser
+        version: link:../../contracts/browser-contracts
       '@workbench/pi-protocol':
         specifier: workspace:*
         version: link:../pi-protocol
-      '@workbench/workspace-server':
-        specifier: workspace:*
-        version: link:../../server/workspace-server
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -3433,6 +3540,9 @@ importers:
       '@workbench/ui-tool':
         specifier: workspace:*
         version: link:../../client/ui-tool
+      '@workbench/ui-workspace':
+        specifier: workspace:*
+        version: link:../../client/ui-workspace
       '@workbench/workspace-runtime':
         specifier: workspace:*
         version: link:../../workspace/workspace-runtime
@@ -3729,12 +3839,12 @@ importers:
       '@workbench/ui-tool':
         specifier: workspace:*
         version: link:../../client/ui-tool
+      '@workbench/ui-workspace':
+        specifier: workspace:*
+        version: link:../../client/ui-workspace
       '@workbench/workspace-files':
         specifier: workspace:*
         version: link:../../workspace/workspace-files
-      '@workbench/workspace-runtime':
-        specifier: workspace:*
-        version: link:../../workspace/workspace-runtime
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -3754,6 +3864,9 @@ importers:
       '@workbench/ui-testkit':
         specifier: workspace:*
         version: link:../../test-support/ui-testkit
+      '@workbench/workspace-runtime':
+        specifier: workspace:*
+        version: link:../../workspace/workspace-runtime
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -4003,9 +4116,9 @@ importers:
       '@workbench/markdown':
         specifier: workspace:*
         version: link:../../client/markdown
-      '@workbench/workspace-runtime':
+      '@workbench/ui-workspace':
         specifier: workspace:*
-        version: link:../workspace-runtime
+        version: link:../../client/ui-workspace
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -4067,15 +4180,15 @@ importers:
       '@workbench/ui-settings':
         specifier: workspace:*
         version: link:../../client/ui-settings
+      '@workbench/ui-workspace':
+        specifier: workspace:*
+        version: link:../../client/ui-workspace
       '@workbench/workspace-directory-picker':
         specifier: workspace:*
         version: link:../workspace-directory-picker
       '@workbench/workspace-files':
         specifier: workspace:*
         version: link:../workspace-files
-      '@workbench/workspace-runtime':
-        specifier: workspace:*
-        version: link:../workspace-runtime
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -4098,6 +4211,9 @@ importers:
       '@workbench/ui-testkit':
         specifier: workspace:*
         version: link:../../test-support/ui-testkit
+      '@workbench/workspace-runtime':
+        specifier: workspace:*
+        version: link:../workspace-runtime
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -4171,6 +4287,9 @@ importers:
       '@workbench/ui':
         specifier: workspace:*
         version: link:../../client/ui
+      '@workbench/ui-workspace':
+        specifier: workspace:*
+        version: link:../../client/ui-workspace
       '@workbench/workspace-files':
         specifier: workspace:*
         version: link:../workspace-files
@@ -4253,6 +4372,9 @@ importers:
       '@workbench/ui':
         specifier: workspace:*
         version: link:../../client/ui
+      '@workbench/ui-workspace':
+        specifier: workspace:*
+        version: link:../../client/ui-workspace
       '@workbench/workspace-files':
         specifier: workspace:*
         version: link:../workspace-files
@@ -4323,15 +4445,15 @@ importers:
       '@workbench/ui':
         specifier: workspace:*
         version: link:../../client/ui
-      '@workbench/workspace-runtime':
+      '@workbench/ui-file-presentation':
         specifier: workspace:*
-        version: link:../workspace-runtime
+        version: link:../../client/ui-file-presentation
+      '@workbench/ui-workspace':
+        specifier: workspace:*
+        version: link:../../client/ui-workspace
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
-      material-icon-theme:
-        specifier: ^5.37.0
-        version: 5.37.0
       react-arborist:
         specifier: ^3.16.0
         version: 3.16.0(@types/node@26.2.0)(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -4384,6 +4506,9 @@ importers:
       '@workbench/ui':
         specifier: workspace:*
         version: link:../../client/ui
+      '@workbench/ui-file-presentation':
+        specifier: workspace:*
+        version: link:../../client/ui-file-presentation
       '@workbench/ui-selectors':
         specifier: workspace:*
         version: link:../../client/ui-selectors
@@ -4439,12 +4564,15 @@ importers:
       '@workbench/ui':
         specifier: workspace:*
         version: link:../../client/ui
+      '@workbench/ui-file-presentation':
+        specifier: workspace:*
+        version: link:../../client/ui-file-presentation
+      '@workbench/ui-workspace':
+        specifier: workspace:*
+        version: link:../../client/ui-workspace
       '@workbench/workspace-files':
         specifier: workspace:*
         version: link:../workspace-files
-      '@workbench/workspace-runtime':
-        specifier: workspace:*
-        version: link:../workspace-runtime
       diff:
         specifier: 8.0.4
         version: 8.0.4
@@ -4476,36 +4604,15 @@ importers:
 
   packages/workspace/workspace-runtime:
     dependencies:
-      '@base-ui/react':
-        specifier: ^1.7.0
-        version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@workbench/agent-runtime-client':
         specifier: workspace:*
         version: link:../../agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../agent-runtime/agent-runtime-contracts
-      '@workbench/extension-host':
-        specifier: workspace:*
-        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
         version: link:../../extension-platform/extension-sdk
-      '@workbench/i18n':
-        specifier: workspace:*
-        version: link:../../client/i18n
-      '@workbench/shell-context':
-        specifier: workspace:*
-        version: link:../../client/shell-context
-      '@workbench/ui':
-        specifier: workspace:*
-        version: link:../../client/ui
-      '@workbench/ui-resize':
-        specifier: workspace:*
-        version: link:../../client/ui-resize
-      lucide-react:
-        specifier: ^1.29.0
-        version: 1.31.0(react@19.2.8)
       zustand:
         specifier: ^5.0.14
         version: 5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
@@ -4516,21 +4623,9 @@ importers:
       '@types/react':
         specifier: ^19.2.18
         version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.4
-        version: 19.2.4(@types/react@19.2.18)
       '@workbench/settings-runtime':
         specifier: workspace:*
         version: link:../../client/settings-runtime
-      '@workbench/ui-testkit':
-        specifier: workspace:*
-        version: link:../../test-support/ui-testkit
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

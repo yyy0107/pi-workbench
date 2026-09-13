@@ -6,7 +6,7 @@ import { memo, useMemo } from "react";
 import type { WorkbenchHighlightedTokens } from "@workbench/code-highlighting/engine";
 import { tokenStyle } from "@workbench/code-highlighting";
 import { DiffContextSummary, numberedHunkLines, type DiffHunk } from "@workbench/code-highlighting";
-import { InlineFeedbackForm } from "@workbench/workspace-runtime/presentation";
+import { InlineFeedbackForm } from "@workbench/ui-workspace/presentation";
 
 import type { WorkspaceSurfaceInstance } from "@workbench/extension-sdk";
 import type { WorkbenchWorkspaceGitDiffRequest } from "@workbench/agent-runtime-contracts/runtime-capabilities";

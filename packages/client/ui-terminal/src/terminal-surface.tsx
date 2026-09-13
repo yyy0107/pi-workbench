@@ -38,7 +38,7 @@ import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 
 import { resolveWorkbenchShellOwner } from "@workbench/shell-context/dom";
 
-import { useRightWorkspace } from "@workbench/workspace-runtime/react";
+import { useRightWorkspace } from "@workbench/ui-workspace/react";
 import { useRuntimeConnection } from "@workbench/shell-context/runtime-connection";
 import { Button } from "@workbench/ui";
 

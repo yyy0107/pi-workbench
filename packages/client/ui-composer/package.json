@@ -39,7 +39,7 @@
     "@workbench/ui": "workspace:*",
     "@workbench/ui-attachment": "workspace:*",
     "@workbench/ui-input-trigger": "workspace:*",
-    "@workbench/workspace-runtime": "workspace:*",
+    "@workbench/ui-workspace": "workspace:*",
     "lexical": "0.49.0",
     "lucide-react": "^1.29.0"
   },

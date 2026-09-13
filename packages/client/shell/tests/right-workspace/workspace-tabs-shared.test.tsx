@@ -16,8 +16,8 @@ import {
   RightWorkspaceProvider,
   useRightWorkspace,
   useRightWorkspaceState,
-} from "@workbench/workspace-runtime/react";
-import { WorkspaceTabs } from "@workbench/workspace-runtime/presentation";
+} from "@workbench/ui-workspace/react";
+import { WorkspaceTabs } from "@workbench/ui-workspace/presentation";
 import { Tabs, TabsList, TabsTrigger } from "@workbench/ui";
 import { installMinimalReactDomEnvironment } from "@workbench/ui-testkit";
 

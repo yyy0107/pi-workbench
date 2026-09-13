@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 
-import { useRightWorkspaceState } from "@workbench/workspace-runtime/react";
+import { useRightWorkspaceState } from "@workbench/ui-workspace/react";
 import { useWorkbenchScratchSessionCapability } from "@workbench/agent-runtime-client/context";
 
 import { retainScratchSession } from "../lib/scratch-session-lease";

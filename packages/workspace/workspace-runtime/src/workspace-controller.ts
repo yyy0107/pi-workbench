@@ -1,15 +1,17 @@
+import type {
+  LocalizableText,
+  OpenSurfaceRequest,
+  WorkspaceContext,
+  WorkspaceScope,
+  WorkspaceSurfaceInstance,
+  WorkspaceSurfacePlacement,
+  WorkspaceSurfaceRegistry,
+  WorkspaceSurfaceStatus,
+} from "@workbench/extension-sdk";
 import {
   WORKSPACE_SCOPE_TYPES,
   WORKSPACE_SURFACE_PLACEMENTS,
-  type LocalizableText,
-  type OpenSurfaceRequest,
-  type WorkspaceContext,
-  type WorkspaceScope,
-  type WorkspaceSurfaceInstance,
-  type WorkspaceSurfacePlacement,
-  type WorkspaceSurfaceRegistry,
-  type WorkspaceSurfaceStatus,
-} from "@workbench/extension-sdk";
+} from "@workbench/extension-sdk/workspace-surfaces";
 import {
   scopeMatchesContext,
   selectActiveAuxiliarySurface,

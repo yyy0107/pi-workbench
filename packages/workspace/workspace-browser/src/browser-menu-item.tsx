@@ -10,7 +10,7 @@ import type { WorkspaceSurfaceMenuItemProps } from "@workbench/extension-sdk";
 
 import { defineBrowserMessage as defineMessage } from "./i18n";
 
-import { useRightWorkspace, useWorkspaceContext } from "@workbench/workspace-runtime/react";
+import { useRightWorkspace, useWorkspaceContext } from "@workbench/ui-workspace/react";
 import { Button } from "@workbench/ui";
 import { useBrowserSessionService } from "./browser-session-service";
 

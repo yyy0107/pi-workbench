@@ -7,7 +7,7 @@ import { isMarkdownFile } from "@workbench/workspace-files/classification";
 import { FileWarningIcon, FolderOpenIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-import { useRightWorkspace, useWorkspaceDraftStore } from "@workbench/workspace-runtime/react";
+import { useRightWorkspace, useWorkspaceDraftStore } from "@workbench/ui-workspace/react";
 import { shouldHighlightWorkbenchCode } from "@workbench/code-highlighting";
 import { languageForFilename } from "@workbench/code-highlighting";
 

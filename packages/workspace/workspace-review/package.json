@@ -23,8 +23,9 @@
     "@workbench/i18n": "workspace:*",
     "@workbench/markdown": "workspace:*",
     "@workbench/ui": "workspace:*",
+    "@workbench/ui-file-presentation": "workspace:*",
+    "@workbench/ui-workspace": "workspace:*",
     "@workbench/workspace-files": "workspace:*",
-    "@workbench/workspace-runtime": "workspace:*",
     "diff": "8.0.4",
     "lucide-react": "^1.29.0"
   },

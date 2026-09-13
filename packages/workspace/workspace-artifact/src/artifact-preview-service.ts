@@ -4,7 +4,7 @@ import { toArtifactStorageKey } from "../lib/artifact-storage-key";
 
 import type { WorkspaceScope } from "@workbench/extension-sdk";
 
-import { useRightWorkspaceInstallationResource } from "@workbench/workspace-runtime/react";
+import { useRightWorkspaceInstallationResource } from "@workbench/ui-workspace/react";
 
 export type ArtifactRendererKind =
   | "markdown"

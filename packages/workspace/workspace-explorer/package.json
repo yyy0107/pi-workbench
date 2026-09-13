@@ -18,6 +18,7 @@
     "@workbench/extension-sdk": "workspace:*",
     "@workbench/i18n": "workspace:*",
     "@workbench/ui": "workspace:*",
+    "@workbench/ui-workspace": "workspace:*",
     "@workbench/workspace-files": "workspace:*",
     "@workbench/workspace-runtime": "workspace:*",
     "lucide-react": "^1.29.0"

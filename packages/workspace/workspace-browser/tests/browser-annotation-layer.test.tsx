@@ -15,13 +15,10 @@ import type { WorkspaceSurfaceInstance } from "@workbench/extension-sdk";
 import { installMinimalReactDomEnvironment } from "@workbench/ui-testkit";
 import { BrowserTestI18nProvider as I18nProvider } from "./i18n-provider";
 import { WorkbenchSettingsProvider } from "@workbench/settings-runtime";
-import {
-  RightWorkspaceProvider,
-  useWorkspaceFeedbackStore,
-} from "@workbench/workspace-runtime/react";
-import { useRightWorkspaceInstallationResource } from "@workbench/workspace-runtime/react";
+import { RightWorkspaceProvider, useWorkspaceFeedbackStore } from "@workbench/ui-workspace/react";
+import { useRightWorkspaceInstallationResource } from "@workbench/ui-workspace/react";
 import type { WorkspaceFeedbackStore } from "@workbench/workspace-runtime";
-import { InlineFeedbackForm } from "@workbench/workspace-runtime/presentation";
+import { InlineFeedbackForm } from "@workbench/ui-workspace/presentation";
 import {
   RuntimeConnectionProvider,
   createSameOriginRuntimeConnection,

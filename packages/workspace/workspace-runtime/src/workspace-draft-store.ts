@@ -1,7 +1,3 @@
-"use client";
-
-import { useRightWorkspaceEnvironment } from "./right-workspace-context";
-
 /** App-owned key/value persistence scoped to one immutable RightWorkspace installation. */
 export interface RightWorkspaceDraftPersistencePort {
   getItem(key: string): string | null;
@@ -79,13 +75,4 @@ export function createWorkspaceDraftStore(
       values.clear();
     },
   });
-}
-
-const WORKSPACE_DRAFT_STORE_RESOURCE = Symbol("workbench.workspace-draft-store");
-
-export function useWorkspaceDraftStore(): WorkspaceDraftStore {
-  const environment = useRightWorkspaceEnvironment();
-  return environment.resolveInstallationResource(WORKSPACE_DRAFT_STORE_RESOURCE, () =>
-    createWorkspaceDraftStore(environment.draftPersistence),
-  );
 }

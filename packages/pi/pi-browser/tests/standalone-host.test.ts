@@ -6,7 +6,7 @@ import test from "node:test";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { BrowserManager } from "@workbench/browser-server";
 import type { BrowserCommand, BrowserEvent } from "@workbench/browser-contracts";
-import type { BrowserHost } from "../src/index";
+import type { BrowserHost } from "@workbench/browser-contracts/host";
 import { createBrowserHostResolver } from "../src/standalone-host";
 
 async function fixture(t: test.TestContext) {

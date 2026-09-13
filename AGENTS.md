@@ -86,3 +86,5 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 当前 UI 边界解耦规划：`specs/006-ui-boundary-decoupling/plan.md`；职责映射、公开合同和验证见同目录 ownership-map.md、contracts/public-boundaries.md、quickstart.md。以当前未提交的 Spec004/005 与 client 迁移工作树为基线，目标保持 93 个库包；本期 36 项实施任务已完成，检查与构建证据见 validation.md；UI 测试仍排除执行。保留不新增、不执行 UI 测试与按能力使用 Luna/Sol 的约束。
 
 当前已实施的 API/RPC 抽离为 `specs/007-api-rpc-extraction/plan.md`：新增 packages/transport/api（@workbench/api），按 contracts/errors/client/validation/server 提供明确入口，业务 DTO/handler、Host connection 与认证仍归原 owner。32 项任务已完成，基线为 Spec006 提交 383fe578；94 个库包，验证见同目录 validation.md；Spec006 完成记录保持。
+
+当前已实施的复用边界重构为 `specs/008-package-reuse-boundaries/plan.md`：来源、合同与任务见同目录 ownership-map.md、contracts/public-boundaries.md、tasks.md。基线 f95cc737，新增 ui-file-presentation/ui-workspace 两个真实能力包，共 96 个库包；工作区目录复用 workspace-server/catalog，合同复用 agent-runtime-contracts/workspace-catalog；Pi 会话优先包内分职责。继续不新增、不执行 UI/DOM/Hook 渲染或交互冒烟，非 UI 测试按精确白名单；Luna 负责独立能力、Sol 负责跨包与生命周期，主 Agent 负责共享依赖/配置和收口。实施结果以 validation.md 为准，不将 Spec007 的完成证据当成本期结果。

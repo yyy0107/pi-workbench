@@ -13,7 +13,7 @@ import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } fro
 import { Button } from "@workbench/ui";
 import { DropdownMenu, DropdownMenuRadioGroup } from "@workbench/ui";
 import { Input } from "@workbench/ui";
-import { useOpenerService, useWorkspaceContext } from "@workbench/workspace-runtime/react";
+import { useOpenerService, useWorkspaceContext } from "@workbench/ui-workspace/react";
 import {
   Popover,
   PopoverContent,

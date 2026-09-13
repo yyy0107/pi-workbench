@@ -79,3 +79,17 @@ test("keeps package source independent from the application and Pi server", () =
     }
   }
 });
+
+test("gives client sessions a finite dependency contract instead of the runtime manager", () => {
+  const session = readFileSync(path.join(SOURCE_ROOT, "runtime/session.ts"), "utf8");
+  const dependencies = readFileSync(
+    path.join(SOURCE_ROOT, "runtime/session-dependencies.ts"),
+    "utf8",
+  );
+
+  assert.doesNotMatch(session, /import type \{ PiSessionManager \}/);
+  assert.doesNotMatch(session, /this\.manager\b/);
+  assert.match(session, /PiClientSessionDependencies/);
+  assert.match(dependencies, /interface PiClientSessionDependencies/);
+  assert.doesNotMatch(dependencies, /PiSessionManager/);
+});

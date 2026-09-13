@@ -18,6 +18,8 @@ import type {
   PiConversationMessageRepository,
 } from "@workbench/pi-conversation/model";
 import { PiSessionManager } from "../../src/runtime/manager";
+import type { PiClientSessionHistoryState } from "../../src/runtime/session-history";
+import type { PiClientManagerCatalogState } from "../../src/runtime/manager-catalog";
 
 function summary(overrides: Partial<PiSessionSummary> = {}): PiSessionSummary {
   return {
@@ -90,6 +92,7 @@ test("does not duplicate the unary metadata baseline for the first socket genera
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     handleGenerationReady(generation: number): void;
     requestRealtimeRefresh(): void;
   };
@@ -110,6 +113,7 @@ test("keeps Composer delivery modes out of model request configuration", async (
   const session = manager.getSession("local-session");
   const deliveries: Array<{ mode: string; runConfig: unknown }> = [];
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     send(message: AppendMessage): Promise<void>;
     messageQueue: { enqueue(mode: string, message: AppendMessage): Promise<void> };
   };
@@ -304,6 +308,7 @@ test("regenerates from the existing user node without appending a duplicate user
     },
   };
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     baseMessages: ThreadMessage[];
     baseMessageRepository: {
       headId: string | null;
@@ -311,8 +316,8 @@ test("regenerates from the existing user node without appending a duplicate user
     };
     snapshotValue: ReturnType<typeof session.getSnapshot>;
   };
-  internals.baseMessages = [user, assistant];
-  internals.baseMessageRepository = {
+  internals.history.baseMessages = [user, assistant];
+  internals.history.baseMessageRepository = {
     headId: assistant.id,
     messages: [
       { message: user, parentId: null },
@@ -322,7 +327,7 @@ test("regenerates from the existing user node without appending a duplicate user
   internals.snapshotValue = {
     ...internals.snapshotValue,
     messages: [user, assistant],
-    messageRepository: internals.baseMessageRepository,
+    messageRepository: internals.history.baseMessageRepository,
     isLoading: false,
   };
   const connectionInternals = manager.connections as unknown as {
@@ -376,6 +381,7 @@ test("continues a matching checkpoint without regenerating or truncating message
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const managerInternals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     setSummary(value: PiSessionSummary): void;
     handleHostFrame(payload: HostStreamPayload, generation: number): void;
     handleMuxFrame(frame: ServerRequest<MuxStreamPayload>, generation: number): void;
@@ -386,6 +392,7 @@ test("continues a matching checkpoint without regenerating or truncating message
   managerInternals.refreshMetadata = async () => {};
   const session = manager.getSession("remote-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     snapshotValue: ReturnType<typeof session.getSnapshot>;
     handleEvent(event: PiEvent): void;
     reload(): Promise<void>;
@@ -611,6 +618,7 @@ test("continues a checkpoint from the coalesced visible assistant id", async (t)
     },
   } satisfies ThreadMessage;
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     snapshotValue: ReturnType<typeof session.getSnapshot>;
   };
   internals.snapshotValue = {
@@ -695,6 +703,7 @@ test("retains a live-only user as the parent when regenerating before history re
     },
   };
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     handleEvent(event: PiEvent): void;
     liveMessages: ThreadMessage[];
     publishMessages(): void;
@@ -769,6 +778,7 @@ test("coalesces internal assistant cycles in the active message repository", (t)
     },
   };
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     liveMessages: ThreadMessage[];
     publishMessagesAndSetRunning(running: boolean): void;
   };
@@ -851,6 +861,7 @@ test("keeps settled history identities stable across streamed tail updates", (t)
     createdAt: new Date(4_000),
   };
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     baseMessages: ThreadMessage[];
     baseMessageRepository: ReturnType<typeof session.getSnapshot>["messageRepository"];
     liveMessages: ThreadMessage[];
@@ -861,8 +872,8 @@ test("keeps settled history identities stable across streamed tail updates", (t)
   internals.liveMessages = [firstUser, settledAssistant, activeUser];
   internals.publishMessages();
   const settled = session.getSnapshot();
-  internals.baseMessages = [...settled.messages];
-  internals.baseMessageRepository = settled.messageRepository;
+  internals.history.baseMessages = [...settled.messages];
+  internals.history.baseMessageRepository = settled.messageRepository;
   internals.liveMessages = [];
   internals.streamingMessage = streamingAssistant;
 
@@ -1200,6 +1211,7 @@ test("collapses legacy duplicate Composer users into answer branches", (t) => {
     },
   };
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     messageRepositoryFromHistory(
       sessionId: string,
       value: SessionHistoryValue,
@@ -1266,18 +1278,19 @@ test("reloads the authoritative branch after a branch selection is rejected", as
   t.after(() => manager.dispose());
   const session = manager.getSession("remote-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     branchLeafByHeadMessageId: Map<string, string>;
     branchSwitchTask?: Promise<void>;
   };
-  internals.branchLeafByHeadMessageId.set("assistant-head", "missing-leaf");
+  internals.history.branchLeafByHeadMessageId.set("assistant-head", "missing-leaf");
 
   const selection = session.selectBranch("assistant-head");
-  const task = internals.branchSwitchTask;
+  const task = internals.history.branchSwitchTask;
   assert.ok(task);
   await assert.rejects(selection, /Branch not found/);
 
   assert.deepEqual(methods, ["session.selectBranch", "session.history"]);
-  assert.equal(internals.branchSwitchTask, undefined);
+  assert.equal(internals.history.branchSwitchTask, undefined);
 });
 
 test("keeps projected Composer messages on both repository branches without reparenting the active id", (t) => {
@@ -1388,6 +1401,7 @@ test("keeps projected Composer messages on both repository branches without repa
     },
   };
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     messageRepositoryFromHistory(
       sessionId: string,
       value: SessionHistoryValue,
@@ -1491,6 +1505,7 @@ test("applies unarchive state from the host event rather than the mutation respo
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     archived: Set<string>;
     handleHostFrame(payload: HostStreamPayload, generation: number): void;
     setSessionArchivedMetadata(sessionId: string, archived: boolean): Promise<void>;
@@ -1499,18 +1514,20 @@ test("applies unarchive state from the host event rather than the mutation respo
       { workspaceId: string; title: string; path: string; sessionIds: string[] }
     >;
   };
-  internals.archived.add("remote-session");
-  internals.workspaces.set("workspace-1", {
+  internals.catalog.archived.add("remote-session");
+  internals.catalog.workspaces.set("workspace-1", {
     workspaceId: "workspace-1",
     title: "Workspace",
     path: "/workspace",
     sessionIds: [],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
   });
 
   await internals.setSessionArchivedMetadata("remote-session", false);
 
-  assert.equal(internals.archived.has("remote-session"), true);
-  assert.deepEqual(internals.workspaces.get("workspace-1")?.sessionIds, []);
+  assert.equal(internals.catalog.archived.has("remote-session"), true);
+  assert.deepEqual(internals.catalog.workspaces.get("workspace-1")?.sessionIds, []);
 
   internals.handleHostFrame(
     {
@@ -1529,8 +1546,8 @@ test("applies unarchive state from the host event rather than the mutation respo
     1,
   );
 
-  assert.equal(internals.archived.has("remote-session"), false);
-  assert.deepEqual(internals.workspaces.get("workspace-1")?.sessionIds, ["remote-session"]);
+  assert.equal(internals.catalog.archived.has("remote-session"), false);
+  assert.deepEqual(internals.catalog.workspaces.get("workspace-1")?.sessionIds, ["remote-session"]);
 });
 
 test("persists conversation and workspace pins through workspace RPC", async (t) => {
@@ -1560,6 +1577,7 @@ test("persists conversation and workspace pins through workspace RPC", async (t)
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     setSummary(value: PiSessionSummary): boolean;
     workspaces: Map<
       string,
@@ -1568,11 +1586,13 @@ test("persists conversation and workspace pins through workspace RPC", async (t)
   };
   const remoteSummary = summary();
   internals.setSummary(remoteSummary);
-  internals.workspaces.set("workspace-1", {
+  internals.catalog.workspaces.set("workspace-1", {
     workspaceId: "workspace-1",
     title: "Workspace",
     path: "/workspace",
     sessionIds: ["remote-session"],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
   });
 
   await manager.threadActions.setPinned("remote-session", true);
@@ -1620,6 +1640,7 @@ test("forks at the selected event and increments the conversation title", async 
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     start(): Promise<void>;
     refreshMetadata(): Promise<void>;
     setSummary(value: PiSessionSummary): boolean;
@@ -1632,11 +1653,13 @@ test("forks at the selected event and increments the conversation title", async 
   internals.refreshMetadata = async () => {};
   internals.setSummary(summary({ name: "Research" }));
   internals.setSummary(summary({ id: "existing-fork", name: "Research (1)" }));
-  internals.workspaces.set("workspace-1", {
+  internals.catalog.workspaces.set("workspace-1", {
     workspaceId: "workspace-1",
     title: "Workspace",
     path: "/workspace",
     sessionIds: ["remote-session", "existing-fork"],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
   });
 
   const result = await manager.forkSessionAt({
@@ -1661,6 +1684,7 @@ test("renders an authoritative steering item as an optimistic user message", (t)
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     handleEvent(event: PiEvent): void;
   };
   session.setRunningFromManager(true, { startedAt: 1_000, elapsedMs: 250 });
@@ -1717,6 +1741,7 @@ test("keeps a streaming assistant segment before steering messages as they arriv
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     handleEvent(event: PiEvent): void;
   };
 
@@ -1832,6 +1857,7 @@ test("publishes streaming updates before completion even when animation frames a
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     lastSequence: number;
     handleEvent(event: PiEvent): void;
   };
@@ -1855,7 +1881,7 @@ test("publishes streaming updates before completion even when animation frames a
   });
   await new Promise<void>((resolve) => setImmediate(resolve));
 
-  assert.equal(internals.lastSequence, 10);
+  assert.equal(internals.history.lastSequence, 10);
   const streamingPart = session.getSnapshot().messages.at(-1)?.content[0];
   assert.equal(streamingPart?.type, "text");
   assert.equal(streamingPart?.type === "text" ? streamingPart.text : undefined, "partial");
@@ -1872,7 +1898,7 @@ test("publishes streaming updates before completion even when animation frames a
   });
   await new Promise<void>((resolve) => setImmediate(resolve));
 
-  assert.equal(internals.lastSequence, 11);
+  assert.equal(internals.history.lastSequence, 11);
   const completedPart = session.getSnapshot().messages.at(-1)?.content[0];
   assert.equal(completedPart?.type === "text" ? completedPart.text : undefined, "complete");
   assert.equal(session.getSnapshot().messages.at(-1)?.status?.type, "complete");
@@ -1883,6 +1909,7 @@ test("projects raw partial tool arguments from transient updates", async (t) => 
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     handleEvent(event: PiEvent): void;
   };
 
@@ -1950,6 +1977,7 @@ test("renders a consumed follow-up at user message_start before the next assista
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     handleEvent(event: PiEvent): void;
   };
 
@@ -2025,6 +2053,7 @@ test("does not collapse identical follow-up turns or duplicate an unclaimed opti
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     handleEvent(event: PiEvent): void;
     liveMessages: ThreadMessage[];
     publishMessages(): void;
@@ -2068,6 +2097,7 @@ for (const compiled of [false, true]) {
     t.after(() => manager.dispose());
     const session = manager.getSession("local-session", "remote-session");
     const internals = session as unknown as {
+      history: PiClientSessionHistoryState;
       applyHistory(value: SessionHistoryValue, remoteId: string): void;
       handleEvent(event: PiEvent): void;
     };
@@ -2198,6 +2228,7 @@ test("publishes a complete optimistic turn and running state in one session snap
   t.after(() => manager.dispose());
   const session = manager.getSession("remote-session", "remote-session");
   const managerInternals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     ensureRemote(): Promise<PiSessionSummary>;
     connections: { ensureSessionEvents(): Promise<void> };
   };
@@ -2323,6 +2354,7 @@ for (const hasLoadedHistory of [false, true]) {
     t.after(() => manager.dispose());
     const session = manager.getSession("local-session", "remote-session");
     const internals = session as unknown as {
+      history: PiClientSessionHistoryState;
       applyHistory(value: SessionHistoryValue, remoteId: string): void;
       handleEvent(event: PiEvent): void;
       localRunLeaseActive: boolean;
@@ -2448,6 +2480,7 @@ test("keeps the optimistic assistant placeholder through a running history rebas
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     liveMessages: ThreadMessage[];
     streamingMessage?: ThreadMessage;
     activeAssistantMessageId?: string;
@@ -2604,6 +2637,7 @@ test("keeps the optimistic turn ids when history persists the running user messa
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     activeAssistantMessageId?: string;
     liveMessages: ThreadMessage[];
     localRunLeaseActive: boolean;
@@ -2676,6 +2710,7 @@ test("keeps the optimistic assistant between prompt admission and agent start", 
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     activeAssistantMessageId?: string;
     liveMessages: ThreadMessage[];
     localRunLeaseActive: boolean;
@@ -2733,6 +2768,7 @@ test("keeps the optimistic assistant after agent start until the run settles", (
   (manager as unknown as { refreshMetadata(): Promise<void> }).refreshMetadata = async () => {};
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     activeAssistantMessageId?: string;
     handleEvent(event: PiEvent): void;
     liveMessages: ThreadMessage[];
@@ -2794,12 +2830,14 @@ test("uses an authoritative idle rebaseline to release a stale local run lease",
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const sessionInternals = session as unknown as {
+    history: PiClientSessionHistoryState;
     localRunLeaseActive: boolean;
     promptRequestPending: boolean;
     publishMessagesAndSetRunning(running: boolean): void;
     reload(): Promise<void>;
   };
   const managerInternals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     applyRunningSnapshot(sessionIds: string[], authoritativeBaseline?: boolean): void;
   };
   sessionInternals.reload = async () => {};
@@ -2829,6 +2867,7 @@ test("ends the visible run at a terminal response while host cleanup remains act
   (manager as unknown as { refreshMetadata(): Promise<void> }).refreshMetadata = async () => {};
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     handleEvent(event: PiEvent): void;
     publishMessagesAndSetRunning(running: boolean): void;
     reload(): Promise<void>;
@@ -2889,6 +2928,7 @@ test("clears automatic-retry progress as output resumes while the run stays acti
   (manager as unknown as { refreshMetadata(): Promise<void> }).refreshMetadata = async () => {};
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     handleEvent(event: PiEvent): void;
     publishMessagesAndSetRunning(running: boolean): void;
     reload(): Promise<void>;
@@ -2949,6 +2989,7 @@ test("replaces failed automatic-retry attempts in the visible response", (t) => 
   (manager as unknown as { refreshMetadata(): Promise<void> }).refreshMetadata = async () => {};
   const session = manager.getSession("session-live-parts", "session-live-parts");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     handleEvent(event: PiEvent): void;
     publishMessagesAndSetRunning(running: boolean): void;
     reload(): Promise<void>;
@@ -3111,6 +3152,7 @@ test("keeps the optimistic assistant id from stream start through completion", (
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     activeAssistantMessageId?: string;
     streamingMessage?: ThreadMessage;
     liveMessages: ThreadMessage[];
@@ -3219,6 +3261,7 @@ test("keeps the in-flight assistant id when settled history wins the stream race
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     activeAssistantMessageId?: string;
     liveMessages: ThreadMessage[];
     publishMessagesAndSetRunning(running: boolean): void;
@@ -3273,6 +3316,7 @@ test("removes an unused optimistic assistant when a command settles without mode
   managerInternals.refreshMetadata = async () => {};
   const session = manager.getSession("local-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     activeAssistantMessageId?: string;
     streamingMessage?: ThreadMessage;
     handleEvent(event: PiEvent): void;
@@ -3311,6 +3355,7 @@ test("replaces the optimistic assistant with a durable prompt failure inside the
   managerInternals.refreshMetadata = async () => {};
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     activeAssistantMessageId?: string;
     liveMessages: ThreadMessage[];
     streamingMessage?: ThreadMessage;
@@ -3403,6 +3448,7 @@ test("records a terminal accepted prompt without leaving the thread list running
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     setSummary(value: PiSessionSummary): boolean;
   };
   internals.setSummary(summary({ firstMessage: "", running: true }));
@@ -3418,6 +3464,7 @@ test("updates a built-in command response from running to success without a sile
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
+    history: PiClientSessionHistoryState;
     handleEvent(event: PiEvent): void;
   };
   const details = {
@@ -3500,6 +3547,7 @@ test("binds a created session without starting a redundant metadata pull", async
   t.after(() => manager.dispose());
   let refreshCount = 0;
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     start(): Promise<void>;
     refreshMetadata(): Promise<void>;
     requestRealtimeRefresh(): void;
@@ -3547,6 +3595,7 @@ test("coalesces initialization while manager startup is pending", async (t) => {
     releaseStart = resolve;
   });
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     start(): Promise<void>;
     requestRealtimeRefresh(): void;
   };
@@ -3577,6 +3626,7 @@ test("applies rich host session deltas to the Headless thread list", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     start(): Promise<void>;
     handleHostFrame(payload: HostStreamPayload, generation: number): void;
     requestRealtimeRefresh(): void;
@@ -3619,6 +3669,7 @@ test("publishes an archived Headless thread after applying a host delta", (t) =>
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     start(): Promise<void>;
     handleHostFrame(payload: HostStreamPayload, generation: number): void;
   };
@@ -3658,6 +3709,7 @@ test("publishes Headless thread-list host deltas", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     start(): Promise<void>;
     handleHostFrame(payload: HostStreamPayload, generation: number): void;
   };
@@ -3728,6 +3780,7 @@ test("updates the Headless thread order when pinning changes", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     start(): Promise<void>;
     handleHostFrame(payload: HostStreamPayload, generation: number): void;
   };
@@ -3766,6 +3819,7 @@ test("updates the Headless thread order when workspace order changes", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     start(): Promise<void>;
     handleHostFrame(payload: HostStreamPayload, generation: number): void;
   };
@@ -3830,6 +3884,7 @@ test("does not expose a remote duplicate while the same browser promotes its dra
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     start(): Promise<void>;
     handleHostFrame(payload: HostStreamPayload, generation: number): void;
     requestedSessionIntents: Map<string, { workspaceId: string; sessionId: string }>;
@@ -3858,6 +3913,7 @@ test("running-state changes preserve the message activity timestamp", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     start(): Promise<void>;
     handleHostFrame(payload: HostStreamPayload, generation: number): void;
     updateRunning(remoteId: string, running: boolean): void;
@@ -3887,6 +3943,7 @@ test("applies the correlated prompt admission from events.mux", async (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     start(): Promise<void>;
     handleHostFrame(payload: HostStreamPayload, generation: number): void;
     handleMuxFrame(frame: ServerRequest<MuxStreamPayload>, generation: number): void;
@@ -3936,6 +3993,7 @@ test("exposes context trace summaries to visualization subscribers", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     handleMuxFrame(frame: ServerRequest<MuxStreamPayload>, generation: number): void;
   };
   const received: Array<{ kind: string; seq: number }> = [];
@@ -4003,6 +4061,7 @@ test("projects context trace mux events into the active assistant message as Dat
   t.after(() => manager.dispose());
   const session = manager.getSession("session-parts", "session-parts");
   const sessionInternals = session as unknown as {
+    history: PiClientSessionHistoryState;
     streamingMessage: ThreadMessage;
   };
   sessionInternals.streamingMessage = {
@@ -4020,6 +4079,7 @@ test("projects context trace mux events into the active assistant message as Dat
     },
   };
   const internals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     handleMuxFrame(frame: ServerRequest<MuxStreamPayload>, generation: number): void;
   };
 
@@ -4190,13 +4250,15 @@ test("holds an early prompt composition for the next assistant message", (t) => 
     },
   };
   const sessionInternals = session as unknown as {
+    history: PiClientSessionHistoryState;
     baseMessages: ThreadMessage[];
     pendingContextTraceEvents: unknown[];
     streamingMessage?: ThreadMessage;
     handleEvent(event: PiEvent): void;
   };
-  sessionInternals.baseMessages = [previousAssistant];
+  sessionInternals.history.baseMessages = [previousAssistant];
   const managerInternals = manager as unknown as {
+    catalog: PiClientManagerCatalogState;
     handleMuxFrame(frame: ServerRequest<MuxStreamPayload>, generation: number): void;
   };
 
@@ -4355,11 +4417,12 @@ for (const trigger of ["open", "agent_settled"] as const) {
     } else {
       manager.refreshMetadata = async () => undefined;
       const internals = session as unknown as {
+        history: PiClientSessionHistoryState;
         handleEvent(event: PiEvent): void;
         reloadTask?: Promise<void>;
       };
       internals.handleEvent({ type: "agent_settled" });
-      await internals.reloadTask;
+      await internals.history.reloadTask;
     }
 
     assert.deepEqual(methods.sort(), ["session.contextTrace.promptParts", "session.history"]);

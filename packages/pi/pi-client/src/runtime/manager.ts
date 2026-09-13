@@ -83,6 +83,8 @@ import {
   createClientMessageId,
   type PiClientRunTiming,
 } from "./session";
+import type { PiClientSessionDependencies } from "./session-dependencies";
+import { PiClientManagerCatalogState, workspaceViewsEqual } from "./manager-catalog";
 
 const ARCHIVED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-archived-sessions`;
 const PINNED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-pinned-sessions`;
@@ -207,19 +209,6 @@ function summariesEqual(left: PiSessionSummary | undefined, right: PiSessionSumm
   );
 }
 
-function workspaceViewsEqual(left: WorkspaceView | undefined, right: WorkspaceView): boolean {
-  return (
-    left !== undefined &&
-    left.workspaceId === right.workspaceId &&
-    left.path === right.path &&
-    left.title === right.title &&
-    left.createdAt === right.createdAt &&
-    left.updatedAt === right.updatedAt &&
-    left.sessionIds.length === right.sessionIds.length &&
-    left.sessionIds.every((sessionId, index) => sessionId === right.sessionIds[index])
-  );
-}
-
 export interface PiSessionTitleFallbacks {
   readonly attachment: string;
   readonly image: string;
@@ -259,20 +248,15 @@ export class PiSessionManager implements AgentRuntime {
   private readonly hostEventListeners = new Set<PiHostEventListener>();
   private readonly connectionReadyListeners = new Set<Listener>();
   private readonly threadStateBuckets = new Map<string, PiThreadStateBucket>();
-  private readonly summaries = new Map<string, PiSessionSummary>();
-  private readonly workspaces = new Map<string, WorkspaceView>();
+  private readonly catalog = new PiClientManagerCatalogState();
   private readonly sessions = new Map<string, PiClientSession>();
   private readonly scratchSessions = new Map<string, SessionScratchCreateValue>();
   private readonly aliases = new Map<string, string>();
   private readonly initializeTasks = new Map<string, Promise<PiSessionSummary>>();
   private readonly requestedSessionIntents = new Map<string, SessionCreateIntent>();
-  private readonly draftWorkspaces = new Map<string, PiWorkspaceSummary>();
   private readonly pendingQueues = new Map<string, readonly QueueItem[]>();
   private readonly pendingInteractions = new Map<string, StoredPendingInteraction>();
   private readonly waitingForUserInput = new Set<string>();
-  private readonly archived = new Set<string>();
-  private readonly pinned = new Set<string>();
-  private readonly pinnedWorkspaces = new Set<string>();
   private readonly completed = new Set<string>();
   private readonly failedRuns = new Set<string>();
   private readonly pendingModelSelections = new Map<string, Promise<SessionSelectModelValue>>();
@@ -290,7 +274,6 @@ export class PiSessionManager implements AgentRuntime {
     { readonly running: boolean; readonly runTiming?: PiRunTiming }
   >;
   private metadataWaitingForUserInputMutations?: Map<string, boolean>;
-  private workspaceGeneration = 0;
   private connectionGeneration = 0;
   private realtimeRefreshRequested = false;
   private realtimeRefreshTask?: Promise<void>;
@@ -426,11 +409,11 @@ export class PiSessionManager implements AgentRuntime {
   }
 
   getWorkspaces(): readonly PiWorkspaceSummary[] {
-    return [...this.workspaces.values()].map((workspace) => ({
+    return [...this.catalog.workspaces.values()].map((workspace) => ({
       id: workspace.workspaceId,
       name: workspace.title,
       cwd: workspace.path,
-      pinned: this.pinnedWorkspaces.has(workspace.workspaceId),
+      pinned: this.catalog.pinnedWorkspaces.has(workspace.workspaceId),
     }));
   }
 
@@ -503,38 +486,38 @@ export class PiSessionManager implements AgentRuntime {
   }
 
   private workspaceForSession(sessionId: string): WorkspaceView | undefined {
-    for (const workspace of this.workspaces.values()) {
+    for (const workspace of this.catalog.workspaces.values()) {
       if (workspace.sessionIds.includes(sessionId)) return workspace;
     }
-    const summary = this.summaries.get(sessionId);
+    const summary = this.catalog.summaries.get(sessionId);
     return summary
-      ? [...this.workspaces.values()].find((workspace) => workspace.path === summary.cwd)
+      ? [...this.catalog.workspaces.values()].find((workspace) => workspace.path === summary.cwd)
       : undefined;
   }
 
   private orderedSummaries(): PiSessionSummary[] {
     const ordered: PiSessionSummary[] = [];
     const included = new Set<string>();
-    for (const workspace of this.workspaces.values()) {
+    for (const workspace of this.catalog.workspaces.values()) {
       for (const sessionId of workspace.sessionIds) {
-        const summary = this.summaries.get(sessionId);
+        const summary = this.catalog.summaries.get(sessionId);
         if (!summary || included.has(sessionId)) continue;
         ordered.push(summary);
         included.add(sessionId);
       }
     }
-    for (const summary of this.summaries.values()) {
+    for (const summary of this.catalog.summaries.values()) {
       if (!included.has(summary.id)) ordered.push(summary);
     }
     return [
-      ...ordered.filter((summary) => this.pinned.has(summary.id)),
-      ...ordered.filter((summary) => !this.pinned.has(summary.id)),
+      ...ordered.filter((summary) => this.catalog.pinned.has(summary.id)),
+      ...ordered.filter((summary) => !this.catalog.pinned.has(summary.id)),
     ];
   }
 
   getThreadListSnapshot(): readonly PiThreadListItemSnapshot[] {
     return this.orderedSummaries().map((summary) => ({
-      status: this.archived.has(summary.id) ? "archived" : "regular",
+      status: this.catalog.archived.has(summary.id) ? "archived" : "regular",
       remoteId: summary.id,
       title: this.summaryTitle(summary) || undefined,
       lastMessageAt: new Date(summary.modified),
@@ -608,10 +591,10 @@ export class PiSessionManager implements AgentRuntime {
   getThreadListItemSnapshot(threadId: string | undefined): PiThreadListItemSnapshot | undefined {
     if (!threadId) return undefined;
     const remoteId = this.aliases.get(threadId) ?? threadId;
-    const summary = this.summaries.get(remoteId);
+    const summary = this.catalog.summaries.get(remoteId);
     if (!summary) return undefined;
     return {
-      status: this.archived.has(remoteId) ? "archived" : "regular",
+      status: this.catalog.archived.has(remoteId) ? "archived" : "regular",
       remoteId,
       title: this.summaryTitle(summary) || undefined,
       lastMessageAt: new Date(summary.modified),
@@ -621,9 +604,9 @@ export class PiSessionManager implements AgentRuntime {
 
   getThreadCustom(threadId: string): Record<string, unknown> | undefined {
     const remoteId = this.aliases.get(threadId) ?? threadId;
-    const summary = this.summaries.get(remoteId);
+    const summary = this.catalog.summaries.get(remoteId);
     if (!summary) {
-      const workspace = this.draftWorkspaces.get(threadId);
+      const workspace = this.catalog.draftWorkspaces.get(threadId);
       if (!workspace) return undefined;
       return {
         piRunning: false,
@@ -636,7 +619,7 @@ export class PiSessionManager implements AgentRuntime {
     const workspace = this.workspaceForSession(remoteId);
     return {
       piRunning: summary.running,
-      piPinned: this.pinned.has(remoteId),
+      piPinned: this.catalog.pinned.has(remoteId),
       piCreatedAt: summary.created,
       piWorkspaceId: workspace?.workspaceId ?? summary.workspace.id,
       piWorkspaceName: workspace?.title ?? summary.workspace.name,
@@ -690,9 +673,9 @@ export class PiSessionManager implements AgentRuntime {
 
   private createThreadStateSnapshot(threadId: string): PiThreadStateSnapshot {
     const remoteId = this.aliases.get(threadId) ?? threadId;
-    const summary = this.summaries.get(remoteId);
+    const summary = this.catalog.summaries.get(remoteId);
     if (!summary) {
-      const workspace = this.draftWorkspaces.get(threadId);
+      const workspace = this.catalog.draftWorkspaces.get(threadId);
       return workspace
         ? {
             metadata: {
@@ -712,11 +695,11 @@ export class PiSessionManager implements AgentRuntime {
           id: workspaceView.workspaceId,
           name: workspaceView.title,
           cwd: workspaceView.path,
-          pinned: this.pinnedWorkspaces.has(workspaceView.workspaceId),
+          pinned: this.catalog.pinnedWorkspaces.has(workspaceView.workspaceId),
         }
       : {
           ...summary.workspace,
-          pinned: this.pinnedWorkspaces.has(summary.workspace.id),
+          pinned: this.catalog.pinnedWorkspaces.has(summary.workspace.id),
         };
     return {
       thread: this.getThreadListItemSnapshot(remoteId),
@@ -724,7 +707,7 @@ export class PiSessionManager implements AgentRuntime {
         running: this.running.has(remoteId),
         waitingForUserInput: this.waitingForUserInput.has(remoteId),
         completed: this.completed.has(remoteId),
-        pinned: this.pinned.has(remoteId),
+        pinned: this.catalog.pinned.has(remoteId),
         createdAt: summary.created,
         workspace,
         ...(summary.automationOrigin === undefined
@@ -827,13 +810,13 @@ export class PiSessionManager implements AgentRuntime {
       this.loadLegacyPinnedIds(PINNED_STORAGE_KEY),
       this.loadLegacyPinnedIds(PINNED_WORKSPACES_STORAGE_KEY),
     ]);
-    const legacyArchived = [...this.archived];
+    const legacyArchived = [...this.catalog.archived];
     await Promise.all([
       this.refreshMetadata().then(() => globalThis.performance?.mark("workbench:catalog-ready")),
       this.refreshHostDescription(),
     ]);
     for (const sessionId of legacyArchived) {
-      if (!this.summaries.has(sessionId) || this.archived.has(sessionId)) continue;
+      if (!this.catalog.summaries.has(sessionId) || this.catalog.archived.has(sessionId)) continue;
       try {
         await this.archiveSessionMetadata(sessionId);
       } catch {
@@ -853,15 +836,10 @@ export class PiSessionManager implements AgentRuntime {
     this.aliases.clear();
     this.initializeTasks.clear();
     this.requestedSessionIntents.clear();
-    this.draftWorkspaces.clear();
     this.pendingQueues.clear();
     this.pendingInteractions.clear();
     this.waitingForUserInput.clear();
-    this.summaries.clear();
-    this.workspaces.clear();
-    this.archived.clear();
-    this.pinned.clear();
-    this.pinnedWorkspaces.clear();
+    this.catalog.dispose();
     this.completed.clear();
     this.failedRuns.clear();
     this.pendingModelSelections.clear();
@@ -1031,68 +1009,48 @@ export class PiSessionManager implements AgentRuntime {
     }
 
     if (payload.type === "host/workspace-changed") {
-      this.workspaceGeneration += 1;
-      this.workspaces.set(payload.workspace.workspaceId, payload.workspace);
+      this.catalog.generation += 1;
+      this.catalog.setWorkspace(payload.workspace);
       this.notify();
       return;
     }
     if (payload.type === "host/workspace-removed") {
-      this.workspaceGeneration += 1;
-      this.workspaces.delete(payload.workspaceId);
-      this.pinnedWorkspaces.delete(payload.workspaceId);
+      this.catalog.generation += 1;
+      this.catalog.removeWorkspace(payload.workspaceId);
       this.notify();
       return;
     }
     if (payload.type === "host/workspace-order-changed") {
-      this.workspaceGeneration += 1;
-      const reordered = new Map<string, WorkspaceView>();
-      for (const workspaceId of payload.workspaceIds) {
-        const workspace = this.workspaces.get(workspaceId);
-        if (workspace) reordered.set(workspaceId, workspace);
-      }
-      for (const [workspaceId, workspace] of this.workspaces) {
-        if (!reordered.has(workspaceId)) reordered.set(workspaceId, workspace);
-      }
-      this.workspaces.clear();
-      for (const [workspaceId, workspace] of reordered) {
-        this.workspaces.set(workspaceId, workspace);
-      }
+      this.catalog.generation += 1;
+      this.catalog.reorderWorkspaces(payload.workspaceIds);
       this.notify();
       return;
     }
     if (payload.type === "host/workspace-pinned-changed") {
-      this.workspaceGeneration += 1;
-      const changed = payload.pinned
-        ? !this.pinnedWorkspaces.has(payload.workspaceId)
-        : this.pinnedWorkspaces.has(payload.workspaceId);
-      if (payload.pinned) this.pinnedWorkspaces.add(payload.workspaceId);
-      else this.pinnedWorkspaces.delete(payload.workspaceId);
+      this.catalog.generation += 1;
+      const changed = this.catalog.setWorkspacePinned(payload.workspaceId, payload.pinned);
       if (changed) this.notify();
       return;
     }
     if (payload.type === "host/session-archive-changed") {
-      this.workspaceGeneration += 1;
-      const wasArchived = this.archived.has(payload.sessionId);
-      if (payload.archived) this.archived.add(payload.sessionId);
-      else this.archived.delete(payload.sessionId);
-      let changed = wasArchived !== payload.archived;
+      this.catalog.generation += 1;
+      let changed = this.catalog.setSessionArchived(payload.sessionId, payload.archived);
       if (
         payload.workspace &&
-        !workspaceViewsEqual(this.workspaces.get(payload.workspace.workspaceId), payload.workspace)
+        !workspaceViewsEqual(
+          this.catalog.workspaces.get(payload.workspace.workspaceId),
+          payload.workspace,
+        )
       ) {
-        this.workspaces.set(payload.workspace.workspaceId, payload.workspace);
+        this.catalog.setWorkspace(payload.workspace);
         changed = true;
       }
       if (changed) this.notify();
       return;
     }
     if (payload.type === "host/session-pinned-changed") {
-      this.workspaceGeneration += 1;
-      const changed = payload.pinned
-        ? !this.pinned.has(payload.sessionId)
-        : this.pinned.has(payload.sessionId);
-      if (payload.pinned) this.pinned.add(payload.sessionId);
-      else this.pinned.delete(payload.sessionId);
+      this.catalog.generation += 1;
+      const changed = this.catalog.setSessionPinned(payload.sessionId, payload.pinned);
       if (changed) {
         this.notify();
       }
@@ -1107,13 +1065,13 @@ export class PiSessionManager implements AgentRuntime {
       ) {
         return;
       }
-      const workspace = [...this.workspaces.values()].find(
+      const workspace = [...this.catalog.workspaces.values()].find(
         (candidate) => candidate.path === payload.summary.cwd,
       );
       let workspaceChanged = false;
       if (workspace && !workspace.sessionIds.includes(payload.sessionId)) {
-        this.workspaceGeneration += 1;
-        this.workspaces.set(workspace.workspaceId, {
+        this.catalog.generation += 1;
+        this.catalog.workspaces.set(workspace.workspaceId, {
           ...workspace,
           sessionIds: [payload.sessionId, ...workspace.sessionIds],
         });
@@ -1177,7 +1135,7 @@ export class PiSessionManager implements AgentRuntime {
       this.sessions.get(localId);
     if (existing) return existing;
 
-    const summary = resolvedRemoteId ? this.summaries.get(resolvedRemoteId) : undefined;
+    const summary = resolvedRemoteId ? this.catalog.summaries.get(resolvedRemoteId) : undefined;
     const running = resolvedRemoteId ? this.running.has(resolvedRemoteId) : false;
     const runTiming = resolvedRemoteId
       ? (this.runTimings.get(resolvedRemoteId) ??
@@ -1185,7 +1143,37 @@ export class PiSessionManager implements AgentRuntime {
           ? this.observeRunTiming(resolvedRemoteId, summary.runTiming)
           : undefined))
       : undefined;
-    const session = new PiClientSession(this, localId, resolvedRemoteId, running, runTiming);
+    let session!: PiClientSession;
+    const dependencies: PiClientSessionDependencies = {
+      rpcOptions: this.rpcTransportOptions,
+      events: {
+        ensure: (sessionId, listener) => this.connections.ensureSessionEvents(sessionId, listener),
+        close: (sessionId) => this.connections.closeSession(sessionId),
+        scheduleClose: (sessionId) => this.connections.scheduleSessionClose(sessionId),
+      },
+      ensureRemote: () => this.ensureRemote(session),
+      selectModel: (payload) => this.selectSessionModel(payload),
+      waitForModelSelection: (sessionId) => this.waitForPendingSessionModelSelection(sessionId),
+      isRunning: (sessionId) => this.isRunning(sessionId),
+      updateRunning: (sessionId, nextRunning, timing) =>
+        this.updateRunningFromSession(sessionId, nextRunning, session, timing),
+      notePrompt: (sessionId, text, nextRunning) => this.notePrompt(sessionId, text, nextRunning),
+      refreshCatalog: () => this.refreshMetadata(),
+      title: (sessionId) => this.getThreadStateSnapshot(sessionId).thread?.title,
+      fork: (input) => this.forkSessionAt(input),
+      feedback: {
+        claim: (draftId, sessionId) => this.claimPromptFeedback(draftId, sessionId),
+        commit: (claim) => this.commitPromptFeedback(claim),
+        release: (claim) => this.releasePromptFeedback(claim),
+      },
+    };
+    session = new PiClientSession(
+      Object.freeze(dependencies),
+      localId,
+      resolvedRemoteId,
+      running,
+      runTiming,
+    );
     this.sessions.set(localId, session);
     if (resolvedRemoteId) this.sessions.set(resolvedRemoteId, session);
     if (resolvedRemoteId) {
@@ -1199,10 +1187,10 @@ export class PiSessionManager implements AgentRuntime {
   session(id: string): PiClientSession | undefined {
     const remoteId =
       this.aliases.get(id) ??
-      (this.summaries.has(id) || this.scratchSessions.has(id) ? id : undefined);
+      (this.catalog.summaries.has(id) || this.scratchSessions.has(id) ? id : undefined);
     const existing = (remoteId ? this.sessions.get(remoteId) : undefined) ?? this.sessions.get(id);
     if (existing) return existing;
-    if (!remoteId && !this.draftWorkspaces.has(id)) return undefined;
+    if (!remoteId && !this.catalog.draftWorkspaces.has(id)) return undefined;
     return this.getSession(id, remoteId);
   }
 
@@ -1226,20 +1214,22 @@ export class PiSessionManager implements AgentRuntime {
     for (const session of this.sessions.values()) {
       if (
         !session.remoteId &&
-        this.draftWorkspaces.get(session.localId)?.id === options.workspaceId
+        this.catalog.draftWorkspaces.get(session.localId)?.id === options.workspaceId
       ) {
         this.setActive(session.localId, undefined);
         return session.localId;
       }
     }
     const localId = createClientMessageId("pi-thread");
-    const workspace = options.workspaceId ? this.workspaces.get(options.workspaceId) : undefined;
+    const workspace = options.workspaceId
+      ? this.catalog.workspaces.get(options.workspaceId)
+      : undefined;
     if (workspace) {
-      this.draftWorkspaces.set(localId, {
+      this.catalog.draftWorkspaces.set(localId, {
         id: workspace.workspaceId,
         name: workspace.title,
         cwd: workspace.path,
-        pinned: this.pinnedWorkspaces.has(workspace.workspaceId),
+        pinned: this.catalog.pinnedWorkspaces.has(workspace.workspaceId),
       });
     }
     this.getSession(localId);
@@ -1261,17 +1251,18 @@ export class PiSessionManager implements AgentRuntime {
   async ensureRemote(session: PiClientSession): Promise<PiSessionSummary> {
     if (this.disposed) throw new Error("PiSessionManager has been disposed");
     if (session.remoteId) {
-      const summary = this.summaries.get(session.remoteId) ?? this.scratchSummary(session.remoteId);
+      const summary =
+        this.catalog.summaries.get(session.remoteId) ?? this.scratchSummary(session.remoteId);
       if (summary) return summary;
       await this.refreshMetadata();
       const refreshed =
-        this.summaries.get(session.remoteId) ?? this.scratchSummary(session.remoteId);
+        this.catalog.summaries.get(session.remoteId) ?? this.scratchSummary(session.remoteId);
       if (refreshed) return refreshed;
     }
 
     const existingTask = this.initializeTasks.get(session.localId);
     if (existingTask) return existingTask;
-    const workspace = this.draftWorkspaces.get(session.localId);
+    const workspace = this.catalog.draftWorkspaces.get(session.localId);
     if (!workspace) throw new PiApiError("pi_invalid_workspace", 400);
     let task: Promise<PiSessionSummary>;
     task = (async () => {
@@ -1289,7 +1280,7 @@ export class PiSessionManager implements AgentRuntime {
         },
         this.rpcTransportOptions,
       );
-      const authoritative = this.summaries.get(sessionId);
+      const authoritative = this.catalog.summaries.get(sessionId);
       const canonicalWorkspace = this.workspaceForSession(sessionId);
       const summaryWorkspace = canonicalWorkspace
         ? {
@@ -1310,7 +1301,7 @@ export class PiSessionManager implements AgentRuntime {
         transient: false,
         running: false,
       };
-      this.draftWorkspaces.delete(session.localId);
+      this.catalog.draftWorkspaces.delete(session.localId);
       if (this.requestedSessionIntents.get(session.localId) === intent) {
         this.requestedSessionIntents.delete(session.localId);
       }
@@ -1352,7 +1343,7 @@ export class PiSessionManager implements AgentRuntime {
     this.metadataMutations = mutations;
     this.metadataRunningMutations = runningMutations;
     this.metadataWaitingForUserInputMutations = waitingForUserInputMutations;
-    const workspaceGeneration = ++this.workspaceGeneration;
+    const workspaceGeneration = ++this.catalog.generation;
     const task = Promise.all([
       listPiRpcSessions({}, this.rpcTransportOptions),
       listPiWorkspaces(this.rpcTransportOptions),
@@ -1379,20 +1370,20 @@ export class PiSessionManager implements AgentRuntime {
           const summary = next.get(id);
           if (summary) next.set(id, { ...summary, waitingForUserInput });
         }
-        for (const existingId of this.summaries.keys()) {
+        for (const existingId of this.catalog.summaries.keys()) {
           if (next.has(existingId)) continue;
           this.disposeCachedSession(existingId);
           this.running.delete(existingId);
           this.runTimings.delete(existingId);
           this.waitingForUserInput.delete(existingId);
           this.completed.delete(existingId);
-          this.archived.delete(existingId);
-          this.pinned.delete(existingId);
+          this.catalog.archived.delete(existingId);
+          this.catalog.pinned.delete(existingId);
         }
         if (!this.activeLocalId && !this.disposed) this.createDraft();
-        this.summaries.clear();
+        this.catalog.summaries.clear();
         for (const summary of next.values()) {
-          this.summaries.set(summary.id, summary);
+          this.catalog.summaries.set(summary.id, summary);
           if (summary.running && summary.runTiming) {
             this.observeRunTiming(summary.id, summary.runTiming);
           } else if (!summary.running) {
@@ -1422,7 +1413,7 @@ export class PiSessionManager implements AgentRuntime {
             this.pendingInteractions.delete(key);
           }
         }
-        if (workspaceGeneration === this.workspaceGeneration) {
+        if (workspaceGeneration === this.catalog.generation) {
           this.applyWorkspaceSnapshot(workspaceResponse, archivedResponse);
         } else {
           // A host frame landed while this unary snapshot was in flight. Fetch
@@ -1453,13 +1444,13 @@ export class PiSessionManager implements AgentRuntime {
 
   private async refreshWorkspaces(): Promise<void> {
     if (this.disposed) return;
-    const generation = ++this.workspaceGeneration;
+    const generation = ++this.catalog.generation;
     const [response, archivedResponse] = await Promise.all([
       listPiWorkspaces(this.rpcTransportOptions),
       listPiArchivedWorkspaceSessions(this.rpcTransportOptions),
     ]);
     if (this.disposed) return;
-    if (generation !== this.workspaceGeneration) {
+    if (generation !== this.catalog.generation) {
       this.requestRealtimeRefresh();
       return;
     }
@@ -1472,16 +1463,12 @@ export class PiSessionManager implements AgentRuntime {
     archivedResponse: Awaited<ReturnType<typeof listPiArchivedWorkspaceSessions>>,
   ): void {
     if (this.disposed) return;
-    this.workspaces.clear();
-    for (const workspace of response.items) this.workspaces.set(workspace.workspaceId, workspace);
-    this.pinnedWorkspaces.clear();
-    for (const workspaceId of response.pinnedWorkspaceIds ?? []) {
-      this.pinnedWorkspaces.add(workspaceId);
-    }
-    this.pinned.clear();
-    for (const sessionId of response.pinnedSessionIds ?? []) this.pinned.add(sessionId);
-    this.archived.clear();
-    for (const sessionId of archivedResponse.sessionIds) this.archived.add(sessionId);
+    this.catalog.applyWorkspaceSnapshot(
+      response.items,
+      response.pinnedWorkspaceIds ?? [],
+      response.pinnedSessionIds ?? [],
+      archivedResponse.sessionIds,
+    );
   }
 
   refreshWorkspaceMetadata(): Promise<void> {
@@ -1492,27 +1479,7 @@ export class PiSessionManager implements AgentRuntime {
     // The create RPC result is authoritative for identity/path/title even if the host event or a
     // follow-up workspace.list has not arrived yet. Advancing the generation also prevents a list
     // request started before create from erasing this accepted result when it eventually resolves.
-    this.workspaceGeneration += 1;
-    const existing = this.workspaces.get(workspace.id);
-    const now = new Date().toISOString();
-    const accepted: WorkspaceView = existing
-      ? { ...existing, path: workspace.cwd, title: workspace.name }
-      : {
-          workspaceId: workspace.id,
-          path: workspace.cwd,
-          title: workspace.name,
-          sessionIds: [],
-          createdAt: now,
-          updatedAt: now,
-        };
-    const workspaceChanged = !workspaceViewsEqual(existing, accepted);
-    this.workspaces.set(workspace.id, accepted);
-
-    const wasPinned = this.pinnedWorkspaces.has(workspace.id);
-    if (workspace.pinned === true) this.pinnedWorkspaces.add(workspace.id);
-    else if (workspace.pinned === false) this.pinnedWorkspaces.delete(workspace.id);
-    const pinnedChanged = wasPinned !== this.pinnedWorkspaces.has(workspace.id);
-    if (workspaceChanged || pinnedChanged) this.notify();
+    if (this.catalog.acceptCreatedWorkspace(workspace, new Date().toISOString())) this.notify();
   }
 
   forkSessionAt(input: {
@@ -1588,10 +1555,10 @@ export class PiSessionManager implements AgentRuntime {
     sourceTitle: string;
   }): Promise<PiForkSessionResult> {
     await this.start();
-    let source = this.summaries.get(input.sessionId);
+    let source = this.catalog.summaries.get(input.sessionId);
     if (!source) {
       await this.refreshMetadata();
-      source = this.summaries.get(input.sessionId);
+      source = this.catalog.summaries.get(input.sessionId);
     }
     if (!source) throw new PiApiError("pi_session_not_found", 404);
 
@@ -1600,10 +1567,10 @@ export class PiSessionManager implements AgentRuntime {
     const workspace = this.workspaceForSession(source.id);
     const siblingSummaries = workspace
       ? workspace.sessionIds.flatMap((sessionId) => {
-          const summary = this.summaries.get(sessionId);
+          const summary = this.catalog.summaries.get(sessionId);
           return summary ? [summary] : [];
         })
-      : [...this.summaries.values()];
+      : [...this.catalog.summaries.values()];
     const title = nextForkTitle(
       sourceTitle,
       siblingSummaries
@@ -1618,7 +1585,7 @@ export class PiSessionManager implements AgentRuntime {
     await renamePiRpcSession({ sessionId: forked.sessionId, title }, this.rpcTransportOptions);
 
     const now = new Date().toISOString();
-    const child = this.summaries.get(forked.sessionId);
+    const child = this.catalog.summaries.get(forked.sessionId);
     this.setSummary({
       ...(child ?? source),
       id: forked.sessionId,
@@ -1628,10 +1595,10 @@ export class PiSessionManager implements AgentRuntime {
       running: false,
       transient: child?.transient ?? false,
     });
-    const currentWorkspace = workspace && this.workspaces.get(workspace.workspaceId);
+    const currentWorkspace = workspace && this.catalog.workspaces.get(workspace.workspaceId);
     if (currentWorkspace && !currentWorkspace.sessionIds.includes(forked.sessionId)) {
-      this.workspaceGeneration += 1;
-      this.workspaces.set(currentWorkspace.workspaceId, {
+      this.catalog.generation += 1;
+      this.catalog.workspaces.set(currentWorkspace.workspaceId, {
         ...currentWorkspace,
         sessionIds: [forked.sessionId, ...currentWorkspace.sessionIds],
       });
@@ -1644,36 +1611,36 @@ export class PiSessionManager implements AgentRuntime {
   }
 
   async deleteWorkspace(workspaceId: string): Promise<void> {
-    this.workspaceGeneration += 1;
+    this.catalog.generation += 1;
     await deletePiWorkspace(workspaceId, this.rpcTransportOptions);
-    this.workspaceGeneration += 1;
-    this.workspaces.delete(workspaceId);
-    this.pinnedWorkspaces.delete(workspaceId);
+    this.catalog.generation += 1;
+    this.catalog.workspaces.delete(workspaceId);
+    this.catalog.pinnedWorkspaces.delete(workspaceId);
     this.notify();
   }
 
   async moveWorkspaceBefore(workspaceId: string, beforeWorkspaceId?: string): Promise<void> {
-    this.workspaceGeneration += 1;
+    this.catalog.generation += 1;
     const result = await insertPiWorkspaceBefore(
       workspaceId,
       beforeWorkspaceId,
       this.rpcTransportOptions,
     );
-    this.workspaceGeneration += 1;
+    this.catalog.generation += 1;
     const reordered = new Map<string, WorkspaceView>();
     for (const reorderedWorkspaceId of result.workspaceIds) {
-      const workspace = this.workspaces.get(reorderedWorkspaceId);
+      const workspace = this.catalog.workspaces.get(reorderedWorkspaceId);
       if (workspace) reordered.set(reorderedWorkspaceId, workspace);
     }
-    for (const [existingWorkspaceId, workspace] of this.workspaces) {
+    for (const [existingWorkspaceId, workspace] of this.catalog.workspaces) {
       if (!reordered.has(existingWorkspaceId)) reordered.set(existingWorkspaceId, workspace);
     }
-    const currentIds = [...this.workspaces.keys()];
+    const currentIds = [...this.catalog.workspaces.keys()];
     const nextIds = [...reordered.keys()];
     if (currentIds.every((id, index) => id === nextIds[index])) return;
-    this.workspaces.clear();
+    this.catalog.workspaces.clear();
     for (const [reorderedWorkspaceId, workspace] of reordered) {
-      this.workspaces.set(reorderedWorkspaceId, workspace);
+      this.catalog.workspaces.set(reorderedWorkspaceId, workspace);
     }
     this.notify();
   }
@@ -1687,42 +1654,42 @@ export class PiSessionManager implements AgentRuntime {
     const remoteBeforeSessionId = beforeSessionId
       ? (this.aliases.get(beforeSessionId) ?? beforeSessionId)
       : undefined;
-    this.workspaceGeneration += 1;
+    this.catalog.generation += 1;
     const result = await insertPiSessionBefore(
       workspaceId,
       remoteSessionId,
       remoteBeforeSessionId,
       this.rpcTransportOptions,
     );
-    this.workspaceGeneration += 1;
-    const current = this.workspaces.get(workspaceId);
+    this.catalog.generation += 1;
+    const current = this.catalog.workspaces.get(workspaceId);
     if (workspaceViewsEqual(current, result.workspace)) return;
-    this.workspaces.set(workspaceId, result.workspace);
+    this.catalog.workspaces.set(workspaceId, result.workspace);
     this.notify();
   }
 
   async setWorkspacePinned(workspaceId: string, pinned: boolean): Promise<void> {
-    this.workspaceGeneration += 1;
+    this.catalog.generation += 1;
     const result = await setPiWorkspacePinned(workspaceId, pinned, this.rpcTransportOptions);
-    this.workspaceGeneration += 1;
+    this.catalog.generation += 1;
     const changed = result.pinned
-      ? !this.pinnedWorkspaces.has(result.workspaceId)
-      : this.pinnedWorkspaces.has(result.workspaceId);
-    if (result.pinned) this.pinnedWorkspaces.add(result.workspaceId);
-    else this.pinnedWorkspaces.delete(result.workspaceId);
+      ? !this.catalog.pinnedWorkspaces.has(result.workspaceId)
+      : this.catalog.pinnedWorkspaces.has(result.workspaceId);
+    if (result.pinned) this.catalog.pinnedWorkspaces.add(result.workspaceId);
+    else this.catalog.pinnedWorkspaces.delete(result.workspaceId);
     if (changed) this.notify();
   }
 
   async setThreadPinned(threadId: string, pinned: boolean): Promise<void> {
     const sessionId = this.aliases.get(threadId) ?? threadId;
-    this.workspaceGeneration += 1;
+    this.catalog.generation += 1;
     const result = await setPiWorkspaceSessionPinned(sessionId, pinned, this.rpcTransportOptions);
-    this.workspaceGeneration += 1;
+    this.catalog.generation += 1;
     const changed = result.pinned
-      ? !this.pinned.has(result.sessionId)
-      : this.pinned.has(result.sessionId);
-    if (result.pinned) this.pinned.add(result.sessionId);
-    else this.pinned.delete(result.sessionId);
+      ? !this.catalog.pinned.has(result.sessionId)
+      : this.catalog.pinned.has(result.sessionId);
+    if (result.pinned) this.catalog.pinned.add(result.sessionId);
+    else this.catalog.pinned.delete(result.sessionId);
     if (changed) {
       this.notify();
     }
@@ -1731,7 +1698,7 @@ export class PiSessionManager implements AgentRuntime {
   async renameThread(threadId: string, title: string): Promise<void> {
     const sessionId = this.aliases.get(threadId) ?? threadId;
     await renamePiRpcSession({ sessionId, title }, this.rpcTransportOptions);
-    const summary = this.summaries.get(sessionId);
+    const summary = this.catalog.summaries.get(sessionId);
     if (summary && this.setSummary({ ...summary, name: title })) this.notify();
   }
 
@@ -1771,7 +1738,7 @@ export class PiSessionManager implements AgentRuntime {
 
   setDraftWorkspace(localId: string, workspace: PiWorkspaceSummary | undefined): void {
     if (workspace) {
-      const current = this.draftWorkspaces.get(localId);
+      const current = this.catalog.draftWorkspaces.get(localId);
       if (
         current?.id === workspace.id &&
         current.name === workspace.name &&
@@ -1780,13 +1747,13 @@ export class PiSessionManager implements AgentRuntime {
       ) {
         return;
       }
-      this.draftWorkspaces.set(localId, workspace);
+      this.catalog.draftWorkspaces.set(localId, workspace);
       this.notify();
       return;
     }
     const session = this.sessions.get(localId);
     if (session && !session.remoteId && session.getSnapshot().messages.length > 0) return;
-    if (this.draftWorkspaces.delete(localId)) this.notify();
+    if (this.catalog.draftWorkspaces.delete(localId)) this.notify();
   }
 
   isCompleted(threadId: string): boolean {
@@ -1802,7 +1769,7 @@ export class PiSessionManager implements AgentRuntime {
   }
 
   notePrompt(remoteId: string, text: string, running = true): void {
-    const summary = this.summaries.get(remoteId);
+    const summary = this.catalog.summaries.get(remoteId);
     if (!summary) return;
     const changed = this.setSummary({
       ...summary,
@@ -1840,10 +1807,10 @@ export class PiSessionManager implements AgentRuntime {
     }
     this.setSummary(summary);
     this.applySummaryWaitingForUserInput(summary);
-    const workspace = workspaceId ? this.workspaces.get(workspaceId) : undefined;
+    const workspace = workspaceId ? this.catalog.workspaces.get(workspaceId) : undefined;
     if (workspaceId && workspace && !workspace.sessionIds.includes(summary.id)) {
-      this.workspaceGeneration += 1;
-      this.workspaces.set(workspaceId, {
+      this.catalog.generation += 1;
+      this.catalog.workspaces.set(workspaceId, {
         ...workspace,
         sessionIds: [summary.id, ...workspace.sessionIds],
       });
@@ -1874,7 +1841,7 @@ export class PiSessionManager implements AgentRuntime {
         id,
         running,
         undefined,
-        running ? this.summaries.get(id)?.runTiming : undefined,
+        running ? this.catalog.summaries.get(id)?.runTiming : undefined,
         authoritativeBaseline,
       );
     }
@@ -1906,7 +1873,7 @@ export class PiSessionManager implements AgentRuntime {
     if (running) this.running.add(remoteId);
     else this.running.delete(remoteId);
 
-    const summary = this.summaries.get(remoteId);
+    const summary = this.catalog.summaries.get(remoteId);
     if (
       summary &&
       (summary.running !== running ||
@@ -1935,7 +1902,7 @@ export class PiSessionManager implements AgentRuntime {
     if (waitingForUserInput) this.waitingForUserInput.add(remoteId);
     else this.waitingForUserInput.delete(remoteId);
 
-    const summary = this.summaries.get(remoteId);
+    const summary = this.catalog.summaries.get(remoteId);
     if (summary && summary.waitingForUserInput !== waitingForUserInput) {
       this.setSummary({ ...summary, waitingForUserInput });
     }
@@ -1951,7 +1918,7 @@ export class PiSessionManager implements AgentRuntime {
   private scratchSummary(sessionId: string): PiSessionSummary | undefined {
     const scratch = this.scratchSessions.get(sessionId);
     if (!scratch || scratch.expiresAt <= Date.now()) return undefined;
-    const source = this.summaries.get(scratch.sourceSessionId);
+    const source = this.catalog.summaries.get(scratch.sourceSessionId);
     if (!source) return undefined;
     const now = new Date().toISOString();
     return {
@@ -1994,14 +1961,14 @@ export class PiSessionManager implements AgentRuntime {
       ...(name ? { name } : {}),
       firstMessage: deriveSessionDisplayTitle(summary.firstMessage),
     };
-    const changed = !summariesEqual(this.summaries.get(summary.id), sanitized);
-    this.summaries.set(summary.id, sanitized);
+    const changed = !summariesEqual(this.catalog.summaries.get(summary.id), sanitized);
+    this.catalog.summaries.set(summary.id, sanitized);
     this.metadataMutations?.set(summary.id, sanitized);
     return changed;
   }
 
   private deleteSummary(remoteId: string): void {
-    this.summaries.delete(remoteId);
+    this.catalog.summaries.delete(remoteId);
     this.runTimings.delete(remoteId);
     this.waitingForUserInput.delete(remoteId);
     this.metadataMutations?.set(remoteId, null);
@@ -2038,7 +2005,7 @@ export class PiSessionManager implements AgentRuntime {
     for (const localId of localIds) {
       this.initializeTasks.delete(localId);
       this.requestedSessionIntents.delete(localId);
-      this.draftWorkspaces.delete(localId);
+      this.catalog.draftWorkspaces.delete(localId);
     }
     for (const [localId, intent] of this.requestedSessionIntents) {
       if (intent.sessionId === remoteId) this.requestedSessionIntents.delete(localId);
@@ -2068,16 +2035,16 @@ export class PiSessionManager implements AgentRuntime {
     this.waitingForUserInput.delete(sessionId);
     this.completed.delete(sessionId);
     this.failedRuns.delete(sessionId);
-    this.archived.delete(sessionId);
-    this.pinned.delete(sessionId);
+    this.catalog.archived.delete(sessionId);
+    this.catalog.pinned.delete(sessionId);
     this.pendingQueues.delete(sessionId);
     for (const [key, stored] of this.pendingInteractions) {
       if (stored.interaction.sessionId === sessionId) this.pendingInteractions.delete(key);
     }
-    this.workspaceGeneration += 1;
-    for (const [workspaceId, workspace] of this.workspaces) {
+    this.catalog.generation += 1;
+    for (const [workspaceId, workspace] of this.catalog.workspaces) {
       if (!workspace.sessionIds.includes(sessionId)) continue;
-      this.workspaces.set(workspaceId, {
+      this.catalog.workspaces.set(workspaceId, {
         ...workspace,
         sessionIds: workspace.sessionIds.filter((id) => id !== sessionId),
       });
@@ -2098,7 +2065,7 @@ export class PiSessionManager implements AgentRuntime {
     try {
       const ids = JSON.parse(value) as unknown;
       if (Array.isArray(ids)) {
-        for (const id of ids) if (typeof id === "string") this.archived.add(id);
+        for (const id of ids) if (typeof id === "string") this.catalog.archived.add(id);
       }
     } catch {
       // Ignore damaged local presentation metadata.
@@ -2125,7 +2092,7 @@ export class PiSessionManager implements AgentRuntime {
   ): Promise<void> {
     let sessionsMigrated = true;
     for (const sessionId of sessionIds) {
-      if (!this.summaries.has(sessionId) || this.pinned.has(sessionId)) continue;
+      if (!this.catalog.summaries.has(sessionId) || this.catalog.pinned.has(sessionId)) continue;
       try {
         await this.setThreadPinned(sessionId, true);
       } catch {
@@ -2136,7 +2103,11 @@ export class PiSessionManager implements AgentRuntime {
 
     let workspacesMigrated = true;
     for (const workspaceId of workspaceIds) {
-      if (!this.workspaces.has(workspaceId) || this.pinnedWorkspaces.has(workspaceId)) continue;
+      if (
+        !this.catalog.workspaces.has(workspaceId) ||
+        this.catalog.pinnedWorkspaces.has(workspaceId)
+      )
+        continue;
       try {
         await this.setWorkspacePinned(workspaceId, true);
       } catch {

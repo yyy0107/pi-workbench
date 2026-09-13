@@ -1,0 +1,1601 @@
+{
+  "baselineHead": "f95cc7379a42e30e9a1b03aa149e45d1f4c0af2b",
+  "method": "Same package-only production/optional/peer manifest edge accounting as audit-baseline.json. Type-only imports are not bundle-size measurements. Dev/app/root edges excluded.",
+  "packageCount": 96,
+  "productionInternalEdges": 611,
+  "packages": [
+    {
+      "name": "@workbench/agent-runtime-client",
+      "path": "packages/agent-runtime/agent-runtime-client",
+      "sourceFiles": 20,
+      "sourceLines": 1685,
+      "manifestSha256": "eb88040ee62ddaaae2f14961215e1a61383ddd38cc8e2ea2a0d7cbcb13155f2a",
+      "dependencies": [
+        "@workbench/agent-runtime-contracts",
+        "@workbench/agent-runtime-core",
+        "@workbench/automation-contracts",
+        "@workbench/core-contracts",
+        "@workbench/host-contracts"
+      ],
+      "internalFanOut": 5,
+      "internalFanIn": 36
+    },
+    {
+      "name": "@workbench/agent-runtime-contracts",
+      "path": "packages/agent-runtime/agent-runtime-contracts",
+      "sourceFiles": 10,
+      "sourceLines": 1377,
+      "manifestSha256": "c66ad4f9d8f26015f68d62fee5d523e7d10e8f08ec42596ea6d88e38eadc9381",
+      "dependencies": ["@workbench/core-contracts"],
+      "internalFanOut": 1,
+      "internalFanIn": 42
+    },
+    {
+      "name": "@workbench/agent-runtime-core",
+      "path": "packages/agent-runtime/agent-runtime-core",
+      "sourceFiles": 6,
+      "sourceLines": 226,
+      "manifestSha256": "247a20dd418d87a7e141b37dbdc04a92a0a5370016c3526920fd5fc3b6d93e39",
+      "dependencies": ["@workbench/agent-runtime-contracts"],
+      "internalFanOut": 1,
+      "internalFanIn": 4
+    },
+    {
+      "name": "@workbench/agent-runtime-server",
+      "path": "packages/agent-runtime/agent-runtime-server",
+      "sourceFiles": 7,
+      "sourceLines": 284,
+      "manifestSha256": "d98e98f4c849a430072948b50702ee6cdb41b078e2cf398b8969f334e8dcd243",
+      "dependencies": [
+        "@workbench/agent-runtime-contracts",
+        "@workbench/automation-contracts",
+        "@workbench/core-contracts"
+      ],
+      "internalFanOut": 3,
+      "internalFanIn": 4
+    },
+    {
+      "name": "@workbench/agent-runtime-testkit",
+      "path": "packages/agent-runtime/agent-runtime-testkit",
+      "sourceFiles": 6,
+      "sourceLines": 692,
+      "manifestSha256": "6184ec074dc423529f84e06623d9f1f3c61c0d23c1946cd2777caf4afdee348d",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/agent-runtime-core",
+        "@workbench/agent-runtime-server"
+      ],
+      "internalFanOut": 4,
+      "internalFanIn": 0
+    },
+    {
+      "name": "@workbench/api",
+      "path": "packages/transport/api",
+      "sourceFiles": 8,
+      "sourceLines": 1042,
+      "manifestSha256": "6942fd38b0e60759baa2094ba10754075cdeca65193a6559bd84155f822b938d",
+      "dependencies": ["@workbench/server-core"],
+      "internalFanOut": 1,
+      "internalFanIn": 13
+    },
+    {
+      "name": "@workbench/appearance",
+      "path": "packages/client/appearance",
+      "sourceFiles": 6,
+      "sourceLines": 759,
+      "manifestSha256": "0a2a099420d608f4523795b9dcdda826321d01eec1c1ad45e2ac951648d0babf",
+      "dependencies": ["@workbench/settings-runtime"],
+      "internalFanOut": 1,
+      "internalFanIn": 5
+    },
+    {
+      "name": "@workbench/automation-contracts",
+      "path": "packages/contracts/automation-contracts",
+      "sourceFiles": 2,
+      "sourceLines": 169,
+      "manifestSha256": "14eec4b2991891a01f3382129efc5c334357d7f5cb667d66f13432ef5ad032bd",
+      "dependencies": ["@workbench/core-contracts"],
+      "internalFanOut": 1,
+      "internalFanIn": 11
+    },
+    {
+      "name": "@workbench/automation-server",
+      "path": "packages/server/automation-server",
+      "sourceFiles": 5,
+      "sourceLines": 877,
+      "manifestSha256": "545b69dfcf7570d481030eb4ace93a4a23e5ee326a32a72cb356886720802c1e",
+      "dependencies": [
+        "@workbench/api",
+        "@workbench/automation-contracts",
+        "@workbench/server-core"
+      ],
+      "internalFanOut": 3,
+      "internalFanIn": 0
+    },
+    {
+      "name": "@workbench/browser-contracts",
+      "path": "packages/contracts/browser-contracts",
+      "sourceFiles": 3,
+      "sourceLines": 873,
+      "manifestSha256": "671b739b776fa2fef2680f8558369bc0dafb8df609657d0311e3d7b5035a7944",
+      "dependencies": [],
+      "internalFanOut": 0,
+      "internalFanIn": 6
+    },
+    {
+      "name": "@workbench/browser-server",
+      "path": "packages/server/browser-server",
+      "sourceFiles": 9,
+      "sourceLines": 4387,
+      "manifestSha256": "1f46e76c8d917b96f85da48e6424e9463ad1455b7fbf595e63e36fde10608584",
+      "dependencies": ["@workbench/browser-contracts", "@workbench/server-core"],
+      "internalFanOut": 2,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/code-highlighting",
+      "path": "packages/client/code-highlighting",
+      "sourceFiles": 19,
+      "sourceLines": 1536,
+      "manifestSha256": "f338a53c9ec85a9f19f1dc6cf86becb487052b20c08fb778a75f9c99ead3ae00",
+      "dependencies": [
+        "@workbench/appearance",
+        "@workbench/i18n",
+        "@workbench/ui",
+        "@workbench/ui-disclosure"
+      ],
+      "internalFanOut": 4,
+      "internalFanIn": 12
+    },
+    {
+      "name": "@workbench/core-contracts",
+      "path": "packages/contracts/core-contracts",
+      "sourceFiles": 6,
+      "sourceLines": 1018,
+      "manifestSha256": "de4bee1138668f2d7eb24eeba8c7faf55b1cabefd38c93cb65690beb8988b648",
+      "dependencies": [],
+      "internalFanOut": 0,
+      "internalFanIn": 21
+    },
+    {
+      "name": "@workbench/desktop-contracts",
+      "path": "packages/client/desktop-contracts",
+      "sourceFiles": 6,
+      "sourceLines": 198,
+      "manifestSha256": "07d2289c50b46f6007173663cba1eabf82462dfc44d9df068faf2ee9fbede683",
+      "dependencies": ["@workbench/host-contracts", "@workbench/terminal-contracts"],
+      "internalFanOut": 2,
+      "internalFanIn": 0
+    },
+    {
+      "name": "@workbench/extension-host",
+      "path": "packages/extension-platform/extension-host",
+      "sourceFiles": 26,
+      "sourceLines": 1635,
+      "manifestSha256": "081a7292d7cbacb4d76fcd7cc5ef0aefdb4157e35643dbb063a7e0122883ecbe",
+      "dependencies": ["@workbench/extension-sdk", "@workbench/i18n", "@workbench/ui"],
+      "internalFanOut": 3,
+      "internalFanIn": 24
+    },
+    {
+      "name": "@workbench/extension-sdk",
+      "path": "packages/extension-platform/extension-sdk",
+      "sourceFiles": 32,
+      "sourceLines": 2525,
+      "manifestSha256": "db1f9e01ecaec6f98d3a5c2e01764b63a9cd0d5c4b21ce9f1e7e97ed114360bb",
+      "dependencies": ["@workbench/agent-runtime-contracts", "@workbench/core-contracts"],
+      "internalFanOut": 2,
+      "internalFanIn": 43
+    },
+    {
+      "name": "@workbench/host-artifact-policy",
+      "path": "packages/host/host-artifact-policy",
+      "sourceFiles": 8,
+      "sourceLines": 1465,
+      "manifestSha256": "e202cdddb7b6613b2f3112673d3d31a517ab0d9e6d44b7f9de691a2f8450f83d",
+      "dependencies": ["@workbench/browser-contracts", "@workbench/terminal-contracts"],
+      "internalFanOut": 2,
+      "internalFanIn": 0
+    },
+    {
+      "name": "@workbench/host-client",
+      "path": "packages/client/host-client",
+      "sourceFiles": 4,
+      "sourceLines": 402,
+      "manifestSha256": "9ba3129d8aff28c560f4fab0d39c5af197e807f6e66bd471d1ffb3cdf74843b0",
+      "dependencies": ["@workbench/host-contracts"],
+      "internalFanOut": 1,
+      "internalFanIn": 7
+    },
+    {
+      "name": "@workbench/host-contracts",
+      "path": "packages/client/host-contracts",
+      "sourceFiles": 13,
+      "sourceLines": 2689,
+      "manifestSha256": "7c955b07f7b8486f99803aa14a9eb33e213a29aa8067f7c4dea38087c49e1530",
+      "dependencies": [],
+      "internalFanOut": 0,
+      "internalFanIn": 14
+    },
+    {
+      "name": "@workbench/host-server",
+      "path": "packages/host/host-server",
+      "sourceFiles": 15,
+      "sourceLines": 4421,
+      "manifestSha256": "1a7adef8abb90c1c655de44290b8b41530f5689cbac93dfe8b1274335a19dcdd",
+      "dependencies": ["@workbench/host-contracts", "@workbench/server-core"],
+      "internalFanOut": 2,
+      "internalFanIn": 0
+    },
+    {
+      "name": "@workbench/i18n",
+      "path": "packages/client/i18n",
+      "sourceFiles": 9,
+      "sourceLines": 608,
+      "manifestSha256": "d2b4e290aab38e6a0aad929afcbd9369ae5c25b9ca302a770294243cc23ac485",
+      "dependencies": ["@workbench/core-contracts", "@workbench/extension-sdk"],
+      "internalFanOut": 2,
+      "internalFanIn": 49
+    },
+    {
+      "name": "@workbench/local-host-server",
+      "path": "packages/server/local-host-server",
+      "sourceFiles": 19,
+      "sourceLines": 2422,
+      "manifestSha256": "510dc156e2c2956e26e4e05166bdac72a376c850954f7eb3142ffac3e151ab76",
+      "dependencies": ["@workbench/api", "@workbench/host-contracts", "@workbench/server-core"],
+      "internalFanOut": 3,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/markdown",
+      "path": "packages/client/markdown",
+      "sourceFiles": 19,
+      "sourceLines": 2011,
+      "manifestSha256": "00d3fd7b1b7328de96cdcc03ec7514d7f4f9d18c5fa9e9b63e88c3249be75c8c",
+      "dependencies": [
+        "@workbench/appearance",
+        "@workbench/code-highlighting",
+        "@workbench/i18n",
+        "@workbench/ui"
+      ],
+      "internalFanOut": 4,
+      "internalFanIn": 14
+    },
+    {
+      "name": "@workbench/pi-browser",
+      "path": "packages/pi/pi-browser",
+      "sourceFiles": 6,
+      "sourceLines": 1226,
+      "manifestSha256": "26dfea46114649a5b0174a1017c37d023fa14bf30244cf7a1c76998a5a5caf46",
+      "dependencies": ["@workbench/browser-contracts", "@workbench/browser-server"],
+      "internalFanOut": 2,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/pi-client",
+      "path": "packages/pi/pi-client",
+      "sourceFiles": 36,
+      "sourceLines": 7340,
+      "manifestSha256": "89e81fd74fc058b0ba3e26e550ac72d6c061afcbcda4e47a6b4c6b74a1c4ac92",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/agent-runtime-core",
+        "@workbench/api",
+        "@workbench/automation-contracts",
+        "@workbench/core-contracts",
+        "@workbench/host-client",
+        "@workbench/pi-conversation",
+        "@workbench/pi-protocol",
+        "@workbench/pi-shared",
+        "@workbench/pi-transport-client",
+        "@workbench/services-client"
+      ],
+      "internalFanOut": 12,
+      "internalFanIn": 8
+    },
+    {
+      "name": "@workbench/pi-contributions",
+      "path": "packages/pi/pi-contributions",
+      "sourceFiles": 6,
+      "sourceLines": 152,
+      "manifestSha256": "5416577f2859d9ce00195b42ea2592debb749d2bc92db56f2c30d2523719bf88",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/code-highlighting",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/markdown",
+        "@workbench/pi-client",
+        "@workbench/pi-protocol",
+        "@workbench/pi-shared",
+        "@workbench/pi-ui-diagnostics",
+        "@workbench/pi-ui-session-import",
+        "@workbench/pi-ui-settings",
+        "@workbench/pi-ui-settings-models",
+        "@workbench/pi-ui-status",
+        "@workbench/pi-ui-toolbox",
+        "@workbench/settings-runtime",
+        "@workbench/shell",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-conversation",
+        "@workbench/ui-settings",
+        "@workbench/workspace-files"
+      ],
+      "internalFanOut": 23,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/pi-conversation",
+      "path": "packages/pi/pi-conversation",
+      "sourceFiles": 19,
+      "sourceLines": 4621,
+      "manifestSha256": "b652f78de246603af6f7e8085bb5d4764b626f1691058761d9cc9f33829ab9da",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/agent-runtime-core",
+        "@workbench/automation-contracts",
+        "@workbench/core-contracts",
+        "@workbench/pi-protocol",
+        "@workbench/pi-shared"
+      ],
+      "internalFanOut": 7,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/pi-model-server",
+      "path": "packages/pi/pi-model-server",
+      "sourceFiles": 5,
+      "sourceLines": 2989,
+      "manifestSha256": "c0e8d2458cf5069a20814bd8cf553dcebfe37e8de908c74bf6ffcbda6c10c518",
+      "dependencies": [
+        "@workbench/api",
+        "@workbench/pi-protocol",
+        "@workbench/pi-server-ports",
+        "@workbench/pi-shared",
+        "@workbench/server-core"
+      ],
+      "internalFanOut": 5,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/pi-product",
+      "path": "packages/client/pi-product",
+      "sourceFiles": 7,
+      "sourceLines": 325,
+      "manifestSha256": "abea5e3c4d70b86d78d46f4ef839d2bb2645015445584aa72be44adf6e2907d3",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/extension-sdk",
+        "@workbench/host-client",
+        "@workbench/host-contracts",
+        "@workbench/i18n",
+        "@workbench/markdown",
+        "@workbench/pi-client",
+        "@workbench/pi-contributions",
+        "@workbench/services-client",
+        "@workbench/settings-runtime",
+        "@workbench/shell",
+        "@workbench/shell-context",
+        "@workbench/ui-conversation",
+        "@workbench/ui-settings",
+        "@workbench/ui-theme",
+        "@workbench/workspace-files"
+      ],
+      "internalFanOut": 17,
+      "internalFanIn": 0
+    },
+    {
+      "name": "@workbench/pi-protocol",
+      "path": "packages/pi/pi-protocol",
+      "sourceFiles": 5,
+      "sourceLines": 2953,
+      "manifestSha256": "9182a96ca5c8bf3c50f1f51fae99a1bbf2bf0d74fa99d381fb2c1903f90dc8f5",
+      "dependencies": [
+        "@workbench/agent-runtime-contracts",
+        "@workbench/api",
+        "@workbench/automation-contracts",
+        "@workbench/core-contracts",
+        "@workbench/host-contracts"
+      ],
+      "internalFanOut": 5,
+      "internalFanIn": 16
+    },
+    {
+      "name": "@workbench/pi-resources-server",
+      "path": "packages/pi/pi-resources-server",
+      "sourceFiles": 37,
+      "sourceLines": 7220,
+      "manifestSha256": "73361f43c8f8a01a7e0cd4cdc86e11e4c8701e4f830b72368d613226e03e3fe9",
+      "dependencies": [
+        "@workbench/agent-runtime-contracts",
+        "@workbench/agent-runtime-server",
+        "@workbench/api",
+        "@workbench/core-contracts",
+        "@workbench/local-host-server",
+        "@workbench/pi-browser",
+        "@workbench/pi-protocol",
+        "@workbench/pi-server-ports",
+        "@workbench/pi-shared",
+        "@workbench/server-core"
+      ],
+      "internalFanOut": 10,
+      "internalFanIn": 3
+    },
+    {
+      "name": "@workbench/pi-server",
+      "path": "packages/pi/pi-server",
+      "sourceFiles": 45,
+      "sourceLines": 4853,
+      "manifestSha256": "bb4d7ae6c36e83a534776e4d450c59b9627bbbf6ef3b1a1a3fbb32921c762c32",
+      "dependencies": [
+        "@workbench/agent-runtime-contracts",
+        "@workbench/agent-runtime-server",
+        "@workbench/api",
+        "@workbench/automation-contracts",
+        "@workbench/browser-contracts",
+        "@workbench/core-contracts",
+        "@workbench/local-host-server",
+        "@workbench/pi-browser",
+        "@workbench/pi-model-server",
+        "@workbench/pi-protocol",
+        "@workbench/pi-resources-server",
+        "@workbench/pi-server-ports",
+        "@workbench/pi-session-server",
+        "@workbench/pi-shared",
+        "@workbench/pi-tools",
+        "@workbench/server-core",
+        "@workbench/workspace-server"
+      ],
+      "internalFanOut": 17,
+      "internalFanIn": 0
+    },
+    {
+      "name": "@workbench/pi-server-ports",
+      "path": "packages/pi/pi-server-ports",
+      "sourceFiles": 13,
+      "sourceLines": 290,
+      "manifestSha256": "bee846ed083d923b5172bb74b545e726a5e601d0885bc04a97fd989cd5ff8c50",
+      "dependencies": [
+        "@workbench/agent-runtime-contracts",
+        "@workbench/browser-contracts",
+        "@workbench/pi-protocol"
+      ],
+      "internalFanOut": 3,
+      "internalFanIn": 5
+    },
+    {
+      "name": "@workbench/pi-session-server",
+      "path": "packages/pi/pi-session-server",
+      "sourceFiles": 55,
+      "sourceLines": 16260,
+      "manifestSha256": "6b6a0abd23f62bc83bb36721f87d319fcc56316d8de054152826bc54c6a3c939",
+      "dependencies": [
+        "@workbench/agent-runtime-contracts",
+        "@workbench/agent-runtime-server",
+        "@workbench/api",
+        "@workbench/automation-contracts",
+        "@workbench/core-contracts",
+        "@workbench/pi-model-server",
+        "@workbench/pi-protocol",
+        "@workbench/pi-resources-server",
+        "@workbench/pi-server-ports",
+        "@workbench/pi-shared",
+        "@workbench/pi-tools",
+        "@workbench/server-core",
+        "@workbench/workspace-server"
+      ],
+      "internalFanOut": 13,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/pi-shared",
+      "path": "packages/pi/pi-shared",
+      "sourceFiles": 11,
+      "sourceLines": 673,
+      "manifestSha256": "7a65ec1caf68695d9935a5e24db842b25218ad9f461b73b6064a16813e50f894",
+      "dependencies": [
+        "@workbench/agent-runtime-contracts",
+        "@workbench/core-contracts",
+        "@workbench/pi-protocol"
+      ],
+      "internalFanOut": 3,
+      "internalFanIn": 9
+    },
+    {
+      "name": "@workbench/pi-terminal-tool",
+      "path": "packages/terminal/pi-terminal-tool",
+      "sourceFiles": 2,
+      "sourceLines": 184,
+      "manifestSha256": "68f90a134899b628d761733d99dfa50f99da7ff66bdd8eac0690724056246f2d",
+      "dependencies": ["@workbench/terminal-contracts", "@workbench/terminal-server"],
+      "internalFanOut": 2,
+      "internalFanIn": 0
+    },
+    {
+      "name": "@workbench/pi-tools",
+      "path": "packages/pi/pi-tools",
+      "sourceFiles": 30,
+      "sourceLines": 2204,
+      "manifestSha256": "3f2c8e5ef87bd4ed883154ec1113017453462717ad725ecf49fd3c97c9ba5f78",
+      "dependencies": [
+        "@workbench/agent-runtime-contracts",
+        "@workbench/api",
+        "@workbench/pi-protocol",
+        "@workbench/pi-resources-server",
+        "@workbench/pi-server-ports",
+        "@workbench/pi-shared",
+        "@workbench/workspace-server"
+      ],
+      "internalFanOut": 7,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/pi-transport-client",
+      "path": "packages/pi/pi-transport-client",
+      "sourceFiles": 5,
+      "sourceLines": 2160,
+      "manifestSha256": "5634d2e1d0dd7b6427086ba8f57c217649715b53f60c0e0469f44ff91a6dbcf8",
+      "dependencies": [
+        "@workbench/api",
+        "@workbench/automation-contracts",
+        "@workbench/host-client",
+        "@workbench/pi-conversation",
+        "@workbench/pi-protocol"
+      ],
+      "internalFanOut": 5,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/pi-ui-diagnostics",
+      "path": "packages/pi/pi-ui-diagnostics",
+      "sourceFiles": 27,
+      "sourceLines": 8399,
+      "manifestSha256": "ce756b34513d21d6f3111d1cbf5c0bbb80c32cba10ddd9cce59fb0a6de250f07",
+      "dependencies": [
+        "@workbench/code-highlighting",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/markdown",
+        "@workbench/pi-client",
+        "@workbench/pi-protocol",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-conversation",
+        "@workbench/ui-settings",
+        "@workbench/ui-tool",
+        "@workbench/ui-workspace",
+        "@workbench/workspace-runtime"
+      ],
+      "internalFanOut": 14,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/pi-ui-session-import",
+      "path": "packages/pi/pi-ui-session-import",
+      "sourceFiles": 8,
+      "sourceLines": 487,
+      "manifestSha256": "5448cabde33d478bd28a0d0ee5e573c433f0f92dcae08cc8b203d8fa484432e2",
+      "dependencies": [
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/pi-client",
+        "@workbench/pi-protocol",
+        "@workbench/ui",
+        "@workbench/ui-settings"
+      ],
+      "internalFanOut": 6,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/pi-ui-settings",
+      "path": "packages/pi/pi-ui-settings",
+      "sourceFiles": 12,
+      "sourceLines": 1527,
+      "manifestSha256": "3c968c057a286ce31dab82c963ad3e15600996eeb76da26e38d25607c779ad02",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/code-highlighting",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/markdown",
+        "@workbench/pi-client",
+        "@workbench/pi-protocol",
+        "@workbench/ui",
+        "@workbench/ui-settings"
+      ],
+      "internalFanOut": 11,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/pi-ui-settings-models",
+      "path": "packages/pi/pi-ui-settings-models",
+      "sourceFiles": 12,
+      "sourceLines": 3772,
+      "manifestSha256": "6366a007a67ba28e5339335a5c2f212e207e4dcbf840ea7cf3e6979d57bc4342",
+      "dependencies": [
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/pi-client",
+        "@workbench/pi-protocol",
+        "@workbench/pi-shared",
+        "@workbench/ui",
+        "@workbench/ui-settings"
+      ],
+      "internalFanOut": 7,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/pi-ui-status",
+      "path": "packages/pi/pi-ui-status",
+      "sourceFiles": 13,
+      "sourceLines": 796,
+      "manifestSha256": "d71354f7b4345abb7941ac5f87a66056d27ba4071800997b557c7a046e88e049",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/pi-client",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-settings"
+      ],
+      "internalFanOut": 7,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/pi-ui-toolbox",
+      "path": "packages/pi/pi-ui-toolbox",
+      "sourceFiles": 39,
+      "sourceLines": 8972,
+      "manifestSha256": "ae6fe112aeb058187128793b684ef6931ce5260fb51ce19f6dfa7074a068ef92",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/code-highlighting",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/markdown",
+        "@workbench/pi-client",
+        "@workbench/pi-protocol",
+        "@workbench/pi-ui-settings",
+        "@workbench/settings-runtime",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-conversation",
+        "@workbench/ui-selectors",
+        "@workbench/ui-sidebar",
+        "@workbench/ui-tool",
+        "@workbench/ui-workspace",
+        "@workbench/workspace-files"
+      ],
+      "internalFanOut": 19,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/server-core",
+      "path": "packages/server/server-core",
+      "sourceFiles": 7,
+      "sourceLines": 727,
+      "manifestSha256": "6f6b7fe7b364338afd63f24e8c6b2f89e548fbacfd0d7b73522d1bcad7739bf4",
+      "dependencies": [],
+      "internalFanOut": 0,
+      "internalFanIn": 12
+    },
+    {
+      "name": "@workbench/services-client",
+      "path": "packages/client/services-client",
+      "sourceFiles": 7,
+      "sourceLines": 587,
+      "manifestSha256": "9a134a08345dec788103ea2ef7771e039e24407e7c9b8a876cfa6b711e763120",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/api",
+        "@workbench/automation-contracts",
+        "@workbench/host-client",
+        "@workbench/host-contracts"
+      ],
+      "internalFanOut": 6,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/settings-runtime",
+      "path": "packages/client/settings-runtime",
+      "sourceFiles": 4,
+      "sourceLines": 468,
+      "manifestSha256": "bce1757ba2d7d96d04196618898627366bd824a53f19802977bad2f11acb253f",
+      "dependencies": ["@workbench/agent-runtime-contracts"],
+      "internalFanOut": 1,
+      "internalFanIn": 17
+    },
+    {
+      "name": "@workbench/settings-server",
+      "path": "packages/server/settings-server",
+      "sourceFiles": 4,
+      "sourceLines": 583,
+      "manifestSha256": "bbe657b21b6b1fe56c05505e69d3df53f66bcb05fec58c74909538fdfa0aed3d",
+      "dependencies": [
+        "@workbench/agent-runtime-contracts",
+        "@workbench/api",
+        "@workbench/core-contracts",
+        "@workbench/server-core"
+      ],
+      "internalFanOut": 4,
+      "internalFanIn": 0
+    },
+    {
+      "name": "@workbench/shell",
+      "path": "packages/client/shell",
+      "sourceFiles": 13,
+      "sourceLines": 1210,
+      "manifestSha256": "2a2e43055ea66285894ca2dad677465980e1b0bb83eac50372762fa70738de2b",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/code-highlighting",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/host-contracts",
+        "@workbench/i18n",
+        "@workbench/markdown",
+        "@workbench/settings-runtime",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-attachment",
+        "@workbench/ui-automation",
+        "@workbench/ui-composer",
+        "@workbench/ui-conversation",
+        "@workbench/ui-conversation-list",
+        "@workbench/ui-conversation-messages",
+        "@workbench/ui-conversation-nodes",
+        "@workbench/ui-input-trigger",
+        "@workbench/ui-layout",
+        "@workbench/ui-message-actions",
+        "@workbench/ui-message-blocks",
+        "@workbench/ui-message-queue",
+        "@workbench/ui-model-selection",
+        "@workbench/ui-panels",
+        "@workbench/ui-settings",
+        "@workbench/ui-settings-archived-chats",
+        "@workbench/ui-settings-general",
+        "@workbench/ui-side-chat",
+        "@workbench/ui-sidebar",
+        "@workbench/ui-terminal",
+        "@workbench/ui-theme",
+        "@workbench/ui-todo",
+        "@workbench/ui-token-usage",
+        "@workbench/ui-tool",
+        "@workbench/ui-user-message-index",
+        "@workbench/ui-user-questions",
+        "@workbench/ui-workspace",
+        "@workbench/workspace-artifact",
+        "@workbench/workspace-browser",
+        "@workbench/workspace-directory-picker",
+        "@workbench/workspace-explorer",
+        "@workbench/workspace-file-view",
+        "@workbench/workspace-files",
+        "@workbench/workspace-git-branch",
+        "@workbench/workspace-review",
+        "@workbench/workspace-runtime"
+      ],
+      "internalFanOut": 46,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/shell-context",
+      "path": "packages/client/shell-context",
+      "sourceFiles": 15,
+      "sourceLines": 827,
+      "manifestSha256": "4aea9d5e21867b9413cc4da4a02782fffba9ac81b85487c7708b2c4e0d081b82",
+      "dependencies": ["@workbench/extension-sdk", "@workbench/host-contracts", "@workbench/i18n"],
+      "internalFanOut": 3,
+      "internalFanIn": 23
+    },
+    {
+      "name": "@workbench/terminal-client",
+      "path": "packages/terminal/terminal-client",
+      "sourceFiles": 6,
+      "sourceLines": 202,
+      "manifestSha256": "9dcbabab3d6d79fa28415080a19dd84a78417cd7d4d6352d9f32097824483bb1",
+      "dependencies": ["@workbench/host-client", "@workbench/terminal-contracts"],
+      "internalFanOut": 2,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/terminal-contracts",
+      "path": "packages/terminal/terminal-contracts",
+      "sourceFiles": 4,
+      "sourceLines": 306,
+      "manifestSha256": "b0754acd452c650f0667d390c21497dca9932c192bd83d30e6a19fc13bb0aad3",
+      "dependencies": [],
+      "internalFanOut": 0,
+      "internalFanIn": 6
+    },
+    {
+      "name": "@workbench/terminal-server",
+      "path": "packages/terminal/terminal-server",
+      "sourceFiles": 9,
+      "sourceLines": 2524,
+      "manifestSha256": "667fe5bdfb75fcb5d8b611551dd0c42f837c6083f35363b9c58361ff472adb88",
+      "dependencies": ["@workbench/server-core", "@workbench/terminal-contracts"],
+      "internalFanOut": 2,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/ui",
+      "path": "packages/client/ui",
+      "sourceFiles": 48,
+      "sourceLines": 2928,
+      "manifestSha256": "f25079c9939e78f66f03ef88636b87610b18779447b5e744028d07b29c386af4",
+      "dependencies": ["@workbench/i18n"],
+      "internalFanOut": 1,
+      "internalFanIn": 48
+    },
+    {
+      "name": "@workbench/ui-attachment",
+      "path": "packages/client/ui-attachment",
+      "sourceFiles": 13,
+      "sourceLines": 594,
+      "manifestSha256": "6cf4c91566618d0e5f97a0f2753337824b97c73c3e577cbeca5c4586a62dc387",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/i18n",
+        "@workbench/ui",
+        "@workbench/ui-file-presentation"
+      ],
+      "internalFanOut": 5,
+      "internalFanIn": 3
+    },
+    {
+      "name": "@workbench/ui-automation",
+      "path": "packages/client/ui-automation",
+      "sourceFiles": 17,
+      "sourceLines": 2886,
+      "manifestSha256": "f7c110392d140e3630cf64b1ece261e6016b0ae85db0353171a66ee09905d7d1",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/automation-contracts",
+        "@workbench/core-contracts",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-model-selection",
+        "@workbench/ui-selectors",
+        "@workbench/workspace-directory-picker"
+      ],
+      "internalFanOut": 11,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/ui-composer",
+      "path": "packages/client/ui-composer",
+      "sourceFiles": 25,
+      "sourceLines": 4476,
+      "manifestSha256": "6553f8eb1bfb2d043b78a1870b99d9ec92dc1106c91f5cd4aa38260de694f22d",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/core-contracts",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/markdown",
+        "@workbench/settings-runtime",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-attachment",
+        "@workbench/ui-input-trigger",
+        "@workbench/ui-workspace"
+      ],
+      "internalFanOut": 13,
+      "internalFanIn": 6
+    },
+    {
+      "name": "@workbench/ui-conversation",
+      "path": "packages/client/ui-conversation",
+      "sourceFiles": 9,
+      "sourceLines": 918,
+      "manifestSha256": "b3a88b4902856531f29ebc9242b119021631f5441e5771a29d3ad38264b6ef76",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/appearance",
+        "@workbench/extension-host",
+        "@workbench/i18n",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-composer",
+        "@workbench/ui-conversation-messages"
+      ],
+      "internalFanOut": 9,
+      "internalFanIn": 7
+    },
+    {
+      "name": "@workbench/ui-conversation-list",
+      "path": "packages/client/ui-conversation-list",
+      "sourceFiles": 23,
+      "sourceLines": 2062,
+      "manifestSha256": "944ceb3787c24cb247683fda3ca2ab407203b083b80dc55b702091e4df86a2c8",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/appearance",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/settings-runtime",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-sidebar"
+      ],
+      "internalFanOut": 9,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/ui-conversation-messages",
+      "path": "packages/client/ui-conversation-messages",
+      "sourceFiles": 11,
+      "sourceLines": 1223,
+      "manifestSha256": "c86b7d5f5178836ef6ca2ffbb78f8d24a126c463e639e5d3327b8950797465d7",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/i18n",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-conversation-nodes",
+        "@workbench/ui-disclosure",
+        "@workbench/ui-message-blocks"
+      ],
+      "internalFanOut": 8,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/ui-conversation-nodes",
+      "path": "packages/client/ui-conversation-nodes",
+      "sourceFiles": 23,
+      "sourceLines": 2029,
+      "manifestSha256": "74cf18d5246ba8c72044bcbed1f16a0565ad23457367b1aa773f02a304bf298f",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/core-contracts",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/markdown",
+        "@workbench/settings-runtime",
+        "@workbench/ui",
+        "@workbench/ui-composer",
+        "@workbench/ui-disclosure",
+        "@workbench/ui-input-trigger",
+        "@workbench/ui-message-blocks",
+        "@workbench/ui-todo",
+        "@workbench/ui-tool"
+      ],
+      "internalFanOut": 15,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/ui-disclosure",
+      "path": "packages/client/ui-disclosure",
+      "sourceFiles": 5,
+      "sourceLines": 252,
+      "manifestSha256": "628f28baa68f77522aa329ecb3bc125189242c6f7e77fca1f59c821a5e8648e0",
+      "dependencies": [],
+      "internalFanOut": 0,
+      "internalFanIn": 6
+    },
+    {
+      "name": "@workbench/ui-file-presentation",
+      "path": "packages/client/ui-file-presentation",
+      "sourceFiles": 6,
+      "sourceLines": 370,
+      "manifestSha256": "4d7f7e8551e715dca41827a5983f04d35951107a9ef4d11ee9e6a72b4fafb65a",
+      "dependencies": ["@workbench/ui"],
+      "internalFanOut": 1,
+      "internalFanIn": 6
+    },
+    {
+      "name": "@workbench/ui-input-trigger",
+      "path": "packages/client/ui-input-trigger",
+      "sourceFiles": 24,
+      "sourceLines": 1166,
+      "manifestSha256": "ad95d4aa36bd98b4535f0eca03b1ce551fb827b48b181a886a784cb015cf6555",
+      "dependencies": [
+        "@workbench/agent-runtime-contracts",
+        "@workbench/core-contracts",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/ui"
+      ],
+      "internalFanOut": 5,
+      "internalFanIn": 4
+    },
+    {
+      "name": "@workbench/ui-layout",
+      "path": "packages/client/ui-layout",
+      "sourceFiles": 16,
+      "sourceLines": 1495,
+      "manifestSha256": "d309fe99bc4edef64c69178f79a519ed23134ed4d37cf916429aaa6c479178bc",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/settings-runtime",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-file-presentation",
+        "@workbench/ui-panels",
+        "@workbench/ui-resize",
+        "@workbench/ui-sidebar",
+        "@workbench/ui-workspace",
+        "@workbench/workspace-runtime"
+      ],
+      "internalFanOut": 13,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/ui-message-actions",
+      "path": "packages/client/ui-message-actions",
+      "sourceFiles": 9,
+      "sourceLines": 397,
+      "manifestSha256": "5d0f7ccad42c1b50985ab2f5f5a8c628200761d815ee312bebd4b5ec8e67851c",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/shell-context",
+        "@workbench/ui"
+      ],
+      "internalFanOut": 7,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/ui-message-blocks",
+      "path": "packages/client/ui-message-blocks",
+      "sourceFiles": 16,
+      "sourceLines": 2483,
+      "manifestSha256": "f32bb26ae8109b0172fcaea643680703d1a3f3cc68c2bb87a9ca341c601e865c",
+      "dependencies": [
+        "@workbench/agent-runtime-contracts",
+        "@workbench/code-highlighting",
+        "@workbench/core-contracts",
+        "@workbench/extension-host",
+        "@workbench/i18n",
+        "@workbench/markdown",
+        "@workbench/ui",
+        "@workbench/ui-attachment",
+        "@workbench/ui-disclosure",
+        "@workbench/ui-file-presentation",
+        "@workbench/ui-input-trigger"
+      ],
+      "internalFanOut": 11,
+      "internalFanIn": 4
+    },
+    {
+      "name": "@workbench/ui-message-queue",
+      "path": "packages/client/ui-message-queue",
+      "sourceFiles": 7,
+      "sourceLines": 365,
+      "manifestSha256": "bbd45cc95224dafce173513eff1785d946bcadb760ca8553b98a33b45e858064",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/ui",
+        "@workbench/ui-composer"
+      ],
+      "internalFanOut": 6,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/ui-model-selection",
+      "path": "packages/client/ui-model-selection",
+      "sourceFiles": 14,
+      "sourceLines": 1267,
+      "manifestSha256": "b50a1d1d31ae0d3145ef76741c133b7ec7e761bbcca6dbef5858ba5bd4a83b81",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/core-contracts",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/settings-runtime",
+        "@workbench/ui",
+        "@workbench/ui-selectors",
+        "@workbench/ui-settings"
+      ],
+      "internalFanOut": 10,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/ui-panels",
+      "path": "packages/client/ui-panels",
+      "sourceFiles": 12,
+      "sourceLines": 484,
+      "manifestSha256": "15ce6f523a042c251daf9c2d5cd9b2505301ba7c06831388c6dbcb1221a530e0",
+      "dependencies": [
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/ui"
+      ],
+      "internalFanOut": 4,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/ui-resize",
+      "path": "packages/client/ui-resize",
+      "sourceFiles": 7,
+      "sourceLines": 647,
+      "manifestSha256": "6d0b4b91023b12ddf03b9986a82bc89841b02dc5314deaa128a3998382731105",
+      "dependencies": ["@workbench/ui"],
+      "internalFanOut": 1,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/ui-selectors",
+      "path": "packages/client/ui-selectors",
+      "sourceFiles": 5,
+      "sourceLines": 635,
+      "manifestSha256": "35fef03ff4ea8a3e39029af6e3954acdb61e010398dc7816d8d939aa16057c7f",
+      "dependencies": ["@workbench/ui"],
+      "internalFanOut": 1,
+      "internalFanIn": 6
+    },
+    {
+      "name": "@workbench/ui-settings",
+      "path": "packages/client/ui-settings",
+      "sourceFiles": 13,
+      "sourceLines": 804,
+      "manifestSha256": "99f0822cab8e136e4e136bb77a4e499d6b78f89a3a695ed9abc65541f18ba3f3",
+      "dependencies": [
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/ui",
+        "@workbench/ui-sidebar"
+      ],
+      "internalFanOut": 5,
+      "internalFanIn": 12
+    },
+    {
+      "name": "@workbench/ui-settings-archived-chats",
+      "path": "packages/client/ui-settings-archived-chats",
+      "sourceFiles": 7,
+      "sourceLines": 675,
+      "manifestSha256": "27da85581f885c5b621fb5a9d7c5a5627e85e4f78125d972ff12dc6213be08f6",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/ui",
+        "@workbench/ui-settings"
+      ],
+      "internalFanOut": 5,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/ui-settings-general",
+      "path": "packages/client/ui-settings-general",
+      "sourceFiles": 10,
+      "sourceLines": 450,
+      "manifestSha256": "3edab15fa72b9558e7cfe0cb74f78345025101e82a90a327bc8d97d0274db7bc",
+      "dependencies": [
+        "@workbench/core-contracts",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/settings-runtime",
+        "@workbench/shell-context",
+        "@workbench/ui"
+      ],
+      "internalFanOut": 6,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/ui-side-chat",
+      "path": "packages/client/ui-side-chat",
+      "sourceFiles": 12,
+      "sourceLines": 497,
+      "manifestSha256": "279307670df230c585c16f5dbb6619b5ff767214799cfe502cec91517bff0b13",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-composer",
+        "@workbench/ui-conversation",
+        "@workbench/ui-workspace",
+        "@workbench/workspace-runtime"
+      ],
+      "internalFanOut": 10,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/ui-sidebar",
+      "path": "packages/client/ui-sidebar",
+      "sourceFiles": 10,
+      "sourceLines": 987,
+      "manifestSha256": "3deb1e603734732052dbe02c00f39eb4b88025db373f1d9e4d81a0ff21415946",
+      "dependencies": ["@workbench/i18n", "@workbench/ui"],
+      "internalFanOut": 2,
+      "internalFanIn": 5
+    },
+    {
+      "name": "@workbench/ui-terminal",
+      "path": "packages/client/ui-terminal",
+      "sourceFiles": 21,
+      "sourceLines": 2055,
+      "manifestSha256": "fb6a1b800c254ed4119f05c65809a9c2e1b8b0aadc09b65d3c7daa8da9ae9671",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/host-client",
+        "@workbench/i18n",
+        "@workbench/shell-context",
+        "@workbench/terminal-client",
+        "@workbench/terminal-contracts",
+        "@workbench/ui",
+        "@workbench/ui-conversation",
+        "@workbench/ui-message-blocks",
+        "@workbench/ui-workspace",
+        "@workbench/workspace-runtime"
+      ],
+      "internalFanOut": 14,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/ui-testkit",
+      "path": "packages/test-support/ui-testkit",
+      "sourceFiles": 2,
+      "sourceLines": 91,
+      "manifestSha256": "946d9526321a8fa5eead5cd9bd0cd0f2cfb0392849df062afdacc60bc7bf8a8a",
+      "dependencies": [],
+      "internalFanOut": 0,
+      "internalFanIn": 0
+    },
+    {
+      "name": "@workbench/ui-theme",
+      "path": "packages/client/ui-theme",
+      "sourceFiles": 20,
+      "sourceLines": 3050,
+      "manifestSha256": "74ce613424888b6c7b26f35c7b74080035ec563455a494eb3c24b2558e085550",
+      "dependencies": [
+        "@workbench/appearance",
+        "@workbench/code-highlighting",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/settings-runtime",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-settings"
+      ],
+      "internalFanOut": 8,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/ui-todo",
+      "path": "packages/client/ui-todo",
+      "sourceFiles": 9,
+      "sourceLines": 396,
+      "manifestSha256": "e177c47323b598857b14b5e636ccf85101d97fc23a89e698309f03461ebc6519",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/settings-runtime",
+        "@workbench/ui",
+        "@workbench/ui-composer"
+      ],
+      "internalFanOut": 7,
+      "internalFanIn": 2
+    },
+    {
+      "name": "@workbench/ui-token-usage",
+      "path": "packages/client/ui-token-usage",
+      "sourceFiles": 10,
+      "sourceLines": 1146,
+      "manifestSha256": "4644f051dd914c9849f0c97346b9d76050706642dd2352e78e90bcb7cebb0a03",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/ui",
+        "@workbench/ui-disclosure",
+        "@workbench/ui-workspace"
+      ],
+      "internalFanOut": 8,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/ui-tool",
+      "path": "packages/client/ui-tool",
+      "sourceFiles": 14,
+      "sourceLines": 1903,
+      "manifestSha256": "4542228014962c8b5015edaf8153587b5a4494ffc7849f0ccbee8c034fe9335a",
+      "dependencies": [
+        "@workbench/agent-runtime-contracts",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/settings-runtime",
+        "@workbench/ui",
+        "@workbench/ui-disclosure"
+      ],
+      "internalFanOut": 7,
+      "internalFanIn": 4
+    },
+    {
+      "name": "@workbench/ui-user-message-index",
+      "path": "packages/client/ui-user-message-index",
+      "sourceFiles": 7,
+      "sourceLines": 418,
+      "manifestSha256": "c13d85548817494f3f0423dad086aa8ec918b54edd35791679030e0b6ae8400b",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/markdown",
+        "@workbench/shell-context",
+        "@workbench/ui"
+      ],
+      "internalFanOut": 6,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/ui-user-questions",
+      "path": "packages/client/ui-user-questions",
+      "sourceFiles": 12,
+      "sourceLines": 1649,
+      "manifestSha256": "59f059d3685f9fdc2bb59731a86354a28ce3974f7a6faa0774c1351ba0b51b08",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/settings-runtime",
+        "@workbench/ui"
+      ],
+      "internalFanOut": 6,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/ui-workspace",
+      "path": "packages/client/ui-workspace",
+      "sourceFiles": 33,
+      "sourceLines": 3047,
+      "manifestSha256": "c06734f0bf432d41d85eb166c80f10b035f0e58efb3a36177e0b9b448da70cdf",
+      "dependencies": [
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-resize",
+        "@workbench/workspace-runtime"
+      ],
+      "internalFanOut": 7,
+      "internalFanIn": 14
+    },
+    {
+      "name": "@workbench/workspace-artifact",
+      "path": "packages/workspace/workspace-artifact",
+      "sourceFiles": 10,
+      "sourceLines": 433,
+      "manifestSha256": "5b0a19bf9bc6cd30b36f80d2ab587c8b5ac9925ac2fec62c3c8f70681b756a25",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/code-highlighting",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/markdown",
+        "@workbench/ui-workspace"
+      ],
+      "internalFanOut": 6,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/workspace-browser",
+      "path": "packages/workspace/workspace-browser",
+      "sourceFiles": 21,
+      "sourceLines": 5105,
+      "manifestSha256": "b52aab8cf0d203a50658a5fcdc4f0fc6a539a17202e6c21f4d1f11cc57780bc5",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/browser-contracts",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/host-client",
+        "@workbench/host-contracts",
+        "@workbench/i18n",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-selectors",
+        "@workbench/ui-settings",
+        "@workbench/ui-workspace",
+        "@workbench/workspace-directory-picker",
+        "@workbench/workspace-files"
+      ],
+      "internalFanOut": 14,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/workspace-directory-picker",
+      "path": "packages/workspace/workspace-directory-picker",
+      "sourceFiles": 16,
+      "sourceLines": 1119,
+      "manifestSha256": "7d5f7875392cc0bb569938e3d7788f61389dcdd922654d3ff5fa0bf2215283c4",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/extension-sdk",
+        "@workbench/host-contracts",
+        "@workbench/i18n",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-selectors"
+      ],
+      "internalFanOut": 7,
+      "internalFanIn": 3
+    },
+    {
+      "name": "@workbench/workspace-explorer",
+      "path": "packages/workspace/workspace-explorer",
+      "sourceFiles": 8,
+      "sourceLines": 497,
+      "manifestSha256": "063f0500c6f84e176a2580a3567a71f94454e32b075525dbeb9580f1928dae62",
+      "dependencies": [
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/ui",
+        "@workbench/ui-workspace",
+        "@workbench/workspace-files",
+        "@workbench/workspace-runtime"
+      ],
+      "internalFanOut": 6,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/workspace-file-view",
+      "path": "packages/workspace/workspace-file-view",
+      "sourceFiles": 32,
+      "sourceLines": 3500,
+      "manifestSha256": "acf6be98485de686e1129a563ac1d455464ae6aff152c56a461c4e2e0bb74314",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/code-highlighting",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/host-contracts",
+        "@workbench/i18n",
+        "@workbench/markdown",
+        "@workbench/settings-runtime",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-workspace",
+        "@workbench/workspace-files",
+        "@workbench/workspace-runtime"
+      ],
+      "internalFanOut": 14,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/workspace-files",
+      "path": "packages/workspace/workspace-files",
+      "sourceFiles": 24,
+      "sourceLines": 2873,
+      "manifestSha256": "7e8d30bc7ff6e64f670795942d66110025847874cafdfcb4343957b6affe48d3",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/code-highlighting",
+        "@workbench/extension-sdk",
+        "@workbench/host-contracts",
+        "@workbench/i18n",
+        "@workbench/markdown",
+        "@workbench/settings-runtime",
+        "@workbench/shell-context",
+        "@workbench/ui",
+        "@workbench/ui-file-presentation",
+        "@workbench/ui-workspace"
+      ],
+      "internalFanOut": 12,
+      "internalFanIn": 9
+    },
+    {
+      "name": "@workbench/workspace-git-branch",
+      "path": "packages/workspace/workspace-git-branch",
+      "sourceFiles": 9,
+      "sourceLines": 1669,
+      "manifestSha256": "86e8dc269cf8d8a5a8277f81f6ebc9467dcdfeaf84fcca7e0e466b92f5676609",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/extension-host",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/ui",
+        "@workbench/ui-file-presentation",
+        "@workbench/ui-selectors",
+        "@workbench/workspace-files"
+      ],
+      "internalFanOut": 9,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/workspace-review",
+      "path": "packages/workspace/workspace-review",
+      "sourceFiles": 15,
+      "sourceLines": 1856,
+      "manifestSha256": "b53fd904a0d0b34069945ba20ea4b2984d3986d9154ed6e707aa193b6f70ff0a",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/code-highlighting",
+        "@workbench/extension-sdk",
+        "@workbench/i18n",
+        "@workbench/markdown",
+        "@workbench/ui",
+        "@workbench/ui-file-presentation",
+        "@workbench/ui-workspace",
+        "@workbench/workspace-files"
+      ],
+      "internalFanOut": 10,
+      "internalFanIn": 1
+    },
+    {
+      "name": "@workbench/workspace-runtime",
+      "path": "packages/workspace/workspace-runtime",
+      "sourceFiles": 13,
+      "sourceLines": 1963,
+      "manifestSha256": "8a649d16188b87f88f8bf3bb2b503d9fc081cce525f17045b6ccf8787c02469e",
+      "dependencies": [
+        "@workbench/agent-runtime-client",
+        "@workbench/agent-runtime-contracts",
+        "@workbench/extension-sdk"
+      ],
+      "internalFanOut": 3,
+      "internalFanIn": 8
+    },
+    {
+      "name": "@workbench/workspace-server",
+      "path": "packages/server/workspace-server",
+      "sourceFiles": 11,
+      "sourceLines": 3633,
+      "manifestSha256": "d529686fb5b4156d9bf8b85e93c8e90db498bb54a04ca51efb5eeed049d25502",
+      "dependencies": [
+        "@workbench/agent-runtime-contracts",
+        "@workbench/api",
+        "@workbench/server-core"
+      ],
+      "internalFanOut": 3,
+      "internalFanIn": 3
+    }
+  ]
+}

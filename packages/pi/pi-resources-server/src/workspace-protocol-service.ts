@@ -1,5 +1,5 @@
-import type { WorkspaceSessionCatalogPort } from "@workbench/pi-server-ports/sessions";
-export type { WorkspaceSessionCatalogPort } from "@workbench/pi-server-ports/sessions";
+import type { WorkspaceSessionCatalogPort } from "@workbench/agent-runtime-contracts/workspace-catalog";
+export type { WorkspaceSessionCatalogPort } from "@workbench/agent-runtime-contracts/workspace-catalog";
 import type {
   WorkspaceArchivedSessionsValue,
   WorkspaceListValue,
@@ -21,7 +21,7 @@ import type {
   WorkspaceSessionSnapshot,
   WorkspaceSetPinnedInput,
   WorkspaceSetSessionPinnedInput,
-} from "./workspace-store";
+} from "@workbench/agent-runtime-contracts/workspace-catalog";
 
 export interface WorkspaceProtocolStore {
   list(): Promise<WorkspaceListResult>;

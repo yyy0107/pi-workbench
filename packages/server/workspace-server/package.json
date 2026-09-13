@@ -29,7 +29,8 @@
       "types": "./src/rpc.ts",
       "import": "./src/rpc.ts",
       "default": "./src/rpc.ts"
-    }
+    },
+    "./catalog": "./src/catalog.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",

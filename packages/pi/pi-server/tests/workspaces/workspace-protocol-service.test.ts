@@ -9,7 +9,7 @@ import {
 } from "@workbench/pi-resources-server/workspaces";
 import { createWorkspaceProtocolService } from "../../src/resource-composition";
 
-import type { WorkspaceListResult } from "@workbench/pi-resources-server/workspace-store";
+import type { WorkspaceListResult } from "@workbench/agent-runtime-contracts/workspace-catalog";
 
 const workspace: WorkspaceView = {
   workspaceId: "workspace-1",

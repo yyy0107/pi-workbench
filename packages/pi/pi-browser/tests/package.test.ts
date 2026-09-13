@@ -20,7 +20,7 @@ import {
   type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import type { BrowserCommand } from "@workbench/browser-contracts";
-import type { BrowserHost } from "../src/index";
+import type { BrowserHost } from "@workbench/browser-contracts/host";
 import { browserPackageArtifactRelativePath } from "../src/resources";
 
 test("the packed Pi package loads its extension and skill without private workspace dependencies", async (t) => {

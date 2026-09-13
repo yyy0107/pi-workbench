@@ -14,3 +14,5 @@ pnpm --filter @workbench/agent-runtime-contracts test
 ```
 
 源码分工：src 承载本包能力与契约，lib 仅放实际使用的内部辅助，tests 为包根测试。实际消费者示例：`src/message-metadata.ts` 引用 `lib/metadata-values.ts`。实现保留 TS/TSX；既有构建工具保持原语言。
+
+`./workspace-catalog` 拥有中立工作区目录 DTO、事件及最小创建/关联/列举/移除端口；`./runtime-capabilities` 提供 WorkspaceFileReader。合同不依赖具体服务类或 Pi 协议。

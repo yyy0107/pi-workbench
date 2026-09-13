@@ -17,7 +17,7 @@ import {
   useWorkspaceContext,
   useWorkspaceFeedbackStore,
   type RightWorkspaceOpenerFactory,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 import { act, createElement, Fragment, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -27,7 +27,7 @@ import {
   MemoryBrowserSessionService,
   useBrowserSessionService,
 } from "@workbench/workspace-browser/service";
-import { useRightWorkspaceInstallationResource } from "@workbench/workspace-runtime/react";
+import { useRightWorkspaceInstallationResource } from "@workbench/ui-workspace/react";
 import {
   RuntimeConnectionProvider,
   createSameOriginRuntimeConnection,

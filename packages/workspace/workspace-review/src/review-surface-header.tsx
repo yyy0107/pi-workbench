@@ -9,7 +9,7 @@ import type { WorkbenchWorkspaceGitDiffRequest } from "@workbench/agent-runtime-
 
 import { defineReviewMessage as defineMessage } from "./i18n";
 
-import { useRightWorkspace } from "@workbench/workspace-runtime/react";
+import { useRightWorkspace } from "@workbench/ui-workspace/react";
 import {
   Button,
   DropdownMenu,

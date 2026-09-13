@@ -200,3 +200,212 @@ test("retired RPC implementations and reverse server-core API edges cannot retur
   ])
     assert.equal(existsSync(path.join(repositoryRoot, retiredFile)), false, retiredFile);
 });
+
+// Runtime reachability differs from type reachability: SDK surface metadata can
+// mention ReactNode without loading a renderer. Erase only explicit type edges.
+function withoutTypeEdges(node) {
+  if (Array.isArray(node)) return node.map(withoutTypeEdges).filter(Boolean);
+  if (!node || typeof node !== "object") return node;
+  if (
+    node.type === "ImportDeclaration" &&
+    (node.importKind === "type" ||
+      (node.specifiers.length > 0 && node.specifiers.every((item) => item.importKind === "type")))
+  )
+    return undefined;
+  if (
+    ["ExportNamedDeclaration", "ExportAllDeclaration"].includes(node.type) &&
+    (node.exportKind === "type" ||
+      (node.specifiers?.length > 0 && node.specifiers.every((item) => item.exportKind === "type")))
+  )
+    return undefined;
+  if (node.type?.startsWith("TS")) {
+    // Assertions/satisfies/non-null still evaluate their expression.
+    return node.expression ? withoutTypeEdges(node.expression) : undefined;
+  }
+  return Object.fromEntries(
+    Object.entries(node).map(([key, value]) => [key, withoutTypeEdges(value)]),
+  );
+}
+
+test("runtime boundary projection retains evaluated assertions and removes only type imports", () => {
+  const source = `
+    import type { ReactNode } from "react";
+    import { type Metadata } from "metadata-only";
+    export type { Shape } from "shape-only";
+    import { type Label, run } from "runtime-value";
+    const pending = import("dynamic-value") as Promise<unknown>;
+    const checked = run() satisfies unknown;
+  `;
+  assert.deepEqual(moduleSpecifiers(withoutTypeEdges(parseWorkspaceSource(source))), [
+    "runtime-value",
+    "dynamic-value",
+  ]);
+});
+
+function assertCapabilityClosure(entry, forbidden, { runtimeOnly = false, noDom = false } = {}) {
+  const pending = [resolveBoundarySource(path.join(repositoryRoot, "package.json"), entry)];
+  const seen = new Set();
+  while (pending.length) {
+    const file = pending.pop();
+    if (seen.has(file)) continue;
+    seen.add(file);
+    const parsed = parseWorkspaceSource(readFileSync(file, "utf8"), file);
+    const program = runtimeOnly ? withoutTypeEdges(parsed) : parsed;
+    for (const specifier of moduleSpecifiers(program, file)) {
+      assert.doesNotMatch(specifier, forbidden, `${entry}: ${repositoryRelative(file)}`);
+      if (specifier.startsWith(".") || specifier.startsWith("@workbench/")) {
+        pending.push(resolveBoundarySource(file, specifier));
+      }
+    }
+    if (noDom) {
+      const visit = (node) => {
+        if (!node || typeof node !== "object") return;
+        if (node.type === "Identifier")
+          assert.ok(
+            !["window", "document"].includes(node.name),
+            `${entry}: DOM in ${repositoryRelative(file)}`,
+          );
+        for (const value of Object.values(node)) {
+          if (Array.isArray(value)) value.forEach(visit);
+          else visit(value);
+        }
+      };
+      visit(program);
+    }
+  }
+  return seen;
+}
+
+test("portable ports and workspace catalog never depend on concrete Pi implementations", () => {
+  const ports = workspaceManifests.get("@workbench/pi-server-ports").manifest;
+  for (const field of ["dependencies", "peerDependencies", "optionalDependencies"]) {
+    for (const dependency of Object.keys(ports[field] ?? {}))
+      assert.doesNotMatch(dependency, /^@workbench\/(?:pi-browser|workspace-server)$/u);
+  }
+  assertCapabilityClosure(
+    "@workbench/browser-contracts/host",
+    /^@workbench\/(?:pi-|browser-server)/u,
+  );
+  assertCapabilityClosure(
+    "@workbench/agent-runtime-contracts/workspace-catalog",
+    /^@workbench\/(?:pi-|workspace-server)/u,
+  );
+  assertCapabilityClosure("@workbench/workspace-server/catalog", /^@workbench\/pi-/u);
+  for (const name of [
+    "session-runtime-dependencies.ts",
+    "external-session-import-service.ts",
+    "pi-automation-service.ts",
+  ]) {
+    const source = readFileSync(
+      path.join(repositoryRoot, "packages/pi/pi-session-server/src", name),
+      "utf8",
+    );
+    assert.doesNotMatch(
+      source,
+      /Pick\s*<\s*WorkspaceStore|import\s+type\s*\{\s*WorkspaceStore\s*\}/u,
+    );
+  }
+});
+
+test("headless workspace entries never load React, UI, Shell or DOM operations", () => {
+  for (const entry of [
+    "@workbench/workspace-runtime",
+    "@workbench/workspace-runtime/persistence",
+    "@workbench/workspace-runtime/directory-store",
+  ]) {
+    assertCapabilityClosure(
+      entry,
+      /^(?:react(?:-dom)?(?:\/|$)|@base-ui\/|lucide-react|@workbench\/(?:ui(?:-|\/|$)|shell(?:-|\/|$)|extension-host|i18n))/u,
+      { runtimeOnly: true, noDom: true },
+    );
+  }
+});
+
+test("file icons are independent from the tree and download has no React runtime", () => {
+  assertCapabilityClosure(
+    "@workbench/ui-file-presentation/icons",
+    /^@workbench\/(?:workspace-|shell(?:-|\/|$)|agent-runtime-client)/u,
+    { runtimeOnly: true },
+  );
+  assertCapabilityClosure(
+    "@workbench/ui-file-presentation/download",
+    /^(?:react(?:-dom)?(?:\/|$)|@workbench\/)/u,
+    { runtimeOnly: true },
+  );
+});
+
+test("Spec008 retired imports and aggregate session dependencies cannot return", () => {
+  const retired =
+    /^@workbench\/(?:workspace-runtime\/(?:react|presentation|i18n|styles\.css)|workspace-files\/download|pi-resources-server\/workspace-store)$/u;
+  for (const workspace of workspaces) {
+    for (const root of ["src", "lib", "tests", "test"]) {
+      for (const file of filesUnder(path.join(workspace, root)).filter((file) =>
+        /\.[cm]?[jt]sx?$/u.test(file),
+      )) {
+        for (const specifier of moduleSpecifiers(readFileSync(file, "utf8"), file))
+          assert.doesNotMatch(specifier, retired, repositoryRelative(file));
+      }
+    }
+  }
+  const session = readFileSync(
+    path.join(repositoryRoot, "packages/pi/pi-client/src/runtime/session.ts"),
+    "utf8",
+  );
+  assert.doesNotMatch(session, /\bPiSessionManager\b|this\.manager\b/u);
+  for (const [name, entry] of [
+    ["@workbench/workspace-runtime", "./react"],
+    ["@workbench/workspace-runtime", "./presentation"],
+    ["@workbench/workspace-runtime", "./i18n"],
+    ["@workbench/workspace-runtime", "./styles.css"],
+    ["@workbench/workspace-files", "./download"],
+    ["@workbench/pi-resources-server", "./workspace-store"],
+  ])
+    assert.equal(
+      workspaceManifests.get(name).manifest.exports[entry],
+      undefined,
+      `${name}${entry}`,
+    );
+});
+
+test("session behavior owners cannot reach back into the complete registry or manager", () => {
+  const read = (file) => readFileSync(path.join(repositoryRoot, file), "utf8");
+  const registry = read("packages/pi/pi-session-server/src/session-registry.ts");
+  assert.doesNotMatch(registry, /class\s+HostedPiSession\b/u);
+  assert.match(registry, /from\s+["']\.\/hosted-pi-session["']/u);
+  assert.doesNotMatch(
+    registry,
+    /registry\.(?:sessions|startLocks|scratchSessions|persistedSessions|forkTail)\b/u,
+  );
+  for (const name of [
+    "hosted-pi-session",
+    "session-projections",
+    "persisted-session-directory",
+    "scratch-session-directory",
+  ]) {
+    const file = `packages/pi/pi-session-server/src/${name}.ts`;
+    const source = read(file);
+    assert.doesNotMatch(
+      source,
+      /\b(?:PiSessionRegistry|RegistryState|processPiSessionRegistryState)\b/u,
+      file,
+    );
+    assert.ok(!moduleSpecifiers(source, file).includes("./session-registry"), file);
+  }
+  for (const name of [
+    "session-dependencies",
+    "session-attachments",
+    "session-history",
+    "manager-catalog",
+  ]) {
+    const file = `packages/pi/pi-client/src/runtime/${name}.ts`;
+    const source = read(file);
+    assert.doesNotMatch(source, /\bPiSessionManager\b/u, file);
+    assert.deepEqual(
+      moduleSpecifiers(source, file).filter(
+        (value) => value === "./manager" || value === "./session",
+      ),
+      [],
+      file,
+    );
+  }
+});

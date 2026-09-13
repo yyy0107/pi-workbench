@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 
-import { useRightWorkspace, useWorkspaceContext } from "@workbench/workspace-runtime/react";
+import { useRightWorkspace, useWorkspaceContext } from "@workbench/ui-workspace/react";
 import {
   toolResultText,
   toolStringArg,

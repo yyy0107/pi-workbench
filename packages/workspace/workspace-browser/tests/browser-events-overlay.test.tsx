@@ -13,11 +13,11 @@ import {
 
 import { installMinimalReactDomEnvironment } from "@workbench/ui-testkit";
 import { BrowserTestI18nProvider as I18nProvider } from "./i18n-provider";
-import { RightWorkspaceProvider, useRightWorkspaceState } from "@workbench/workspace-runtime/react";
+import { RightWorkspaceProvider, useRightWorkspaceState } from "@workbench/ui-workspace/react";
 import {
   useRightWorkspaceStateStore,
   useRightWorkspaceInstallationResource,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 import {
   RuntimeConnectionProvider,
   createSameOriginRuntimeConnection,

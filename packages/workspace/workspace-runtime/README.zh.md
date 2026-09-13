@@ -1,11 +1,7 @@
 # 工作区运行时
 
-拥有检查工作区控制器、Surface/反馈存储、React Host、持久化、标签/调整尺寸和工作区目录选择。根入口提供控制器，`/react` 提供安装及资源 Hook，`/presentation` 提供公共视图；`/persistence`、`/directory-store` 提供状态工厂，`/i18n` 为无 React 词典入口，React 消费者使用共享 `useI18n(bundle)`。
+负责工作区 Surface 的无界面控制器、状态、草稿、反馈、持久化与客户端目录选择投影。根入口提供状态合同和安装实例，`/persistence` 提供设置持久化桥接，`/directory-store` 提供客户端目录选择投影。React、DOM、呈现、翻译和样式归 `@workbench/ui-workspace`。
 
-注册表、打开器、词典校验器和持久化端口都是固定安装输入，更换安装需重挂载 Provider。文件、浏览器、终端等具体 Surface 通过扩展注册表提供。保持原 ID、关闭/重试/释放规则和持久化格式。运行 `pnpm --filter @workbench/workspace-runtime test` 和 `typecheck`。
+注册表、打开器、校验器和持久化端口都是固定安装输入。一个安装实例只拥有一个 controller、状态 store、反馈 store 和延迟创建的草稿 store。文件、浏览器、终端等具体 Surface 继续由扩展注册表提供；既有 ID、关闭、重试、释放和持久化规则保持不变。
 
-包内分工：src/ 放能力实现、契约、组件及装配，词典/样式随组件共置；lib/ 放下列内部辅助源码，tests/ 放测试。两处源码最多一级子目录。能力和辅助源码统一保留 TS/TSX，由所属包与消费者进行类型检查。
-
-内部辅助：`lib/legacy-storage.ts`, `lib/surface-mount-policy.ts`, `lib/workspace-split-layout.ts`, `lib/workspace-tab-a11y.ts`, `lib/workspace-tab-layout.ts`.
-
-实际调用示例：`src/index.ts` → `lib/surface-mount-policy.ts`.
+包内分工：`src/` 放无界面能力实现与契约，`lib/` 只保留旧持久化键，`tests/` 放非 UI 行为测试。核心不依赖 React、DOM、extension-host、Shell context 或 UI 实现。

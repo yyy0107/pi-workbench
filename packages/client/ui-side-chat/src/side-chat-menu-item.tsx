@@ -9,7 +9,7 @@ import {
   useRightWorkspace,
   useWorkspaceContext,
   useWorkspaceSurfaces,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@workbench/ui";
 
 import { useExtensionErrorReporter } from "@workbench/extension-host";

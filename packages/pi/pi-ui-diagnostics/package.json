@@ -27,6 +27,7 @@
     "@workbench/ui-conversation": "workspace:*",
     "@workbench/ui-settings": "workspace:*",
     "@workbench/ui-tool": "workspace:*",
+    "@workbench/ui-workspace": "workspace:*",
     "@workbench/workspace-runtime": "workspace:*",
     "lucide-react": "^1.29.0"
   },

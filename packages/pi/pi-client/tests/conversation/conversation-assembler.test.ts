@@ -745,10 +745,10 @@ test("publishes canonical messages and Workbench nodes from the same PiClientSes
   const session = manager.getSession("local-session");
   const message = user("user-1", "One source");
   const internals = session as unknown as {
-    baseMessages: ThreadMessage[];
+    history: { baseMessages: ThreadMessage[] };
     publishMessages(): void;
   };
-  internals.baseMessages = [message];
+  internals.history.baseMessages = [message];
   internals.publishMessages();
 
   assert.equal(session.getSnapshot().messages[0], message);

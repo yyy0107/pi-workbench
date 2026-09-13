@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@workbench/ui
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@workbench/ui";
 
 import { cn } from "@workbench/ui/utils";
-import { FileTypeIcon } from "@workbench/workspace-files/tree";
+import { FileTypeIcon } from "@workbench/ui-file-presentation/icons";
 
 function AttachmentPreview({ source }: Readonly<{ source: string }>) {
   const { t } = useI18n(composerTranslationBundle);

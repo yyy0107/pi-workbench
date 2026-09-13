@@ -4,9 +4,9 @@
 
 文件服务、缓冲、树、链接、应用选择及下载。
 
-`src/` 拥有能力实现、契约与装配；`lib/` 为内部辅助源码，包含 `lib/asset-module-url.ts`, `lib/file-classification.ts`, `lib/file-link-content.ts`, `lib/tree/file-name-parts.ts`, `lib/tree/material-icon-theme.ts`。测试放在 `tests/`。能力和辅助源码保留 TS/TSX，既有构建工具维持原语言；两处源码目录均最多一级子目录。
+`src/` 拥有能力实现、契约与装配；`lib/` 为内部辅助源码，包含 `lib/asset-module-url.ts`, `lib/file-classification.ts`, `lib/file-link-content.ts`, `lib/tree/file-name-parts.ts`。文件图标及浏览器保存/下载基础能力来自 `@workbench/ui-file-presentation`。测试放在 `tests/`。能力和辅助源码保留 TS/TSX，既有构建工具维持原语言；两处源码目录均最多一级子目录。
 
-公开引用入口：`@workbench/workspace-files`, `@workbench/workspace-files/tree`, `@workbench/workspace-files/links`, `@workbench/workspace-files/classification`, `@workbench/workspace-files/open-apps`, `@workbench/workspace-files/open-preferences`, `@workbench/workspace-files/app-icon`, `@workbench/workspace-files/download`, `@workbench/workspace-files/markdown-links`, `@workbench/workspace-files/i18n`。跨包只使用显式 exports 与 `workspace:*` 依赖；不跨包引用内部源码。
+公开引用入口：`@workbench/workspace-files`, `@workbench/workspace-files/tree`, `@workbench/workspace-files/links`, `@workbench/workspace-files/classification`, `@workbench/workspace-files/open-apps`, `@workbench/workspace-files/open-preferences`, `@workbench/workspace-files/app-icon`, `@workbench/workspace-files/markdown-links`, `@workbench/workspace-files/i18n`。跨包只使用显式 exports 与 `workspace:*` 依赖；不跨包引用内部源码。
 
 ```bash
 pnpm --filter @workbench/workspace-files typecheck

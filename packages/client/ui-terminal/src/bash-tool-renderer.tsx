@@ -11,7 +11,7 @@ import { workbenchBashInputFromArgs, type WorkbenchBashInput } from "@workbench/
 
 import { TerminalBlock } from "@workbench/ui-message-blocks/terminal-block";
 
-import { useRightWorkspace, useWorkspaceContext } from "@workbench/workspace-runtime/react";
+import { useRightWorkspace, useWorkspaceContext } from "@workbench/ui-workspace/react";
 import { Button, TooltipIconButton } from "@workbench/ui";
 
 import { bashCommandFromArgs, terminalResultLines } from "../lib/terminal-tool-transcript";

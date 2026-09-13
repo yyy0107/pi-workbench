@@ -374,3 +374,11 @@ export interface WorkbenchWorkspaceGitLogRequest extends WorkbenchWorkspaceGitRe
 export interface WorkbenchWorkspaceGitBranchRequest extends WorkbenchWorkspaceGitRequest {
   branch: string;
 }
+
+/** Minimal read capability for host tools; implementations retain path/auth checks. */
+export interface WorkspaceFileReader {
+  readFile(
+    input: WorkbenchWorkspaceFileRequest,
+    signal?: AbortSignal,
+  ): Promise<WorkbenchWorkspaceFileSnapshot>;
+}

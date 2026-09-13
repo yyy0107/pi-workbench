@@ -2,7 +2,7 @@
 import { browserTranslationBundle } from "./i18n";
 import { useI18n } from "@workbench/i18n";
 
-import { InlineFeedbackForm } from "@workbench/workspace-runtime/presentation";
+import { InlineFeedbackForm } from "@workbench/ui-workspace/presentation";
 import type { WorkspaceSurfaceInstance } from "@workbench/extension-sdk";
 import type { BrowserFile } from "@workbench/browser-contracts";
 import { useState, useSyncExternalStore } from "react";

@@ -36,8 +36,8 @@
     "@workbench/ui": "workspace:*",
     "@workbench/ui-attachment": "workspace:*",
     "@workbench/ui-disclosure": "workspace:*",
+    "@workbench/ui-file-presentation": "workspace:*",
     "@workbench/ui-input-trigger": "workspace:*",
-    "@workbench/workspace-files": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "lucide-react": "^1.29.0"
   },
@@ -46,6 +46,8 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@workbench/settings-runtime": "workspace:*",
+    "@workbench/ui-workspace": "workspace:*",
+    "@workbench/workspace-files": "workspace:*",
     "@workbench/workspace-runtime": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

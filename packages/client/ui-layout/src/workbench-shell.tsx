@@ -12,13 +12,11 @@ import {
 } from "react";
 
 import { LucideProvider } from "lucide-react";
+import { FilePresentationProvider } from "@workbench/ui-file-presentation/icons";
 
 import { SidebarProvider } from "@workbench/ui-sidebar/primitives";
 import { WorkbenchPortalContainerProvider } from "@workbench/ui";
-import {
-  RightWorkspace,
-  RightWorkspaceToggleButton,
-} from "@workbench/workspace-runtime/presentation";
+import { RightWorkspace, RightWorkspaceToggleButton } from "@workbench/ui-workspace/presentation";
 import { cn } from "@workbench/ui/utils";
 import { useMainViewService } from "@workbench/extension-host";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
@@ -42,8 +40,9 @@ import { WorkbenchStatusbar } from "./statusbar";
 import {
   resolveRightWorkspacePresentation,
   shouldCollapseRightWorkspaceBeforeSidebar,
-} from "@workbench/workspace-runtime";
-import { useRightWorkspace, useRightWorkspaceState } from "@workbench/workspace-runtime/react";
+  MIN_CONVERSATION_WIDTH,
+} from "@workbench/ui-workspace";
+import { useRightWorkspace, useRightWorkspaceState } from "@workbench/ui-workspace/react";
 
 import { PanelLayout } from "@workbench/ui-panels";
 import {
@@ -60,7 +59,6 @@ import { observeLayoutMotion } from "../lib/layout-motion";
 import { resolveTargetThreadWidth } from "@workbench/shell-context/layout";
 import { MOBILE_BREAKPOINT } from "@workbench/ui/hooks";
 import { resolveProportionalPanelWidth } from "@workbench/ui-resize";
-import { MIN_CONVERSATION_WIDTH } from "@workbench/workspace-runtime";
 import { MIN_RIGHT_WORKSPACE_WIDTH } from "@workbench/workspace-runtime";
 
 export type { WorkbenchInstallationEffectsProps } from "./workbench-global-layer";
@@ -364,93 +362,95 @@ export function WorkbenchShell({
     <LucideProvider strokeWidth={1.5}>
       <WorkbenchDomIdsProvider>
         <WorkbenchPresentationProvider assets={assets} branding={branding}>
-          <WorkbenchPortalContainerProvider containerRef={portalContainerRef}>
-            <RunningIndicatorProvider catalog={runningIndicatorCatalog}>
-              <SidebarProvider
-                keyboardShortcutOwnerRef={shellRef}
-                open={sidebarEffectivelyOpen}
-                onOpenChange={handleSidebarOpenChange}
-                ref={shellRef}
-                className="bg-background text-foreground relative isolate h-dvh min-h-0 overflow-hidden"
-                data-workbench-shell=""
-                data-workbench-surface="shell"
-                data-conversation-index={conversationIndexHidden ? "hidden" : "visible"}
-                data-sidebar-auto-collapsed={
-                  sidebarAutoCollapsed && !sidebarAutoCollapseSuppressed ? "true" : "false"
-                }
-                style={
-                  {
-                    "--sidebar-width": `${sidebarWidth}px`,
-                    "--sidebar-content-width": `${sidebarWidth}px`,
-                    "--sidebar-resize-translate-x": "0px",
-                    "--right-workspace-toggle-reserved-width": rightWorkspaceVisible
-                      ? "calc(var(--control-hit-default) + 0.125rem)"
-                      : "0px",
-                  } as CSSProperties
-                }
-              >
-                <SlotHost
-                  name="shell.background"
-                  className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
-                />
-
-                <SidebarDragSessionProvider>
-                  <WorkbenchSidebar
-                    width={sidebarWidth}
-                    minWidth={MIN_SIDEBAR_WIDTH}
-                    maxWidth={MAX_SIDEBAR_WIDTH}
-                    shellRef={shellRef}
-                    onResize={resizeSidebar}
-                  />
-                </SidebarDragSessionProvider>
-
-                <div
-                  ref={workspaceHostRef}
-                  className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
+          <FilePresentationProvider materialIconThemeBaseUrl={assets.materialIconThemeBaseUrl}>
+            <WorkbenchPortalContainerProvider containerRef={portalContainerRef}>
+              <RunningIndicatorProvider catalog={runningIndicatorCatalog}>
+                <SidebarProvider
+                  keyboardShortcutOwnerRef={shellRef}
+                  open={sidebarEffectivelyOpen}
+                  onOpenChange={handleSidebarOpenChange}
+                  ref={shellRef}
+                  className="bg-background text-foreground relative isolate h-dvh min-h-0 overflow-hidden"
+                  data-workbench-shell=""
+                  data-workbench-surface="shell"
+                  data-conversation-index={conversationIndexHidden ? "hidden" : "visible"}
+                  data-sidebar-auto-collapsed={
+                    sidebarAutoCollapsed && !sidebarAutoCollapseSuppressed ? "true" : "false"
+                  }
+                  style={
+                    {
+                      "--sidebar-width": `${sidebarWidth}px`,
+                      "--sidebar-content-width": `${sidebarWidth}px`,
+                      "--sidebar-resize-translate-x": "0px",
+                      "--right-workspace-toggle-reserved-width": rightWorkspaceVisible
+                        ? "calc(var(--control-hit-default) + 0.125rem)"
+                        : "0px",
+                    } as CSSProperties
+                  }
                 >
-                  <WorkbenchHeader
-                    conversationHeader={conversationHeader}
-                    conversationActions={conversationActions}
+                  <SlotHost
+                    name="shell.background"
+                    className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
                   />
-                  <div
-                    className="flex min-h-0 min-w-0 flex-1 overflow-hidden"
-                    style={{ containerType: "inline-size" }}
-                  >
-                    <div
-                      ref={conversationHostRef}
-                      aria-hidden={conversationHidden ? true : undefined}
-                      inert={conversationHidden ? true : undefined}
-                      className={cn(
-                        "flex min-w-0 flex-1 flex-col overflow-hidden",
-                        conversationHidden && "invisible",
-                      )}
-                    >
-                      <PanelLayout>
-                        <WorkbenchMain>
-                          <MainViewHost>{children}</MainViewHost>
-                        </WorkbenchMain>
-                      </PanelLayout>
-                      <WorkbenchStatusbar />
-                    </div>
-                    <RightWorkspace isVisible={rightWorkspaceVisible} />
-                  </div>
-                  {rightWorkspaceVisible ? (
-                    <RightWorkspaceToggleButton className="absolute top-[calc((var(--workbench-header-height)-var(--control-hit-default))/2)] z-30 [inset-inline-end:var(--right-workspace-toggle-inset-end)]" />
-                  ) : null}
-                </div>
 
-                <div
-                  ref={portalContainerRef}
-                  className="contents"
-                  data-workbench-portal-container=""
-                />
-                <WorkbenchGlobalLayer
-                  installationEffects={installationEffects}
-                  ownerRootRef={shellRef}
-                />
-              </SidebarProvider>
-            </RunningIndicatorProvider>
-          </WorkbenchPortalContainerProvider>
+                  <SidebarDragSessionProvider>
+                    <WorkbenchSidebar
+                      width={sidebarWidth}
+                      minWidth={MIN_SIDEBAR_WIDTH}
+                      maxWidth={MAX_SIDEBAR_WIDTH}
+                      shellRef={shellRef}
+                      onResize={resizeSidebar}
+                    />
+                  </SidebarDragSessionProvider>
+
+                  <div
+                    ref={workspaceHostRef}
+                    className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
+                  >
+                    <WorkbenchHeader
+                      conversationHeader={conversationHeader}
+                      conversationActions={conversationActions}
+                    />
+                    <div
+                      className="flex min-h-0 min-w-0 flex-1 overflow-hidden"
+                      style={{ containerType: "inline-size" }}
+                    >
+                      <div
+                        ref={conversationHostRef}
+                        aria-hidden={conversationHidden ? true : undefined}
+                        inert={conversationHidden ? true : undefined}
+                        className={cn(
+                          "flex min-w-0 flex-1 flex-col overflow-hidden",
+                          conversationHidden && "invisible",
+                        )}
+                      >
+                        <PanelLayout>
+                          <WorkbenchMain>
+                            <MainViewHost>{children}</MainViewHost>
+                          </WorkbenchMain>
+                        </PanelLayout>
+                        <WorkbenchStatusbar />
+                      </div>
+                      <RightWorkspace isVisible={rightWorkspaceVisible} />
+                    </div>
+                    {rightWorkspaceVisible ? (
+                      <RightWorkspaceToggleButton className="absolute top-[calc((var(--workbench-header-height)-var(--control-hit-default))/2)] z-30 [inset-inline-end:var(--right-workspace-toggle-inset-end)]" />
+                    ) : null}
+                  </div>
+
+                  <div
+                    ref={portalContainerRef}
+                    className="contents"
+                    data-workbench-portal-container=""
+                  />
+                  <WorkbenchGlobalLayer
+                    installationEffects={installationEffects}
+                    ownerRootRef={shellRef}
+                  />
+                </SidebarProvider>
+              </RunningIndicatorProvider>
+            </WorkbenchPortalContainerProvider>
+          </FilePresentationProvider>
         </WorkbenchPresentationProvider>
       </WorkbenchDomIdsProvider>
     </LucideProvider>

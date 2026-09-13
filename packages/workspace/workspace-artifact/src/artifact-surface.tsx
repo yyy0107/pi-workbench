@@ -7,7 +7,7 @@ import { useState, useSyncExternalStore } from "react";
 
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 
-import { InlineFeedbackForm } from "@workbench/workspace-runtime/presentation";
+import { InlineFeedbackForm } from "@workbench/ui-workspace/presentation";
 import { useArtifactPreviewService } from "./artifact-preview-service";
 import { artifactRendererRegistry } from "./artifact-renderer-registry";
 

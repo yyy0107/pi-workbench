@@ -18,8 +18,8 @@ import {
 import { installMinimalReactDomEnvironment } from "@workbench/ui-testkit";
 import { BrowserTestI18nProvider as I18nProvider } from "./i18n-provider";
 import { RemoteDirectoryPickerDialog } from "@workbench/workspace-directory-picker";
-import { RightWorkspaceProvider, useRightWorkspaceState } from "@workbench/workspace-runtime/react";
-import { useRightWorkspaceInstallationResource } from "@workbench/workspace-runtime/react";
+import { RightWorkspaceProvider, useRightWorkspaceState } from "@workbench/ui-workspace/react";
+import { useRightWorkspaceInstallationResource } from "@workbench/ui-workspace/react";
 import {
   RuntimeConnectionProvider,
   createSameOriginRuntimeConnection,

@@ -25,7 +25,7 @@ import {
   useOpenerService,
   useRightWorkspace,
   useWorkspaceContext,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 import {
   Button,
   Collapsible,
@@ -40,7 +40,7 @@ import {
   useToastManager,
 } from "@workbench/ui";
 import { useClipboardCopy } from "@workbench/ui/hooks";
-import { FileTypeIcon } from "@workbench/workspace-files/tree";
+import { FileTypeIcon } from "@workbench/ui-file-presentation/icons";
 import { workspaceAbsolutePath } from "@workbench/workspace-files";
 import type { DiffHunk } from "@workbench/code-highlighting";
 import { MarkdownPreview } from "@workbench/markdown";

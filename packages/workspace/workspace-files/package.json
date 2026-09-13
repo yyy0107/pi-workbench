@@ -12,7 +12,6 @@
     "./open-apps": "./src/file-open-apps.ts",
     "./open-preferences": "./src/file-open-preferences.ts",
     "./app-icon": "./src/local-app-icon.tsx",
-    "./download": "./src/file-download.ts",
     "./markdown-links": "./src/markdown-link-adapter.ts",
     "./i18n": "./src/i18n/index.ts"
   },
@@ -31,9 +30,9 @@
     "@workbench/settings-runtime": "workspace:*",
     "@workbench/shell-context": "workspace:*",
     "@workbench/ui": "workspace:*",
-    "@workbench/workspace-runtime": "workspace:*",
+    "@workbench/ui-file-presentation": "workspace:*",
+    "@workbench/ui-workspace": "workspace:*",
     "lucide-react": "^1.29.0",
-    "material-icon-theme": "^5.37.0",
     "react-arborist": "^3.16.0",
     "zustand": "^5.0.14"
   },

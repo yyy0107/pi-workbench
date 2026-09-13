@@ -9,7 +9,7 @@ import {
   useRightWorkspaceState,
   useWorkspaceContext,
   useWorkspaceSurfaces,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 
 import {
   activeFileWorkspaceSession,

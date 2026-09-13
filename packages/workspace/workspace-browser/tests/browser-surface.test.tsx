@@ -14,14 +14,14 @@ import {
   RightWorkspaceProvider,
   useRightWorkspace,
   useRightWorkspaceState,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 import type { RightWorkspaceState } from "@workbench/workspace-runtime";
 import { WorkbenchSettingsProvider } from "@workbench/settings-runtime";
 import {
   RuntimeConnectionProvider,
   createSameOriginRuntimeConnection,
 } from "@workbench/shell-context/runtime-connection";
-import { useRightWorkspaceInstallationResource } from "@workbench/workspace-runtime/react";
+import { useRightWorkspaceInstallationResource } from "@workbench/ui-workspace/react";
 import {
   BROWSER_SESSION_SERVICE_RESOURCE,
   MemoryBrowserSessionService,

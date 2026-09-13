@@ -8,7 +8,7 @@ import {
   useWorkspaceContext,
   useWorkspaceOpen,
   useWorkspaceSurfaces,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 
 import { isTerminalTranscriptTarget, useTerminalLaunchContext } from "./terminal-target";
 import { loadTerminalSurface } from "./terminal-surface-loader";

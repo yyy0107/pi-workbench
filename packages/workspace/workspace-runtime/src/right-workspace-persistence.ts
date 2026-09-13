@@ -2,7 +2,7 @@ import {
   toWorkbenchSettingsJsonObject,
   type WorkbenchSettingsPort,
 } from "@workbench/agent-runtime-contracts/settings";
-import type { RightWorkspacePersistencePort } from "./index";
+import type { RightWorkspacePersistencePort } from "./workspace-controller";
 import { LEGACY_RIGHT_WORKSPACE_STORAGE_KEY } from "../lib/legacy-storage";
 
 export const RIGHT_WORKSPACE_LEGACY_STORAGE_KEY = LEGACY_RIGHT_WORKSPACE_STORAGE_KEY;

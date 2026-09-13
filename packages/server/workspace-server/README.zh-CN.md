@@ -14,3 +14,5 @@ pnpm --filter @workbench/workspace-server test
 ```
 
 源码分工：src 承载本包能力与契约，lib 仅放实际使用的内部辅助，tests 为包根测试。实际消费者示例：`src/local-files.ts` 引用 `lib/file-projection.ts`。实现保留 TS/TSX；既有构建工具保持原语言。
+
+`./catalog` 拥有 WorkspaceStore 的项目归属、排序、固定/归档及持久化；`lib/catalog-state.ts` 提供实际复用的校验和投影。保存及本地订阅之后发出中立事件，Pi 宿主事件由 Pi 装配适配。原路径、settings section、跨进程锁与旧数据迁移保持；`dispose()` 解除通知，不回滚已提交写入。

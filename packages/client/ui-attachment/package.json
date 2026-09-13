@@ -27,7 +27,7 @@
     "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/i18n": "workspace:*",
     "@workbench/ui": "workspace:*",
-    "@workbench/workspace-files": "workspace:*",
+    "@workbench/ui-file-presentation": "workspace:*",
     "lucide-react": "^1.29.0"
   },
   "devDependencies": {

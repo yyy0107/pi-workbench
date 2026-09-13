@@ -95,14 +95,13 @@ export type RpcReceipt =
   | { accepted: true }
   | { accepted: false; reason: "not-pending" | "bad-response" };
 
-export interface WorkspaceView {
-  workspaceId: string;
-  path: string;
-  title: string;
-  sessionIds: string[];
-  createdAt: string;
-  updatedAt: string;
-}
+export type {
+  WorkspaceView,
+  WorkspaceSessionArchiveValue,
+  WorkspacePinValue,
+  WorkspaceSessionPinValue,
+} from "@workbench/agent-runtime-contracts/workspace-catalog";
+import type { WorkspaceView } from "@workbench/agent-runtime-contracts/workspace-catalog";
 
 export interface WorkspaceListValue {
   items: WorkspaceView[];
@@ -113,21 +112,6 @@ export interface WorkspaceListValue {
 
 export interface WorkspaceArchivedSessionsValue {
   sessionIds: string[];
-}
-
-export interface WorkspaceSessionArchiveValue {
-  sessionId: string;
-  archived: boolean;
-}
-
-export interface WorkspacePinValue {
-  workspaceId: string;
-  pinned: boolean;
-}
-
-export interface WorkspaceSessionPinValue {
-  sessionId: string;
-  pinned: boolean;
 }
 
 export { WORKSPACE_GIT_BRANCH_NAME_LENGTH_LIMIT } from "@workbench/agent-runtime-contracts/runtime-capabilities";

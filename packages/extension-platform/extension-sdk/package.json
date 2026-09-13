@@ -19,7 +19,8 @@
       "types": "./src/internal.ts",
       "import": "./src/internal.ts",
       "default": "./src/internal.ts"
-    }
+    },
+    "./workspace-surfaces": "./src/api/workspace-surface.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",

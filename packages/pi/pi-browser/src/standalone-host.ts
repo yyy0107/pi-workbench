@@ -7,7 +7,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { BrowserManager } from "@workbench/browser-server";
 import type { BrowserEvent } from "@workbench/browser-contracts";
-import type { BrowserHost } from "./index";
+import type { BrowserHost } from "@workbench/browser-contracts/host";
 
 type InteractiveEvent = Extract<BrowserEvent, { type: "permission" | "dialog" }>;
 

@@ -56,7 +56,7 @@ import {
   useRightWorkspace,
   useRightWorkspaceState,
   useWorkspaceDraftStore,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 import { cn } from "@workbench/ui/utils";
 import { useWorkbenchDomIds } from "@workbench/shell-context/dom";
 import { fileWorkspaceContext, resolveFileWorkspaceSession } from "@workbench/workspace-files";

@@ -14,3 +14,5 @@ pnpm --filter @workbench/workspace-server test
 ```
 
 Source layout: src owns this capability and its contracts; lib contains consumed internal helpers; tests live at the package root. Example consumer: `src/local-files.ts` imports `lib/file-projection.ts`. Capability and helper code remains TS/TSX; existing build tooling retains its language.
+
+`./catalog` owns WorkspaceStore directory membership, ordering, pin/archive state and persistence. `lib/catalog-state.ts` supplies consumed validation/projection helpers. It emits neutral events after persistence and local subscribers; Pi host event adaptation stays in Pi composition. Existing paths, settings section, cross-process locks and legacy migration remain unchanged. `dispose()` detaches notifications without rolling back already committed writes.

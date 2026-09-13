@@ -9,7 +9,7 @@ import {
   useOpenerService,
   useRightWorkspace,
   useWorkspaceContext,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 import { Button } from "@workbench/ui";
 import { defineFileViewMessage as defineMessage } from "./i18n";
 

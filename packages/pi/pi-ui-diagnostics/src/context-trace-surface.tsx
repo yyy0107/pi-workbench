@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useRightWorkspace } from "@workbench/workspace-runtime/react";
+import { useRightWorkspace } from "@workbench/ui-workspace/react";
 import { Button, Input, Tabs, TabsIndicator, TabsList, TabsTrigger } from "@workbench/ui";
 
 import { definePiMessage } from "./i18n";

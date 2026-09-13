@@ -27,7 +27,7 @@ const RPC_ROUTE_COMPOSITION = new URL(
   "../../src/transport/rpc-route-composition.ts",
   import.meta.url,
 );
-const RPC_ROUTE_GROUP = new URL("../../../../host/host-server/src/rpc.ts", import.meta.url);
+const RPC_ROUTE_GROUP = new URL("../../../../transport/api/src/server.ts", import.meta.url);
 const SESSION_RPC_ROUTES = new URL("../../src/routes/session-rpc-routes.ts", import.meta.url);
 const SESSION_CONTEXT_TRACE_RPC_ROUTES = new URL(
   "../../src/routes/session-context-trace-rpc-routes.ts",

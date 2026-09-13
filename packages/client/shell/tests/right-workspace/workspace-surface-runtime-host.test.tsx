@@ -20,7 +20,7 @@ import {
   WorkspaceSurfaceRuntimeHost,
   useWorkspaceContext,
   type WorkspaceRuntimeErrorDetails,
-} from "@workbench/workspace-runtime/react";
+} from "@workbench/ui-workspace/react";
 import { act, createElement, useEffect, type ComponentProps } from "react";
 import { createRoot } from "react-dom/client";
 

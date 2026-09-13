@@ -5,7 +5,7 @@ import type { ToolPresentationSummaryProps } from "@workbench/extension-sdk";
 import { useI18n } from "@workbench/i18n";
 import { ShimmerLabel, useToastManager, withTooltip } from "@workbench/ui";
 import { cn } from "@workbench/ui/utils";
-import { useOpenerService, useWorkspaceContext } from "@workbench/workspace-runtime/react";
+import { useOpenerService, useWorkspaceContext } from "@workbench/ui-workspace/react";
 import { filesTranslationBundle } from "@workbench/workspace-files/i18n";
 
 import { fileMutationToolModel } from "../lib/file-mutation-tool-model";
