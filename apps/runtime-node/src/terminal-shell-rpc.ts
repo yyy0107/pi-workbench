@@ -1,9 +1,6 @@
-import {
-  createRpcPostHandler,
-  rpcObject,
-  rpcEnum,
-  rpcBusinessError,
-} from "@workbench/host-server/rpc";
+import { createRpcPostHandler } from "@workbench/api/server";
+import { rpcObject, rpcEnum } from "@workbench/api/validation";
+import { rpcBusinessError } from "@workbench/api/errors";
 import {
   SET_DEFAULT_TERMINAL_SHELL_METHOD,
   TERMINAL_SHELLS,

@@ -410,3 +410,17 @@ test("same-session-id sidecars keep context policy snapshots and request revisio
   );
   assert.deepEqual(requests, { first: 2, second: 1 });
 });
+
+test("Pi RPC facade without options keeps the Host default carrier", async (t) => {
+  const { callPiRpc } = await import("@workbench/pi-transport-client/api");
+  t.mock.method(globalThis, "fetch", async (input: string | URL, init?: RequestInit) => {
+    assert.equal(String(input), "/api/session.list");
+    const body = JSON.parse(String(init?.body));
+    return Response.json({
+      type: "server-response",
+      rpcId: body.rpcId,
+      result: { ok: true, value: { sessions: [] } },
+    });
+  });
+  assert.deepEqual(await callPiRpc("session.list", {}), { sessions: [] });
+});

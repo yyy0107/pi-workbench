@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { RpcIssue, ServerResponse } from "@workbench/pi-protocol/rpc";
 import type { SkillProtocol } from "@workbench/pi-resources-server/skills";
-import { rpcBusinessError } from "@workbench/host-server/rpc";
+import { rpcBusinessError } from "@workbench/api/errors";
 import { createSkillRpcRoutes } from "../../src/routes/skill-rpc-routes";
 
 function rpcRequest(

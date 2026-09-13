@@ -11,7 +11,7 @@ import type {
   WorkbenchSettingsUpdateResult as WorkbenchSettingsUpdateValue,
 } from "@workbench/agent-runtime-contracts/settings";
 import { callServiceRpc } from "./errors";
-import type { RpcCallOptions } from "@workbench/host-client/rpc";
+import type { RpcCallOptions } from "./errors";
 
 export function describeWorkbenchSettings(
   options?: RpcCallOptions,

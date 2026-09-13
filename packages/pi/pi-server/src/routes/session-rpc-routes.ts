@@ -7,8 +7,8 @@ import {
 } from "@workbench/core-contracts/composer/request";
 
 import type { PiSessionProtocolFacade } from "@workbench/pi-session-server/protocol";
+import { handleRpcPost } from "@workbench/api/server";
 import {
-  handleRpcPost,
   rpcArray,
   rpcEnum,
   rpcInteger,
@@ -21,9 +21,9 @@ import {
   rpcUnion,
   rpcUnknown,
   type RpcValidator,
-} from "@workbench/host-server/rpc";
+} from "@workbench/api/validation";
 import { compactionSettingsPatch } from "../transport/compaction-rpc-validator";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 export interface SessionRpcRoutesDependencies {
   readonly protocol: PiSessionProtocolFacade;

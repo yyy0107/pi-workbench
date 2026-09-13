@@ -6,8 +6,10 @@ import {
   scopedUpdatePayload,
   settingsUpdatePayload,
 } from "../transport/agent-settings-rpc-validators";
-import { handleRpcPost, rpcBusinessError, rpcObject } from "@workbench/host-server/rpc";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+import { handleRpcPost } from "@workbench/api/server";
+import { rpcBusinessError } from "@workbench/api/errors";
+import { rpcObject } from "@workbench/api/validation";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 export interface AgentSettingsRpcRoutesDependencies {
   readonly service: AgentSettingsProtocol;

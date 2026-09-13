@@ -12,8 +12,9 @@ import {
   resourceRelativeFilePathValidator,
   resourceRequestPayload,
 } from "../transport/resource-rpc-validators";
-import { handleRpcPost, rpcBoolean, rpcOptional } from "@workbench/host-server/rpc";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+import { handleRpcPost } from "@workbench/api/server";
+import { rpcBoolean, rpcOptional } from "@workbench/api/validation";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 export interface SkillRpcRoutesDependencies {
   readonly service: SkillProtocol;

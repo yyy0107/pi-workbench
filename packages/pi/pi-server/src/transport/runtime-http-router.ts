@@ -14,7 +14,7 @@ import {
   InlineImageAdmissionError,
 } from "@workbench/pi-session-server/inline-image-admission";
 import { piErrorResponse } from "./responses";
-import { readTrustedJsonPost } from "@workbench/host-server/rpc";
+import { readTrustedJsonPost } from "@workbench/api/server";
 
 type Awaitable<Value> = Value | Promise<Value>;
 

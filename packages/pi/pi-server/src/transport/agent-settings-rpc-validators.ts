@@ -8,7 +8,7 @@ import {
   rpcOptional,
   rpcString,
   type RpcValidator,
-} from "@workbench/host-server/rpc";
+} from "@workbench/api/validation";
 
 export const scopedDescribePayload = rpcObject({ target: resourceCatalogTarget });
 const settingsUpdateFields = {

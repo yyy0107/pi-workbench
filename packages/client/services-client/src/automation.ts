@@ -15,7 +15,7 @@ import type {
 } from "@workbench/automation-contracts";
 
 import { callServiceRpc } from "./errors";
-import type { RpcCallOptions } from "@workbench/host-client/rpc";
+import type { RpcCallOptions } from "./errors";
 
 const AUTOMATION_QUERY_TIMEOUT_MS = 30_000;
 

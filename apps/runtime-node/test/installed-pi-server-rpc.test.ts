@@ -14,7 +14,7 @@ import type {
   WorkbenchSettingsDescribeValue,
   WorkspaceView,
 } from "@workbench/pi-protocol/rpc";
-import { DEFAULT_MAX_RPC_REQUEST_BODY_BYTES } from "@workbench/host-server/rpc";
+import { DEFAULT_MAX_RPC_REQUEST_BODY_BYTES } from "@workbench/api/server";
 import applicationPackage from "../package.json" with { type: "json" };
 
 const { getInstalledPiServer, handlePiRpcPost } = (await import(

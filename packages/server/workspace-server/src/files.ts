@@ -18,7 +18,7 @@ import {
   type WorkbenchWorkspaceFilesSearchResult as WorkspaceFilesSearchValue,
   type WorkbenchWorkspaceFileWriteRequest as WorkspaceFileWritePayload,
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 
 const DIRECTORY_ENTRY_LIMIT = 2_000;
 const FILE_SEARCH_SCAN_LIMIT = 20_000;

@@ -9,7 +9,7 @@ import type {
   SessionContextTraceReadPayload,
   SessionContextTraceReadValue,
 } from "@workbench/pi-protocol/rpc";
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 
 import { type SessionContextTrace } from "./session-context-trace";
 import { SessionContextTraceJournalError } from "./session-context-trace-journal";

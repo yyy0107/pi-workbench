@@ -38,7 +38,7 @@
     "@earendil-works/pi-ai": "0.85.1",
     "@earendil-works/pi-coding-agent": "0.85.1",
     "@workbench/agent-runtime-contracts": "workspace:*",
-    "@workbench/host-server": "workspace:*",
+    "@workbench/api": "workspace:*",
     "@workbench/pi-protocol": "workspace:*",
     "@workbench/pi-resources-server": "workspace:*",
     "@workbench/pi-server-ports": "workspace:*",

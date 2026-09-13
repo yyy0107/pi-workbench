@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { type ServerResponse } from "@workbench/host-contracts/rpc";
+import { type ServerResponse } from "@workbench/api/contracts";
 import type {
   AutomationProtocol,
   AutomationRemoveSessionPayload,

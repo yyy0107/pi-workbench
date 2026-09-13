@@ -1,5 +1,5 @@
 import { projectServiceCapabilityError } from "@workbench/services-client/errors";
-import { RpcClientError } from "@workbench/host-client/rpc";
+import { RpcClientError } from "@workbench/api/client";
 import type {
   WorkbenchAgentRuntimeCapabilities,
   WorkbenchServicesCapabilities,

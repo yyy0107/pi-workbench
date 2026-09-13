@@ -7,15 +7,10 @@ import {
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 import type { WorkspaceFileProtocol } from "./files";
 import type { LocalFileProtocol } from "./local-files";
-import {
-  handleRpcPost,
-  rpcBusinessError,
-  rpcInteger,
-  rpcObject,
-  rpcOptional,
-  rpcString,
-} from "@workbench/host-server/rpc";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+import { handleRpcPost } from "@workbench/api/server";
+import { rpcBusinessError } from "@workbench/api/errors";
+import { rpcInteger, rpcObject, rpcOptional, rpcString } from "@workbench/api/validation";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 export interface WorkspaceFileRpcRoutesDependencies {
   readonly service: WorkspaceFileProtocol;

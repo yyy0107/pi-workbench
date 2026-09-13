@@ -2,11 +2,20 @@
 
 [English](README.md)
 
-Runtime HTTP、WebSocket 与 RPC 客户端。
+Runtime HTTP 与 WebSocket 传输载体。
 
 `src/` 拥有能力实现、契约与装配；`lib/` 为内部辅助源码，包含 `lib/runtime-url.ts`。测试放在 `tests/`。能力和辅助源码保留 TS/TSX，既有构建工具维持原语言；两处源码目录均最多一级子目录。
 
-公开引用入口：`@workbench/host-client`, `@workbench/host-client/runtime-fetch`, `@workbench/host-client/runtime-websocket`, `@workbench/host-client/rpc`。跨包只使用显式 exports 与 `workspace:*` 依赖；不跨包引用内部源码。
+公开引用入口：`@workbench/host-client`、`@workbench/host-client/runtime-fetch` 和 `@workbench/host-client/runtime-websocket`。通用 RPC 契约和 `callRpc` 位于 `@workbench/api/{contracts,client}`；本包负责 Runtime connection 传输载体。调用 `callRpc` 时注入 `resolveRuntimeFetch()` 或 `createRuntimeFetch(...)` 的结果，不依赖 Host RPC facade。
+
+```ts
+import { callRpc } from "@workbench/api/client";
+import { resolveRuntimeFetch } from "@workbench/host-client/runtime-fetch";
+
+const result = await callRpc<Payload, Result>("workspace.files.read", payload, {
+  transport: resolveRuntimeFetch(),
+});
+```
 
 ```bash
 pnpm --filter @workbench/host-client typecheck

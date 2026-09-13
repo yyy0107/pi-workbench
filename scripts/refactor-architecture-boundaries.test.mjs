@@ -1,5 +1,7 @@
+import { builtinModules } from "node:module";
+import { moduleSpecifiers, parseWorkspaceSource } from "./workspace-source.mjs";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -92,4 +94,109 @@ test("the application has one Headless Agent Runtime stack and no AI SDK chat ru
       `AI SDK dependency: ${repositoryRelative(manifestPath)}`,
     );
   }
+});
+
+// Follow real module edges, including lib and type-only imports: package names alone
+// cannot distinguish a browser-safe subpath from the server subpath of one package.
+const apiDirectory = path.join(repositoryRoot, "packages/transport/api");
+const workspaceManifests = new Map(
+  workspaces.map((directory) => {
+    const manifest = JSON.parse(readFileSync(path.join(directory, "package.json"), "utf8"));
+    return [manifest.name, { directory, manifest }];
+  }),
+);
+
+function exportedSource(value) {
+  if (typeof value === "string") return value;
+  return value?.types ?? value?.import ?? value?.default;
+}
+
+function resolveBoundarySource(importer, specifier) {
+  if (specifier.startsWith(".")) {
+    const target = path.resolve(path.dirname(importer), specifier);
+    for (const candidate of [
+      target,
+      `${target}.ts`,
+      `${target}.tsx`,
+      path.join(target, "index.ts"),
+    ]) {
+      if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
+    }
+    assert.fail(`Unresolved API dependency: ${specifier} from ${repositoryRelative(importer)}`);
+  }
+  const name = specifier.split("/").slice(0, 2).join("/");
+  const owner = workspaceManifests.get(name);
+  assert.ok(owner, `Unexpected external API dependency: ${specifier}`);
+  const key = specifier === name ? "." : `.${specifier.slice(name.length)}`;
+  const target = exportedSource(owner.manifest.exports[key]);
+  assert.equal(typeof target, "string", `Missing explicit export: ${specifier}`);
+  return path.resolve(owner.directory, target);
+}
+
+function assertApiClosure(entry, server) {
+  const pending = [path.join(apiDirectory, "src", entry)];
+  const visited = new Set();
+  while (pending.length) {
+    const file = pending.pop();
+    if (visited.has(file)) continue;
+    visited.add(file);
+    const source = readFileSync(file, "utf8");
+    if (!server) assert.doesNotMatch(source, /\bprocess\s*\./u, repositoryRelative(file));
+    for (const specifier of moduleSpecifiers(source, file)) {
+      if (builtinModules.includes(specifier) || specifier.startsWith("node:")) {
+        assert.ok(server, `Node dependency in pure API closure: ${specifier}`);
+        continue;
+      }
+      if (!specifier.startsWith(".")) {
+        const permitted = server
+          ? /^@workbench\/(?:api|server-core)(?:\/|$)/u
+          : /^@workbench\/api(?:\/|$)/u;
+        assert.match(
+          specifier,
+          permitted,
+          `Forbidden API dependency from ${repositoryRelative(file)}`,
+        );
+      }
+      const target = resolveBoundarySource(file, specifier);
+      assert.ok(
+        target.startsWith(`${apiDirectory}${path.sep}`) ||
+          (server && target.startsWith(path.join(repositoryRoot, "packages/server/server-core/"))),
+        `API source escaped its allowed owners: ${repositoryRelative(target)}`,
+      );
+      pending.push(target);
+    }
+  }
+}
+
+test("API pure exports never load Host, Pi, server-core or Node transitively", () => {
+  const root = parseWorkspaceSource(readFileSync(path.join(apiDirectory, "src/index.ts"), "utf8"));
+  for (const statement of root.body) assert.equal(statement.exportKind, "type");
+  for (const entry of ["index.ts", "contracts.ts", "errors.ts", "validation.ts", "client.ts"])
+    assertApiClosure(entry, false);
+  assertApiClosure("server.ts", true);
+});
+
+test("retired RPC implementations and reverse server-core API edges cannot return", () => {
+  const retired =
+    /@workbench\/(?:host-(?:contracts|client|server)\/rpc|server-core\/rpc-domain-error)$/u;
+  for (const workspace of workspaces) {
+    for (const root of ["src", "lib", "tests", "test"]) {
+      for (const file of filesUnder(path.join(workspace, root)).filter((name) =>
+        /\.[cm]?[jt]sx?$/u.test(name),
+      )) {
+        for (const specifier of moduleSpecifiers(readFileSync(file, "utf8"), file)) {
+          assert.doesNotMatch(specifier, retired, repositoryRelative(file));
+          if (workspace.endsWith("/server-core"))
+            assert.doesNotMatch(specifier, /^@workbench\/api(?:\/|$)/u, repositoryRelative(file));
+        }
+      }
+    }
+  }
+  for (const retiredFile of [
+    "packages/client/host-contracts/src/rpc.ts",
+    "packages/client/host-client/src/rpc.ts",
+    "packages/host/host-server/src/rpc.ts",
+    "packages/server/server-core/src/rpc-domain-error.ts",
+  ])
+    assert.equal(existsSync(path.join(repositoryRoot, retiredFile)), false, retiredFile);
 });

@@ -58,6 +58,7 @@
     "@workbench/agent-runtime-client": "workspace:*",
     "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/agent-runtime-core": "workspace:*",
+    "@workbench/api": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
     "@workbench/core-contracts": "workspace:*",
     "@workbench/host-client": "workspace:*",

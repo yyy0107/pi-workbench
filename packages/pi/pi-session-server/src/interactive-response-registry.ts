@@ -17,7 +17,7 @@ import type {
   QuestionRequestedPayload,
 } from "@workbench/pi-protocol/stream";
 import type { PiStreamPublisher } from "@workbench/pi-server-ports/streams";
-import { readTrustedJsonPost } from "@workbench/host-server/rpc";
+import { readTrustedJsonPost } from "@workbench/api/server";
 
 export const INTERACTIVE_RESPONSE_REGISTRY_SYMBOL = Symbol.for(
   "workbench-ui.pi.interactive-response-registry.v1",

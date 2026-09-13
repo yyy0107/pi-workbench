@@ -27,13 +27,14 @@
   },
   "dependencies": {
     "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/api": "workspace:*",
     "@workbench/core-contracts": "workspace:*",
-    "@workbench/host-server": "workspace:*",
     "@workbench/server-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@workbench/host-contracts": "workspace:*",
+    "@workbench/host-server": "workspace:*",
     "typescript": "^7.0.2"
   }
 }

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { RpcIssue, ServerResponse } from "@workbench/pi-protocol/rpc";
 import type { WorkspaceProtocolService } from "@workbench/pi-resources-server/workspaces";
-import { rpcBusinessError } from "@workbench/host-server/rpc";
+import { rpcBusinessError } from "@workbench/api/errors";
 import { createWorkspaceRpcRoutes } from "../../src/routes/workspace-rpc-routes";
 
 function rpcRequest(

@@ -8,7 +8,7 @@ import type {
   WorkspaceSessionPinValue,
   WorkspaceView,
 } from "@workbench/pi-protocol/rpc";
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 import type {
   WorkspaceArchiveSessionInput,
   WorkspaceCreateInput,

@@ -4,7 +4,7 @@ import test from "node:test";
 import type { ServerResponse } from "@workbench/pi-protocol/rpc";
 import type { CommandCatalogProtocol } from "@workbench/pi-resources-server/commands";
 import type { PromptCatalogProtocol } from "@workbench/pi-resources-server/prompts";
-import { rpcBusinessError } from "@workbench/host-server/rpc";
+import { rpcBusinessError } from "@workbench/api/errors";
 import { createResourceCatalogRpcRoutes } from "../../src/routes/resource-catalog-rpc-routes";
 
 function rpcRequest(

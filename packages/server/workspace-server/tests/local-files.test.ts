@@ -7,7 +7,7 @@ import { LocalFileService } from "../src/local-files";
 import { createLocalFileContentHandler } from "../src/http";
 import { createLocalFileRpcRoutes } from "../src/file-rpc-routes";
 import { WorkspaceFileError } from "../src/files";
-import { rpcBusinessError } from "@workbench/host-server/rpc";
+import { rpcBusinessError } from "@workbench/api/errors";
 
 async function fixture(t: test.TestContext) {
   const directory = await mkdtemp(path.join(tmpdir(), "workbench-local-file-"));

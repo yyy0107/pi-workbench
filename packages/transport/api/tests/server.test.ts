@@ -1,24 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-const {
-  createRpcError,
+import { createRpcError, rpcBusinessError } from "@workbench/api/errors";
+import {
   createRpcPostHandler,
   DEFAULT_MAX_RPC_REQUEST_BODY_BYTES,
   handleRpcPost,
-  rpcArray,
-  rpcBusinessError,
-  rpcEnum,
-  rpcInteger,
-  rpcLiteral,
-  rpcNullable,
-  rpcObject,
-  rpcOptional,
-  rpcRecord,
-  rpcRefine,
-  rpcString,
-  rpcUnion,
-} = (await import("@workbench/host-server/rpc")) as typeof import("@workbench/host-server/rpc");
+} from "@workbench/api/server";
+import { rpcInteger, rpcObject, rpcOptional, rpcString } from "@workbench/api/validation";
 
 type JsonObject = Record<string, unknown>;
 
@@ -135,6 +124,35 @@ test("the generated POST handler uses the same transport behavior", async () => 
     rpcId: "rpc-1",
     result: { ok: true, value: "GRACE" },
   });
+});
+
+test("passes the request cancellation signal and reason unchanged to the handler context", async () => {
+  const controller = new AbortController();
+  const reason = new Error("caller cancelled");
+  controller.abort(reason);
+  const rpcRequest = new Request("http://127.0.0.1:3080/api/test.echo", {
+    method: "POST",
+    headers: {
+      host: "127.0.0.1:3080",
+      "content-type": "application/json",
+    },
+    body: clientRequest({ name: "Ada" }),
+    signal: controller.signal,
+  });
+
+  const response = await handleRpcPost(rpcRequest, {
+    method: "test.echo",
+    payload: echoPayload,
+    handler: (_payload, context) => {
+      assert.equal(context.request, rpcRequest);
+      assert.equal(context.signal, rpcRequest.signal);
+      assert.equal(context.signal.aborted, true);
+      assert.equal(context.signal.reason, reason);
+      return "cancelled request observed";
+    },
+  });
+
+  assert.equal(response.status, 200);
 });
 
 test("rejects untrusted local API requests before reading RPC input", async () => {
@@ -291,6 +309,85 @@ test("ordinary RPCs reject declared and streamed bodies above the default budget
   assert.equal(accumulated.headers.get("connection"), "close");
 });
 
+test("applies streamed body limits to exact UTF-8 byte counts", async () => {
+  const exactBody = clientRequest({ name: "界" });
+  const exactCharacterIndex = exactBody.indexOf("界");
+  const exactBytes = new TextEncoder().encode(exactBody).byteLength;
+  let calls = 0;
+  const options = {
+    method: "test.echo",
+    payload: echoPayload,
+    handler: ({ name }: { name: string }) => {
+      calls += 1;
+      return name;
+    },
+    maxRequestBodyBytes: exactBytes,
+  };
+
+  const exactResponse = await handleRpcPost(
+    streamedRequest([
+      exactBody.slice(0, exactCharacterIndex),
+      "界",
+      exactBody.slice(exactCharacterIndex + 1),
+    ]),
+    options,
+  );
+  assert.equal(exactResponse.status, 200);
+  assert.equal(calls, 1);
+
+  const overflowBody = clientRequest({ name: "界界" });
+  const overflowCharacterIndex = overflowBody.indexOf("界");
+  assert.equal(new TextEncoder().encode(overflowBody).byteLength, exactBytes + 3);
+  const overflowResponse = await handleRpcPost(
+    streamedRequest([
+      overflowBody.slice(0, overflowCharacterIndex),
+      "界",
+      overflowBody.slice(overflowCharacterIndex + 1),
+    ]),
+    options,
+  );
+  assert.equal(overflowResponse.status, 413);
+  assert.equal(overflowResponse.headers.get("connection"), "close");
+  assert.equal(calls, 1, "the over-budget request must not reach the handler");
+});
+
+test("rejects untrusted requests before pulling their body stream", async () => {
+  let pulls = 0;
+  let calls = 0;
+  const body = new ReadableStream<Uint8Array>(
+    {
+      pull(controller) {
+        pulls += 1;
+        controller.enqueue(new TextEncoder().encode(clientRequest({ name: "Ada" })));
+        controller.close();
+      },
+    },
+    { highWaterMark: 0 },
+  );
+  const untrustedRequest = new Request("http://example.com:3080/api/test.echo", {
+    method: "POST",
+    headers: {
+      host: "example.com:3080",
+      "content-type": "application/json",
+    },
+    body,
+    duplex: "half",
+  } as RequestInit & { duplex: "half" });
+
+  const response = await handleRpcPost(untrustedRequest, {
+    method: "test.echo",
+    payload: echoPayload,
+    handler: () => {
+      calls += 1;
+      return "unexpected";
+    },
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(pulls, 0);
+  assert.equal(calls, 0);
+});
+
 test("uses HTTP 400 only when the JSON text itself cannot be parsed", async () => {
   const response = await handleRpcPost(request('{"type":"client-request",'), {
     method: "test.echo",
@@ -424,55 +521,4 @@ test("turns unknown exceptions into detail-free HTTP 500 responses", async () =>
   const body = await response.text();
   assert.equal(body, "Internal Server Error");
   assert.doesNotMatch(body, /password|secret|database/i);
-});
-
-test("payload primitives compose and report nested paths", () => {
-  const schema = rpcRefine(
-    rpcObject({
-      mode: rpcEnum(["fast", "safe"]),
-      values: rpcArray(rpcInteger({ minimum: 0 }), { minLength: 1, maxLength: 2 }),
-      label: rpcOptional(rpcNullable(rpcString({ minLength: 1, trim: true }))),
-      metadata: rpcRecord(rpcString()),
-      selection: rpcUnion([rpcLiteral("auto"), rpcInteger({ minimum: 1 })]),
-    }),
-    (value) => value.mode !== "safe" || value.values.length === 1,
-    { message: "Safe mode accepts one value", path: ["values"] },
-  );
-
-  const valid = schema({
-    mode: "fast",
-    values: [1, 2],
-    label: "  example  ",
-    metadata: { source: "test" },
-    selection: "auto",
-    ignored: true,
-  });
-  assert.deepEqual(valid, {
-    ok: true,
-    value: {
-      mode: "fast",
-      values: [1, 2],
-      label: "example",
-      metadata: { source: "test" },
-      selection: "auto",
-    },
-  });
-
-  const nestedFailure = schema({
-    mode: "fast",
-    values: [1, -1],
-    metadata: { source: "test" },
-    selection: "auto",
-  });
-  assert.equal(nestedFailure.ok, false);
-  if (!nestedFailure.ok) assert.deepEqual(nestedFailure.issues[0]?.path, ["values", 1]);
-
-  const refinementFailure = schema({
-    mode: "safe",
-    values: [1, 2],
-    metadata: {},
-    selection: 1,
-  });
-  assert.equal(refinementFailure.ok, false);
-  if (!refinementFailure.ok) assert.deepEqual(refinementFailure.issues[0]?.path, ["values"]);
 });

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ServerResponse } from "@workbench/pi-protocol/rpc";
 import type { AgentSettingsProtocol } from "@workbench/pi-resources-server/settings";
-import { rpcBusinessError } from "@workbench/host-server/rpc";
+import { rpcBusinessError } from "@workbench/api/errors";
 import { createAgentSettingsRpcRoutes } from "../../src/routes/agent-settings-rpc-routes";
 
 function rpcRequest(

@@ -24,7 +24,7 @@ import {
   supportedModelThinkingLevels,
   type ModelInputModality,
 } from "@workbench/pi-shared/models";
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 import type {
   ConfigurableProviderView,
   ConfigureModelProviderPayload,

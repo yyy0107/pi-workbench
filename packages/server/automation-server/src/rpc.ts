@@ -1,14 +1,14 @@
 import type { AutomationProtocol } from "@workbench/automation-contracts";
 
+import { handleRpcPost } from "@workbench/api/server";
 import {
-  handleRpcPost,
   rpcBoolean,
   rpcInteger,
   rpcObject,
   rpcOptional,
   rpcString,
-} from "@workbench/host-server/rpc";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+} from "@workbench/api/validation";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 export interface AutomationRpcRoutesDependencies {
   readonly service: AutomationProtocol;

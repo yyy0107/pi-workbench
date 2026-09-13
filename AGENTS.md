@@ -84,3 +84,5 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 会话与输入等前端 UI 能力统一放在 `packages/client/ui-*`，不再使用 `packages/conversation/`。Spec005 最终目录映射见 client-placement.json。
 
 当前 UI 边界解耦规划：`specs/006-ui-boundary-decoupling/plan.md`；职责映射、公开合同和验证见同目录 ownership-map.md、contracts/public-boundaries.md、quickstart.md。以当前未提交的 Spec004/005 与 client 迁移工作树为基线，目标保持 93 个库包；本期 36 项实施任务已完成，检查与构建证据见 validation.md；UI 测试仍排除执行。保留不新增、不执行 UI 测试与按能力使用 Luna/Sol 的约束。
+
+当前已实施的 API/RPC 抽离为 `specs/007-api-rpc-extraction/plan.md`：新增 packages/transport/api（@workbench/api），按 contracts/errors/client/validation/server 提供明确入口，业务 DTO/handler、Host connection 与认证仍归原 owner。32 项任务已完成，基线为 Spec006 提交 383fe578；94 个库包，验证见同目录 validation.md；Spec006 完成记录保持。

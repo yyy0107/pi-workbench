@@ -125,3 +125,34 @@ test("leaves same-origin HTTP headers untouched and never includes a desktop tok
       !String(error).includes(desktopSidecar.accessToken),
   );
 });
+
+test("default resolver preserves same-origin selection, explicit transport and non-browser fallback", async (t) => {
+  const { resolveRuntimeFetch } = await import("../src/runtime-fetch");
+  const originalLocation = Object.getOwnPropertyDescriptor(globalThis, "location");
+  t.after(() => {
+    if (originalLocation) Object.defineProperty(globalThis, "location", originalLocation);
+    else Reflect.deleteProperty(globalThis, "location");
+  });
+  const calls: Array<string | URL | Request> = [];
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    calls.push(input);
+    return new Response(null, { status: 204 });
+  });
+  // Only the environment origin is supplied; no DOM or rendered component is involved.
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: { origin: "https://workbench.example.test" },
+  });
+  await resolveRuntimeFetch()("/api/health");
+  assert.equal(String(calls[0]), "https://workbench.example.test/api/health");
+  await assert.rejects(
+    resolveRuntimeFetch()("https://untrusted.example.test/api"),
+    /root-relative path/,
+  );
+  assert.equal(calls.length, 1);
+  const explicit = async () => new Response("explicit");
+  assert.equal(resolveRuntimeFetch(explicit), explicit);
+  Object.defineProperty(globalThis, "location", { configurable: true, value: undefined });
+  await resolveRuntimeFetch()("/api/health");
+  assert.equal(calls[1], "/api/health");
+});

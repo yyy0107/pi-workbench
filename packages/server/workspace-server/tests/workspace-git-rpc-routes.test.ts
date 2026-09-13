@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { WORKSPACE_GIT_BRANCH_NAME_LENGTH_LIMIT } from "@workbench/agent-runtime-contracts/runtime-capabilities";
-import { type RpcIssue, type ServerResponse } from "@workbench/host-contracts/rpc";
+import { type RpcIssue, type ServerResponse } from "@workbench/api/contracts";
 
 import type { WorkspaceGitProtocol } from "../src/git";
-import { rpcBusinessError } from "@workbench/host-server/rpc";
+import { rpcBusinessError } from "@workbench/api/errors";
 import { createWorkspaceGitRpcRoutes } from "../src/git-rpc-routes";
 
 function rpcRequest(

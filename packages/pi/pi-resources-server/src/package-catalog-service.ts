@@ -8,7 +8,7 @@ import type {
   PiPackageCatalogSearchValue,
   PiPackageResourceType,
 } from "@workbench/pi-protocol/rpc";
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 
 const PI_PACKAGE_CATALOG_URL = "https://pi.dev/packages";
 const PI_PACKAGE_CATALOG_PAGE_SIZE = 50;

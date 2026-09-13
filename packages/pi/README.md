@@ -308,7 +308,7 @@ HTTP `200` 只表示 RPC 载体成功完成。调用方必须继续检查 `resul
 客户端应使用 `error.code` 和 `error.details` 分支，不应依赖面向人的 `message`。RPC object
 会接受并剥离未知字段，以保持参考协议的兼容行为。
 
-浏览器可见的业务错误必须显式继承 `@workbench/server-core/rpc-domain-error` 的 `RpcDomainError`。
+浏览器可见的业务错误必须显式继承 `@workbench/api/errors` 的 `RpcDomainError`。
 共享投影器 `transport/rpc-domain-error-projector.ts` 只把带有该安全标记的错误转换为上述业务
 envelope；仅仅伪造同名 `code`、`details` 字段的普通异常不会被暴露。标记使用 HMR 稳定的
 `Symbol.for`，但自身不可枚举、不可序列化。领域 route 仍通过注入回调取得投影能力，因此不需要导入

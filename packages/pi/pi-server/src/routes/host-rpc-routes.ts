@@ -1,5 +1,6 @@
 import type { HostProtocol } from "../host/host-service";
-import { handleRpcPost, rpcObject, type RpcRouteGroup } from "@workbench/host-server/rpc";
+import { handleRpcPost, type RpcRouteGroup } from "@workbench/api/server";
+import { rpcObject } from "@workbench/api/validation";
 export interface HostRpcRoutesDependencies {
   readonly service: HostProtocol;
   readonly projectDomainError: (error: unknown) => never;

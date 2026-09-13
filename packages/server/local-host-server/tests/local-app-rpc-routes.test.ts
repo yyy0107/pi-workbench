@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { type ServerResponse } from "@workbench/host-contracts/rpc";
+import { type ServerResponse } from "@workbench/api/contracts";
 import type { LocalAppProtocol } from "../src/local-apps/service";
-import { rpcBusinessError } from "@workbench/host-server/rpc";
+import { rpcBusinessError } from "@workbench/api/errors";
 import { createLocalAppRpcRoutes } from "../src/local-app-rpc-routes";
 
 function rpcRequest(

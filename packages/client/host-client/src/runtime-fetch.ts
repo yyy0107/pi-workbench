@@ -1,5 +1,8 @@
 import { resolveRuntimeUrl } from "../lib/runtime-url";
-import type { RuntimeConnection } from "@workbench/host-contracts";
+import {
+  RUNTIME_CONNECTION_PROTOCOL_VERSION,
+  type RuntimeConnection,
+} from "@workbench/host-contracts";
 
 export type RuntimeFetchImplementation = (input: URL, init?: RequestInit) => Promise<Response>;
 
@@ -34,4 +37,25 @@ export function createRuntimeFetch(
     headers.set("Authorization", `Bearer ${connection.accessToken}`);
     return fetchImplementation(url, { ...init, headers });
   };
+}
+
+function browserSameOriginTransport(): RuntimeFetch | undefined {
+  const origin = (globalThis as typeof globalThis & { location?: { origin?: string } }).location
+    ?.origin;
+  if (typeof origin !== "string" || origin === "null") return undefined;
+
+  return createRuntimeFetch({
+    kind: "same-origin",
+    protocolVersion: RUNTIME_CONNECTION_PROTOCOL_VERSION,
+    httpOrigin: origin,
+  });
+}
+
+function defaultRuntimeFetch(path: string, init?: RequestInit): Promise<Response> {
+  const transport = browserSameOriginTransport();
+  return transport ? transport(path, init) : globalThis.fetch(path, init);
+}
+
+export function resolveRuntimeFetch(transport?: RuntimeFetch): RuntimeFetch {
+  return transport ?? defaultRuntimeFetch;
 }

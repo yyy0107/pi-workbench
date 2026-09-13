@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createPiRpcRouter } from "../../src/transport/rpc-router";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 test("dispatches injected route groups before the exceptional respond handler", async () => {
   const calls: string[] = [];

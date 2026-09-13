@@ -301,6 +301,59 @@ test("handles sidecar preflight and scrubs Bearer credentials before delegating 
   assert.equal(rebound.status, 403);
 });
 
+test("authenticates API requests before the delegated JSON parser runs", async (t) => {
+  let parseAttempts = 0;
+  const server = createWorkbenchHttpServer({
+    async requestHandler(request, response) {
+      parseAttempts += 1;
+      const chunks: Buffer[] = [];
+      for await (const chunk of request) chunks.push(Buffer.from(chunk));
+      try {
+        JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        response.statusCode = 204;
+        response.end();
+      } catch {
+        response.statusCode = 400;
+        response.end("Bad Request");
+      }
+    },
+    webSocketGateway: { handleUpgrade: () => false },
+    nonRuntimeUpgradeRelay: { emit: () => true },
+    upgradeRequiredPaths: UPGRADE_REQUIRED_PATHS,
+    desktopSidecarAuth: desktopSidecarAuth(),
+  });
+  t.after(() => server.close());
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const { port } = server.address() as AddressInfo;
+  const endpoint = `http://127.0.0.1:${port}/api/host.describe`;
+  const malformedJson = '{"incomplete":';
+
+  const unauthorized = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Origin: DESKTOP_RENDERER_ORIGIN,
+      "Content-Type": "application/json",
+    },
+    body: malformedJson,
+  });
+  assert.equal(unauthorized.status, 401);
+  assert.equal(parseAttempts, 0, "authentication must reject before delegated parsing");
+
+  const authorized = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Origin: DESKTOP_RENDERER_ORIGIN,
+      Authorization: "Bearer desktop-secret",
+      "Content-Type": "application/json",
+    },
+    body: malformedJson,
+  });
+  assert.equal(authorized.status, 400);
+  assert.equal(await authorized.text(), "Bad Request");
+  assert.equal(parseAttempts, 1, "authorized input must reach the delegated parser");
+});
+
 test("rejects untrusted Runtime upgrades without intercepting a non-Runtime upgrade", () => {
   const gatewayOrigins: Array<string | string[] | undefined> = [];
   const relayUrls: string[] = [];

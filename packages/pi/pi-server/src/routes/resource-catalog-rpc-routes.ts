@@ -9,15 +9,15 @@ import type {
 import type { CommandCatalogProtocol } from "@workbench/pi-resources-server/commands";
 import type { PromptCatalogProtocol } from "@workbench/pi-resources-server/prompts";
 import { resourceCatalogTarget, resourceListPayload } from "../transport/resource-rpc-validators";
+import { handleRpcPost } from "@workbench/api/server";
 import {
-  handleRpcPost,
   rpcObject,
   rpcString,
   rpcOptional,
   rpcBoolean,
   type RpcValidator,
-} from "@workbench/host-server/rpc";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+} from "@workbench/api/validation";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 export interface ResourceCatalogRpcRoutesDependencies {
   readonly commands: CommandCatalogProtocol;

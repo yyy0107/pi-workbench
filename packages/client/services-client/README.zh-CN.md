@@ -4,6 +4,8 @@
 
 设置、自动化、宿主和工作区服务的客户端 API。
 
+这些是建立在 `@workbench/api/client` 之上的可选领域 facade，继续负责服务专属 DTO 与错误映射，并接收或注入 Runtime transport；通用调用方应使用 `@workbench/api/client` 的 `callRpc`，显式传入 `resolveRuntimeFetch()` 或 `createRuntimeFetch(...)` 的 transport。
+
 `src/` 拥有能力实现、契约与装配；`lib/` 为内部辅助源码，包含 `lib/file-text.ts`。测试放在 `tests/`。能力和辅助源码保留 TS/TSX，既有构建工具维持原语言；两处源码目录均最多一级子目录。
 
 公开引用入口：`@workbench/services-client/settings`, `@workbench/services-client/automation`, `@workbench/services-client/host`, `@workbench/services-client/workspace`, `@workbench/services-client/errors`。跨包只使用显式 exports 与 `workspace:*` 依赖；不跨包引用内部源码。

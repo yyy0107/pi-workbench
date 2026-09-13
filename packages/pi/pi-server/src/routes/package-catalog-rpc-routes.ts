@@ -3,8 +3,8 @@ import {
   packageCatalogDescribePayload,
   packageCatalogSearchPayload,
 } from "../transport/package-rpc-validators";
-import { handleRpcPost } from "@workbench/host-server/rpc";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+import { handleRpcPost } from "@workbench/api/server";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 export interface PackageCatalogRpcRoutesDependencies {
   readonly service: PackageCatalogProtocol;

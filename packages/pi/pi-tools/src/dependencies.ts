@@ -5,7 +5,7 @@ import type {
   AgentSettingsProtocol,
   AgentSettingsUpdateRequest,
 } from "@workbench/pi-resources-server/settings";
-import type { RpcValidator } from "@workbench/host-server/rpc";
+import type { RpcValidator } from "@workbench/api/validation";
 export interface WorkbenchToolDependencies {
   getHostBindings(): PiAgentHostBindings;
   getSessionContextTrace(sessionId: string): PiToolContextTrace | undefined;

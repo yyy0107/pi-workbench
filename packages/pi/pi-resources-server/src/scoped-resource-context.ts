@@ -6,7 +6,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 
 import type { PiResourceCatalogTarget } from "@workbench/pi-protocol/rpc";
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 import { getProjectTrustService } from "./project-trust-service";
 import { withWorkbenchBuiltinSkills } from "./builtin-skills";
 import { requireSkillOptIn } from "../lib/skill-enablement";

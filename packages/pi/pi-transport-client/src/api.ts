@@ -1,9 +1,6 @@
-import {
-  callRpc,
-  resolveRuntimeFetch as resolvePiHttpTransport,
-  RpcClientError,
-} from "@workbench/host-client/rpc";
-export { createRpcId as createPiRpcId } from "@workbench/host-client/rpc";
+import { resolveRuntimeFetch as resolvePiHttpTransport } from "@workbench/host-client/runtime-fetch";
+import { callRpc, RpcClientError } from "@workbench/api/client";
+export { createRpcId as createPiRpcId } from "@workbench/api/client";
 import type { PiApiErrorBody, PiQueuedPrompt } from "@workbench/pi-protocol/messages";
 import {
   createRuntimeFetch,
@@ -218,7 +215,10 @@ export async function callPiRpc<Payload, Value>(
   options: PiRpcCallOptions = {},
 ): Promise<Value> {
   try {
-    return await callRpc<Payload, Value>(method, payload, options);
+    return await callRpc<Payload, Value>(method, payload, {
+      ...options,
+      transport: resolvePiHttpTransport(options.transport),
+    });
   } catch (error) {
     if (error instanceof RpcClientError) {
       const code =

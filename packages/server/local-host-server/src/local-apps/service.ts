@@ -6,7 +6,7 @@ import {
   type WorkbenchLocalAppOpenResult as LocalAppOpenValue,
   type WorkbenchLocalAppsListResult as LocalAppsListValue,
 } from "@workbench/host-contracts/runtime-capabilities";
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 import { detectInstalledApps } from "./detectors";
 import { launchLocalApp } from "./launchers";
 import { localAppView } from "./types";

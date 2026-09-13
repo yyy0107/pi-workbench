@@ -17,7 +17,7 @@ import type {
   WorkbenchWorkspaceGitStatus as WorkspaceGitStatus,
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 import { callServiceRpc, capabilityCall } from "./errors";
-import type { RpcCallOptions } from "@workbench/host-client/rpc";
+import type { RpcCallOptions } from "./errors";
 import { fetchFileContent, streamFileText, type StreamFileTextOptions } from "./file-content";
 
 export function listWorkspaceFiles(

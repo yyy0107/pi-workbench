@@ -11,7 +11,7 @@ import {
   type AgentCommandCatalogPort,
   type AgentCommandCatalogTarget,
 } from "@workbench/agent-runtime-server/commands";
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 import { PI_COMPOSER_BUILTIN_COMMANDS } from "./pi-composer-command-catalog";
 
 interface RegisteredExtensionCommand {

@@ -6,7 +6,7 @@ import type {
   WorkbenchLocalAppOpenResult as LocalAppOpenValue,
 } from "@workbench/host-contracts/runtime-capabilities";
 import { callServiceRpc, capabilityCall } from "./errors";
-import type { RpcCallOptions } from "@workbench/host-client/rpc";
+import type { RpcCallOptions } from "./errors";
 import { fetchFileContent, streamFileText } from "./file-content";
 
 export function localFileContentUrl(path: string): string {

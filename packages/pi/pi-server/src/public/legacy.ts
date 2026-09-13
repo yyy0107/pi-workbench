@@ -4,7 +4,7 @@ export {
   InlineImageAdmissionError,
 } from "@workbench/pi-session-server/inline-image-admission";
 export { piErrorResponse } from "../transport/responses";
-export { readTrustedJsonPost } from "@workbench/host-server/rpc";
+export { readTrustedJsonPost } from "@workbench/api/server";
 export { RPC_REQUEST_BODY_LIMITS } from "../transport/rpc-request-budgets";
 export {
   migrateLegacyWorkbenchMessageTerminationExtension,

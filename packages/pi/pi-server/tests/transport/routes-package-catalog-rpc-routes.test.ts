@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { RpcIssue, ServerResponse } from "@workbench/pi-protocol/rpc";
 import type { PackageCatalogProtocol } from "@workbench/pi-resources-server/catalog";
-import { rpcBusinessError } from "@workbench/host-server/rpc";
+import { rpcBusinessError } from "@workbench/api/errors";
 import { createPackageCatalogRpcRoutes } from "../../src/routes/package-catalog-rpc-routes";
 
 function rpcRequest(

@@ -10,7 +10,7 @@ import type {
   ProjectTrustDescribeValue,
   ProjectTrustUpdatePayload,
 } from "@workbench/pi-protocol/rpc";
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 import { validateWorkspace } from "../lib/workspace-paths";
 
 export interface ProjectTrustServiceErrorDetails {

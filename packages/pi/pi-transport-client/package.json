@@ -14,6 +14,7 @@
     "test": "node ../../../scripts/run-typescript-tests.mjs --package"
   },
   "dependencies": {
+    "@workbench/api": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
     "@workbench/host-client": "workspace:*",
     "@workbench/pi-conversation": "workspace:*",

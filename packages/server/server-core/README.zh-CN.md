@@ -6,7 +6,7 @@
 
 `src/` 拥有能力实现、契约与装配；`lib/` 为内部辅助源码，包含 `lib/child-process-environment.ts`。测试放在 `tests/`。能力和辅助源码保留 TS/TSX，既有构建工具维持原语言；两处源码目录均最多一级子目录。
 
-公开引用入口：`@workbench/server-core/child-process-environment`, `@workbench/server-core/file-persistence`, `@workbench/server-core/rpc-domain-error`, `@workbench/server-core/request-guard`, `@workbench/server-core/request-trust`, `@workbench/server-core/shutdown-hooks`, `@workbench/server-core/workbench-settings-file`。跨包只使用显式 exports 与 `workspace:*` 依赖；不跨包引用内部源码。
+公开引用入口：`@workbench/server-core/child-process-environment`、`@workbench/server-core/file-persistence`、`@workbench/server-core/request-guard`、`@workbench/server-core/request-trust`、`@workbench/server-core/shutdown-hooks` 和 `@workbench/server-core/workbench-settings-file`。RPC 领域错误的公共品牌与构造现在位于 `@workbench/api/errors`；本包不再提供 RPC transport/server 入口。跨包只使用显式 exports 与 `workspace:*` 依赖；不跨包引用内部源码。
 
 ```bash
 pnpm --filter @workbench/server-core typecheck

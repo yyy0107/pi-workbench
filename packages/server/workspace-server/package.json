@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "@workbench/agent-runtime-contracts": "workspace:*",
-    "@workbench/host-server": "workspace:*",
+    "@workbench/api": "workspace:*",
     "@workbench/server-core": "workspace:*",
     "mime": "4.1.0"
   },

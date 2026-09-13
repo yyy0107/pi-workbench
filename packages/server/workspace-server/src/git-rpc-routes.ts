@@ -6,9 +6,9 @@ import {
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
 import type { WorkspaceGitProtocol } from "./git";
+import { handleRpcPost } from "@workbench/api/server";
+import { rpcBusinessError } from "@workbench/api/errors";
 import {
-  handleRpcPost,
-  rpcBusinessError,
   rpcObject,
   rpcOptional,
   rpcNumber,
@@ -16,8 +16,8 @@ import {
   rpcEnum,
   rpcBoolean,
   type RpcValidator,
-} from "@workbench/host-server/rpc";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+} from "@workbench/api/validation";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 export interface WorkspaceGitRpcRoutesDependencies {
   readonly service: WorkspaceGitProtocol;

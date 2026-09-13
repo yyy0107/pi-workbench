@@ -43,3 +43,17 @@ test("directory picking forwards per-call cancellation through the installed tra
   ]);
   assert.equal(installedController.signal.aborted, false);
 });
+
+test("facade calls without options keep the Host default carrier", async (t) => {
+  const { pickHostDirectory } = await import("../src/host");
+  t.mock.method(globalThis, "fetch", async (input: string | URL, init?: RequestInit) => {
+    assert.equal(String(input), "/api/host.pickDirectory");
+    const body = JSON.parse(String(init?.body));
+    return Response.json({
+      type: "server-response",
+      rpcId: body.rpcId,
+      result: { ok: true, value: { path: "/default-project" } },
+    });
+  });
+  assert.equal(await pickHostDirectory(), "/default-project");
+});

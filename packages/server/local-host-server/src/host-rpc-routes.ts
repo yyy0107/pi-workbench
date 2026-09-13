@@ -1,12 +1,8 @@
 import type { LocalHostProtocol as HostProtocol } from "./service";
-import {
-  handleRpcPost,
-  rpcBusinessError,
-  rpcObject,
-  rpcOptional,
-  rpcString,
-} from "@workbench/host-server/rpc";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+import { handleRpcPost } from "@workbench/api/server";
+import { rpcBusinessError } from "@workbench/api/errors";
+import { rpcObject, rpcOptional, rpcString } from "@workbench/api/validation";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 export interface HostRpcRoutesDependencies {
   readonly service: HostProtocol;

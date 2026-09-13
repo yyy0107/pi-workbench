@@ -1,12 +1,11 @@
+import { handleRpcPost, type RpcRouteGroup } from "@workbench/api/server";
 import {
-  handleRpcPost,
   rpcObject,
   rpcOptional,
   rpcBoolean,
   rpcRefine,
   rpcString,
-  type RpcRouteGroup,
-} from "@workbench/host-server/rpc";
+} from "@workbench/api/validation";
 import type { UsageStatisticsReader } from "@workbench/pi-session-server/usage";
 
 const payload = rpcObject({

@@ -1,4 +1,4 @@
-import { RpcClientError } from "@workbench/host-client/rpc";
+import { RpcClientError } from "@workbench/api/client";
 
 export function contentLength(response: Response): number | undefined {
   const header = response.headers.get("content-length");

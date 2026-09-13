@@ -33,6 +33,7 @@
   "dependencies": {
     "@earendil-works/pi-ai": "0.85.1",
     "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/api": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
     "@workbench/core-contracts": "workspace:*",
     "@workbench/host-contracts": "workspace:*"

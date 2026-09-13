@@ -4,8 +4,8 @@ import test from "node:test";
 import { SUPPORTED_LOCALES, type Locale } from "@workbench/core-contracts/locale";
 import { BUILTIN_EXTENSION_PREFERENCE_KEYS } from "@workbench/agent-runtime-contracts/settings";
 import type { WorkbenchSettingsProtocol } from "@workbench/agent-runtime-contracts/settings";
-import { type ServerResponse } from "@workbench/host-contracts/rpc";
-import { rpcBusinessError } from "@workbench/host-server/rpc";
+import { type ServerResponse } from "@workbench/api/contracts";
+import { rpcBusinessError } from "@workbench/api/errors";
 import { createWorkbenchSettingsRpcRoutes } from "../src/rpc";
 
 function rpcRequest(

@@ -1,4 +1,4 @@
-import { rpcBoolean, rpcInteger, rpcObject, rpcOptional } from "@workbench/host-server/rpc";
+import { rpcBoolean, rpcInteger, rpcObject, rpcOptional } from "@workbench/api/validation";
 
 export const compactionSettingsPatch = rpcObject({
   enabled: rpcOptional(rpcBoolean),

@@ -1,0 +1,28 @@
+[
+  {
+    "root": "apps/web/.next/static/chunks",
+    "javascriptFiles": 283,
+    "serverMarkers": [
+      "PI_WORKBENCH_TRUSTED_HOSTS",
+      "Invalid RPC request",
+      "Expected a client request object",
+      "maxRequestBodyBytes must be a positive safe integer",
+      "workbench.rpc-domain-error.v1",
+      "workbench.pi.rpc-domain-error.v1"
+    ],
+    "hits": []
+  },
+  {
+    "root": ".desktop-build/desktop-renderer/_next/static/chunks",
+    "javascriptFiles": 280,
+    "serverMarkers": [
+      "PI_WORKBENCH_TRUSTED_HOSTS",
+      "Invalid RPC request",
+      "Expected a client request object",
+      "maxRequestBodyBytes must be a positive safe integer",
+      "workbench.rpc-domain-error.v1",
+      "workbench.pi.rpc-domain-error.v1"
+    ],
+    "hits": []
+  }
+]

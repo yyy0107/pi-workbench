@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { dispatchRpcRouteGroups, type RpcRouteGroup } from "@workbench/host-server/rpc";
+import { dispatchRpcRouteGroups, type RpcRouteGroup } from "@workbench/api/server";
 
 const request = new Request("http://127.0.0.1:3000/api/example");
 

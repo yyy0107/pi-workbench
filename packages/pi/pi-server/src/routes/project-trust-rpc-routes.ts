@@ -1,16 +1,11 @@
 import type { ProjectTrustProtocol } from "@workbench/pi-resources-server/trust";
-import {
-  handleRpcPost,
-  rpcBoolean,
-  rpcObject,
-  rpcString,
-  type RpcValidator,
-} from "@workbench/host-server/rpc";
+import { handleRpcPost } from "@workbench/api/server";
+import { rpcBoolean, rpcObject, rpcString, type RpcValidator } from "@workbench/api/validation";
 import type {
   ProjectTrustDescribePayload,
   ProjectTrustUpdatePayload,
 } from "@workbench/pi-protocol/rpc";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 export interface ProjectTrustRpcRoutesDependencies {
   readonly getService: () => ProjectTrustProtocol;

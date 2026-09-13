@@ -5,7 +5,7 @@ import applicationPackage from "../../package.json" with { type: "json" };
 import { createRuntimeHttpRouter } from "./runtime-http-router";
 import { createWorkbenchSettingsRpcRoutes } from "@workbench/settings-server/rpc";
 import { createAutomationRpcRoutes } from "@workbench/automation-server/rpc";
-import { projectRpcDomainError } from "@workbench/host-server/rpc";
+import { projectRpcDomainError } from "@workbench/api/server";
 import { localHostService } from "@workbench/local-host-server/service";
 import { LocalAppService } from "@workbench/local-host-server/applications";
 import {

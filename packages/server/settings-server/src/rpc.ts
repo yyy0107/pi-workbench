@@ -2,9 +2,9 @@ export const RPC_REQUEST_BODY_LIMITS = Object.freeze({ workbenchSettingsUpdate: 
 import { SUPPORTED_LOCALES } from "@workbench/core-contracts/locale";
 import { type WorkbenchSettingsUpdate as WorkbenchSettingsUpdatePayload } from "@workbench/agent-runtime-contracts/settings";
 import type { WorkbenchSettingsProtocol } from "@workbench/agent-runtime-contracts/settings";
+import { handleRpcPost } from "@workbench/api/server";
+import { rpcBusinessError } from "@workbench/api/errors";
 import {
-  handleRpcPost,
-  rpcBusinessError,
   rpcArray,
   rpcBoolean,
   rpcEnum,
@@ -17,8 +17,8 @@ import {
   rpcUnion,
   rpcUnknown,
   type RpcValidator,
-} from "@workbench/host-server/rpc";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+} from "@workbench/api/validation";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 export interface WorkbenchSettingsRpcRoutesDependencies {
   readonly getService: () => WorkbenchSettingsProtocol;

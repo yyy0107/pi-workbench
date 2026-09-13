@@ -29,7 +29,7 @@ import {
   atomicReplaceFile,
   withCrossProcessFileLock,
 } from "@workbench/server-core/file-persistence";
-import { RpcDomainError, isRpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError, isRpcDomainError } from "@workbench/api/errors";
 import { expandPromptTemplateContent } from "./prompt-template-expander";
 import { clonePackageSource, pathWithin, withResourceEnabled } from "../lib/resource-mutations";
 import {

@@ -205,6 +205,9 @@ importers:
       '@workbench/agent-runtime-server':
         specifier: workspace:*
         version: link:../../packages/agent-runtime/agent-runtime-server
+      '@workbench/api':
+        specifier: workspace:*
+        version: link:../../packages/transport/api
       '@workbench/automation-server':
         specifier: workspace:*
         version: link:../../packages/server/automation-server
@@ -816,6 +819,9 @@ importers:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../agent-runtime/agent-runtime-contracts
+      '@workbench/api':
+        specifier: workspace:*
+        version: link:../../transport/api
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../contracts/automation-contracts
@@ -2779,6 +2785,9 @@ importers:
       '@workbench/agent-runtime-core':
         specifier: workspace:*
         version: link:../../agent-runtime/agent-runtime-core
+      '@workbench/api':
+        specifier: workspace:*
+        version: link:../../transport/api
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../contracts/automation-contracts
@@ -2992,6 +3001,9 @@ importers:
       '@earendil-works/pi-coding-agent':
         specifier: 0.85.1
         version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
+      '@workbench/api':
+        specifier: workspace:*
+        version: link:../../transport/api
       '@workbench/pi-protocol':
         specifier: workspace:*
         version: link:../pi-protocol
@@ -3026,6 +3038,9 @@ importers:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../agent-runtime/agent-runtime-contracts
+      '@workbench/api':
+        specifier: workspace:*
+        version: link:../../transport/api
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../contracts/automation-contracts
@@ -3054,6 +3069,9 @@ importers:
       '@workbench/agent-runtime-server':
         specifier: workspace:*
         version: link:../../agent-runtime/agent-runtime-server
+      '@workbench/api':
+        specifier: workspace:*
+        version: link:../../transport/api
       '@workbench/core-contracts':
         specifier: workspace:*
         version: link:../../contracts/core-contracts
@@ -3106,6 +3124,9 @@ importers:
       '@workbench/agent-runtime-server':
         specifier: workspace:*
         version: link:../../agent-runtime/agent-runtime-server
+      '@workbench/api':
+        specifier: workspace:*
+        version: link:../../transport/api
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../contracts/automation-contracts
@@ -3115,9 +3136,6 @@ importers:
       '@workbench/core-contracts':
         specifier: workspace:*
         version: link:../../contracts/core-contracts
-      '@workbench/host-server':
-        specifier: workspace:*
-        version: link:../../host/host-server
       '@workbench/local-host-server':
         specifier: workspace:*
         version: link:../../server/local-host-server
@@ -3219,15 +3237,15 @@ importers:
       '@workbench/agent-runtime-server':
         specifier: workspace:*
         version: link:../../agent-runtime/agent-runtime-server
+      '@workbench/api':
+        specifier: workspace:*
+        version: link:../../transport/api
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../contracts/automation-contracts
       '@workbench/core-contracts':
         specifier: workspace:*
         version: link:../../contracts/core-contracts
-      '@workbench/host-server':
-        specifier: workspace:*
-        version: link:../../host/host-server
       '@workbench/pi-model-server':
         specifier: workspace:*
         version: link:../pi-model-server
@@ -3299,9 +3317,9 @@ importers:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../agent-runtime/agent-runtime-contracts
-      '@workbench/host-server':
+      '@workbench/api':
         specifier: workspace:*
-        version: link:../../host/host-server
+        version: link:../../transport/api
       '@workbench/pi-protocol':
         specifier: workspace:*
         version: link:../pi-protocol
@@ -3336,6 +3354,9 @@ importers:
 
   packages/pi/pi-transport-client:
     dependencies:
+      '@workbench/api':
+        specifier: workspace:*
+        version: link:../../transport/api
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../contracts/automation-contracts
@@ -3745,12 +3766,12 @@ importers:
 
   packages/server/automation-server:
     dependencies:
+      '@workbench/api':
+        specifier: workspace:*
+        version: link:../../transport/api
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../contracts/automation-contracts
-      '@workbench/host-server':
-        specifier: workspace:*
-        version: link:../../host/host-server
       '@workbench/server-core':
         specifier: workspace:*
         version: link:../server-core
@@ -3764,6 +3785,9 @@ importers:
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../client/host-contracts
+      '@workbench/host-server':
+        specifier: workspace:*
+        version: link:../../host/host-server
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -3786,12 +3810,12 @@ importers:
 
   packages/server/local-host-server:
     dependencies:
+      '@workbench/api':
+        specifier: workspace:*
+        version: link:../../transport/api
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../client/host-contracts
-      '@workbench/host-server':
-        specifier: workspace:*
-        version: link:../../host/host-server
       '@workbench/server-core':
         specifier: workspace:*
         version: link:../server-core
@@ -3817,12 +3841,12 @@ importers:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../agent-runtime/agent-runtime-contracts
+      '@workbench/api':
+        specifier: workspace:*
+        version: link:../../transport/api
       '@workbench/core-contracts':
         specifier: workspace:*
         version: link:../../contracts/core-contracts
-      '@workbench/host-server':
-        specifier: workspace:*
-        version: link:../../host/host-server
       '@workbench/server-core':
         specifier: workspace:*
         version: link:../server-core
@@ -3833,6 +3857,9 @@ importers:
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../client/host-contracts
+      '@workbench/host-server':
+        specifier: workspace:*
+        version: link:../../host/host-server
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -3842,9 +3869,9 @@ importers:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../agent-runtime/agent-runtime-contracts
-      '@workbench/host-server':
+      '@workbench/api':
         specifier: workspace:*
-        version: link:../../host/host-server
+        version: link:../../transport/api
       '@workbench/server-core':
         specifier: workspace:*
         version: link:../server-core
@@ -3938,6 +3965,19 @@ importers:
         version: 7.0.2
 
   packages/test-support/ui-testkit:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/transport/api:
+    dependencies:
+      '@workbench/server-core':
+        specifier: workspace:*
+        version: link:../../server/server-core
     devDependencies:
       '@types/node':
         specifier: ^26.2.0

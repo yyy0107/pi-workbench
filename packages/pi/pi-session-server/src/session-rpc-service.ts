@@ -62,7 +62,7 @@ import {
   type AgentThreadStorePort,
   type AgentThreadSummary,
 } from "@workbench/agent-runtime-server/threads";
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 import {
   PiSessionHistoryServiceError,
   type PiSessionHistoryService,

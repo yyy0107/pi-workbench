@@ -3,15 +3,10 @@ import type {
   UpdateModelContextWindowPayload,
 } from "@workbench/pi-protocol/rpc";
 import type { ModelContextWindowProtocol } from "@workbench/pi-model-server";
-import {
-  handleRpcPost,
-  rpcBusinessError,
-  rpcInteger,
-  rpcObject,
-  rpcString,
-  type RpcValidator,
-} from "@workbench/host-server/rpc";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+import { handleRpcPost } from "@workbench/api/server";
+import { rpcBusinessError } from "@workbench/api/errors";
+import { rpcInteger, rpcObject, rpcString, type RpcValidator } from "@workbench/api/validation";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 export interface ModelContextWindowRpcRoutesDependencies {
   readonly service: ModelContextWindowProtocol;

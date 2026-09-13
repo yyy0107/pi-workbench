@@ -16,7 +16,7 @@ import {
   atomicReplaceFile,
   withCrossProcessFileLock,
 } from "@workbench/server-core/file-persistence";
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 import {
   nextWorkbenchSettingsDocument,
   readWorkbenchSettingsDocument,

@@ -1,0 +1,419 @@
+{
+  "kind": "planning-baseline",
+  "scope": "generic RPC sources and current import consumers; not an implementation checklist",
+  "files": [
+    {
+      "path": "apps/runtime-node/src/composition/installed-pi-server.ts",
+      "sha256": "910e1463841e3ae5e706fcd1ce3694c0777e23c8c3608fd36519d681c35c1d66"
+    },
+    {
+      "path": "apps/runtime-node/src/terminal-shell-rpc.ts",
+      "sha256": "5aed9d262be225c08236d62ccfaf4264375181becd26d3c282307ddd6f8b75b5"
+    },
+    {
+      "path": "apps/runtime-node/test/installed-pi-server-rpc.test.ts",
+      "sha256": "782d157e50b308f091859a14a16dde2413f2e3b5a2a2612a6f1e503690499457"
+    },
+    {
+      "path": "packages/client/host-client/README.md",
+      "sha256": "62cc261a2a7878be4d05015f6db048f2a8d233a10335d879351704ca621a0eb3"
+    },
+    {
+      "path": "packages/client/host-client/README.zh-CN.md",
+      "sha256": "acecf3bcccb592a6b0c652e87d8198bc60d89728f46decd2616565fa8495ea49"
+    },
+    {
+      "path": "packages/client/host-client/src/rpc.ts",
+      "sha256": "f71ab797714b4862a3d3ed0e121dbbd4cf5bc33ee1580c5f56b39e91bf935bd6"
+    },
+    {
+      "path": "packages/client/host-client/src/runtime-fetch.ts",
+      "sha256": "9f1a0cba089d3ce8188ba6f31e70c42554fbcfc986fddbf423c7f1f798082f0f"
+    },
+    {
+      "path": "packages/client/host-contracts/README.md",
+      "sha256": "a6b366f754c88a78996c4a12c3bee3727f4552fa501b68d20311efac361e9f87"
+    },
+    {
+      "path": "packages/client/host-contracts/README.zh-CN.md",
+      "sha256": "0a0a874c80d6e7bce1aa9b867bc9b3453338f9197df80644e5dca6bebcb482d5"
+    },
+    {
+      "path": "packages/client/host-contracts/src/rpc.ts",
+      "sha256": "ee42bf6d99068f0ed39d6e3c9ac3a1753546d72bc83623ff9451dfba2623c7c5"
+    },
+    {
+      "path": "packages/client/services-client/lib/file-text.ts",
+      "sha256": "5a6f0acebefd7febd1afe503a447e61ef9fc72898515d3633c0fb220130a57d1"
+    },
+    {
+      "path": "packages/client/services-client/src/automation.ts",
+      "sha256": "d42b95fdbb4be1c32c583a3a9f9dde3a9bed5f393583dd025ba0250bffb8a9b2"
+    },
+    {
+      "path": "packages/client/services-client/src/errors.ts",
+      "sha256": "6fb1c6c420a42b38ce05b51e95d16f3a1b5fc3c92a649f9391b2d7caa6607295"
+    },
+    {
+      "path": "packages/client/services-client/src/file-content.ts",
+      "sha256": "ea1b71131332552a544db89287724b49adefbac1a957caaffedd6771c69f2802"
+    },
+    {
+      "path": "packages/client/services-client/src/host.ts",
+      "sha256": "b342b15bc71caca6b1511a0e2a33e8807e39381e8ecb2cbb1e0dc98861ce1532"
+    },
+    {
+      "path": "packages/client/services-client/src/settings.ts",
+      "sha256": "b9a2aadc0965186512da493d567d0545307996c095c4a67148767e76dac880e3"
+    },
+    {
+      "path": "packages/client/services-client/src/workspace.ts",
+      "sha256": "fd4621666bd4e30974659a72eef70b1af7d19095cc5742bbcdf0450753aa1990"
+    },
+    {
+      "path": "packages/host/host-server/README.zh-CN.md",
+      "sha256": "b372c5cb8961b4824596345ee69a9262f728401654bcc2b2fe033a8b896691f5"
+    },
+    {
+      "path": "packages/host/host-server/src/rpc.ts",
+      "sha256": "6dd4aad18f4341bb5e68f757c8a2d0e116d4fc68711b34e4ccbe616211d06103"
+    },
+    {
+      "path": "packages/host/host-server/tests/rpc-route-group.test.ts",
+      "sha256": "a18284ef766568d86becf86b757edfa3c8a5ae326b71f669c9bdb5e0edf41e12"
+    },
+    {
+      "path": "packages/host/host-server/tests/rpc.test.ts",
+      "sha256": "403bd40ef76cb6af95b7d249b51d700a5d8dbd8319c64fc5858142fdae69c69e"
+    },
+    {
+      "path": "packages/pi/README.md",
+      "sha256": "697c6233af616850ed5259c74a74ffff015146f14947c6a10bea181e11cb387d"
+    },
+    {
+      "path": "packages/pi/pi-client/src/integration/capabilities.ts",
+      "sha256": "75be03ba8dcb957fe18f8276fc6037cc32316a83de02f3d605b6e9e91cd4d1a5"
+    },
+    {
+      "path": "packages/pi/pi-client/tests/integration/services-fixture.ts",
+      "sha256": "cdb57fb094d0aee00b1c2f9ecae1d2c931746c8d74164219ea0a7dd81ad1974b"
+    },
+    {
+      "path": "packages/pi/pi-model-server/src/model-service.ts",
+      "sha256": "52ab68b788defe0d5af9cdbc4a69955f1ab6baaee06a234725ee3fb8a2e55845"
+    },
+    {
+      "path": "packages/pi/pi-protocol/src/rpc.ts",
+      "sha256": "0e753c81d2fd6cd7c1a7ff5b814721b789b1e23229268d35da08240727233c1e"
+    },
+    {
+      "path": "packages/pi/pi-resources-server/src/agent-settings-service.ts",
+      "sha256": "f81e9673e887620f1cbe0c1876b6cec8a723d07d521eb4e9b44b427f4be45ee2"
+    },
+    {
+      "path": "packages/pi/pi-resources-server/src/command-service.ts",
+      "sha256": "72cc402a1958c59d6f59a6ccff8c02b5cb746bb0bb3b9e6b3ebe8fe06548f7a4"
+    },
+    {
+      "path": "packages/pi/pi-resources-server/src/extension-service.ts",
+      "sha256": "4f5e25c2a9fa73c0ae99c0c56d30de3683fe517533f8e544777b0f346599a3c9"
+    },
+    {
+      "path": "packages/pi/pi-resources-server/src/installed-package-service.ts",
+      "sha256": "a61372404c15f893bffe5e0172f329a2612f811be4aba205dc21e5b727248721"
+    },
+    {
+      "path": "packages/pi/pi-resources-server/src/package-catalog-service.ts",
+      "sha256": "192fbb226b5c69eda9ab34b9e6e8db5275590bcc811957b8a3ce44678c89f239"
+    },
+    {
+      "path": "packages/pi/pi-resources-server/src/project-trust-service.ts",
+      "sha256": "f74baa16e0650be9cc629db5dc0761aaec3a961b288d5064715a92f95ff11866"
+    },
+    {
+      "path": "packages/pi/pi-resources-server/src/prompt-service.ts",
+      "sha256": "54dbea9c7e8c310986a28a50a91eaa381d007edea72e3d78deb9401b794ac988"
+    },
+    {
+      "path": "packages/pi/pi-resources-server/src/scoped-resource-context.ts",
+      "sha256": "314836ac3c720f54241733eb715d0e4a4d7ffb0b3ee43b3796b4101bc4d17173"
+    },
+    {
+      "path": "packages/pi/pi-resources-server/src/skill-service.ts",
+      "sha256": "f01243768298d2955b31813e5596329434130e52d6014c99fb06e11777280490"
+    },
+    {
+      "path": "packages/pi/pi-resources-server/src/workspace-protocol-service.ts",
+      "sha256": "a58a9507a987807afdcd4f0e03d55f8b39e6044e0127085c739fca2034ac1651"
+    },
+    {
+      "path": "packages/pi/pi-resources-server/src/workspace-store.ts",
+      "sha256": "bf020e737ee0e38ad375dfc48db40947d01fe93792935e5cad11a4e2755a43a6"
+    },
+    {
+      "path": "packages/pi/pi-server/lib/compaction-rpc-validator.ts",
+      "sha256": "af0adbf2209f1f598ca93fbaba9d613c7e2182341d86dd756ba09244fa4ac393"
+    },
+    {
+      "path": "packages/pi/pi-server/src/public/legacy.ts",
+      "sha256": "11665280535ca58a9e451dd600bad11dd509f8d59fdbb1faf3c30322391398da"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/agent-settings-rpc-routes.ts",
+      "sha256": "1bdf8962f9ec18e2226aa224702f17d6f0a31e4e203a06fe52abac45c8ecd21e"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/composer-attachment-rpc-routes.ts",
+      "sha256": "68195e68479022c66500fa656dcd04a84ee52a6f5feadc395898e609953f8504"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/extension-rpc-routes.ts",
+      "sha256": "06c28aef58e6a36c94b08d587a2a71df8d7d7350ffd08047f5a390f637338568"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/external-session-import-rpc-routes.ts",
+      "sha256": "782b86821c517753ac21bda5426f63c12583cca678d5fa80c25a0b2b7bc499af"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/host-rpc-routes.ts",
+      "sha256": "5282aedbf555f09eb8401329e4e0b31ebd8ef4dc437b1d5721c96db1c66fa579"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/installed-package-rpc-routes.ts",
+      "sha256": "06877303a0218ab33f44e33071252ca4ac7a689560631a99bf6cc998b1faf4aa"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/model-context-window-rpc-routes.ts",
+      "sha256": "d7000ae946b51b04d80200707bd931a48f6acd6da66f994a700610c2f0e9e932"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/model-provider-rpc-routes.ts",
+      "sha256": "6b3f92797b493e1d17681ead36e3c7e2587cb2386367484ea8caeb2dcc7ea4cf"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/package-catalog-rpc-routes.ts",
+      "sha256": "4e7dae2b3a7ddb20a1ea1b5b219b08139167d84b796e33be1b05ea820295a38a"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/project-trust-rpc-routes.ts",
+      "sha256": "79f0ba374fd56dd278580d15348097134c527cbe15cbd96b12f4b4134174689c"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/resource-catalog-rpc-routes.ts",
+      "sha256": "cb27109dbbab82929f389345d3a367508cabb94ef76b0d96fbb317f4fe4da36e"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/session-context-trace-rpc-routes.ts",
+      "sha256": "8f7a61ececf3a56ae9e6a453cd5ba6028b302bf9e8d3099ff057b6505b6a1ed2"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/session-rpc-routes.ts",
+      "sha256": "667cde8e7311488ab73a9d52ba79fa206fed2e8606846afecac998fd8ff9be22"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/skill-rpc-routes.ts",
+      "sha256": "436c350b111752fbfa116c6ce904676ca80e2f6eba480ee76dbd670683bad401"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/usage-statistics-rpc-routes.ts",
+      "sha256": "06f684b13fed36ead870be43a4f91be4a6f4fc755d14364d924920ecd3d6327a"
+    },
+    {
+      "path": "packages/pi/pi-server/src/routes/workspace-rpc-routes.ts",
+      "sha256": "86d70755bb1d11a3aef6361da4dcd359c03b218de055a21ce00ffb2661b13367"
+    },
+    {
+      "path": "packages/pi/pi-server/src/transport/agent-settings-rpc-validators.ts",
+      "sha256": "de659de533b0570a535cf8c9afe1913e7b43883fdc1aeb4dc0c07f78ef1033a2"
+    },
+    {
+      "path": "packages/pi/pi-server/src/transport/package-rpc-validators.ts",
+      "sha256": "468c401aa11597e244cc9f4d75279264b3ef77c9b937c73ff846a7d1bf96185e"
+    },
+    {
+      "path": "packages/pi/pi-server/src/transport/resource-rpc-validators.ts",
+      "sha256": "97ad55f8dda27d4068118da7b7de35e22f16590f7f0a2fc0c0e41850f212f5d2"
+    },
+    {
+      "path": "packages/pi/pi-server/src/transport/rpc-route-composition.ts",
+      "sha256": "a676234e1f2228f136e51f138e8256f84c10eea0f106a4ec95475588a759096d"
+    },
+    {
+      "path": "packages/pi/pi-server/src/transport/rpc-router.ts",
+      "sha256": "407749463af5eedbfa5290523455e772eb0ef410a69e65f0a76b5d8ca4a8d7d8"
+    },
+    {
+      "path": "packages/pi/pi-server/src/transport/runtime-http-router.ts",
+      "sha256": "2875ce3361272745d9e22c121798de29528d23d1951bcc4f0cc6327287746ce9"
+    },
+    {
+      "path": "packages/pi/pi-server/tests/transport/routes-agent-settings-rpc-routes.test.ts",
+      "sha256": "ab19d8b9550921fe38790d286e8eddce03baa1ec21b2e28099d169d98097c479"
+    },
+    {
+      "path": "packages/pi/pi-server/tests/transport/routes-extension-rpc-routes.test.ts",
+      "sha256": "cb6a2f492dc8ceebf14984a9773d1c182812d8715b51b28a2f35ff9ecc8a3f75"
+    },
+    {
+      "path": "packages/pi/pi-server/tests/transport/routes-installed-package-rpc-routes.test.ts",
+      "sha256": "1ba8000b1cd45a74e3e8e5346a37eba2223ba3788541820ed2aa038a87b43b02"
+    },
+    {
+      "path": "packages/pi/pi-server/tests/transport/routes-model-context-window-rpc-routes.test.ts",
+      "sha256": "dbd03b61a166eb1bd9fa021433b41a3ec40aaa47d83d9c7e6382297db06b7fcf"
+    },
+    {
+      "path": "packages/pi/pi-server/tests/transport/routes-model-provider-rpc-routes.test.ts",
+      "sha256": "05609f44c37c2807e709896d1830944db80eec4b56af3d34f5402f5fb1528c58"
+    },
+    {
+      "path": "packages/pi/pi-server/tests/transport/routes-package-catalog-rpc-routes.test.ts",
+      "sha256": "2845f6e127e0c860b6c9b122af5dfc361c75ba7d078f71838df63953dac99d40"
+    },
+    {
+      "path": "packages/pi/pi-server/tests/transport/routes-project-trust-rpc-routes.test.ts",
+      "sha256": "746ab9f58bbd2b2f79ee8400c2d85b085f1e73e2f33e2cc515d096e9ad4958eb"
+    },
+    {
+      "path": "packages/pi/pi-server/tests/transport/routes-resource-catalog-rpc-routes.test.ts",
+      "sha256": "47211e6b42ca23af45847d58206baf1b4abdbf11e32b36f3222d81c7728a9382"
+    },
+    {
+      "path": "packages/pi/pi-server/tests/transport/routes-session-context-trace-rpc-routes.test.ts",
+      "sha256": "eee0bbc5826c84260c80056bf85ec3e6b88aff200602a54dd94e5b34d6e2e496"
+    },
+    {
+      "path": "packages/pi/pi-server/tests/transport/routes-session-rpc-routes.test.ts",
+      "sha256": "2aaf35ef052f764a4fe122ac8140a1e49c4aa1f353a3605409f9c50cb729ea28"
+    },
+    {
+      "path": "packages/pi/pi-server/tests/transport/routes-skill-rpc-routes.test.ts",
+      "sha256": "0c7425c33a74515c5f364c78b9dfd870cc184ed0f6ec3c2e16f1548fafb4ad64"
+    },
+    {
+      "path": "packages/pi/pi-server/tests/transport/routes-workspace-rpc-routes.test.ts",
+      "sha256": "b13396e4f007af14c8e47b6a1a1f3b49e96ede467125c8d6a0bad5eb2c430976"
+    },
+    {
+      "path": "packages/pi/pi-server/tests/transport/rpc-domain-error-projector.test.ts",
+      "sha256": "152ec690c1e821252c87351f07c55fff568c7b56d5df0d3c6ac49aa1b565758e"
+    },
+    {
+      "path": "packages/pi/pi-server/tests/transport/rpc-router-factory.test.ts",
+      "sha256": "6939d3bff3ea056decd5f9c8f6e03c4e21560ac445e0e95a0402c5d4e71f33d1"
+    },
+    {
+      "path": "packages/pi/pi-session-server/src/interactive-response-registry.ts",
+      "sha256": "727aefe0c48946a35c636dc9b6a0d7fb067dda8caa76f36765680c5c4800945d"
+    },
+    {
+      "path": "packages/pi/pi-session-server/src/pi-session-context-trace-service.ts",
+      "sha256": "38ca0a555107ae97f2c108b5a87f0cd46b4d7f0556e4b027e15aee841188a579"
+    },
+    {
+      "path": "packages/pi/pi-session-server/src/session-rpc-service.ts",
+      "sha256": "bb5c0bcfebd5edcffc3b07bfe795e6516d553a730d0ae93cff7769462f09cf59"
+    },
+    {
+      "path": "packages/pi/pi-tools/src/dependencies.ts",
+      "sha256": "f82d7ddc70abfe239f6cc1eee4908d650563f28c4ab43293d4ee3b0a0fa3b6a2"
+    },
+    {
+      "path": "packages/pi/pi-transport-client/src/api.ts",
+      "sha256": "33a492203bff66b2b1e70137f8e68ab8b2475de8966a0bfe136d01b71abe1897"
+    },
+    {
+      "path": "packages/server/automation-server/src/errors.ts",
+      "sha256": "5d766282d4b0f0f6dd32ba5a2501ef1203acfa1889349eb88110cfa2b13d4428"
+    },
+    {
+      "path": "packages/server/automation-server/src/rpc.ts",
+      "sha256": "cb96849f0443aaf1d93834e0c8426e3dc39e41a349013fab1594473f6635fe62"
+    },
+    {
+      "path": "packages/server/automation-server/tests/automation-rpc-routes.test.ts",
+      "sha256": "41d0d43cebf74febc7253c082c1c24c9f4b22a5790b39c8ef84400ad2bc79c06"
+    },
+    {
+      "path": "packages/server/local-host-server/src/host-directories.ts",
+      "sha256": "bf93dc705c7a2190eee96084bb3f2c3be5e7bc4ca48918a707533770efb531d7"
+    },
+    {
+      "path": "packages/server/local-host-server/src/host-rpc-routes.ts",
+      "sha256": "e0497ff7dcb73b2179d952ebda784363bacd5313fa4de0fb5acc7b8187277066"
+    },
+    {
+      "path": "packages/server/local-host-server/src/local-app-rpc-routes.ts",
+      "sha256": "0d6b0d3353d03d381350eefbc863d8a74dd2b84d245f87c00eb5910870fcc625"
+    },
+    {
+      "path": "packages/server/local-host-server/src/local-apps/service.ts",
+      "sha256": "91ae987eb567a323cb61bd5281b29245277366c8acd2ad8571bf7c6845c3506a"
+    },
+    {
+      "path": "packages/server/local-host-server/tests/host-rpc-routes.test.ts",
+      "sha256": "2679e69f47be6f7304c6e05795ffeb8e9af8ff4206dd08b06edd33b6cc8258f8"
+    },
+    {
+      "path": "packages/server/local-host-server/tests/local-app-rpc-routes.test.ts",
+      "sha256": "0ce4f7d1d2021bc85a589b8185e3078efcf0f0e54f28033e0e68ceb9d8b92df9"
+    },
+    {
+      "path": "packages/server/server-core/README.zh-CN.md",
+      "sha256": "0153fa28078821d4b5c26e13d53e1c85b8049499ac0903899d41029d8528c346"
+    },
+    {
+      "path": "packages/server/server-core/src/request-trust.ts",
+      "sha256": "362befa0294be2687cfefb86334b9c36fbf5d4dac4d21b79d42b9cc775cd1c32"
+    },
+    {
+      "path": "packages/server/server-core/src/rpc-domain-error.ts",
+      "sha256": "607f593816a20172fb096f0800d4f2dc24927a0fefb8100730ecbd1b4385a92e"
+    },
+    {
+      "path": "packages/server/server-core/tests/rpc-domain-error.test.ts",
+      "sha256": "66454e920c91bb8271e15c16ed1fbe8a53c5b2d0b91d15f652f2964f784e9ddb"
+    },
+    {
+      "path": "packages/server/settings-server/src/rpc.ts",
+      "sha256": "7afbb7bcfcbc534494867f524b78eada839b963f0c51622ea0e2d2d55bffb673"
+    },
+    {
+      "path": "packages/server/settings-server/src/service.ts",
+      "sha256": "b15fe0094a2da6009ec4a30daa19fadbcfb00de2d034f9406787fce45f85ae21"
+    },
+    {
+      "path": "packages/server/settings-server/tests/workbench-settings-rpc-routes.test.ts",
+      "sha256": "41c8e2f640ddbec53862a11940a284c9d8c00438e299c91d1ddce5ecf62edec4"
+    },
+    {
+      "path": "packages/server/workspace-server/src/file-rpc-routes.ts",
+      "sha256": "d9d73e8b5fe60eabf71d8bfc1cd5442606b6b16f46497c2142d4699313664048"
+    },
+    {
+      "path": "packages/server/workspace-server/src/files.ts",
+      "sha256": "f4a5d55489dd6f6ccbb2d2e58b6d0ef3895d8cea50f3e8202b488411e3a90716"
+    },
+    {
+      "path": "packages/server/workspace-server/src/git-rpc-routes.ts",
+      "sha256": "759e23edf3b14a2c245c0159312f159909dca7f55f7ab01f7ae49f1345377199"
+    },
+    {
+      "path": "packages/server/workspace-server/src/git.ts",
+      "sha256": "4cb0a12f8bb21f1bd1b9e0550b97e13378a5c03fda6db0d10bbbcb91ee3f3ccd"
+    },
+    {
+      "path": "packages/server/workspace-server/tests/local-files.test.ts",
+      "sha256": "65e1aa50c99a49fdf8a55176749f0f3d2cc54193bc35c9e1aefaac7d528546d1"
+    },
+    {
+      "path": "packages/server/workspace-server/tests/workspace-file-rpc-routes.test.ts",
+      "sha256": "09bb291c6b567ef554b4d1fa131ac3d537aa0396cba7720adaa7fc2b8fcb3fe7"
+    },
+    {
+      "path": "packages/server/workspace-server/tests/workspace-git-rpc-routes.test.ts",
+      "sha256": "0a136d7fa1081e806c74aedef11199cb83d5bcb1f4188c9d024bec208f41968e"
+    }
+  ],
+  "base_commit": "383fe5780ded827bd6360a267c4b1c81f1e91019"
+}

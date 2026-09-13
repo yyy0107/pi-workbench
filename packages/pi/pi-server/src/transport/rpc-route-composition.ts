@@ -74,7 +74,7 @@ import {
   createResourceCatalogRpcRoutes,
   type ResourceCatalogRpcRoutesDependencies,
 } from "../routes/resource-catalog-rpc-routes";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+import type { RpcRouteGroup } from "@workbench/api/server";
 import {
   createSessionContextTraceRpcRoutes,
   type SessionContextTraceRpcRoutesDependencies,
@@ -88,7 +88,7 @@ import {
   createWorkspaceRpcRoutes,
   type WorkspaceRpcRoutesDependencies,
 } from "../routes/workspace-rpc-routes";
-import { projectRpcDomainError } from "@workbench/host-server/rpc";
+import { projectRpcDomainError } from "@workbench/api/server";
 
 /** Injectable dependencies for the ordered Pi RPC route-group composition. */
 export interface PiRpcRouteGroupsDependencies {

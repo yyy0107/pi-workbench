@@ -36,8 +36,8 @@
     "test": "node ../../../scripts/run-typescript-tests.mjs --package"
   },
   "dependencies": {
+    "@workbench/api": "workspace:*",
     "@workbench/host-contracts": "workspace:*",
-    "@workbench/host-server": "workspace:*",
     "@workbench/server-core": "workspace:*"
   },
   "devDependencies": {

@@ -1,4 +1,4 @@
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 
 /** Stable RPC-safe error details exposed by the Automation server package. */
 export interface AutomationErrorDetails {

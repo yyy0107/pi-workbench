@@ -1,0 +1,517 @@
+[
+  {
+    "source": "apps/runtime-node/src/composition/installed-pi-server.ts",
+    "target": "apps/runtime-node/src/composition/installed-pi-server.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "apps/runtime-node/src/terminal-shell-rpc.ts",
+    "target": "apps/runtime-node/src/terminal-shell-rpc.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "apps/runtime-node/test/installed-pi-server-rpc.test.ts",
+    "target": "apps/runtime-node/test/installed-pi-server-rpc.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/client/host-client/README.md",
+    "target": "packages/client/host-client/README.md",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/client/host-client/README.zh-CN.md",
+    "target": "packages/client/host-client/README.zh-CN.md",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/client/host-client/src/rpc.ts",
+    "target": "packages/transport/api/src/client.ts + lib/response-envelope.ts; host-client/src/runtime-fetch.ts",
+    "action": "move/split"
+  },
+  {
+    "source": "packages/client/host-client/src/runtime-fetch.ts",
+    "target": "packages/client/host-client/src/runtime-fetch.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/client/host-contracts/README.md",
+    "target": "packages/client/host-contracts/README.md",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/client/host-contracts/README.zh-CN.md",
+    "target": "packages/client/host-contracts/README.zh-CN.md",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/client/host-contracts/src/rpc.ts",
+    "target": "packages/transport/api/src/contracts.ts",
+    "action": "move/split"
+  },
+  {
+    "source": "packages/client/services-client/lib/file-text.ts",
+    "target": "packages/client/services-client/lib/file-text.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/client/services-client/src/automation.ts",
+    "target": "packages/client/services-client/src/automation.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/client/services-client/src/errors.ts",
+    "target": "packages/client/services-client/src/errors.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/client/services-client/src/file-content.ts",
+    "target": "packages/client/services-client/src/file-content.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/client/services-client/src/host.ts",
+    "target": "packages/client/services-client/src/host.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/client/services-client/src/settings.ts",
+    "target": "packages/client/services-client/src/settings.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/client/services-client/src/workspace.ts",
+    "target": "packages/client/services-client/src/workspace.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/host/host-server/README.zh-CN.md",
+    "target": "packages/host/host-server/README.zh-CN.md",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/host/host-server/src/rpc.ts",
+    "target": "packages/transport/api/src/{errors,validation,server}.ts + lib/validation-issues.ts",
+    "action": "move/split"
+  },
+  {
+    "source": "packages/host/host-server/tests/rpc-route-group.test.ts",
+    "target": "packages/transport/api/tests/route-group.test.ts",
+    "action": "move/split"
+  },
+  {
+    "source": "packages/host/host-server/tests/rpc.test.ts",
+    "target": "packages/transport/api/tests/{validation,server}.test.ts",
+    "action": "move/split"
+  },
+  {
+    "source": "packages/pi/README.md",
+    "target": "packages/pi/README.md",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-client/src/integration/capabilities.ts",
+    "target": "packages/pi/pi-client/src/integration/capabilities.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-client/tests/integration/services-fixture.ts",
+    "target": "packages/pi/pi-client/tests/integration/services-fixture.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-model-server/src/model-service.ts",
+    "target": "packages/pi/pi-model-server/src/model-service.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-protocol/src/rpc.ts",
+    "target": "packages/pi/pi-protocol/src/rpc.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-resources-server/src/agent-settings-service.ts",
+    "target": "packages/pi/pi-resources-server/src/agent-settings-service.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-resources-server/src/command-service.ts",
+    "target": "packages/pi/pi-resources-server/src/command-service.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-resources-server/src/extension-service.ts",
+    "target": "packages/pi/pi-resources-server/src/extension-service.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-resources-server/src/installed-package-service.ts",
+    "target": "packages/pi/pi-resources-server/src/installed-package-service.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-resources-server/src/package-catalog-service.ts",
+    "target": "packages/pi/pi-resources-server/src/package-catalog-service.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-resources-server/src/project-trust-service.ts",
+    "target": "packages/pi/pi-resources-server/src/project-trust-service.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-resources-server/src/prompt-service.ts",
+    "target": "packages/pi/pi-resources-server/src/prompt-service.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-resources-server/src/scoped-resource-context.ts",
+    "target": "packages/pi/pi-resources-server/src/scoped-resource-context.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-resources-server/src/skill-service.ts",
+    "target": "packages/pi/pi-resources-server/src/skill-service.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-resources-server/src/workspace-protocol-service.ts",
+    "target": "packages/pi/pi-resources-server/src/workspace-protocol-service.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-resources-server/src/workspace-store.ts",
+    "target": "packages/pi/pi-resources-server/src/workspace-store.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/lib/compaction-rpc-validator.ts",
+    "target": "packages/pi/pi-server/lib/compaction-rpc-validator.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/public/legacy.ts",
+    "target": "packages/pi/pi-server/src/public/legacy.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/agent-settings-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/agent-settings-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/composer-attachment-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/composer-attachment-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/extension-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/extension-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/external-session-import-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/external-session-import-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/host-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/host-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/installed-package-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/installed-package-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/model-context-window-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/model-context-window-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/model-provider-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/model-provider-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/package-catalog-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/package-catalog-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/project-trust-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/project-trust-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/resource-catalog-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/resource-catalog-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/session-context-trace-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/session-context-trace-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/session-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/session-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/skill-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/skill-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/usage-statistics-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/usage-statistics-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/routes/workspace-rpc-routes.ts",
+    "target": "packages/pi/pi-server/src/routes/workspace-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/transport/agent-settings-rpc-validators.ts",
+    "target": "packages/pi/pi-server/src/transport/agent-settings-rpc-validators.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/transport/package-rpc-validators.ts",
+    "target": "packages/pi/pi-server/src/transport/package-rpc-validators.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/transport/resource-rpc-validators.ts",
+    "target": "packages/pi/pi-server/src/transport/resource-rpc-validators.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/transport/rpc-route-composition.ts",
+    "target": "packages/pi/pi-server/src/transport/rpc-route-composition.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/transport/rpc-router.ts",
+    "target": "packages/pi/pi-server/src/transport/rpc-router.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/src/transport/runtime-http-router.ts",
+    "target": "packages/pi/pi-server/src/transport/runtime-http-router.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/tests/transport/routes-agent-settings-rpc-routes.test.ts",
+    "target": "packages/pi/pi-server/tests/transport/routes-agent-settings-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/tests/transport/routes-extension-rpc-routes.test.ts",
+    "target": "packages/pi/pi-server/tests/transport/routes-extension-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/tests/transport/routes-installed-package-rpc-routes.test.ts",
+    "target": "packages/pi/pi-server/tests/transport/routes-installed-package-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/tests/transport/routes-model-context-window-rpc-routes.test.ts",
+    "target": "packages/pi/pi-server/tests/transport/routes-model-context-window-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/tests/transport/routes-model-provider-rpc-routes.test.ts",
+    "target": "packages/pi/pi-server/tests/transport/routes-model-provider-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/tests/transport/routes-package-catalog-rpc-routes.test.ts",
+    "target": "packages/pi/pi-server/tests/transport/routes-package-catalog-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/tests/transport/routes-project-trust-rpc-routes.test.ts",
+    "target": "packages/pi/pi-server/tests/transport/routes-project-trust-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/tests/transport/routes-resource-catalog-rpc-routes.test.ts",
+    "target": "packages/pi/pi-server/tests/transport/routes-resource-catalog-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/tests/transport/routes-session-context-trace-rpc-routes.test.ts",
+    "target": "packages/pi/pi-server/tests/transport/routes-session-context-trace-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/tests/transport/routes-session-rpc-routes.test.ts",
+    "target": "packages/pi/pi-server/tests/transport/routes-session-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/tests/transport/routes-skill-rpc-routes.test.ts",
+    "target": "packages/pi/pi-server/tests/transport/routes-skill-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/tests/transport/routes-workspace-rpc-routes.test.ts",
+    "target": "packages/pi/pi-server/tests/transport/routes-workspace-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/tests/transport/rpc-domain-error-projector.test.ts",
+    "target": "packages/pi/pi-server/tests/transport/rpc-domain-error-projector.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-server/tests/transport/rpc-router-factory.test.ts",
+    "target": "packages/pi/pi-server/tests/transport/rpc-router-factory.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-session-server/src/interactive-response-registry.ts",
+    "target": "packages/pi/pi-session-server/src/interactive-response-registry.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-session-server/src/pi-session-context-trace-service.ts",
+    "target": "packages/pi/pi-session-server/src/pi-session-context-trace-service.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-session-server/src/session-rpc-service.ts",
+    "target": "packages/pi/pi-session-server/src/session-rpc-service.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-tools/src/dependencies.ts",
+    "target": "packages/pi/pi-tools/src/dependencies.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/pi/pi-transport-client/src/api.ts",
+    "target": "packages/pi/pi-transport-client/src/api.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/automation-server/src/errors.ts",
+    "target": "packages/server/automation-server/src/errors.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/automation-server/src/rpc.ts",
+    "target": "packages/server/automation-server/src/rpc.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/automation-server/tests/automation-rpc-routes.test.ts",
+    "target": "packages/server/automation-server/tests/automation-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/local-host-server/src/host-directories.ts",
+    "target": "packages/server/local-host-server/src/host-directories.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/local-host-server/src/host-rpc-routes.ts",
+    "target": "packages/server/local-host-server/src/host-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/local-host-server/src/local-app-rpc-routes.ts",
+    "target": "packages/server/local-host-server/src/local-app-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/local-host-server/src/local-apps/service.ts",
+    "target": "packages/server/local-host-server/src/local-apps/service.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/local-host-server/tests/host-rpc-routes.test.ts",
+    "target": "packages/server/local-host-server/tests/host-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/local-host-server/tests/local-app-rpc-routes.test.ts",
+    "target": "packages/server/local-host-server/tests/local-app-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/server-core/README.zh-CN.md",
+    "target": "packages/server/server-core/README.zh-CN.md",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/server-core/src/request-trust.ts",
+    "target": "packages/server/server-core/src/request-trust.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/server-core/src/rpc-domain-error.ts",
+    "target": "packages/transport/api/src/errors.ts",
+    "action": "move/split"
+  },
+  {
+    "source": "packages/server/server-core/tests/rpc-domain-error.test.ts",
+    "target": "packages/transport/api/tests/errors.test.ts",
+    "action": "move/split"
+  },
+  {
+    "source": "packages/server/settings-server/src/rpc.ts",
+    "target": "packages/server/settings-server/src/rpc.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/settings-server/src/service.ts",
+    "target": "packages/server/settings-server/src/service.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/settings-server/tests/workbench-settings-rpc-routes.test.ts",
+    "target": "packages/server/settings-server/tests/workbench-settings-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/workspace-server/src/file-rpc-routes.ts",
+    "target": "packages/server/workspace-server/src/file-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/workspace-server/src/files.ts",
+    "target": "packages/server/workspace-server/src/files.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/workspace-server/src/git-rpc-routes.ts",
+    "target": "packages/server/workspace-server/src/git-rpc-routes.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/workspace-server/src/git.ts",
+    "target": "packages/server/workspace-server/src/git.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/workspace-server/tests/local-files.test.ts",
+    "target": "packages/server/workspace-server/tests/local-files.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/workspace-server/tests/workspace-file-rpc-routes.test.ts",
+    "target": "packages/server/workspace-server/tests/workspace-file-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  },
+  {
+    "source": "packages/server/workspace-server/tests/workspace-git-rpc-routes.test.ts",
+    "target": "packages/server/workspace-server/tests/workspace-git-rpc-routes.test.ts",
+    "action": "retain owner; update relevant imports/manifest/docs"
+  }
+]

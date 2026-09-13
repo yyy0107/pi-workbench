@@ -8,7 +8,7 @@ import {
   rpcUnion,
   type RpcOptionalValidator,
   type RpcValidator,
-} from "@workbench/host-server/rpc";
+} from "@workbench/api/validation";
 
 const nonEmptyString = rpcString({ minLength: 1 });
 

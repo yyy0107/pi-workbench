@@ -11,16 +11,9 @@ import {
   type ReadPastedTextAttachmentRequest,
 } from "@workbench/agent-runtime-contracts/composer-attachments";
 import { INLINE_IMAGE_LIMITS } from "@workbench/pi-protocol/attachments";
-import {
-  handleRpcPost,
-  rpcEnum,
-  rpcObject,
-  rpcString,
-  rpcInteger,
-  rpcOptional,
-  rpcBusinessError,
-  type RpcRouteGroup,
-} from "@workbench/host-server/rpc";
+import { handleRpcPost, type RpcRouteGroup } from "@workbench/api/server";
+import { rpcEnum, rpcObject, rpcString, rpcInteger, rpcOptional } from "@workbench/api/validation";
+import { rpcBusinessError } from "@workbench/api/errors";
 import { ComposerAttachmentError } from "@workbench/pi-session-server/composer-text-attachments";
 
 export function createComposerAttachmentRpcRoutes(

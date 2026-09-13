@@ -3,7 +3,8 @@ import test from "node:test";
 
 import type { ServerResponse } from "@workbench/pi-protocol/rpc";
 import type { ModelProviderProtocol } from "@workbench/pi-model-server";
-import { DEFAULT_MAX_RPC_REQUEST_BODY_BYTES, rpcBusinessError } from "@workbench/host-server/rpc";
+import { DEFAULT_MAX_RPC_REQUEST_BODY_BYTES } from "@workbench/api/server";
+import { rpcBusinessError } from "@workbench/api/errors";
 import { createModelProviderRpcRoutes } from "../../src/routes/model-provider-rpc-routes";
 
 function rpcRequest(

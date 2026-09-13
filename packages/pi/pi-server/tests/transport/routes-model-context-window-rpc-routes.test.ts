@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ServerResponse } from "@workbench/pi-protocol/rpc";
 import type { ModelContextWindowProtocol } from "@workbench/pi-model-server";
-import { rpcBusinessError } from "@workbench/host-server/rpc";
+import { rpcBusinessError } from "@workbench/api/errors";
 import { createModelContextWindowRpcRoutes } from "../../src/routes/model-context-window-rpc-routes";
 
 function rpcRequest(

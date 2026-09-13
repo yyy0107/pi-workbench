@@ -7,7 +7,7 @@ import {
   type WorkbenchHostDirectoryEntry as DirectoryEntry,
   type WorkbenchHostDirectoryListing as HostDirectoryListing,
 } from "@workbench/host-contracts/runtime-capabilities";
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 import {
   NativeWorkspacePickerUnavailableError,
   pickNativeWorkspaceDirectory,

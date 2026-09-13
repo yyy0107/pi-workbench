@@ -29,7 +29,7 @@ import type {
   SkillSetEnabledPayload,
   SkillSetEnabledValue,
 } from "@workbench/pi-protocol/rpc";
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 import { clonePackageSource, pathWithin, withResourceEnabled } from "../lib/resource-mutations";
 import {
   PiResourceMutationBusyError,

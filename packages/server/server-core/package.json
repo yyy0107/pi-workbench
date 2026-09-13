@@ -15,11 +15,6 @@
       "import": "./src/file-persistence.ts",
       "default": "./src/file-persistence.ts"
     },
-    "./rpc-domain-error": {
-      "types": "./src/rpc-domain-error.ts",
-      "import": "./src/rpc-domain-error.ts",
-      "default": "./src/rpc-domain-error.ts"
-    },
     "./request-guard": {
       "types": "./src/request-guard.ts",
       "import": "./src/request-guard.ts",

@@ -1,9 +1,7 @@
+import { RpcClientError } from "@workbench/api/client";
+import type { RpcCallOptions } from "./errors";
 import { contentLength, decodeFileText } from "../lib/file-text";
-import {
-  RpcClientError,
-  resolveRuntimeFetch,
-  type RpcCallOptions,
-} from "@workbench/host-client/rpc";
+import { resolveRuntimeFetch } from "@workbench/host-client/runtime-fetch";
 import type { RuntimeFetch } from "@workbench/host-client";
 
 /**

@@ -1,8 +1,17 @@
+import { resolveRuntimeFetch } from "@workbench/host-client/runtime-fetch";
 import {
   WorkbenchAgentCapabilityError,
   type WorkbenchAgentCapabilityErrorCode,
 } from "@workbench/agent-runtime-client/capabilities";
-import { callRpc, RpcClientError, type RpcCallOptions } from "@workbench/host-client/rpc";
+import {
+  callRpc,
+  RpcClientError,
+  type RpcCallOptions as ApiRpcCallOptions,
+} from "@workbench/api/client";
+
+export type RpcCallOptions = Omit<ApiRpcCallOptions, "transport"> & {
+  transport?: ApiRpcCallOptions["transport"];
+};
 
 function errorCode(error: RpcClientError): WorkbenchAgentCapabilityErrorCode {
   const code = error.code;
@@ -54,5 +63,10 @@ export function callServiceRpc<Payload, Value>(
   payload: Payload,
   options?: RpcCallOptions,
 ): Promise<Value> {
-  return capabilityCall(() => callRpc<Payload, Value>(method, payload, options));
+  return capabilityCall(() =>
+    callRpc<Payload, Value>(method, payload, {
+      ...options,
+      transport: resolveRuntimeFetch(options?.transport),
+    }),
+  );
 }

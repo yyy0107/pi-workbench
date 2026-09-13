@@ -3,8 +3,9 @@ import {
   type ExternalSessionImportPayload,
 } from "@workbench/pi-protocol/rpc";
 import type { ExternalSessionImportProtocol } from "@workbench/pi-session-server/imports";
-import { handleRpcPost, rpcArray, rpcEnum, rpcObject, rpcString } from "@workbench/host-server/rpc";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+import { handleRpcPost } from "@workbench/api/server";
+import { rpcArray, rpcEnum, rpcObject, rpcString } from "@workbench/api/validation";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 export interface ExternalSessionImportRpcRoutesDependencies {
   readonly service: ExternalSessionImportProtocol;

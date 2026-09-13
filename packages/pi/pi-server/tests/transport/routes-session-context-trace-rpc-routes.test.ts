@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { RpcIssue, ServerResponse } from "@workbench/pi-protocol/rpc";
 import type { PiSessionContextTraceService } from "@workbench/pi-session-server/context-trace";
-import { rpcBusinessError } from "@workbench/host-server/rpc";
+import { rpcBusinessError } from "@workbench/api/errors";
 import { createSessionContextTraceRpcRoutes } from "../../src/routes/session-context-trace-rpc-routes";
 
 function rpcRequest(method: string, payload: unknown, rpcId = "rpc-1"): Request {

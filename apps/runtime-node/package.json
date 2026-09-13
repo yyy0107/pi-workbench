@@ -16,6 +16,7 @@
     "@earendil-works/pi-coding-agent": "0.85.1",
     "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/agent-runtime-server": "workspace:*",
+    "@workbench/api": "workspace:*",
     "@workbench/automation-server": "workspace:*",
     "@workbench/browser-contracts": "workspace:*",
     "@workbench/browser-server": "workspace:*",

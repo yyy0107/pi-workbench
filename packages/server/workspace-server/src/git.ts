@@ -21,7 +21,7 @@ import {
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 import { WORKSPACE_GIT_LOG_COMMIT_LIMIT } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
-import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
+import { RpcDomainError } from "@workbench/api/errors";
 const GIT_COMMAND_OUTPUT_LIMIT_BYTES = 16 * 1024 * 1024;
 const GIT_COMMAND_TIMEOUT_MS = 60_000;
 const WORKSPACE_GIT_CHANGED_FILE_LIMIT = 200;

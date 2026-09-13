@@ -10,11 +10,10 @@ import type {
   TestModelImageInputPayload,
 } from "@workbench/pi-protocol/rpc";
 import type { ModelProviderProtocol } from "@workbench/pi-model-server";
+import { handleRpcPost } from "@workbench/api/server";
 import {
-  handleRpcPost,
   rpcArray,
   rpcBoolean,
-  rpcBusinessError,
   rpcEnum,
   rpcInteger,
   rpcLiteral,
@@ -23,8 +22,9 @@ import {
   rpcOptional,
   rpcString,
   type RpcValidator,
-} from "@workbench/host-server/rpc";
-import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+} from "@workbench/api/validation";
+import { rpcBusinessError } from "@workbench/api/errors";
+import type { RpcRouteGroup } from "@workbench/api/server";
 
 export interface ModelProviderRpcRoutesDependencies {
   readonly service: ModelProviderProtocol;

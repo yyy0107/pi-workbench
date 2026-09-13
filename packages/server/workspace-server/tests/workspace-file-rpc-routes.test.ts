@@ -8,9 +8,10 @@ import {
   WORKSPACE_FILE_SEARCH_QUERY_LENGTH_LIMIT,
   WORKSPACE_FILE_SEARCH_RESULT_LIMIT,
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
-import { type RpcIssue, type ServerResponse } from "@workbench/host-contracts/rpc";
+import { type RpcIssue, type ServerResponse } from "@workbench/api/contracts";
 import type { WorkspaceFileProtocol } from "../src/files";
-import { DEFAULT_MAX_RPC_REQUEST_BODY_BYTES, rpcBusinessError } from "@workbench/host-server/rpc";
+import { DEFAULT_MAX_RPC_REQUEST_BODY_BYTES } from "@workbench/api/server";
+import { rpcBusinessError } from "@workbench/api/errors";
 import { createWorkspaceFileRpcRoutes } from "../src/file-rpc-routes";
 
 function rpcRequest(

@@ -46,7 +46,7 @@ export interface UsageStatisticsValue {
   days: UsageStatisticsDay[];
 }
 
-import type { RpcSuccess } from "@workbench/host-contracts/rpc";
+import type { RpcSuccess } from "@workbench/api/contracts";
 export type {
   RpcIssuePathSegment,
   RpcIssue,
@@ -55,7 +55,7 @@ export type {
   RpcSuccess,
   RpcFailure,
   ServerResponse,
-} from "@workbench/host-contracts/rpc";
+} from "@workbench/api/contracts";
 
 export interface QuestionAnswerItem {
   id: string;

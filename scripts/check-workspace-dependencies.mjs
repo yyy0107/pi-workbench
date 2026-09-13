@@ -21,7 +21,7 @@ const PACKAGE_PRODUCTION_DEPENDENCY_POLICIES = new Map([
     "@workbench/automation-server",
     new Set([
       "@workbench/automation-contracts",
-      "@workbench/host-server",
+      "@workbench/api",
       "@workbench/server-core",
       "cron-parser",
     ]),
@@ -31,19 +31,19 @@ const PACKAGE_PRODUCTION_DEPENDENCY_POLICIES = new Map([
     new Set([
       "@workbench/agent-runtime-contracts",
       "@workbench/core-contracts",
-      "@workbench/host-server",
+      "@workbench/api",
       "@workbench/server-core",
     ]),
   ],
   [
     "@workbench/local-host-server",
-    new Set(["@workbench/host-contracts", "@workbench/host-server", "@workbench/server-core"]),
+    new Set(["@workbench/host-contracts", "@workbench/api", "@workbench/server-core"]),
   ],
   [
     "@workbench/workspace-server",
     new Set([
       "@workbench/agent-runtime-contracts",
-      "@workbench/host-server",
+      "@workbench/api",
       "@workbench/server-core",
       "mime",
     ]),
@@ -51,6 +51,7 @@ const PACKAGE_PRODUCTION_DEPENDENCY_POLICIES = new Map([
   [
     "@workbench/services-client",
     new Set([
+      "@workbench/api",
       "@workbench/agent-runtime-client",
       "@workbench/agent-runtime-contracts",
       "@workbench/automation-contracts",
