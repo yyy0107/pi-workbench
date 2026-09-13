@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import path from "node:path";
 import test from "node:test";
 
-import { RuntimeConnectedWebMode } from "@workbench/host-contracts/runtime-connected-web-control";
+import { RuntimeConnectedWebMode } from "@workbench/runtime-contracts/runtime-connected-web-control";
 
 import workbenchPaths from "./workbench-paths.cjs";
 import {

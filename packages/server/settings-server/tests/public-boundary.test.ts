@@ -20,8 +20,8 @@ test("publishes exactly the Settings server capability subpaths", () => {
   assert.deepEqual(Object.keys(manifest.exports).sort(), ["./file", "./rpc", "./service"]);
   assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
     "@workbench/agent-runtime-contracts",
+    "@workbench/api",
     "@workbench/core-contracts",
-    "@workbench/host-server",
     "@workbench/server-core",
   ]);
   assert.equal(manifest.exports["."], undefined);

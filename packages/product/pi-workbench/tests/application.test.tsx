@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   defineRuntimeConnection,
   RUNTIME_CONNECTION_PROTOCOL_VERSION,
-} from "@workbench/host-contracts";
+} from "@workbench/runtime-contracts";
 import { defineTranslationBundle, useTranslationBundle } from "@workbench/shell/i18n";
 import {
   PiWorkbenchApplicationProviders,

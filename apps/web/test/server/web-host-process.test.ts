@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 
-import { WebHostControlSessionResultCode } from "@workbench/host-server/web-host-control-session";
+import { WebHostControlSessionResultCode } from "@workbench/application-process/web-host-control-session";
 
 import { runWebHostProcess } from "@/server/web-host-process";
 

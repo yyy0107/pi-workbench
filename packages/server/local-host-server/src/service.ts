@@ -1,4 +1,4 @@
-import type { WorkbenchHostDirectoryListing } from "@workbench/host-contracts/runtime-capabilities";
+import type { WorkbenchHostDirectoryListing } from "@workbench/runtime-contracts/runtime-capabilities";
 import {
   createHostDirectory,
   listHostDirectory,

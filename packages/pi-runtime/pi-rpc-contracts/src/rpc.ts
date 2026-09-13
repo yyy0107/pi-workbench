@@ -151,10 +151,10 @@ export type WorkspaceGitLogValue =
   import("@workbench/agent-runtime-contracts/runtime-capabilities").WorkbenchWorkspaceGitLog;
 
 export type DirectoryEntry =
-  import("@workbench/host-contracts/runtime-capabilities").WorkbenchHostDirectoryEntry;
+  import("@workbench/runtime-contracts/runtime-capabilities").WorkbenchHostDirectoryEntry;
 
 export type HostDirectoryListing =
-  import("@workbench/host-contracts/runtime-capabilities").WorkbenchHostDirectoryListing;
+  import("@workbench/runtime-contracts/runtime-capabilities").WorkbenchHostDirectoryListing;
 
 export interface ProjectTrustDescribePayload {
   path: string;
@@ -179,26 +179,26 @@ export interface ProjectTrustUpdatePayload {
 }
 
 export type LocalAppKind =
-  import("@workbench/host-contracts/runtime-capabilities").WorkbenchLocalAppKind;
+  import("@workbench/runtime-contracts/runtime-capabilities").WorkbenchLocalAppKind;
 
 export type LocalAppFileKind =
-  import("@workbench/host-contracts/runtime-capabilities").WorkbenchLocalAppFileKind;
+  import("@workbench/runtime-contracts/runtime-capabilities").WorkbenchLocalAppFileKind;
 
 export type LocalAppPlatform =
-  import("@workbench/host-contracts/runtime-capabilities").WorkbenchLocalAppPlatform;
+  import("@workbench/runtime-contracts/runtime-capabilities").WorkbenchLocalAppPlatform;
 
 /** Renderer-safe local application metadata. Launcher details remain in the host process. */
 export type LocalAppView =
-  import("@workbench/host-contracts/runtime-capabilities").WorkbenchLocalApp;
+  import("@workbench/runtime-contracts/runtime-capabilities").WorkbenchLocalApp;
 
 export type LocalAppsListValue =
-  import("@workbench/host-contracts/runtime-capabilities").WorkbenchLocalAppsListResult;
+  import("@workbench/runtime-contracts/runtime-capabilities").WorkbenchLocalAppsListResult;
 
 export type LocalAppOpenPayload =
-  import("@workbench/host-contracts/runtime-capabilities").WorkbenchLocalAppOpenRequest;
+  import("@workbench/runtime-contracts/runtime-capabilities").WorkbenchLocalAppOpenRequest;
 
 export type LocalAppOpenValue =
-  import("@workbench/host-contracts/runtime-capabilities").WorkbenchLocalAppOpenResult;
+  import("@workbench/runtime-contracts/runtime-capabilities").WorkbenchLocalAppOpenResult;
 
 /** Maximum length of a normalized workspace-relative path accepted by the file protocol. */
 export { WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT } from "@workbench/agent-runtime-contracts/runtime-capabilities";

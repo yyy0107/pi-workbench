@@ -383,27 +383,35 @@ test("installs built-in skills and extensions and removes retired prompts withou
   assert.deepEqual((await readdir(directories.extensions)).sort(), ["lib", "resources", "src"]);
   for (const name of [
     "ask-user",
-    "builtin-tools",
+    "bash",
     "composer-context",
     "context-trace",
-    "enhanced-search",
+    "grep",
+    "find",
     "message-termination",
     "rpiv-todo",
     "workbench-settings",
   ])
-    assert.ok((await stat(path.join(directories.extensions, "src", `${name}.ts`))).isFile());
+    assert.ok((await stat(path.join(directories.extensions, "src", name, "index.ts"))).isFile());
   assert.ok(
-    (await readFile(path.join(directories.extensions, "src", "rpiv-todo.ts"), "utf8")).includes(
-      "createTodoExtension",
-    ),
+    (
+      await readFile(
+        path.join(directories.extensions, "resources", "extensions", "rpiv-todo", "index.ts"),
+        "utf8",
+      )
+    ).includes("createTodoExtension"),
   );
-  assert.ok((await stat(path.join(directories.extensions, "src", "todo", "replay.ts"))).isFile());
   assert.ok(
-    (await stat(path.join(directories.extensions, "lib", "system-prompt-hook-trace.ts"))).isFile(),
+    (await stat(path.join(directories.extensions, "src", "rpiv-todo", "replay.ts"))).isFile(),
   );
   assert.ok(
     (
-      await stat(path.join(directories.extensions, "lib", "legacy-message-termination.ts"))
+      await stat(path.join(directories.extensions, "src", "system-prompt-hook-trace", "index.ts"))
+    ).isFile(),
+  );
+  assert.ok(
+    (
+      await stat(path.join(directories.extensions, "src", "message-termination", "legacy.ts"))
     ).isFile(),
   );
   assert.deepEqual(await readdir(directories.prompts), []);

@@ -6,21 +6,21 @@ import { fileURLToPath } from "node:url";
 import {
   RuntimeConnectedWebMode,
   createRuntimeConnectedWebStartMessage,
-} from "@workbench/host-contracts/runtime-connected-web-control";
+} from "@workbench/runtime-contracts/runtime-connected-web-control";
 import {
   createWorkbenchHostShutdownMessage,
   parseWorkbenchHostReadyMessage,
-} from "@workbench/host-contracts/host-control";
+} from "@workbench/runtime-contracts/host-control";
 import {
   RUNTIME_CONNECTION_PROTOCOL_VERSION,
   defineRuntimeConnection,
-} from "@workbench/host-contracts/runtime-connection";
-import { parseRuntimeHostIdentity } from "@workbench/host-contracts/runtime-host-control";
+} from "@workbench/runtime-contracts/runtime-connection";
+import { parseRuntimeHostIdentity } from "@workbench/runtime-contracts/runtime-host-control";
 import {
   createStreamingSecretRedactor,
   forceManagedChildProcessTree,
   startRuntimeSidecar,
-} from "@workbench/host-server/runtime-sidecar-child";
+} from "@workbench/application-process/runtime-sidecar-child";
 import workbenchPaths from "./workbench-paths.cjs";
 
 const { createWorkbenchPaths } = workbenchPaths;

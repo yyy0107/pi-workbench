@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createRuntimeFetch } from "@workbench/host-client";
+import { createRuntimeFetch } from "@workbench/runtime-transport-client";
 import { createHostClient } from "../src/host";
 
 test("directory picking forwards per-call cancellation through the installed transport", async () => {

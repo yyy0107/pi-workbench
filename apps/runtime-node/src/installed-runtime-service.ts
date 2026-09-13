@@ -6,8 +6,8 @@ import {
   createAuthenticatedNoServerWebSocketServer,
   createRuntimeWebSocketAuthenticationAdmission,
   type DesktopSidecarRuntimeAuthPolicy,
-} from "@workbench/host-server/runtime-transport-auth";
-import type { WorkbenchWebSocketGateway } from "@workbench/host-server/workbench-http-server";
+} from "@workbench/runtime-transport-server/runtime-transport-auth";
+import type { WorkbenchWebSocketGateway } from "@workbench/runtime-transport-server/workbench-http-server";
 import {
   configuredApiTrustedHosts,
   inspectApiRequestTrust,

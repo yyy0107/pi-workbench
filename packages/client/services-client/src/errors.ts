@@ -1,4 +1,4 @@
-import { resolveRuntimeFetch } from "@workbench/host-client/runtime-fetch";
+import { resolveRuntimeFetch } from "@workbench/runtime-transport-client/runtime-fetch";
 import {
   WorkbenchAgentCapabilityError,
   type WorkbenchAgentCapabilityErrorCode,

@@ -3,7 +3,7 @@ import {
   readDesktopRuntimeBootstrapPort,
   readDesktopRuntimeLifecyclePort,
 } from "@workbench/desktop-contracts/runtime-bootstrap";
-import { defineRuntimeConnection, type RuntimeConnection } from "@workbench/host-contracts";
+import { defineRuntimeConnection, type RuntimeConnection } from "@workbench/runtime-contracts";
 
 export interface WorkbenchDesktopBridge {
   readonly settings?: unknown;

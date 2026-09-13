@@ -1,0 +1,816 @@
+{
+  "baseline": "aa87792b",
+  "packagesBefore": 97,
+  "packagesAfter": 99,
+  "files": [
+    {
+      "from": "packages/client/host-client/README.md",
+      "to": "packages/transport/runtime-transport-client/README.md",
+      "sha256Before": "a3be4339aeb77d38109fb2115fdb399eeede11c0d92bcd8f7afe0fcbb6156bd9",
+      "sha256After": "3545e2ac44b2881c8d4277a37b394196bdc933a36a0b9f96852ab6d3ab5b6c43"
+    },
+    {
+      "from": "packages/client/host-client/README.zh-CN.md",
+      "to": "packages/transport/runtime-transport-client/README.zh-CN.md",
+      "sha256Before": "a58d0173d8d6856286621ada28a82bf47764cb85ebfddba191cc04356f7982d5",
+      "sha256After": "632cc4e2b6af1b836cab4ca726f60102f5f8974589352c43af0a27ea3df3d9c9"
+    },
+    {
+      "from": "packages/client/host-client/lib/runtime-url.ts",
+      "to": "packages/transport/runtime-transport-client/lib/runtime-url.ts",
+      "sha256Before": "66fd2f7a3fb8b561079f7b6d3e46b90332b00a427d5d1fffdf8ec4689c06a715",
+      "sha256After": "49e3c29b98d9621740439b80688a84dd5056f5b31caa5feb7ad9d3f670806b2c"
+    },
+    {
+      "from": "packages/client/host-client/package.json",
+      "to": "packages/transport/runtime-transport-client/package.json",
+      "sha256Before": "9ba3129d8aff28c560f4fab0d39c5af197e807f6e66bd471d1ffb3cdf74843b0",
+      "sha256After": "cad1a9443495f44373053e00874a9fb1ba8eeae7f4e52e336f5a63bc23810150"
+    },
+    {
+      "from": "packages/client/host-client/src/index.ts",
+      "to": "packages/transport/runtime-transport-client/src/index.ts",
+      "sha256Before": "036b9a706070c458da98f617e2c9e61a9acde94cd34b3c4f8edde1d80ec90b9b",
+      "sha256After": "df4b0da1da9d2180dfd07f4f5b13cfe4ab9734999d74b0b2ca185520a8cd1dc7"
+    },
+    {
+      "from": "packages/client/host-client/src/runtime-fetch.ts",
+      "to": "packages/transport/runtime-transport-client/src/runtime-fetch.ts",
+      "sha256Before": "65273daea62bd43ec6c0b49c1a34e0c191aa01a877b35054bf0013bb9c14a5cb",
+      "sha256After": "8573f4599b78a8302fcb4363c79b8c389e1bb92be608a21856c110ee05c6f663"
+    },
+    {
+      "from": "packages/client/host-client/src/runtime-websocket.ts",
+      "to": "packages/transport/runtime-transport-client/src/runtime-websocket.ts",
+      "sha256Before": "06d0cc8c586ec361d4cb71fa4de2f2d752b01181431433ba7d2339aee14af18c",
+      "sha256After": "b82e0b749aaf016a25681acb7328b88a123e72c9780a551cf9d51fc3e89823c6"
+    },
+    {
+      "from": "packages/client/host-client/tests/runtime-fetch.test.ts",
+      "to": "packages/transport/runtime-transport-client/tests/runtime-fetch.test.ts",
+      "sha256Before": "8a15aea9357712bd3a6c23832567e8db87a974bf7fe384afd381e6100ab9c6b3",
+      "sha256After": "b3c32723fb85a95e52344d861cbfb5ff466c175b3c6b90c562a2b7a701afda03"
+    },
+    {
+      "from": "packages/client/host-client/tests/runtime-websocket.test.ts",
+      "to": "packages/transport/runtime-transport-client/tests/runtime-websocket.test.ts",
+      "sha256Before": "a4ae13861736ec338b7d9ad47eff2086b6d01d8f72a6f83a3bb98a2839c73004",
+      "sha256After": "55e1fd73759f992457874df29f3612e2ecc62894ab62afebfce61e3198ade309"
+    },
+    {
+      "from": "packages/client/host-client/tsconfig.json",
+      "to": "packages/transport/runtime-transport-client/tsconfig.json",
+      "sha256Before": "a2c3133e944386ac0cb6e22293080b274aa9cb2f53444741863c8a3a70bce6d7",
+      "sha256After": "a2c3133e944386ac0cb6e22293080b274aa9cb2f53444741863c8a3a70bce6d7"
+    },
+    {
+      "from": "packages/client/host-contracts/README.md",
+      "to": "packages/contracts/runtime-contracts/README.md",
+      "sha256Before": "4eb0f32b85cdecf4f70b760271f49c80eccb4cf29429e103d7be8e576295343f",
+      "sha256After": "4d318bdaa6b1003993882bd6e4726454baad3965319128d633600467187bfb4c"
+    },
+    {
+      "from": "packages/client/host-contracts/README.zh-CN.md",
+      "to": "packages/contracts/runtime-contracts/README.zh-CN.md",
+      "sha256Before": "779a1de33594484a8e75b2952fe46324460a19f999ecdb36e1c1fd3dd93f7a07",
+      "sha256After": "5dad32c2b1f2d6e133a2a52e1ba02f32ce2ef22b7ba8f52ed77d4b755758f519"
+    },
+    {
+      "from": "packages/client/host-contracts/fixtures/runtime-host-control/v1/cases.json",
+      "to": "packages/contracts/runtime-contracts/fixtures/runtime-host-control/v1/cases.json",
+      "sha256Before": "5481b929ff6b37d8ef107dc947d10eff5025ed28e0e0a0d111181ac81dc394bc",
+      "sha256After": "5481b929ff6b37d8ef107dc947d10eff5025ed28e0e0a0d111181ac81dc394bc"
+    },
+    {
+      "from": "packages/client/host-contracts/lib/control-ndjson.ts",
+      "to": "packages/contracts/runtime-contracts/lib/control-ndjson.ts",
+      "sha256Before": "ebd201e94045d98951d7fe9f09c2797ad0d0311042f5a3cfd57d18891f5dabc2",
+      "sha256After": "ebd201e94045d98951d7fe9f09c2797ad0d0311042f5a3cfd57d18891f5dabc2"
+    },
+    {
+      "from": "packages/client/host-contracts/package.json",
+      "to": "packages/contracts/runtime-contracts/package.json",
+      "sha256Before": "7c955b07f7b8486f99803aa14a9eb33e213a29aa8067f7c4dea38087c49e1530",
+      "sha256After": "515b63c9b2524d44f65deff3c006ffa18c256ba636d246733731c93e6c495c58"
+    },
+    {
+      "from": "packages/client/host-contracts/src/control-ndjson.ts",
+      "to": "packages/contracts/runtime-contracts/src/control-ndjson.ts",
+      "sha256Before": "37655ddb32aff0a65afd63b2f647de44ea3dbf60501ffb45a67388224f8f14a1",
+      "sha256After": "37655ddb32aff0a65afd63b2f647de44ea3dbf60501ffb45a67388224f8f14a1"
+    },
+    {
+      "from": "packages/client/host-contracts/src/desktop-renderer-artifact-manifest.ts",
+      "to": "packages/contracts/runtime-contracts/src/desktop-renderer-artifact-manifest.ts",
+      "sha256Before": "8c94be6c5792bbb0992e5c48546868bde9688e3adddc88cce702e612d99b9d4f",
+      "sha256After": "b8a10f17c956e23be2b4ccadcbcae10145c1c8c52255ed02f9301bdc9a47db4d"
+    },
+    {
+      "from": "packages/client/host-contracts/src/host-control.ts",
+      "to": "packages/contracts/runtime-contracts/src/host-control.ts",
+      "sha256Before": "e2a84e9019f0eea3a96f11187a581950bf62ce9f3caab226948497caed2df5a0",
+      "sha256After": "e2a84e9019f0eea3a96f11187a581950bf62ce9f3caab226948497caed2df5a0"
+    },
+    {
+      "from": "packages/client/host-contracts/src/index.ts",
+      "to": "packages/contracts/runtime-contracts/src/index.ts",
+      "sha256Before": "31a5d982cc97a6c67a60844b5253a042f95042984d0046110598e318ce8cb836",
+      "sha256After": "266987204bbdd7bb34c5d9918187bf07970d98e906a182720d783b844fdb1424"
+    },
+    {
+      "from": "packages/client/host-contracts/src/runtime-artifact-manifest.ts",
+      "to": "packages/contracts/runtime-contracts/src/runtime-artifact-manifest.ts",
+      "sha256Before": "5c1dd413d9912a833adb420c948b884ee694b6d3e18e271c8650703969ee5c7e",
+      "sha256After": "52a75e5087538624022b25277345ef86d225326bd74d9841416b175b663809b6"
+    },
+    {
+      "from": "packages/client/host-contracts/src/runtime-capabilities.ts",
+      "to": "packages/contracts/runtime-contracts/src/runtime-capabilities.ts",
+      "sha256Before": "7dd3caa81060298be4d6da15d59f4fd2035ab5fbf82b76d240037821d9b00aa2",
+      "sha256After": "7dd3caa81060298be4d6da15d59f4fd2035ab5fbf82b76d240037821d9b00aa2"
+    },
+    {
+      "from": "packages/client/host-contracts/src/runtime-connected-web-control.ts",
+      "to": "packages/contracts/runtime-contracts/src/runtime-connected-web-control.ts",
+      "sha256Before": "72a6a44ca482b09252ab6650f916ac03a3fb3981ef2d0dc8297ad764b4e0a9c7",
+      "sha256After": "5850758a67e69031f0d3a29acff2609659ece73a58a1205722dd6af1a9006c96"
+    },
+    {
+      "from": "packages/client/host-contracts/src/runtime-connection.ts",
+      "to": "packages/contracts/runtime-contracts/src/runtime-connection.ts",
+      "sha256Before": "2c396eb549a8159aa6f89858dd97033623a7830ff05f99870726a4a6f8dc5e18",
+      "sha256After": "2c396eb549a8159aa6f89858dd97033623a7830ff05f99870726a4a6f8dc5e18"
+    },
+    {
+      "from": "packages/client/host-contracts/src/runtime-host-control.ts",
+      "to": "packages/contracts/runtime-contracts/src/runtime-host-control.ts",
+      "sha256Before": "746eb067ab986c4ff459983725375218e24a07a505d7cea2f4805f821f8f12ac",
+      "sha256After": "72cf432cbbbbdd227c9a325921cf42c012cb6efe99394612936bfea8ed95de80"
+    },
+    {
+      "from": "packages/client/host-contracts/src/runtime-host-identity.ts",
+      "to": "packages/contracts/runtime-contracts/src/runtime-host-identity.ts",
+      "sha256Before": "e142e5783b1d6b0f2f47a86450b61d3bba50d43a6d184d97279988a010e3e97f",
+      "sha256After": "43d35398e98d15c9cf29650edceb0b4dab920b0fe850c04b9b4ff9e40e596694"
+    },
+    {
+      "from": "packages/client/host-contracts/src/web-artifact-manifest.ts",
+      "to": "packages/contracts/runtime-contracts/src/web-artifact-manifest.ts",
+      "sha256Before": "b80377a10607ac3c4f9fdbbfac3abfd6514439d2a31493782197573b192e5c1f",
+      "sha256After": "e0fe9cef100ce55463e08d7787247b69249f03724dea2f9bfd6b120d2874d757"
+    },
+    {
+      "from": "packages/client/host-contracts/src/web-host-control.ts",
+      "to": "packages/contracts/runtime-contracts/src/web-host-control.ts",
+      "sha256Before": "ffce0694f21088ff4c012c904e4e097b5b9fe289d4611456a68f5e9c08edfac8",
+      "sha256After": "9200e936f97c0b128b5b81a87e2f8460170f786677fa6696c85846bd5d5704d7"
+    },
+    {
+      "from": "packages/client/host-contracts/tests/desktop-renderer-artifact-manifest.test.ts",
+      "to": "packages/contracts/runtime-contracts/tests/desktop-renderer-artifact-manifest.test.ts",
+      "sha256Before": "9d4d93692eced13185877272214fd963f79ca9de5cb8a12058e10d8a25c45f32",
+      "sha256After": "9d4d93692eced13185877272214fd963f79ca9de5cb8a12058e10d8a25c45f32"
+    },
+    {
+      "from": "packages/client/host-contracts/tests/host-control.test.ts",
+      "to": "packages/contracts/runtime-contracts/tests/host-control.test.ts",
+      "sha256Before": "2883d308776809cac78c3fb9ef48b5ec99aa1a886b1e50a0fdb07960caff71ff",
+      "sha256After": "2883d308776809cac78c3fb9ef48b5ec99aa1a886b1e50a0fdb07960caff71ff"
+    },
+    {
+      "from": "packages/client/host-contracts/tests/runtime-artifact-manifest.test.ts",
+      "to": "packages/contracts/runtime-contracts/tests/runtime-artifact-manifest.test.ts",
+      "sha256Before": "886bfa01e09eacddca616bd07234e6c10a9f5b49a392f5ccf2bd1b028ee9fea6",
+      "sha256After": "886bfa01e09eacddca616bd07234e6c10a9f5b49a392f5ccf2bd1b028ee9fea6"
+    },
+    {
+      "from": "packages/client/host-contracts/tests/runtime-connected-web-control.test.ts",
+      "to": "packages/contracts/runtime-contracts/tests/runtime-connected-web-control.test.ts",
+      "sha256Before": "08b8fa007c24e5227a83c3c2ee6f3dd2db05496d5360b47c1ace8f9796a8555f",
+      "sha256After": "fbb1c473693295e89faa788ec0058724267019582085ef00e06d5849fe93bb88"
+    },
+    {
+      "from": "packages/client/host-contracts/tests/runtime-connection.test.ts",
+      "to": "packages/contracts/runtime-contracts/tests/runtime-connection.test.ts",
+      "sha256Before": "3e6385a9a8cd19c14e9392473c44db1cae9b095e5779814fc1c645261224c73b",
+      "sha256After": "3e6385a9a8cd19c14e9392473c44db1cae9b095e5779814fc1c645261224c73b"
+    },
+    {
+      "from": "packages/client/host-contracts/tests/runtime-host-control-golden.test.ts",
+      "to": "packages/contracts/runtime-contracts/tests/runtime-host-control-golden.test.ts",
+      "sha256Before": "f8c8a3d8b48f39287f33c102de2675237edad58970fa92fb495f8f58cf04c5be",
+      "sha256After": "f8c8a3d8b48f39287f33c102de2675237edad58970fa92fb495f8f58cf04c5be"
+    },
+    {
+      "from": "packages/client/host-contracts/tests/runtime-host-control.test.ts",
+      "to": "packages/contracts/runtime-contracts/tests/runtime-host-control.test.ts",
+      "sha256Before": "9b73be4cc4f45036c38be7e0794aa92a218eabeb39c408db1e7d2c7eaa66d5e5",
+      "sha256After": "9b73be4cc4f45036c38be7e0794aa92a218eabeb39c408db1e7d2c7eaa66d5e5"
+    },
+    {
+      "from": "packages/client/host-contracts/tests/web-artifact-manifest.test.ts",
+      "to": "packages/contracts/runtime-contracts/tests/web-artifact-manifest.test.ts",
+      "sha256Before": "0d6af3e9674481340cd6c225183a7b0283d7af38640c1a48b08f92dca890a04b",
+      "sha256After": "0d6af3e9674481340cd6c225183a7b0283d7af38640c1a48b08f92dca890a04b"
+    },
+    {
+      "from": "packages/client/host-contracts/tests/web-host-control.test.ts",
+      "to": "packages/contracts/runtime-contracts/tests/web-host-control.test.ts",
+      "sha256Before": "98eaf9f58facaede99f002539c3af745c940fa5fdf3e18b6beba384f4cd2255e",
+      "sha256After": "98eaf9f58facaede99f002539c3af745c940fa5fdf3e18b6beba384f4cd2255e"
+    },
+    {
+      "from": "packages/client/host-contracts/tsconfig.json",
+      "to": "packages/contracts/runtime-contracts/tsconfig.json",
+      "sha256Before": "4f7920367845eee6ecdb13584934e135058baaaee0032032f0d34a281d76c0c4",
+      "sha256After": "4f7920367845eee6ecdb13584934e135058baaaee0032032f0d34a281d76c0c4"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/README.md",
+      "to": "packages/build/artifact-policy/README.md",
+      "sha256Before": "11b4f8d73635ae1499784fb580825c69d3bf32b316c0cc5c2fd2c672b38a8b9f",
+      "sha256After": "1ac0e504ee1a4ba37e4a232affbe3b6c9e1719ba1e8bf89fd7b2db5523eaf8ba"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/README.zh-CN.md",
+      "to": "packages/build/artifact-policy/README.zh-CN.md",
+      "sha256Before": "8ef13acb42ae01435bd85b4d5be0c4e5ad4666e6c9428232c16d943e49f67b33",
+      "sha256After": "c7304651abbce62bcc2354489a0fe58021d3859cae1944a3ed64b41fa472f780"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/lib/filesystem.cjs",
+      "to": "packages/build/artifact-policy/lib/filesystem.cjs",
+      "sha256Before": "b99a3980bc84c1289ce7f6fca290b1af5fb5ea71ae229dd8b59a114f82a63063",
+      "sha256After": "b99a3980bc84c1289ce7f6fca290b1af5fb5ea71ae229dd8b59a114f82a63063"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/package.json",
+      "to": "packages/build/artifact-policy/package.json",
+      "sha256Before": "e202cdddb7b6613b2f3112673d3d31a517ab0d9e6d44b7f9de691a2f8450f83d",
+      "sha256After": "d63ff7596e17573eae515d005acf0abd5f4aceea28abdf60f2746047d3a65b72"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/src/filesystem.cjs",
+      "to": "packages/build/artifact-policy/src/filesystem.cjs",
+      "sha256Before": "e558f6f11dfe7797636cfe72d835470ff8247aa6e90c131e03e6227e6b608e23",
+      "sha256After": "e558f6f11dfe7797636cfe72d835470ff8247aa6e90c131e03e6227e6b608e23"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/src/filesystem.d.cts",
+      "to": "packages/build/artifact-policy/src/filesystem.d.cts",
+      "sha256Before": "98b0565c7be6c25c5ab7f03cc6e6327b4781dfa1aa9a3e187909a236ceadaee3",
+      "sha256After": "98b0565c7be6c25c5ab7f03cc6e6327b4781dfa1aa9a3e187909a236ceadaee3"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/src/runtime-admission.cjs",
+      "to": "packages/build/artifact-policy/src/runtime-admission.cjs",
+      "sha256Before": "1b3ebf10ee07a78bc6bdab98addcb68ccf1f8f97431ef731de487885c7a61b6f",
+      "sha256After": "66ebf65b4f4c809ec914729a61f72d4bcb9d0fcd7ef4859f13a1b8774681ec07"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/src/runtime-model-resources.cjs",
+      "to": "packages/build/artifact-policy/src/runtime-model-resources.cjs",
+      "sha256Before": "1b9b927c682449ebe8a1fa440a7be9133b9b90162e644f95504cf979dd1e5ef6",
+      "sha256After": "1b9b927c682449ebe8a1fa440a7be9133b9b90162e644f95504cf979dd1e5ef6"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/src/runtime-native.cjs",
+      "to": "packages/build/artifact-policy/src/runtime-native.cjs",
+      "sha256Before": "461330701da8c196fb7f24a1a4059513c50b0807dfb24b3bb051d9132c513428",
+      "sha256After": "461330701da8c196fb7f24a1a4059513c50b0807dfb24b3bb051d9132c513428"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/src/source-shape.cjs",
+      "to": "packages/build/artifact-policy/src/source-shape.cjs",
+      "sha256Before": "4b2770c8a7d9e2d2547565529ac7abdeaa0a61840b0909be722a1117c4716f17",
+      "sha256After": "4b2770c8a7d9e2d2547565529ac7abdeaa0a61840b0909be722a1117c4716f17"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/src/web-next-runtime-exception.cjs",
+      "to": "packages/build/artifact-policy/src/web-next-runtime-exception.cjs",
+      "sha256Before": "2deabaab297e76180e5935485671631416aac5309b7e64acda831e469ab59faa",
+      "sha256After": "2deabaab297e76180e5935485671631416aac5309b7e64acda831e469ab59faa"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/tests/filesystem.test.cjs",
+      "to": "packages/build/artifact-policy/tests/filesystem.test.cjs",
+      "sha256Before": "bcdf0fd4dc4d9bd6d07ea7a18762b6ea332317bd6847644bb44aebe085151d9f",
+      "sha256After": "bcdf0fd4dc4d9bd6d07ea7a18762b6ea332317bd6847644bb44aebe085151d9f"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/tests/runtime-admission.test.cjs",
+      "to": "packages/build/artifact-policy/tests/runtime-admission.test.cjs",
+      "sha256Before": "e8b3046bf356615f8a1436ad6988749b12fbff1595a6b76447c579a02e6b9b00",
+      "sha256After": "341caa85bfd31784092f616b878192b1aa1eb554d232f99e7f09a8cde874a9f5"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/tests/runtime-model-resources.test.cjs",
+      "to": "packages/build/artifact-policy/tests/runtime-model-resources.test.cjs",
+      "sha256Before": "b07595eb924e2c90f100494a765d938a55376328b03057190919d77a12025f64",
+      "sha256After": "b07595eb924e2c90f100494a765d938a55376328b03057190919d77a12025f64"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/tests/runtime-native.test.cjs",
+      "to": "packages/build/artifact-policy/tests/runtime-native.test.cjs",
+      "sha256Before": "cfce2b096c249177d936dab24efac28073bbf1b9739f3638b3cd8ac0e18fca55",
+      "sha256After": "cfce2b096c249177d936dab24efac28073bbf1b9739f3638b3cd8ac0e18fca55"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/tests/source-shape.test.cjs",
+      "to": "packages/build/artifact-policy/tests/source-shape.test.cjs",
+      "sha256Before": "71df18d582561960c78dbbe7734493de891295cae2e8616827777e8e7360ca12",
+      "sha256After": "71df18d582561960c78dbbe7734493de891295cae2e8616827777e8e7360ca12"
+    },
+    {
+      "from": "packages/host/host-artifact-policy/tests/web-next-runtime-exception.test.cjs",
+      "to": "packages/build/artifact-policy/tests/web-next-runtime-exception.test.cjs",
+      "sha256Before": "8f595f937d67a46ba4789a690c677b8131a827054dd8079bfb1fd843ebf8ab01",
+      "sha256After": "8f595f937d67a46ba4789a690c677b8131a827054dd8079bfb1fd843ebf8ab01"
+    },
+    {
+      "from": "packages/host/host-server/README.md",
+      "to": "packages/transport/runtime-transport-server/README.md",
+      "sha256Before": "3b1b90b56a2760b3f71effe4ff04cedf538eaef860033b3d618333700b52a577",
+      "sha256After": "92276ca3164a3b99cb659dd9030df836bc733eb3ab78b8d20703af764bdb7970"
+    },
+    {
+      "from": "packages/host/host-server/README.zh-CN.md",
+      "to": "packages/transport/runtime-transport-server/README.zh-CN.md",
+      "sha256Before": "6b5bd9811544d979622324ee499717d2eec32d5e6316646b637a393ebbc16d85",
+      "sha256After": "c0d915a89fb3ef3c9d9344b54f77a6c56f76d35b49c14ff595794d0d17503267"
+    },
+    {
+      "from": "packages/host/host-server/lib/runtime-transport-auth.ts",
+      "to": "packages/transport/runtime-transport-server/lib/runtime-transport-auth.ts",
+      "sha256Before": "33df1a3bfb8dd31584d046816064f74c852121fb4f0809086fe214a0e997d12e",
+      "sha256After": "29354bc39d6b8638d41fa281394d22ffdc0c8f5ceafd8d98d093c12c4d27fb4a"
+    },
+    {
+      "from": "packages/host/host-server/package.json",
+      "to": "packages/transport/runtime-transport-server/package.json",
+      "sha256Before": "1a7adef8abb90c1c655de44290b8b41530f5689cbac93dfe8b1274335a19dcdd",
+      "sha256After": "486ce28372d5dc49c96990e704610b686698a57485848e5cec9ed9273674b145"
+    },
+    {
+      "from": "packages/host/host-server/src/api-only-runtime-host.ts",
+      "to": "packages/process/application-process/src/api-only-runtime-host.ts",
+      "sha256Before": "f83d88c61deda774b38faa689db77999662a6bcb8c7b7915e5af72e957e31dc1",
+      "sha256After": "572a8e738592a2d5ccfe6ff64ac21ab2eed2e50de7d0c5991285fa0a09834338"
+    },
+    {
+      "from": "packages/host/host-server/src/fetch-request-handler.ts",
+      "to": "packages/transport/runtime-transport-server/src/fetch-request-handler.ts",
+      "sha256Before": "537f8d4269bb8f82010dce39a7844ae305ada04771dce3c8569e207a08db8756",
+      "sha256After": "537f8d4269bb8f82010dce39a7844ae305ada04771dce3c8569e207a08db8756"
+    },
+    {
+      "from": "packages/host/host-server/src/host-probe.cjs",
+      "to": "packages/process/application-process/src/host-probe.cjs",
+      "sha256Before": "bccd78df85998f839ae5119c274cb1ca4223ddaa112a622c55825793699c8502",
+      "sha256After": "bccd78df85998f839ae5119c274cb1ca4223ddaa112a622c55825793699c8502"
+    },
+    {
+      "from": "packages/host/host-server/src/host-probe.d.cts",
+      "to": "packages/process/application-process/src/host-probe.d.cts",
+      "sha256Before": "7fc7c5219a96891e8ee02febdaa58e1b1d1d8a3b4f7de65727b8417550300af8",
+      "sha256After": "7fc7c5219a96891e8ee02febdaa58e1b1d1d8a3b4f7de65727b8417550300af8"
+    },
+    {
+      "from": "packages/host/host-server/src/runtime-artifact.ts",
+      "to": "packages/build/artifact-reader/src/runtime-artifact.ts",
+      "sha256Before": "8621bfc0061c495f1bb0d871c7bc0c6926a6945b47fadc1225186a148e46e4f7",
+      "sha256After": "a99bedf9110f2bb4ca23a26dfe8dd7f1e858b4eefa98d2103d54275d4f3e29ce"
+    },
+    {
+      "from": "packages/host/host-server/src/runtime-host-control-session.ts",
+      "to": "packages/process/application-process/src/runtime-host-control-session.ts",
+      "sha256Before": "69220a52ff562748bc4fa33aa745748e610d437fc3e27e7d3850b5ba5d867f74",
+      "sha256After": "7bc5030a6d41a758e4b2ef1e08c1f9a64dcf74d79bba6c68a0f063b39483f8e0"
+    },
+    {
+      "from": "packages/host/host-server/src/runtime-sidecar-child.ts",
+      "to": "packages/process/application-process/src/runtime-sidecar-child.ts",
+      "sha256Before": "cc60915e92ad57535681bcb3005a3ab87dc30f8e8a9ccf1a1bfeaea0a6cd83f4",
+      "sha256After": "17299be6b6a2b74715f589555b86146520f1e2f479132e28ea3df41409db21ae"
+    },
+    {
+      "from": "packages/host/host-server/src/runtime-sidecar-proxy.ts",
+      "to": "packages/transport/runtime-transport-server/src/runtime-sidecar-proxy.ts",
+      "sha256Before": "d1baf74a139661cd3998d05764b80beda7d3301af48b2fefa364d663810a654d",
+      "sha256After": "f999224afc79015111fb6e659efb8b2c32b5195febb5b00c8aab3586e2caa73f"
+    },
+    {
+      "from": "packages/host/host-server/src/runtime-transport-auth.ts",
+      "to": "packages/transport/runtime-transport-server/src/runtime-transport-auth.ts",
+      "sha256Before": "3776d2ade39645e518f8a97bdd01fb5033f570915044eb2dd5afb4d7b9211d10",
+      "sha256After": "3776d2ade39645e518f8a97bdd01fb5033f570915044eb2dd5afb4d7b9211d10"
+    },
+    {
+      "from": "packages/host/host-server/src/web-artifact.ts",
+      "to": "packages/build/artifact-reader/src/web-artifact.ts",
+      "sha256Before": "d4c6503c3b587ea1c92a6249cbb849ee8751f7a10b53fdc236194516f293e579",
+      "sha256After": "816ff60056e214e4716edf37062554642c9bdf1c27154ce239bb4273cc0ffc53"
+    },
+    {
+      "from": "packages/host/host-server/src/web-host-control-session.ts",
+      "to": "packages/process/application-process/src/web-host-control-session.ts",
+      "sha256Before": "5e7bfa5246b79a66c48ca4bb92ece8cd83736a46847a9ebccd4f6f1ffbe6d9b3",
+      "sha256After": "38edaeb85488bd4c7d484e63ad924149928e210ca5576bb438d150eae5362cd6"
+    },
+    {
+      "from": "packages/host/host-server/src/windows-process-census.cjs",
+      "to": "packages/process/application-process/src/windows-process-census.cjs",
+      "sha256Before": "08822648ff26aaa8921d508f2523d36ab0ba68fa3cd2362c3aec67dbf7b38a30",
+      "sha256After": "08822648ff26aaa8921d508f2523d36ab0ba68fa3cd2362c3aec67dbf7b38a30"
+    },
+    {
+      "from": "packages/host/host-server/src/windows-process-census.d.ts",
+      "to": "packages/process/application-process/src/windows-process-census.d.ts",
+      "sha256Before": "321830667e2de80dca6794ed9007440b37a605af61c10733552c8489147a5003",
+      "sha256After": "321830667e2de80dca6794ed9007440b37a605af61c10733552c8489147a5003"
+    },
+    {
+      "from": "packages/host/host-server/src/workbench-http-server.ts",
+      "to": "packages/transport/runtime-transport-server/src/workbench-http-server.ts",
+      "sha256Before": "ea1e0ce3e13684e2aabb597c0c7b163f462f0f50db375e4baf2e44f407b4461f",
+      "sha256After": "f9ea0908fe830c8c11fe9dcbafb1c9e2f909e537660b7a01117488215a88fc6a"
+    },
+    {
+      "from": "packages/host/host-server/tests/api-only-runtime-host.test.ts",
+      "to": "packages/process/application-process/tests/api-only-runtime-host.test.ts",
+      "sha256Before": "b1fbf155e2ba4282882d0d736e706d383a9f2eb3c135dacb66875d1e9baea17a",
+      "sha256After": "a022327be69e4aac5375b8d419ba7bcf866e90e6193c56da048b333fedbe7b54"
+    },
+    {
+      "from": "packages/host/host-server/tests/fetch-request-handler.test.ts",
+      "to": "packages/transport/runtime-transport-server/tests/fetch-request-handler.test.ts",
+      "sha256Before": "2a372a9139de3c2cd14bdead34e09bcc896ba69099a5028886e637d453d78479",
+      "sha256After": "2a372a9139de3c2cd14bdead34e09bcc896ba69099a5028886e637d453d78479"
+    },
+    {
+      "from": "packages/host/host-server/tests/host-probe.test.cjs",
+      "to": "packages/process/application-process/tests/host-probe.test.cjs",
+      "sha256Before": "3c1fd74175dd8b3bf4ee3c853d3b184c35a9659ddcadd268394d1671319dac09",
+      "sha256After": "3c1fd74175dd8b3bf4ee3c853d3b184c35a9659ddcadd268394d1671319dac09"
+    },
+    {
+      "from": "packages/host/host-server/tests/runtime-artifact.test.ts",
+      "to": "packages/build/artifact-reader/tests/runtime-artifact.test.ts",
+      "sha256Before": "f9f041971897703766d342d1a657f220118cea715bb57a0f1eb4cec8e8887b2c",
+      "sha256After": "be3e0597702c9f029656d35e3fe02a23ac5cf5fe0687587bf4a89c1d5dd8b815"
+    },
+    {
+      "from": "packages/host/host-server/tests/runtime-host-control-session.test.ts",
+      "to": "packages/process/application-process/tests/runtime-host-control-session.test.ts",
+      "sha256Before": "c9f78b04496617cd71ffc6f4f9736ced2f0ab60a6055b0b314a6f89bd231714c",
+      "sha256After": "ec20cb6dee1ca5ad07a4a38c54d10ad693f7a01e5de31bf17d6bc712d9845e75"
+    },
+    {
+      "from": "packages/host/host-server/tests/runtime-sidecar-proxy.test.ts",
+      "to": "packages/transport/runtime-transport-server/tests/runtime-sidecar-proxy.test.ts",
+      "sha256Before": "f5a7503636916e106df86ec278fba2a31fe5e48c215de79e477c6663d89f4b17",
+      "sha256After": "f5a7503636916e106df86ec278fba2a31fe5e48c215de79e477c6663d89f4b17"
+    },
+    {
+      "from": "packages/host/host-server/tests/runtime-transport-auth.test.ts",
+      "to": "packages/transport/runtime-transport-server/tests/runtime-transport-auth.test.ts",
+      "sha256Before": "589824ff2d2b9adfc9fd262d645c15dae8c661895c6ab93dc420208caee9a51c",
+      "sha256After": "d02e77e25d3e65d8c1e20c1490dbd50dc8e36b9451e496ce02b45605a8b0cbd1"
+    },
+    {
+      "from": "packages/host/host-server/tests/runtime-transport-conformance.test.ts",
+      "to": "packages/transport/runtime-transport-server/tests/runtime-transport-conformance.test.ts",
+      "sha256Before": "96950120b53c6030fe8fdde550d9926fd9cb98adf7d3572398fbf3f52fbb9380",
+      "sha256After": "c784c48afcc74b7d67c6d0a968ec22a92c3b6311c530739801b1fbd87223fe5a"
+    },
+    {
+      "from": "packages/host/host-server/tests/web-artifact.test.ts",
+      "to": "packages/build/artifact-reader/tests/web-artifact.test.ts",
+      "sha256Before": "adbf4e5551325024a1a5000d1a75cc18f1a658a4d875d59b57a8b16c49ac3d5e",
+      "sha256After": "bd6230205ea96e2e860cc7ba957566f498c7cbe01cc63a305bf58fdb3e891d04"
+    },
+    {
+      "from": "packages/host/host-server/tests/web-host-control-session.test.ts",
+      "to": "packages/process/application-process/tests/web-host-control-session.test.ts",
+      "sha256Before": "7797411ad33ea363555a86dd30cd7e4acc3a0fff4e008a0755f95bd756d783d0",
+      "sha256After": "319fadc07afb0835ea1da49faf2d9805a2d3b9eb645a61ea2d8da66c8d3fa90a"
+    },
+    {
+      "from": "packages/host/host-server/tests/windows-process-census.test.cjs",
+      "to": "packages/process/application-process/tests/windows-process-census.test.cjs",
+      "sha256Before": "82526effa4ed27b7b7f55466c6235f9e96576cf7c71586ecc7e7a7c3d211eed3",
+      "sha256After": "82526effa4ed27b7b7f55466c6235f9e96576cf7c71586ecc7e7a7c3d211eed3"
+    },
+    {
+      "from": "packages/host/host-server/tests/workbench-http-server.test.ts",
+      "to": "packages/transport/runtime-transport-server/tests/workbench-http-server.test.ts",
+      "sha256Before": "435ca5f284b0c9a1a498534a8417442f4683073901b86c2d32555fb8a97142c6",
+      "sha256After": "435ca5f284b0c9a1a498534a8417442f4683073901b86c2d32555fb8a97142c6"
+    },
+    {
+      "from": "packages/host/host-server/tsconfig.json",
+      "to": "packages/transport/runtime-transport-server/tsconfig.json",
+      "sha256Before": "a2c3133e944386ac0cb6e22293080b274aa9cb2f53444741863c8a3a70bce6d7",
+      "sha256After": "a2c3133e944386ac0cb6e22293080b274aa9cb2f53444741863c8a3a70bce6d7"
+    }
+  ],
+  "publicEntries": [
+    {
+      "from": "@workbench/host-artifact-policy/filesystem",
+      "to": "@workbench/artifact-policy/filesystem"
+    },
+    {
+      "from": "@workbench/host-artifact-policy/runtime-admission",
+      "to": "@workbench/artifact-policy/runtime-admission"
+    },
+    {
+      "from": "@workbench/host-artifact-policy/runtime-model-resources",
+      "to": "@workbench/artifact-policy/runtime-model-resources"
+    },
+    {
+      "from": "@workbench/host-artifact-policy/runtime-native",
+      "to": "@workbench/artifact-policy/runtime-native"
+    },
+    {
+      "from": "@workbench/host-artifact-policy/source-shape",
+      "to": "@workbench/artifact-policy/source-shape"
+    },
+    {
+      "from": "@workbench/host-artifact-policy/web-next-runtime-exception",
+      "to": "@workbench/artifact-policy/web-next-runtime-exception"
+    },
+    {
+      "from": "@workbench/host-client",
+      "to": "@workbench/runtime-transport-client"
+    },
+    {
+      "from": "@workbench/host-client/runtime-fetch",
+      "to": "@workbench/runtime-transport-client/runtime-fetch"
+    },
+    {
+      "from": "@workbench/host-client/runtime-websocket",
+      "to": "@workbench/runtime-transport-client/runtime-websocket"
+    },
+    {
+      "from": "@workbench/host-contracts",
+      "to": "@workbench/runtime-contracts"
+    },
+    {
+      "from": "@workbench/host-contracts/control-ndjson",
+      "to": "@workbench/runtime-contracts/control-ndjson"
+    },
+    {
+      "from": "@workbench/host-contracts/desktop-renderer-artifact-manifest",
+      "to": "@workbench/runtime-contracts/desktop-renderer-artifact-manifest"
+    },
+    {
+      "from": "@workbench/host-contracts/host-control",
+      "to": "@workbench/runtime-contracts/host-control"
+    },
+    {
+      "from": "@workbench/host-contracts/runtime-artifact-manifest",
+      "to": "@workbench/runtime-contracts/runtime-artifact-manifest"
+    },
+    {
+      "from": "@workbench/host-contracts/runtime-capabilities",
+      "to": "@workbench/runtime-contracts/runtime-capabilities"
+    },
+    {
+      "from": "@workbench/host-contracts/runtime-connected-web-control",
+      "to": "@workbench/runtime-contracts/runtime-connected-web-control"
+    },
+    {
+      "from": "@workbench/host-contracts/runtime-connection",
+      "to": "@workbench/runtime-contracts/runtime-connection"
+    },
+    {
+      "from": "@workbench/host-contracts/runtime-host-control",
+      "to": "@workbench/runtime-contracts/runtime-host-control"
+    },
+    {
+      "from": "@workbench/host-contracts/runtime-host-identity",
+      "to": "@workbench/runtime-contracts/runtime-host-identity"
+    },
+    {
+      "from": "@workbench/host-contracts/web-artifact-manifest",
+      "to": "@workbench/runtime-contracts/web-artifact-manifest"
+    },
+    {
+      "from": "@workbench/host-contracts/web-host-control",
+      "to": "@workbench/runtime-contracts/web-host-control"
+    },
+    {
+      "from": "@workbench/host-server/api-only-runtime-host",
+      "to": "@workbench/application-process/api-only-runtime-host"
+    },
+    {
+      "from": "@workbench/host-server/fetch-request-handler",
+      "to": "@workbench/runtime-transport-server/fetch-request-handler"
+    },
+    {
+      "from": "@workbench/host-server/host-probe",
+      "to": "@workbench/application-process/host-probe"
+    },
+    {
+      "from": "@workbench/host-server/runtime-artifact",
+      "to": "@workbench/artifact-reader/runtime-artifact"
+    },
+    {
+      "from": "@workbench/host-server/runtime-host-control-session",
+      "to": "@workbench/application-process/runtime-host-control-session"
+    },
+    {
+      "from": "@workbench/host-server/runtime-sidecar-child",
+      "to": "@workbench/application-process/runtime-sidecar-child"
+    },
+    {
+      "from": "@workbench/host-server/runtime-sidecar-proxy",
+      "to": "@workbench/runtime-transport-server/runtime-sidecar-proxy"
+    },
+    {
+      "from": "@workbench/host-server/runtime-transport-auth",
+      "to": "@workbench/runtime-transport-server/runtime-transport-auth"
+    },
+    {
+      "from": "@workbench/host-server/web-artifact",
+      "to": "@workbench/artifact-reader/web-artifact"
+    },
+    {
+      "from": "@workbench/host-server/web-host-control-session",
+      "to": "@workbench/application-process/web-host-control-session"
+    },
+    {
+      "from": "@workbench/host-server/windows-process-census",
+      "to": "@workbench/application-process/windows-process-census"
+    },
+    {
+      "from": "@workbench/host-server/workbench-http-server",
+      "to": "@workbench/runtime-transport-server/workbench-http-server"
+    }
+  ],
+  "packageMoves": {
+    "packages/client/host-contracts": "packages/contracts/runtime-contracts",
+    "packages/client/host-client": "packages/transport/runtime-transport-client",
+    "packages/host/host-artifact-policy": "packages/build/artifact-policy"
+  },
+  "consumers": [
+    "apps/desktop-electron/package.json",
+    "apps/desktop-electron/scripts/desktop-artifact-layout.cjs",
+    "apps/desktop-electron/scripts/desktop-artifact-support.cjs",
+    "apps/desktop-electron/scripts/desktop-renderer-artifact.cjs",
+    "apps/desktop-electron/scripts/desktop-runtime-budget.cjs",
+    "apps/desktop-electron/scripts/native-runtime.cjs",
+    "apps/desktop-electron/scripts/packaged-app-smoke.cjs",
+    "apps/desktop-electron/scripts/runtime-artifact-admission.cjs",
+    "apps/desktop-electron/scripts/runtime-artifact-materializer.cjs",
+    "apps/desktop-electron/scripts/staged-api-only-runtime-smoke.cjs",
+    "apps/desktop-electron/src/server-process-lifecycle.cjs",
+    "apps/desktop-electron/test/desktop-artifact-support.test.cjs",
+    "apps/desktop-electron/test/desktop-renderer-artifact.test.cjs",
+    "apps/desktop-electron/test/native-runtime.test.cjs",
+    "apps/desktop-electron/test/prepare-package.test.cjs",
+    "apps/desktop-electron/test/runtime-artifact-admission.test.cjs",
+    "apps/desktop-electron/test/staged-api-only-runtime-smoke.test.cjs",
+    "apps/desktop-renderer/package.json",
+    "apps/desktop-renderer/scripts/build-desktop-renderer-artifact.ts",
+    "apps/desktop-renderer/src/desktop/desktop-renderer-application.tsx",
+    "apps/desktop-renderer/src/desktop/desktop-workbench.tsx",
+    "apps/desktop-renderer/src/desktop/runtime-bootstrap.ts",
+    "apps/desktop-renderer/test/build-desktop-renderer-artifact.test.ts",
+    "apps/runtime-node/README.md",
+    "apps/runtime-node/package.json",
+    "apps/runtime-node/scripts/build-runtime-artifact.ts",
+    "apps/runtime-node/src/browser-gateway.ts",
+    "apps/runtime-node/src/installed-api-only-runtime-host.ts",
+    "apps/runtime-node/src/installed-runtime-service.ts",
+    "apps/runtime-node/src/runtime-rpc-warmup.ts",
+    "apps/runtime-node/test/browser-gateway.test.ts",
+    "apps/runtime-node/test/installed-api-only-runtime-host.test.ts",
+    "apps/runtime-node/test/runtime-artifact-builder.test.ts",
+    "apps/runtime-node/test/terminal-runtime-auth.test.ts",
+    "apps/runtime-node/test/terminal-shell-rpc.test.ts",
+    "apps/web/next.config.ts",
+    "apps/web/package.json",
+    "apps/web/scripts/build-web-artifact.ts",
+    "apps/web/scripts/complete-next-standalone-runtime.cjs",
+    "apps/web/src/server/next-web-handler.ts",
+    "apps/web/src/server/runtime-connected-web-host.ts",
+    "apps/web/src/server/runtime-connected-web-process.ts",
+    "apps/web/src/server/web-application-host.ts",
+    "apps/web/src/server/web-artifact-layout.ts",
+    "apps/web/src/server/web-host-process.ts",
+    "apps/web/src/workbench/providers/application-providers.tsx",
+    "apps/web/src/workbench/providers/installed-web-runtime-connection.ts",
+    "apps/web/test/scripts/complete-next-standalone-runtime.test.cjs",
+    "apps/web/test/server/next-web-handler.test.ts",
+    "apps/web/test/server/runtime-connected-web-host.test.ts",
+    "apps/web/test/server/runtime-connected-web-process.test.ts",
+    "apps/web/test/server/web-artifact-builder.test.ts",
+    "apps/web/test/server/web-artifact-layout.test.ts",
+    "apps/web/test/server/web-artifact-process.test.ts",
+    "apps/web/test/server/web-host-process.test.ts",
+    "apps/web/test/server/web-only-host.test.ts",
+    "apps/web/test/server/web-primary-import-boundary.test.ts",
+    "apps/web/test/workbench/runtime-contributions/installed-agent-runtime.test.ts",
+    "docs/agent-runtime-pi-implementation-refactor-plan.md",
+    "docs/workbench-public-layers.md",
+    "package.json",
+    "packages/README.md",
+    "packages/agent-runtime/agent-runtime-client/package.json",
+    "packages/agent-runtime/agent-runtime-client/src/environment/capabilities.ts",
+    "packages/client/desktop-contracts/package.json",
+    "packages/client/desktop-contracts/src/runtime-bootstrap.ts",
+    "packages/client/services-client/package.json",
+    "packages/client/services-client/src/errors.ts",
+    "packages/client/services-client/src/file-content.ts",
+    "packages/client/services-client/src/host.ts",
+    "packages/client/services-client/src/settings.ts",
+    "packages/client/services-client/tests/host-client-transport.test.ts",
+    "packages/client/services-client/tests/workspace-file-content-transport.test.ts",
+    "packages/client/services-client/tests/workspace-git-transport.test.ts",
+    "packages/client/shell-context/package.json",
+    "packages/client/shell-context/src/runtime-connection/runtime-connection-provider.tsx",
+    "packages/client/shell-context/src/runtime-connection/runtime-connection.ts",
+    "packages/client/shell-context/tests/runtime-connection.test.ts",
+    "packages/client/shell/package.json",
+    "packages/client/shell/src/application.tsx",
+    "packages/client/ui-terminal/package.json",
+    "packages/client/ui-terminal/src/terminal-surface.tsx",
+    "packages/client/ui-terminal/src/use-tool-terminal-ready.ts",
+    "packages/pi-runtime/integration.md",
+    "packages/pi-runtime/pi-rpc-client/package.json",
+    "packages/pi-runtime/pi-rpc-client/src/api.ts",
+    "packages/pi-runtime/pi-rpc-contracts/package.json",
+    "packages/pi-runtime/pi-rpc-contracts/src/rpc.ts",
+    "packages/pi-runtime/pi-runtime-client/package.json",
+    "packages/product/pi-workbench/package.json",
+    "packages/product/pi-workbench/src/installation.tsx",
+    "packages/product/pi-workbench/src/settings.ts",
+    "packages/product/pi-workbench/tests/application.test.tsx",
+    "packages/product/pi-workbench/tests/installed-agent-runtime.test.tsx",
+    "packages/product/pi-workbench/tests/installed-workbench-settings.test.ts",
+    "packages/server/automation-server/package.json",
+    "packages/server/automation-server/tests/public-boundary.test.ts",
+    "packages/server/local-host-server/package.json",
+    "packages/server/local-host-server/src/host-directories.ts",
+    "packages/server/local-host-server/src/local-apps/service.ts",
+    "packages/server/local-host-server/src/local-apps/types.ts",
+    "packages/server/local-host-server/src/service.ts",
+    "packages/server/settings-server/package.json",
+    "packages/server/settings-server/tests/public-boundary.test.ts",
+    "packages/server/workspace-server/package.json",
+    "packages/terminal/AGENTS.md",
+    "packages/terminal/terminal-client/package.json",
+    "packages/terminal/terminal-client/src/terminal-client-connection.ts",
+    "packages/terminal/terminal-client/tests/terminal-client-connection.test.ts",
+    "packages/transport/api/README.md",
+    "packages/transport/api/README.zh-CN.md",
+    "packages/workspace/workspace-browser/package.json",
+    "packages/workspace/workspace-browser/src/remote-browser-session-service.ts",
+    "packages/workspace/workspace-browser/tests/remote-browser-session-service.test.ts",
+    "packages/workspace/workspace-directory-picker/lib/workspace-admission.ts",
+    "packages/workspace/workspace-directory-picker/package.json",
+    "packages/workspace/workspace-directory-picker/src/directory-picker-capability.ts",
+    "packages/workspace/workspace-directory-picker/src/remote-directory-picker-dialog.tsx",
+    "packages/workspace/workspace-directory-picker/tests/directory-picker-capability.test.ts",
+    "packages/workspace/workspace-directory-picker/tests/workspace-admission.test.ts",
+    "packages/workspace/workspace-file-view/package.json",
+    "packages/workspace/workspace-file-view/src/file-surface-header.tsx",
+    "packages/workspace/workspace-files/package.json",
+    "packages/workspace/workspace-files/src/buffered-file-workspace-service.ts",
+    "packages/workspace/workspace-files/src/file-link-menu.tsx",
+    "packages/workspace/workspace-files/src/file-open-apps.ts",
+    "packages/workspace/workspace-files/src/file-open-preferences.ts",
+    "packages/workspace/workspace-files/src/local-app-icon.tsx",
+    "packages/workspace/workspace-files/tests/file-open-apps.test.ts",
+    "scripts/build-node-pty-native.cjs",
+    "scripts/check-package-structure.mjs",
+    "scripts/check-package-structure.test.mjs",
+    "scripts/check-runtime-host-ownership.mjs",
+    "scripts/check-runtime-host-ownership.test.mjs",
+    "scripts/check-workspace-dependencies.mjs",
+    "scripts/local-release.mjs",
+    "scripts/prepare-release-assets.mjs",
+    "scripts/prepare-release-assets.test.mjs",
+    "scripts/refactor-architecture-boundaries.test.mjs",
+    "scripts/web-runtime-dev.mjs",
+    "scripts/web-runtime-orchestrator.mjs",
+    "scripts/web-runtime-orchestrator.test.mjs"
+  ],
+  "extractedHelpers": [
+    {
+      "from": "packages/host/host-server/src/runtime-sidecar-child.ts",
+      "to": "packages/process/application-process/lib/streaming-secret-redactor.ts",
+      "symbols": ["StreamingSecretRedactor", "createStreamingSecretRedactor"]
+    },
+    {
+      "from": [
+        "packages/host/host-server/src/runtime-artifact.ts",
+        "packages/host/host-server/src/web-artifact.ts"
+      ],
+      "to": "packages/build/artifact-reader/lib/artifact-path.ts",
+      "symbols": ["canonicalRequestedPath"]
+    }
+  ],
+  "newRegressionTests": ["packages/process/application-process/tests/runtime-sidecar-child.test.ts"]
+}

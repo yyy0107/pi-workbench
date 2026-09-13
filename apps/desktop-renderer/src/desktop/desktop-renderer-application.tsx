@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import type { RuntimeConnection } from "@workbench/host-contracts";
+import type { RuntimeConnection } from "@workbench/runtime-contracts";
 import {
   createI18n,
   DEFAULT_LOCALE,

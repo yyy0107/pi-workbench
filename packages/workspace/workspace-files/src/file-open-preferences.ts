@@ -1,7 +1,7 @@
 import { createStore } from "zustand/vanilla";
 
 import type { WorkbenchSettingsPort } from "@workbench/settings-runtime";
-import type { WorkbenchLocalApp } from "@workbench/host-contracts/runtime-capabilities";
+import type { WorkbenchLocalApp } from "@workbench/runtime-contracts/runtime-capabilities";
 import { SYSTEM_DEFAULT_APP_ID } from "./file-open-apps";
 
 export const FILE_OPEN_PREFERENCES = Symbol("workbench.file-open-preferences");

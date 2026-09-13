@@ -7,7 +7,7 @@ import {
   useWorkbenchApplicationInstallationId,
 } from "@workbench/pi-workbench/application";
 import type { Locale } from "@workbench/shell/i18n";
-import type { RuntimeConnection } from "@workbench/host-contracts";
+import type { RuntimeConnection } from "@workbench/runtime-contracts";
 import { webAppTranslationBundle } from "@/app/i18n/bundle";
 
 const INSTALLED_TRANSLATION_BUNDLES = Object.freeze([webAppTranslationBundle]);

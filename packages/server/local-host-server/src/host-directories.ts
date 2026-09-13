@@ -6,7 +6,7 @@ import path from "node:path";
 import {
   type WorkbenchHostDirectoryEntry as DirectoryEntry,
   type WorkbenchHostDirectoryListing as HostDirectoryListing,
-} from "@workbench/host-contracts/runtime-capabilities";
+} from "@workbench/runtime-contracts/runtime-capabilities";
 import { RpcDomainError } from "@workbench/api/errors";
 import {
   NativeWorkspacePickerUnavailableError,

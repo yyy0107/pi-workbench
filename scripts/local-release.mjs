@@ -63,7 +63,7 @@ export function localRelease({
     node("scripts/prepare-workbench-build.cjs");
     rmSync(path.join(root, "dist-electron"), { recursive: true, force: true });
     pnpm("--filter", "@workbench/terminal-server", "run", "native:pty:build");
-    pnpm("--filter", "@workbench/host-artifact-policy", "test");
+    pnpm("--filter", "@workbench/artifact-policy", "test");
     node(
       "--no-warnings=ExperimentalWarning",
       "--import",
@@ -76,7 +76,7 @@ export function localRelease({
       "apps/desktop-electron/test/native-runtime.test.cjs",
       "apps/desktop-electron/test/after-pack.test.cjs",
       "apps/desktop-electron/test/staged-api-only-runtime-smoke.test.cjs",
-      "packages/host/host-server/tests/windows-process-census.test.cjs",
+      "packages/process/application-process/tests/windows-process-census.test.cjs",
       "scripts/local-release.test.mjs",
       "scripts/validate-release-tag.test.mjs",
       "scripts/validate-release-assets.test.mjs",

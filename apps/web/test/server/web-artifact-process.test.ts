@@ -16,8 +16,8 @@ import {
   WEB_ARTIFACT_MANIFEST_FILENAME,
   WEB_ARTIFACT_MANIFEST_SCHEMA_VERSION,
   WEB_ARTIFACT_PRIMARY_ENTRYPOINT,
-} from "@workbench/host-contracts/web-artifact-manifest";
-import { RUNTIME_HOST_PROTOCOL_VERSION } from "@workbench/host-contracts/runtime-host-control";
+} from "@workbench/runtime-contracts/web-artifact-manifest";
+import { RUNTIME_HOST_PROTOCOL_VERSION } from "@workbench/runtime-contracts/runtime-host-control";
 import {
   WEB_HOST_CONTROL_MAX_SHUTDOWN_DEADLINE_MS,
   WEB_HOST_CONTROL_TRANSPORT,
@@ -30,7 +30,7 @@ import {
   encodeWebHostControlInputFrame,
   parseWebHostControlOutputFrame,
   type WebHostReadyFrame,
-} from "@workbench/host-contracts/web-host-control";
+} from "@workbench/runtime-contracts/web-host-control";
 
 const WEB_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const PRIMARY_SOURCE_ENTRY = path.join(WEB_ROOT, "src", "server", "web-artifact-main.ts");

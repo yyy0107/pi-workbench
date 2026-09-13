@@ -1,0 +1,45 @@
+{
+  "name": "@workbench/artifact-policy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "sideEffects": false,
+  "exports": {
+    "./source-shape": {
+      "require": "./src/source-shape.cjs",
+      "default": "./src/source-shape.cjs"
+    },
+    "./runtime-native": {
+      "require": "./src/runtime-native.cjs",
+      "default": "./src/runtime-native.cjs"
+    },
+    "./runtime-model-resources": {
+      "require": "./src/runtime-model-resources.cjs",
+      "default": "./src/runtime-model-resources.cjs"
+    },
+    "./runtime-admission": {
+      "require": "./src/runtime-admission.cjs",
+      "default": "./src/runtime-admission.cjs"
+    },
+    "./web-next-runtime-exception": {
+      "require": "./src/web-next-runtime-exception.cjs",
+      "default": "./src/web-next-runtime-exception.cjs"
+    },
+    "./filesystem": {
+      "types": "./src/filesystem.d.cts",
+      "require": "./src/filesystem.cjs",
+      "default": "./src/filesystem.cjs"
+    }
+  },
+  "scripts": {
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/browser-contracts": "workspace:*",
+    "@workbench/terminal-contracts": "workspace:*",
+    "next": "^16.3.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.12"
+  }
+}

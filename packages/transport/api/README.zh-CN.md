@@ -12,18 +12,18 @@
 - `@workbench/api/client`：`callRpc`、`RpcClientError`、`createRpcId` 和 `RpcTransport` 类型；`callRpc` 必须显式接收 transport。
 - `@workbench/api/server`：`createRpcPostHandler`、`handleRpcPost`、route group dispatch、请求大小限制，以及 `readTrustedJsonPost` 和对应的 `TrustedJsonPostOptions`/`TrustedJsonPostResult` 类型。
 
-浏览器或 Runtime 客户端应注入 `@workbench/host-client` 提供的传输载体：
+浏览器或 Runtime 客户端应注入 `@workbench/runtime-transport-client` 提供的传输载体：
 
 ```ts
 import { callRpc } from "@workbench/api/client";
-import { resolveRuntimeFetch } from "@workbench/host-client/runtime-fetch";
+import { resolveRuntimeFetch } from "@workbench/runtime-transport-client/runtime-fetch";
 
 const value = await callRpc<Payload, Result>("workspace.files.read", payload, {
   transport: resolveRuntimeFetch(),
 });
 ```
 
-应用也可以传入 `@workbench/host-client/runtime-fetch` 的 `createRuntimeFetch(...)` 结果。`@workbench/services-client` 中的服务 facade 继续负责领域错误映射，并可为调用方注入 transport；它们是可选的领域便利层。
+应用也可以传入 `@workbench/runtime-transport-client/runtime-fetch` 的 `createRuntimeFetch(...)` 结果。`@workbench/services-client` 中的服务 facade 继续负责领域错误映射，并可为调用方注入 transport；它们是可选的领域便利层。
 
 服务端组合根提供自己的业务 handler，并使用通用服务端入口：
 

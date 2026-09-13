@@ -12,18 +12,18 @@ Use the explicit subpaths:
 - `@workbench/api/client` exposes `callRpc`, `RpcClientError`, `createRpcId`, and the `RpcTransport` type. `callRpc` requires an explicit transport.
 - `@workbench/api/server` exposes `createRpcPostHandler`, `handleRpcPost`, route-group dispatch, request limits, and `readTrustedJsonPost` with its `TrustedJsonPostOptions`/`TrustedJsonPostResult` types.
 
-For a browser or Runtime client, inject the carrier owned by `@workbench/host-client`:
+For a browser or Runtime client, inject the carrier owned by `@workbench/runtime-transport-client`:
 
 ```ts
 import { callRpc } from "@workbench/api/client";
-import { resolveRuntimeFetch } from "@workbench/host-client/runtime-fetch";
+import { resolveRuntimeFetch } from "@workbench/runtime-transport-client/runtime-fetch";
 
 const value = await callRpc<Payload, Result>("workspace.files.read", payload, {
   transport: resolveRuntimeFetch(),
 });
 ```
 
-An application may instead pass a `createRuntimeFetch(...)` result from `@workbench/host-client/runtime-fetch`. Service facades in `@workbench/services-client` keep their domain-specific error mapping and may provide that transport injection for callers; they remain optional domain conveniences.
+An application may instead pass a `createRuntimeFetch(...)` result from `@workbench/runtime-transport-client/runtime-fetch`. Service facades in `@workbench/services-client` keep their domain-specific error mapping and may provide that transport injection for callers; they remain optional domain conveniences.
 
 A server composition root supplies its own business handler and uses the generic server entry:
 

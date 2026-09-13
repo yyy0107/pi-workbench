@@ -1,6 +1,6 @@
 import { WorkbenchAgentCapabilityError } from "@workbench/agent-runtime-client";
 import type { WorkbenchLocalFilesCapability } from "@workbench/agent-runtime-client/capabilities";
-import type { WorkbenchLocalFileSnapshot } from "@workbench/host-contracts/runtime-capabilities";
+import type { WorkbenchLocalFileSnapshot } from "@workbench/runtime-contracts/runtime-capabilities";
 import type {
   WorkbenchWorkspaceFileDescriptor,
   WorkbenchWorkspaceFileRequest,

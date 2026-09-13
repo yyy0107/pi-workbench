@@ -1,4 +1,4 @@
-import type { RuntimeConnection } from "@workbench/host-contracts";
+import type { RuntimeConnection } from "@workbench/runtime-contracts";
 import { createSameOriginRuntimeConnection } from "@workbench/shell-context/runtime-connection";
 
 interface RequestHeadersPort {

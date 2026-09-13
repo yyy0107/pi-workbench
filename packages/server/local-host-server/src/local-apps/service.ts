@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 import {
   type WorkbenchLocalAppOpenResult as LocalAppOpenValue,
   type WorkbenchLocalAppsListResult as LocalAppsListValue,
-} from "@workbench/host-contracts/runtime-capabilities";
+} from "@workbench/runtime-contracts/runtime-capabilities";
 import { RpcDomainError } from "@workbench/api/errors";
 import { detectInstalledApps } from "./detectors";
 import { launchLocalApp } from "./launchers";

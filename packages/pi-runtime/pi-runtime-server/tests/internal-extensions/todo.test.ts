@@ -10,19 +10,19 @@ import {
   type ExtensionContext,
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import type { ToolCapabilitySettings } from "@workbench/pi-runtime-tools/tool-availability";
+import type { ToolCapabilitySettings } from "@workbench/pi-workbench-runtime/tools/tool-availability";
 import { prepareWorkbenchPiExtensions } from "../../src/tool-composition";
 
 import {
   TODO_EXTENSION_NAME,
   todoExtension,
   createTodoExtension,
-} from "@workbench/pi-runtime-tools/rpiv-todo";
+} from "@workbench/pi-workbench-runtime/tools/rpiv-todo";
 import {
   TodoParamsSchema,
   type TaskDetails,
   type TodoParams,
-} from "@workbench/pi-runtime-tools/types";
+} from "@workbench/pi-workbench-runtime/todo/types";
 
 async function harness(
   settings: ToolCapabilitySettings | null = {

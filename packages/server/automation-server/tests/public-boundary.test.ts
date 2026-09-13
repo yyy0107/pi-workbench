@@ -26,8 +26,8 @@ test("publishes exactly the Automation server capability subpaths", () => {
     "./service",
   ]);
   assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
+    "@workbench/api",
     "@workbench/automation-contracts",
-    "@workbench/host-server",
     "@workbench/server-core",
     "cron-parser",
   ]);

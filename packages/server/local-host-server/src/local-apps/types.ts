@@ -3,7 +3,7 @@ import {
   type WorkbenchLocalAppKind as LocalAppKind,
   type WorkbenchLocalAppPlatform as LocalAppPlatform,
   type WorkbenchLocalApp as LocalAppView,
-} from "@workbench/host-contracts/runtime-capabilities";
+} from "@workbench/runtime-contracts/runtime-capabilities";
 
 export type LocalAppTargetMode = "path" | "directory";
 

@@ -56,7 +56,7 @@ Inspect these repository paths before adding a new abstraction:
 | Embedded runtime contract and architecture   | `packages/pi-runtime/integration.md`                                          |
 | Session/service construction and binding     | `packages/pi-sdk/pi-sdk-sessions/src/session-registry.ts`                     |
 | Product resources and default extension list | `packages/product/pi-workbench-runtime/`                                      |
-| Host-owned inline extensions                 | `packages/pi-runtime/pi-runtime-tools/src/`                                   |
+| Host-owned inline extensions                 | `packages/product/pi-workbench-runtime/resources/extensions/`                 |
 | User extension listing/mutation              | `packages/pi-sdk/pi-sdk-resources/src/`                                       |
 | Installed Pi package management              | `packages/pi-sdk/pi-sdk-resources/src/`                                       |
 | Browser-facing unary types                   | `packages/pi-runtime/pi-rpc-contracts/src/rpc.ts`                             |
@@ -66,7 +66,7 @@ Inspect these repository paths before adding a new abstraction:
 | Workbench capability contracts and errors    | `packages/agent-runtime/agent-runtime-client/src/environment/capabilities.ts` |
 | Pi session and conversation projection       | `packages/pi-runtime/pi-runtime-client/src/runtime/session.ts`                |
 | Pi-to-Workbench capability/error projection  | `packages/pi-runtime/pi-runtime-client/src/integration/capabilities.ts`       |
-| Terminal-owned Pi bash `ToolDefinition`      | `packages/pi-runtime/pi-runtime-terminal/src/`                                |
+| Custom Pi bash `ToolDefinition`              | `packages/product/pi-workbench-runtime/src/bash/index.ts`                     |
 | Terminal sessions and native process owner   | `packages/terminal/terminal-server/src/`                                      |
 
 Search before editing:

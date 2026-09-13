@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createRuntimeFetch as createPiHttpTransport } from "@workbench/host-client";
+import { createRuntimeFetch as createPiHttpTransport } from "@workbench/runtime-transport-client";
 import { fetchWorkspaceFileContent as fetchPiWorkspaceFileContent } from "../src/workspace";
 import { createHostClient } from "../src/host";
 

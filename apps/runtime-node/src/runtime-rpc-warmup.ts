@@ -1,4 +1,4 @@
-import type { RuntimeFetchHandler } from "@workbench/host-server/fetch-request-handler";
+import type { RuntimeFetchHandler } from "@workbench/runtime-transport-server/fetch-request-handler";
 
 export type RuntimeWarmupMethod = "packageCatalog.search" | "session.list";
 

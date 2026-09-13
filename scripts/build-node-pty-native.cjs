@@ -13,7 +13,7 @@ const {
 const { createRequire } = require("node:module");
 const path = require("node:path");
 
-const nativeArtifact = require("../packages/host/host-artifact-policy/src/runtime-native.cjs");
+const nativeArtifact = require("../packages/build/artifact-policy/src/runtime-native.cjs");
 
 const REPOSITORY_ROOT = path.resolve(__dirname, "..");
 const TERMINAL_SERVER_MANIFEST = path.join(

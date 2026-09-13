@@ -17,7 +17,11 @@ import {
   browserPackageArtifactRelativePath,
   browserPackageDirectory,
 } from "@workbench/pi-runtime-browser/resources";
-import { workbenchToolSourceDirectory } from "@workbench/pi-runtime-tools/resources";
+import {
+  workbenchToolSourceDirectory,
+  WORKBENCH_TOOL_SOURCE_PATHS,
+  RETIRED_WORKBENCH_TOOL_SOURCE_PATHS,
+} from "./tool-resources";
 import { registerWorkbenchBuiltinPackages } from "./builtin-packages";
 import { workbenchBuiltinResourceUrl } from "./resource-locations";
 
@@ -55,12 +59,38 @@ export async function ensureWorkbenchBuiltinResources(
           kind === "extensions" ? extensionSource : workbenchBuiltinResourceUrl(kind),
         );
         if (kind === "extensions") {
-          // Copy only the tool package's owned source snapshots and attribution.
+          // Establish each parent boundary before copying the product's tool-only snapshot.
           for (const directory of ["src", "lib", "resources"]) {
-            await copyBuiltinDirectory(
-              path.join(source, directory),
-              path.join(directories.extensions, directory),
-            );
+            await ensureBuiltinDirectory(path.join(directories.extensions, directory));
+          }
+          for (const relative of WORKBENCH_TOOL_SOURCE_PATHS) {
+            const sourcePath = path.join(source, relative);
+            const destination = path.join(directories.extensions, relative);
+            if ((await lstat(sourcePath)).isDirectory()) {
+              await copyBuiltinDirectory(sourcePath, destination);
+            } else {
+              await ensureBuiltinDirectory(path.dirname(destination));
+              await writeBuiltinFile(destination, await readFile(sourcePath, "utf8"));
+            }
+          }
+          for (const relative of RETIRED_WORKBENCH_TOOL_SOURCE_PATHS) {
+            // Do not follow a replaced parent directory when retiring nested snapshots.
+            let parent = directories.extensions;
+            let exists = true;
+            for (const part of relative.split("/").slice(0, -1)) {
+              parent = path.join(parent, part);
+              const entry = await lstat(parent).catch((error: NodeJS.ErrnoException) => {
+                if (error.code === "ENOENT") return undefined;
+                throw error;
+              });
+              if (!entry) {
+                exists = false;
+                break;
+              }
+              if (!entry.isDirectory() || entry.isSymbolicLink())
+                throw new Error("A built-in resource directory cannot be a symbolic link or file.");
+            }
+            if (exists) await rm(path.join(directories.extensions, relative), { force: true });
           }
           continue;
         }

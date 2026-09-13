@@ -9,8 +9,8 @@ import {
   type BrowserServerFrame,
 } from "@workbench/browser-contracts";
 import { BrowserError, type BrowserManager } from "@workbench/browser-server";
-import type { NoServerWebSocketServerLike } from "@workbench/host-server/runtime-transport-auth";
-import type { WorkbenchWebSocketGateway } from "@workbench/host-server/workbench-http-server";
+import type { NoServerWebSocketServerLike } from "@workbench/runtime-transport-server/runtime-transport-auth";
+import type { WorkbenchWebSocketGateway } from "@workbench/runtime-transport-server/workbench-http-server";
 import { inspectApiRequestTrust } from "@workbench/server-core/request-trust";
 
 export const MAX_BROWSER_CLIENT_MESSAGE_BYTES = MAX_BROWSER_MESSAGE_BYTES;

@@ -6,13 +6,13 @@ import test from "node:test";
 import {
   createWorkbenchHostShutdownMessage,
   parseWorkbenchHostReadyMessage,
-} from "@workbench/host-contracts/host-control";
+} from "@workbench/runtime-contracts/host-control";
 import {
   RuntimeConnectedWebMode,
   createRuntimeConnectedWebStartMessage,
-} from "@workbench/host-contracts/runtime-connected-web-control";
-import { RUNTIME_CONNECTION_PROTOCOL_VERSION } from "@workbench/host-contracts/runtime-connection";
-import { WebHostShutdownReason } from "@workbench/host-contracts/web-host-control";
+} from "@workbench/runtime-contracts/runtime-connected-web-control";
+import { RUNTIME_CONNECTION_PROTOCOL_VERSION } from "@workbench/runtime-contracts/runtime-connection";
+import { WebHostShutdownReason } from "@workbench/runtime-contracts/web-host-control";
 
 import {
   runRuntimeConnectedWebProcess,

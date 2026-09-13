@@ -18,7 +18,7 @@ import {
 
 import { cn } from "@workbench/ui/utils";
 import type { WorkbenchRuntimeHostCapability } from "@workbench/agent-runtime-client";
-import type { WorkbenchHostDirectoryListing } from "@workbench/host-contracts/runtime-capabilities";
+import type { WorkbenchHostDirectoryListing } from "@workbench/runtime-contracts/runtime-capabilities";
 import styles from "./directory-picker.module.css";
 
 type PickerError = "browse" | "select";

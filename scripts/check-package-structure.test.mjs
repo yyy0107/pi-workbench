@@ -124,10 +124,10 @@ test("rejects JavaScript capability and helper source while retaining existing b
     "packages/client/ui/src/index.ts": "export interface Button {}",
     "packages/client/ui/lib/normalize.js":
       "export function normalize(value) { return value.trim(); }",
-    "packages/host/host-artifact-policy/package.json": "{}",
-    "packages/host/host-artifact-policy/src/policy.cjs":
+    "packages/build/artifact-policy/package.json": "{}",
+    "packages/build/artifact-policy/src/policy.cjs":
       "function check() { return true; } module.exports={check};",
-    "packages/host/host-artifact-policy/lib/filesystem.cjs":
+    "packages/build/artifact-policy/lib/filesystem.cjs":
       "function inside() { return true; } module.exports={inside};",
   });
   const { violations } = await packageStructureInventory(root);
@@ -183,4 +183,47 @@ test("library directory names match their scoped package identity", async (t) =>
       /expected package name @workbench\/ui-settings/,
     );
   }
+});
+
+test("checks build domain packages while ignoring generated build directories", async (t) => {
+  const root = await fixture(t, {
+    "packages/build/artifact-reader/package.json": JSON.stringify({
+      name: "@workbench/artifact-reader",
+    }),
+    "packages/build/artifact-reader/src/index.ts":
+      'import { value } from "../lib/value"; export const read = () => value;',
+    "packages/build/artifact-reader/lib/value.ts": "export const value = 1;",
+    "packages/build/artifact-reader/tests/read.test.ts": 'import "../src/index";',
+    "packages/build/artifact-reader/build/generated/package.json": "{}",
+  });
+  const inventory = await checkPackageStructure(root);
+  assert.equal(inventory.packages.length, 1);
+  assert.equal(inventory.tests.length, 1);
+  assert.deepEqual(inventory.violations, []);
+});
+
+test("allows Pi product extension resource entries without opening arbitrary resource exports", async (t) => {
+  const product = "packages/product/pi-workbench-runtime";
+  const root = await fixture(t, {
+    [`${product}/package.json`]: JSON.stringify({
+      exports: { "./extensions/example": "./resources/extensions/example/index.ts" },
+    }),
+    [`${product}/src/index.ts`]: "export const product = true;",
+    [`${product}/lib/index.ts`]: "export const helper = true;",
+    [`${product}/resources/extensions/example/index.ts`]: "export default function example() {}",
+  });
+  await checkPackageStructure(root);
+  await writeFile(
+    path.join(root, product, "package.json"),
+    JSON.stringify({ exports: { "./other": "./resources/other/index.ts" } }),
+  );
+  await assert.rejects(checkPackageStructure(root), /public source entry must be in src/);
+  const otherRoot = await fixture(t, {
+    "packages/client/ui/package.json": JSON.stringify({
+      exports: { "./extensions/example": "./resources/extensions/example/index.ts" },
+    }),
+    "packages/client/ui/src/index.ts": "export const ui = true;",
+    "packages/client/ui/lib/index.ts": "export const helper = true;",
+  });
+  await assert.rejects(checkPackageStructure(otherRoot), /public source entry must be in src/);
 });

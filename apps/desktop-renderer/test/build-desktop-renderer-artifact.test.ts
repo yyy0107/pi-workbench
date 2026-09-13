@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { parseDesktopRendererArtifactManifest } from "@workbench/host-contracts/desktop-renderer-artifact-manifest";
+import { parseDesktopRendererArtifactManifest } from "@workbench/runtime-contracts/desktop-renderer-artifact-manifest";
 
 import { buildDesktopRendererArtifact } from "../scripts/build-desktop-renderer-artifact";
 

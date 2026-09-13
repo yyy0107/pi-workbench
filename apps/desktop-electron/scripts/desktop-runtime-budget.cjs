@@ -1,12 +1,12 @@
 const { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } = require("node:fs");
 const path = require("node:path");
 
-const { isArtifactTestShapedPath } = require("@workbench/host-artifact-policy/source-shape");
+const { isArtifactTestShapedPath } = require("@workbench/artifact-policy/source-shape");
 const {
   assertRuntimeArtifactModelReadableResourceClassification,
   collectRuntimeArtifactModelReadableResources,
   isRuntimeArtifactModelReadableException,
-} = require("@workbench/host-artifact-policy/runtime-model-resources");
+} = require("@workbench/artifact-policy/runtime-model-resources");
 
 const {
   assertArtifactTreeEquivalent,

@@ -25,13 +25,13 @@ const ALLOWED_EXTERNAL_IMPORTS = new Set([
   "node:path",
   "node:stream",
   "node:url",
-  "@workbench/host-contracts/web-artifact-manifest",
-  "@workbench/host-contracts/web-host-control",
-  "@workbench/host-contracts/runtime-connection",
-  "@workbench/host-server/runtime-sidecar-proxy",
-  "@workbench/host-server/web-host-control-session",
-  "@workbench/host-server/web-artifact",
-  "@workbench/host-server/workbench-http-server",
+  "@workbench/runtime-contracts/web-artifact-manifest",
+  "@workbench/runtime-contracts/web-host-control",
+  "@workbench/runtime-contracts/runtime-connection",
+  "@workbench/runtime-transport-server/runtime-sidecar-proxy",
+  "@workbench/application-process/web-host-control-session",
+  "@workbench/artifact-reader/web-artifact",
+  "@workbench/runtime-transport-server/workbench-http-server",
 ]);
 
 async function importSpecifiers(filename: string): Promise<readonly string[]> {

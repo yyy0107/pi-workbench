@@ -16,8 +16,8 @@ import {
   createRuntimeWebSocketFactory,
   type RuntimeFetchImplementation,
   type RuntimeWebSocketOptions,
-} from "@workbench/host-client";
-import type { RuntimeConnection } from "@workbench/host-contracts";
+} from "@workbench/runtime-transport-client";
+import type { RuntimeConnection } from "@workbench/runtime-contracts";
 import { snapshotRuntimeConnection } from "@workbench/shell-context/runtime-connection";
 import type { WorkbenchWorkspaceDirectoryStorePort } from "@workbench/agent-runtime-client/workspaces";
 

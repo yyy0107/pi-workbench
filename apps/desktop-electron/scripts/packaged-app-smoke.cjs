@@ -17,8 +17,8 @@ const path = require("node:path");
 const {
   RUNTIME_HOST_IDENTITY_PATH,
   parseRuntimeHostIdentity,
-} = require("@workbench/host-contracts/runtime-host-control");
-const { defineRuntimeConnection } = require("@workbench/host-contracts/runtime-connection");
+} = require("@workbench/runtime-contracts/runtime-host-control");
+const { defineRuntimeConnection } = require("@workbench/runtime-contracts/runtime-connection");
 
 const { stopServerProcess } = require("../src/server-process-lifecycle.cjs");
 const { resolveDesktopArtifactLayout } = require("./desktop-artifact-layout.cjs");

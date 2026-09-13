@@ -5,7 +5,7 @@ import {
   createAuthenticatedNoServerWebSocketServer,
   defineDesktopSidecarRuntimeAuthPolicy,
   type RuntimeAuthenticationTimers,
-} from "@workbench/host-server/runtime-transport-auth";
+} from "@workbench/runtime-transport-server/runtime-transport-auth";
 import type { TerminalProcessSnapshot } from "@workbench/terminal-contracts";
 import {
   createTerminalGateway,

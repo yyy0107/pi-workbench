@@ -36,7 +36,7 @@
     "@workbench/api": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
     "@workbench/core-contracts": "workspace:*",
-    "@workbench/host-contracts": "workspace:*"
+    "@workbench/runtime-contracts": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

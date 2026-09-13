@@ -124,7 +124,9 @@ const DIRECT_PI_PACKAGE_IMPORT =
 function sourceFiles(directory: string): string[] {
   const files: string[] = [];
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    if (entry.isDirectory() && IGNORED_DIRECTORIES.has(entry.name)) continue;
+    const isBuildDomain =
+      directory === path.join(repositoryRoot, "packages") && entry.name === "build";
+    if (entry.isDirectory() && IGNORED_DIRECTORIES.has(entry.name) && !isBuildDomain) continue;
     const absolutePath = path.join(directory, entry.name);
     if (entry.isDirectory()) files.push(...sourceFiles(absolutePath));
     else if (entry.isFile() && /\.[cm]?[jt]sx?$/u.test(entry.name)) files.push(absolutePath);
@@ -135,7 +137,9 @@ function sourceFiles(directory: string): string[] {
 function packageManifestFiles(directory: string): string[] {
   const files: string[] = [];
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    if (entry.isDirectory() && IGNORED_DIRECTORIES.has(entry.name)) continue;
+    const isBuildDomain =
+      directory === path.join(repositoryRoot, "packages") && entry.name === "build";
+    if (entry.isDirectory() && IGNORED_DIRECTORIES.has(entry.name) && !isBuildDomain) continue;
     const absolutePath = path.join(directory, entry.name);
     if (entry.isDirectory()) files.push(...packageManifestFiles(absolutePath));
     else if (entry.isFile() && entry.name === "package.json") files.push(absolutePath);
@@ -368,10 +372,7 @@ test("rejects Pi packages outside the implementation and exact composition allow
       "packages/extension-platform/extension-sdk/src/illegal-pi-contribution.ts",
       `export * from "${piContributionsInstallation}";`,
     ],
-    [
-      "packages/host/host-artifact-policy/src/illegal-pi-policy.cjs",
-      `require("${piProtocolStream}");`,
-    ],
+    ["packages/build/artifact-policy/src/illegal-pi-policy.cjs", `require("${piProtocolStream}");`],
     [
       "packages/client/shell/src/extensions/illegal-pi-client.tsx",
       `import "${piClientInstallation}";`,
@@ -392,7 +393,7 @@ test("rejects Pi packages outside the implementation and exact composition allow
       `packages/pi-ui/pi-ui-extensions/illegal-server-reexport.ts: direct Pi package import is outside its owner boundary (${piServerInstallation})`,
       `packages/extension-platform/extension-host/src/illegal-pi-client.ts: direct Pi package import is outside its owner boundary (${piClientInstallation})`,
       `packages/extension-platform/extension-sdk/src/illegal-pi-contribution.ts: direct Pi package import is outside its owner boundary (${piContributionsInstallation})`,
-      `packages/host/host-artifact-policy/src/illegal-pi-policy.cjs: direct Pi package import is outside its owner boundary (${piProtocolStream})`,
+      `packages/build/artifact-policy/src/illegal-pi-policy.cjs: direct Pi package import is outside its owner boundary (${piProtocolStream})`,
       `packages/client/shell/src/extensions/illegal-pi-client.tsx: direct Pi package import is outside its owner boundary (${piClientInstallation})`,
     ].sort(),
   );

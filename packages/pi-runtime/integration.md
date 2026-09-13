@@ -532,8 +532,9 @@ Project Trust 遵循 Pi 的资源判定与持久化规则：没有受保护的�
 
 ## Skills
 
-内置 Browser Pi Package 源码位于 [`pi-runtime-browser/`](./pi-runtime-browser)，内联工具实现位于
-[`pi-runtime-tools/`](./pi-runtime-tools)。内置技能和提示词分别位于
+内置 Browser Pi Package 源码位于 [`pi-runtime-browser/`](./pi-runtime-browser)，内置扩展注册入口位于
+[`pi-workbench-runtime/resources/extensions/`](../product/pi-workbench-runtime/resources/extensions)，工具执行与状态位于
+[`pi-workbench-runtime/src/`](../product/pi-workbench-runtime/src)。内置技能和提示词分别位于
 [`pi-workbench-runtime/resources/skills/`](../product/pi-workbench-runtime/resources/skills) 与
 [`pi-workbench-runtime/resources/prompts/`](../product/pi-workbench-runtime/resources/prompts)。这些源码目录由 Runtime
 构建器复制到产物的既有 `internal-skills`、`internal-prompts` 和 `internal-extensions` 目录。
@@ -1235,7 +1236,7 @@ frame；任意一条断开都会废弃整代并同时重建两条连接。重连
 
 1. 从版本化 NDJSON control channel 接收完整的 sidecar authentication authority；
 2. 组装 Pi HTTP router、mux/host `noServer` gateway 和独立 Terminal gateway；
-3. 将它们注入通用 `@workbench/host-server` API-only listener；
+3. 将它们注入通用 `@workbench/runtime-transport-server` API-only listener；
 4. RPC warmup 成功后才通过 credential-free ready frame 发布实际 loopback origin；
 5. control shutdown 时停止 ingress、关闭已升级 socket，并按 Pi 后、Terminal 的所有权顺序释放服务图。
 
@@ -1367,3 +1368,9 @@ downlink 发送消息后的 `1008` close。
   协议没有对应方法。
 - 当前实现不等同于参考 Harness 的完整 Host；新增接口时应先扩展 contracts、RPC validation、
   domain service 和测试，再接入 UI，不能直接在组件中发明第二套协议。
+
+## 自定义 bash 工具归属
+
+Workbench 自定义 bash ToolDefinition 位于 [`pi-workbench-runtime/src/bash/index.ts`](../product/pi-workbench-runtime/src/bash/index.ts)，公开入口为 `@workbench/pi-workbench-runtime/tools/bash`。Runtime 组合根通过既有 `PiAgentHostBindings.createBashToolOverride` 注入工厂和同一个 `toolTerminalSessions`，`builtin-tools` 仅选择该工厂，来源标识仍为 `workbench.terminal`。PTY、取消、终端会话和原生依赖继续由 `terminal-server` 拥有，输出截断沿用 Pi `createBashToolDefinition`。这项能力没有独立的工作区包，也不从工具包根入口聚合加载。
+
+产品工具覆盖选择和工作区审查解析由 Runtime 的 session-composition/registry 注入 PiSessionRuntimeDependencies；SDK 会话服务不直接导入产品工具。工具源码部署按产品 /tool-resources 的白名单进行，避免复制其他产品资源。

@@ -1,4 +1,4 @@
-import { resolveRuntimeFetch as resolvePiHttpTransport } from "@workbench/host-client/runtime-fetch";
+import { resolveRuntimeFetch as resolvePiHttpTransport } from "@workbench/runtime-transport-client/runtime-fetch";
 import { callRpc, RpcClientError } from "@workbench/api/client";
 export { createRpcId as createPiRpcId } from "@workbench/api/client";
 import type { PiApiErrorBody, PiQueuedPrompt } from "@workbench/pi-rpc-contracts/messages";
@@ -6,7 +6,7 @@ import {
   createRuntimeFetch,
   type RuntimeFetch,
   type RuntimeFetchImplementation,
-} from "@workbench/host-client";
+} from "@workbench/runtime-transport-client";
 import type {
   ClientResponse,
   CommandListPayload,
@@ -151,7 +151,7 @@ const API_ROOT = "/api/pi";
 
 /**
  * The per-Host HTTP seam for Pi API requests. Pass a `RuntimeFetch` created
- * by `@workbench/host-client` to direct a call at a desktop sidecar without
+ * by `@workbench/runtime-transport-client` to direct a call at a desktop sidecar without
  * changing the browser's same-origin default.
  */
 export type PiHttpTransport = RuntimeFetch;

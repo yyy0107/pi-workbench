@@ -16,8 +16,10 @@ const test = require("node:test");
 const {
   DESKTOP_RENDERER_ARTIFACT_KIND,
   DESKTOP_RENDERER_ARTIFACT_MANIFEST_SCHEMA_VERSION,
-} = require("@workbench/host-contracts/desktop-renderer-artifact-manifest");
-const { RUNTIME_HOST_PROTOCOL_VERSION } = require("@workbench/host-contracts/runtime-host-control");
+} = require("@workbench/runtime-contracts/desktop-renderer-artifact-manifest");
+const {
+  RUNTIME_HOST_PROTOCOL_VERSION,
+} = require("@workbench/runtime-contracts/runtime-host-control");
 const {
   resolveDesktopRendererArtifact,
   stageDesktopRendererArtifact,

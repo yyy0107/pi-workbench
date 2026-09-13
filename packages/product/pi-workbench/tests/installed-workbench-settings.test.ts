@@ -5,7 +5,7 @@ import {
   RUNTIME_CONNECTION_PROTOCOL_VERSION,
   defineRuntimeConnection,
   type RuntimeConnection,
-} from "@workbench/host-contracts";
+} from "@workbench/runtime-contracts";
 
 import { createInstalledAgentRuntimeTransport } from "../src/installation";
 import { createInstalledWorkbenchSettingsService } from "../src/settings";

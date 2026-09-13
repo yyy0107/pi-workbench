@@ -1,4 +1,7 @@
-import { RuntimeWebSocketReadyState, type RuntimeWebSocket } from "@workbench/host-client";
+import {
+  RuntimeWebSocketReadyState,
+  type RuntimeWebSocket,
+} from "@workbench/runtime-transport-client";
 
 /** Terminal frames are writable only after both Runtime auth and process bootstrap complete. */
 export function isTerminalSocketWritable(

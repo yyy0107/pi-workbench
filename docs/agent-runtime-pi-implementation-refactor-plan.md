@@ -56,7 +56,7 @@ Pi Runtime Implementation
 | Web 扩展激活序列                                                    |  31 项 |
 | Desktop 扩展激活序列                                                |  32 项 |
 
-阶段 1 审计还发现 `@workbench/host-artifact-policy` 曾直接导入 Pi `STREAM_PATHS`。该依赖已在阶段 1
+阶段 1 审计还发现 `@workbench/artifact-policy` 曾直接导入 Pi `STREAM_PATHS`。该依赖已在阶段 1
 移除：通用 artifact policy 现在接收应用组合层传入的 Agent Runtime Upgrade 路径，Pi 路径分别由
 Web、Desktop Electron 和 Runtime Node 组合入口提供。
 
@@ -205,7 +205,7 @@ Pi 实现内部已完成的结构性命名调整（旧名称仅用于迁移对�
 - [x] Pi Contributions 可导入 Client、Shared、Protocol，但禁止导入 Pi Server。
 - [x] Pi package 的非实现消费者使用逐文件、逐 specifier 的应用组合白名单，不允许目录前缀放行。
 - [x] Shell 额外禁止出现 `PiApiError` 标识符。
-- [x] 移除 `@workbench/host-artifact-policy` 对 Pi Protocol 的直接依赖。
+- [x] 移除 `@workbench/artifact-policy` 对 Pi Protocol 的直接依赖。
 - [x] 固化 Web 与 Desktop 的扩展 ID、唯一性和激活顺序。
 - [x] 记录当前依赖统计、阶段状态和验证结果。
 

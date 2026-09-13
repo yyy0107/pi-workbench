@@ -4,13 +4,13 @@ import test from "node:test";
 import {
   RUNTIME_CONNECTION_PROTOCOL_VERSION,
   defineRuntimeConnection,
-} from "@workbench/host-contracts";
+} from "@workbench/runtime-contracts";
 import {
   createRuntimeWebSocket,
   RuntimeWebSocketReadyState,
   type RuntimeWebSocket,
   type RuntimeWebSocketMessageEvent,
-} from "@workbench/host-client";
+} from "@workbench/runtime-transport-client";
 
 import {
   isInvalidTerminalSessionClose,

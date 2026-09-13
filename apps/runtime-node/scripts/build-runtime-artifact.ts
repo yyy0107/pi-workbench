@@ -1,3 +1,4 @@
+import { WORKBENCH_TOOL_SOURCE_PATHS } from "@workbench/pi-workbench-runtime/tool-resources";
 import {
   isInside,
   canonicalPathSpelling,
@@ -5,7 +6,7 @@ import {
   optionalDirectoryIdentity,
   sameDirectoryIdentity,
   type DirectoryIdentity,
-} from "@workbench/host-artifact-policy/filesystem";
+} from "@workbench/artifact-policy/filesystem";
 import { createHash, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
@@ -46,18 +47,18 @@ import {
   type RuntimeArtifactNativeInventory,
   type RuntimeArtifactManifest,
   type RuntimeArtifactTarget,
-} from "@workbench/host-contracts/runtime-artifact-manifest";
+} from "@workbench/runtime-contracts/runtime-artifact-manifest";
 import {
   RUNTIME_HOST_CONTROL_VERSION,
   RUNTIME_HOST_PROTOCOL_VERSION,
-} from "@workbench/host-contracts/runtime-host-control";
+} from "@workbench/runtime-contracts/runtime-host-control";
 import {
   createRuntimeArtifactAdmissionPolicy,
   resolveRuntimeArtifact,
   type ResolveRuntimeArtifactOptions,
   type ResolvedRuntimeArtifact,
   type RuntimeArtifactAdmissionPolicy,
-} from "@workbench/host-server/runtime-artifact";
+} from "@workbench/artifact-reader/runtime-artifact";
 
 /** These are the imports that intentionally remain unresolved in the esbuild output. */
 export const RUNTIME_ARTIFACT_EXTERNAL_PACKAGES = RUNTIME_NODE_ARTIFACT_EXTERNAL_PACKAGES;
@@ -94,7 +95,7 @@ export const RUNTIME_ARTIFACT_ENTRYPOINT = "server.mjs";
 const NFT_DYNAMIC_SEGMENT = "\x1a";
 const TREE_SITTER_DYNAMIC_PREBUILD_DEPENDENCY = `./prebuilds/${NFT_DYNAMIC_SEGMENT}-${NFT_DYNAMIC_SEGMENT}/tree-sitter.node`;
 const runtimeAppRequire = createRequire(import.meta.url);
-const nativeTools = runtimeAppRequire("@workbench/host-artifact-policy/runtime-native") as {
+const nativeTools = runtimeAppRequire("@workbench/artifact-policy/runtime-native") as {
   readonly NODE_PTY_NATIVE_BUILD_MANIFEST_ENV: string;
   readonly expectedNativeRuntimeFiles: (
     target: Pick<RuntimeArtifactTarget, "platform" | "arch">,
@@ -122,9 +123,7 @@ const nativeTools = runtimeAppRequire("@workbench/host-artifact-policy/runtime-n
     target: RuntimeArtifactTarget,
   ) => readonly { readonly packageName: string; readonly relativeRoot: string }[];
 };
-const admissionPolicyTools = runtimeAppRequire(
-  "@workbench/host-artifact-policy/runtime-admission",
-) as {
+const admissionPolicyTools = runtimeAppRequire("@workbench/artifact-policy/runtime-admission") as {
   readonly createRuntimeArtifactAdmissionPolicy: (agentRuntimeUpgradePaths: readonly string[]) => {
     readonly expectedUpgradePaths: readonly string[];
     readonly expectedNativeRuntimeFiles: (target: RuntimeArtifactTarget) => readonly {
@@ -150,7 +149,7 @@ const runtimeArtifactAdmissionPolicy = createRuntimeArtifactAdmissionPolicy(
 /** The exact app/terminal upgrade contract comes from the shared injected admission policy. */
 export const RUNTIME_ARTIFACT_UPGRADE_PATHS = runtimeArtifactAdmissionPolicy.expectedUpgradePaths;
 const modelResourceTools = runtimeAppRequire(
-  "@workbench/host-artifact-policy/runtime-model-resources",
+  "@workbench/artifact-policy/runtime-model-resources",
 ) as {
   readonly collectRuntimeArtifactModelReadableResources: (options: {
     readonly artifactRoot: string;
@@ -3199,13 +3198,19 @@ export async function copyRuntimeBuiltinResources(
   for (const [source, relative] of [
     ["packages/product/pi-workbench-runtime/resources/skills", "internal-skills"],
     ["packages/product/pi-workbench-runtime/resources/prompts", "internal-prompts"],
-    ["packages/pi-runtime/pi-runtime-tools/src", "internal-extensions/src"],
-    ["packages/pi-runtime/pi-runtime-tools/lib", "internal-extensions/lib"],
-    ["packages/pi-runtime/pi-runtime-tools/resources", "internal-extensions/resources"],
   ]) {
     await cp(path.join(repositoryRoot, source), path.join(outputDirectory, relative), {
       recursive: true,
     });
+  }
+  for (const relative of WORKBENCH_TOOL_SOURCE_PATHS) {
+    const destination = path.join(outputDirectory, "internal-extensions", relative);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await cp(
+      path.join(repositoryRoot, "packages/product/pi-workbench-runtime", relative),
+      destination,
+      { recursive: true },
+    );
   }
   const browserBuild = spawnSync(
     process.execPath,

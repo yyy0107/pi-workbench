@@ -22,8 +22,8 @@
   },
   "dependencies": {
     "@workbench/extension-sdk": "workspace:*",
-    "@workbench/host-contracts": "workspace:*",
     "@workbench/i18n": "workspace:*",
+    "@workbench/runtime-contracts": "workspace:*",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

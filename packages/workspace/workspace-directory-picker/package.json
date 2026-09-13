@@ -17,8 +17,8 @@
   "dependencies": {
     "@workbench/agent-runtime-client": "workspace:*",
     "@workbench/extension-sdk": "workspace:*",
-    "@workbench/host-contracts": "workspace:*",
     "@workbench/i18n": "workspace:*",
+    "@workbench/runtime-contracts": "workspace:*",
     "@workbench/shell-context": "workspace:*",
     "@workbench/ui": "workspace:*",
     "@workbench/ui-selectors": "workspace:*",

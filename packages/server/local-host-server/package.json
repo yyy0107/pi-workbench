@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "@workbench/api": "workspace:*",
-    "@workbench/host-contracts": "workspace:*",
+    "@workbench/runtime-contracts": "workspace:*",
     "@workbench/server-core": "workspace:*"
   },
   "devDependencies": {

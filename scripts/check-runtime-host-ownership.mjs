@@ -7,6 +7,7 @@ const REPOSITORY_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const SOURCE_EXTENSIONS = new Set([".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"]);
 const SOURCE_ROOTS = [
   "packages/client",
+  "packages/transport/runtime-transport-client",
   "packages/workspace",
   "packages/client/shell-context/src",
   "apps/desktop-electron/scripts",
@@ -111,7 +112,7 @@ export function runtimeBoundaryViolations(files) {
 
     if (
       !filename.startsWith("apps/web/src/server/") &&
-      filename !== "packages/client/host-client/src/runtime-websocket.ts" &&
+      filename !== "packages/transport/runtime-transport-client/src/runtime-websocket.ts" &&
       /\bnew\s+(?:(?:window|globalThis)\.)?WebSocket\s*\(/u.test(executable)
     ) {
       violations.push(`${filename}: use the installed RuntimeConnection instead of WebSocket`);

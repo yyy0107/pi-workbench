@@ -59,7 +59,7 @@
     "@workbench/agent-runtime-core": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
     "@workbench/core-contracts": "workspace:*",
-    "@workbench/host-contracts": "workspace:*",
+    "@workbench/runtime-contracts": "workspace:*",
     "use-sync-external-store": "^1.6.0"
   },
   "devDependencies": {

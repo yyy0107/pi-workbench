@@ -1,12 +1,12 @@
 import { createWorkbenchInternalPiExtensions as createExtensions } from "@workbench/pi-workbench-runtime/extensions";
-import type { WorkbenchToolDependencies } from "@workbench/pi-runtime-tools/dependencies";
-import { prepareWorkbenchPiExtensions as prepareExtensions } from "@workbench/pi-runtime-tools";
-import { createContextTraceExtension } from "@workbench/pi-runtime-tools/context-trace";
+import type { WorkbenchToolDependencies } from "@workbench/pi-workbench-runtime/tools/dependencies";
+import { prepareWorkbenchPiExtensions as prepareExtensions } from "@workbench/pi-workbench-runtime/tools";
+import { createContextTraceExtension } from "@workbench/pi-workbench-runtime/tools/context-trace";
 import {
   createWorkbenchSettingsExtension as createSettingsExtension,
   workbenchSettingsExtension as registerSettings,
-} from "@workbench/pi-runtime-tools/workbench-settings";
-import { instrumentSystemPromptHookTracing as instrumentTracing } from "@workbench/pi-runtime-tools/system-prompt-hook-trace";
+} from "@workbench/pi-workbench-runtime/tools/workbench-settings";
+import { instrumentSystemPromptHookTracing as instrumentTracing } from "@workbench/pi-workbench-runtime/tools/system-prompt-hook-trace";
 import {
   getPiAgentHostBindings,
   isBuiltinResourceEnabled,

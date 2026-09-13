@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { RuntimeConnectedWebMode } from "@workbench/host-contracts/runtime-connected-web-control";
+import { RuntimeConnectedWebMode } from "@workbench/runtime-contracts/runtime-connected-web-control";
 
 import { runWebRuntimeOrchestrator } from "./web-runtime-orchestrator.mjs";
 import { runManagedWebRuntimeWatch } from "./web-runtime-watch.mjs";

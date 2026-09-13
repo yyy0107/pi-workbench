@@ -35,7 +35,7 @@ import type {
   WorkbenchLocalFileSnapshot,
   WorkbenchLocalFilesListResult,
   WorkbenchProjectTrust,
-} from "@workbench/host-contracts/runtime-capabilities";
+} from "@workbench/runtime-contracts/runtime-capabilities";
 
 export type WorkbenchAgentCapabilityErrorCode =
   | "busy"

@@ -37,7 +37,7 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 
 ### 3. Reuse the current Workbench composition
 
-- Put statically compiled, host-owned Pi extensions under `packages/pi-runtime/pi-runtime-tools/src/`.
+- Put host-owned Pi registration and lifecycle entry points in `packages/product/pi-workbench-runtime/resources/extensions/<name>/index.ts`. Keep tool execution, state, helpers and attribution in `src/<tool-name>/`; statically import the resource factories into product composition. Reserve `resources/` for Pi resource kinds.
 - Product bundled Skills/Prompts and deployment live in `packages/product/pi-workbench-runtime/`; the SDK resource service owns loading and mutation, not product content.
 - Keep user/package extension discovery and mutation in the existing extension/package services; do not disguise internal extensions as user files.
 - Add internal extensions to `createWorkbenchInternalPiExtensions()` in `packages/product/pi-workbench-runtime/src/extensions.ts`, receiving the existing collaborators through `WorkbenchToolDependencies`, with a `workbench.` name and `hidden: true` unless they should appear in Pi's startup extension list.

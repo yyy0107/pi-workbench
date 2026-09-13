@@ -3,7 +3,7 @@ import type { Writable } from "node:stream";
 import {
   WebHostControlSessionResultCode,
   runWebHostControlSession,
-} from "@workbench/host-server/web-host-control-session";
+} from "@workbench/application-process/web-host-control-session";
 
 import { loadWebArtifactRuntimeLayout, type WebArtifactRuntimeLayout } from "./web-artifact-layout";
 import { startWebOnlyHost } from "./web-only-host";

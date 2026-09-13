@@ -34,11 +34,6 @@ export {
   type PromptQueueMutation,
 } from "./session-types";
 import { getSessionContextTrace } from "./session-context-trace";
-import {
-  REVIEW_ENTRY_TYPE,
-  getReviewSnapshots,
-} from "@workbench/pi-runtime-tools/workspace-review";
-import type { GitReviewSnapshot } from "@workbench/workspace-server/git";
 import { existsSync, statSync, unlinkSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { open, readdir, readFile, stat } from "node:fs/promises";
@@ -63,7 +58,6 @@ import {
 import { createWorkbenchAgentSessionServices as createModelServices } from "@workbench/pi-sdk-models/services";
 import { withWorkbenchBuiltinSkills } from "@workbench/pi-sdk-resources/builtin-skills";
 import { requireSkillOptIn } from "@workbench/pi-sdk-resources/skill-enablement";
-import { workbenchToolOverrides } from "@workbench/pi-runtime-tools/builtin-tools";
 import type {
   PiAgentMessage,
   PiImageContent,
@@ -502,7 +496,7 @@ export function createPiSessionRegistry(dependencies: PiSessionRuntimeDependenci
     const shell = sessionTerminalShell(
       services.settingsManager.getShellPath()?.trim() || hostBindings.getDefaultTerminalShell?.(),
     );
-    const toolOverrides = workbenchToolOverrides(
+    const toolOverrides = dependencies.toolOverrides(
       cwd,
       hostBindings,
       sessionPreferences?.enhancedSearch,
@@ -1950,22 +1944,7 @@ export function createPiSessionRegistry(dependencies: PiSessionRuntimeDependenci
         ? SessionManager.open(info.path)
         : undefined;
     if (!manager) throw new PiServerError("pi_session_not_found", 404);
-    const reviewSnapshots = getReviewSnapshots();
-    const directory = await reviewSnapshots.directory(cwd);
-    if (directory !== (await reviewSnapshots.directory(manager.getCwd())))
-      throw new PiServerError("pi_session_not_found", 404);
-    const snapshots = manager.getBranch().flatMap((entry): GitReviewSnapshot[] => {
-      if (entry.type !== "custom" || entry.customType !== REVIEW_ENTRY_TYPE) return [];
-      const value = entry.data as GitReviewSnapshot | undefined;
-      return value &&
-        typeof value.id === "string" &&
-        Number.isFinite(value.timestamp) &&
-        (value.before === undefined || /^[a-f0-9]{40,64}$/.test(value.before)) &&
-        (value.after === undefined || /^[a-f0-9]{40,64}$/.test(value.after))
-        ? [value]
-        : [];
-    });
-    return { gitDir: path.join(directory, "objects.git"), snapshots };
+    return dependencies.resolveReviewSnapshots(cwd, manager);
   }
   function createWorkbenchAgentSessionServices(options: Parameters<typeof createModelServices>[0]) {
     return createModelServices(options, { getRequestObserver: getSessionContextTrace });

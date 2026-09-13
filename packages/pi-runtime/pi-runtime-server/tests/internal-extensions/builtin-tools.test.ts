@@ -22,7 +22,7 @@ import {
 import {
   createBuiltinToolExtensions,
   workbenchToolOverrides,
-} from "@workbench/pi-runtime-tools/builtin-tools";
+} from "@workbench/pi-workbench-runtime/tools/builtin-tools";
 import { ExtensionService } from "../../src/resource-composition";
 
 test("native tools are discoverable, persisted, live-switchable, and restored after reload", async (t) => {

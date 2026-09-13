@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   RUNTIME_CONNECTION_PROTOCOL_VERSION,
   type RuntimeConnection,
-} from "@workbench/host-contracts";
+} from "@workbench/runtime-contracts";
 
 import {
   createSameOriginRuntimeConnection,

@@ -35,7 +35,7 @@ test("guards the remaining literal Runtime boundaries", () => {
 });
 
 test("native sockets belong only to the Runtime transport owner in client", () => {
-  const owner = "packages/client/host-client/src/runtime-websocket.ts";
+  const owner = "packages/transport/runtime-transport-client/src/runtime-websocket.ts";
   const consumer = "packages/client/shell/src/connection.ts";
   const violations = runtimeBoundaryViolations(
     new Map([

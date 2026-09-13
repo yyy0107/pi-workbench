@@ -66,7 +66,7 @@ import {
   getPiAgentHostBindings,
 } from "../../src/agent-runtime/pi-agent-host-bindings";
 import { resolvePiWorkspaceRoot } from "../../src/workspaces/workspace-service-bindings";
-import { projectPiComposerContext } from "@workbench/pi-runtime-tools/composer-context";
+import { projectPiComposerContext } from "@workbench/pi-workbench-runtime/tools/composer-context";
 import { createPiAutomationRuntimeBindings } from "../../src/session-composition";
 
 import { getWorkspaceStore } from "../../src/workspaces/workspace-registry";

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { PassThrough, Readable } from "node:stream";
 import test from "node:test";
 
-import { RuntimeHostControlSessionResultCode } from "@workbench/host-server/runtime-host-control-session";
+import { RuntimeHostControlSessionResultCode } from "@workbench/application-process/runtime-host-control-session";
 import { isStdoutTakenOver } from "@workbench/pi-runtime-server/installation";
 
 import {

@@ -3,7 +3,7 @@ const {
   killWindowsProcessTree,
   readWindowsProcessCensus,
   terminateVerifiedWindowsProcessTree,
-} = require("@workbench/host-server/windows-process-census");
+} = require("@workbench/application-process/windows-process-census");
 
 const WORKBENCH_SHUTDOWN_MESSAGE_TYPE = "workbench:shutdown";
 // Give a managed child a bounded cooperative window before escalating its isolated process tree.

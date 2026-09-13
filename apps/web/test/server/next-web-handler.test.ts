@@ -3,7 +3,7 @@ import { IncomingMessage, ServerResponse, type Server } from "node:http";
 import { Socket } from "node:net";
 import test from "node:test";
 
-import { createUpgradeDispatcher } from "@workbench/host-server/workbench-http-server";
+import { createUpgradeDispatcher } from "@workbench/runtime-transport-server/workbench-http-server";
 
 import { createNextWebHandler } from "@/server/next-web-handler";
 

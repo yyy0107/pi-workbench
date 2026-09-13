@@ -17,6 +17,21 @@ const BUILTIN_MODULES = new Set(
 const SOURCE_EXTENSIONS = new Set([".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"]);
 const PRODUCTION_DEPENDENCY_FIELDS = ["dependencies", "optionalDependencies", "peerDependencies"];
 const PACKAGE_PRODUCTION_DEPENDENCY_POLICIES = new Map([
+  ["@workbench/runtime-contracts", new Set()],
+  ["@workbench/runtime-transport-client", new Set(["@workbench/runtime-contracts"])],
+  [
+    "@workbench/runtime-transport-server",
+    new Set(["@workbench/runtime-contracts", "@workbench/server-core"]),
+  ],
+  [
+    "@workbench/application-process",
+    new Set(["@workbench/runtime-contracts", "@workbench/runtime-transport-server"]),
+  ],
+  ["@workbench/artifact-reader", new Set(["@workbench/runtime-contracts"])],
+  [
+    "@workbench/artifact-policy",
+    new Set(["@workbench/browser-contracts", "@workbench/terminal-contracts", "next"]),
+  ],
   [
     "@workbench/automation-server",
     new Set([
@@ -37,7 +52,7 @@ const PACKAGE_PRODUCTION_DEPENDENCY_POLICIES = new Map([
   ],
   [
     "@workbench/local-host-server",
-    new Set(["@workbench/host-contracts", "@workbench/api", "@workbench/server-core"]),
+    new Set(["@workbench/runtime-contracts", "@workbench/api", "@workbench/server-core"]),
   ],
   [
     "@workbench/workspace-server",
@@ -55,8 +70,8 @@ const PACKAGE_PRODUCTION_DEPENDENCY_POLICIES = new Map([
       "@workbench/agent-runtime-client",
       "@workbench/agent-runtime-contracts",
       "@workbench/automation-contracts",
-      "@workbench/host-client",
-      "@workbench/host-contracts",
+      "@workbench/runtime-transport-client",
+      "@workbench/runtime-contracts",
     ]),
   ],
 ]);

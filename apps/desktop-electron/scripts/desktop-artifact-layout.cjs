@@ -140,7 +140,7 @@ async function resolveDesktopArtifactLayout(
   }
   const runtimeTargetKey =
     deriveRuntimeTargetKey ??
-    require("@workbench/host-contracts/runtime-artifact-manifest").runtimeArtifactTargetKey;
+    require("@workbench/runtime-contracts/runtime-artifact-manifest").runtimeArtifactTargetKey;
   const runtimeDirectoryName = composition.manifest.runtimeArtifactManifest.split("/")[1];
   // Packaged desktops use a compact directory; target identity is checked by
   // the Runtime admission resolver above, independently of the directory name.

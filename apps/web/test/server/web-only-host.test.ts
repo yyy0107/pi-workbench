@@ -7,8 +7,8 @@ import test from "node:test";
 import {
   createWorkbenchHttpServer,
   type WorkbenchHttpServerOptions,
-} from "@workbench/host-server/workbench-http-server";
-import { WebHostShutdownReason } from "@workbench/host-contracts/web-host-control";
+} from "@workbench/runtime-transport-server/workbench-http-server";
+import { WebHostShutdownReason } from "@workbench/runtime-contracts/web-host-control";
 
 import {
   WEB_ONLY_HOST,

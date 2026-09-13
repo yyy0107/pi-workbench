@@ -498,3 +498,65 @@ test("enforces exact workspace versions, public exports and executable test impo
     ),
   );
 });
+
+test("infrastructure packages reject reverse dependencies while allowing process composition", async (t) => {
+  const root = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(
+    path.join(root, "pnpm-workspace.yaml"),
+    `packages:
+  - "packages/contracts/*"
+  - "packages/transport/*"
+  - "packages/process/*"
+  - "packages/build/*"
+`,
+  );
+  await packageFixture(root, "packages/contracts/runtime-contracts", {
+    name: "@workbench/runtime-contracts",
+  });
+  await packageFixture(root, "packages/transport/runtime-transport-client", {
+    name: "@workbench/runtime-transport-client",
+    dependencies: { "@workbench/runtime-contracts": "workspace:*" },
+  });
+  await packageFixture(root, "packages/transport/runtime-transport-server", {
+    name: "@workbench/runtime-transport-server",
+    dependencies: { "@workbench/runtime-contracts": "workspace:*" },
+  });
+  await packageFixture(root, "packages/process/application-process", {
+    name: "@workbench/application-process",
+    dependencies: {
+      "@workbench/runtime-contracts": "workspace:*",
+      "@workbench/runtime-transport-server": "workspace:*",
+    },
+  });
+  await packageFixture(root, "packages/build/artifact-reader", {
+    name: "@workbench/artifact-reader",
+    dependencies: { "@workbench/runtime-contracts": "workspace:*" },
+  });
+  await packageFixture(root, "packages/build/artifact-policy", {
+    name: "@workbench/artifact-policy",
+  });
+  assert.deepEqual(await workspaceDependencyViolations(root), []);
+  for (const [directory, name, dependency] of [
+    ["contracts", "runtime-contracts", "runtime-transport-client"],
+    ["transport", "runtime-transport-client", "application-process"],
+    ["transport", "runtime-transport-server", "application-process"],
+    ["process", "application-process", "artifact-policy"],
+    ["build", "artifact-reader", "runtime-transport-server"],
+    ["build", "artifact-policy", "application-process"],
+  ]) {
+    await packageFixture(root, `packages/${directory}/${name}`, {
+      name: `@workbench/${name}`,
+      dependencies: { [`@workbench/${dependency}`]: "workspace:*" },
+    });
+    const violations = await workspaceDependencyViolations(root);
+    assert.ok(
+      violations.some((item) =>
+        item.includes(
+          `@workbench/${name} must not declare production dependency @workbench/${dependency}`,
+        ),
+      ),
+    );
+    await packageFixture(root, `packages/${directory}/${name}`, { name: `@workbench/${name}` });
+  }
+});

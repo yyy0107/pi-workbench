@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createRuntimeFetch } from "@workbench/host-client";
+import { createRuntimeFetch } from "@workbench/runtime-transport-client";
 import { createWorkspaceClient } from "../src/workspace";
 
 test("Git diff uses the installation transport and forwards cancellation and comparison parameters", async () => {

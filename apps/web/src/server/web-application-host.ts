@@ -5,7 +5,7 @@ import path from "node:path";
 import {
   createRuntimeSidecarProxy,
   type RuntimeSidecarProxy,
-} from "@workbench/host-server/runtime-sidecar-proxy";
+} from "@workbench/runtime-transport-server/runtime-sidecar-proxy";
 import {
   createWorkbenchHttpServer,
   isApiHttpRequest,
@@ -13,16 +13,16 @@ import {
   type WorkbenchHttpServerOptions,
   type WorkbenchRequestHandler,
   type WorkbenchWebSocketGateway,
-} from "@workbench/host-server/workbench-http-server";
+} from "@workbench/runtime-transport-server/workbench-http-server";
 import {
   WEB_HOST_CONTROL_MAX_SHUTDOWN_DEADLINE_MS,
   WebHostShutdownReason,
   type WebHostShutdownReason as WebHostShutdownReasonValue,
-} from "@workbench/host-contracts/web-host-control";
+} from "@workbench/runtime-contracts/web-host-control";
 import {
   parseRuntimeConnection,
   type DesktopSidecarRuntimeConnection,
-} from "@workbench/host-contracts/runtime-connection";
+} from "@workbench/runtime-contracts/runtime-connection";
 
 import { createNextWebHandler, type NextWebHandler } from "./next-web-handler";
 

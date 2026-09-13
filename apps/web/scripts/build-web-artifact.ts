@@ -5,7 +5,7 @@ import {
   optionalDirectoryIdentity,
   sameDirectoryIdentity,
   type DirectoryIdentity,
-} from "@workbench/host-artifact-policy/filesystem";
+} from "@workbench/artifact-policy/filesystem";
 import { createHash, randomUUID } from "node:crypto";
 import {
   cp,
@@ -43,20 +43,20 @@ import {
   type WebArtifactFile,
   type WebArtifactLink,
   type WebArtifactManifest,
-} from "@workbench/host-contracts/web-artifact-manifest";
-import { RUNTIME_HOST_PROTOCOL_VERSION } from "@workbench/host-contracts/runtime-host-control";
+} from "@workbench/runtime-contracts/web-artifact-manifest";
+import { RUNTIME_HOST_PROTOCOL_VERSION } from "@workbench/runtime-contracts/runtime-host-control";
 import {
   WEB_HOST_CONTROL_MAX_SHUTDOWN_DEADLINE_MS,
   WEB_HOST_CONTROL_TRANSPORT,
   WEB_HOST_CONTROL_VERSION,
   WEB_HOST_SHUTDOWN_ACK_FRAME_TYPE,
   WEB_HOST_SHUTDOWN_FRAME_TYPE,
-} from "@workbench/host-contracts/web-host-control";
+} from "@workbench/runtime-contracts/web-host-control";
 import {
   resolveWebArtifact,
   type ResolveWebArtifactOptions,
   type ResolvedWebArtifact,
-} from "@workbench/host-server/web-artifact";
+} from "@workbench/artifact-reader/web-artifact";
 
 const SCRIPT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
 export const WEB_APP_ROOT = path.resolve(SCRIPT_DIRECTORY, "..");
@@ -107,12 +107,12 @@ const standaloneTools = webAppRequire("./complete-next-standalone-runtime.cjs") 
 const pathTools = repositoryRequire("./scripts/workbench-paths.cjs") as {
   readonly createWorkbenchPaths: (options: { readonly repositoryRoot: string }) => unknown;
 };
-const sourceShapePolicy = webAppRequire("@workbench/host-artifact-policy/source-shape") as {
+const sourceShapePolicy = webAppRequire("@workbench/artifact-policy/source-shape") as {
   readonly isArtifactTestDirectoryPath: (candidate: string) => boolean;
   readonly isArtifactTestShapedPath: (candidate: string) => boolean;
 };
 const nextRuntimeExceptionPolicy = webAppRequire(
-  "@workbench/host-artifact-policy/web-next-runtime-exception",
+  "@workbench/artifact-policy/web-next-runtime-exception",
 ) as {
   readonly assertWebArtifactNextRuntimeExceptionResource: (options: {
     readonly artifactRoot: string;
@@ -1964,7 +1964,7 @@ export async function publishWebArtifactTransaction({
 
 /**
  * Completes raw standalone first, then creates the final self-described Web subtree. Manifest
- * publication is strictly last, and the one host-server resolver re-admits the final result.
+ * publication is strictly last, and the one runtime-transport-server resolver re-admits the final result.
  */
 export async function buildWebArtifact({
   repositoryRoot = WEB_REPOSITORY_ROOT,

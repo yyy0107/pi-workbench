@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-const { reportWorkbenchInternalPiExtensionErrors } = await import("@workbench/pi-runtime-tools");
+const { reportWorkbenchInternalPiExtensionErrors } =
+  await import("@workbench/pi-workbench-runtime/tools");
 const { workbenchInternalPiExtensions } = await import("../../src/tool-composition");
 const { messageTerminationExtension } =
-  await import("@workbench/pi-runtime-tools/message-termination");
+  await import("@workbench/pi-workbench-runtime/tools/message-termination");
 
 type MessageEndHandler = (event: unknown, context: unknown) => unknown | Promise<unknown>;
 

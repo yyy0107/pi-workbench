@@ -21,9 +21,9 @@ const {
   parseRuntimeHostIdentity,
   parseRuntimeHostReadyFrame,
   parseRuntimeHostShutdownAckFrame,
-} = require("@workbench/host-contracts/runtime-host-control");
-const { defineRuntimeConnection } = require("@workbench/host-contracts/runtime-connection");
-const { createRuntimeWebSocket } = require("@workbench/host-client/runtime-websocket");
+} = require("@workbench/runtime-contracts/runtime-host-control");
+const { defineRuntimeConnection } = require("@workbench/runtime-contracts/runtime-connection");
+const { createRuntimeWebSocket } = require("@workbench/runtime-transport-client/runtime-websocket");
 
 const { registerServerProcess, stopServerProcess } = require("../src/server-process-lifecycle.cjs");
 const {

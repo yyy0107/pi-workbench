@@ -3,7 +3,7 @@ import type {
   WorkbenchSettingsPreferencesPatch,
   WorkbenchSettingsPort,
 } from "@workbench/agent-runtime-contracts/settings";
-import type { RuntimeFetch } from "@workbench/host-client";
+import type { RuntimeFetch } from "@workbench/runtime-transport-client";
 export { toWorkbenchSettingsJsonObject } from "@workbench/agent-runtime-contracts/settings";
 import type {
   WorkbenchSettingsSnapshot as WorkbenchSettingsDescribeValue,

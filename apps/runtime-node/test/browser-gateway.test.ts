@@ -14,7 +14,7 @@ import { BrowserError } from "@workbench/browser-server";
 import {
   createAuthenticatedNoServerWebSocketServer,
   defineDesktopSidecarRuntimeAuthPolicy,
-} from "@workbench/host-server/runtime-transport-auth";
+} from "@workbench/runtime-transport-server/runtime-transport-auth";
 import {
   createBrowserGateway,
   MAX_BROWSER_CLIENT_MESSAGE_BYTES,

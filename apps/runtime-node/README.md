@@ -8,7 +8,7 @@ not import Next.js, React, browser state, or Electron implementation code.
 ```mermaid
 flowchart LR
   OWNER["Root or Electron process owner"] -->|"versioned NDJSON control"| APP["apps/runtime-node"]
-  APP --> HOST["@workbench/host-server"]
+  APP --> HOST["@workbench/runtime-transport-server"]
   APP --> PI["@workbench/pi-runtime-server"]
   APP --> TERMINAL["@workbench/terminal-server"]
   APP --> AUTOMATION["@workbench/automation-server"]
@@ -45,7 +45,7 @@ flowchart LR
   environment variables.
 - [`@workbench/terminal-server`](../../packages/terminal/terminal-server/README.md) owns PTY/session lifecycle
   and native dependencies. The Pi-specific Bash tool adapter is the separate
-  `@workbench/pi-runtime-terminal` leaf.
+  `@workbench/pi-workbench-runtime/tools/bash` entry.
 
 Packages do not import this app. The Web app, Electron app, and future native containers consume its
 public process/transport contract; they do not source-import its composition modules.
@@ -59,7 +59,7 @@ only after RPC warmup succeeds. Malformed control input, a disconnected controll
 failure, or output failure closes any started Host instead of leaving an unmanaged listener.
 
 HTTP bearer/CORS admission and the WebSocket first-frame/private-hop admission are owned by
-`@workbench/host-server`. Pi and Terminal receive only authenticated requests. Request trust still
+`@workbench/runtime-transport-server`. Pi and Terminal receive only authenticated requests. Request trust still
 applies independently: Host/Origin/cross-site checks guard browser reachability, while sensitive
 filesystem and native-host operations remain loopback-only.
 

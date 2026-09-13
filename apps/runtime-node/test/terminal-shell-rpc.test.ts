@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
-import { createFetchRequestHandler } from "@workbench/host-server/fetch-request-handler";
-import { createWorkbenchHttpServer } from "@workbench/host-server/workbench-http-server";
-import { defineDesktopSidecarRuntimeAuthPolicy } from "@workbench/host-server/runtime-transport-auth";
+import { createFetchRequestHandler } from "@workbench/runtime-transport-server/fetch-request-handler";
+import { createWorkbenchHttpServer } from "@workbench/runtime-transport-server/workbench-http-server";
+import { defineDesktopSidecarRuntimeAuthPolicy } from "@workbench/runtime-transport-server/runtime-transport-auth";
 import { createTerminalShellRpcHandler } from "../src/terminal-shell-rpc";
 import { createInstalledRuntimeService } from "../src/installed-runtime-service";
 

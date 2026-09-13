@@ -1,0 +1,81 @@
+declare const __WORKBENCH_BUNDLED_RESOURCES__: boolean;
+
+/** Only tool implementation snapshots and attribution belong in internal-extensions. */
+export const WORKBENCH_TOOL_SOURCE_PATHS = Object.freeze([
+  "resources/extensions",
+  "src/bash",
+  "src/ask-user",
+  "src/grep",
+  "src/find",
+  "src/composer-context",
+  "src/context-trace",
+  "src/message-termination",
+  "src/rpiv-todo",
+  "src/workbench-settings",
+  "src/workspace-review",
+  "src/system-prompt-hook-trace",
+  "src/tool-runtime",
+  "lib/multi-root-search.ts",
+] as const);
+
+/** Previously shipped flat snapshots; never remove unknown user additions. */
+export const RETIRED_WORKBENCH_TOOL_SOURCE_PATHS = Object.freeze([
+  "lib/bash-command-options.ts",
+  "lib/legacy-message-termination-extension-source.ts",
+  "lib/legacy-message-termination.ts",
+  "lib/system-prompt-hook-trace.ts",
+  "lib/todo/response-envelope.ts",
+  "lib/todo/sanitize.ts",
+  "lib/tool-availability.ts",
+  "resources/rpiv-todo/LICENSE",
+  "resources/rpiv-todo/README.md",
+  "src/ask-user.ts",
+  "src/bash.ts",
+  "src/builtin-tools.ts",
+  "src/composer-context.ts",
+  "src/context-trace.ts",
+  "src/dependencies.ts",
+  "src/enhanced-search.ts",
+  "src/index.ts",
+  "src/legacy-message-termination-extension-source.ts",
+  "src/legacy-message-termination.ts",
+  "src/message-termination.ts",
+  "src/resources.ts",
+  "src/response-envelope.ts",
+  "src/rpiv-todo.ts",
+  "src/sanitize.ts",
+  "src/system-prompt-hook-trace.ts",
+  "src/todo/invariants.ts",
+  "src/todo/replay.ts",
+  "src/todo/response-envelope.ts",
+  "src/todo/sanitize.ts",
+  "src/todo/state-reducer.ts",
+  "src/todo/state.ts",
+  "src/todo/task-graph.ts",
+  "src/todo/types.ts",
+  "src/tool-availability.ts",
+  "src/tools/ask-user.ts",
+  "src/tools/bash.ts",
+  "src/tools/builtin-tools.ts",
+  "src/tools/composer-context.ts",
+  "src/tools/context-trace.ts",
+  "src/tools/dependencies.ts",
+  "src/tools/enhanced-search.ts",
+  "src/tools/index.ts",
+  "src/tools/legacy-message-termination-extension-source.ts",
+  "src/tools/legacy-message-termination.ts",
+  "src/tools/message-termination.ts",
+  "src/tools/rpiv-todo.ts",
+  "src/tools/system-prompt-hook-trace.ts",
+  "src/tools/tool-availability.ts",
+  "src/tools/workbench-settings.ts",
+  "src/tools/workspace-review.ts",
+  "src/workbench-settings.ts",
+  "src/workspace-review.ts",
+] as const);
+
+export function workbenchToolSourceDirectory(): URL {
+  const bundled =
+    typeof __WORKBENCH_BUNDLED_RESOURCES__ !== "undefined" && __WORKBENCH_BUNDLED_RESOURCES__;
+  return new URL(bundled ? "./internal-extensions/" : "../", import.meta.url);
+}

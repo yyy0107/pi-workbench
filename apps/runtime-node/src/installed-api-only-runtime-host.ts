@@ -13,12 +13,12 @@ import {
   startApiOnlyRuntimeHost,
   type RunningApiOnlyRuntimeHost,
   type RuntimeHostLifecycle,
-} from "@workbench/host-server/api-only-runtime-host";
+} from "@workbench/application-process/api-only-runtime-host";
 import {
   RuntimeHostControlSessionResultCode,
   runRuntimeHostControlSession,
-} from "@workbench/host-server/runtime-host-control-session";
-import type { DesktopSidecarRuntimeAuthPolicy } from "@workbench/host-server/runtime-transport-auth";
+} from "@workbench/application-process/runtime-host-control-session";
+import type { DesktopSidecarRuntimeAuthPolicy } from "@workbench/runtime-transport-server/runtime-transport-auth";
 import { migrateLegacyWorkbenchMessageTerminationExtension } from "@workbench/pi-runtime-server/legacy";
 
 import { createInstalledRuntimeService } from "./installed-runtime-service";

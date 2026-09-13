@@ -10,7 +10,7 @@ export {
   migrateLegacyWorkbenchMessageTerminationExtension,
   type LegacyWorkbenchMessageTerminationMigrationResult,
   type LegacyWorkbenchMessageTerminationMigrationStatus,
-} from "@workbench/pi-runtime-tools/legacy-message-termination";
+} from "@workbench/pi-workbench-runtime/tools/legacy-message-termination";
 
 type SessionRegistryModule = typeof import("../session-composition/registry");
 type LegacySseModule = typeof import("../streams/legacy-sse");

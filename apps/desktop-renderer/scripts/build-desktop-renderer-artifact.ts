@@ -1,4 +1,4 @@
-import { isInside } from "@workbench/host-artifact-policy/filesystem";
+import { isInside } from "@workbench/artifact-policy/filesystem";
 import { createHash, randomUUID } from "node:crypto";
 import {
   chmod,
@@ -25,8 +25,8 @@ import {
   isDesktopRendererArtifactFilePath,
   type DesktopRendererArtifactFile,
   type DesktopRendererArtifactManifest,
-} from "@workbench/host-contracts/desktop-renderer-artifact-manifest";
-import { RUNTIME_HOST_PROTOCOL_VERSION } from "@workbench/host-contracts/runtime-host-control";
+} from "@workbench/runtime-contracts/desktop-renderer-artifact-manifest";
+import { RUNTIME_HOST_PROTOCOL_VERSION } from "@workbench/runtime-contracts/runtime-host-control";
 
 import { externalizeExecutableInlineScripts } from "./externalize-inline-scripts";
 

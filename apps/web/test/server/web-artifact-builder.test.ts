@@ -20,12 +20,12 @@ import type { BuildOptions, BuildResult, Metafile } from "esbuild";
 import {
   WEB_ARTIFACT_MANIFEST_FILENAME,
   WEB_ARTIFACT_PRIMARY_ENTRYPOINT,
-} from "@workbench/host-contracts/web-artifact-manifest";
+} from "@workbench/runtime-contracts/web-artifact-manifest";
 import {
   resolveWebArtifact,
   type ResolveWebArtifactOptions,
   type ResolvedWebArtifact,
-} from "@workbench/host-server/web-artifact";
+} from "@workbench/artifact-reader/web-artifact";
 
 import {
   TEST_ONLY_ALLOW_NONSTANDARD_WEB_ARTIFACT_OUTPUT,

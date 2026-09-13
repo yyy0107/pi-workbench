@@ -3,7 +3,7 @@ const { readFileSync } = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
-const runtimeHostControl = require("@workbench/host-contracts/runtime-host-control");
+const runtimeHostControl = require("@workbench/runtime-contracts/runtime-host-control");
 const { resolveDesktopArtifactLayout } = require("../scripts/desktop-artifact-layout.cjs");
 const support = require("../scripts/desktop-artifact-support.cjs");
 

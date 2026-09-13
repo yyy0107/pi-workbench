@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 
-import { createRuntimeWebSocketFactory, type RuntimeWebSocket } from "@workbench/host-client";
+import {
+  createRuntimeWebSocketFactory,
+  type RuntimeWebSocket,
+} from "@workbench/runtime-transport-client";
 import { terminalReconnectDelay, toolTerminalSocketPath } from "@workbench/terminal-client";
 import { parseTerminalServerFrame } from "@workbench/terminal-contracts";
 

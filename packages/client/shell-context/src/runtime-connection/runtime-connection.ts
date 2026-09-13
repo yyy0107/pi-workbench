@@ -2,7 +2,7 @@ import {
   RUNTIME_CONNECTION_PROTOCOL_VERSION,
   defineRuntimeConnection,
   type RuntimeConnection,
-} from "@workbench/host-contracts";
+} from "@workbench/runtime-contracts";
 
 /** Creates a same-origin descriptor from an origin selected by the application adapter. */
 export function createSameOriginRuntimeConnection(httpOrigin: string): RuntimeConnection {

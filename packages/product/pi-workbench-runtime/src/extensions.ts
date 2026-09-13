@@ -1,20 +1,23 @@
 import type { InlineExtension } from "@earendil-works/pi-coding-agent";
-import type { WorkbenchToolDependencies } from "@workbench/pi-runtime-tools/dependencies";
+import type { WorkbenchToolDependencies } from "@workbench/pi-workbench-runtime/tools/dependencies";
 import {
   createBuiltinToolExtensions,
   type BuiltinToolSettings,
-} from "@workbench/pi-runtime-tools/builtin-tools";
-import { workspaceReviewExtension } from "@workbench/pi-runtime-tools/workspace-review";
+} from "@workbench/pi-workbench-runtime/extensions/builtin-tools";
+import { workspaceReviewExtension } from "@workbench/pi-workbench-runtime/extensions/workspace-review";
 import {
   createAskUserExtension,
   type AskUserCapabilitySettings,
-} from "@workbench/pi-runtime-tools/ask-user";
+} from "@workbench/pi-workbench-runtime/extensions/ask-user";
 import type { ToolCapabilitySettings } from "@workbench/pi-sdk-ports/tools";
-import { composerContextExtension } from "@workbench/pi-runtime-tools/composer-context";
-import { TODO_EXTENSION_NAME, createTodoExtension } from "@workbench/pi-runtime-tools/rpiv-todo";
-import { createContextTraceExtension } from "@workbench/pi-runtime-tools/context-trace";
-import { messageTerminationExtension } from "@workbench/pi-runtime-tools/message-termination";
-import { createWorkbenchSettingsExtension } from "@workbench/pi-runtime-tools/workbench-settings";
+import { composerContextExtension } from "@workbench/pi-workbench-runtime/extensions/composer-context";
+import {
+  TODO_EXTENSION_NAME,
+  createTodoExtension,
+} from "@workbench/pi-workbench-runtime/extensions/rpiv-todo";
+import { createContextTraceExtension } from "@workbench/pi-workbench-runtime/extensions/context-trace";
+import { messageTerminationExtension } from "@workbench/pi-workbench-runtime/extensions/message-termination";
+import { createWorkbenchSettingsExtension } from "@workbench/pi-workbench-runtime/extensions/workbench-settings";
 
 export function createWorkbenchInternalPiExtensions(
   dependencies: WorkbenchToolDependencies,

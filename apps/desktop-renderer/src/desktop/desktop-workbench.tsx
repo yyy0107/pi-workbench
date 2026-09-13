@@ -8,7 +8,7 @@ import {
 } from "@workbench/pi-workbench/application";
 import { MainViewHost as ExtensionMainViewHost } from "@workbench/extension-host/hosts/main-view-host";
 import { defineExtension } from "@workbench/extension-sdk";
-import type { RuntimeConnection } from "@workbench/host-contracts";
+import type { RuntimeConnection } from "@workbench/runtime-contracts";
 import { SystemFontsProvider } from "@workbench/appearance";
 import { WorkbenchThread } from "@workbench/ui-conversation";
 import { createTranslationBundleMessageFactory, type Locale } from "@workbench/shell/i18n";

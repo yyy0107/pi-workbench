@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { WorkbenchProjectTrust } from "@workbench/host-contracts/runtime-capabilities";
+import type { WorkbenchProjectTrust } from "@workbench/runtime-contracts/runtime-capabilities";
 import { admitWorkspace } from "../lib/workspace-admission";
 
 test("only asks when the runtime requires a trust decision", async () => {

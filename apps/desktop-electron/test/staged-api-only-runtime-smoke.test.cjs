@@ -16,11 +16,11 @@ const {
   createRuntimeHostIdentity,
   createRuntimeHostReadyFrame,
   createRuntimeHostShutdownAckFrame,
-} = require("@workbench/host-contracts/runtime-host-control");
+} = require("@workbench/runtime-contracts/runtime-host-control");
 const {
   createRuntimeWebSocketAuthenticatedFrame,
   parseRuntimeWebSocketAuthenticateFrame,
-} = require("@workbench/host-contracts/runtime-connection");
+} = require("@workbench/runtime-contracts/runtime-connection");
 
 const {
   TERMINAL_MARKER,

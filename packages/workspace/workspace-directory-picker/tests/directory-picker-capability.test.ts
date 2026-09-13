@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   RUNTIME_CONNECTION_PROTOCOL_VERSION,
   defineRuntimeConnection,
-} from "@workbench/host-contracts";
+} from "@workbench/runtime-contracts";
 
 import { shouldUseNativeDirectoryPicker } from "../src/directory-picker-capability";
 

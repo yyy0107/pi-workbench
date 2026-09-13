@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { RuntimeWebSocket } from "@workbench/host-client";
+import type { RuntimeWebSocket } from "@workbench/runtime-transport-client";
 import {
   BROWSER_WEBSOCKET_PATH,
   DEFAULT_BROWSER_SETTINGS,

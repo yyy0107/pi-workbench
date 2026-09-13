@@ -27,7 +27,7 @@ function hasOwnDeclaration(program) {
   });
 }
 
-async function files(directory) {
+async function files(directory, isDomainRoot = false) {
   let entries;
   try {
     entries = await readdir(directory, { withFileTypes: true });
@@ -37,7 +37,11 @@ async function files(directory) {
   }
   const result = [];
   for (const entry of entries) {
-    if (entry.name.startsWith(".") || SKIP.has(entry.name)) continue;
+    if (
+      entry.name.startsWith(".") ||
+      (SKIP.has(entry.name) && !(isDomainRoot && entry.name === "build"))
+    )
+      continue;
     const target = path.join(directory, entry.name);
     if (entry.isDirectory()) result.push(...(await files(target)));
     else if (entry.isFile()) result.push(target);
@@ -47,7 +51,7 @@ async function files(directory) {
 
 export async function packageStructureInventory(repositoryRoot = REPOSITORY_ROOT) {
   const relative = (file) => path.relative(repositoryRoot, file).split(path.sep).join("/");
-  const allFiles = await files(path.join(repositoryRoot, "packages"));
+  const allFiles = await files(path.join(repositoryRoot, "packages"), true);
   // Fixture manifests describe synthetic projects, not production library packages.
   const manifests = allFiles.filter(
     (file) =>
@@ -66,7 +70,11 @@ export async function packageStructureInventory(repositoryRoot = REPOSITORY_ROOT
       add("nested-package", manifest, "a library must not contain another library package");
     const inspectExport = (value) => {
       if (typeof value === "string") {
-        if (SOURCE_EXTENSION.test(value) && !value.startsWith("./src/"))
+        // Product-owned Pi extension resources are executable public entry points.
+        const piExtensionResource =
+          relative(root) === "packages/product/pi-workbench-runtime" &&
+          /^\.\/resources\/extensions\/[a-z0-9-]+\/index\.ts$/u.test(value);
+        if (SOURCE_EXTENSION.test(value) && !value.startsWith("./src/") && !piExtensionResource)
           add("public-source-entry", manifest, `public source entry must be in src/: ${value}`);
       } else if (value && typeof value === "object") {
         Object.values(value).forEach(inspectExport);
@@ -130,10 +138,10 @@ export async function packageStructureInventory(repositoryRoot = REPOSITORY_ROOT
     if (!SOURCE_EXTENSION.test(filename)) continue;
     // Existing CommonJS artifact policy remains build tooling; no application TS is converted to JS.
     const legacyBuildTool =
-      (relative(owner) === "packages/host/host-artifact-policy" && filename.endsWith(".cjs")) ||
+      (relative(owner) === "packages/build/artifact-policy" && filename.endsWith(".cjs")) ||
       [
-        "packages/host/host-server/src/host-probe.cjs",
-        "packages/host/host-server/src/windows-process-census.cjs",
+        "packages/process/application-process/src/host-probe.cjs",
+        "packages/process/application-process/src/windows-process-census.cjs",
       ].includes(relative(filename));
     if (["src", "lib"].includes(local[0]) && /\.[cm]?jsx?$/u.test(filename) && !legacyBuildTool)
       add("source-language", filename, "capability and helper source must use TypeScript");

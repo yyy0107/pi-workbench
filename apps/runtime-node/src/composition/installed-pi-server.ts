@@ -68,7 +68,7 @@ import {
   type PiRpcPostHandler,
   type PiRuntimeHttpHandler,
 } from "@workbench/pi-runtime-server/http";
-import { createWorkbenchBashToolOverride } from "@workbench/pi-runtime-terminal";
+import { createWorkbenchBashToolOverride } from "@workbench/pi-workbench-runtime/tools/bash";
 import { createTerminalShellPreference } from "@workbench/terminal-server/shell";
 import { ToolTerminalSessionManager } from "@workbench/terminal-server/tool-sessions";
 import { runWorkbenchShutdownHooks } from "@workbench/server-core/shutdown-hooks";

@@ -39,7 +39,7 @@ import type {
   WorkspaceSurfaceRegistry,
   WorkbenchExtension,
 } from "@workbench/extension-sdk";
-import type { RuntimeConnection } from "@workbench/host-contracts";
+import type { RuntimeConnection } from "@workbench/runtime-contracts";
 
 import {
   createWorkbenchDraftPersistence,

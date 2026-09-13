@@ -18,9 +18,9 @@ const test = require("node:test");
 const {
   RUNTIME_ARTIFACT_MANIFEST_FILENAME,
   runtimeArtifactTargetKey,
-} = require("@workbench/host-contracts/runtime-artifact-manifest");
+} = require("@workbench/runtime-contracts/runtime-artifact-manifest");
 
-const nativeArtifact = require("@workbench/host-artifact-policy/runtime-native");
+const nativeArtifact = require("@workbench/artifact-policy/runtime-native");
 const {
   materializeElectronRuntimeArtifact,
   parseRuntimeArtifactMaterializationRequest,

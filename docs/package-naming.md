@@ -36,11 +36,34 @@
 
 Spec005 将会话能力继续拆分为 `@workbench/ui-composer`、`@workbench/ui-conversation`、`@workbench/ui-conversation-list`、`@workbench/ui-conversation-messages`、`@workbench/ui-conversation-nodes` 和 `@workbench/ui-message-blocks`。新增代码应按这些 owner 的实际职责引用公开入口，不再使用旧的 `@workbench/composer` 或 `@workbench/conversation` 包名。
 
-## 当前 Pi 名称整理
+## Pi 名称整理记录
 
 基于 `a2427637`，21 个既有包移动、15 个包重命名，并新增独立 Node 产品包，总计 97 个库包。见[包导航和导入示例](../packages/README.md)、[本轮完整映射](package-layout-map.json)及[验证记录](package-layout-validation.md)。内置资源、默认扩展清单与部署策略由 Node 产品包拥有，工具实现移到 `pi-runtime`；SDK 接入仍可引用既有 RPC 合同与纯数据适配器，目录分类不等同于进一步解耦。
 
 新增代码按当前导航导入。下述早期验证与 Spec001–008 保留各自完成时的名称和记录。稳定扩展、工具、线协议、持久化和翻译 bundle ID 不跟随包名改动。
+
+## 当前应用基础设施命名
+
+基于 `aa87792b`，原 `packages/host` 的两个包及 `client/host-client`、`client/host-contracts` 调整为六个明确能力包，总计 99 个库包。详细来源、子路径归属和验证见 [Spec009](../specs/009-host-infrastructure-naming/plan.md) 与 [逐文件清单](../specs/009-host-infrastructure-naming/migration-inventory.json)。
+
+| 查找职责                                   | 当前目录                             |
+| ------------------------------------------ | ------------------------------------ |
+| Runtime 连接、宿主能力、控制与产物格式合同 | `contracts/runtime-contracts`        |
+| 客户端 HTTP / WebSocket 传输               | `transport/runtime-transport-client` |
+| 服务端 HTTP / WebSocket、认证与代理        | `transport/runtime-transport-server` |
+| Runtime/Web 进程启动、探测与退出           | `process/application-process`        |
+| Runtime/Web 产物读取与完整性校验           | `build/artifact-reader`              |
+| 原生依赖、资源和 Next 产物准入策略         | `build/artifact-policy`              |
+
+`packages/build` 是手写能力源码领域，生成物仍在各应用原有输出目录。`extension-host` 继续表示扩展安装与界面挂载；`local-host-server` 继续提供宿主文件/目录与本地应用能力。协议符号中已有的 Host 名称和所有稳定 ID 保持原值，不随包名机械替换。
+
+## 自定义 bash 工具归并
+
+Spec010 将独立的 `pi-runtime-terminal` 暂时合并为 `@workbench/pi-runtime-tools/bash`，当时库包总数为 98。工具定义放在 `pi-runtime-tools/src/bash.ts`，终端执行仍归 `terminal-server`，保持原有应用注入和工具来源标识。详细映射与验证见 [Spec010](../specs/010-pi-bash-tool-consolidation/plan.md)。上文及历史规格中的数量描述各自完成时状态。
+
+## 当前产品工具所有权
+
+Spec011 将 Workbench 专属工具、提示、交互与 Todo 策略统一归入 `product/pi-workbench-runtime`，移除 pi-runtime-tools，当前共 97 个库包。工具入口为 `@workbench/pi-workbench-runtime/tools/*`，Todo 状态入口为 `/todo/*`；SDK 通过既有装配层注入的回调使用工具覆盖与审查策略，不依赖产品。通用终端/工作区能力和具有独立 CLI 用途的 Browser 包保持原归属。详见 [Spec011](../specs/011-product-tool-ownership/plan.md)。
 
 ## 验证策略
 

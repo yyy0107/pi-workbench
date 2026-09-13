@@ -1,4 +1,4 @@
-import type { RuntimeConnection } from "@workbench/host-contracts";
+import type { RuntimeConnection } from "@workbench/runtime-contracts";
 
 function isLoopbackHostname(hostname: string): boolean {
   if (hostname === "localhost" || hostname === "[::1]" || hostname === "::1") return true;

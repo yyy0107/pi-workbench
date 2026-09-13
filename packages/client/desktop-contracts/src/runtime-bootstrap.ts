@@ -1,4 +1,4 @@
-import type { RuntimeConnection } from "@workbench/host-contracts";
+import type { RuntimeConnection } from "@workbench/runtime-contracts";
 
 /** Trusted renderer capability for obtaining an in-memory desktop Runtime connection. */
 export interface DesktopRuntimeBootstrapPort {

@@ -6,7 +6,7 @@ import {
   compilePiComposerPrompt,
   PI_COMPOSER_MODEL_INPUT_CUSTOM_TYPE,
 } from "@workbench/pi-runtime-adapters/composer-prompt";
-import { projectPiComposerContext } from "@workbench/pi-runtime-tools/composer-context";
+import { projectPiComposerContext } from "@workbench/pi-workbench-runtime/tools/composer-context";
 
 test("adapts a resolved request at Pi's trust boundary without injecting command trace", () => {
   const { prompt, userText, context } = compilePiComposerPrompt({

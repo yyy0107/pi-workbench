@@ -16,7 +16,7 @@ const test = require("node:test");
 const { createWorkbenchPaths } = require("../../../../scripts/workbench-paths.cjs");
 const {
   resolveWebArtifactNextWebpackRuntime,
-} = require("@workbench/host-artifact-policy/web-next-runtime-exception");
+} = require("@workbench/artifact-policy/web-next-runtime-exception");
 const {
   completeNextStandaloneRuntime,
 } = require("../../scripts/complete-next-standalone-runtime.cjs");

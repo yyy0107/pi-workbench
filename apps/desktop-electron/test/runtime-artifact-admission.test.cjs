@@ -6,7 +6,9 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
-const { runtimeArtifactTargetKey } = require("@workbench/host-contracts/runtime-artifact-manifest");
+const {
+  runtimeArtifactTargetKey,
+} = require("@workbench/runtime-contracts/runtime-artifact-manifest");
 const {
   DESKTOP_RUNTIME_ARTIFACT_ADMISSION_POLICY,
   DESKTOP_RUNTIME_UPGRADE_PATHS,

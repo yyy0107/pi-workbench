@@ -13,7 +13,10 @@ import {
 } from "@xterm/xterm";
 import { SquareIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { createRuntimeWebSocketFactory, type RuntimeWebSocket } from "@workbench/host-client";
+import {
+  createRuntimeWebSocketFactory,
+  type RuntimeWebSocket,
+} from "@workbench/runtime-transport-client";
 import {
   createTerminalFrameWriter,
   isInvalidTerminalSessionClose,

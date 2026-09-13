@@ -38,11 +38,11 @@
     "check:package-structure": "node scripts/check-package-structure.mjs"
   },
   "devDependencies": {
+    "@workbench/application-process": "workspace:*",
     "@workbench/extension-sdk": "workspace:*",
-    "@workbench/host-contracts": "workspace:*",
-    "@workbench/host-server": "workspace:*",
     "@workbench/pi-conversation-adapter": "workspace:*",
     "@workbench/pi-ui-extensions": "workspace:*",
+    "@workbench/runtime-contracts": "workspace:*",
     "@workbench/settings-runtime": "workspace:*",
     "@workbench/shell": "workspace:*",
     "@workbench/shell-context": "workspace:*",

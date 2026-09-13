@@ -5,7 +5,7 @@ const { lstatSync, realpathSync, statSync } = require("node:fs");
 const {
   RUNTIME_ARTIFACT_MANIFEST_FILENAME,
   runtimeArtifactTargetKey,
-} = require("@workbench/host-contracts/runtime-artifact-manifest");
+} = require("@workbench/runtime-contracts/runtime-artifact-manifest");
 
 const {
   assertExactTarget,

@@ -1,0 +1,20 @@
+{
+  "files": [
+    "packages/pi-runtime/pi-runtime-tools/tests/ask-user.test.ts",
+    "packages/pi-runtime/pi-runtime-tools/tests/composer-context.test.ts",
+    "packages/pi-runtime/pi-runtime-tools/tests/enhanced-search.test.ts",
+    "packages/pi-runtime/pi-runtime-tools/tests/interactive-bash-tool.test.ts",
+    "packages/pi-runtime/pi-runtime-tools/tests/legacy-message-termination.test.ts",
+    "packages/pi-runtime/pi-runtime-tools/tests/workspace-review.test.ts",
+    "packages/pi-runtime/pi-runtime-server/tests/internal-extensions/builtin-tools.test.ts",
+    "packages/pi-runtime/pi-runtime-server/tests/agent-runtime/pi-agent-server-implementation.test.ts",
+    "packages/pi-runtime/pi-runtime-server/tests/sessions/session-registry-metadata.test.ts",
+    "packages/terminal/terminal-server/tests/tool-terminal-session-manager.test.ts",
+    "packages/terminal/terminal-server/tests/bash-command-policy.test.ts",
+    "packages/terminal/terminal-server/tests/terminal-shell.test.ts",
+    "apps/runtime-node/test/runtime-artifact-builder.test.ts",
+    "scripts/check-runtime-host-ownership.test.mjs",
+    "scripts/refactor-architecture-boundaries.test.mjs"
+  ],
+  "runner": "node --import ./scripts/register-typescript-test-loader.mjs --test"
+}

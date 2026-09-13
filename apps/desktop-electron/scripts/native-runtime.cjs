@@ -18,8 +18,8 @@ const path = require("node:path");
 const {
   assertRuntimeArtifactNativeInventory,
   runtimeArtifactTargetKey,
-} = require("@workbench/host-contracts/runtime-artifact-manifest");
-const nativeArtifact = require("@workbench/host-artifact-policy/runtime-native");
+} = require("@workbench/runtime-contracts/runtime-artifact-manifest");
+const nativeArtifact = require("@workbench/artifact-policy/runtime-native");
 const { runPackageManager } = require("./process-runner.cjs");
 const {
   resolveDesktopRuntimeArtifact,

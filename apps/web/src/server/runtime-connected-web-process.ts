@@ -2,12 +2,12 @@ import {
   RuntimeConnectedWebMode,
   parseRuntimeConnectedWebStartMessage,
   type RuntimeConnectedWebStartMessage,
-} from "@workbench/host-contracts/runtime-connected-web-control";
+} from "@workbench/runtime-contracts/runtime-connected-web-control";
 import {
   createWorkbenchHostReadyMessage,
   isWorkbenchHostShutdownMessage,
-} from "@workbench/host-contracts/host-control";
-import { WebHostShutdownReason } from "@workbench/host-contracts/web-host-control";
+} from "@workbench/runtime-contracts/host-control";
+import { WebHostShutdownReason } from "@workbench/runtime-contracts/web-host-control";
 
 import {
   RUNTIME_CONNECTED_WEB_HOST,

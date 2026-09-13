@@ -61,11 +61,11 @@
     "@workbench/api": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
     "@workbench/core-contracts": "workspace:*",
-    "@workbench/host-client": "workspace:*",
     "@workbench/pi-conversation-adapter": "workspace:*",
     "@workbench/pi-rpc-client": "workspace:*",
     "@workbench/pi-rpc-contracts": "workspace:*",
     "@workbench/pi-runtime-adapters": "workspace:*",
+    "@workbench/runtime-transport-client": "workspace:*",
     "@workbench/services-client": "workspace:*"
   },
   "devDependencies": {

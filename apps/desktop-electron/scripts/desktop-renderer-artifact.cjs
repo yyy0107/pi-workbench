@@ -4,7 +4,7 @@ const path = require("node:path");
 const {
   DESKTOP_RENDERER_ARTIFACT_MANIFEST_FILENAME,
   assertDesktopRendererArtifactManifest,
-} = require("@workbench/host-contracts/desktop-renderer-artifact-manifest");
+} = require("@workbench/runtime-contracts/desktop-renderer-artifact-manifest");
 
 const { assertArtifactTreeEquivalent, snapshotArtifactTree } = require("./artifact-tree.cjs");
 

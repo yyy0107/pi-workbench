@@ -1,0 +1,30 @@
+{
+  "baseline": "aa87792b + Spec009 worktree",
+  "packagesBefore": 99,
+  "packagesAfter": 98,
+  "files": [
+    {
+      "from": "packages/pi-runtime/pi-runtime-terminal/src/index.ts",
+      "to": "packages/pi-runtime/pi-runtime-tools/src/bash.ts",
+      "sha256Before": "53d5a272bbaf542c85c878278947daeb5df4a7a9fc68fb2183a3e63f7b01319e",
+      "sha256After": "422a1634480cd6b1a728b35d0c5b2fd78b472ff39394800db8e11dab510b7d95"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-terminal/lib/command-options.ts",
+      "to": "packages/pi-runtime/pi-runtime-tools/lib/bash-command-options.ts",
+      "sha256Before": "79e49f771e3bb1961d92626c387b68923519a08b0cdf2aa574c6ab4adf96f140",
+      "sha256After": "79e49f771e3bb1961d92626c387b68923519a08b0cdf2aa574c6ab4adf96f140"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-terminal/tests/interactive-bash-tool.test.ts",
+      "to": "packages/pi-runtime/pi-runtime-tools/tests/interactive-bash-tool.test.ts",
+      "sha256Before": "905ecad8c6d3c1ef1766f9252b7a37b043f6c10a4a62d7ce9e3781dc3e24b08d",
+      "sha256After": "d6ce8aec193b88ab801a96d9cba47ddf7c8c4a873c6e118700ed8909f1ee3fc2"
+    }
+  ],
+  "removedMetadata": ["package.json", "tsconfig.json", "README.md", "README.zh-CN.md", "AGENTS.md"],
+  "publicEntry": {
+    "from": "@workbench/pi-runtime-terminal",
+    "to": "@workbench/pi-runtime-tools/bash"
+  }
+}

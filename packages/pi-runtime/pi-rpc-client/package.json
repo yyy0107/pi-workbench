@@ -16,9 +16,9 @@
   "dependencies": {
     "@workbench/api": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
-    "@workbench/host-client": "workspace:*",
     "@workbench/pi-conversation-adapter": "workspace:*",
-    "@workbench/pi-rpc-contracts": "workspace:*"
+    "@workbench/pi-rpc-contracts": "workspace:*",
+    "@workbench/runtime-transport-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

@@ -4,7 +4,7 @@ import type {
   WorkbenchLocalAppsListResult as LocalAppsListValue,
   WorkbenchLocalAppOpenRequest as LocalAppOpenPayload,
   WorkbenchLocalAppOpenResult as LocalAppOpenValue,
-} from "@workbench/host-contracts/runtime-capabilities";
+} from "@workbench/runtime-contracts/runtime-capabilities";
 import { callServiceRpc, capabilityCall } from "./errors";
 import type { RpcCallOptions } from "./errors";
 import { fetchFileContent, streamFileText } from "./file-content";

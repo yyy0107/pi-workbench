@@ -26,8 +26,8 @@ React Workspace Surface
   gating, reconnect replay/close policy, the terminal gateway, transcript projection, and the
   Tree-sitter command policy. The gateway is attached only after the outer Runtime Host has
   accepted authentication and trust.
-- [`@workbench/pi-runtime-terminal`](../pi-runtime/pi-runtime-terminal) is the sole Pi SDK adapter. It owns the custom
-  `interactive-bash-tool` ToolDefinition and delegates execution to Terminal Server without
+- [`@workbench/pi-workbench-runtime/tools/bash`](../product/pi-workbench-runtime/src/bash/index.ts) is the Pi bash adapter entry. It owns the custom
+  `bash` ToolDefinition and delegates execution to Terminal Server without
   leaking Pi types into the general Terminal packages.
 
 `TerminalGateway` shares the custom Workbench HTTP server and receives the common

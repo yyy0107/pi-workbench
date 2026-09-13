@@ -121,9 +121,12 @@ test("bundled resources install into the Pi directory after relocation and pruni
     ).includes("name: browser-use"),
   );
   assert.ok(
-    (await readFile(path.join(directories.extensions, "src", "rpiv-todo.ts"), "utf8")).includes(
-      "createTodoExtension",
-    ),
+    (
+      await readFile(
+        path.join(directories.extensions, "resources", "extensions", "rpiv-todo", "index.ts"),
+        "utf8",
+      )
+    ).includes("createTodoExtension"),
   );
   assert.deepEqual(await readdir(directories.prompts), ["example"]);
   for (const locale of ["en-US", "zh-CN"])
@@ -239,7 +242,7 @@ test("bundles every Workbench package and never externalizes Next", () => {
     /must not depend on Next/,
   );
   assert.throws(
-    () => assertRuntimeArtifactExternalPackages(["@workbench/host-server"]),
+    () => assertRuntimeArtifactExternalPackages(["@workbench/runtime-transport-server"]),
     /bundle every Workbench package/,
   );
 });
@@ -399,7 +402,7 @@ test("accepts only app/package source inputs in the Runtime bundle closure", () 
     assertRuntimeArtifactInputClosure(
       metafile([
         "src/main.ts",
-        "../../packages/host/host-server/src/workbench-http-server.ts",
+        "../../packages/transport/runtime-transport-server/src/workbench-http-server.ts",
         "../../node_modules/ws/index.js",
       ]),
       { appRoot, repositoryRoot },

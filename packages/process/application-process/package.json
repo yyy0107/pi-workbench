@@ -1,0 +1,54 @@
+{
+  "name": "@workbench/application-process",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./api-only-runtime-host": {
+      "types": "./src/api-only-runtime-host.ts",
+      "import": "./src/api-only-runtime-host.ts",
+      "default": "./src/api-only-runtime-host.ts"
+    },
+    "./runtime-host-control-session": {
+      "types": "./src/runtime-host-control-session.ts",
+      "import": "./src/runtime-host-control-session.ts",
+      "default": "./src/runtime-host-control-session.ts"
+    },
+    "./web-host-control-session": {
+      "types": "./src/web-host-control-session.ts",
+      "import": "./src/web-host-control-session.ts",
+      "default": "./src/web-host-control-session.ts"
+    },
+    "./runtime-sidecar-child": {
+      "types": "./src/runtime-sidecar-child.ts",
+      "import": "./src/runtime-sidecar-child.ts",
+      "default": "./src/runtime-sidecar-child.ts"
+    },
+    "./windows-process-census": {
+      "types": "./src/windows-process-census.d.ts",
+      "require": "./src/windows-process-census.cjs",
+      "default": "./src/windows-process-census.cjs"
+    },
+    "./host-probe": {
+      "types": "./src/host-probe.d.cts",
+      "require": "./src/host-probe.cjs",
+      "default": "./src/host-probe.cjs"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/runtime-contracts": "workspace:*",
+    "@workbench/runtime-transport-server": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/ws": "^8.18.1",
+    "@workbench/runtime-transport-client": "workspace:*",
+    "typescript": "^7.0.2",
+    "ws": "^8.21.3"
+  }
+}

@@ -8,7 +8,7 @@ import { useWorkbenchRuntimeHostCapability } from "@workbench/agent-runtime-clie
 import type {
   WorkbenchLocalApp,
   WorkbenchLocalFileDescriptor,
-} from "@workbench/host-contracts/runtime-capabilities";
+} from "@workbench/runtime-contracts/runtime-capabilities";
 import { writeClipboardText } from "@workbench/ui/clipboard";
 import { saveFileAs } from "@workbench/ui-file-presentation/download";
 

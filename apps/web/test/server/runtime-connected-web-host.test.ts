@@ -4,12 +4,12 @@ import { createServer, type Server } from "node:http";
 import { connect } from "node:net";
 import test from "node:test";
 
-import { RUNTIME_CONNECTION_PROTOCOL_VERSION } from "@workbench/host-contracts/runtime-connection";
-import { WebHostShutdownReason } from "@workbench/host-contracts/web-host-control";
+import { RUNTIME_CONNECTION_PROTOCOL_VERSION } from "@workbench/runtime-contracts/runtime-connection";
+import { WebHostShutdownReason } from "@workbench/runtime-contracts/web-host-control";
 import {
   createWorkbenchHttpServer,
   type WorkbenchHttpServerOptions,
-} from "@workbench/host-server/workbench-http-server";
+} from "@workbench/runtime-transport-server/workbench-http-server";
 
 import {
   RUNTIME_CONNECTED_WEB_HOST,

@@ -1,7 +1,10 @@
 "use client";
 
-import { createRuntimeWebSocketFactory, type RuntimeWebSocket } from "@workbench/host-client";
-import type { RuntimeConnection } from "@workbench/host-contracts";
+import {
+  createRuntimeWebSocketFactory,
+  type RuntimeWebSocket,
+} from "@workbench/runtime-transport-client";
+import type { RuntimeConnection } from "@workbench/runtime-contracts";
 import {
   BROWSER_WEBSOCKET_PATH,
   DEFAULT_BROWSER_SETTINGS,

@@ -38,8 +38,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
-    "@workbench/host-contracts": "workspace:*",
-    "@workbench/host-server": "workspace:*",
+    "@workbench/runtime-contracts": "workspace:*",
     "typescript": "^7.0.2"
   }
 }

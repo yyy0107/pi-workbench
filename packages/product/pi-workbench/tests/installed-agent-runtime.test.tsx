@@ -6,11 +6,14 @@ import { isValidElement } from "react";
 import { PI_AGENT_RUNTIME_DESCRIPTOR } from "@workbench/pi-runtime-adapters/descriptor";
 import type { PromptFeedbackPort } from "@workbench/agent-runtime-client/prompt-feedback";
 import type { PiClientTransport } from "@workbench/pi-runtime-client/installation";
-import type { RuntimeWebSocket, RuntimeWebSocketMessageEvent } from "@workbench/host-client";
+import type {
+  RuntimeWebSocket,
+  RuntimeWebSocketMessageEvent,
+} from "@workbench/runtime-transport-client";
 import {
   RUNTIME_CONNECTION_PROTOCOL_VERSION,
   defineRuntimeConnection,
-} from "@workbench/host-contracts";
+} from "@workbench/runtime-contracts";
 import { createWorkspaceDirectoryStoreInstallation } from "@workbench/workspace-runtime/directory-store";
 
 import {

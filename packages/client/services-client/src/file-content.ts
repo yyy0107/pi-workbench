@@ -1,8 +1,8 @@
 import { RpcClientError } from "@workbench/api/client";
 import type { RpcCallOptions } from "./errors";
 import { contentLength, decodeFileText } from "../lib/file-text";
-import { resolveRuntimeFetch } from "@workbench/host-client/runtime-fetch";
-import type { RuntimeFetch } from "@workbench/host-client";
+import { resolveRuntimeFetch } from "@workbench/runtime-transport-client/runtime-fetch";
+import type { RuntimeFetch } from "@workbench/runtime-transport-client";
 
 /**
  * Read a binary preview through the installation-bound HTTP carrier. Desktop sidecars cannot use

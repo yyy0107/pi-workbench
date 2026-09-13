@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { WorkbenchLocalApp } from "@workbench/host-contracts/runtime-capabilities";
+import type { WorkbenchLocalApp } from "@workbench/runtime-contracts/runtime-capabilities";
 
 import {
   compatibleLocalFileApps,

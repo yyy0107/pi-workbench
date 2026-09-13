@@ -1,0 +1,415 @@
+{
+  "baseline": "aa87792b + Spec009/010 worktree",
+  "packagesBefore": 98,
+  "packagesAfter": 97,
+  "files": [
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/ask-user.ts",
+      "to": "packages/product/pi-workbench-runtime/src/ask-user/index.ts",
+      "sha256Before": "bd90e0c2db9b32b6cd187325feb41f7225097ca8fabe912331f5f1678592ec73",
+      "sha256After": "c77659f2c624493bee22f1a4c666386e8b2a76d0f01d3e9fd9fb54ab08d34b13"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/legacy-message-termination-extension-source.ts",
+      "to": "packages/product/pi-workbench-runtime/src/message-termination/legacy-extension-source.ts",
+      "sha256Before": "aed9a8d878fe3e861f9b03b742abc6dc42499d6395e053e95a0525a1161ea9a7",
+      "sha256After": "98afcc883fd68c737300574d6d47fe12b2fab5c1e39efd47fa1763846b5146dd"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/sanitize.ts",
+      "to": "packages/product/pi-workbench-runtime/src/rpiv-todo/sanitize.ts",
+      "sha256Before": "2d2ec292dd41872146bb3a2be426c79da424b407250b32aa6bbdaf89e1c60484",
+      "sha256After": "1699c3768ed20351b2e2093e67240ad1bfe3b609c81ba6ea065551dd0ff51d0e"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/composer-context.ts",
+      "to": "packages/product/pi-workbench-runtime/src/composer-context/index.ts",
+      "sha256Before": "7845a1d8e3701505603b284632f2a0eb9384b37e9e9641d6b2e6d59814b686de",
+      "sha256After": "b6bb88ebbd074bf54bbe7a164f3dbbcee1e0cecb2751ae2683f34c5ce1e78361"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/workspace-review.ts",
+      "to": "packages/product/pi-workbench-runtime/src/workspace-review/index.ts",
+      "sha256Before": "eeb0809e88febca62bbcf1d07ed102acde75a87f9a93d861041e756c576f8318",
+      "sha256After": "918a9a8acf5de7ff0270f2b3a2c1f4831d6013e17b770e850b5068e8d8fc2e07"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/context-trace.ts",
+      "to": "packages/product/pi-workbench-runtime/src/context-trace/index.ts",
+      "sha256Before": "d4aea28b22fd20de2d6cb61db70638f10af0c0938f69777fc76af53f94804039",
+      "sha256After": "a5aa719dc1f12079498509bda40c256b42a09891210738c727b459ed12f50239"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/builtin-tools.ts",
+      "to": "packages/product/pi-workbench-runtime/src/tool-runtime/builtin-tools.ts",
+      "sha256Before": "4a4b3f8143a000749e947c2223078e8b36616fbde4a3b058ed60f1c9983d0ef6",
+      "sha256After": "66cd831fa782581622026c6a8aabd18fb92dd5ca7fbd30e9fa18e19933d5b9a8"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/message-termination.ts",
+      "to": "packages/product/pi-workbench-runtime/src/message-termination/index.ts",
+      "sha256Before": "a8d91d763eb39ef45d87eba88c81dcd7d1535735a6d1d6595983c338882866de",
+      "sha256After": "738e49cc3f5ac916129aa9a95cbfca01f8804329f7710ff2e1fca25e96dc655d"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/tool-availability.ts",
+      "to": "packages/product/pi-workbench-runtime/src/tool-runtime/tool-availability.ts",
+      "sha256Before": "1217f008cf7ee1c8d2065770c346adf27e6f854cd5dd3fb075abb576a174da1c",
+      "sha256After": "a81a0368afd41b049158dd677641ae533d362bcdbdd50758e823365216138c8a"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/dependencies.ts",
+      "to": "packages/product/pi-workbench-runtime/src/tool-runtime/dependencies.ts",
+      "sha256Before": "807eb7f23437e338394cee6fc9587659de2a7622651a68482b9e5c78a49f20a2",
+      "sha256After": "807eb7f23437e338394cee6fc9587659de2a7622651a68482b9e5c78a49f20a2"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/index.ts",
+      "to": "packages/product/pi-workbench-runtime/src/tool-runtime/index.ts",
+      "sha256Before": "f714d9ac9892b7fdbea39c76fc734af2797f28c18cc12b877fe3349d52de2793",
+      "sha256After": "8e89de91997b686baf4a1763c3ecd5601529436444b801aa4a29206e00936937"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/resources.ts",
+      "to": "packages/product/pi-workbench-runtime/src/tool-resources.ts",
+      "sha256Before": "267bc06b0bfd83d0fb3b13668eb3f42d095b0f4d0a4b98ff5ed97df3c5c713b2",
+      "sha256After": "48533c246ac18012f59f2e51f635aaa7727b43ec5a91b0676df06749a24c828b"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/bash.ts",
+      "to": "packages/product/pi-workbench-runtime/src/bash/index.ts",
+      "sha256Before": "422a1634480cd6b1a728b35d0c5b2fd78b472ff39394800db8e11dab510b7d95",
+      "sha256After": "d4e625490c75d6cc7dd9b9e67891df2ef343a51772e35d72cec1b7d525f3cea6"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/response-envelope.ts",
+      "to": "packages/product/pi-workbench-runtime/src/rpiv-todo/response-envelope.ts",
+      "sha256Before": "2d9d2b594f2bd19a467ad597a3d8f01e2a0be2a1cf37020bbfe7d2ab72b03d28",
+      "sha256After": "2860ab1004e657016e4c6fb2413b44569e7536a86e0f34a4a2a0ae2e55bb13a8"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/system-prompt-hook-trace.ts",
+      "to": "packages/product/pi-workbench-runtime/src/system-prompt-hook-trace/index.ts",
+      "sha256Before": "2d146d786d3328a21126c3a10d1d9ee06839d6a401ee6e921d5068f1391798b1",
+      "sha256After": "77a995ebbcb19319befa74b97a565b0c166cb8820419cd48df0b16b1533c0b15"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/rpiv-todo.ts",
+      "to": "packages/product/pi-workbench-runtime/src/rpiv-todo/index.ts",
+      "sha256Before": "5518fff08eddde16bdcf4b46c7a57783999afafdc62074350cec0ad5a270959d",
+      "sha256After": "5dfa6e505c56b5a45268aef455222d90b6196ab99ef74e4143e4fa7150a91792"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/workbench-settings.ts",
+      "to": "packages/product/pi-workbench-runtime/src/workbench-settings/index.ts",
+      "sha256Before": "d18eb990e1c60d801ecb3d52ba98e0b4364417f1d604e5a0a47a1d32a0382b76",
+      "sha256After": "73f170839e3d2e9a3dec4f7cc4a782d51dfae8fad418fbf58f5071bb6dbcd90b"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/enhanced-search.ts",
+      "to": "packages/product/pi-workbench-runtime/src/tool-runtime/enhanced-search.ts",
+      "sha256Before": "1a1502d7d0218497f1dc62fb7688333f4268e8fc8b0726daa3135bd961680412",
+      "sha256After": "fe8aaab2845bfbdadac428863e23b12435c12a447840a604b84cb88693b35942"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/legacy-message-termination.ts",
+      "to": "packages/product/pi-workbench-runtime/src/message-termination/legacy.ts",
+      "sha256Before": "221239cc20f26c4f82a3f99d3fb4d87d9194feab33f65831347d58962bdabe2e",
+      "sha256After": "634513cbf913ff7cd0ffd8fb960e0f3c8143d3e7198cabeb0dad5691d268a2d4"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/lib/bash-command-options.ts",
+      "to": "packages/product/pi-workbench-runtime/src/bash/command-options.ts",
+      "sha256Before": "79e49f771e3bb1961d92626c387b68923519a08b0cdf2aa574c6ab4adf96f140",
+      "sha256After": "79e49f771e3bb1961d92626c387b68923519a08b0cdf2aa574c6ab4adf96f140"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/lib/legacy-message-termination-extension-source.ts",
+      "to": "packages/product/pi-workbench-runtime/src/message-termination/legacy-extension-source.ts",
+      "sha256Before": "98afcc883fd68c737300574d6d47fe12b2fab5c1e39efd47fa1763846b5146dd",
+      "sha256After": "98afcc883fd68c737300574d6d47fe12b2fab5c1e39efd47fa1763846b5146dd"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/lib/tool-availability.ts",
+      "to": "packages/product/pi-workbench-runtime/src/tool-runtime/tool-availability.ts",
+      "sha256Before": "a81a0368afd41b049158dd677641ae533d362bcdbdd50758e823365216138c8a",
+      "sha256After": "a81a0368afd41b049158dd677641ae533d362bcdbdd50758e823365216138c8a"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/lib/system-prompt-hook-trace.ts",
+      "to": "packages/product/pi-workbench-runtime/src/system-prompt-hook-trace/index.ts",
+      "sha256Before": "ade0aebb07e2364dcc28ffd3549ce5c9d5002acddbf4732a50ccf34c959dc4ce",
+      "sha256After": "77a995ebbcb19319befa74b97a565b0c166cb8820419cd48df0b16b1533c0b15"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/lib/legacy-message-termination.ts",
+      "to": "packages/product/pi-workbench-runtime/src/message-termination/legacy.ts",
+      "sha256Before": "ddc5cf5f46f6e6bc207e29f984a0261c7298be323dbd777aeea89073a9086dbf",
+      "sha256After": "634513cbf913ff7cd0ffd8fb960e0f3c8143d3e7198cabeb0dad5691d268a2d4"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/tests/composer-context.test.ts",
+      "to": "packages/product/pi-workbench-runtime/tests/composer-context.test.ts",
+      "sha256Before": "6d6b3c09e3b51e8fc070455c355d4e3d9bcac3a3d6f285c0d7ce7e7b599a3818",
+      "sha256After": "e2f878215efd7a3adb862b7d0abf82515fc179d443714651df64d9d72c608185"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/tests/ask-user.test.ts",
+      "to": "packages/product/pi-workbench-runtime/tests/ask-user.test.ts",
+      "sha256Before": "06a5b89b816e749f74035df09a98ce79b69d03a702fe100a82fe0f53830bf981",
+      "sha256After": "a4b98690fcf7fc66030908d0b9e1a9179ab754baeb9001d9a1722018f9cbcaaf"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/tests/workspace-review.test.ts",
+      "to": "packages/product/pi-workbench-runtime/tests/workspace-review.test.ts",
+      "sha256Before": "d92fadd78391e6422fd3d1f820610eca4be5b613fe823de48da8cd7fe8c7d4df",
+      "sha256After": "23d3fa47a2308c67f4b3c608ec25dd27d11205e6bf2e991a202168eed5b340bf"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/tests/enhanced-search.test.ts",
+      "to": "packages/product/pi-workbench-runtime/tests/enhanced-search.test.ts",
+      "sha256Before": "a92622fc52f5d94346a8c2601a27d419ed5e0aa6d86e803dabebad449b78c773",
+      "sha256After": "9a458a344baa410b7fbf0bb57b82135903c8825777a0420900fc0f92204a122f"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/tests/interactive-bash-tool.test.ts",
+      "to": "packages/product/pi-workbench-runtime/tests/interactive-bash-tool.test.ts",
+      "sha256Before": "d6ce8aec193b88ab801a96d9cba47ddf7c8c4a873c6e118700ed8909f1ee3fc2",
+      "sha256After": "5c7c62da225400267d6e22df0a0597a72a9c46e5fb19822f6eccc16de025e0b5"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/tests/legacy-message-termination.test.ts",
+      "to": "packages/product/pi-workbench-runtime/tests/legacy-message-termination.test.ts",
+      "sha256Before": "e39631a78738a4cf624a3fba9216aff89b61889be2f94d00aa9b9a9d31094521",
+      "sha256After": "9058178bce978e37d1f5c9d73721bc93151aa87a0dfcc73c36ce4233d0bafaeb"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/lib/todo/sanitize.ts",
+      "to": "packages/product/pi-workbench-runtime/src/rpiv-todo/sanitize.ts",
+      "sha256Before": "1699c3768ed20351b2e2093e67240ad1bfe3b609c81ba6ea065551dd0ff51d0e",
+      "sha256After": "1699c3768ed20351b2e2093e67240ad1bfe3b609c81ba6ea065551dd0ff51d0e"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/lib/todo/response-envelope.ts",
+      "to": "packages/product/pi-workbench-runtime/src/rpiv-todo/response-envelope.ts",
+      "sha256Before": "310aa60ad89addf5174bd4671632243310a6b58d343fcad6226bc9a192dfa588",
+      "sha256After": "2860ab1004e657016e4c6fb2413b44569e7536a86e0f34a4a2a0ae2e55bb13a8"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/resources/rpiv-todo/LICENSE",
+      "to": "packages/product/pi-workbench-runtime/src/rpiv-todo/LICENSE",
+      "sha256Before": "25d0d5e4e54033f939a9657109044f1d71a0b6e8db9adc400456ca9190df3fb1",
+      "sha256After": "25d0d5e4e54033f939a9657109044f1d71a0b6e8db9adc400456ca9190df3fb1"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/resources/rpiv-todo/README.md",
+      "to": "packages/product/pi-workbench-runtime/src/rpiv-todo/README.md",
+      "sha256Before": "a225626eb94132f48c1616441c8bd0fcf41f572458326a29c38181b60c87a74c",
+      "sha256After": "6267254fa6252ded0bd793ccbb1945e1aee098cc862d47aab7c300cbbc39694e"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/todo/state-reducer.ts",
+      "to": "packages/product/pi-workbench-runtime/src/rpiv-todo/state-reducer.ts",
+      "sha256Before": "587ff3e48c219e68abb0d812d1f6f82a1e2a1f4611c76b1638cc07c200200944",
+      "sha256After": "587ff3e48c219e68abb0d812d1f6f82a1e2a1f4611c76b1638cc07c200200944"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/todo/types.ts",
+      "to": "packages/product/pi-workbench-runtime/src/rpiv-todo/types.ts",
+      "sha256Before": "381163c6d6326930e289263a32905488798ab5da93d26e532505cbc5408af3ce",
+      "sha256After": "381163c6d6326930e289263a32905488798ab5da93d26e532505cbc5408af3ce"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/todo/task-graph.ts",
+      "to": "packages/product/pi-workbench-runtime/src/rpiv-todo/task-graph.ts",
+      "sha256Before": "b38262f74a151a4dddad78c6f0c2c1b76b60fa447a75c5046ae0bdb0843376ca",
+      "sha256After": "b38262f74a151a4dddad78c6f0c2c1b76b60fa447a75c5046ae0bdb0843376ca"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/todo/replay.ts",
+      "to": "packages/product/pi-workbench-runtime/src/rpiv-todo/replay.ts",
+      "sha256Before": "0bf881df2b9aecba98b21a70cbb87ae0b83afd6aa12f0071e8a766a0eb45517f",
+      "sha256After": "0bf881df2b9aecba98b21a70cbb87ae0b83afd6aa12f0071e8a766a0eb45517f"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/todo/state.ts",
+      "to": "packages/product/pi-workbench-runtime/src/rpiv-todo/state.ts",
+      "sha256Before": "6fb311e6e9a27276bec04d97010247f15ca78e8d44a3a0fa5cf6c21ab4d62df0",
+      "sha256After": "6fb311e6e9a27276bec04d97010247f15ca78e8d44a3a0fa5cf6c21ab4d62df0"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-tools/src/todo/invariants.ts",
+      "to": "packages/product/pi-workbench-runtime/src/rpiv-todo/invariants.ts",
+      "sha256Before": "691809d6a3a000e38f378d453a50b74984a4cb8389987a1df63abf15469a4af7",
+      "sha256After": "691809d6a3a000e38f378d453a50b74984a4cb8389987a1df63abf15469a4af7"
+    }
+  ],
+  "exports": [
+    {
+      "from": "@workbench/pi-runtime-tools/tool-availability",
+      "to": "@workbench/pi-workbench-runtime/tools/tool-availability"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/ask-user",
+      "to": "@workbench/pi-workbench-runtime/tools/ask-user"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/builtin-tools",
+      "to": "@workbench/pi-workbench-runtime/tools/builtin-tools"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/composer-context",
+      "to": "@workbench/pi-workbench-runtime/tools/composer-context"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/context-trace",
+      "to": "@workbench/pi-workbench-runtime/tools/context-trace"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/system-prompt-hook-trace",
+      "to": "@workbench/pi-workbench-runtime/tools/system-prompt-hook-trace"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/dependencies",
+      "to": "@workbench/pi-workbench-runtime/tools/dependencies"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/enhanced-search",
+      "to": "@workbench/pi-workbench-runtime/tools/enhanced-search"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools",
+      "to": "@workbench/pi-workbench-runtime/tools"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/message-termination",
+      "to": "@workbench/pi-workbench-runtime/tools/message-termination"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/legacy-message-termination-extension-source",
+      "to": "@workbench/pi-workbench-runtime/tools/legacy-message-termination-extension-source"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/legacy-message-termination",
+      "to": "@workbench/pi-workbench-runtime/tools/legacy-message-termination"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/rpiv-todo",
+      "to": "@workbench/pi-workbench-runtime/tools/rpiv-todo"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/invariants",
+      "to": "@workbench/pi-workbench-runtime/todo/invariants"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/replay",
+      "to": "@workbench/pi-workbench-runtime/todo/replay"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/state-reducer",
+      "to": "@workbench/pi-workbench-runtime/todo/state-reducer"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/state",
+      "to": "@workbench/pi-workbench-runtime/todo/state"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/task-graph",
+      "to": "@workbench/pi-workbench-runtime/todo/task-graph"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/response-envelope",
+      "to": "@workbench/pi-workbench-runtime/todo/response-envelope"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/sanitize",
+      "to": "@workbench/pi-workbench-runtime/todo/sanitize"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/types",
+      "to": "@workbench/pi-workbench-runtime/todo/types"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/workbench-settings",
+      "to": "@workbench/pi-workbench-runtime/tools/workbench-settings"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/workspace-review",
+      "to": "@workbench/pi-workbench-runtime/tools/workspace-review"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/resources",
+      "to": "@workbench/pi-workbench-runtime/tool-resources"
+    },
+    {
+      "from": "@workbench/pi-runtime-tools/bash",
+      "to": "@workbench/pi-workbench-runtime/tools/bash"
+    }
+  ],
+  "toolDirectoryLayout": {
+    "requirement": "One directory per custom tool; resources only contains Pi resource kinds.",
+    "moves": {
+      "packages/product/pi-workbench-runtime/src/tools/bash.ts": "packages/product/pi-workbench-runtime/src/bash/index.ts",
+      "packages/product/pi-workbench-runtime/src/tools/ask-user.ts": "packages/product/pi-workbench-runtime/src/ask-user/index.ts",
+      "packages/product/pi-workbench-runtime/src/tools/composer-context.ts": "packages/product/pi-workbench-runtime/src/composer-context/index.ts",
+      "packages/product/pi-workbench-runtime/src/tools/context-trace.ts": "packages/product/pi-workbench-runtime/src/context-trace/index.ts",
+      "packages/product/pi-workbench-runtime/src/tools/message-termination.ts": "packages/product/pi-workbench-runtime/src/message-termination/index.ts",
+      "packages/product/pi-workbench-runtime/src/tools/rpiv-todo.ts": "packages/product/pi-workbench-runtime/src/rpiv-todo/index.ts",
+      "packages/product/pi-workbench-runtime/src/tools/workbench-settings.ts": "packages/product/pi-workbench-runtime/src/workbench-settings/index.ts",
+      "packages/product/pi-workbench-runtime/src/tools/workspace-review.ts": "packages/product/pi-workbench-runtime/src/workspace-review/index.ts",
+      "packages/product/pi-workbench-runtime/src/tools/index.ts": "packages/product/pi-workbench-runtime/src/tool-runtime/index.ts",
+      "packages/product/pi-workbench-runtime/src/tools/dependencies.ts": "packages/product/pi-workbench-runtime/src/tool-runtime/dependencies.ts",
+      "packages/product/pi-workbench-runtime/src/tools/builtin-tools.ts": "packages/product/pi-workbench-runtime/src/tool-runtime/builtin-tools.ts",
+      "packages/product/pi-workbench-runtime/src/tools/enhanced-search.ts": "packages/product/pi-workbench-runtime/src/tool-runtime/enhanced-search.ts",
+      "packages/product/pi-workbench-runtime/lib/bash-command-options.ts": "packages/product/pi-workbench-runtime/src/bash/command-options.ts",
+      "packages/product/pi-workbench-runtime/lib/system-prompt-hook-trace.ts": "packages/product/pi-workbench-runtime/src/system-prompt-hook-trace/index.ts",
+      "packages/product/pi-workbench-runtime/lib/tool-availability.ts": "packages/product/pi-workbench-runtime/src/tool-runtime/tool-availability.ts",
+      "packages/product/pi-workbench-runtime/lib/legacy-message-termination.ts": "packages/product/pi-workbench-runtime/src/message-termination/legacy.ts",
+      "packages/product/pi-workbench-runtime/lib/legacy-message-termination-extension-source.ts": "packages/product/pi-workbench-runtime/src/message-termination/legacy-extension-source.ts",
+      "packages/product/pi-workbench-runtime/src/todo/state-reducer.ts": "packages/product/pi-workbench-runtime/src/rpiv-todo/state-reducer.ts",
+      "packages/product/pi-workbench-runtime/src/todo/types.ts": "packages/product/pi-workbench-runtime/src/rpiv-todo/types.ts",
+      "packages/product/pi-workbench-runtime/src/todo/task-graph.ts": "packages/product/pi-workbench-runtime/src/rpiv-todo/task-graph.ts",
+      "packages/product/pi-workbench-runtime/src/todo/replay.ts": "packages/product/pi-workbench-runtime/src/rpiv-todo/replay.ts",
+      "packages/product/pi-workbench-runtime/src/todo/state.ts": "packages/product/pi-workbench-runtime/src/rpiv-todo/state.ts",
+      "packages/product/pi-workbench-runtime/src/todo/invariants.ts": "packages/product/pi-workbench-runtime/src/rpiv-todo/invariants.ts",
+      "packages/product/pi-workbench-runtime/lib/todo/sanitize.ts": "packages/product/pi-workbench-runtime/src/rpiv-todo/sanitize.ts",
+      "packages/product/pi-workbench-runtime/lib/todo/response-envelope.ts": "packages/product/pi-workbench-runtime/src/rpiv-todo/response-envelope.ts",
+      "packages/product/pi-workbench-runtime/resources/rpiv-todo/README.md": "packages/product/pi-workbench-runtime/src/rpiv-todo/README.md",
+      "packages/product/pi-workbench-runtime/resources/rpiv-todo/LICENSE": "packages/product/pi-workbench-runtime/src/rpiv-todo/LICENSE"
+    },
+    "removedForwarders": {
+      "packages/product/pi-workbench-runtime/src/tools/system-prompt-hook-trace.ts": "packages/product/pi-workbench-runtime/src/system-prompt-hook-trace/index.ts",
+      "packages/product/pi-workbench-runtime/src/tools/tool-availability.ts": "packages/product/pi-workbench-runtime/src/tool-runtime/tool-availability.ts",
+      "packages/product/pi-workbench-runtime/src/tools/legacy-message-termination.ts": "packages/product/pi-workbench-runtime/src/message-termination/legacy.ts",
+      "packages/product/pi-workbench-runtime/src/tools/legacy-message-termination-extension-source.ts": "packages/product/pi-workbench-runtime/src/message-termination/legacy-extension-source.ts",
+      "packages/product/pi-workbench-runtime/src/todo/sanitize.ts": "packages/product/pi-workbench-runtime/src/rpiv-todo/sanitize.ts",
+      "packages/product/pi-workbench-runtime/src/todo/response-envelope.ts": "packages/product/pi-workbench-runtime/src/rpiv-todo/response-envelope.ts"
+    },
+    "newFiles": [
+      "packages/product/pi-workbench-runtime/src/grep/index.ts",
+      "packages/product/pi-workbench-runtime/src/find/index.ts",
+      "packages/product/pi-workbench-runtime/lib/multi-root-search.ts"
+    ]
+  },
+  "extensionResources": {
+    "ask-user": "packages/product/pi-workbench-runtime/resources/extensions/ask-user/index.ts",
+    "rpiv-todo": "packages/product/pi-workbench-runtime/resources/extensions/rpiv-todo/index.ts",
+    "workbench-settings": "packages/product/pi-workbench-runtime/resources/extensions/workbench-settings/index.ts",
+    "workspace-review": "packages/product/pi-workbench-runtime/resources/extensions/workspace-review/index.ts",
+    "composer-context": "packages/product/pi-workbench-runtime/resources/extensions/composer-context/index.ts",
+    "message-termination": "packages/product/pi-workbench-runtime/resources/extensions/message-termination/index.ts",
+    "context-trace": "packages/product/pi-workbench-runtime/resources/extensions/context-trace/index.ts",
+    "builtin-tools": "packages/product/pi-workbench-runtime/resources/extensions/builtin-tools/index.ts"
+  },
+  "publicEntriesAfter": 37,
+  "extensionResourceHashes": {
+    "packages/product/pi-workbench-runtime/resources/extensions/ask-user/index.ts": "96e1dbc7d4f6828d7fa36098d7c8d9340277c5440af5e43e3911663de00c8409",
+    "packages/product/pi-workbench-runtime/resources/extensions/rpiv-todo/index.ts": "9f3528e29cc63b560a900d803523d41d613e57fadf6e57c630f6230f6bea0815",
+    "packages/product/pi-workbench-runtime/resources/extensions/workbench-settings/index.ts": "5a10fdc08f2e191e89f6f0205e0fc20c3a0cc26f7a8315a40089e0389910dc14",
+    "packages/product/pi-workbench-runtime/resources/extensions/workspace-review/index.ts": "d39db1f6bbd653b43686291a0cfe92e78ebba457c64e8c91dbc1a32260ee6f4c",
+    "packages/product/pi-workbench-runtime/resources/extensions/composer-context/index.ts": "d80c5b8740bfa8184620c4b44308280049bef3842c3e4062d973b23795842603",
+    "packages/product/pi-workbench-runtime/resources/extensions/message-termination/index.ts": "e6a0ca2c9351c112350f00124b30d405cf8d23629dd0bd017eb8c3843519906d",
+    "packages/product/pi-workbench-runtime/resources/extensions/context-trace/index.ts": "73abe120b5d2fd3af9c98cec72bd662873b00dee49aee92f6587cd77aedd8a33",
+    "packages/product/pi-workbench-runtime/resources/extensions/builtin-tools/index.ts": "ed87dba4e1d2a62f7c8ab78d3afcbed01e1f75ce8df5d2cb3b7d371330d81f88"
+  }
+}

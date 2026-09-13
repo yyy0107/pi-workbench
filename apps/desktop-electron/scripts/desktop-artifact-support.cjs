@@ -1,4 +1,4 @@
-const runtimeHostControl = require("@workbench/host-contracts/runtime-host-control");
+const runtimeHostControl = require("@workbench/runtime-contracts/runtime-host-control");
 
 const { resolveDesktopArtifactLayout } = require("./desktop-artifact-layout.cjs");
 

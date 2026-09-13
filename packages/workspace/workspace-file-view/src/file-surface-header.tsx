@@ -50,7 +50,7 @@ import {
 import type {
   WorkbenchLocalAppFileKind,
   WorkbenchLocalApp,
-} from "@workbench/host-contracts/runtime-capabilities";
+} from "@workbench/runtime-contracts/runtime-capabilities";
 import {
   useOpenerService,
   useRightWorkspace,

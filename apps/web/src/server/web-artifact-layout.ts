@@ -1,5 +1,5 @@
-import type { WebArtifactManifest } from "@workbench/host-contracts/web-artifact-manifest";
-import { resolveWebArtifact } from "@workbench/host-server/web-artifact";
+import type { WebArtifactManifest } from "@workbench/runtime-contracts/web-artifact-manifest";
+import { resolveWebArtifact } from "@workbench/artifact-reader/web-artifact";
 
 export interface WebArtifactRuntimeLayout {
   readonly artifactRoot: string;

@@ -1,70 +1,112 @@
 # @workbench/pi-workbench-runtime
 
-[中文](README.zh-CN.md) · [Package navigation](../../README.md) · [Layer overview](../README.md)
+[中文](README.zh-CN.md) · [Packages](../../README.md) · [Product](../README.md)
 
-Node product defaults: bundled resources, Pi extension selection and deployment policy.
-
-Execution environment: Node.js / server.
+Workbench Node product capabilities: custom Pi tools, product prompts and interaction rules, inline extensions, default resources and deployment policy.
 
 ## Responsibilities
 
-- Own product Skills and the Prompt template directory, plus development/artifact resource locations.
-- Select default inline extension factories, hidden flags and installation order; keep Trace last.
-- Deploy built-in resources, register the Browser package and migrate old paths/enablement state.
+- Custom bash, enhanced search, ask-user, settings, workspace review, Todo, composer context, tracing and message termination.
+- Default extension selection, enablement and loaded-result handling, preserving trace installation last.
+- Product Skills, Prompts and tool attribution, built-in resource deployment and Browser package registration.
 
 ## Imports
 
 ```ts
+import { createWorkbenchBashToolOverride } from "@workbench/pi-workbench-runtime/tools/bash";
+import { createWorkbenchSettingsExtension } from "@workbench/pi-workbench-runtime/extensions/workbench-settings";
 import { createWorkbenchInternalPiExtensions } from "@workbench/pi-workbench-runtime/extensions";
 import { ensureWorkbenchBuiltinResources } from "@workbench/pi-workbench-runtime/resources";
+import type { WorkbenchToolDependencies } from "@workbench/pi-workbench-runtime/tools/dependencies";
 ```
 
-These examples identify public imports. Supply the dependencies and options declared by the entry when constructing services or installing capabilities.
+This package has no root entry. `/tools` only prepares loaded extension results and reports errors. Import bash and other tools through explicit subpaths; `/tools` and `/tools/builtin-tools` do not aggregate bash. Supply the collaborators declared by each factory.
 
-This package has no root entry; select an explicit subpath from the table below.
+## Public entries
 
-### Public entries and source
-
-[package.json](package.json) `exports` is authoritative. This table lists all current public entries. Source links locate implementations; cross-package code imports the package entry on the left.
-
-| Import path                                          | Entry source                                             |
-| ---------------------------------------------------- | -------------------------------------------------------- |
-| `@workbench/pi-workbench-runtime/resources`          | [src/builtin-resources.ts](./src/builtin-resources.ts)   |
-| `@workbench/pi-workbench-runtime/resource-locations` | [src/resource-locations.ts](./src/resource-locations.ts) |
-| `@workbench/pi-workbench-runtime/extensions`         | [src/extensions.ts](./src/extensions.ts)                 |
-| `@workbench/pi-workbench-runtime/builtin-packages`   | [src/builtin-packages.ts](./src/builtin-packages.ts)     |
+| Import                                                                              | Source                                                                                                     |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `@workbench/pi-workbench-runtime/resources`                                         | [src/builtin-resources.ts](./src/builtin-resources.ts)                                                     |
+| `@workbench/pi-workbench-runtime/resource-locations`                                | [src/resource-locations.ts](./src/resource-locations.ts)                                                   |
+| `@workbench/pi-workbench-runtime/extensions`                                        | [src/extensions.ts](./src/extensions.ts)                                                                   |
+| `@workbench/pi-workbench-runtime/builtin-packages`                                  | [src/builtin-packages.ts](./src/builtin-packages.ts)                                                       |
+| `@workbench/pi-workbench-runtime/tools/tool-availability`                           | [src/tool-runtime/tool-availability.ts](./src/tool-runtime/tool-availability.ts)                           |
+| `@workbench/pi-workbench-runtime/tools/ask-user`                                    | [resources/extensions/ask-user/index.ts](./resources/extensions/ask-user/index.ts)                         |
+| `@workbench/pi-workbench-runtime/tools/builtin-tools`                               | [resources/extensions/builtin-tools/index.ts](./resources/extensions/builtin-tools/index.ts)               |
+| `@workbench/pi-workbench-runtime/tools/composer-context`                            | [resources/extensions/composer-context/index.ts](./resources/extensions/composer-context/index.ts)         |
+| `@workbench/pi-workbench-runtime/tools/context-trace`                               | [resources/extensions/context-trace/index.ts](./resources/extensions/context-trace/index.ts)               |
+| `@workbench/pi-workbench-runtime/tools/system-prompt-hook-trace`                    | [src/system-prompt-hook-trace/index.ts](./src/system-prompt-hook-trace/index.ts)                           |
+| `@workbench/pi-workbench-runtime/tools/dependencies`                                | [src/tool-runtime/dependencies.ts](./src/tool-runtime/dependencies.ts)                                     |
+| `@workbench/pi-workbench-runtime/tools/enhanced-search`                             | [src/tool-runtime/enhanced-search.ts](./src/tool-runtime/enhanced-search.ts)                               |
+| `@workbench/pi-workbench-runtime/tools`                                             | [src/tool-runtime/index.ts](./src/tool-runtime/index.ts)                                                   |
+| `@workbench/pi-workbench-runtime/tools/message-termination`                         | [resources/extensions/message-termination/index.ts](./resources/extensions/message-termination/index.ts)   |
+| `@workbench/pi-workbench-runtime/tools/legacy-message-termination-extension-source` | [src/message-termination/legacy-extension-source.ts](./src/message-termination/legacy-extension-source.ts) |
+| `@workbench/pi-workbench-runtime/tools/legacy-message-termination`                  | [src/message-termination/legacy.ts](./src/message-termination/legacy.ts)                                   |
+| `@workbench/pi-workbench-runtime/tools/rpiv-todo`                                   | [resources/extensions/rpiv-todo/index.ts](./resources/extensions/rpiv-todo/index.ts)                       |
+| `@workbench/pi-workbench-runtime/todo/invariants`                                   | [src/rpiv-todo/invariants.ts](./src/rpiv-todo/invariants.ts)                                               |
+| `@workbench/pi-workbench-runtime/todo/replay`                                       | [src/rpiv-todo/replay.ts](./src/rpiv-todo/replay.ts)                                                       |
+| `@workbench/pi-workbench-runtime/todo/state-reducer`                                | [src/rpiv-todo/state-reducer.ts](./src/rpiv-todo/state-reducer.ts)                                         |
+| `@workbench/pi-workbench-runtime/todo/state`                                        | [src/rpiv-todo/state.ts](./src/rpiv-todo/state.ts)                                                         |
+| `@workbench/pi-workbench-runtime/todo/task-graph`                                   | [src/rpiv-todo/task-graph.ts](./src/rpiv-todo/task-graph.ts)                                               |
+| `@workbench/pi-workbench-runtime/todo/response-envelope`                            | [src/rpiv-todo/response-envelope.ts](./src/rpiv-todo/response-envelope.ts)                                 |
+| `@workbench/pi-workbench-runtime/todo/sanitize`                                     | [src/rpiv-todo/sanitize.ts](./src/rpiv-todo/sanitize.ts)                                                   |
+| `@workbench/pi-workbench-runtime/todo/types`                                        | [src/rpiv-todo/types.ts](./src/rpiv-todo/types.ts)                                                         |
+| `@workbench/pi-workbench-runtime/tools/workbench-settings`                          | [resources/extensions/workbench-settings/index.ts](./resources/extensions/workbench-settings/index.ts)     |
+| `@workbench/pi-workbench-runtime/tools/workspace-review`                            | [resources/extensions/workspace-review/index.ts](./resources/extensions/workspace-review/index.ts)         |
+| `@workbench/pi-workbench-runtime/tool-resources`                                    | [src/tool-resources.ts](./src/tool-resources.ts)                                                           |
+| `@workbench/pi-workbench-runtime/tools/bash`                                        | [src/bash/index.ts](./src/bash/index.ts)                                                                   |
+| `@workbench/pi-workbench-runtime/extensions/ask-user`                               | [resources/extensions/ask-user/index.ts](./resources/extensions/ask-user/index.ts)                         |
+| `@workbench/pi-workbench-runtime/extensions/rpiv-todo`                              | [resources/extensions/rpiv-todo/index.ts](./resources/extensions/rpiv-todo/index.ts)                       |
+| `@workbench/pi-workbench-runtime/extensions/workbench-settings`                     | [resources/extensions/workbench-settings/index.ts](./resources/extensions/workbench-settings/index.ts)     |
+| `@workbench/pi-workbench-runtime/extensions/workspace-review`                       | [resources/extensions/workspace-review/index.ts](./resources/extensions/workspace-review/index.ts)         |
+| `@workbench/pi-workbench-runtime/extensions/composer-context`                       | [resources/extensions/composer-context/index.ts](./resources/extensions/composer-context/index.ts)         |
+| `@workbench/pi-workbench-runtime/extensions/message-termination`                    | [resources/extensions/message-termination/index.ts](./resources/extensions/message-termination/index.ts)   |
+| `@workbench/pi-workbench-runtime/extensions/context-trace`                          | [resources/extensions/context-trace/index.ts](./resources/extensions/context-trace/index.ts)               |
+| `@workbench/pi-workbench-runtime/extensions/builtin-tools`                          | [resources/extensions/builtin-tools/index.ts](./resources/extensions/builtin-tools/index.ts)               |
 
 ## Source navigation
 
-| Location                                             | Purpose                                                      |
-| ---------------------------------------------------- | ------------------------------------------------------------ |
-| [resources/skills](resources/skills)                 | Product Skills                                               |
-| [resources/prompts](resources/prompts)               | Product Prompt templates (currently a placeholder directory) |
-| [src/extensions.ts](src/extensions.ts)               | Default Agent extension catalog                              |
-| [src/builtin-resources.ts](src/builtin-resources.ts) | Deployment and retired-resource cleanup                      |
-| [src/builtin-packages.ts](src/builtin-packages.ts)   | Default package registration and migration                   |
-| [lib/builtin-files.ts](lib/builtin-files.ts)         | Protected resource file operations                           |
+Each custom tool owns a directory under `src/`: `bash`, `ask-user`, `grep`, `find`, `rpiv-todo`, `workbench-settings`, and `workspace-review`. Tool-specific helpers and attribution live alongside the implementation. `tool-runtime` contains shared assembly; context/trace/termination hooks have their own capability directories. `resources/` contains only Pi resource kinds (`extensions`, `skills`, and `prompts`); the Todo README and MIT license belong to `src/rpiv-todo/`. Tests remain in package-root `tests/`.
 
-## Boundaries and integration
+| Location                                             | Contents                                            |
+| ---------------------------------------------------- | --------------------------------------------------- |
+| [src](src)                                           | Product tool execution and shared projections       |
+| [src/rpiv-todo](src/rpiv-todo)                       | Todo state machine, replay and validation           |
+| [src/extensions.ts](src/extensions.ts)               | Default extension selection and order               |
+| [src/tool-resources.ts](src/tool-resources.ts)       | Tool snapshot allowlist and locations               |
+| [src/builtin-resources.ts](src/builtin-resources.ts) | Built-in resource deployment and compatible cleanup |
+| [resources/extensions](resources/extensions)         | Pi extension registration and lifecycle entries     |
+| [resources/skills](resources/skills)                 | Product Skills                                      |
+| [resources/prompts](resources/prompts)               | Product Prompts                                     |
+| [src/rpiv-todo/LICENSE](src/rpiv-todo/LICENSE)       | Tool attribution and MIT license                    |
+| [lib](lib)                                           | Helpers consumed by tools and deployment            |
 
-The package is independent of React, frontend product composition and pi-runtime-server. Server composition selects it and supplies Host collaborators to its tool factories.
+## Boundaries and composition
 
-Tool implementations live in pi-runtime-tools. Browser owns its companion browser-use skill so it remains independently distributable; this product owns the default installation choice.
+Extension registration lives in `resources/extensions/<name>/index.ts`; tool schemas, execution, state, and output stay in `src/<tool-name>/`. Import extension factories through `/extensions/<name>`. The eight existing combined `/tools/<name>` entries retain their previous symbols and resolve to the same resource modules; all 29 previous entries remain available (37 entries in total). `src/extensions.ts` statically imports the resources and injects host dependencies, preserving ordering and enablement. These host-owned resources are not additionally enabled through filesystem discovery. See [extension resource guide](resources/extensions/README.md).
 
-Deployment retains .builtin paths and internal-skills/internal-prompts/internal-extensions/internal-packages/browser artifact locations. Keep existing tool IDs, resource switches and migration behavior.
+The product owns concrete tool implementations and product rules. Generic PTY, terminal sessions and native dependencies stay in terminal-server; Git/workspace capabilities stay in workspace-server; SDK sessions, models and resource loading stay in pi-sdk.
 
-Related owners:
+Runtime composition injects Host, trace, settings and the shared terminal session manager. SDK sessions receive tool-override selection and review parsing through PiSessionRuntimeDependencies callbacks, without importing this product. The product imports neither React, frontend product composition nor pi-runtime-server.
 
-- [@workbench/pi-workbench](../pi-workbench/README.md)
-- [@workbench/pi-runtime-tools](../../pi-runtime/pi-runtime-tools/README.md)
-- [@workbench/pi-runtime-browser](../../pi-runtime/pi-runtime-browser/README.md)
-- [@workbench/pi-sdk-resources](../../pi-sdk/pi-sdk-resources/README.md)
-- [@workbench/pi-runtime-server](../../pi-runtime/pi-runtime-server/README.md)
+Browser remains a complete Pi Package usable by standalone Pi CLI in pi-runtime-browser; this product selects its default installation. `/resources` deploys resources; `/tool-resources` describes only tool source snapshots. Builders and development deployment share an allowlist so Skills/Prompts and product deployment code are not duplicated under internal-extensions.
 
-## Maintenance and validation
+Tool names, source identifiers such as workbench.terminal, extension IDs, schemas, prompts, output budgets, cancellation, enablement and persistence formats remain stable. Artifact roots internal-skills/internal-prompts/internal-extensions/internal-packages/browser and .builtin locations remain intact. Tool snapshots now use per-tool `src/<tool-name>/` directories; cleanup removes only the known retired flat files and preserves unknown additions.
+
+## Related capabilities
+
+- [terminal-server](../../terminal/terminal-server/README.md)
+- [workspace-server](../../server/workspace-server/README.md)
+- [pi-sdk-sessions](../../pi-sdk/pi-sdk-sessions/README.md)
+- [pi-sdk-resources](../../pi-sdk/pi-sdk-resources/README.md)
+- [pi-runtime-browser](../../pi-runtime/pi-runtime-browser/README.md)
+- [pi-runtime-server](../../pi-runtime/pi-runtime-server/README.md)
+
+## Validation
 
 ```bash
 pnpm --filter @workbench/pi-workbench-runtime typecheck
+pnpm --filter @workbench/pi-workbench-runtime test
 ```
 
-Keep implementation in `src/` and consumed internal helpers in `lib/`, preserving the current shallow TypeScript layout. Cross-package references use public exports and `workspace:*`. See the [validation record](../../../docs/package-layout-validation.md) for non-UI regression selection and build checks. Documentation-only edits require entry/path/format checks; UI/DOM/Hook tests and interactive smoke tests remain excluded for this refactor.
+[Spec011 plan and validation](../../../specs/011-product-tool-ownership/plan.md). This migration uses non-UI logic, type, structure, dependency and build checks; UI rendering and interaction tests are excluded.

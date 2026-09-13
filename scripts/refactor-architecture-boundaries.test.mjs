@@ -15,7 +15,9 @@ function filesUnder(directory) {
     return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
       const absolute = path.join(directory, entry.name);
       if (entry.isDirectory()) {
-        return ignoredDirectories.has(entry.name) ? [] : filesUnder(absolute);
+        const isBuildDomain =
+          directory === path.join(repositoryRoot, "packages") && entry.name === "build";
+        return ignoredDirectories.has(entry.name) && !isBuildDomain ? [] : filesUnder(absolute);
       }
       return [absolute];
     });
@@ -193,9 +195,9 @@ test("retired RPC implementations and reverse server-core API edges cannot retur
     }
   }
   for (const retiredFile of [
-    "packages/client/host-contracts/src/rpc.ts",
-    "packages/client/host-client/src/rpc.ts",
-    "packages/host/host-server/src/rpc.ts",
+    "packages/contracts/runtime-contracts/src/rpc.ts",
+    "packages/transport/runtime-transport-client/src/rpc.ts",
+    "packages/transport/runtime-transport-server/src/rpc.ts",
     "packages/server/server-core/src/rpc-domain-error.ts",
   ])
     assert.equal(existsSync(path.join(repositoryRoot, retiredFile)), false, retiredFile);
@@ -435,10 +437,51 @@ test("Pi product resources and default extensions stay outside SDK services", ()
 });
 
 test("Node Pi product entry points do not load UI or the server composition", () => {
-  for (const entry of ["resources", "extensions", "builtin-packages", "resource-locations"])
+  for (const entry of Object.keys(
+    workspaceManifests.get("@workbench/pi-workbench-runtime").manifest.exports,
+  ).map((key) => key.slice(2)))
     assertCapabilityClosure(
       `@workbench/pi-workbench-runtime/${entry}`,
       /^(?:react(?:-dom)?(?:\/|$)|next(?:\/|$)|@workbench\/(?:pi-workbench(?:\/|$)|pi-runtime-server(?:\/|$)|pi-ui-|ui(?:-|\/|$)|shell(?:-|\/|$)))/u,
       { runtimeOnly: true },
     );
+});
+
+test("SDK manifests do not depend on product packages and product tools retain narrow entries", () => {
+  for (const [name, { manifest }] of workspaceManifests) {
+    if (!name.startsWith("@workbench/pi-sdk-")) continue;
+    for (const field of ["dependencies", "optionalDependencies", "peerDependencies"])
+      for (const dependency of Object.keys(manifest[field] ?? {}))
+        assert.doesNotMatch(dependency, /^@workbench\/pi-workbench(?:-runtime)?$/, name);
+  }
+  assert.equal(workspaceManifests.has("@workbench/pi-runtime-tools"), false);
+  for (const entry of ["tools", "tools/builtin-tools"])
+    assertCapabilityClosure(
+      `@workbench/pi-workbench-runtime/${entry}`,
+      /^@workbench\/terminal-server(?:\/|$)/u,
+      { runtimeOnly: true },
+    );
+});
+
+test("Pi extension registration lives in executable product resource entries", () => {
+  const product = path.join(repositoryRoot, "packages/product/pi-workbench-runtime");
+  const manifest = workspaceManifests.get("@workbench/pi-workbench-runtime").manifest;
+  const entries = Object.entries(manifest.exports).filter(([key]) =>
+    key.startsWith("./extensions/"),
+  );
+  assert.equal(entries.length, 8);
+  for (const [key, target] of entries) {
+    assert.equal(target, `./resources/${key.slice(2)}/index.ts`);
+    const source = readFileSync(path.join(product, target), "utf8");
+    assert.match(source, /pi\.(?:registerTool|on)\(/u, key);
+  }
+  for (const tool of ["ask-user", "rpiv-todo", "workbench-settings"]) {
+    const source = readFileSync(path.join(product, "src", tool, "index.ts"), "utf8");
+    assert.doesNotMatch(source, /pi\.(?:registerTool|on)\(/u, tool);
+  }
+  const composition = readFileSync(path.join(product, "src/extensions.ts"), "utf8");
+  const factories = moduleSpecifiers(composition, "extensions.ts").filter((specifier) =>
+    specifier.includes("/extensions/"),
+  );
+  assert.equal(factories.length, 8);
 });

@@ -6,7 +6,7 @@ import next from "next";
 import type {
   NonRuntimeUpgradeRelay,
   WorkbenchRequestHandler,
-} from "@workbench/host-server/workbench-http-server";
+} from "@workbench/runtime-transport-server/workbench-http-server";
 
 export interface NextWebHandlerOptions {
   readonly dev: boolean;

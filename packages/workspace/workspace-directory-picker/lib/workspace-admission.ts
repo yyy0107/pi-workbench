@@ -1,4 +1,4 @@
-import type { WorkbenchProjectTrust } from "@workbench/host-contracts/runtime-capabilities";
+import type { WorkbenchProjectTrust } from "@workbench/runtime-contracts/runtime-capabilities";
 
 type DescribedWorkspaceTrust = Pick<WorkbenchProjectTrust, "path" | "promptRequired">;
 

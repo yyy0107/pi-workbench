@@ -4,11 +4,11 @@ const path = require("node:path");
 const {
   RUNTIME_ARTIFACT_MANIFEST_FILENAME,
   runtimeArtifactTargetKey,
-} = require("@workbench/host-contracts/runtime-artifact-manifest");
-const { resolveRuntimeArtifact } = require("@workbench/host-server/runtime-artifact");
+} = require("@workbench/runtime-contracts/runtime-artifact-manifest");
+const { resolveRuntimeArtifact } = require("@workbench/artifact-reader/runtime-artifact");
 const {
   createRuntimeArtifactAdmissionPolicy,
-} = require("@workbench/host-artifact-policy/runtime-admission");
+} = require("@workbench/artifact-policy/runtime-admission");
 const { STREAM_PATHS } = require("@workbench/pi-rpc-contracts/stream");
 
 const DESKTOP_RUNTIME_ARTIFACT_ADMISSION_POLICY = createRuntimeArtifactAdmissionPolicy([

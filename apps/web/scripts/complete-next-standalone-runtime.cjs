@@ -15,7 +15,7 @@ const path = require("node:path");
 const { createWorkbenchPaths } = require("../../../scripts/workbench-paths.cjs");
 const {
   resolveWebArtifactNextWebpackRuntime,
-} = require("@workbench/host-artifact-policy/web-next-runtime-exception");
+} = require("@workbench/artifact-policy/web-next-runtime-exception");
 
 const REQUIRED_HELPER_FILES = Object.freeze([
   "cjs/_interop_require_default.cjs",

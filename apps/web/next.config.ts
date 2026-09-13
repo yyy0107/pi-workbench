@@ -9,7 +9,7 @@ export const WEB_REPOSITORY_ROOT = path.resolve(fileURLToPath(new URL("../../", 
 
 const webAppRequire = createRequire(import.meta.url);
 const nextRuntimeProvenance = webAppRequire(
-  "@workbench/host-artifact-policy/web-next-runtime-exception",
+  "@workbench/artifact-policy/web-next-runtime-exception",
 ) as {
   readonly resolveWebArtifactNextWebpackRuntime: (options: {
     readonly artifactRoot: string;

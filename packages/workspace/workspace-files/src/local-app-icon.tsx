@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import type { WorkbenchLocalApp } from "@workbench/host-contracts/runtime-capabilities";
+import type { WorkbenchLocalApp } from "@workbench/runtime-contracts/runtime-capabilities";
 import { cn } from "@workbench/ui/utils";
 import { assetModuleUrl, type AssetModule } from "../lib/asset-module-url";
 import chromeIcon from "./icons/chrome.svg";

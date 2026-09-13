@@ -59,7 +59,7 @@ import type { PiStreamPublisher } from "@workbench/pi-sdk-ports/streams";
 
 - [@workbench/pi-sdk-sessions](../pi-sdk-sessions/README.zh-CN.md)
 - [@workbench/pi-sdk-models](../pi-sdk-models/README.zh-CN.md)
-- [@workbench/pi-runtime-tools](../../pi-runtime/pi-runtime-tools/README.zh-CN.md)
+- [@workbench/pi-workbench-runtime/tools](../../product/pi-workbench-runtime/README.zh-CN.md)
 - [@workbench/browser-contracts](../../contracts/browser-contracts/README.zh-CN.md)
 
 ## 维护与验证

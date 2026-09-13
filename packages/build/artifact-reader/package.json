@@ -1,0 +1,30 @@
+{
+  "name": "@workbench/artifact-reader",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./web-artifact": {
+      "types": "./src/web-artifact.ts",
+      "import": "./src/web-artifact.ts",
+      "default": "./src/web-artifact.ts"
+    },
+    "./runtime-artifact": {
+      "types": "./src/runtime-artifact.ts",
+      "import": "./src/runtime-artifact.ts",
+      "default": "./src/runtime-artifact.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/runtime-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

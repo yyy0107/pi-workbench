@@ -1,3 +1,5 @@
+import { workbenchToolOverrides } from "@workbench/pi-workbench-runtime/tools/builtin-tools";
+import { resolveWorkbenchReviewSnapshots } from "@workbench/pi-workbench-runtime/tools/workspace-review";
 import { createPiSessionRegistry } from "@workbench/pi-sdk-sessions/registry";
 import { getStreamHub } from "../streams/stream-hub";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
@@ -14,6 +16,8 @@ const registry = createPiSessionRegistry({
   ensureBuiltinResources: ensureWorkbenchBuiltinResources,
   createExtensions: createWorkbenchInternalPiExtensions,
   prepareExtensions: prepareWorkbenchPiExtensions,
+  toolOverrides: workbenchToolOverrides,
+  resolveReviewSnapshots: resolveWorkbenchReviewSnapshots,
 });
 export const {
   notifyModelProviderConfigurationChanged,

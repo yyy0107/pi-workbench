@@ -22,7 +22,7 @@ import { getPiAgentHostBindings } from "./agent-runtime/pi-agent-host-bindings";
 import {
   createBuiltinToolDefinitions,
   workbenchToolOverrides,
-} from "@workbench/pi-runtime-tools/builtin-tools";
+} from "@workbench/pi-workbench-runtime/tools/builtin-tools";
 import { workbenchInternalPiExtensions, prepareWorkbenchPiExtensions } from "./tool-composition";
 
 /** Select concrete session/tool/stream collaborators once in the server composition owner. */

@@ -126,7 +126,10 @@ test("bundles finite packaged support, main, preload, and process cleanup", asyn
       .sort(),
     ["apps/desktop-electron/src/preload.cjs"],
   );
-  assert.doesNotMatch(readFileSync(cleanup.outfile, "utf8"), /@workbench\/host-server/u);
+  assert.doesNotMatch(
+    readFileSync(cleanup.outfile, "utf8"),
+    /@workbench\/runtime-transport-server/u,
+  );
 });
 
 test("stages only admitted renderer and Runtime artifacts", async (t) => {
