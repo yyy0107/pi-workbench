@@ -216,11 +216,16 @@ function WorkbenchMessageError() {
 }
 
 export function WorkbenchUserMessage() {
+  const { t } = useI18n(conversationTranslationBundle);
   const steeredTurn = useSteeredTurn();
   const { messageId } = useConversationMessageContext();
   const isOptimistic = useConversationNode(
     messageId,
     (node) => node?.presentation?.isOptimistic === true,
+  );
+  const isSteeringPending = useConversationNode(
+    messageId,
+    (node) => node?.presentation?.custom?.workbenchSteeringPending === true,
   );
   const [animateOnMount] = useState(isOptimistic);
 
@@ -230,6 +235,11 @@ export function WorkbenchUserMessage() {
       className="group/message relative flex w-full min-w-0 flex-col items-end gap-1.5"
     >
       <MessageSlot name="message.before" />
+      {isSteeringPending ? (
+        <div role="status" aria-live="polite" className="text-muted-foreground ps-1 text-xs">
+          {t("workbench.chat.steering.waitingToInsert")}
+        </div>
+      ) : null}
       <div
         data-slot="user-message-content"
         data-animate-enter={animateOnMount || undefined}

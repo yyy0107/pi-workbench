@@ -8,6 +8,9 @@ export const messages = {
       },
       sourceFallback: "来源",
       generating: "正在生成回答…",
+      steering: {
+        waitingToInsert: "正在等待插入…",
+      },
       separators: {
         continuedFromChat: "从聊天中继续",
         modelChanged: "模型已切换",

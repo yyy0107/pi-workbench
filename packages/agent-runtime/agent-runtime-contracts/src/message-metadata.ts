@@ -10,6 +10,7 @@ export const WORKBENCH_MESSAGE_METADATA_KEYS = Object.freeze({
   stateToken: "workbenchStateToken",
   steerInterrupted: "workbenchSteerInterrupted",
   steering: "workbenchSteering",
+  steeringPending: "workbenchSteeringPending",
   termination: "workbenchTermination",
   turnStatistics: "workbenchTurnStatistics",
   turnTiming: "workbenchTurnTiming",

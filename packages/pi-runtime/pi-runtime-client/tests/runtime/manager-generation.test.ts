@@ -1706,6 +1706,7 @@ test("renders an authoritative steering item as an optimistic user message", (t)
 
   assert.deepEqual(session.getSnapshot().steeringQueueIds, ["queue-steer-1"]);
   assert.equal(session.getSnapshot().messages[0]?.metadata.custom.piSteering, true);
+  assert.equal(session.getSnapshot().messages[0]?.metadata.custom.workbenchSteeringPending, true);
   assert.deepEqual(
     session
       .getSnapshot()
@@ -1719,6 +1720,7 @@ test("renders an authoritative steering item as an optimistic user message", (t)
   session.applyQueueSnapshot([]);
   assert.deepEqual(session.getSnapshot().steeringQueueIds, []);
   assert.equal(session.getSnapshot().messages.length, 1);
+  assert.equal(session.getSnapshot().messages[0]?.metadata.custom.workbenchSteeringPending, true);
 
   internals.handleEvent({
     type: "message_start",
@@ -1734,6 +1736,7 @@ test("renders an authoritative steering item as an optimistic user message", (t)
   assert.equal(session.getSnapshot().messages.length, 1);
   assert.equal(session.getSnapshot().runTiming?.startedAt, originalRunStartedAt);
   assert.equal(session.getSnapshot().messages[0]?.metadata.custom.piSteering, true);
+  assert.equal(session.getSnapshot().messages[0]?.metadata.custom.workbenchSteeringPending, false);
 });
 
 test("keeps a streaming assistant segment before steering messages as they arrive", async (t) => {

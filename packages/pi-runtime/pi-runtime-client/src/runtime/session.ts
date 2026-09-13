@@ -9,6 +9,7 @@ import type {
   ConversationSnapshot,
 } from "@workbench/agent-runtime-contracts/conversation";
 import { MANAGED_IMAGE_MEDIA_TYPES } from "@workbench/agent-runtime-contracts/composer-attachments";
+import { WORKBENCH_MESSAGE_METADATA_KEYS } from "@workbench/agent-runtime-contracts/message-metadata";
 import type {
   ConversationActions,
   ConversationSession,
@@ -2135,6 +2136,9 @@ export class PiClientSession implements ConversationSession {
           custom: {
             ...optimistic.metadata.custom,
             ...projectedUserMessage.metadata.custom,
+            ...(optimistic.metadata.custom[WORKBENCH_MESSAGE_METADATA_KEYS.steeringPending] === true
+              ? { [WORKBENCH_MESSAGE_METADATA_KEYS.steeringPending]: false }
+              : {}),
           },
         },
       };
@@ -2603,6 +2607,7 @@ export class PiClientSession implements ConversationSession {
             ...steeringMessage.metadata.custom,
             piSteering: true,
             workbenchSteering: true,
+            [WORKBENCH_MESSAGE_METADATA_KEYS.steeringPending]: true,
           },
         },
       });

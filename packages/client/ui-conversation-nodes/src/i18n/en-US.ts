@@ -8,6 +8,9 @@ export const messages = {
       },
       sourceFallback: "Source",
       generating: "Generating response…",
+      steering: {
+        waitingToInsert: "Waiting to be inserted…",
+      },
       separators: {
         continuedFromChat: "Continued from chat",
         modelChanged: "Model switched",
