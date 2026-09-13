@@ -340,6 +340,7 @@ export function WorkbenchConversationContent({
 
         {!isEmpty || hasDockedComposer ? (
           <div
+            data-slot="conversation-footer"
             className={cn(
               "relative col-start-2 row-start-3 w-full min-w-0",
               hasDockedComposer &&
@@ -349,13 +350,14 @@ export function WorkbenchConversationContent({
             {!isEmpty ? (
               <Button
                 type="button"
+                data-workbench-scroll-latest=""
                 aria-label={t("workbench.chat.scrollLatest")}
                 data-frame="none"
                 variant="outline"
                 size="icon"
                 disabled={viewport.isAtBottom}
                 onClick={() => viewport.scrollToBottom(isRunning ? "instant" : "auto")}
-                className="bg-background absolute -top-2 left-1/2 z-30 -translate-x-1/2 -translate-y-full rounded-full shadow-sm disabled:invisible"
+                className="bg-background absolute -top-2 left-1/2 z-10 -translate-x-1/2 -translate-y-full rounded-full shadow-sm disabled:invisible"
               >
                 {isRunning ? (
                   <TypingIndicator

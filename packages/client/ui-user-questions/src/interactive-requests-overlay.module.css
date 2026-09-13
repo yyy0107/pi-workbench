@@ -1,0 +1,26 @@
+.questionOverlay {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  width: 100%;
+}
+
+.questionOverlay[data-state="exiting"] {
+  pointer-events: none;
+  animation: question-exit calc(var(--layout-motion-duration, 330ms) * 0.27) ease-out forwards;
+}
+
+@keyframes question-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .questionOverlay[data-state="exiting"] {
+    animation: none;
+  }
+}

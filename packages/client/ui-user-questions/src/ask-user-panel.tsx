@@ -8,7 +8,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CircleIcon,
-  LoaderCircleIcon,
   MessageCircleQuestionMarkIcon,
   PencilLineIcon,
   XIcon,
@@ -23,7 +22,6 @@ import { cn } from "@workbench/ui/utils";
 
 import {
   buildQuestionAnswers,
-  createQuestionAnswerDrafts,
   findFirstInvalidQuestionIndex,
   isQuestionAnswered,
   selectQuestionOption,
@@ -34,8 +32,16 @@ import {
   type QuestionAnswerDraft,
 } from "../lib/interaction-form-state";
 import { AskUserRecommendedMark } from "./ask-user-recommended-mark";
+import {
+  createQuestionPanelState,
+  navigateQuestionPanel,
+  reconcileQuestionPanelState,
+  type QuestionPanelState,
+} from "../lib/question-panel-state";
+import styles from "./ask-user-panel.module.css";
 
 interface AskUserPanelProps {
+  interactionKey?: string;
   questions: readonly AskUserQuestion[];
   expiresAt?: number;
   progress?: { currentIndex: number; answers: readonly AskUserAnswer[] };
@@ -47,7 +53,7 @@ interface AskUserPanelProps {
 }
 
 const answerOptionClassName =
-  "group/answer has-[:focus-visible]:ring-ring/50 flex min-h-[var(--button-height-default)] cursor-pointer items-center gap-2 rounded-[var(--button-radius)] px-2 py-0.5 text-start transition-colors hover:[background:var(--control-state-background-hover)] has-[:focus-visible]:ring-2 has-disabled:cursor-not-allowed has-disabled:opacity-60";
+  "group/answer relative has-[:focus-visible]:ring-ring/50 flex min-h-[var(--button-height-default)] cursor-pointer items-center gap-2 rounded-[var(--button-radius)] px-2 py-0.5 text-start transition-colors hover:[background:var(--control-state-background-hover)] has-[:focus-visible]:ring-2";
 
 const answerMarkerClassName =
   "text-muted-foreground bg-muted flex size-[var(--button-height-compact)] shrink-0 items-center justify-center rounded-full border border-border text-xs tabular-nums";
@@ -106,7 +112,7 @@ function QuestionNavigator({
         type="button"
         variant="ghost"
         size="icon-sm"
-        disabled={disabled || currentIndex === 0}
+        disabled={currentIndex === 0}
         aria-label={t("extensions.interactiveRequests.navigator.previous")}
         onClick={() => onNavigate(currentIndex - 1)}
       >
@@ -115,7 +121,7 @@ function QuestionNavigator({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           type="button"
-          disabled={disabled}
+          aria-disabled={disabled || undefined}
           aria-label={t("extensions.interactiveRequests.navigator.open", {
             current: currentIndex + 1,
             total: questions.length,
@@ -129,7 +135,7 @@ function QuestionNavigator({
             })}
           </span>
         </PopoverTrigger>
-        <PopoverContent align="end" side="top" className="w-72 gap-1 p-1.5">
+        <PopoverContent align="end" side="top" className="w-72 gap-1 p-1.5" inert={disabled}>
           <p className="text-muted-foreground px-2 py-1 text-xs font-medium">
             {t("extensions.interactiveRequests.navigator.title")}
           </p>
@@ -184,7 +190,7 @@ function QuestionNavigator({
         type="button"
         variant="ghost"
         size="icon-sm"
-        disabled={disabled || currentIndex === questions.length - 1}
+        disabled={currentIndex === questions.length - 1}
         aria-label={t("extensions.interactiveRequests.navigator.next")}
         onClick={() => onNavigate(currentIndex + 1)}
       >
@@ -198,7 +204,6 @@ function QuestionControl({
   question,
   questionIndex,
   draft,
-  disabled,
   groupName,
   questionLabelId,
   formatOptionLabel,
@@ -207,7 +212,6 @@ function QuestionControl({
   question: AskUserQuestion;
   questionIndex: number;
   draft: QuestionAnswerDraft;
-  disabled: boolean;
   groupName: string;
   questionLabelId: string;
   formatOptionLabel(question: AskUserQuestion, label: string): string;
@@ -221,7 +225,6 @@ function QuestionControl({
   return (
     <fieldset
       className="-mx-3 max-h-72 space-y-0.5 overflow-y-auto overscroll-contain p-1"
-      disabled={disabled}
       aria-labelledby={questionLabelId}
     >
       <legend className="sr-only">{question.question}</legend>
@@ -281,7 +284,6 @@ function CustomAnswerControl({
   question,
   questionIndex,
   draft,
-  disabled,
   groupName,
   questionLabelId,
   invalid,
@@ -291,7 +293,6 @@ function CustomAnswerControl({
   question: AskUserQuestion;
   questionIndex: number;
   draft: QuestionAnswerDraft;
-  disabled: boolean;
   groupName: string;
   questionLabelId: string;
   invalid: boolean;
@@ -330,7 +331,6 @@ function CustomAnswerControl({
           id={customInputId}
           rows={1}
           value={draft.custom}
-          disabled={disabled}
           aria-invalid={invalid || undefined}
           aria-describedby={invalid ? validationId : undefined}
           aria-labelledby={`${questionLabelId} ${customLabelId}`}
@@ -340,10 +340,10 @@ function CustomAnswerControl({
               : "extensions.interactiveRequests.answerPlaceholder",
           )}
           className={cn(
-            "max-h-28 resize-none text-sm leading-5",
+            "field-sizing-fixed resize-none text-sm leading-[var(--control-text-line-height)]",
             hasOptions
-              ? "min-h-[var(--input-control-height)] border-0 px-0 py-1 [--input-control-background:transparent]"
-              : "min-h-[var(--button-height-large)]",
+              ? "h-[var(--input-control-height)] min-h-[var(--input-control-height)] border-0 px-0 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] [--input-control-background:transparent]"
+              : "h-[var(--button-height-large)] min-h-[var(--button-height-large)]",
           )}
           onChange={(event) => onCustomChange(event.currentTarget.value)}
         />
@@ -352,7 +352,157 @@ function CustomAnswerControl({
   );
 }
 
+function QuestionPage({
+  question,
+  index,
+  draft,
+  active,
+  direction,
+  lastQuestion,
+  groupName,
+  expiresAt,
+  blocked,
+  invalid,
+  error,
+  formatOptionLabel,
+  onOptionChange,
+  onCustomChange,
+  onSkip,
+  onSubmit,
+}: {
+  question: AskUserQuestion;
+  index: number;
+  draft: QuestionAnswerDraft;
+  active: boolean;
+  direction: QuestionPanelState["direction"];
+  lastQuestion: boolean;
+  groupName: string;
+  expiresAt?: number;
+  blocked: boolean;
+  invalid: boolean;
+  error?: ReactNode;
+  formatOptionLabel(question: AskUserQuestion, label: string): string;
+  onOptionChange(label: string, checked: boolean): void;
+  onCustomChange(value: string): void;
+  onSkip(): void;
+  onSubmit(): void;
+}) {
+  const { t } = useI18n(userQuestionsTranslationBundle);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useLayoutEffect(() => {
+    if (active) headingRef.current?.focus({ preventScroll: true });
+  }, [active]);
+
+  const questionLabelId = `${groupName}-question-${index}`;
+  const validationId = `${groupName}-validation-${index}`;
+  const hasOptions = (question.options?.length ?? 0) > 0;
+  const awaitingRequiredAnswer =
+    isRequired(question) && !draft.skipped && !isQuestionAnswered(question, draft);
+
+  return (
+    <form
+      className={cn(styles.page, "min-h-0 flex-col")}
+      data-active={active}
+      data-direction={direction}
+      inert={!active || blocked}
+      aria-hidden={!active || undefined}
+      aria-labelledby={questionLabelId}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (active && !blocked && !awaitingRequiredAnswer) onSubmit();
+      }}
+    >
+      <div className="min-h-0 px-4 sm:px-5">
+        {question.header ? (
+          <p className="text-muted-foreground mb-1 text-xs">{question.header}</p>
+        ) : null}
+        <h2
+          ref={headingRef}
+          id={questionLabelId}
+          tabIndex={-1}
+          className="text-base font-medium leading-6 outline-none"
+        >
+          {question.question}
+          {isRequired(question) ? (
+            <span className="sr-only">{t("extensions.interactiveRequests.required")}</span>
+          ) : null}
+        </h2>
+        {question.detail ? (
+          <p className="text-muted-foreground mt-1 text-sm leading-5">{question.detail}</p>
+        ) : null}
+        {hasOptions ? (
+          <div className="mt-1">
+            <QuestionControl
+              question={question}
+              questionIndex={index}
+              draft={draft}
+              groupName={groupName}
+              questionLabelId={questionLabelId}
+              formatOptionLabel={formatOptionLabel}
+              onOptionChange={onOptionChange}
+            />
+          </div>
+        ) : null}
+      </div>
+
+      <div className={cn("px-4 pb-2 sm:px-5", hasOptions ? "pt-1" : "pt-3")}>
+        {invalid ? (
+          <p id={validationId} role="alert" className="mb-2 text-sm text-destructive">
+            {t("extensions.interactiveRequests.validation.missingRequired")}
+          </p>
+        ) : null}
+        {error ? (
+          <div role="alert" className="mb-2 text-sm text-destructive">
+            {error}
+          </div>
+        ) : null}
+        <div className={cn("flex flex-wrap items-end gap-x-3", hasOptions ? "gap-y-2" : "gap-y-3")}>
+          <CustomAnswerControl
+            question={question}
+            questionIndex={index}
+            draft={draft}
+            groupName={groupName}
+            questionLabelId={questionLabelId}
+            invalid={invalid}
+            validationId={validationId}
+            onCustomChange={onCustomChange}
+          />
+          <div className="ms-auto flex shrink-0 items-center justify-end gap-2 [--button-radius:var(--composer-radius,var(--radius-3xl))]">
+            {question.multiSelect ? (
+              <span className="text-muted-foreground text-xs" aria-live="polite">
+                {t("extensions.interactiveRequests.selectedCount", {
+                  count: draft.selected.length,
+                })}
+              </span>
+            ) : null}
+            <Button type="button" variant="outline" onClick={onSkip}>
+              {t("extensions.interactiveRequests.skip")}
+              {active && expiresAt !== undefined ? (
+                <QuestionCountdown key={expiresAt} expiresAt={expiresAt} />
+              ) : null}
+            </Button>
+            <Button
+              type="submit"
+              disabled={awaitingRequiredAnswer}
+              aria-describedby={invalid ? validationId : undefined}
+            >
+              {lastQuestion
+                ? t(
+                    hasOptions
+                      ? "extensions.interactiveRequests.submitAndContinue"
+                      : "extensions.interactiveRequests.send",
+                  )
+                : t("extensions.interactiveRequests.nextQuestion")}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </form>
+  );
+}
+
 export function AskUserPanel({
+  interactionKey,
   questions,
   expiresAt,
   progress,
@@ -364,53 +514,43 @@ export function AskUserPanel({
 }: AskUserPanelProps) {
   const { t } = useI18n(userQuestionsTranslationBundle);
   const id = useId();
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const [drafts, setDrafts] = useState(() =>
-    createQuestionAnswerDrafts(questions, progress?.answers),
-  );
-  const [currentIndex, setCurrentIndex] = useState(progress?.currentIndex ?? 0);
-  const [direction, setDirection] = useState<"backward" | "forward">("forward");
-  const [validationError, setValidationError] = useState(false);
+  const input = { interactionKey, questions, progress };
+  const [state, setState] = useState(() => createQuestionPanelState(input));
+  const reconciled = reconcileQuestionPanelState(state, input);
+  // Synchronize one atomic state snapshot before commit, not via remounts or delayed effects.
+  if (reconciled !== state) setState(reconciled);
+  const { currentIndex, drafts, direction, validationIndex } = reconciled;
   const question = questions[currentIndex];
-  const draft = drafts[currentIndex];
+  if (!question || !drafts[currentIndex]) return null;
 
-  useLayoutEffect(() => {
-    headingRef.current?.focus({ preventScroll: true });
-  }, [currentIndex]);
-
-  if (!question || !draft) return null;
-
-  const questionLabelId = `${id}-question`;
-  const validationId = `${id}-validation`;
   const lastQuestion = currentIndex === questions.length - 1;
-  const hasOptions = (question.options?.length ?? 0) > 0;
-  const awaitingRequiredAnswer =
-    isRequired(question) && !draft.skipped && !isQuestionAnswered(question, draft);
-
   const navigate = (index: number, nextDrafts = drafts) => {
-    if (index < 0 || index >= questions.length || index === currentIndex) return;
+    if (disabled || navigateQuestionPanel(reconciled, index, questions.length) === reconciled)
+      return;
     if (progress) {
-      const answers = buildQuestionAnswers(questions, nextDrafts).filter(
-        (_, answerIndex) =>
-          nextDrafts[answerIndex]?.skipped ||
-          isQuestionAnswered(questions[answerIndex]!, nextDrafts[answerIndex]),
+      onSubmit(
+        buildQuestionAnswers(questions, nextDrafts).filter(
+          (_, answerIndex) =>
+            nextDrafts[answerIndex]?.skipped ||
+            isQuestionAnswered(questions[answerIndex]!, nextDrafts[answerIndex]),
+        ),
+        index,
       );
-      onSubmit(answers, index);
     } else {
-      setDirection(index < currentIndex ? "backward" : "forward");
-      setCurrentIndex(index);
+      setState((current) => navigateQuestionPanel(current, index, questions.length));
     }
   };
 
+  const updateDrafts = (nextDrafts: readonly QuestionAnswerDraft[]) => {
+    setState((current) => ({ ...current, drafts: nextDrafts, validationIndex: undefined }));
+  };
+
   const submit = (nextDrafts = drafts) => {
+    if (disabled) return;
     const firstInvalid = findFirstInvalidQuestionIndex(questions, nextDrafts);
-    if (firstInvalid !== undefined) {
-      setValidationError(true);
-      navigate(firstInvalid, nextDrafts);
-      return;
-    }
-    setValidationError(false);
-    onSubmit(buildQuestionAnswers(questions, nextDrafts));
+    setState((current) => ({ ...current, validationIndex: firstInvalid }));
+    if (firstInvalid !== undefined) navigate(firstInvalid, nextDrafts);
+    else onSubmit(buildQuestionAnswers(questions, nextDrafts));
   };
 
   const skip = () => {
@@ -418,8 +558,7 @@ export function AskUserPanel({
     // Single-question SDK dialogs use cancellation as their empty/default response.
     if (!progress && questions.length === 1) return onCancel();
     const nextDrafts = skipQuestion(drafts, currentIndex);
-    setDrafts(nextDrafts);
-    setValidationError(false);
+    updateDrafts(nextDrafts);
     if (lastQuestion) submit(nextDrafts);
     else navigate(currentIndex + 1, nextDrafts);
   };
@@ -427,12 +566,16 @@ export function AskUserPanel({
   return (
     <section
       role="region"
-      aria-labelledby={questionLabelId}
+      aria-labelledby={`${id}-question-${currentIndex}`}
       aria-busy={disabled}
       data-slot="ask-user-panel"
-      className="bg-background text-foreground flex w-full flex-col overflow-hidden rounded-[var(--composer-radius,var(--radius-3xl))] border border-border"
+      className="bg-background text-foreground flex w-full flex-col overflow-clip rounded-[var(--composer-radius,var(--radius-3xl))] border border-border"
     >
-      <header className="flex items-center justify-between gap-3 px-4 py-1 sm:px-5">
+      {/* Pending RPCs block input without briefly applying every control's disabled appearance. */}
+      <header
+        inert={disabled}
+        className="flex items-center justify-between gap-3 px-4 py-1 sm:px-5"
+      >
         <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
           <MessageCircleQuestionMarkIcon
             aria-hidden="true"
@@ -454,142 +597,57 @@ export function AskUserPanel({
             type="button"
             variant="ghost"
             size="icon-sm"
-            disabled={disabled}
             aria-label={t("extensions.interactiveRequests.cancel")}
-            onClick={onCancel}
+            onClick={() => {
+              if (!disabled) onCancel();
+            }}
           >
             <XIcon aria-hidden="true" />
           </Button>
         </div>
       </header>
-
-      <form
-        className="flex min-h-0 flex-1 flex-col"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (disabled || awaitingRequiredAnswer) return;
-          if (lastQuestion) submit();
-          else navigate(currentIndex + 1);
-        }}
-      >
-        <div className="min-h-0 flex-1 px-4 sm:px-5">
-          <div
-            key={currentIndex}
-            className={cn(
-              "animate-in fade-in duration-150 motion-reduce:animate-none",
-              direction === "forward" ? "slide-in-from-right-1" : "slide-in-from-left-1",
-            )}
-          >
-            {question.header ? (
-              <p className="text-muted-foreground mb-1 text-xs">{question.header}</p>
-            ) : null}
-            <h2
-              ref={headingRef}
-              id={questionLabelId}
-              tabIndex={-1}
-              className="text-base font-medium leading-6 outline-none"
-            >
-              {question.question}
-              {isRequired(question) ? (
-                <span className="sr-only">{t("extensions.interactiveRequests.required")}</span>
-              ) : null}
-            </h2>
-            {question.detail ? (
-              <p className="text-muted-foreground mt-1 text-sm leading-5">{question.detail}</p>
-            ) : null}
-            {hasOptions ? (
-              <div className="mt-1">
-                <QuestionControl
-                  question={question}
-                  questionIndex={currentIndex}
-                  draft={draft}
-                  disabled={disabled}
-                  groupName={id}
-                  questionLabelId={questionLabelId}
-                  formatOptionLabel={formatOptionLabel}
-                  onOptionChange={(label, checked) => {
-                    if (disabled) return;
-                    setValidationError(false);
-                    const nextDrafts = selectQuestionOption(
-                      drafts,
-                      questions,
-                      currentIndex,
-                      label,
-                      checked,
-                    );
-                    setDrafts(nextDrafts);
-                    if (checked && !question.multiSelect && !lastQuestion) {
-                      navigate(currentIndex + 1, nextDrafts);
-                    }
-                  }}
-                />
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <div className={cn("mt-auto px-4 pb-2 sm:px-5", hasOptions ? "pt-1" : "pt-3")}>
-          {validationError ? (
-            <p id={validationId} role="alert" className="mb-2 text-sm text-destructive">
-              {t("extensions.interactiveRequests.validation.missingRequired")}
-            </p>
-          ) : null}
-          {error ? (
-            <div role="alert" className="mb-2 text-sm text-destructive">
-              {error}
-            </div>
-          ) : null}
-          <div
-            className={cn("flex flex-wrap items-end gap-x-3", hasOptions ? "gap-y-2" : "gap-y-3")}
-          >
-            <CustomAnswerControl
-              question={question}
-              questionIndex={currentIndex}
-              draft={draft}
-              disabled={disabled}
-              groupName={id}
-              questionLabelId={questionLabelId}
-              invalid={validationError}
-              validationId={validationId}
-              onCustomChange={(value) => {
-                setValidationError(false);
-                setDrafts((current) => setQuestionCustomAnswer(current, currentIndex, value));
-              }}
-            />
-            <div className="ms-auto flex shrink-0 items-center justify-end gap-2 [--button-radius:var(--composer-radius,var(--radius-3xl))]">
-              {question.multiSelect ? (
-                <span className="text-muted-foreground text-xs" aria-live="polite">
-                  {t("extensions.interactiveRequests.selectedCount", {
-                    count: draft.selected.length,
-                  })}
-                </span>
-              ) : null}
-              <Button type="button" variant="outline" disabled={disabled} onClick={skip}>
-                {t("extensions.interactiveRequests.skip")}
-                {expiresAt !== undefined && !disabled ? (
-                  <QuestionCountdown key={expiresAt} expiresAt={expiresAt} />
-                ) : null}
-              </Button>
-              <Button
-                type="submit"
-                disabled={disabled || awaitingRequiredAnswer}
-                aria-describedby={validationError ? validationId : undefined}
-              >
-                {disabled ? <LoaderCircleIcon aria-hidden="true" className="animate-spin" /> : null}
-                {disabled
-                  ? t("extensions.interactiveRequests.submitting")
-                  : lastQuestion
-                    ? t(
-                        hasOptions
-                          ? "extensions.interactiveRequests.submitAndContinue"
-                          : "extensions.interactiveRequests.send",
-                      )
-                    : t("extensions.interactiveRequests.nextQuestion")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </form>
+      <div className={styles.pages}>
+        {questions.map((pageQuestion, index) => (
+          <QuestionPage
+            key={`${pageQuestion.id}:${index}`}
+            question={pageQuestion}
+            index={index}
+            draft={drafts[index]!}
+            active={index === currentIndex}
+            direction={direction}
+            lastQuestion={index === questions.length - 1}
+            groupName={id}
+            expiresAt={expiresAt}
+            blocked={disabled}
+            invalid={validationIndex === index}
+            error={index === currentIndex ? error : undefined}
+            formatOptionLabel={formatOptionLabel}
+            onOptionChange={(label, checked) => {
+              if (disabled || index !== currentIndex) return;
+              const nextDrafts = selectQuestionOption(drafts, questions, index, label, checked);
+              updateDrafts(nextDrafts);
+              if (checked && !pageQuestion.multiSelect && !lastQuestion) {
+                navigate(currentIndex + 1, nextDrafts);
+              }
+            }}
+            onCustomChange={(value) => {
+              if (!disabled && index === currentIndex) {
+                updateDrafts(setQuestionCustomAnswer(drafts, index, value));
+              }
+            }}
+            onSkip={() => {
+              if (index === currentIndex) skip();
+            }}
+            onSubmit={() => {
+              if (lastQuestion) submit();
+              else navigate(currentIndex + 1);
+            }}
+          />
+        ))}
+      </div>
+      <span role="status" className="sr-only">
+        {disabled ? t("extensions.interactiveRequests.submitting") : null}
+      </span>
     </section>
   );
 }

@@ -1,0 +1,41 @@
+.pages {
+  min-width: 0;
+  overflow: clip;
+}
+
+.page {
+  --ask-user-page-offset: calc(var(--button-height-compact) / 3);
+  /* Keep page state mounted, but let only the active page determine the panel's height. */
+  display: none;
+  min-width: 0;
+}
+
+.page[data-active="true"] {
+  display: flex;
+}
+
+.page[data-active="true"][data-direction] {
+  animation: question-step calc(var(--layout-motion-duration, 330ms) * 0.3)
+    var(--layout-motion-ease, ease-out);
+}
+
+.page[data-direction="backward"] {
+  --ask-user-page-offset: calc(var(--button-height-compact) / -3);
+}
+
+/* Do not use the generic enter animation: a question step changes translation only. */
+@keyframes question-step {
+  from {
+    transform: translateX(var(--ask-user-page-offset));
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page[data-active="true"][data-direction] {
+    animation: none;
+  }
+}

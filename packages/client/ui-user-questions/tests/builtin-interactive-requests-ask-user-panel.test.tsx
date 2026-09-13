@@ -66,15 +66,18 @@ test("required answers gate Next while Skip remains available, in both base loca
         </WorkbenchSettingsProvider>,
       );
 
-      const buttons = markup.match(/<button\b[^>]*>[\s\S]*?<\/button>/gu) ?? [];
+      const activePage = markup.match(/<form\b[^>]*data-active="true"[^>]*>[\s\S]*?<\/form>/u)?.[0];
+      assert.ok(activePage);
+      const buttons = activePage.match(/<button\b[^>]*>[\s\S]*?<\/button>/gu) ?? [];
       const next = buttons.find((button) => button.includes('type="submit"'));
       const skip = buttons.find((button) =>
         button.endsWith(locale === "en-US" ? ">Skip</button>" : ">跳过</button>"),
       );
       assert.ok(next);
       assert.ok(skip);
-      assert.equal(next.includes('disabled=""'), required || busy);
-      assert.equal(skip.includes('disabled=""'), busy);
+      assert.equal(next.includes('disabled=""'), required);
+      assert.equal(skip.includes('disabled=""'), false);
+      assert.equal(activePage.match(/^<form[^>]*>/u)?.[0]?.includes('inert=""'), busy);
       assert.match(markup, /<textarea[^>]*aria-labelledby="[^"]+"/u);
       assert.ok(
         markup.includes(locale === "en-US" ? "Or write your own response" : "或输入你自己的回答"),
@@ -102,13 +105,15 @@ test("free-text questions show one reply field and only navigate when more quest
         </WorkbenchSettingsProvider>,
       );
 
-      assert.equal(markup.match(/<textarea\b/gu)?.length, 1);
+      const activePage = markup.match(/<form\b[^>]*data-active="true"[^>]*>[\s\S]*?<\/form>/u)?.[0];
+      assert.ok(activePage);
+      assert.equal(activePage.match(/<textarea\b/gu)?.length, 1);
       assert.doesNotMatch(markup, /<fieldset|lucide-pencil/u);
       assert.equal(markup.includes('aria-haspopup="dialog"'), count > 1);
       assert.ok(
         markup.includes(locale === "en-US" ? 'placeholder="Reply…"' : 'placeholder="回复…"'),
       );
-      const submit = markup.match(/<button\b[^>]*type="submit"[^>]*>[\s\S]*?<\/button>/u)?.[0];
+      const submit = activePage.match(/<button\b[^>]*type="submit"[^>]*>[\s\S]*?<\/button>/u)?.[0];
       assert.ok(submit);
       assert.ok(submit.includes('disabled=""'));
       assert.ok(
@@ -146,9 +151,11 @@ test("restores the active question and saved answers for each question request",
         </I18nProvider>
       </WorkbenchSettingsProvider>,
     );
-    assert.match(markup, currentIndex === 0 ? /First question/u : /Second question/u);
-    assert.equal(markup.includes("Saved answer"), currentIndex === 0);
-    const submit = markup.match(/<button\b[^>]*type="submit"[^>]*>[\s\S]*?<\/button>/u)?.[0];
+    const activePage = markup.match(/<form\b[^>]*data-active="true"[^>]*>[\s\S]*?<\/form>/u)?.[0];
+    assert.ok(activePage);
+    assert.match(activePage, currentIndex === 0 ? /First question/u : /Second question/u);
+    assert.equal(activePage.includes("Saved answer"), currentIndex === 0);
+    const submit = activePage.match(/<button\b[^>]*type="submit"[^>]*>[\s\S]*?<\/button>/u)?.[0];
     assert.ok(submit);
     assert.equal(submit.includes('disabled=""'), currentIndex === 1);
   }

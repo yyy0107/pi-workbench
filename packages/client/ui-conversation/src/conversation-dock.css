@@ -1,3 +1,13 @@
+:where([data-slot="workbench-conversation"])
+  [data-slot="conversation-footer"]:has(
+    > [data-workbench-composer-dock] > [data-workbench-composer-overlay-open]
+  )
+  > [data-workbench-scroll-latest] {
+  /* Composer overlays can extend above the dock. Remove the covered control from layout and
+     keyboard navigation for the overlay's entire lifetime, including its exit animation. */
+  display: none;
+}
+
 :where([data-slot="workbench-conversation"]) [data-workbench-composer-dock][data-animate-dock] {
   transform-origin: top left;
   animation: composer-dock-enter var(--layout-state-motion-duration) var(--layout-motion-ease)

@@ -566,7 +566,10 @@ export function WorkbenchComposer({
   );
 
   return (
-    <div className="grid w-full min-w-0 max-w-full grid-rows-[auto_auto_auto]">
+    <div
+      data-workbench-composer-overlay-open={composerOverlayVisible ? "" : undefined}
+      className="grid w-full min-w-0 max-w-full grid-rows-[auto_auto_auto]"
+    >
       <SlotHost
         name="composer.before"
         context={context}

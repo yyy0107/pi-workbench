@@ -38,8 +38,19 @@ import { useWorkbenchInteractionCapability } from "@workbench/agent-runtime-clie
 import { AskUserPanel } from "./ask-user-panel";
 import { useAskUserPreferences } from "./ask-user-preferences";
 import type { AskUserQuestion } from "../lib/interaction-form-state";
+import {
+  QUESTION_HANDOFF_TIMEOUT_MS,
+  completeQuestionExit,
+  createQuestionPresence,
+  expectQuestionContinuation,
+  expireQuestionContinuation,
+  reconcileQuestionPresence,
+  type QuestionInteraction,
+} from "../lib/question-interaction-presence";
+import styles from "./interactive-requests-overlay.module.css";
 
 type SubmitError = "bad-response" | "network" | "not-pending";
+type SubmitOutcome = "submitted" | "failed" | "ignored";
 
 function optionLabel(question: AskUserQuestion, label: string, yes: string, no: string): string {
   if (question.id !== "confirmation") return label;
@@ -91,51 +102,83 @@ function useInteractionSubmit(
 ): {
   error: SubmitError | null;
   submitting: boolean;
-  submit(response: WorkbenchInteractionResponse): Promise<void>;
+  submit(response: WorkbenchInteractionResponse, onStart?: () => void): Promise<SubmitOutcome>;
 } {
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<SubmitError | null>(null);
-  const requestInFlight = useRef(false);
+  const scope = useMemo(() => ({ manager, requestId }), [manager, requestId]);
+  const activeScope = useRef<typeof scope | null>(scope);
+  const [submission, setSubmission] = useState<{
+    scope: typeof scope;
+    error: SubmitError | null;
+    submitting: boolean;
+  }>({ scope, error: null, submitting: false });
+  const requestInFlight = useRef<typeof scope | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    activeScope.current = scope;
+    return () => {
+      activeScope.current = null;
+    };
+  }, [scope]);
 
   const submit = useCallback(
-    async (response: WorkbenchInteractionResponse) => {
-      if (requestInFlight.current) return;
-      requestInFlight.current = true;
-      setSubmitting(true);
-      setError(null);
+    async (
+      response: WorkbenchInteractionResponse,
+      onStart?: () => void,
+    ): Promise<SubmitOutcome> => {
+      if (activeScope.current !== scope || requestInFlight.current === scope) return "ignored";
+      requestInFlight.current = scope;
+      setSubmission({ scope, error: null, submitting: true });
+      onStart?.();
 
       try {
         await manager.respondInteraction(requestId, response);
+        return "submitted";
       } catch (cause) {
-        setError(
+        // An older response may reject after the next request/provider has become active.
+        // Do not clear its submission state or its expected question continuation.
+        if (activeScope.current !== scope || requestInFlight.current !== scope) return "ignored";
+        const error =
           cause instanceof WorkbenchAgentCapabilityError && cause.code === "request-ended"
             ? "not-pending"
             : cause instanceof WorkbenchAgentCapabilityError && cause.code === "invalid-request"
               ? "bad-response"
-              : "network",
-        );
-        requestInFlight.current = false;
-        setSubmitting(false);
+              : "network";
+        requestInFlight.current = undefined;
+        setSubmission({ scope, error, submitting: false });
+        return "failed";
       }
     },
-    [manager, requestId],
+    [manager, requestId, scope],
   );
 
-  return { error, submitting, submit };
+  return {
+    error: submission.scope === scope ? submission.error : null,
+    submitting: submission.scope === scope && submission.submitting,
+    submit,
+  };
 }
 
 function QuestionComposerOverlay({
   interaction,
   manager,
+  exiting,
+  waiting,
+  onExitComplete,
+  onNextQuestionExpected,
   setOverlayVisible,
 }: {
-  interaction: Extract<WorkbenchPendingInteraction, { kind: "question" }>;
+  interaction: QuestionInteraction;
   manager: WorkbenchInteractionCapability;
+  exiting: boolean;
+  waiting: boolean;
+  onExitComplete(): void;
+  onNextQuestionExpected(index: number | undefined): void;
   setOverlayVisible(visible: boolean): void;
 }) {
   const { t } = useI18n(userQuestionsTranslationBundle);
   const askUserPreference = useAskUserPreferences();
   const { error, submitting, submit } = useInteractionSubmit(manager, interaction.requestId);
+  const exitTransitionRef = useRef<HTMLDivElement>(null);
   const preferenceReady = askUserPreference.status !== "loading";
   const showQuestion = !preferenceReady || askUserPreference.enabled || error !== null;
 
@@ -150,6 +193,38 @@ function QuestionComposerOverlay({
     void submit({ kind: "cancel" });
   }, [askUserPreference.enabled, preferenceReady, submit]);
 
+  useEffect(() => {
+    if (!exiting) return;
+    if (!showQuestion) {
+      onExitComplete();
+      return;
+    }
+
+    const element = exitTransitionRef.current;
+    const view = element?.ownerDocument.defaultView;
+    if (!element || !view) {
+      onExitComplete();
+      return;
+    }
+
+    let cancelled = false;
+    const frame = view.requestAnimationFrame(() => {
+      const animations = element.getAnimations();
+      if (animations.length === 0) {
+        onExitComplete();
+        return;
+      }
+      void Promise.allSettled(animations.map((animation) => animation.finished)).then(() => {
+        if (!cancelled) onExitComplete();
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      view.cancelAnimationFrame(frame);
+    };
+  }, [exiting, onExitComplete, showQuestion]);
+
   // Decline disabled requests without covering the composer. If that response fails,
   // surface the panel again so the session cannot remain invisibly blocked.
   if (!showQuestion) return null;
@@ -163,33 +238,51 @@ function QuestionComposerOverlay({
           ? t("extensions.interactiveRequests.errors.network")
           : undefined;
 
+  const respond = async (response: WorkbenchInteractionResponse) => {
+    const result = await submit(response, () =>
+      onNextQuestionExpected(response.kind === "question" ? response.nextQuestionIndex : undefined),
+    );
+    if (result === "failed") onNextQuestionExpected(undefined);
+  };
+
   return (
-    <AskUserPanel
-      questions={interaction.questions}
-      expiresAt={interaction.expiresAt}
-      progress={interaction.progress}
-      disabled={submitting}
-      error={errorMessage}
-      formatOptionLabel={(question, label) =>
-        optionLabel(
-          question,
-          label,
-          t("extensions.interactiveRequests.yes"),
-          t("extensions.interactiveRequests.no"),
-        )
-      }
-      onCancel={() => void submit({ kind: "cancel" })}
-      onSubmit={(answers, nextQuestionIndex) =>
-        void submit({
-          kind: "question",
-          ...(nextQuestionIndex === undefined ? {} : { nextQuestionIndex }),
-          answers: answers.map((answer) => ({
-            ...answer,
-            selected: [...answer.selected],
-          })),
-        })
-      }
-    />
+    <div
+      ref={exitTransitionRef}
+      inert={exiting}
+      aria-hidden={exiting || undefined}
+      data-state={exiting ? "exiting" : "open"}
+      className={styles.questionOverlay}
+    >
+      <AskUserPanel
+        interactionKey={interaction.requestId}
+        questions={interaction.questions}
+        expiresAt={interaction.expiresAt}
+        progress={interaction.progress}
+        disabled={submitting || waiting || exiting}
+        error={errorMessage}
+        formatOptionLabel={(question, label) =>
+          optionLabel(
+            question,
+            label,
+            t("extensions.interactiveRequests.yes"),
+            t("extensions.interactiveRequests.no"),
+          )
+        }
+        onCancel={() => {
+          void respond({ kind: "cancel" });
+        }}
+        onSubmit={(answers, nextQuestionIndex) => {
+          void respond({
+            kind: "question",
+            ...(nextQuestionIndex === undefined ? {} : { nextQuestionIndex }),
+            answers: answers.map((answer) => ({
+              ...answer,
+              selected: [...answer.selected],
+            })),
+          });
+        }}
+      />
+    </div>
   );
 }
 
@@ -285,28 +378,57 @@ function usePendingInteractions() {
     () => (activeSessionId ? (manager?.getPendingInteractions(activeSessionId) ?? []) : []),
     [activeSessionId, manager, revision],
   );
-  return { manager, pending };
+  return { manager, pending, activeSessionId };
 }
 
 export function InteractiveQuestionComposerOverlay({
   setOverlayVisible,
 }: ComposerOverlaySlotContext) {
-  const { manager, pending } = usePendingInteractions();
-  const interaction = pending[0];
-  if (
-    !manager ||
-    !interaction ||
-    interaction.kind !== "question" ||
-    interaction.questions.length === 0
-  ) {
-    return null;
-  }
+  const { manager, pending, activeSessionId } = usePendingInteractions();
+  const currentInteraction = pending[0];
+  const currentQuestion =
+    currentInteraction?.kind === "question" && currentInteraction.questions.length > 0
+      ? currentInteraction
+      : undefined;
+  const [presence, setPresence] = useState(() =>
+    createQuestionPresence(manager, activeSessionId, currentQuestion),
+  );
+  const reconciled = reconcileQuestionPresence(presence, manager, activeSessionId, currentQuestion);
+  // Commit one coherent snapshot. Session/provider changes never paint a retained old question,
+  // and matching requests refresh retained metadata before a subsequent removal from the store.
+  if (reconciled !== presence) setPresence(reconciled);
+
+  const { group, revision, scopeRevision } = reconciled;
+  const waitingForNextQuestion = group?.phase === "waiting";
+
+  useEffect(() => {
+    if (!waitingForNextQuestion) return;
+    const timeout = window.setTimeout(
+      () => setPresence((state) => expireQuestionContinuation(state, revision)),
+      QUESTION_HANDOFF_TIMEOUT_MS,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [revision, waitingForNextQuestion]);
+
+  const completeExit = useCallback(() => {
+    setPresence((state) => completeQuestionExit(state, revision));
+  }, [revision]);
+
+  if (!manager || !group) return null;
 
   return (
     <QuestionComposerOverlay
-      key={interaction.requestId}
-      interaction={interaction}
+      key={`${scopeRevision}:${group.initialRequestId}`}
+      interaction={group.question}
       manager={manager}
+      exiting={group.phase === "exiting"}
+      waiting={waitingForNextQuestion}
+      onExitComplete={completeExit}
+      onNextQuestionExpected={(index) => {
+        setPresence((state) =>
+          expectQuestionContinuation(state, scopeRevision, group.question.requestId, index),
+        );
+      }}
       setOverlayVisible={setOverlayVisible}
     />
   );
