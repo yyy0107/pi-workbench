@@ -3,6 +3,7 @@ import { ToolboxIcon } from "lucide-react";
 import { defineExtension } from "@workbench/extension-sdk";
 
 import { definePiMessage } from "./i18n";
+import { ToolboxComposerShortcuts } from "./toolbox-composer-shortcuts";
 import { ToolboxMainView } from "./toolbox-main-view";
 import { ToolboxSidebar } from "./toolbox-sidebar";
 import {
@@ -34,6 +35,11 @@ export const toolboxExtension = defineExtension({
       kind: "toolbox",
       component: ToolboxMainView,
     });
-    return [sidebar, mainView, openers, resourceBridge];
+    const composerShortcuts = context.slots.register("composer.header.right", {
+      id: "workbench.toolbox.composer-shortcuts",
+      order: 10,
+      component: ToolboxComposerShortcuts,
+    });
+    return [sidebar, mainView, openers, resourceBridge, composerShortcuts];
   },
 });

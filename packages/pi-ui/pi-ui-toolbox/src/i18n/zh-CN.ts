@@ -50,6 +50,19 @@ export const messages = {
         search: "搜索工具箱",
         searchPlaceholder: "搜索 Skills、Pi 扩展、Prompts 和 Packages",
       },
+      composerShortcuts: {
+        label: "智能体能力",
+        openSkills: "查看 Skills",
+        openExtensions: "查看 Pi 扩展",
+        enabledCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `当前启用 ${number(count)} 项`,
+        loading: "正在加载已启用的能力…",
+        loadFailed: "无法加载已启用的能力。",
+        noSkillsEnabled: "当前没有启用任何 Skill。",
+        noExtensionsEnabled: "当前没有启用任何 Pi 扩展。",
+        manage: "去管理",
+        manageLabel: ({ name }: { name: string }) => `管理${name}`,
+      },
       main: {
         searchIn: ({ name }: { name: string }) => `搜索${name}`,
         backToList: ({ name }: { name: string }) => `返回${name}列表`,

@@ -58,9 +58,14 @@ test("Toolbox owns Pi resource opener registration, binding, rollback, and dispo
     manager.slots.get("shell.overlay").map(({ id }) => id),
     ["workbench.toolbox.file-openers"],
   );
+  assert.deepEqual(
+    manager.slots.get("composer.header.right").map(({ id }) => id),
+    ["workbench.toolbox.composer-shortcuts"],
+  );
   activation.dispose();
   assert.deepEqual(manager.openers.getAll(), []);
   assert.deepEqual(manager.slots.get("shell.overlay"), []);
+  assert.deepEqual(manager.slots.get("composer.header.right"), []);
 
   const binding = createPiResourceFileOpenersBinding();
   const registration = registerPiResourceFileOpeners(manager.openers, binding, manager.workspace);

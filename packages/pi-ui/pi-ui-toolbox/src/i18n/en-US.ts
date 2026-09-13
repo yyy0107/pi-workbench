@@ -51,6 +51,19 @@ export const messages = {
         search: "Search Toolbox",
         searchPlaceholder: "Search skills, Pi extensions, prompts, and packages",
       },
+      composerShortcuts: {
+        label: "Agent capabilities",
+        openSkills: "View Skills",
+        openExtensions: "View Pi extensions",
+        enabledCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `${number(count)} enabled`,
+        loading: "Loading enabled capabilities…",
+        loadFailed: "The enabled capabilities could not be loaded.",
+        noSkillsEnabled: "No Skills are currently enabled.",
+        noExtensionsEnabled: "No Pi extensions are currently enabled.",
+        manage: "Manage",
+        manageLabel: ({ name }: { name: string }) => `Manage ${name}`,
+      },
       main: {
         searchIn: ({ name }: { name: string }) => `Search ${name}`,
         backToList: ({ name }: { name: string }) => `Back to ${name}`,

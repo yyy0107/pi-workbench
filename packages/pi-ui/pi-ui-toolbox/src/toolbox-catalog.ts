@@ -56,6 +56,25 @@ export interface ToolboxCapabilityItem {
   readonly params: ToolboxCapabilitySurfaceParams;
 }
 
+type ToolboxCapabilityKindFilter =
+  | ToolboxCapabilityItem["kind"]
+  | readonly ToolboxCapabilityItem["kind"][];
+
+function includesCapabilityKind(
+  filter: ToolboxCapabilityKindFilter | undefined,
+  kind: ToolboxCapabilityItem["kind"],
+): boolean {
+  return filter === undefined || (Array.isArray(filter) ? filter.includes(kind) : filter === kind);
+}
+
+function includesResourceScope(
+  scope: WorkbenchToolboxScopePreference,
+  resourceScope: "user" | "project" | "temporary",
+  includeInherited: boolean,
+): boolean {
+  return includeInherited || toolboxScopeMatchesResource(scope, resourceScope);
+}
+
 type ToolboxCatalogLoadState = "idle" | "loading" | "ready" | "failed";
 
 interface ToolboxCatalogEntry<T> {
@@ -141,7 +160,8 @@ function projectSearchText(target: ToolboxCatalogTarget): string {
 
 export function useToolboxCatalogs(
   scope: WorkbenchToolboxScopePreference,
-  kind?: ToolboxCapabilityItem["kind"],
+  kind?: ToolboxCapabilityKindFilter,
+  { includeInherited = false }: { includeInherited?: boolean } = {},
 ) {
   const { t } = useI18n(toolboxUiTranslationBundle);
   const askUserPreference = useToolCapabilityPreferences("askUserEnabled");
@@ -194,19 +214,19 @@ export function useToolboxCatalogs(
     [resourceClient],
   );
   const skillsCatalog = useToolboxCatalog(
-    !kind || kind === "skill" ? target : undefined,
+    includesCapabilityKind(kind, "skill") ? target : undefined,
     loadSkills,
   );
   const extensionsCatalog = useToolboxCatalog(
-    !kind || kind === "extension" ? target : undefined,
+    includesCapabilityKind(kind, "extension") ? target : undefined,
     loadExtensions,
   );
   const promptsCatalog = useToolboxCatalog(
-    !kind || kind === "prompt" ? target : undefined,
+    includesCapabilityKind(kind, "prompt") ? target : undefined,
     loadPrompts,
   );
   const packagesCatalog = useToolboxCatalog(
-    !kind || kind === "package" ? target : undefined,
+    includesCapabilityKind(kind, "package") ? target : undefined,
     loadPackages,
   );
 
@@ -215,7 +235,7 @@ export function useToolboxCatalogs(
       uniqueCapabilities(
         skillsCatalog.entries.flatMap(({ target: entryTarget, value }) =>
           value
-            .filter((skill) => toolboxScopeMatchesResource(scope, skill.scope))
+            .filter((skill) => includesResourceScope(scope, skill.scope, includeInherited))
             .map((skill) => {
               const params = bindCapabilityToCatalogTarget(
                 skillSurfaceParams(skill),
@@ -247,7 +267,7 @@ export function useToolboxCatalogs(
             }),
         ),
       ),
-    [scope, skillsCatalog.entries, t],
+    [includeInherited, scope, skillsCatalog.entries, t],
   );
 
   const extensionItems = useMemo<readonly ToolboxCapabilityItem[]>(
@@ -255,7 +275,7 @@ export function useToolboxCatalogs(
       uniqueCapabilities(
         extensionsCatalog.entries.flatMap(({ target: entryTarget, value }) =>
           value.extensions
-            .filter((extension) => toolboxScopeMatchesResource(scope, extension.scope))
+            .filter((extension) => includesResourceScope(scope, extension.scope, includeInherited))
             .map((extension) => {
               const params = bindCapabilityToCatalogTarget(
                 extensionSurfaceParams(extension),
@@ -298,7 +318,7 @@ export function useToolboxCatalogs(
             }),
         ),
       ),
-    [extensionsCatalog.entries, scope, t],
+    [extensionsCatalog.entries, includeInherited, scope, t],
   );
 
   const promptItems = useMemo<readonly ToolboxCapabilityItem[]>(
@@ -306,7 +326,7 @@ export function useToolboxCatalogs(
       uniqueCapabilities(
         promptsCatalog.entries.flatMap(({ target: entryTarget, value }) =>
           value
-            .filter((prompt) => toolboxScopeMatchesResource(scope, prompt.scope))
+            .filter((prompt) => includesResourceScope(scope, prompt.scope, includeInherited))
             .map((prompt) => {
               const params = bindCapabilityToCatalogTarget(
                 promptSurfaceParams(prompt),
@@ -334,7 +354,7 @@ export function useToolboxCatalogs(
             }),
         ),
       ),
-    [promptsCatalog.entries, scope],
+    [includeInherited, promptsCatalog.entries, scope],
   );
 
   const builtinExtensionItems = useMemo<readonly ToolboxCapabilityItem[]>(
@@ -405,7 +425,7 @@ export function useToolboxCatalogs(
       uniqueCapabilities(
         packagesCatalog.entries.flatMap(({ target: entryTarget, value }) =>
           value
-            .filter((item) => toolboxScopeMatchesResource(scope, item.scope))
+            .filter((item) => includesResourceScope(scope, item.scope, includeInherited))
             .map((item) => {
               const params = bindCapabilityToCatalogTarget(
                 installedPackageSurfaceParams(item),
@@ -429,7 +449,7 @@ export function useToolboxCatalogs(
             }),
         ),
       ),
-    [packagesCatalog.entries, scope, t],
+    [includeInherited, packagesCatalog.entries, scope, t],
   );
 
   return {
