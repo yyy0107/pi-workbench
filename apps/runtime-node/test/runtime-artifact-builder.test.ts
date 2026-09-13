@@ -79,6 +79,9 @@ test("bundled resources install into the Pi directory after relocation and pruni
   t.after(() => rm(outputDirectory, { force: true, recursive: true }));
   const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
   await copyRuntimeBuiltinResources(repositoryRoot, outputDirectory);
+  await assert.rejects(access(path.join(outputDirectory, "internal-skills", "browser-use")), {
+    code: "ENOENT",
+  });
   const promptSource = path.join(outputDirectory, "internal-prompts", "example");
   await mkdir(promptSource);
   for (const locale of ["en-US", "zh-CN"])
@@ -163,6 +166,7 @@ test("bundled resources install into the Pi directory after relocation and pruni
   assert.equal(extension.sourceInfo.origin, "package");
   assert.equal(extension.tools.has("workbench_browser"), true);
   assert.equal(extension.handlers.has("session_shutdown"), true);
+  assert.equal(loader.getSkills().skills.filter((skill) => skill.name === "browser-use").length, 1);
   const browserSkill = loader.getSkills().skills.find((skill) => skill.name === "browser-use");
   assert.equal(browserSkill?.sourceInfo.origin, "package");
   assert.equal(browserSkill?.sourceInfo.source, extension.sourceInfo.source);

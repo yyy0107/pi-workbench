@@ -3,7 +3,9 @@ import test from "node:test";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { validateToolArguments } from "@earendil-works/pi-ai";
 import type { BrowserCommand } from "@workbench/browser-contracts";
-import browserExtension, { createBrowserExtension } from "@workbench/pi-runtime-browser";
+import browserExtension, {
+  createBrowserExtension,
+} from "@workbench/pi-workbench-runtime/extensions/browser";
 import {
   bindPiAgentHostBindings,
   getPiAgentHostBindings,

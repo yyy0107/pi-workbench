@@ -15,4 +15,4 @@ pnpm --filter @workbench/browser-contracts test
 
 Source layout: src owns this capability and its contracts; lib contains consumed internal helpers; tests live at the package root. Example consumer: `src/index.ts` imports `lib/validation.ts`. Capability and helper code remains TS/TSX; existing build tooling retains its language.
 
-The `./host` entry owns the implementation-neutral BrowserHost command port. Pi tools and host bindings import it without depending on browser-server or pi-runtime-browser.
+The `./host` entry owns the implementation-neutral BrowserHost command port. Pi tools and host bindings import it without depending on browser-server or the Pi product.

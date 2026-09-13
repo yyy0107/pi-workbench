@@ -8,6 +8,7 @@
 | 将 Pi 接到 Workbench：客户端、服务端、RPC、会话投影与工具适配 | [pi-runtime](pi-runtime/README.md)                                              |
 | 修改 Pi 专属界面、扩展贡献和词典                              | [pi-ui](pi-ui/README.md)                                                        |
 | 选择内置 Skills、Prompts、默认扩展及安装顺序                  | [product](product/README.md)                                                    |
+| 找 Browser 控制工具、Pi 扩展与 browser-use Skill              | [产品 Browser](product/pi-workbench-runtime/src/browser/README.zh-CN.md)        |
 | 找通用 Agent 抽象、客户端能力合同和服务端执行端口             | `agent-runtime/agent-runtime-{core,contracts,client,server,testkit}`            |
 | 找可复用 UI、Shell、设置与外观能力                            | `client/ui-*`、`client/shell`、`client/settings-*`                              |
 | 找工作区状态、目录、文件与 Git 能力                           | `workspace/`；工作区界面在 `client/ui-workspace`                                |
@@ -52,7 +53,7 @@ import {
 
 ## 全部库包
 
-以下 97 个库包按当前目录列出。每个链接指向实际包目录，其 package.json exports 是公开入口的准确信息源。
+以下 96 个库包按当前目录列出。每个链接指向实际包目录，其 package.json exports 是公开入口的准确信息源。
 
 | 包目录                                                                         | 职责                                                                                                                                               |
 | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -114,7 +115,6 @@ import {
 | [pi-runtime/pi-rpc-client](pi-runtime/pi-rpc-client)                           | src owns Pi RPC/HTTP operations, installation transport snapshots and paired WebSocket generation/reconnect/wa…                                    |
 | [pi-runtime/pi-rpc-contracts](pi-runtime/pi-rpc-contracts)                     | Pi Runtime 在浏览器、Workbench Host 与 Pi server implementation 之间共享的 JSON-safe wire contracts。                                              |
 | [pi-runtime/pi-runtime-adapters](pi-runtime/pi-runtime-adapters)               | Pi Runtime 的 client/server 共用纯逻辑：Runtime 身份、命令投影、消息 reducer、模型能力与会话展示/                                                  |
-| [pi-runtime/pi-runtime-browser](pi-runtime/pi-runtime-browser)                 | Browser Pi Package 与配套 browser-use 技能                                                                                                         |
 | [pi-runtime/pi-runtime-client](pi-runtime/pi-runtime-client)                   | Pi 的浏览器侧 Headless Runtime 实现。                                                                                                              |
 | [pi-runtime/pi-runtime-server](pi-runtime/pi-runtime-server)                   | Pi's Node-side Workbench Runtime implementation. This package owns Pi sessions, resources, models, stream                                          |
 | [pi-sdk/pi-sdk-models](pi-sdk/pi-sdk-models)                                   | src owns provider/model configuration, auth/catalog operations and protected SDK service construction; lib sup…                                    |

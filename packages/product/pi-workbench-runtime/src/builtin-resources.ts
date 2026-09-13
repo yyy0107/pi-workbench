@@ -16,7 +16,8 @@ import { pathWithin } from "@workbench/pi-sdk-resources/resource-mutations";
 import {
   browserPackageArtifactRelativePath,
   browserPackageDirectory,
-} from "@workbench/pi-runtime-browser/resources";
+  createBrowserPackageManifest,
+} from "./browser/resources";
 import {
   workbenchToolSourceDirectory,
   WORKBENCH_TOOL_SOURCE_PATHS,
@@ -95,7 +96,7 @@ export async function ensureWorkbenchBuiltinResources(
           continue;
         }
         for (const entry of await readdir(source, { withFileTypes: true })) {
-          if (entry.isDirectory())
+          if (entry.isDirectory() && !(kind === "skills" && entry.name === "browser-use"))
             await copyBuiltinDirectory(
               path.join(source, entry.name),
               path.join(directories[kind], entry.name),
@@ -104,7 +105,7 @@ export async function ensureWorkbenchBuiltinResources(
       }
       // Development follows the live source; artifacts ship an independent compiled Pi package.
       const sourceRoot = fileURLToPath(browserPackageDirectory);
-      const sourceEntry = path.join(sourceRoot, "src", "index.ts");
+      const sourceEntry = path.join(sourceRoot, "resources", "extensions", "browser", "index.ts");
       const development = await lstat(sourceEntry).then(
         (entry) => entry.isFile(),
         (error: NodeJS.ErrnoException) => {
@@ -118,19 +119,15 @@ export async function ensureWorkbenchBuiltinResources(
       const browserDirectory = path.join(directories.packages, "browser");
       await ensureBuiltinDirectory(browserDirectory);
       if (development) {
+        await ensureBuiltinDirectory(path.join(browserDirectory, "skills"));
         await copyBuiltinDirectory(
-          path.join(browserRoot, "skills"),
-          path.join(browserDirectory, "skills"),
+          path.join(browserRoot, "resources", "skills", "browser-use"),
+          path.join(browserDirectory, "skills", "browser-use"),
         );
         await writeBuiltinFile(
           path.join(browserDirectory, "README.md"),
-          await readFile(path.join(browserRoot, "README.md"), "utf8"),
+          await readFile(path.join(browserRoot, "src", "browser", "README.md"), "utf8"),
         );
-        const browserManifest = JSON.parse(
-          await readFile(path.join(browserRoot, "package.json"), "utf8"),
-        );
-        if (browserManifest.name !== "@workbench/pi-runtime-browser")
-          throw new Error("The built-in Browser package manifest is invalid.");
         await writeBuiltinFile(
           path.join(browserDirectory, "index.js"),
           `export { default } from ${JSON.stringify(pathToFileURL(sourceEntry).href)};\n`,
@@ -142,21 +139,7 @@ export async function ensureWorkbenchBuiltinResources(
         );
         await writeBuiltinFile(
           path.join(browserDirectory, "package.json"),
-          JSON.stringify(
-            {
-              name: browserManifest.name,
-              version: browserManifest.version,
-              private: browserManifest.private,
-              description: browserManifest.description,
-              keywords: browserManifest.keywords,
-              type: "module",
-              exports: { ".": "./index.js", "./resources": "./resources.js" },
-              peerDependencies: browserManifest.peerDependencies,
-              pi: { ...browserManifest.pi, extensions: ["./index.js"] },
-            },
-            null,
-            2,
-          ) + "\n",
+          JSON.stringify(createBrowserPackageManifest(), null, 2) + "\n",
         );
       } else {
         await copyBuiltinDirectory(browserRoot, browserDirectory);

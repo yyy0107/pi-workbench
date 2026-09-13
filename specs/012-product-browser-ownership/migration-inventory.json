@@ -1,0 +1,120 @@
+{
+  "baseline": "9632f518",
+  "packagesBefore": 97,
+  "packagesAfter": 96,
+  "files": [
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/src/index.ts",
+      "to": "packages/product/pi-workbench-runtime/src/browser/index.ts",
+      "sha256Before": "c86ad8abd02e79ca802d1e34de8f04654a455a5eabc7b57fa37a91c5a79e65af",
+      "sha256After": "9e36317ccde817caf5033af8d16e0678354da9f98d9fa6c7be44999a5ea285df"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/src/tools.ts",
+      "to": "packages/product/pi-workbench-runtime/src/browser/tools.ts",
+      "sha256Before": "d4836143f692b63d6f860bb1c056b39ea6908fa2413583cf3f876fbb961ee642",
+      "sha256After": "13f7e6366307c3d0b5948543b69a50d56fa911a5a2553fc88caab6add063dfed"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/src/script.ts",
+      "to": "packages/product/pi-workbench-runtime/src/browser/script.ts",
+      "sha256Before": "f71e25621b42133f8b65486f632d001ea47226a738e7f4ca0a6f073fdc86e7c7",
+      "sha256After": "4d0f75a2e8bd211bef452c6fe0c07821a90d33c2f4466212de8de9c80d3bc2dc"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/src/standalone-host.ts",
+      "to": "packages/product/pi-workbench-runtime/src/browser/standalone-host.ts",
+      "sha256Before": "bc3de6cdc2c71c1bee642fac03379f4e1c64fcba480156770885bdf23517e085",
+      "sha256After": "bc3de6cdc2c71c1bee642fac03379f4e1c64fcba480156770885bdf23517e085"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/src/resources.ts",
+      "to": "packages/product/pi-workbench-runtime/src/browser/resources.ts",
+      "sha256Before": "998286c43627c84898b67aa97f2d9eaa0146e129e0e634e58aaca3d41db0414a",
+      "sha256After": "57462e44e7486b8749d65e6102b1a6d90cf50fc90ed52f6e2764b2f2ae47268f"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/lib/script-worker.ts",
+      "to": "packages/product/pi-workbench-runtime/src/browser/script-worker.ts",
+      "sha256Before": "2e5136bebb54ea76dfa2442dd69841ac75a4c415bc202fbc22435f3b79c2dbc9",
+      "sha256After": "2e5136bebb54ea76dfa2442dd69841ac75a4c415bc202fbc22435f3b79c2dbc9"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/build.mjs",
+      "to": "packages/product/pi-workbench-runtime/scripts/build-browser-package.mjs",
+      "sha256Before": "39ceebce24c0bc74a23e44c84387f406a7a1f3550f743000be4cbc088fd79f3b",
+      "sha256After": "9766cc7fa673c4f9d87fcef8779a976c8ef818cbfec1c508c1a5103cffb5aac3"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/tests/package.test.ts",
+      "to": "packages/product/pi-workbench-runtime/tests/browser-package.test.ts",
+      "sha256Before": "34348e085e4c9d5d2477a9015a15335eb4ba5a7055ed1369f813c810639c7770",
+      "sha256After": "dab5d50c254fa98ff079c19d0e773a4b9f590277fbf864dc57851190bdaeb3b3"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/tests/tools.test.ts",
+      "to": "packages/product/pi-workbench-runtime/tests/browser-tools.test.ts",
+      "sha256Before": "930a28d60223dcdc90f4eebb563a7f84070b76dd245d5b36acae90dcfb595888",
+      "sha256After": "ad3de14d027884e84fb7a119b58f34157f3984913c5f9ba802d537c21d9ed37c"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/tests/standalone-host.test.ts",
+      "to": "packages/product/pi-workbench-runtime/tests/browser-standalone-host.test.ts",
+      "sha256Before": "bec7b1db2cef24b91c90edf47b824377e04020e825da88f0a31c63826383ab51",
+      "sha256After": "b83964c323e5bb572795b1c8eca904080a9c58639dcb106eb67e77c655f460cd"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/README.md",
+      "to": "packages/product/pi-workbench-runtime/src/browser/README.md",
+      "sha256Before": "f7bbc88df92b9a112f246dc334e3ae18a568b77f7f5a041e708849c0de0c222b",
+      "sha256After": "f6d64f4a9c69904e439c76bfb6dd17e3d2167bf7fa8166e4676f6e5f4d1a3bc1"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/README.zh-CN.md",
+      "to": "packages/product/pi-workbench-runtime/src/browser/README.zh-CN.md",
+      "sha256Before": "d32649c966608f92e20055b51228befd48f9aaf34a40aca592a884af3b10c293",
+      "sha256After": "9bc23c86b26d2b5d793836ef8a67207af04f964f09da644f43fe09821fd026da"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/skills/browser-use/SKILL.md",
+      "to": "packages/product/pi-workbench-runtime/resources/skills/browser-use/SKILL.md",
+      "sha256Before": "65379906aeafcbc164dc7fe16b9af0acc7ec30363b025c554eb6060729df5c3d",
+      "sha256After": "65379906aeafcbc164dc7fe16b9af0acc7ec30363b025c554eb6060729df5c3d"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/skills/browser-use/references/permissions.md",
+      "to": "packages/product/pi-workbench-runtime/resources/skills/browser-use/references/permissions.md",
+      "sha256Before": "4b6316fb54c3a01742ff115abc092c6c01550a158043e2d215c0e4779b6b80a1",
+      "sha256After": "4b6316fb54c3a01742ff115abc092c6c01550a158043e2d215c0e4779b6b80a1"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/skills/browser-use/references/screenshots.md",
+      "to": "packages/product/pi-workbench-runtime/resources/skills/browser-use/references/screenshots.md",
+      "sha256Before": "1a140dc60319f90a21b88445f4aef1b97ffa9f9b137c61d3f5c4df47c66949d5",
+      "sha256After": "1a140dc60319f90a21b88445f4aef1b97ffa9f9b137c61d3f5c4df47c66949d5"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/skills/browser-use/references/interaction.md",
+      "to": "packages/product/pi-workbench-runtime/resources/skills/browser-use/references/interaction.md",
+      "sha256Before": "b68d46c54beb3049cf18e7a26084e635fa27db390f55e4783d53a2106cfa7c66",
+      "sha256After": "b68d46c54beb3049cf18e7a26084e635fa27db390f55e4783d53a2106cfa7c66"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/skills/browser-use/references/navigation.md",
+      "to": "packages/product/pi-workbench-runtime/resources/skills/browser-use/references/navigation.md",
+      "sha256Before": "80a7fa0f03773c969f8fee36199b0566a48f42e0a175f428fd9ba24479685976",
+      "sha256After": "80a7fa0f03773c969f8fee36199b0566a48f42e0a175f428fd9ba24479685976"
+    },
+    {
+      "from": "packages/pi-runtime/pi-runtime-browser/skills/browser-use/references/cdp.md",
+      "to": "packages/product/pi-workbench-runtime/resources/skills/browser-use/references/cdp.md",
+      "sha256Before": "89ec9abe5d1377d7d55402aa4fac4168ee42df94dbc007cfa544c52c56773184",
+      "sha256After": "89ec9abe5d1377d7d55402aa4fac4168ee42df94dbc007cfa544c52c56773184"
+    }
+  ],
+  "newSources": ["packages/product/pi-workbench-runtime/resources/extensions/browser/index.ts"],
+  "entryMap": {
+    "@workbench/pi-runtime-browser": "@workbench/pi-workbench-runtime/extensions/browser",
+    "@workbench/pi-runtime-browser/resources": "@workbench/pi-workbench-runtime/browser-resources"
+  }
+}

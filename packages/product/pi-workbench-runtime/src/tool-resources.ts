@@ -3,6 +3,7 @@ declare const __WORKBENCH_BUNDLED_RESOURCES__: boolean;
 /** Only tool implementation snapshots and attribution belong in internal-extensions. */
 export const WORKBENCH_TOOL_SOURCE_PATHS = Object.freeze([
   "resources/extensions",
+  "src/browser",
   "src/bash",
   "src/ask-user",
   "src/grep",

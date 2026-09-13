@@ -1,4 +1,4 @@
-import { workerSource } from "../lib/script-worker";
+import { workerSource } from "./script-worker";
 import { readFile, realpath, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";

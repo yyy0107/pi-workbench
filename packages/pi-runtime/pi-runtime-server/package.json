@@ -43,7 +43,6 @@
     "@workbench/local-host-server": "workspace:*",
     "@workbench/pi-rpc-contracts": "workspace:*",
     "@workbench/pi-runtime-adapters": "workspace:*",
-    "@workbench/pi-runtime-browser": "workspace:*",
     "@workbench/pi-sdk-models": "workspace:*",
     "@workbench/pi-sdk-ports": "workspace:*",
     "@workbench/pi-sdk-resources": "workspace:*",

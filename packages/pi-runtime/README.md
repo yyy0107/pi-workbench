@@ -1,6 +1,6 @@
 # Pi 的 Workbench Runtime 适配
 
-这里负责 Workbench 工具实现，并将 Pi 能力接到 Workbench：客户端安装、服务端接线、RPC 合同/连接、数据与会话投影。寻找底层 SDK 会话、模型、资源或工具实现请到 [pi-sdk](../pi-sdk/README.md)。完整协议与生命周期说明见 [integration.md](integration.md)。
+这里将 Pi 能力接到 Workbench：客户端安装、服务端接线、RPC 合同/连接、数据与会话投影。寻找底层 SDK 会话、模型与资源加载请到 [pi-sdk](../pi-sdk/README.md)。完整协议与生命周期说明见 [integration.md](integration.md)。
 
 [返回包导航](../README.md)
 
@@ -15,12 +15,6 @@
 
 ## Workbench 工具与扩展实现
 
-| 包                                                    | 职责                                                             | 入口                                          |
-| ----------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------- |
-| [pi-runtime-browser](pi-runtime-browser/package.json) | 可独立安装的 Browser Pi Package，包含工具和配套 browser-use 技能 | `@workbench/pi-runtime-browser`、`/resources` |
+Workbench 专属工具、扩展和 Skill 归 [pi-workbench-runtime](../product/pi-workbench-runtime/README.zh-CN.md)，包括 Browser。通用浏览器能力归 browser-server/browser-contracts。
 
-默认选择哪些内联扩展及其顺序由 `@workbench/pi-workbench-runtime/extensions` 持有。`pi-runtime-server` 的装配代码选择此 Node 产品配置，提供 Host 依赖后再注入 SDK 会话；工具实现与 SDK 服务均不导入该产品包。
-
-Browser 包的 `skills/browser-use` 与 Browser 扩展一同分发，供独立 Pi CLI 复用，因而与扩展共置；Workbench 是否内置安装它，由产品配置决定。
-
-Workbench 专属工具、产品提示与内联扩展在 [pi-workbench-runtime](../product/pi-workbench-runtime/README.zh-CN.md)。例如自定义 bash 使用 `@workbench/pi-workbench-runtime/tools/bash`；本层保留 Pi RPC/客户端/服务端适配与可独立复用的 Browser 包。
+本层只保留 Pi RPC、客户端/服务端适配与装配；SDK 不反向导入产品。默认内联扩展由产品 `/extensions` 装配，Browser 由产品生成的兼容 Pi package 加载，保留已有安装过滤。

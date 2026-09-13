@@ -23,3 +23,8 @@ files. Moving files does not authorize changes to bundled instructions or user d
 Product extension resources may be exported directly from resources/extensions/<name>/index.ts.
 Keep their TypeScript in the product typecheck and dependency closure checks. Static injection remains
 the only activation route; do not additionally enable discovered copies.
+
+Browser execution belongs in src/browser, registration in resources/extensions/browser, and the
+only browser-use Skill source in resources/skills/browser-use. Generic browser-server/contracts
+remain independent. Preserve the generated Browser package identity and filters; do not also add
+Browser inline or copy its Skill to the ordinary .builtin Skill directory.

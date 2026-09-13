@@ -12,8 +12,8 @@ import type {
 import { validateToolArguments } from "@earendil-works/pi-ai";
 import { BROWSER_TOOL_ACTIONS, type BrowserCommand } from "@workbench/browser-contracts";
 import { BrowserManager } from "@workbench/browser-server";
-import { createBrowserExtension } from "../src/index";
-import { runBrowserScript } from "../src/script";
+import { createBrowserExtension } from "@workbench/pi-workbench-runtime/extensions/browser";
+import { runBrowserScript } from "../src/browser/script";
 
 test("all harness tools load with schemas and keep selection, batches, research and local files scoped", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "browser-tools-"));

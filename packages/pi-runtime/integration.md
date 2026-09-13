@@ -532,13 +532,13 @@ Project Trust 遵循 Pi 的资源判定与持久化规则：没有受保护的�
 
 ## Skills
 
-内置 Browser Pi Package 源码位于 [`pi-runtime-browser/`](./pi-runtime-browser)，内置扩展注册入口位于
+Browser 的 Pi 工具实现位于 [`pi-workbench-runtime/src/browser/`](../product/pi-workbench-runtime/src/browser)，扩展注册入口位于
 [`pi-workbench-runtime/resources/extensions/`](../product/pi-workbench-runtime/resources/extensions)，工具执行与状态位于
 [`pi-workbench-runtime/src/`](../product/pi-workbench-runtime/src)。内置技能和提示词分别位于
 [`pi-workbench-runtime/resources/skills/`](../product/pi-workbench-runtime/resources/skills) 与
 [`pi-workbench-runtime/resources/prompts/`](../product/pi-workbench-runtime/resources/prompts)。这些源码目录由 Runtime
 构建器复制到产物的既有 `internal-skills`、`internal-prompts` 和 `internal-extensions` 目录。
-[`@workbench/pi-runtime-browser`](./pi-runtime-browser/README.md) 将 Browser 扩展与专属技能封装为 Pi Package。
+产品构建脚本将 Browser 扩展与专属技能生成兼容 Pi 部署产物，保留安装标识 `@workbench/pi-runtime-browser`；仓库不再保留同名独立工作区包。
 Workbench 将完整内置包部署到 Pi 用户目录的 `packages/.builtin/browser/`，并通过 Pi 原生 `packages`
 配置注册本地包。工具、技能和生命周期事件统一由同一份 `package.json` manifest 加载，来源为
 `package`；不再注册 `workbench.browser` 内联扩展或单独安装 Browser 技能。
@@ -548,7 +548,7 @@ Browser 扩展默认关闭；注册时仅为没有扩展开关的配置补上空
 Workbench 的所有技能（内置、用户、项目和安装包来源，包括后续新增技能）默认关闭。
 加载、技能目录和安装包详情统一要求所属范围的显式启用规则；用户可在工具箱中启用，
 继续使用 Pi 原生 `+path` / `-path` 持久化和重载机制，关闭的资源仍可查看文档和重新启用。
-Workbench 与使用同一 Pi 用户目录的独立 Pi CLI 消费同一份包，技能唯一源码位于包的 `skills/browser-use/`。
+Workbench 与使用同一 Pi 用户目录的独立 Pi CLI 消费同一份包，技能唯一源码位于产品 `resources/skills/browser-use/`，仅随产物部署到 `skills/browser-use/`，不再复制到普通内置 Skill 目录。
 独立 Pi CLI 惰性启动同一 BrowserManager 引擎，通过 Pi UI 处理权限确认，并在会话结束时释放浏览器；
 Workbench 则继续使用应用的共享浏览器与权限 UI。
 `browser-use` 技能通过同包扩展的 `workbench_browser` 工具控制应用内浏览器，

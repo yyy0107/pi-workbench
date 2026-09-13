@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -21,21 +21,20 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { BrowserCommand } from "@workbench/browser-contracts";
 import type { BrowserHost } from "@workbench/browser-contracts/host";
-import { browserPackageArtifactRelativePath } from "../src/resources";
+import { ensureWorkbenchBuiltinResources } from "../src/builtin-resources";
+import { browserPackageArtifactRelativePath } from "../src/browser/resources";
 
-test("the packed Pi package loads its extension and skill without private workspace dependencies", async (t) => {
+test("the product-generated Browser package loads its extension and skill without private workspace dependencies", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "pi-browser-package-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const packageRoot = fileURLToPath(new URL("../", import.meta.url));
-  const packed = spawnSync("pnpm", ["pack", "--pack-destination", directory], {
-    cwd: packageRoot,
-    encoding: "utf8",
-  });
-  assert.equal(packed.status, 0, packed.stderr || packed.stdout);
-  const archive = path.join(directory, "workbench-pi-runtime-browser-0.1.0.tgz");
-  const extracted = spawnSync("tar", ["-xzf", archive, "-C", directory], { encoding: "utf8" });
-  assert.equal(extracted.status, 0, extracted.stderr);
   const root = path.join(directory, "package");
+  const built = spawnSync(
+    process.execPath,
+    [path.join(packageRoot, "scripts/build-browser-package.mjs"), root],
+    { cwd: packageRoot, encoding: "utf8" },
+  );
+  assert.equal(built.status, 0, built.stderr || built.stdout);
   const manifest = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
   assert.deepEqual(manifest.pi, { extensions: ["./index.js"], skills: ["./skills"] });
   assert.equal(manifest.exports["."], "./index.js");
@@ -49,7 +48,7 @@ test("the packed Pi package loads its extension and skill without private worksp
   assert.doesNotMatch(code, /(?:from\s+|import\s*\()["']@workbench\//);
   const resource = (await import(
     pathToFileURL(path.join(root, "resources.js")).href
-  )) as typeof import("../src/resources");
+  )) as typeof import("../src/browser/resources");
   assert.equal(fileURLToPath(resource.browserPackageDirectory), root + path.sep);
   assert.equal(resource.browserPackageArtifactRelativePath, browserPackageArtifactRelativePath);
   await mkdir(path.join(directory, "agent"));
@@ -271,10 +270,12 @@ test("the packed Pi package loads its extension and skill without private worksp
   );
 });
 
-test("the source Pi package loads the live TypeScript entry", async (t) => {
+test("the product deployment loads the live Browser resource without duplicate skills", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "pi-browser-source-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const root = fileURLToPath(new URL("../", import.meta.url));
+  const directories = await ensureWorkbenchBuiltinResources(directory);
+  const root = path.join(directories.packages, "browser");
+  await assert.rejects(stat(path.join(directories.skills, "browser-use")), { code: "ENOENT" });
   const loader = new DefaultResourceLoader({
     cwd: directory,
     agentDir: directory,
@@ -287,7 +288,7 @@ test("the source Pi package loads the live TypeScript entry", async (t) => {
   const loaded = loader.getExtensions();
   assert.deepEqual(loaded.errors, []);
   assert.equal(loaded.extensions.length, 1);
-  assert.equal(loaded.extensions[0].resolvedPath, path.join(root, "src", "index.ts"));
+  assert.equal(loaded.extensions[0].resolvedPath, path.join(root, "index.js"));
   assert.equal(loaded.extensions[0].sourceInfo.origin, "package");
   assert.equal(loaded.extensions[0].tools.has("workbench_browser"), true);
   assert.equal(loaded.extensions[0].handlers.has("session_shutdown"), true);

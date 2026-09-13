@@ -7,7 +7,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { BrowserManager } from "@workbench/browser-server";
 import type { BrowserCommand, BrowserEvent } from "@workbench/browser-contracts";
 import type { BrowserHost } from "@workbench/browser-contracts/host";
-import { createBrowserHostResolver } from "../src/standalone-host";
+import { createBrowserHostResolver } from "../src/browser/standalone-host";
 
 async function fixture(t: test.TestContext) {
   const directory = await mkdtemp(path.join(tmpdir(), "pi-browser-host-"));

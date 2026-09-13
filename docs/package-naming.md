@@ -70,3 +70,7 @@ Spec011 将 Workbench 专属工具、提示、交互与 Todo 策略统一归入 
 不新增或运行 UI 测试、Browser/Electron UI 自动化或手工 UI 冒烟；既有测试随包保留。执行 frozen-lockfile 安装、静态路径/命名/依赖检查、类型检查、lint、精选非 UI 检查及完整构建。详细执行结果见 [package-naming-validation.md](package-naming-validation.md)。
 
 会话与输入相关 UI 能力统一归 `packages/client/`；原 `packages/conversation/` 已并入 client。包名及公共入口不因领域目录调整而变化。
+
+## Browser 产品归属（Spec012）
+
+Browser Pi 工具、扩展与 browser-use Skill 迁入 product/pi-workbench-runtime，删除独立 pi-runtime-browser 工作区包。库包总数 96。通用 browser-server/browser-contracts 保持原职责。旧 @workbench/pi-runtime-browser 名称只作为安装产物的稳定身份保留，源码与构建由产品持有；见 [迁移计划](../specs/012-product-browser-ownership/plan.md)。

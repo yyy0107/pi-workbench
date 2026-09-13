@@ -42,20 +42,25 @@
     "./extensions/composer-context": "./resources/extensions/composer-context/index.ts",
     "./extensions/message-termination": "./resources/extensions/message-termination/index.ts",
     "./extensions/context-trace": "./resources/extensions/context-trace/index.ts",
-    "./extensions/builtin-tools": "./resources/extensions/builtin-tools/index.ts"
+    "./extensions/builtin-tools": "./resources/extensions/builtin-tools/index.ts",
+    "./extensions/browser": "./resources/extensions/browser/index.ts",
+    "./tools/browser": "./src/browser/index.ts",
+    "./browser-resources": "./src/browser/resources.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
-    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package",
+    "build:browser-package": "node scripts/build-browser-package.mjs"
   },
   "dependencies": {
     "@earendil-works/pi-ai": "0.85.1",
     "@earendil-works/pi-coding-agent": "0.85.1",
     "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/api": "workspace:*",
+    "@workbench/browser-contracts": "workspace:*",
+    "@workbench/browser-server": "workspace:*",
     "@workbench/pi-rpc-contracts": "workspace:*",
     "@workbench/pi-runtime-adapters": "workspace:*",
-    "@workbench/pi-runtime-browser": "workspace:*",
     "@workbench/pi-sdk-ports": "workspace:*",
     "@workbench/pi-sdk-resources": "workspace:*",
     "@workbench/server-core": "workspace:*",
@@ -68,6 +73,7 @@
     "@types/node": "^26.2.0",
     "@workbench/agent-runtime-testkit": "workspace:*",
     "@workbench/settings-server": "workspace:*",
+    "esbuild": "^0.28.2",
     "typescript": "^7.0.2"
   }
 }

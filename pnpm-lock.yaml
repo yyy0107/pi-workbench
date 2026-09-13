@@ -2905,35 +2905,6 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/pi-runtime/pi-runtime-browser:
-    dependencies:
-      '@workbench/browser-contracts':
-        specifier: workspace:*
-        version: link:../../contracts/browser-contracts
-      '@workbench/browser-server':
-        specifier: workspace:*
-        version: link:../../server/browser-server
-    devDependencies:
-      '@earendil-works/pi-ai':
-        specifier: 0.85.1
-        version: 0.85.1(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
-      '@earendil-works/pi-coding-agent':
-        specifier: 0.85.1
-        version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      esbuild:
-        specifier: ^0.28.2
-        version: 0.28.2
-      typebox:
-        specifier: 1.3.7
-        version: 1.3.7
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-    publishDirectory: dist
-
   packages/pi-runtime/pi-runtime-client:
     dependencies:
       '@workbench/agent-runtime-client':
@@ -3033,9 +3004,6 @@ importers:
       '@workbench/pi-runtime-adapters':
         specifier: workspace:*
         version: link:../pi-runtime-adapters
-      '@workbench/pi-runtime-browser':
-        specifier: workspace:*
-        version: link:../pi-runtime-browser
       '@workbench/pi-sdk-models':
         specifier: workspace:*
         version: link:../../pi-sdk/pi-sdk-models
@@ -3854,15 +3822,18 @@ importers:
       '@workbench/api':
         specifier: workspace:*
         version: link:../../transport/api
+      '@workbench/browser-contracts':
+        specifier: workspace:*
+        version: link:../../contracts/browser-contracts
+      '@workbench/browser-server':
+        specifier: workspace:*
+        version: link:../../server/browser-server
       '@workbench/pi-rpc-contracts':
         specifier: workspace:*
         version: link:../../pi-runtime/pi-rpc-contracts
       '@workbench/pi-runtime-adapters':
         specifier: workspace:*
         version: link:../../pi-runtime/pi-runtime-adapters
-      '@workbench/pi-runtime-browser':
-        specifier: workspace:*
-        version: link:../../pi-runtime/pi-runtime-browser
       '@workbench/pi-sdk-ports':
         specifier: workspace:*
         version: link:../../pi-sdk/pi-sdk-ports
@@ -3894,6 +3865,9 @@ importers:
       '@workbench/settings-server':
         specifier: workspace:*
         version: link:../../server/settings-server
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

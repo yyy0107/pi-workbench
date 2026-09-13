@@ -3199,9 +3199,16 @@ export async function copyRuntimeBuiltinResources(
     ["packages/product/pi-workbench-runtime/resources/skills", "internal-skills"],
     ["packages/product/pi-workbench-runtime/resources/prompts", "internal-prompts"],
   ]) {
-    await cp(path.join(repositoryRoot, source), path.join(outputDirectory, relative), {
-      recursive: true,
-    });
+    await mkdir(path.join(outputDirectory, relative), { recursive: true });
+    for (const entry of await readdir(path.join(repositoryRoot, source))) {
+      // Browser's Skill is installed only through the product-generated compatibility package.
+      if (relative === "internal-skills" && entry === "browser-use") continue;
+      await cp(
+        path.join(repositoryRoot, source, entry),
+        path.join(outputDirectory, relative, entry),
+        { recursive: true },
+      );
+    }
   }
   for (const relative of WORKBENCH_TOOL_SOURCE_PATHS) {
     const destination = path.join(outputDirectory, "internal-extensions", relative);
@@ -3215,7 +3222,10 @@ export async function copyRuntimeBuiltinResources(
   const browserBuild = spawnSync(
     process.execPath,
     [
-      path.join(repositoryRoot, "packages/pi-runtime/pi-runtime-browser/build.mjs"),
+      path.join(
+        repositoryRoot,
+        "packages/product/pi-workbench-runtime/scripts/build-browser-package.mjs",
+      ),
       path.join(outputDirectory, "internal-packages/browser"),
     ],
     { encoding: "utf8" },

@@ -469,7 +469,7 @@ test("Pi extension registration lives in executable product resource entries", (
   const entries = Object.entries(manifest.exports).filter(([key]) =>
     key.startsWith("./extensions/"),
   );
-  assert.equal(entries.length, 8);
+  assert.equal(entries.length, 9);
   for (const [key, target] of entries) {
     assert.equal(target, `./resources/${key.slice(2)}/index.ts`);
     const source = readFileSync(path.join(product, target), "utf8");
@@ -484,4 +484,17 @@ test("Pi extension registration lives in executable product resource entries", (
     specifier.includes("/extensions/"),
   );
   assert.equal(factories.length, 8);
+});
+
+test("Browser Pi resources belong to the product while the browser engine stays independent", () => {
+  assert.equal(workspaceManifests.has("@workbench/pi-runtime-browser"), false);
+  const product = path.join(repositoryRoot, "packages/product/pi-workbench-runtime");
+  assert.ok(existsSync(path.join(product, "resources/skills/browser-use/SKILL.md")));
+  assert.ok(existsSync(path.join(product, "resources/extensions/browser/index.ts")));
+  for (const entry of ["@workbench/browser-server", "@workbench/browser-contracts/host"])
+    assertCapabilityClosure(entry, /^@workbench\/pi-workbench-runtime(?:\/|$)/u, {
+      runtimeOnly: true,
+    });
+  const composition = readFileSync(path.join(product, "src/extensions.ts"), "utf8");
+  assert.doesNotMatch(composition, /extensions\/browser/u, "Browser must not also register inline");
 });

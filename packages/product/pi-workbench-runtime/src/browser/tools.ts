@@ -2,10 +2,10 @@ import { randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-  ToolDefinition,
+import {
+  defineTool,
+  type ExtensionContext,
+  type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Type, type TSchema } from "typebox";
 import { BROWSER_TOOL_ACTIONS, type BrowserFile } from "@workbench/browser-contracts";
@@ -319,224 +319,227 @@ const definitions: Record<
   },
 };
 
-export function registerHarnessTools(
-  pi: ExtensionAPI,
+export function createHarnessTools(
   core: ToolDefinition,
   resolveHost: (context: ExtensionContext) => BrowserHost | undefined,
-): () => void {
+) {
   const selectedTabs = new Map<string, string>();
+  const tools: ToolDefinition[] = [];
   for (const [name, action] of Object.entries(BROWSER_TOOL_ACTIONS)) {
     const definition = definitions[name as keyof typeof definitions];
-    pi.registerTool({
-      name,
-      label: name,
-      description: definition.description,
-      promptSnippet: definition.description.split(". ")[0],
-      parameters: Type.Object({
-        sessionId: optionalText(256),
-        targetId: optionalText(256),
-        ...definition.parameters,
-      }),
-      executionMode: definition.read ? "parallel" : "sequential",
-      async execute(callId, args, signal, onUpdate, ctx) {
-        signal?.throwIfAborted();
-        if (args.sessionId && args.targetId && args.sessionId !== args.targetId)
-          throw new Error("Use one sessionId or targetId.");
-        // Pi validates this heterogeneous catalog against the selected tool's concrete schema.
-        const { sessionId, targetId, ...params } = args as Record<string, any>;
-        const threadId = ctx.sessionManager.getSessionId();
-        const current = selectedTabs.get(threadId);
-        const selected =
-          sessionId ?? targetId ?? current ?? `workbench-${ctx.sessionManager.getSessionId()}`;
-        const call = (
-          command: string,
-          fields: Record<string, unknown> = {},
-          id = selected,
-          callSignal = signal,
-        ) =>
-          core.execute(
-            callId,
-            { action: command, sessionId: id, params: fields },
-            callSignal,
-            onUpdate,
-            ctx,
-          );
-        if (action === "http-get") return httpGet(params, signal);
-        if (action === "run-script") {
-          const host = resolveHost(ctx);
-          if (!host) throw new Error("The browser is unavailable.");
-          const settings = await host.command({ type: "settings.get" }, signal);
-          if (
-            !settings ||
-            typeof settings !== "object" ||
-            !("fullCdpAccess" in settings) ||
-            !settings.fullCdpAccess
-          )
-            throw new Error("Enable full CDP access in Browser settings before running scripts.");
-          await call("attach");
-          return runBrowserScript(
-            params,
-            ctx,
-            signal,
-            async (method, parameters, scriptSignal) => {
-              const result = await call(
-                "cdp",
-                { method, params: parameters },
-                selected,
-                scriptSignal,
-              );
-              const value = result.content.find((part) => part.type === "text");
-              return value?.type === "text" ? JSON.parse(value.text) : undefined;
-            },
-            onUpdate,
-          );
-        }
-        if (action === "open-urls") {
-          const urls = params.urls as string[];
-          const opened = await Promise.allSettled(
-            urls.map((url) => call("attach", { url }, `workbench-${randomUUID()}`)),
-          );
+    tools.push(
+      defineTool({
+        name,
+        label: name,
+        description: definition.description,
+        promptSnippet: definition.description.split(". ")[0],
+        parameters: Type.Object({
+          sessionId: optionalText(256),
+          targetId: optionalText(256),
+          ...definition.parameters,
+        }),
+        executionMode: definition.read ? "parallel" : "sequential",
+        async execute(callId, args, signal, onUpdate, ctx) {
           signal?.throwIfAborted();
-          const browserSessions = opened.flatMap((result) =>
-            result.status === "fulfilled" ? [result.value.details] : [],
-          );
-          const last = browserSessions.at(-1) as { browserSessionId?: string } | undefined;
-          if (last?.browserSessionId) selectedTabs.set(threadId, last.browserSessionId);
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(
-                  opened.map((result, i) =>
-                    result.status === "fulfilled"
-                      ? { url: params.urls[i], ...(result.value.details as object) }
-                      : { url: params.urls[i], error: String(result.reason) },
-                  ),
-                ),
+          if (args.sessionId && args.targetId && args.sessionId !== args.targetId)
+            throw new Error("Use one sessionId or targetId.");
+          // Pi validates this heterogeneous catalog against the selected tool's concrete schema.
+          const { sessionId, targetId, ...params } = args as Record<string, any>;
+          const threadId = ctx.sessionManager.getSessionId();
+          const current = selectedTabs.get(threadId);
+          const selected =
+            sessionId ?? targetId ?? current ?? `workbench-${ctx.sessionManager.getSessionId()}`;
+          const call = (
+            command: string,
+            fields: Record<string, unknown> = {},
+            id = selected,
+            callSignal = signal,
+          ) =>
+            core.execute(
+              callId,
+              { action: command, sessionId: id, params: fields },
+              callSignal,
+              onUpdate,
+              ctx,
+            );
+          if (action === "http-get") return httpGet(params, signal);
+          if (action === "run-script") {
+            const host = resolveHost(ctx);
+            if (!host) throw new Error("The browser is unavailable.");
+            const settings = await host.command({ type: "settings.get" }, signal);
+            if (
+              !settings ||
+              typeof settings !== "object" ||
+              !("fullCdpAccess" in settings) ||
+              !settings.fullCdpAccess
+            )
+              throw new Error("Enable full CDP access in Browser settings before running scripts.");
+            await call("attach");
+            return runBrowserScript(
+              params,
+              ctx,
+              signal,
+              async (method, parameters, scriptSignal) => {
+                const result = await call(
+                  "cdp",
+                  { method, params: parameters },
+                  selected,
+                  scriptSignal,
+                );
+                const value = result.content.find((part) => part.type === "text");
+                return value?.type === "text" ? JSON.parse(value.text) : undefined;
               },
-            ],
-            details: { browserSessions },
-          };
-        }
-        if (name === "browser_new_tab") {
-          const id = `workbench-${randomUUID()}`;
-          const result = await call("attach", params, id);
-          selectedTabs.set(threadId, id);
-          return result;
-        }
-        if (action === "tabs.list") return call(action, params);
-        if (action === "tabs.switch") {
-          if (!sessionId && !targetId)
-            throw new Error("Provide an observed sessionId or targetId.");
-          const result = await call(action);
-          selectedTabs.set(threadId, selected);
-          return result;
-        }
-        if (
-          action !== "attach" &&
-          action !== "close" &&
-          !sessionId &&
-          !targetId &&
-          !current &&
-          action !== "web-search" &&
-          !(action === "read-page" && params.url)
-        ) {
-          await call("attach");
-          selectedTabs.set(threadId, selected);
-        }
-        if (action === "fill") {
-          params.text = params.value;
-          delete params.value;
-        }
-        if (action === "dialog.respond") {
-          params.text = params.promptText;
-          delete params.promptText;
-        }
-        if (action === "viewport") params.visible = true;
-        if (action === "scroll") params.deltaY ??= 300;
-        if (action === "download.configure" && params.downloadPath !== undefined) {
-          if (params.directory !== undefined && params.directory !== params.downloadPath)
-            throw new Error("Use one downloadPath or directory.");
-          params.directory = params.downloadPath;
-          delete params.downloadPath;
-        }
-        if (action === "print" && params.outputPath !== undefined) {
-          if (params.path !== undefined && params.path !== params.outputPath)
-            throw new Error("Use one outputPath or path.");
-          params.path = params.outputPath;
-          delete params.outputPath;
-        }
-        if (action === "drag")
-          Object.assign(params, {
-            fromX: params.startX,
-            fromY: params.startY,
-            toX: params.endX,
-            toY: params.endY,
-          });
-        if (action === "navigate" && params.includeSnapshot !== false) {
-          const navigated = await call(action, { url: params.url });
-          try {
-            await call("wait-for-load", { timeout: params.timeout });
-            return await call("snapshot", { query: params.query });
-          } catch (error) {
+              onUpdate,
+            );
+          }
+          if (action === "open-urls") {
+            const urls = params.urls as string[];
+            const opened = await Promise.allSettled(
+              urls.map((url) => call("attach", { url }, `workbench-${randomUUID()}`)),
+            );
             signal?.throwIfAborted();
+            const browserSessions = opened.flatMap((result) =>
+              result.status === "fulfilled" ? [result.value.details] : [],
+            );
+            const last = browserSessions.at(-1) as { browserSessionId?: string } | undefined;
+            if (last?.browserSessionId) selectedTabs.set(threadId, last.browserSessionId);
             return {
-              ...navigated,
               content: [
-                ...navigated.content,
                 {
-                  type: "text" as const,
-                  text: JSON.stringify({
-                    observationUnavailable: error instanceof Error ? error.message : String(error),
-                  }),
+                  type: "text",
+                  text: JSON.stringify(
+                    opened.map((result, i) =>
+                      result.status === "fulfilled"
+                        ? { url: params.urls[i], ...(result.value.details as object) }
+                        : { url: params.urls[i], error: String(result.reason) },
+                    ),
+                  ),
                 },
               ],
+              details: { browserSessions },
             };
           }
-        }
-        if (action === "upload") {
-          if (!path.isAbsolute(params.filePath)) throw new Error("filePath must be absolute.");
-          const info = await stat(params.filePath);
-          if (!info.isFile() || info.size > 8 * 1024 * 1024)
-            throw new Error("Upload a regular file no larger than 8 MiB.");
-          const data = await readFile(params.filePath, { signal });
-          params.files = [
-            {
-              name: path.basename(params.filePath),
-              mimeType: "application/octet-stream",
-              data: data.toString("base64"),
-            },
-          ];
-          delete params.filePath;
-        }
-        const result = await call(action, params);
-        if (action === "attach") selectedTabs.set(threadId, selected);
-        if (action === "close" && selected === current) selectedTabs.delete(threadId);
-        if (action === "print") {
-          const value = result.content.find((part) => part.type === "text");
-          const file: BrowserFile = JSON.parse(value?.type === "text" ? value.text : "{}");
-          if (typeof file.data !== "string") throw new Error("The browser did not return a PDF.");
-          const output = params.path
-            ? path.resolve(ctx.cwd, params.path)
-            : path.join(await mkdtemp(path.join(tmpdir(), "browser-pdf-")), file.name);
-          await mkdir(path.dirname(output), { recursive: true });
-          await writeFile(output, Buffer.from(file.data, "base64"), {
-            flag: "wx",
-            mode: 0o600,
-            signal,
-          });
-          return {
-            content: [
-              { type: "text", text: JSON.stringify({ path: output, mimeType: file.mimeType }) },
-            ],
-            details: result.details,
-          };
-        }
-        return result;
-      },
-    });
+          if (name === "browser_new_tab") {
+            const id = `workbench-${randomUUID()}`;
+            const result = await call("attach", params, id);
+            selectedTabs.set(threadId, id);
+            return result;
+          }
+          if (action === "tabs.list") return call(action, params);
+          if (action === "tabs.switch") {
+            if (!sessionId && !targetId)
+              throw new Error("Provide an observed sessionId or targetId.");
+            const result = await call(action);
+            selectedTabs.set(threadId, selected);
+            return result;
+          }
+          if (
+            action !== "attach" &&
+            action !== "close" &&
+            !sessionId &&
+            !targetId &&
+            !current &&
+            action !== "web-search" &&
+            !(action === "read-page" && params.url)
+          ) {
+            await call("attach");
+            selectedTabs.set(threadId, selected);
+          }
+          if (action === "fill") {
+            params.text = params.value;
+            delete params.value;
+          }
+          if (action === "dialog.respond") {
+            params.text = params.promptText;
+            delete params.promptText;
+          }
+          if (action === "viewport") params.visible = true;
+          if (action === "scroll") params.deltaY ??= 300;
+          if (action === "download.configure" && params.downloadPath !== undefined) {
+            if (params.directory !== undefined && params.directory !== params.downloadPath)
+              throw new Error("Use one downloadPath or directory.");
+            params.directory = params.downloadPath;
+            delete params.downloadPath;
+          }
+          if (action === "print" && params.outputPath !== undefined) {
+            if (params.path !== undefined && params.path !== params.outputPath)
+              throw new Error("Use one outputPath or path.");
+            params.path = params.outputPath;
+            delete params.outputPath;
+          }
+          if (action === "drag")
+            Object.assign(params, {
+              fromX: params.startX,
+              fromY: params.startY,
+              toX: params.endX,
+              toY: params.endY,
+            });
+          if (action === "navigate" && params.includeSnapshot !== false) {
+            const navigated = await call(action, { url: params.url });
+            try {
+              await call("wait-for-load", { timeout: params.timeout });
+              return await call("snapshot", { query: params.query });
+            } catch (error) {
+              signal?.throwIfAborted();
+              return {
+                ...navigated,
+                content: [
+                  ...navigated.content,
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify({
+                      observationUnavailable:
+                        error instanceof Error ? error.message : String(error),
+                    }),
+                  },
+                ],
+              };
+            }
+          }
+          if (action === "upload") {
+            if (!path.isAbsolute(params.filePath)) throw new Error("filePath must be absolute.");
+            const info = await stat(params.filePath);
+            if (!info.isFile() || info.size > 8 * 1024 * 1024)
+              throw new Error("Upload a regular file no larger than 8 MiB.");
+            const data = await readFile(params.filePath, { signal });
+            params.files = [
+              {
+                name: path.basename(params.filePath),
+                mimeType: "application/octet-stream",
+                data: data.toString("base64"),
+              },
+            ];
+            delete params.filePath;
+          }
+          const result = await call(action, params);
+          if (action === "attach") selectedTabs.set(threadId, selected);
+          if (action === "close" && selected === current) selectedTabs.delete(threadId);
+          if (action === "print") {
+            const value = result.content.find((part) => part.type === "text");
+            const file: BrowserFile = JSON.parse(value?.type === "text" ? value.text : "{}");
+            if (typeof file.data !== "string") throw new Error("The browser did not return a PDF.");
+            const output = params.path
+              ? path.resolve(ctx.cwd, params.path)
+              : path.join(await mkdtemp(path.join(tmpdir(), "browser-pdf-")), file.name);
+            await mkdir(path.dirname(output), { recursive: true });
+            await writeFile(output, Buffer.from(file.data, "base64"), {
+              flag: "wx",
+              mode: 0o600,
+              signal,
+            });
+            return {
+              content: [
+                { type: "text", text: JSON.stringify({ path: output, mimeType: file.mimeType }) },
+              ],
+              details: result.details,
+            };
+          }
+          return result;
+        },
+      }),
+    );
   }
-  return () => selectedTabs.clear();
+  return { tools, resetSelection: () => selectedTabs.clear() };
 }
 
 async function httpGet(args: Record<string, any>, signal?: AbortSignal) {

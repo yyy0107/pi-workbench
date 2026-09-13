@@ -63,6 +63,9 @@ This package has no root entry. `/tools` only prepares loaded extension results 
 | `@workbench/pi-workbench-runtime/extensions/message-termination`                    | [resources/extensions/message-termination/index.ts](./resources/extensions/message-termination/index.ts)   |
 | `@workbench/pi-workbench-runtime/extensions/context-trace`                          | [resources/extensions/context-trace/index.ts](./resources/extensions/context-trace/index.ts)               |
 | `@workbench/pi-workbench-runtime/extensions/builtin-tools`                          | [resources/extensions/builtin-tools/index.ts](./resources/extensions/builtin-tools/index.ts)               |
+| `@workbench/pi-workbench-runtime/extensions/browser`                                | [resources/extensions/browser/index.ts](./resources/extensions/browser/index.ts)                           |
+| `@workbench/pi-workbench-runtime/tools/browser`                                     | [src/browser/index.ts](./src/browser/index.ts)                                                             |
+| `@workbench/pi-workbench-runtime/browser-resources`                                 | [src/browser/resources.ts](./src/browser/resources.ts)                                                     |
 
 ## Source navigation
 
@@ -83,13 +86,13 @@ Each custom tool owns a directory under `src/`: `bash`, `ask-user`, `grep`, `fin
 
 ## Boundaries and composition
 
-Extension registration lives in `resources/extensions/<name>/index.ts`; tool schemas, execution, state, and output stay in `src/<tool-name>/`. Import extension factories through `/extensions/<name>`. The eight existing combined `/tools/<name>` entries retain their previous symbols and resolve to the same resource modules; all 29 previous entries remain available (37 entries in total). `src/extensions.ts` statically imports the resources and injects host dependencies, preserving ordering and enablement. These host-owned resources are not additionally enabled through filesystem discovery. See [extension resource guide](resources/extensions/README.md).
+Extension registration lives in `resources/extensions/<name>/index.ts`; tool schemas, execution, state, and output stay in `src/<tool-name>/`. Import extension factories through `/extensions/<name>`. The eight existing combined `/tools/<name>` entries retain their previous symbols and resolve to the same resource modules; all 29 previous entries remain available (40 entries in total). `src/extensions.ts` statically imports the resources and injects host dependencies, preserving ordering and enablement. These host-owned resources are not additionally enabled through filesystem discovery. See [extension resource guide](resources/extensions/README.md).
 
 The product owns concrete tool implementations and product rules. Generic PTY, terminal sessions and native dependencies stay in terminal-server; Git/workspace capabilities stay in workspace-server; SDK sessions, models and resource loading stay in pi-sdk.
 
 Runtime composition injects Host, trace, settings and the shared terminal session manager. SDK sessions receive tool-override selection and review parsing through PiSessionRuntimeDependencies callbacks, without importing this product. The product imports neither React, frontend product composition nor pi-runtime-server.
 
-Browser remains a complete Pi Package usable by standalone Pi CLI in pi-runtime-browser; this product selects its default installation. `/resources` deploys resources; `/tool-resources` describes only tool source snapshots. Builders and development deployment share an allowlist so Skills/Prompts and product deployment code are not duplicated under internal-extensions.
+Browser tool execution, its Pi extension, and the browser-use skill now all belong to this product. The product generates the existing Browser Pi deployment package; its persisted package identity and enablement filters stay compatible. No independent Browser workspace package remains. `/resources` deploys resources; `/tool-resources` describes only tool source snapshots. Builders and development deployment share an allowlist so Skills/Prompts and product deployment code are not duplicated under internal-extensions.
 
 Tool names, source identifiers such as workbench.terminal, extension IDs, schemas, prompts, output budgets, cancellation, enablement and persistence formats remain stable. Artifact roots internal-skills/internal-prompts/internal-extensions/internal-packages/browser and .builtin locations remain intact. Tool snapshots now use per-tool `src/<tool-name>/` directories; cleanup removes only the known retired flat files and preserves unknown additions.
 
@@ -99,7 +102,7 @@ Tool names, source identifiers such as workbench.terminal, extension IDs, schema
 - [workspace-server](../../server/workspace-server/README.md)
 - [pi-sdk-sessions](../../pi-sdk/pi-sdk-sessions/README.md)
 - [pi-sdk-resources](../../pi-sdk/pi-sdk-resources/README.md)
-- [pi-runtime-browser](../../pi-runtime/pi-runtime-browser/README.md)
+- [browser-server](../../server/browser-server/README.md)
 - [pi-runtime-server](../../pi-runtime/pi-runtime-server/README.md)
 
 ## Validation
@@ -110,3 +113,9 @@ pnpm --filter @workbench/pi-workbench-runtime test
 ```
 
 [Spec011 plan and validation](../../../specs/011-product-tool-ownership/plan.md). This migration uses non-UI logic, type, structure, dependency and build checks; UI rendering and interaction tests are excluded.
+
+## Browser ownership
+
+Browser execution and host adaptation: [src/browser](src/browser/README.md). Pi registration: [resources/extensions/browser](resources/extensions/browser/index.ts). Skill source: [resources/skills/browser-use](resources/skills/browser-use/SKILL.md). Import registration through `/extensions/browser`, execution through `/tools/browser`, and deployment metadata through `/browser-resources`.
+
+The generic BrowserManager and BrowserHost remain in browser-server/browser-contracts. The product build script generates `internal-packages/browser`; the existing `@workbench/pi-runtime-browser` name is retained only as installed package identity. Browser loads once through that package, not again through the default inline list. `browser-use` is skipped by the ordinary built-in Skill copy and deployed only with the Browser package.

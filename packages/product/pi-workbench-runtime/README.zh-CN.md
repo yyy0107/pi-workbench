@@ -63,6 +63,9 @@ import type { WorkbenchToolDependencies } from "@workbench/pi-workbench-runtime/
 | `@workbench/pi-workbench-runtime/extensions/message-termination`                    | [resources/extensions/message-termination/index.ts](./resources/extensions/message-termination/index.ts)   |
 | `@workbench/pi-workbench-runtime/extensions/context-trace`                          | [resources/extensions/context-trace/index.ts](./resources/extensions/context-trace/index.ts)               |
 | `@workbench/pi-workbench-runtime/extensions/builtin-tools`                          | [resources/extensions/builtin-tools/index.ts](./resources/extensions/builtin-tools/index.ts)               |
+| `@workbench/pi-workbench-runtime/extensions/browser`                                | [resources/extensions/browser/index.ts](./resources/extensions/browser/index.ts)                           |
+| `@workbench/pi-workbench-runtime/tools/browser`                                     | [src/browser/index.ts](./src/browser/index.ts)                                                             |
+| `@workbench/pi-workbench-runtime/browser-resources`                                 | [src/browser/resources.ts](./src/browser/resources.ts)                                                     |
 
 ## 源码导航
 
@@ -83,13 +86,13 @@ import type { WorkbenchToolDependencies } from "@workbench/pi-workbench-runtime/
 
 ## 边界与装配
 
-扩展注册位于 `resources/extensions/<name>/index.ts`；工具参数、执行、状态与结果处理留在 `src/<tool-name>/`。扩展工厂优先从 `/extensions/<name>` 导入。原有 8 个混合工具/扩展 `/tools/<name>` 入口保留既有符号，并解析到相同资源模块；此前 29 个入口全部继续可用，当前共 37 个入口。`src/extensions.ts` 静态导入资源并注入宿主依赖，保留顺序与启停规则，不再额外通过文件发现加载这些宿主扩展。详见[扩展资源说明](resources/extensions/README.zh-CN.md)。
+扩展注册位于 `resources/extensions/<name>/index.ts`；工具参数、执行、状态与结果处理留在 `src/<tool-name>/`。扩展工厂优先从 `/extensions/<name>` 导入。原有 8 个混合工具/扩展 `/tools/<name>` 入口保留既有符号，并解析到相同资源模块；此前 29 个入口全部继续可用，当前共 40 个入口。`src/extensions.ts` 静态导入资源并注入宿主依赖，保留顺序与启停规则，不再额外通过文件发现加载这些宿主扩展。详见[扩展资源说明](resources/extensions/README.zh-CN.md)。
 
 产品包拥有具体工具实现及其产品规则。通用 PTY、终端会话与原生依赖仍归 terminal-server；Git 与工作区能力仍归 workspace-server；SDK 会话、模型与资源加载仍归 pi-sdk。
 
 Runtime 装配层注入 Host、Trace、设置和共享终端会话管理器。SDK 会话通过 PiSessionRuntimeDependencies 接收工具覆盖选择和审查解析回调，SDK 不导入本产品包。产品包也不导入 React、前端产品或 pi-runtime-server。
 
-Browser 是可供独立 Pi CLI 使用的完整 Pi Package，继续保留 pi-runtime-browser；本产品选择其默认安装。`/resources` 负责部署，`/tool-resources` 只描述工具源码快照。构建器和开发部署共用白名单，避免将 Skills/Prompts 或产品部署实现重复复制到 internal-extensions。
+Browser 工具执行、Pi 扩展与 browser-use 技能现在均归本产品。产品生成既有 Browser Pi 部署产物，保留安装标识与启停过滤兼容；不再保留独立 Browser 工作区包。`/resources` 负责部署，`/tool-resources` 只描述工具源码快照。构建器和开发部署共用白名单，避免将 Skills/Prompts 或产品部署实现重复复制到 internal-extensions。
 
 保持工具名称、workbench.terminal 等来源标识、扩展 ID、参数、提示、输出预算、取消、启停状态和持久化格式。产物根路径 internal-skills/internal-prompts/internal-extensions/internal-packages/browser 与 .builtin 位置保持；工具快照源码现在位于各自的 `src/<tool-name>/` 目录，仅精确退役已迁移的官方平铺文件，未知文件保留。
 
@@ -99,7 +102,7 @@ Browser 是可供独立 Pi CLI 使用的完整 Pi Package，继续保留 pi-runt
 - [workspace-server](../../server/workspace-server/README.zh-CN.md)
 - [pi-sdk-sessions](../../pi-sdk/pi-sdk-sessions/README.zh-CN.md)
 - [pi-sdk-resources](../../pi-sdk/pi-sdk-resources/README.zh-CN.md)
-- [pi-runtime-browser](../../pi-runtime/pi-runtime-browser/README.zh-CN.md)
+- [browser-server](../../server/browser-server/README.zh-CN.md)
 - [pi-runtime-server](../../pi-runtime/pi-runtime-server/README.zh-CN.md)
 
 ## 验证
@@ -110,3 +113,9 @@ pnpm --filter @workbench/pi-workbench-runtime test
 ```
 
 [Spec011 计划与验证](../../../specs/011-product-tool-ownership/plan.md)。本期只执行非 UI 逻辑、类型、结构、依赖和构建检查，不运行 UI 渲染或交互测试。
+
+## Browser 归属
+
+工具执行与宿主适配：[src/browser](src/browser/README.zh-CN.md)。Pi 注册：[resources/extensions/browser](resources/extensions/browser/index.ts)。Skill 唯一源码：[resources/skills/browser-use](resources/skills/browser-use/SKILL.md)。扩展从 `/extensions/browser` 导入，执行定义从 `/tools/browser` 导入，部署元数据从 `/browser-resources` 导入。
+
+通用 BrowserManager 与 BrowserHost 仍归 browser-server/browser-contracts。产品构建脚本生成 `internal-packages/browser`，`@workbench/pi-runtime-browser` 仅作为既有安装包标识保留。Browser 只通过该产物加载一次，不再次加入默认内联列表。常规内置 Skill 复制跳过 browser-use，只随 Browser 产物部署，保留用户开关。
