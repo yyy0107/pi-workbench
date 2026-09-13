@@ -151,7 +151,7 @@ export function ToolboxResourceList({
                 >
                   <span
                     className={cn(
-                      "bg-muted/30 group-hover/button:bg-card flex w-[var(--button-height-large)] shrink-0 items-center justify-center self-stretch rounded-[var(--button-radius)] transition-colors",
+                      "bg-muted/30 group-hover/button:bg-card flex size-[var(--button-height-large)] shrink-0 items-center justify-center rounded-[var(--button-radius)] transition-colors",
                       (item.kind === "skill" || item.kind === "extension") &&
                         !disabled &&
                         "text-info-foreground",
@@ -175,10 +175,7 @@ export function ToolboxResourceList({
                       ? withTooltip(
                           <span
                             title={description}
-                            className={cn(
-                              "text-muted-foreground mt-0.5 text-sm leading-5",
-                              item.kind === "extension" ? "line-clamp-3" : "block truncate",
-                            )}
+                            className="text-muted-foreground mt-0.5 block truncate text-sm leading-5"
                           >
                             {description}
                           </span>,

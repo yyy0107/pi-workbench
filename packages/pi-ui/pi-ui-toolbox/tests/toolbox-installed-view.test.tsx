@@ -286,7 +286,9 @@ test("built-in descriptions resolve Workbench and native entries with a fallback
         params,
       },
     ]);
-    assert.match(html, /line-clamp-3/);
+    assert.match(html, /truncate text-base leading-5/);
+    assert.match(html, /mt-0\.5 block truncate text-sm leading-5/);
+    assert.doesNotMatch(html, /line-clamp-/);
     assert.match(html, /ask_user/);
     assert.equal(
       builtinExtensionDescription(
