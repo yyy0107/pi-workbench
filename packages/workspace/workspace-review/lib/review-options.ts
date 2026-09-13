@@ -15,7 +15,7 @@ export const defaultReviewDisplayOptions: ReviewDisplayOptions = {
   fullFile: true,
   richText: true,
   wordDiff: false,
-  whitespace: true,
+  whitespace: false,
 };
 export type WordRange = readonly [start: number, end: number];
 

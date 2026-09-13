@@ -1,15 +1,13 @@
 "use client";
-import { reviewTranslationBundle } from "./i18n";
 import { useI18n } from "@workbench/i18n";
-
-import { memo, useMemo } from "react";
+import { Button, Collapsible, CollapsibleTrigger, CollapsibleContent } from "@workbench/ui";
+import { reviewTranslationBundle } from "./i18n";
+import { reviewContextSections } from "../lib/review-context";
+import { memo, useMemo, useState, type ReactNode } from "react";
 import type { WorkbenchHighlightedTokens } from "@workbench/code-highlighting/engine";
 import { tokenStyle } from "@workbench/code-highlighting";
 import { DiffContextSummary, numberedHunkLines, type DiffHunk } from "@workbench/code-highlighting";
-import { InlineFeedbackForm } from "@workbench/ui-workspace/presentation";
 
-import type { WorkspaceSurfaceInstance } from "@workbench/extension-sdk";
-import type { WorkbenchWorkspaceGitDiffRequest } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 import { reviewWordRanges, type ReviewDisplayOptions, type WordRange } from "../lib/review-options";
 
 function decoratedText(
@@ -18,6 +16,7 @@ function decoratedText(
   ranges: readonly WordRange[],
   whitespace: boolean,
 ) {
+  if (!ranges.length && !whitespace) return text;
   const boundaries = new Set([0, text.length]);
   for (const [from, to] of ranges) {
     if (from > start && from < start + text.length) boundaries.add(from - start);
@@ -47,83 +46,96 @@ function decoratedText(
   });
 }
 
+function ReviewContextLines({ count, children }: { count: number; children: () => ReactNode }) {
+  const { t } = useI18n(reviewTranslationBundle);
+  const [open, setOpen] = useState(false);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className="review-context-toggle">
+        <CollapsibleTrigger
+          render={
+            <Button
+              variant="ghost"
+              data-selection="none"
+              className="w-full justify-start bg-muted/40 font-normal text-muted-foreground"
+            />
+          }
+        >
+          {t("extensions.workspaceReview.unmodifiedLines", { count })}
+        </CollapsibleTrigger>
+      </div>
+      <CollapsibleContent>{open && children()}</CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 export const ReviewDiffHunk = memo(function ReviewDiffHunk({
   hunk,
-  filename,
-  surface,
-  request,
   options,
   tokens,
 }: {
   hunk: DiffHunk;
-  filename: string;
-  surface: WorkspaceSurfaceInstance;
-  request: WorkbenchWorkspaceGitDiffRequest;
   options: ReviewDisplayOptions;
   tokens?: WorkbenchHighlightedTokens;
 }) {
   const { t } = useI18n(reviewTranslationBundle);
+  const sections = useMemo(() => reviewContextSections(hunk.lines), [hunk.lines]);
   const words = useMemo(
     () =>
       options.wordDiff ? reviewWordRanges(hunk.lines) : new Map<number, readonly WordRange[]>(),
     [hunk.lines, options.wordDiff],
   );
   const lines = useMemo(() => numberedHunkLines(hunk), [hunk]);
+  const renderLines = (start: number, end: number) =>
+    lines.slice(start, end).map(({ line, oldLine, newLine }, sectionIndex) => {
+      const index = start + sectionIndex;
+      let offset = 0;
+      const ranges = words.get(index) ?? [];
+      return (
+        <div key={index} data-review-row="" data-kind={line.kind}>
+          <span aria-hidden className="review-line-number">
+            {newLine ?? oldLine}
+          </span>
+          {line.kind !== "context" && (
+            <span className="sr-only select-none">
+              {t(
+                line.kind === "added"
+                  ? "extensions.workspaceReview.change.added"
+                  : "extensions.workspaceReview.change.deleted",
+              )}
+            </span>
+          )}
+          <code>
+            {tokens?.[index]
+              ? tokens[index].map((token, tokenIndex) => {
+                  const start = offset;
+                  offset += token.content.length;
+                  return (
+                    <span key={tokenIndex} style={tokenStyle(token)}>
+                      {decoratedText(token.content, start, ranges, options.whitespace)}
+                    </span>
+                  );
+                })
+              : decoratedText(line.text || " ", 0, ranges, options.whitespace)}
+          </code>
+        </div>
+      );
+    });
+
   return (
     <div data-review-hunk="" data-wrap={options.wrap || undefined}>
-      <div className="bg-muted px-3 py-1 font-mono text-xs text-muted-foreground">{hunk.range}</div>
       <DiffContextSummary count={hunk.hiddenContextBefore} />
-      <div className="overflow-x-auto">
-        <div data-review-code="">
-          {lines.map(({ line, oldLine, newLine }, index) => {
-            let offset = 0;
-            const ranges = words.get(index) ?? [];
-            return (
-              <div key={index} data-review-row="" data-kind={line.kind}>
-                <span aria-hidden className="review-line-number" data-side="old">
-                  {oldLine}
-                </span>
-                <span aria-hidden className="review-line-number" data-side="new">
-                  {newLine}
-                </span>
-                <span aria-hidden className="review-line-marker">
-                  {line.kind === "added" ? "+" : line.kind === "removed" ? "−" : " "}
-                </span>
-                <code>
-                  {tokens?.[index]
-                    ? tokens[index].map((token, tokenIndex) => {
-                        const start = offset;
-                        offset += token.content.length;
-                        return (
-                          <span key={tokenIndex} style={tokenStyle(token)}>
-                            {decoratedText(token.content, start, ranges, options.whitespace)}
-                          </span>
-                        );
-                      })
-                    : decoratedText(line.text || " ", 0, ranges, options.whitespace)}
-                </code>
-                <div className="review-line-feedback">
-                  <InlineFeedbackForm
-                    surface={surface}
-                    kind="diff-line"
-                    label={t("extensions.workspaceReview.commentLine")}
-                    target={{
-                      path: filename,
-                      side: line.kind === "removed" ? "old" : "new",
-                      line: newLine ?? oldLine,
-                      reviewScope: request.scope,
-                      revision: request.revision,
-                      baseRevision: request.baseRevision,
-                      sessionId: request.sessionId,
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      <div data-review-code="">
+        {sections.map(({ start, end, collapsed }) =>
+          collapsed ? (
+            <ReviewContextLines key={start} count={end - start}>
+              {() => renderLines(start, end)}
+            </ReviewContextLines>
+          ) : (
+            <div key={start}>{renderLines(start, end)}</div>
+          ),
+        )}
       </div>
-      <DiffContextSummary count={hunk.hiddenContextAfter} />
     </div>
   );
 });

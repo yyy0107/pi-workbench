@@ -94,10 +94,6 @@ export function ReviewToolbar({
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent data-workspace-review="">
-          <DropdownMenuItem onClick={refresh}>
-            <RefreshCwIcon />
-            {t("extensions.workspaceReview.refresh")}
-          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => toggle("wrap")}>
             <WrapTextIcon />
             {t(
@@ -123,71 +119,41 @@ export function ReviewToolbar({
                 : "extensions.workspaceReview.showWhitespace",
             )}
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={onToggleFiles}>
+            {filesExpanded ? <ChevronsDownUpIcon /> : <ChevronsUpDownIcon />}
+            {t(
+              filesExpanded
+                ? "extensions.workspaceReview.collapseAllFiles"
+                : "extensions.workspaceReview.expandAllFiles",
+            )}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => toggle("fullFile")}>
+            <GitCommitIcon />
+            {t(
+              options.fullFile
+                ? "extensions.workspaceReview.disableFullFile"
+                : "extensions.workspaceReview.enableFullFile",
+            )}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => toggle("richText")}>
+            <UploadIcon />
+            {t(
+              options.richText
+                ? "extensions.workspaceReview.disableRichText"
+                : "extensions.workspaceReview.enableRichText",
+            )}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem disabled={!canCopy || pending} onClick={copy}>
+            <CopyIcon />
+            {t("extensions.workspaceReview.copyApply")}
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={t(
-          filesExpanded
-            ? "extensions.workspaceReview.collapseAllFiles"
-            : "extensions.workspaceReview.expandAllFiles",
-        )}
-        title={t(
-          filesExpanded
-            ? "extensions.workspaceReview.collapseAllFiles"
-            : "extensions.workspaceReview.expandAllFiles",
-        )}
-        aria-expanded={filesExpanded}
-        onClick={onToggleFiles}
-      >
-        {filesExpanded ? <ChevronsDownUpIcon /> : <ChevronsUpDownIcon />}
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={t(
-          options.fullFile
-            ? "extensions.workspaceReview.disableFullFile"
-            : "extensions.workspaceReview.enableFullFile",
-        )}
-        title={t(
-          options.fullFile
-            ? "extensions.workspaceReview.disableFullFile"
-            : "extensions.workspaceReview.enableFullFile",
-        )}
-        aria-pressed={options.fullFile}
-        onClick={() => toggle("fullFile")}
-      >
-        <GitCommitIcon />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={t(
-          options.richText
-            ? "extensions.workspaceReview.disableRichText"
-            : "extensions.workspaceReview.enableRichText",
-        )}
-        title={t(
-          options.richText
-            ? "extensions.workspaceReview.disableRichText"
-            : "extensions.workspaceReview.enableRichText",
-        )}
-        aria-pressed={options.richText}
-        onClick={() => toggle("richText")}
-      >
-        <UploadIcon />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={t("extensions.workspaceReview.copyApply")}
-        title={t("extensions.workspaceReview.copyApply")}
-        disabled={!canCopy || pending}
-        onClick={copy}
-      >
-        <CopyIcon />
+      <Button variant="ghost" className="shrink-0 font-normal" onClick={refresh}>
+        <RefreshCwIcon />
+        {t("extensions.workspaceReview.refresh")}
       </Button>
     </>
   );

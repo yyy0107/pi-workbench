@@ -16,10 +16,6 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@workbench/ui";
 import { ReviewToolbar } from "./review-toolbar";
@@ -36,7 +32,7 @@ function ReviewSurfaceHeaderContent({
   refresh,
   reviewRevision,
 }: ReviewProps & { refresh(): void; reviewRevision: number }) {
-  const { t, number } = useI18n(reviewTranslationBundle);
+  const { t } = useI18n(reviewTranslationBundle);
   const controller = useRightWorkspace();
   const isCommit =
     surface.params.reviewScope === "commit" || surface.params.reviewScope === "range";
@@ -67,13 +63,6 @@ function ReviewSurfaceHeaderContent({
   const query = useGitDiff(request, supported, `${surface.resourceKey}:${reviewRevision}`);
   const repository = query.data?.repository ? query.data : undefined;
   const filesExpanded = surface.params.filesExpanded === true;
-  const totals = repository?.files.reduce(
-    (sum, file) => ({
-      additions: sum.additions + (file.additions ?? 0),
-      deletions: sum.deletions + (file.deletions ?? 0),
-    }),
-    { additions: 0, deletions: 0 },
-  );
   const selection = surface.params.reviewScope;
   const reveal = (params: ReviewSurfaceParams) => {
     const id = controller.reveal({
@@ -116,64 +105,23 @@ function ReviewSurfaceHeaderContent({
           </span>
           <ChevronDownIcon />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="max-h-80 overflow-y-auto" data-workspace-review="">
+        <DropdownMenuContent className="w-max" data-workspace-review="">
           <DropdownMenuRadioGroup value={selection} onValueChange={select}>
-            <DropdownMenuRadioItem value="last-turn" disabled={!context.threadId}>
-              {t("extensions.workspaceReview.scope.last-turn")}
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="session" disabled={!context.threadId}>
-              {t("extensions.workspaceReview.scope.session")}
-            </DropdownMenuRadioItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuRadioItem value="uncommitted">
-              {t("extensions.workspaceReview.scope.uncommitted")}
-            </DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="unstaged">
               {t("extensions.workspaceReview.scope.unstaged")}
             </DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="staged">
               {t("extensions.workspaceReview.scope.staged")}
             </DropdownMenuRadioItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                {t("extensions.workspaceReview.committed")}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent data-workspace-review="">
-                <DropdownMenuRadioGroup value={selection} onValueChange={select}>
-                  <DropdownMenuRadioItem value="commit">
-                    {t("extensions.workspaceReview.scope.commit")}
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="range">
-                    {t("extensions.workspaceReview.scope.range")}
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
             <DropdownMenuRadioItem value="branch" disabled={!repository?.branches.length}>
               {t("extensions.workspaceReview.scope.branch")}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="last-turn" disabled={!context.threadId}>
+              {t("extensions.workspaceReview.scope.last-turn")}
             </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
-      {totals && (
-        <span
-          className="flex shrink-0 gap-1 text-sm tabular-nums"
-          aria-label={t("extensions.workspaceReview.lineChanges", totals)}
-          title={
-            repository?.nextOffset !== undefined
-              ? t("extensions.workspaceReview.partial")
-              : undefined
-          }
-        >
-          <span className="text-success-foreground" aria-hidden>
-            +{number(totals.additions)}
-          </span>
-          <span className="text-danger-foreground" aria-hidden>
-            −{number(totals.deletions)}
-          </span>
-        </span>
-      )}
       <div className="ms-auto flex min-w-0 items-center gap-1 text-muted-foreground">
         <ReviewToolbar
           request={request}

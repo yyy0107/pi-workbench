@@ -7,11 +7,19 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  ChevronUpIcon,
   CopyIcon,
   FileCode2Icon,
   FileDiffIcon,
 } from "lucide-react";
-import { memo, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  memo,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+} from "react";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 import type {
   WorkbenchWorkspaceGitChangedFile,
@@ -36,8 +44,8 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  PathEllipsis,
   useToastManager,
+  PathEllipsis,
 } from "@workbench/ui";
 import { useClipboardCopy } from "@workbench/ui/hooks";
 import { FileTypeIcon } from "@workbench/ui-file-presentation/icons";
@@ -50,7 +58,7 @@ import { useWorkbenchHighlightedLines } from "@workbench/code-highlighting";
 import { isMarkdownFile } from "@workbench/workspace-files/classification";
 import { ReviewDiffHunk } from "./review-diff-hunk";
 import { defaultReviewDisplayOptions, type ReviewDisplayOptions } from "../lib/review-options";
-import { parseUnifiedPatch, visiblePatchHunks } from "@workbench/code-highlighting";
+import { parseUnifiedPatch } from "@workbench/code-highlighting";
 import { useGitReviewService } from "./git-review-service";
 import { CommitSelection } from "./commit-selection";
 import { useGitDiff } from "./use-git-diff";
@@ -125,14 +133,12 @@ function MoreDiff({ query }: { query: ReturnType<typeof useGitDiff> }) {
 }
 
 const FilePatch = memo(function FilePatch({
-  surface,
   request,
   file,
   options,
   cacheKey,
 }: {
   options: ReviewDisplayOptions;
-  surface: ReviewProps["surface"];
   request: WorkbenchWorkspaceGitDiffRequest;
   file: WorkbenchWorkspaceGitChangedFile;
   cacheKey: string;
@@ -148,16 +154,31 @@ const FilePatch = memo(function FilePatch({
   const parsedHunks = useMemo(() => parseUnifiedPatch(patch), [patch]);
   const hunks = useMemo(
     () =>
-      visiblePatchHunks(parsedHunks).map((hunk): DiffHunk => ({
-        id: `${hunk.sourceHunkIndex}:${hunk.sourceBlockIndex}`,
+      parsedHunks.map((hunk, index): DiffHunk => ({
+        id: String(index),
         decision: "pending",
         range: `@@ -${hunk.oldStart},${hunk.lines.filter((line) => line.kind !== "added").length} +${hunk.newStart},${hunk.lines.filter((line) => line.kind !== "removed").length} @@`,
         lines: hunk.lines,
-        hiddenContextBefore: hunk.hiddenContextBefore,
-        hiddenContextAfter: hunk.hiddenContextAfter,
+        hiddenContextBefore:
+          index === 0
+            ? Math.max(0, hunk.oldStart - 1)
+            : Math.max(
+                0,
+                hunk.oldStart -
+                  parsedHunks[index - 1].oldStart -
+                  parsedHunks[index - 1].lines.filter((line) => line.kind !== "added").length,
+              ),
       })),
     [parsedHunks],
   );
+  const gutterWidth = useMemo(() => {
+    const maximumLine = parsedHunks.reduce(
+      (maximum, hunk) =>
+        Math.max(maximum, hunk.oldStart + hunk.lines.length, hunk.newStart + hunk.lines.length),
+      1,
+    );
+    return `${Math.max(3, String(maximumLine).length) + 2}ch`;
+  }, [parsedHunks]);
   const highlightCode = useMemo(
     () => (richText ? "" : hunks.flatMap((hunk) => hunk.lines.map((line) => line.text)).join("\n")),
     [hunks, richText],
@@ -184,7 +205,7 @@ const FilePatch = memo(function FilePatch({
     });
   }, [hunks, highlightedTokens]);
   return (
-    <div className="border-y border-border" aria-busy={query.loading}>
+    <div className="min-w-0 pb-2" aria-busy={query.loading}>
       {file.previousPath && (
         <p className="break-all px-3 py-2 text-xs text-muted-foreground">
           {t("extensions.workspaceReview.renamedFrom", { path: file.previousPath })}
@@ -224,17 +245,22 @@ const FilePatch = memo(function FilePatch({
           ))}
         </div>
       ) : (
-        hunks.map((hunk, index) => (
-          <ReviewDiffHunk
-            key={hunk.id}
-            hunk={hunk}
-            filename={file.path}
-            surface={surface}
-            request={request}
-            options={options}
-            tokens={tokensByHunk?.[index]}
-          />
-        ))
+        <div className="review-file-scroll min-w-0 overflow-x-auto">
+          <div
+            data-review-file-code=""
+            data-wrap={options.wrap || undefined}
+            style={{ "--review-gutter-width": gutterWidth } as CSSProperties}
+          >
+            {hunks.map((hunk, index) => (
+              <ReviewDiffHunk
+                key={hunk.id}
+                hunk={hunk}
+                options={options}
+                tokens={tokensByHunk?.[index]}
+              />
+            ))}
+          </div>
+        </div>
       )}
       {!query.loading && !query.error && query.data?.repository && !hunks.length && (
         <p className="p-3 text-sm text-muted-foreground">
@@ -278,11 +304,10 @@ const ReviewFile = memo(function ReviewFile({
   const openers = useOpenerService();
   const notifications = useToastManager();
   const { copy, status: copyStatus } = useClipboardCopy();
-  const [open, setOpen] = useState(false);
+  const [isOpen, setOpen] = useState(filesExpanded);
   useEffect(() => {
-    if (!filesExpanded) setOpen(false);
+    setOpen(filesExpanded);
   }, [filesExpanded]);
-  const isOpen = filesExpanded || open;
   const fileName = file.path.split(/[\\/]/).filter(Boolean).at(-1) ?? file.path;
   const displayPath = workspaceAbsolutePath(context.rootPath, file.path);
   const copyPathLabel =
@@ -291,11 +316,6 @@ const ReviewFile = memo(function ReviewFile({
       : copyStatus === "failed"
         ? t("extensions.workspaceReview.fileActions.pathCopyFailed")
         : t("extensions.workspaceReview.fileActions.copyPath");
-  const expandLabel = t(
-    isOpen
-      ? "extensions.workspaceReview.fileActions.collapse"
-      : "extensions.workspaceReview.fileActions.expand",
-  );
   const openFileTab = () => {
     void openers
       .open({
@@ -315,27 +335,33 @@ const ReviewFile = memo(function ReviewFile({
   };
   return (
     <Collapsible open={isOpen} onOpenChange={setOpen}>
-      <div className="group flex min-w-0 items-center bg-transparent pe-3 hover:[background:var(--button-background-hover)] focus-within:[background:var(--button-background-hover)] dark:[background:var(--button-background-hover)]">
+      <div className="flex min-w-0 items-center rounded-(--button-radius) hover:bg-(--button-background-hover) focus-within:bg-(--button-background-hover) active:bg-(--button-background-active)">
         <CollapsibleTrigger
           render={
             <Button
               variant="ghost"
-              data-frame="none"
               data-selection="none"
-              className="min-w-0 max-w-full shrink justify-start gap-2 text-xs font-normal aria-expanded:[background:transparent]! aria-expanded:text-foreground active:[background:transparent]!"
+              data-frame="none"
+              className="min-w-0 flex-1 shrink justify-start gap-2 text-sm font-normal"
             />
           }
           title={displayPath}
         >
           <FileTypeIcon path={file.path} className="size-(--icon-size-md) shrink-0" />
-          <PathEllipsis text={displayPath} mode="filename" className="shrink text-left" />
+          <span className="flex min-w-0 flex-1 items-center gap-2 text-left">
+            <span className="min-w-0 truncate text-foreground">{fileName}</span>
+            <PathEllipsis
+              text={`./${file.path.replaceAll("\\", "/").replace(/^\.\//, "")}`}
+              className="shrink text-muted-foreground"
+            />
+          </span>
           {file.binary ? (
-            <span className="shrink-0 text-muted-foreground">
+            <span className="shrink-0 text-xs text-muted-foreground">
               {t("extensions.workspaceReview.binaryShort")}
             </span>
           ) : file.additions !== undefined && file.deletions !== undefined ? (
             <span
-              className="flex shrink-0 gap-1 font-mono tabular-nums"
+              className="flex shrink-0 gap-1 tabular-nums"
               aria-label={t("extensions.workspaceReview.lineChanges", {
                 additions: file.additions,
                 deletions: file.deletions,
@@ -349,35 +375,27 @@ const ReviewFile = memo(function ReviewFile({
               </span>
             </span>
           ) : null}
+          <span className="flex shrink-0 text-muted-foreground">
+            {isOpen ? (
+              <ChevronUpIcon aria-hidden className="size-(--icon-size-sm)" />
+            ) : (
+              <ChevronDownIcon aria-hidden className="size-(--icon-size-sm)" />
+            )}
+          </span>
         </CollapsibleTrigger>
-        <div className="[--button-icon-frame-size:var(--icon-frame-size-xs)] [--button-icon-size:var(--icon-size-xs)] [--button-icon-radius:var(--icon-frame-radius-xs)] flex shrink-0 items-center gap-1 self-stretch text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 dark:opacity-100 motion-reduce:transition-none">
+        <div className="flex shrink-0 items-center gap-1 pe-2 text-muted-foreground">
           <Button
-            type="button"
             variant="ghost"
-            size="icon-xs"
+            size="icon-sm"
             aria-label={copyPathLabel}
             title={copyPathLabel}
             onClick={() => void copy(file.path)}
           >
             {copyStatus === "copied" ? <CheckIcon /> : <CopyIcon />}
           </Button>
-          <CollapsibleTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                aria-label={expandLabel}
-                title={expandLabel}
-              />
-            }
-          >
-            {isOpen ? <ChevronDownIcon /> : <ChevronRightIcon />}
-          </CollapsibleTrigger>
           <Button
-            type="button"
             variant="ghost"
-            size="icon-xs"
+            size="icon-sm"
             aria-label={t("extensions.workspaceReview.fileActions.openInFileTab")}
             title={t("extensions.workspaceReview.fileActions.openInFileTab")}
             disabled={!context.rootPath || !(context.worktreeId ?? context.projectId)}
@@ -391,7 +409,6 @@ const ReviewFile = memo(function ReviewFile({
         {isOpen && (
           <FilePatch
             key={`${options.fullFile}:${options.richText}`}
-            surface={surface}
             request={request}
             file={file}
             options={options}

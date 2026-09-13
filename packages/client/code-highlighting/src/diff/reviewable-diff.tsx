@@ -33,7 +33,7 @@ export function DiffContextSummary({ count = 0 }: { count?: number }) {
       data-slot="diff-context-summary"
       role="separator"
       aria-label={label}
-      className="border-border/60 bg-muted/70 text-muted-foreground flex min-h-(--button-height-compact) items-center border-y px-3 py-1 font-sans text-xs"
+      className="border-border/60 bg-muted/40 text-muted-foreground flex min-h-(--button-height-compact) items-center border-y px-3 py-1 font-sans text-xs"
     >
       {label}
     </div>
@@ -104,11 +104,13 @@ function ReviewableDiffHunkCode({ filename, hunk }: { filename: string; hunk: Di
 
 export function ReviewableDiff({
   filename,
+  path,
   hunks,
   className,
   ...props
 }: Omit<ComponentProps<"div">, "children" | "filename" | "hunks"> & {
   filename: string;
+  path?: string;
   hunks: readonly DiffHunk[];
 }) {
   const additions = hunks.reduce(
@@ -126,7 +128,7 @@ export function ReviewableDiff({
       className={cn(paper, "flex w-full max-w-md flex-col overflow-hidden rounded-2xl", className)}
       {...props}
     >
-      <DiffHeader filename={filename} additions={additions} deletions={deletions} />
+      <DiffHeader filename={filename} path={path} additions={additions} deletions={deletions} />
 
       <div
         data-slot="reviewable-diff-scroll"
