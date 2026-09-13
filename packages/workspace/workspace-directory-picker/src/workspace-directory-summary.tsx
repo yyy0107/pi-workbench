@@ -6,7 +6,7 @@ import { FolderPlusIcon, LoaderCircleIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { Button } from "@workbench/ui";
-import { WorkspaceSelector } from "@workbench/ui";
+import { WorkspaceSelector } from "@workbench/ui-selectors";
 
 import type { ComposerSlotContext } from "@workbench/extension-sdk";
 import { useCurrentSession } from "@workbench/agent-runtime-client";

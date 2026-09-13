@@ -1,5 +1,20 @@
 import type { MessageFormatters } from "@workbench/i18n/runtime";
 export const messages = {
+  ui: {
+    colorPicker: {
+      hex: "十六进制颜色",
+      red: "红",
+      green: "绿",
+      blue: "蓝",
+      hue: "色相",
+      saturation: "饱和度与明度",
+      saturationValue: (
+        { saturation, brightness }: { saturation: number; brightness: number },
+        { number }: MessageFormatters,
+      ) =>
+        `饱和度 ${number(saturation / 100, { style: "percent" })}，明度 ${number(brightness / 100, { style: "percent" })}`,
+    },
+  },
   extensions: {
     settings: {
       groups: {

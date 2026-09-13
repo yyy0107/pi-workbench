@@ -1,4 +1,4 @@
-@import "@workbench/ui/proportional-panel.css";
+@import "@workbench/ui-resize/styles.css";
 
 @property --thread-content-inline-gutter {
   syntax: "<length>";

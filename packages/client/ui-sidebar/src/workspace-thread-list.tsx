@@ -22,7 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workbench/ui";
-import { SidebarActions, SidebarGroup, SidebarRow, SidebarStatus } from "@workbench/ui";
+import { SidebarActions, SidebarGroup, SidebarRow, SidebarStatus } from "./sidebar-items";
 import { Skeleton } from "@workbench/ui";
 import { useTranslationBundle } from "@workbench/i18n";
 import { sidebarTranslationBundle } from "./i18n";

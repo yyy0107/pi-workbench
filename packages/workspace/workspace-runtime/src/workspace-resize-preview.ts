@@ -1,4 +1,4 @@
-import { resolveCollapsibleResizePreview } from "@workbench/ui/resize";
+import { resolveCollapsibleResizePreview } from "@workbench/ui-resize";
 
 import { MIN_RIGHT_WORKSPACE_WIDTH } from "./workspace-store";
 

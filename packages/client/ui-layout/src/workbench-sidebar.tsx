@@ -14,7 +14,7 @@ import { PanelLeftCloseIcon, SearchIcon, XIcon } from "lucide-react";
 
 import { Button } from "@workbench/ui";
 import { Input } from "@workbench/ui";
-import { Sidebar, useSidebar } from "@workbench/ui";
+import { Sidebar, useSidebar } from "@workbench/ui-sidebar/primitives";
 import { useI18n } from "@workbench/i18n";
 import { sidebarTranslationBundle } from "@workbench/ui-sidebar/i18n";
 import { useMainViewService, useSidebarSectionRegistry } from "@workbench/extension-host";

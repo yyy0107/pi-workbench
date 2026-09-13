@@ -36,7 +36,7 @@ import {
   useWorkspaceDraftStore,
 } from "@workbench/workspace-runtime/react";
 import * as rightWorkspaceReact from "@workbench/workspace-runtime/react";
-import { resolveCollapsibleResizePreview } from "@workbench/ui/resize";
+import { resolveCollapsibleResizePreview } from "@workbench/ui-resize";
 import { WorkbenchStatusbar } from "@workbench/ui-layout/statusbar";
 import { createI18n as createServerI18n } from "@workbench/shell/i18n/runtime";
 import { createPanelStore } from "@workbench/shell-context/panel-store";

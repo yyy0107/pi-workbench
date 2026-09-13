@@ -7,7 +7,7 @@ import { settingsUiTranslationBundle } from "../src/i18n";
 import { uiTranslationBundle } from "@workbench/ui/i18n";
 import { createPanelStore } from "@workbench/shell-context/panel-store";
 import { WorkbenchSettingsProvider } from "@workbench/settings-runtime";
-import { SidebarProvider } from "@workbench/ui";
+import { SidebarProvider } from "@workbench/ui-sidebar/primitives";
 import { SettingsMainViewContent } from "../src/settings-main-view-content";
 import { SettingsSidebarRail } from "../src/settings-sidebar-rail";
 import { SettingsSidebar } from "../src/settings-sidebar";

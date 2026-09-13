@@ -74,6 +74,7 @@
     "@types/react-dom": "^19.2.4",
     "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/appearance": "workspace:*",
+    "@workbench/ui-resize": "workspace:*",
     "@workbench/ui-testkit": "workspace:*",
     "lucide-react": "^1.29.0",
     "material-icon-theme": "^5.37.0",

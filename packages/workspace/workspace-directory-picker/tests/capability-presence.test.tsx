@@ -24,7 +24,7 @@ import {
   createSameOriginRuntimeConnection,
   RuntimeConnectionProvider,
 } from "@workbench/shell-context/runtime-connection";
-import { SearchableSelector, WorkspaceSelector } from "@workbench/ui";
+import { SearchableSelector, WorkspaceSelector } from "@workbench/ui-selectors";
 import { DirectoryPickerButton } from "../src/directory-picker-button";
 import { WorkspaceDirectorySummary } from "../src/workspace-directory-summary";
 

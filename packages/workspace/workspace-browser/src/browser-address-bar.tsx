@@ -16,7 +16,7 @@ import {
   SearchableSelectorItem,
   SearchableSelectorList,
   SearchableSelectorStatus,
-} from "@workbench/ui";
+} from "@workbench/ui-selectors";
 import type { BrowserSessionService } from "./browser-session-service";
 
 export function browserDisplayAddress(url: string, showFullUrl: boolean): string {

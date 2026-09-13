@@ -4,7 +4,7 @@ import { useI18n } from "@workbench/i18n";
 
 import { UserRoundIcon } from "lucide-react";
 
-import { WorkspaceSelector, type WorkspaceSelectorOption } from "@workbench/ui";
+import { WorkspaceSelector, type WorkspaceSelectorOption } from "@workbench/ui-selectors";
 
 import { usePiHostDescription } from "@workbench/pi-client/host";
 import { usePiWorkspaces } from "@workbench/pi-client/workspace";

@@ -4,7 +4,7 @@ import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
 import { Button } from "@workbench/ui";
-import { useSidebar } from "@workbench/ui";
+import { useSidebar } from "@workbench/ui-sidebar/primitives";
 import { useTranslationBundle } from "@workbench/i18n";
 import { sidebarTranslationBundle } from "@workbench/ui-sidebar/i18n";
 import { useWorkbenchBranding } from "@workbench/shell-context/presentation";

@@ -2,7 +2,7 @@
 
 import { memo, useLayoutEffect, useState } from "react";
 import type { CodeTheme } from "@workbench/appearance";
-import { useDisclosureScrollLock } from "@workbench/ui/disclosure";
+import { useDisclosureScrollLock } from "@workbench/ui-disclosure";
 import { cn } from "@workbench/ui/utils";
 import { CodexCodeHeader } from "./codex-code-header";
 import { MarkdownCodeBlock } from "./markdown-code-block";

@@ -6,7 +6,7 @@ import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react"
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Button } from "@workbench/ui";
 
-import { useDisclosureScrollLock } from "@workbench/ui/disclosure";
+import { useDisclosureScrollLock } from "@workbench/ui-disclosure";
 
 export function UserMessageTextBubble({ children }: { children: ReactNode }) {
   const { t } = useI18n(conversationTranslationBundle);

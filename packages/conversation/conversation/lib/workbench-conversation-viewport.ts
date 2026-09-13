@@ -3,7 +3,7 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import { useThreadScrollState, type ThreadReadingPosition } from "../src/thread-scroll-state";
-import { DISCLOSURE_SCROLL_UNLOCK_EVENT, isDisclosureScrollLocked } from "@workbench/ui/disclosure";
+import { DISCLOSURE_SCROLL_UNLOCK_EVENT, isDisclosureScrollLocked } from "@workbench/ui-disclosure";
 
 const BOTTOM_DISTANCE_THRESHOLD = 2;
 const TOP_DISTANCE_THRESHOLD = 32;

@@ -12,7 +12,7 @@ import {
   type WorkspaceCapabilities,
 } from "@workbench/agent-runtime-client/workspaces";
 import { installMinimalReactDomEnvironment } from "@workbench/ui-testkit";
-import { SidebarDragSessionProvider } from "@workbench/ui/hooks";
+import { SidebarDragSessionProvider } from "../src/use-sidebar-pointer-reorder";
 import { I18nProvider } from "@workbench/i18n";
 import { sidebarTranslationBundle } from "../src/i18n";
 import { WorkbenchSettingsProvider, type WorkbenchSettingsPort } from "@workbench/settings-runtime";
@@ -20,7 +20,7 @@ import {
   WorkbenchNavigationProvider,
   type WorkbenchNavigationPort,
 } from "@workbench/shell-context/navigation";
-import { SidebarRow } from "@workbench/ui";
+import { SidebarRow } from "../src/sidebar-items";
 import { WorkbenchThreadList } from "../src/thread-list";
 import { WorkbenchThreadListItem } from "../src/thread-list-item";
 import { NewThreadButton } from "../src/new-thread-button";

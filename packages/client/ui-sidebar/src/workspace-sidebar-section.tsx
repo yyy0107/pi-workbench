@@ -5,7 +5,7 @@ import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 
 import { useTranslationBundle } from "@workbench/i18n";
 import { sidebarTranslationBundle } from "./i18n";
-import { SidebarActions, SidebarGroup, SidebarSectionHeading } from "@workbench/ui";
+import { SidebarActions, SidebarGroup, SidebarSectionHeading } from "./sidebar-items";
 import { WorkbenchPinnedThreadList, WorkbenchWorkspaceThreadList } from "./workspace-thread-list";
 import {
   WorkspaceSidebarProvider,

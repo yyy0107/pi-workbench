@@ -13,7 +13,7 @@ import {
 
 import { LucideProvider } from "lucide-react";
 
-import { SidebarProvider } from "@workbench/ui";
+import { SidebarProvider } from "@workbench/ui-sidebar/primitives";
 import { WorkbenchPortalContainerProvider } from "@workbench/ui";
 import {
   RightWorkspace,
@@ -56,13 +56,13 @@ import {
 import { WorkbenchHeader } from "./workbench-header";
 import { WorkbenchSidebar } from "./workbench-sidebar";
 import { useSidebarSettingsHydration } from "./use-sidebar-settings-hydration";
-import { SidebarDragSessionProvider } from "@workbench/ui/hooks";
+import { SidebarDragSessionProvider } from "@workbench/ui-sidebar/reorder";
 import { WorkbenchDomIdsProvider } from "@workbench/shell-context/dom";
 import { observeWindowResize } from "../lib/window-resize";
 import { observeLayoutMotion } from "../lib/layout-motion";
 import { resolveTargetThreadWidth } from "@workbench/shell-context/layout";
 import { MOBILE_BREAKPOINT } from "@workbench/ui/hooks";
-import { resolveProportionalPanelWidth } from "@workbench/ui/resize";
+import { resolveProportionalPanelWidth } from "@workbench/ui-resize";
 import { MIN_CONVERSATION_WIDTH } from "@workbench/workspace-runtime";
 import { MIN_RIGHT_WORKSPACE_WIDTH } from "@workbench/workspace-runtime";
 

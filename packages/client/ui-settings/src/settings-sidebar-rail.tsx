@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import type { MainViewSidebarProps } from "@workbench/extension-sdk";
-import { useSidebar } from "@workbench/ui";
+import { useSidebar } from "@workbench/ui-sidebar/primitives";
 import type { SettingsMainViewParams } from "@workbench/ui-settings/request";
 import { SettingsSidebar } from "./settings-sidebar";
 

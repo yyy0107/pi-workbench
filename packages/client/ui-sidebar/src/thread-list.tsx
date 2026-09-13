@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslationBundle } from "@workbench/i18n";
 import { sidebarTranslationBundle } from "./i18n";
-import { SidebarRow } from "@workbench/ui";
+import { SidebarRow } from "./sidebar-items";
 import { Skeleton } from "@workbench/ui";
 import { WorkbenchThreadListItem } from "./thread-list-item";
 import { sidebarThreadScope, useWorkspaceSidebar } from "./workspace-sidebar-context";

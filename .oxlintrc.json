@@ -179,6 +179,9 @@
     {
       "files": [
         "packages/client/ui-sidebar/{src,lib}/**/*",
+        "packages/client/ui-selectors/{src,lib}/**/*",
+        "packages/client/ui-resize/{src,lib}/**/*",
+        "packages/client/ui-disclosure/{src,lib}/**/*",
         "packages/client/ui-panels/{src,lib}/**/*",
         "packages/client/ui-layout/{src,lib}/**/*"
       ],

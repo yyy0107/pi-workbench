@@ -21,6 +21,7 @@
     "@workbench/i18n": "workspace:*",
     "@workbench/shell-context": "workspace:*",
     "@workbench/ui": "workspace:*",
+    "@workbench/ui-selectors": "workspace:*",
     "lucide-react": "^1.29.0"
   },
   "devDependencies": {

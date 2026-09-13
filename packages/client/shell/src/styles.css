@@ -6,7 +6,9 @@
 @import "@workbench/workspace-browser/styles.css";
 @import "@workbench/ui-layout/styles.css";
 @import "@workbench/workspace-runtime/styles.css";
+@import "@workbench/ui-sidebar/styles.css";
 @import "@workbench/ui/components.css";
+@import "@workbench/ui-settings/color-picker.css";
 @import "@workbench/conversation/styles.css";
 @import "@workbench/composer/surface.css";
 @import "@workbench/markdown/styles.css";

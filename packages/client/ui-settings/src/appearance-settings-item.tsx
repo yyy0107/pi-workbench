@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CodeThemePreview } from "@workbench/code-highlighting";
 import { RunningThreadIndicator } from "@workbench/ui/running-indicator";
 import { Button } from "@workbench/ui";
-import { ColorPicker } from "@workbench/ui";
+import { ColorPicker } from "./color-picker";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@workbench/ui";
 import { DropdownMenu, DropdownMenuRadioGroup } from "@workbench/ui";
 import {

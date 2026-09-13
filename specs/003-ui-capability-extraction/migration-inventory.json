@@ -1,0 +1,707 @@
+{
+  "feature": "003-ui-capability-extraction",
+  "baseline": "8d4b6568",
+  "state": "implemented-validated",
+  "sourceManifest": {
+    "name": "@workbench/ui",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "sideEffects": ["**/*.css"],
+    "exports": {
+      ".": "./src/index.ts",
+      "./utils": "./src/utils.ts",
+      "./clipboard": "./src/clipboard.ts",
+      "./keyboard": "./src/keyboard-shortcut-owner.ts",
+      "./hooks": "./src/hooks/index.ts",
+      "./resize": "./src/resize.ts",
+      "./disclosure": "./src/disclosure.ts",
+      "./i18n": "./src/i18n/index.ts",
+      "./styles.css": "./src/styles.css",
+      "./tokens.css": "./src/tokens.css",
+      "./components.css": "./src/components.css",
+      "./proportional-panel.css": "./src/resize/proportional-panel.css",
+      "./running-indicator": "./src/components/running-thread-indicator.tsx"
+    },
+    "scripts": {
+      "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+      "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+    },
+    "dependencies": {
+      "@base-ui/react": "^1.7.0",
+      "@workbench/i18n": "workspace:*",
+      "class-variance-authority": "^0.7.1",
+      "clsx": "^2.1.1",
+      "cmdk": "^1.1.1",
+      "lucide-react": "^1.29.0",
+      "radix-ui": "^1.6.7",
+      "react-colorful": "^5.8.1",
+      "tailwind-merge": "^3.6.0"
+    },
+    "devDependencies": {
+      "@types/node": "^26.2.0",
+      "@types/react": "^19.2.18",
+      "@types/react-dom": "^19.2.4",
+      "@workbench/ui-testkit": "workspace:*",
+      "react": "^19.2.8",
+      "react-dom": "^19.2.8",
+      "typescript": "^7.0.2"
+    },
+    "peerDependencies": {
+      "react": "^19.2.8",
+      "react-dom": "^19.2.8"
+    }
+  },
+  "files": [
+    {
+      "source": "packages/client/ui/README.md",
+      "target": "packages/client/ui/README.md",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/README.zh-CN.md",
+      "target": "packages/client/ui/README.zh-CN.md",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/lib/clipboard.ts",
+      "target": "packages/client/ui/lib/clipboard.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/lib/components/model-selector-models.ts",
+      "target": "packages/client/ui-agent-controls/lib/model-selector-models.ts",
+      "owner": "ui-agent-controls",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/lib/disclosure/disclosure-scroll-policy.ts",
+      "target": "packages/client/ui-disclosure/lib/disclosure-scroll-policy.ts",
+      "owner": "ui-disclosure",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/lib/keyboard-shortcut-owner.ts",
+      "target": "packages/client/ui/lib/keyboard-shortcut-owner.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/lib/resize/observe-resize-handle.ts",
+      "target": "packages/client/ui-resize/lib/observe-resize-handle.ts",
+      "owner": "ui-resize",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/lib/resize/proportional-panel-size.ts",
+      "target": "packages/client/ui-resize/lib/proportional-panel-size.ts",
+      "owner": "ui-resize",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/lib/resize/resize-spring.ts",
+      "target": "packages/client/ui-resize/lib/resize-spring.ts",
+      "owner": "ui-resize",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/lib/utils.ts",
+      "target": "packages/client/ui/lib/utils.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/package.json",
+      "target": "packages/client/ui/package.json",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/clipboard.ts",
+      "target": "packages/client/ui/src/clipboard.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components.css",
+      "target": "packages/client/ui/src/components.css",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/avatar.tsx",
+      "target": "packages/client/ui/src/components/avatar.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/button.tsx",
+      "target": "packages/client/ui/src/components/button.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/collapsible-resize-handle.tsx",
+      "target": "packages/client/ui-resize/src/collapsible-resize-handle.tsx",
+      "owner": "ui-resize",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/components/collapsible.tsx",
+      "target": "packages/client/ui/src/components/collapsible.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/color-picker.css",
+      "target": "packages/client/ui-settings/src/color-picker.css",
+      "owner": "ui-settings",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/components/color-picker.tsx",
+      "target": "packages/client/ui-settings/src/color-picker.tsx",
+      "owner": "ui-settings",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/components/command.tsx",
+      "target": "packages/client/ui/src/components/command.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/context-menu.tsx",
+      "target": "packages/client/ui/src/components/context-menu.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/control-icons.css",
+      "target": "packages/client/ui/src/components/control-icons.css",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/dialog.tsx",
+      "target": "packages/client/ui/src/components/dialog.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/dropdown-menu.tsx",
+      "target": "packages/client/ui/src/components/dropdown-menu.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/index.ts",
+      "target": "packages/client/ui/src/components/index.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/input-group.tsx",
+      "target": "packages/client/ui/src/components/input-group.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/input.tsx",
+      "target": "packages/client/ui/src/components/input.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/menu-styles.ts",
+      "target": "packages/client/ui/src/components/menu-styles.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/model-selector.tsx",
+      "target": "packages/client/ui-agent-controls/src/model-selector-view.tsx",
+      "owner": "ui-agent-controls",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/components/path-ellipsis.tsx",
+      "target": "packages/client/ui/src/components/path-ellipsis.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/popover.tsx",
+      "target": "packages/client/ui/src/components/popover.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/progress.tsx",
+      "target": "packages/client/ui/src/components/progress.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/project-trust-dialog.tsx",
+      "target": "packages/client/ui/src/components/project-trust-dialog.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/running-thread-indicator.tsx",
+      "target": "packages/client/ui/src/components/running-thread-indicator.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/runtime-capability-unavailable.tsx",
+      "target": "packages/client/ui/src/components/runtime-capability-unavailable.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/searchable-selector.tsx",
+      "target": "packages/client/ui-selectors/src/searchable-selector.tsx",
+      "owner": "ui-selectors",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/components/select.tsx",
+      "target": "packages/client/ui/src/components/select.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/selector-dropdown.tsx",
+      "target": "packages/client/ui-selectors/src/selector-dropdown.tsx",
+      "owner": "ui-selectors",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/components/settings-control.tsx",
+      "target": "packages/client/ui/src/components/settings-control.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/settings-layout.tsx",
+      "target": "packages/client/ui/src/components/settings-layout.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/sheet.tsx",
+      "target": "packages/client/ui/src/components/sheet.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/sidebar-items.css",
+      "target": "packages/client/ui-sidebar/src/styles.css",
+      "owner": "ui-sidebar",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/components/sidebar-items.tsx",
+      "target": "packages/client/ui-sidebar/src/sidebar-items.tsx",
+      "owner": "ui-sidebar",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/components/sidebar.tsx",
+      "target": "packages/client/ui-sidebar/src/sidebar-primitives.tsx",
+      "owner": "ui-sidebar",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/components/skeleton.tsx",
+      "target": "packages/client/ui/src/components/skeleton.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/status-badge.tsx",
+      "target": "packages/client/ui/src/components/status-badge.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/surface.tsx",
+      "target": "packages/client/ui/src/components/surface.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/switch.tsx",
+      "target": "packages/client/ui/src/components/switch.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/tabs.tsx",
+      "target": "packages/client/ui/src/components/tabs.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/textarea.tsx",
+      "target": "packages/client/ui/src/components/textarea.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/time-picker.tsx",
+      "target": "packages/client/ui/src/components/time-picker.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/toast.tsx",
+      "target": "packages/client/ui/src/components/toast.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/tooltip-icon-button.tsx",
+      "target": "packages/client/ui/src/components/tooltip-icon-button.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/tooltip.tsx",
+      "target": "packages/client/ui/src/components/tooltip.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/workbench-portal-container.tsx",
+      "target": "packages/client/ui/src/components/workbench-portal-container.tsx",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/components/workspace-selector.tsx",
+      "target": "packages/client/ui-selectors/src/workspace-selector.tsx",
+      "owner": "ui-selectors",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/disclosure.ts",
+      "target": "packages/client/ui-disclosure/src/index.ts",
+      "owner": "ui-disclosure",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/disclosure/disclosure-scroll-direction.tsx",
+      "target": "packages/client/ui-disclosure/src/disclosure-scroll-direction.tsx",
+      "owner": "ui-disclosure",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/disclosure/scroll-compensated-details.tsx",
+      "target": "packages/client/ui-disclosure/src/scroll-compensated-details.tsx",
+      "owner": "ui-disclosure",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/disclosure/use-disclosure-scroll-lock.ts",
+      "target": "packages/client/ui-disclosure/src/use-disclosure-scroll-lock.ts",
+      "owner": "ui-disclosure",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/hooks/index.ts",
+      "target": "packages/client/ui/src/hooks/index.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/hooks/use-clipboard-copy.ts",
+      "target": "packages/client/ui/src/hooks/use-clipboard-copy.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/hooks/use-media-query.ts",
+      "target": "packages/client/ui/src/hooks/use-media-query.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/hooks/use-mobile.ts",
+      "target": "packages/client/ui/src/hooks/use-mobile.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/hooks/use-reduced-motion.ts",
+      "target": "packages/client/ui/src/hooks/use-reduced-motion.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/hooks/use-sidebar-pointer-reorder.tsx",
+      "target": "packages/client/ui-sidebar/src/use-sidebar-pointer-reorder.tsx",
+      "owner": "ui-sidebar",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/i18n/en-US.ts",
+      "target": "packages/client/ui/src/i18n/en-US.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/i18n/index.ts",
+      "target": "packages/client/ui/src/i18n/index.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/i18n/zh-CN.ts",
+      "target": "packages/client/ui/src/i18n/zh-CN.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/index.ts",
+      "target": "packages/client/ui/src/index.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/keyboard-shortcut-owner.ts",
+      "target": "packages/client/ui/src/keyboard-shortcut-owner.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/resize.ts",
+      "target": "packages/client/ui-resize/src/index.ts",
+      "owner": "ui-resize",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/resize/proportional-panel.css",
+      "target": "packages/client/ui-resize/src/styles.css",
+      "owner": "ui-resize",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/resize/use-collapsible-resize.ts",
+      "target": "packages/client/ui-resize/src/use-collapsible-resize.ts",
+      "owner": "ui-resize",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/resize/use-proportional-panel-size.ts",
+      "target": "packages/client/ui-resize/src/use-proportional-panel-size.ts",
+      "owner": "ui-resize",
+      "action": "move"
+    },
+    {
+      "source": "packages/client/ui/src/styles.css",
+      "target": "packages/client/ui/src/styles.css",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/styles.d.ts",
+      "target": "packages/client/ui/src/styles.d.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/tokens.css",
+      "target": "packages/client/ui/src/tokens.css",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/src/utils.ts",
+      "target": "packages/client/ui/src/utils.ts",
+      "owner": "ui",
+      "action": "retain"
+    },
+    {
+      "source": "packages/client/ui/tests/clipboard.test.ts",
+      "target": "packages/client/ui/tests/clipboard.test.ts",
+      "owner": "ui",
+      "action": "retain",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/disclosure-scroll-policy.test.ts",
+      "target": "packages/client/ui-disclosure/tests/disclosure-scroll-policy.test.ts",
+      "owner": "ui-disclosure",
+      "action": "move",
+      "validation": "eligible-non-ui-after-entry-audit"
+    },
+    {
+      "source": "packages/client/ui/tests/keyboard-shortcut-owner.test.ts",
+      "target": "packages/client/ui/tests/keyboard-shortcut-owner.test.ts",
+      "owner": "ui",
+      "action": "retain",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/menu-presentation.test.ts",
+      "target": "packages/client/ui/tests/menu-presentation.test.ts",
+      "owner": "ui",
+      "action": "retain",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/resize/observe-resize-handle.test.ts",
+      "target": "packages/client/ui-resize/tests/observe-resize-handle.test.ts",
+      "owner": "ui-resize",
+      "action": "move",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/resize/resize-spring.test.ts",
+      "target": "packages/client/ui-resize/tests/resize-spring.test.ts",
+      "owner": "ui-resize",
+      "action": "move",
+      "validation": "eligible-non-ui-after-entry-audit"
+    },
+    {
+      "source": "packages/client/ui/tests/resize/use-collapsible-resize.test.ts",
+      "target": "packages/client/ui-resize/tests/use-collapsible-resize.test.ts",
+      "owner": "ui-resize",
+      "action": "move",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/ui/button.test.tsx",
+      "target": "packages/client/ui/tests/ui/button.test.tsx",
+      "owner": "ui",
+      "action": "retain",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/ui/color-picker.test.ts",
+      "target": "packages/client/ui-settings/tests/color-picker.test.ts",
+      "owner": "ui-settings",
+      "action": "move",
+      "validation": "eligible-non-ui-after-entry-audit"
+    },
+    {
+      "source": "packages/client/ui/tests/ui/model-selector-models.test.ts",
+      "target": "packages/client/ui-agent-controls/tests/model-selector-models.test.ts",
+      "owner": "ui-agent-controls",
+      "action": "move",
+      "validation": "eligible-non-ui-after-entry-audit"
+    },
+    {
+      "source": "packages/client/ui/tests/ui/model-selector.test.tsx",
+      "target": "packages/client/ui-agent-controls/tests/model-selector-view.test.tsx",
+      "owner": "ui-agent-controls",
+      "action": "move",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/ui/path-ellipsis.test.tsx",
+      "target": "packages/client/ui/tests/ui/path-ellipsis.test.tsx",
+      "owner": "ui",
+      "action": "retain",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/ui/selector-dropdown.test.tsx",
+      "target": "packages/client/ui-selectors/tests/selector-dropdown.test.tsx",
+      "owner": "ui-selectors",
+      "action": "move",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/ui/shared-foundations.test.tsx",
+      "target": "packages/client/ui/tests/ui/shared-foundations.test.tsx",
+      "owner": "ui",
+      "action": "retain",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/ui/sidebar-items.test.tsx",
+      "target": "packages/client/ui-sidebar/tests/sidebar-items.test.tsx",
+      "owner": "ui-sidebar",
+      "action": "move",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/ui/surface.test.tsx",
+      "target": "packages/client/ui/tests/ui/surface.test.tsx",
+      "owner": "ui",
+      "action": "retain",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/ui/toast.test.tsx",
+      "target": "packages/client/ui/tests/ui/toast.test.tsx",
+      "owner": "ui",
+      "action": "retain",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/ui/tooltip.test.tsx",
+      "target": "packages/client/ui/tests/ui/tooltip.test.tsx",
+      "owner": "ui",
+      "action": "retain",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/ui/workspace-selector.test.tsx",
+      "target": "packages/client/ui-selectors/tests/workspace-selector.test.tsx",
+      "owner": "ui-selectors",
+      "action": "move",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tests/use-disclosure-scroll-lock.test.tsx",
+      "target": "packages/client/ui-disclosure/tests/use-disclosure-scroll-lock.test.tsx",
+      "owner": "ui-disclosure",
+      "action": "move",
+      "validation": "not-selected; UI/mixed tests excluded-by-user"
+    },
+    {
+      "source": "packages/client/ui/tsconfig.json",
+      "target": "packages/client/ui/tsconfig.json",
+      "owner": "ui",
+      "action": "retain"
+    }
+  ],
+  "partialExtractions": [
+    {
+      "source": "packages/client/ui/src/components/color-picker.tsx",
+      "symbol": "normalizeHexColor",
+      "target": "packages/client/ui-settings/lib/normalize-hex-color.ts",
+      "consumer": "packages/client/ui-settings/src/color-picker.tsx"
+    },
+    {
+      "source": "packages/client/ui/src/components/selector-dropdown.tsx",
+      "symbols": ["cssTimeMilliseconds", "widthTransitionMilliseconds"],
+      "target": "packages/client/ui-selectors/lib/selector-dropdown-metrics.ts",
+      "consumer": "packages/client/ui-selectors/src/selector-dropdown.tsx"
+    }
+  ],
+  "dictionaryKeyMove": {
+    "from": "@workbench/ui/i18n",
+    "to": "@workbench/ui-settings/i18n",
+    "keys": "ui.colorPicker.*",
+    "preserveKeys": true,
+    "locales": ["en-US", "zh-CN"]
+  },
+  "validationReport": "validation.md",
+  "result": {
+    "libraries": 75,
+    "testFiles": 535,
+    "mappedTargets": 100,
+    "movedFiles": 35,
+    "preservedUiSourceTests": 20,
+    "uiTests": "excluded-by-user"
+  }
+}

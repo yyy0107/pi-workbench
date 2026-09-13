@@ -7,7 +7,7 @@ import { ChevronDownIcon, LoaderIcon, type LucideIcon } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@workbench/ui";
 import { collapsePanel } from "@workbench/ui";
-import { useDisclosureScrollLock } from "@workbench/ui/disclosure";
+import { useDisclosureScrollLock } from "@workbench/ui-disclosure";
 import { cn } from "@workbench/ui/utils";
 
 const ANIMATION_DURATION = 200;

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolvePanelShare, resolveProportionalPanelWidth } from "@workbench/ui/resize";
+import { resolvePanelShare, resolveProportionalPanelWidth } from "@workbench/ui-resize";
 import { resolveExpandedThreadWidth } from "@workbench/shell-context/layout";
 
 test("opening a sidebar redistributes space in the current panel proportions", () => {

@@ -2,11 +2,11 @@
 
 import type { RefObject } from "react";
 
-import { useSidebar } from "@workbench/ui";
-import { CollapsibleResizeHandle } from "@workbench/ui";
+import { useSidebar } from "@workbench/ui-sidebar/primitives";
+import { CollapsibleResizeHandle } from "@workbench/ui-resize";
 import { useTranslationBundle } from "@workbench/i18n";
 import { sidebarTranslationBundle } from "@workbench/ui-sidebar/i18n";
-import { resolveCollapsibleResizePreview } from "@workbench/ui/resize";
+import { resolveCollapsibleResizePreview } from "@workbench/ui-resize";
 
 const NORMAL_SIDEBAR_WIDTH = 268;
 const WIDE_SIDEBAR_WIDTH = 420;

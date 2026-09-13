@@ -5,7 +5,7 @@ import { useAgentRuntime } from "@workbench/agent-runtime-client";
 import { useWorkspaceCapabilities } from "@workbench/agent-runtime-client/workspaces";
 import { Button } from "@workbench/ui";
 import { DropdownMenuItem } from "@workbench/ui";
-import { SidebarRow } from "@workbench/ui";
+import { SidebarRow } from "./sidebar-items";
 import { useTranslationBundle } from "@workbench/i18n";
 import { sidebarTranslationBundle } from "./i18n";
 import { useWorkspaceSidebar } from "./workspace-sidebar-context";

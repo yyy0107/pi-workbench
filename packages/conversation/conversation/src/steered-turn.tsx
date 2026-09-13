@@ -18,7 +18,7 @@ import {
   readWorkbenchTurnTiming,
 } from "@workbench/agent-runtime-contracts/message-metadata";
 
-import { useDisclosureScrollLock } from "@workbench/ui/disclosure";
+import { useDisclosureScrollLock } from "@workbench/ui-disclosure";
 
 import { CompletedTurnHeader } from "./completed-turn-header";
 import { CompletedTurnContent } from "./completed-turn-content";

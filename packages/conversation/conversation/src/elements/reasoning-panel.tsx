@@ -6,7 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@workbench/
 import { cn } from "@workbench/ui/utils";
 import { collapsePanel, mono, ShimmerLabel, SwapLabel } from "@workbench/ui";
 import { take } from "@workbench/code-highlighting";
-import { useDisclosureScrollLock } from "@workbench/ui/disclosure";
+import { useDisclosureScrollLock } from "@workbench/ui-disclosure";
 import { withTooltip } from "@workbench/ui";
 
 export interface ReasoningStep {

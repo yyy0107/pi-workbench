@@ -4,7 +4,7 @@ import type { PropsWithChildren } from "react";
 import { CompletedTurnHeader } from "../completed-turn-header";
 import { CompletedTurnContent } from "../completed-turn-content";
 
-import { useDisclosureScrollLock } from "@workbench/ui/disclosure";
+import { useDisclosureScrollLock } from "@workbench/ui-disclosure";
 import { Collapsible, CollapsibleTrigger } from "@workbench/ui";
 
 import { MessageDisclosureScope, useMessageDisclosure } from "./message-disclosure-context";

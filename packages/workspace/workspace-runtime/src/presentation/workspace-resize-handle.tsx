@@ -4,7 +4,7 @@ import { useI18n } from "@workbench/i18n";
 
 import { useLayoutEffect, useRef, type RefObject } from "react";
 
-import { CollapsibleResizeHandle } from "@workbench/ui";
+import { CollapsibleResizeHandle } from "@workbench/ui-resize";
 
 import {
   DEFAULT_RIGHT_WORKSPACE_WIDTH,
@@ -15,7 +15,7 @@ import { useRightWorkspace } from "../react";
 import { beginRightWorkspaceResize } from "../workspace-resize-preview";
 
 import { resolveRightWorkspaceMaximumWidth } from "../right-workspace-layout";
-import { observeResizeHandle } from "@workbench/ui/resize";
+import { observeResizeHandle } from "@workbench/ui-resize";
 
 const WIDE_RIGHT_WORKSPACE_WIDTH = 720;
 

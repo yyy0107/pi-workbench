@@ -21,7 +21,7 @@ import {
   SearchableSelectorInput,
   SearchableSelectorList,
   SearchableSelectorStatus,
-} from "@workbench/ui";
+} from "@workbench/ui-selectors";
 import { BrowserAddressBar } from "../src/browser-address-bar";
 import { MemoryBrowserSessionService } from "../src/browser-session-service";
 

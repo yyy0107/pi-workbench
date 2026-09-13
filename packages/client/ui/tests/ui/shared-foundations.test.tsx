@@ -11,6 +11,9 @@ import {
   SearchableSelectorList,
   SearchableSelectorTrigger,
   SearchableSelectorValue,
+} from "@workbench/ui-selectors";
+
+import {
   SettingsField,
   SettingsGroup,
   SettingsRow,

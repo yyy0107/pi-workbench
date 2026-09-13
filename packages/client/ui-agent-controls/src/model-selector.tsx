@@ -9,11 +9,8 @@ import { SettingsIcon } from "lucide-react";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useCurrentSession, useConversationSession } from "@workbench/agent-runtime-client";
-import {
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  ModelSelector as ModelSelectorControl,
-} from "@workbench/ui";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@workbench/ui";
+import { ModelSelector as ModelSelectorControl } from "./model-selector-view";
 import { createSettingsMainViewRequest } from "@workbench/ui-settings/request";
 
 import {

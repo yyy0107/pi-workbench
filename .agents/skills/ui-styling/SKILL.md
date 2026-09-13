@@ -21,7 +21,7 @@ For new controls or layout/visual/interaction changes, inspect only the relevant
 - `packages/client/shell/src/extensions/builtin/appearance/`: appearance settings and their style derivation when the change touches them.
 - The feature's co-located CSS: regional layout and tokens. Reuse unchanged context already read.
 
-Use `WorkspaceSelector` for workspace/project selection and the existing `SelectorDropdown` or `DropdownMenu` composition for rich generic selection. Keep overlays in the owning Shell Portal container and preserve the scope markers needed by their styles. Localize changed product and accessibility copy through the shared i18n API.
+Use `WorkspaceSelector` from `@workbench/ui-selectors` for workspace/project selection, and its `SelectorDropdown` or the `@workbench/ui` `DropdownMenu` composition for rich generic selection. Sidebar primitives live in `@workbench/ui-sidebar/primitives`; resize and disclosure live in `@workbench/ui-resize` and `@workbench/ui-disclosure`. Keep overlays in the owning Shell Portal container and preserve the scope markers needed by their styles. Localize changed product and accessibility copy through the shared i18n API.
 
 ## Tokens and component specifications
 

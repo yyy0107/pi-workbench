@@ -36,12 +36,12 @@ import {
 } from "@workbench/ui";
 import { Input } from "@workbench/ui";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@workbench/ui";
-import { ModelSelector as ModelSelectorControl } from "@workbench/ui";
-import type { ModelSelectorOption } from "@workbench/ui";
+import { ModelSelector as ModelSelectorControl } from "@workbench/ui-agent-controls/selector";
+import type { ModelSelectorOption } from "@workbench/ui-agent-controls/models";
 import { ProjectTrustDialog } from "@workbench/ui";
 import { Textarea } from "@workbench/ui";
 import { TimePicker } from "@workbench/ui";
-import { WorkspaceSelector } from "@workbench/ui";
+import { WorkspaceSelector } from "@workbench/ui-selectors";
 
 import { formatCompactDuration } from "@workbench/i18n/duration";
 import { cn } from "@workbench/ui/utils";

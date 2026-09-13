@@ -44,7 +44,7 @@ import {
   SearchableSelectorItem,
   SearchableSelectorList,
   SearchableSelectorTrigger,
-} from "@workbench/ui";
+} from "@workbench/ui-selectors";
 import { FileTypeIcon } from "@workbench/workspace-files/tree";
 
 import { cn } from "@workbench/ui/utils";

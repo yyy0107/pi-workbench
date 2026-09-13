@@ -26,6 +26,7 @@
     "@workbench/appearance": "workspace:*",
     "@workbench/i18n": "workspace:*",
     "@workbench/ui": "workspace:*",
+    "@workbench/ui-disclosure": "workspace:*",
     "hast-util-to-jsx-runtime": "2.3.6",
     "lucide-react": "^1.29.0",
     "shiki": "3.23.0"

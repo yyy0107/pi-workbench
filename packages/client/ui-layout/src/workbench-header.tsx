@@ -4,7 +4,7 @@ import { ChevronRightIcon, FolderIcon } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
 import { Button } from "@workbench/ui";
-import { useSidebar } from "@workbench/ui";
+import { useSidebar } from "@workbench/ui-sidebar/primitives";
 import { useI18n } from "@workbench/i18n";
 import { sidebarTranslationBundle } from "@workbench/ui-sidebar/i18n";
 import { cn } from "@workbench/ui/utils";

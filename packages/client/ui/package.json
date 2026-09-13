@@ -12,13 +12,10 @@
     "./clipboard": "./src/clipboard.ts",
     "./keyboard": "./src/keyboard-shortcut-owner.ts",
     "./hooks": "./src/hooks/index.ts",
-    "./resize": "./src/resize.ts",
-    "./disclosure": "./src/disclosure.ts",
     "./i18n": "./src/i18n/index.ts",
     "./styles.css": "./src/styles.css",
     "./tokens.css": "./src/tokens.css",
     "./components.css": "./src/components.css",
-    "./proportional-panel.css": "./src/resize/proportional-panel.css",
     "./running-indicator": "./src/components/running-thread-indicator.tsx"
   },
   "scripts": {
@@ -33,13 +30,13 @@
     "cmdk": "^1.1.1",
     "lucide-react": "^1.29.0",
     "radix-ui": "^1.6.7",
-    "react-colorful": "^5.8.1",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "@workbench/ui-selectors": "workspace:*",
     "@workbench/ui-testkit": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

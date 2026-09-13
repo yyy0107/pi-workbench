@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
-import { createSidebarDragSession } from "@workbench/ui/hooks";
+import { createSidebarDragSession } from "@workbench/ui-sidebar/reorder";
 
 test("drag previews retain the sidebar style scope inside their Shell portal", (t) => {
   class ElementStub {

@@ -25,7 +25,7 @@ import {
   useSidebarDragState,
   useSidebarPointerReorder,
   type SidebarDropPosition,
-} from "@workbench/ui/hooks";
+} from "./use-sidebar-pointer-reorder";
 import { useTranslationBundle } from "@workbench/i18n";
 import { sidebarTranslationBundle } from "./i18n";
 import { useWorkbenchNavigation } from "@workbench/shell-context/navigation";

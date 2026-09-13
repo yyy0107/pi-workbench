@@ -8,7 +8,7 @@ import {
   ForkSeparator,
   ModelChangeSeparator,
 } from "./elements/conversation-separator";
-import { DisclosureScrollDirectionProvider } from "@workbench/ui/disclosure";
+import { DisclosureScrollDirectionProvider } from "@workbench/ui-disclosure";
 import { ErrorState } from "./elements/error-state";
 
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";

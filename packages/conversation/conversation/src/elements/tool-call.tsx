@@ -5,7 +5,7 @@ import { CheckIcon, ChevronRightIcon, CircleXIcon, type LucideIcon } from "lucid
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@workbench/ui";
 import { cn } from "@workbench/ui/utils";
 import { collapsePanel, field, mono, ShimmerLabel } from "@workbench/ui";
-import { useDisclosureScrollLock } from "@workbench/ui/disclosure";
+import { useDisclosureScrollLock } from "@workbench/ui-disclosure";
 import { withTooltip } from "@workbench/ui";
 
 export interface ToolCallProps {

@@ -29,8 +29,8 @@ import {
   DropdownMenuRadioItem,
   Input,
   Textarea,
-  WorkspaceSelector,
 } from "@workbench/ui";
+import { WorkspaceSelector } from "@workbench/ui-selectors";
 
 import { insertPromptDraft } from "../lib/prompt-composer-draft";
 

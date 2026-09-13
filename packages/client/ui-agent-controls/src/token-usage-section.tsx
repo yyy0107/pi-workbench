@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { ChevronRightIcon } from "lucide-react";
 
-import { useDisclosureScrollLock } from "@workbench/ui/disclosure";
+import { useDisclosureScrollLock } from "@workbench/ui-disclosure";
 import {
   Button,
   Collapsible,

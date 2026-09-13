@@ -8,7 +8,7 @@ import { definePiSettingsMessage } from "@workbench/pi-ui-settings/i18n";
 import { BoxIcon, FileTextIcon, PackageIcon, PlugIcon } from "lucide-react";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
-import { SidebarRow, SidebarStatus } from "@workbench/ui";
+import { SidebarRow, SidebarStatus } from "@workbench/ui-sidebar/primitives";
 import { type LocalizableText } from "@workbench/i18n";
 import { useMainViewService } from "@workbench/extension-host";
 import type { SidebarSectionComponentProps } from "@workbench/extension-sdk";

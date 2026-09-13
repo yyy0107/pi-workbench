@@ -12,8 +12,8 @@ import { WorkspaceHeader } from "./workspace-header";
 import { WorkspaceResizeHandle } from "./workspace-resize-handle";
 import { useWorkbenchDomIds } from "@workbench/shell-context/dom";
 import { MIN_CONVERSATION_WIDTH } from "../right-workspace-layout";
-import { proportionalPanelWidthCss } from "@workbench/ui/resize";
-import { useProportionalPanelSize } from "@workbench/ui/resize";
+import { proportionalPanelWidthCss } from "@workbench/ui-resize";
+import { useProportionalPanelSize } from "@workbench/ui-resize";
 
 export function RightWorkspace({ isVisible = true }: { isVisible?: boolean }) {
   const { t } = useI18n(workspaceTranslationBundle);

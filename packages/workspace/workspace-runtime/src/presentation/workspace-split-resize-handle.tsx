@@ -5,7 +5,7 @@ import { useI18n } from "@workbench/i18n";
 import { useRef, type RefObject } from "react";
 
 import { MIN_AUXILIARY_SURFACE_WIDTH, auxiliarySurfaceSnapPoints } from "../index";
-import { useCollapsibleResize } from "@workbench/ui/resize";
+import { useCollapsibleResize } from "@workbench/ui-resize";
 import { useRightWorkspace } from "../react";
 import { beginRightWorkspaceResize } from "../workspace-resize-preview";
 

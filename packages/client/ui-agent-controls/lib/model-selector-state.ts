@@ -3,7 +3,7 @@ import {
   filterModelSelectorOptions,
   type ModelSelectorEffort,
   type ModelSelectorOption,
-} from "@workbench/ui";
+} from "./model-selector-models";
 import type {
   WorkbenchModelCatalog,
   WorkbenchSessionModelCatalog,

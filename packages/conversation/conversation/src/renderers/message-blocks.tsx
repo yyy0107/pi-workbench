@@ -23,7 +23,7 @@ import { MarkdownTextContentWithCitations } from "@workbench/markdown";
 import { MessageSource, type MessageSourceVariant } from "./message-source";
 import { ErrorState } from "../elements/error-state";
 import type { Source } from "@workbench/markdown";
-import { ScrollCompensatedDetails } from "@workbench/ui/disclosure";
+import { ScrollCompensatedDetails } from "@workbench/ui-disclosure";
 
 import { WorkbenchComposerMessageTextContent } from "../composer-message-text";
 

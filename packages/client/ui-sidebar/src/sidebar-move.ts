@@ -1,4 +1,4 @@
-import type { SidebarDropPosition } from "@workbench/ui/hooks";
+import type { SidebarDropPosition } from "./use-sidebar-pointer-reorder";
 
 export type SidebarItem =
   | { key: string; kind: "group"; id: "pinned" | "projects" }

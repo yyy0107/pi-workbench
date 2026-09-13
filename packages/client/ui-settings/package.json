@@ -15,7 +15,9 @@
     "./sidebar-rail": "./src/settings-sidebar-rail.tsx",
     "./background-image": "./src/background-image-store.ts",
     "./background": "./src/appearance-background.tsx",
-    "./styles.css": "./src/appearance-background.css"
+    "./styles.css": "./src/appearance-background.css",
+    "./color-picker": "./src/color-picker.tsx",
+    "./color-picker.css": "./src/color-picker.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
@@ -31,7 +33,9 @@
     "@workbench/settings-runtime": "workspace:*",
     "@workbench/shell-context": "workspace:*",
     "@workbench/ui": "workspace:*",
-    "lucide-react": "^1.29.0"
+    "@workbench/ui-sidebar": "workspace:*",
+    "lucide-react": "^1.29.0",
+    "react-colorful": "^5.8.1"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

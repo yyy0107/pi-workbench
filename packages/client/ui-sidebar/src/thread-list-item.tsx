@@ -5,7 +5,7 @@ import { useShallow } from "zustand/react/shallow";
 import { ArchiveIcon, Clock3Icon, PinIcon, PinOffIcon } from "lucide-react";
 import type { ThreadListItem } from "@workbench/agent-runtime-client";
 import { Button } from "@workbench/ui";
-import { SidebarActions, SidebarRow, SidebarStatus } from "@workbench/ui";
+import { SidebarActions, SidebarRow, SidebarStatus } from "./sidebar-items";
 import { useTranslationBundle } from "@workbench/i18n";
 import { sidebarTranslationBundle } from "./i18n";
 import { useAppearancePreferences } from "@workbench/appearance";

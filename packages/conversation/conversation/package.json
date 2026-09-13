@@ -45,6 +45,7 @@
     "@workbench/settings-runtime": "workspace:*",
     "@workbench/shell-context": "workspace:*",
     "@workbench/ui": "workspace:*",
+    "@workbench/ui-disclosure": "workspace:*",
     "@workbench/ui-settings": "workspace:*",
     "@workbench/workspace-files": "workspace:*",
     "@workbench/workspace-runtime": "workspace:*",

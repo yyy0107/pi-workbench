@@ -10,7 +10,8 @@
     "./reasoning": "./src/reasoning.ts",
     "./model-selector": "./src/model-selector.tsx",
     "./token-usage": "./src/token-usage.tsx",
-    "./i18n": "./src/i18n/index.ts"
+    "./i18n": "./src/i18n/index.ts",
+    "./selector": "./src/model-selector-view.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
@@ -25,6 +26,8 @@
     "@workbench/i18n": "workspace:*",
     "@workbench/settings-runtime": "workspace:*",
     "@workbench/ui": "workspace:*",
+    "@workbench/ui-disclosure": "workspace:*",
+    "@workbench/ui-selectors": "workspace:*",
     "@workbench/ui-settings": "workspace:*",
     "@workbench/workspace-runtime": "workspace:*",
     "lucide-react": "^1.29.0",
