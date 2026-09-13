@@ -27,7 +27,7 @@ import { cn } from "@workbench/ui/utils";
 import {
   COMPOSER_CONVERSATION_MENTION_TYPE,
   COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
-} from "@workbench/contracts/composer";
+} from "@workbench/core-contracts/composer";
 import type { ComposerTriggerItem } from "./composer-directive";
 import { composerCommandIconColorClassName } from "../lib/composer-command-icon-color";
 import { ComposerCommandIcon } from "./composer-token-icon";

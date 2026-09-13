@@ -10,7 +10,7 @@ import type { PromptFeedbackPort } from "@workbench/agent-runtime-client/prompt-
 import {
   createPiAgentRuntimeInstallation,
   type PiAgentRuntimeCopy,
-} from "@workbench/agent-runtime-pi-client/installation";
+} from "@workbench/pi-client/installation";
 import {
   createRuntimeFetch,
   createRuntimeWebSocketFactory,

@@ -55,7 +55,7 @@ function assertNoImports(
 
 test("generic Shell source never imports Pi packages or names Pi transport errors", () => {
   const productionFiles = productionFilesUnder(SOURCE_ROOT);
-  assertNoImports(productionFiles, (source) => source.startsWith("@workbench/agent-runtime-pi"));
+  assertNoImports(productionFiles, (source) => source.startsWith("@workbench/pi"));
   for (const file of productionFiles) {
     assert.doesNotMatch(readFileSync(file, "utf8"), /\bPiApiError\b/u, packageRelative(file));
   }
@@ -71,7 +71,7 @@ test("generic Shell source never imports Pi packages or names Pi transport error
     ...manifest.peerDependencies,
   });
   assert.deepEqual(
-    packageNames.filter((name) => name.startsWith("@workbench/agent-runtime-pi")),
+    packageNames.filter((name) => name.startsWith("@workbench/pi")),
     [],
   );
 });
@@ -101,7 +101,7 @@ test("RightWorkspace core remains independent from conversation and Agent runtim
     "right-workspace-prompt-feedback.ts",
     "workspace-directory-store.ts",
   ]);
-  const workspaceRoot = path.resolve(PACKAGE_ROOT, "../../workspace/runtime/src");
+  const workspaceRoot = path.resolve(PACKAGE_ROOT, "../../workspace/workspace-runtime/src");
   const coreFiles = productionFilesUnder(workspaceRoot).filter(
     (file) => !boundaryAdapters.has(path.relative(workspaceRoot, file)),
   );

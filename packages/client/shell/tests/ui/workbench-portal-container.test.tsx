@@ -52,7 +52,10 @@ test("every Shell floating primitive targets its installation portal container",
       "utf8",
     ),
     readFile(
-      new URL("../../../../workspace/runtime/src/presentation/workspace-tabs.tsx", import.meta.url),
+      new URL(
+        "../../../../workspace/workspace-runtime/src/presentation/workspace-tabs.tsx",
+        import.meta.url,
+      ),
       "utf8",
     ),
     readFile(new URL("../../../ui-layout/src/workbench-shell.tsx", import.meta.url), "utf8"),

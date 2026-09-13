@@ -15,7 +15,7 @@ test("panel capability exposes its docks without depending on Shell or terminal 
   const productionSource = sources.join("\n");
   const publicSource = await readFile(path.join(sourceRoot, "index.ts"), "utf8");
 
-  for (const forbiddenDependency of ["@workbench/shell", "@workbench/terminal-ui"]) {
+  for (const forbiddenDependency of ["@workbench/shell", "@workbench/ui-terminal"]) {
     assert.equal(productionSource.includes(forbiddenDependency), false, forbiddenDependency);
   }
   for (const publicCapability of ["PanelLayout", "PanelDock", "TerminalDrawer"]) {

@@ -28,7 +28,7 @@
 | 模型和会话   | 不改已有模型调用；补会话隔离、冷恢复、自动化默认及压缩边界回归                                                   | 已完成，74 项会话测试与 11 项选择器测试通过       |
 | 开发文档     | 更新两个 SDK 技能的公开入口、流语义和模型持久化约定；修正对比记录的 Runtime 追踪范围                             | 已完成，技能验证和文档路径验收通过                |
 
-依赖更新涉及 [Runtime Node](../../apps/runtime-node/package.json)、[Pi Server](../../packages/pi/server/package.json)、[Pi Protocol](../../packages/pi/protocol/package.json)、[Pi Shared](../../packages/pi/shared/package.json) 和 [Terminal Pi Tool](../../packages/terminal/pi-tool/package.json)。`chord` 等由 pnpm 解析为传递依赖，未额外声明。旧 `pi-client` / `pi-protocol` 传递依赖随新依赖闭包移除。
+依赖更新涉及 [Runtime Node](../../apps/runtime-node/package.json)、[Pi Server](../../packages/pi/pi-server/package.json)、[Pi Protocol](../../packages/pi/pi-protocol/package.json)、[Pi Shared](../../packages/pi/pi-shared/package.json) 和 [Terminal Pi Tool](../../packages/terminal/pi-terminal-tool/package.json)。`chord` 等由 pnpm 解析为传递依赖，未额外声明。旧 `pi-client` / `pi-protocol` 传递依赖随新依赖闭包移除。
 
 [stdout 补丁](../../patches/@earendil-works__pi-coding-agent@0.85.1.patch)只在 `dist/index.js` 和 `dist/index.d.ts` 根入口导出 `isStdoutTakenOver`、`restoreStdout`、`takeOverStdout`，不修改 SDK 实现。新版类型入口已改变，因此从 0.85.1 发布包重新生成补丁，没有仅重命名旧补丁。
 
@@ -40,10 +40,10 @@
 
 ```bash
 pnpm install --no-frozen-lockfile
-pnpm --filter @workbench/agent-runtime-pi-protocol \
-  --filter @workbench/agent-runtime-pi-shared \
-  --filter @workbench/agent-runtime-pi-server \
-  --filter @workbench/agent-runtime-pi-client \
+pnpm --filter @workbench/pi-protocol \
+  --filter @workbench/pi-shared \
+  --filter @workbench/pi-server \
+  --filter @workbench/pi-client \
   --filter @workbench/pi-terminal-tool \
   --filter @workbench/runtime-node typecheck
 ```
@@ -60,17 +60,17 @@ node --no-warnings=ExperimentalWarning \
   --test <下表中的测试文件路径>
 ```
 
-| 组别               | 文件（路径相对仓库根目录）                                                                                                                      | 结果                                       |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| 消息契约           | `packages/pi/shared/tests/reducer.test.ts`；`packages/pi/conversation/tests/session-message-accumulator.test.ts`                                | 8/8 通过                                   |
-| 模型与请求         | `packages/pi/server/test/models/{model-service,model-request-transport}.test.ts`                                                                | 与下面四组合计 128/128 通过                |
-| 会话状态与恢复     | `packages/pi/server/test/sessions/{session-queue,session-resume,session-interruption,session-context-policy,session-context-trace}.test.ts`     | 通过                                       |
-| 内置工具与技能     | `packages/pi/server/test/internal-extensions/{builtin-tools,enhanced-search}.test.ts`；`packages/pi/server/tests/skills/builtin-skills.test.ts` | 通过                                       |
-| 终端执行           | `packages/terminal/pi-tool/tests/interactive-bash-tool.test.ts`                                                                                 | 通过                                       |
-| 已安装 Host RPC    | `apps/runtime-node/test/installed-pi-server-rpc.test.ts`                                                                                        | 通过，包括 `host.describe.piVersion`       |
-| stdout、扩展、构建 | `apps/runtime-node/test/{installed-api-only-runtime-host,package-control-stdout,session-extension-lifecycle,runtime-artifact-builder}.test.ts`  | 新增 NFT 回归后重跑，59/59 通过            |
-| 模型默认与压缩边界 | `packages/pi/server/tests/sessions/session-registry-metadata.test.ts`，以及同目录的 context-policy、resume、queue、context-trace 测试           | 74/74 通过；其中四个文件与上方已有回归重复 |
-| UI 模型记忆        | `packages/client/agent-controls/tests/model-selector-state.test.ts`                                                                             | 11/11 通过                                 |
+| 组别               | 文件（路径相对仓库根目录）                                                                                                                            | 结果                                       |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| 消息契约           | `packages/pi/pi-shared/tests/reducer.test.ts`；`packages/pi/pi-conversation/tests/session-message-accumulator.test.ts`                                | 8/8 通过                                   |
+| 模型与请求         | `packages/pi/pi-server/test/models/{model-service,model-request-transport}.test.ts`                                                                   | 与下面四组合计 128/128 通过                |
+| 会话状态与恢复     | `packages/pi/pi-server/test/sessions/{session-queue,session-resume,session-interruption,session-context-policy,session-context-trace}.test.ts`        | 通过                                       |
+| 内置工具与技能     | `packages/pi/pi-server/test/internal-extensions/{builtin-tools,enhanced-search}.test.ts`；`packages/pi/pi-server/tests/skills/builtin-skills.test.ts` | 通过                                       |
+| 终端执行           | `packages/terminal/pi-terminal-tool/tests/interactive-bash-tool.test.ts`                                                                              | 通过                                       |
+| 已安装 Host RPC    | `apps/runtime-node/test/installed-pi-server-rpc.test.ts`                                                                                              | 通过，包括 `host.describe.piVersion`       |
+| stdout、扩展、构建 | `apps/runtime-node/test/{installed-api-only-runtime-host,package-control-stdout,session-extension-lifecycle,runtime-artifact-builder}.test.ts`        | 新增 NFT 回归后重跑，59/59 通过            |
+| 模型默认与压缩边界 | `packages/pi/pi-server/tests/sessions/session-registry-metadata.test.ts`，以及同目录的 context-policy、resume、queue、context-trace 测试              | 74/74 通过；其中四个文件与上方已有回归重复 |
+| UI 模型记忆        | `packages/client/ui-agent-controls/tests/model-selector-state.test.ts`                                                                                | 11/11 通过                                 |
 
 消息回归覆盖可选元数据与签名复制、交错 text/thinking、部分工具 JSON、持久化 chunk、JSON snapshot 重连、后续 chunk 缺少元数据时保留，以及最终错误消息覆盖和冷历史恢复。现有 interruption 测试包含进程被强制终止后的恢复，避免仅凭 JSONL 版本号断言兼容。
 

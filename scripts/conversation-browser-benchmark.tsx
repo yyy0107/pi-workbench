@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
-import { ExtensionProvider } from "../packages/extension-platform/host/src/extension-provider";
-import { SessionContext } from "../packages/agent-runtime/client/src/runtime-context";
-import { WorkbenchAgentRuntimeEnvironmentProvider } from "../packages/agent-runtime/client/src/agent-runtime-context";
+import { ExtensionProvider } from "../packages/extension-platform/extension-host/src/extension-provider";
+import { SessionContext } from "../packages/agent-runtime/agent-runtime-client/src/runtime-context";
+import { WorkbenchAgentRuntimeEnvironmentProvider } from "../packages/agent-runtime/agent-runtime-client/src/agent-runtime-context";
 import {
   useConversationSession,
   useSessionState,
-} from "../packages/agent-runtime/client/src/hooks";
-import { FakeConversationSession } from "../packages/agent-runtime/testkit/src/runtime/fake-agent-runtime";
+} from "../packages/agent-runtime/agent-runtime-client/src/hooks";
+import { FakeConversationSession } from "../packages/agent-runtime/agent-runtime-testkit/src/runtime/fake-agent-runtime";
 import { PiConversationAssembler } from "@workbench/pi-conversation/assembler";
 import {
   longConversation,
   appendConversationDelta,
-} from "../packages/pi/client/tests/fixtures/long-conversation";
+} from "../packages/pi/pi-client/tests/fixtures/long-conversation";
 import { ConversationList } from "@workbench/conversation/list";
 import { useWorkbenchConversationViewport } from "@workbench/conversation/viewport";
 import { ThreadScrollStateProvider } from "@workbench/conversation/scroll-state";

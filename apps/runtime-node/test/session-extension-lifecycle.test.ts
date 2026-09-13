@@ -26,9 +26,9 @@ test("host shutdown releases extension preference listeners before ctx becomes s
     { WorkbenchSettingsService, subscribeWorkbenchSettingsPreferences },
     { bindPiAgentHostBindings, getPiAgentHostBindings },
   ] = await Promise.all([
-    import("@workbench/agent-runtime-pi-server/legacy"),
+    import("@workbench/pi-server/legacy"),
     import("@workbench/settings-server/service"),
-    import("@workbench/agent-runtime-pi-server/installation"),
+    import("@workbench/pi-server/installation"),
   ]);
   const settings = new WorkbenchSettingsService({
     stateFile: process.env.PI_WORKBENCH_SETTINGS_FILE!,

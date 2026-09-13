@@ -9,28 +9,28 @@ Workbench。Node 实现运行在独立的 `@workbench/runtime-node` Runtime Host
 [DeepSeek Harness HTTP / WebSocket 接口参考](../../docs/deepseekharness-api-design.md)中的当前
 Workbench 子集，而不是参考文档全部 59 个接口。线协议的类型来源是：
 
-- [`protocol/src/rpc.ts`](./protocol/src/rpc.ts)：RPC envelope，以及 Host、Workspace、LLM、Settings、
+- [`protocol/src/rpc.ts`](./pi-protocol/src/rpc.ts)：RPC envelope，以及 Host、Workspace、LLM、Settings、
   Session 的请求和响应类型；
-- [`protocol/src/stream.ts`](./protocol/src/stream.ts)：mux/host WebSocket frame 和 payload 联合；
-- [`protocol/src/messages.ts`](./protocol/src/messages.ts)：Pi client 与 legacy
+- [`protocol/src/stream.ts`](./pi-protocol/src/stream.ts)：mux/host WebSocket frame 和 payload 联合；
+- [`protocol/src/messages.ts`](./pi-protocol/src/messages.ts)：Pi client 与 legacy
   `/api/pi/**` 使用的 Pi 消息类型。
 
 Automation 的定义、存储和调度位于
-[`@workbench/automation-server`](../server/automation)，共享契约位于
-[`@workbench/automation-contracts`](../contracts/automation)。任务触发时会在目标工作区创建一个
+[`@workbench/automation-server`](../server/automation-server)，共享契约位于
+[`@workbench/automation-contracts`](../contracts/automation-contracts)。任务触发时会在目标工作区创建一个
 普通、可见的会话，再通过标准 Agent 执行端口提交用户配置的提示词。本目录保留 Automation 的 Pi
 会话启动实现和 Workbench 事件/RPC 接线；前端页面位于
-[`packages/client/shell/src/extensions/builtin/automation`](../workbench/shell/src/extensions/builtin/automation)。
+[`packages/client/ui-automation`](../client/ui-automation)。
 
 ## 架构
 
 Pi 是 Workbench Agent Runtime 的具体实现，所有权边界由 Workbench 定义：
 
-- [`core/runtime`](../agent-runtime/runtime) 定义 `AgentRuntime`、`ConversationSession` 与 observable；
-  [`core/contracts`](../agent-runtime/contracts) 定义通用 Conversation、Node/Block 和能力 DTO。
-- [`core/client`](../agent-runtime/client) 提供 React 接入、`WorkbenchAgentRuntimeCapabilities`、窄 hooks
+- [`core/runtime`](../agent-runtime/agent-runtime-core) 定义 `AgentRuntime`、`ConversationSession` 与 observable；
+  [`core/contracts`](../agent-runtime/agent-runtime-contracts) 定义通用 Conversation、Node/Block 和能力 DTO。
+- [`core/client`](../agent-runtime/agent-runtime-client) 提供 React 接入、`WorkbenchAgentRuntimeCapabilities`、窄 hooks
   与 `WorkbenchAgentCapabilityError`。Shell、Core、Extension SDK/Host 不导入 Pi packages。
-- [`client/src/integration/capabilities.ts`](./client/src/integration/capabilities.ts) 将同一个 Pi
+- [`client/src/integration/capabilities.ts`](./pi-client/src/integration/capabilities.ts) 将同一个 Pi
   manager 的 host、workspace、models、interactions、scratchSessions、context 和 automation
   接到 Workbench 能力集合；`PiAgentRuntimeProvider` 安装该集合。Automation 和 Terminal 继续复用
   各自的 Workbench contracts。
@@ -39,8 +39,8 @@ Pi 是 Workbench Agent Runtime 的具体实现，所有权边界由 Workbench �
   缺失能力时隐藏入口；恢复的历史页面显示明确不可用状态，不注入假实现。
 - `projectPiCapabilityError()` 在能力边界将 `PiApiError` 映射为稳定的 Workbench `code` 和可选
   `details`；Shell 不读取 Pi HTTP/RPC 错误。Pi 专属配置、资源与 Trace 仍使用
-  [Pi Client 的有限公开入口](./client/README.md#public-boundary)。
-- [`core/server`](../agent-runtime/server) 拥有 `WorkbenchAgentServerAdapter`，只组合 commands、execution
+  [Pi Client 的有限公开入口](./pi-client/README.md#public-boundary)。
+- [`core/server`](../agent-runtime/agent-runtime-server) 拥有 `WorkbenchAgentServerAdapter`，只组合 commands、execution
   和 threads；Pi Server 实现这些端口。Host、workspace、terminal、automation 等领域能力由应用组合根
   单独接线，不塞入 Agent Server Adapter，也不新增 Runtime registry 或通用原始事件层。
 
@@ -530,12 +530,12 @@ Project Trust 遵循 Pi 的资源判定与持久化规则：没有受保护的�
 
 ## Skills
 
-内置 Pi Packages 的源码统一位于 [`server/src/internal-packages/`](./server/src/internal-packages/)，
-每个包使用独立目录，与 `server/src/internal-extensions/` 分开组织。
-内置技能位于 [`server/src/internal-skills/`](./server/src/internal-skills/)，内置提示词模板目录为
-`server/src/internal-prompts/`，当前没有随应用分发的模板。四类内置资源目录同级，按“一项一个目录”组织；
-`skills/`、`prompts/`、`extensions/` 和 `packages/` 保留各自的资源管理服务。
-[`@workbench/pi-browser`](./server/src/internal-packages/browser/README.md) 将 Browser 扩展与专属技能封装为 Pi Package。
+内置 Browser Pi Package 源码位于 [`pi-browser/`](./pi-browser/)，内联工具实现位于
+[`pi-tools/`](./pi-tools/)。内置技能和提示词分别位于
+[`pi-resources-server/resources/skills/`](./pi-resources-server/resources/skills/) 与
+[`pi-resources-server/resources/prompts/`](./pi-resources-server/resources/prompts/)。这些源码目录由 Runtime
+构建器复制到产物的既有 `internal-skills`、`internal-prompts` 和 `internal-extensions` 目录。
+[`@workbench/pi-browser`](./pi-browser/README.md) 将 Browser 扩展与专属技能封装为 Pi Package。
 Workbench 将完整内置包部署到 Pi 用户目录的 `packages/.builtin/browser/`，并通过 Pi 原生 `packages`
 配置注册本地包。工具、技能和生命周期事件统一由同一份 `package.json` manifest 加载，来源为
 `package`；不再注册 `workbench.browser` 内联扩展或单独安装 Browser 技能。
@@ -678,7 +678,7 @@ templates 在会话建立后由完整运行时目录补齐，避免在扩展实�
 Extension command 和 prompt template 项还返回脱敏后的 package 来源、作用域和来源类型；不会返回
 具体文件路径。工具箱使用这些字段把 package 提供的 Prompt 关联到官方 Package 详情。
 
-浏览器侧不会把这个 Pi RPC DTO 直接暴露给 Workbench。`@workbench/agent-runtime-pi-client`
+浏览器侧不会把这个 Pi RPC DTO 直接暴露给 Workbench。`@workbench/pi-client`
 实现层中的 command catalog 根据
 活动 session 或 draft workspace 选择请求目标并订阅资源 catalog revision；纯投影位于
 `shared/src/commands.ts`，由浏览器和服务端 `AgentCommandCatalogPort` 共同复用，把每项
@@ -1320,15 +1320,15 @@ pnpm lint
 运行 Pi server implementation 的 Node 测试：
 
 ```bash
-pnpm --filter @workbench/agent-runtime-pi-server test
+pnpm --filter @workbench/pi-server test
 ```
 
 OpenCode Go / DeepSeek V4 Flash 的真实流式诊断可单独运行（会产生一次模型请求，不进入自动测试）：
 
 ```bash
-pnpm --filter @workbench/agent-runtime-pi-server diagnose:stream --self-test
-pnpm --filter @workbench/agent-runtime-pi-server diagnose:stream --session /absolute/path/to/session.jsonl --timeout-seconds 300
-pnpm --filter @workbench/agent-runtime-pi-server diagnose:stream --transport raw --session /absolute/path/to/session.jsonl --timeout-seconds 900
+pnpm --filter @workbench/pi-server diagnose:stream --self-test
+pnpm --filter @workbench/pi-server diagnose:stream --session /absolute/path/to/session.jsonl --timeout-seconds 300
+pnpm --filter @workbench/pi-server diagnose:stream --transport raw --session /absolute/path/to/session.jsonl --timeout-seconds 900
 ```
 
 脚本通过现有 Context Trace 读取器校验并恢复首个请求，核对原始系统提示词和用户消息，保留原请求的

@@ -32,7 +32,7 @@ import { fileURLToPath } from "node:url";
 
 import { build, type BuildOptions, type BuildResult, type Metafile } from "esbuild";
 
-import { STREAM_PATHS } from "@workbench/agent-runtime-pi-protocol/stream";
+import { STREAM_PATHS } from "@workbench/pi-protocol/stream";
 import {
   RUNTIME_ARTIFACT_MANIFEST_FILENAME as CONTRACT_RUNTIME_ARTIFACT_MANIFEST_FILENAME,
   RUNTIME_ARTIFACT_MANIFEST_SCHEMA_VERSION,
@@ -789,7 +789,7 @@ function validateTargetWithContract(target: RuntimeArtifactTarget): RuntimeArtif
 function packageOwnerDirectory(packageName: string, appRoot: string): string {
   if (RUNTIME_ARTIFACT_NATIVE_PACKAGES.includes(packageName)) {
     const ownerManifest = path.join(
-      path.resolve(appRoot, "../../packages/terminal/server"),
+      path.resolve(appRoot, "../../packages/terminal/terminal-server"),
       "package.json",
     );
     return path.dirname(ownerManifest);
@@ -3197,11 +3197,11 @@ export async function copyRuntimeBuiltinResources(
 ): Promise<void> {
   // Workbench modules are bundled into server.mjs, so import.meta.url resolves at the artifact root.
   for (const [source, relative] of [
-    ["resources-server/resources/skills", "internal-skills"],
-    ["resources-server/resources/prompts", "internal-prompts"],
-    ["tools/src", "internal-extensions/src"],
-    ["tools/lib", "internal-extensions/lib"],
-    ["tools/resources", "internal-extensions/resources"],
+    ["pi-resources-server/resources/skills", "internal-skills"],
+    ["pi-resources-server/resources/prompts", "internal-prompts"],
+    ["pi-tools/src", "internal-extensions/src"],
+    ["pi-tools/lib", "internal-extensions/lib"],
+    ["pi-tools/resources", "internal-extensions/resources"],
   ]) {
     await cp(
       path.join(repositoryRoot, "packages/pi", source),
@@ -3212,7 +3212,7 @@ export async function copyRuntimeBuiltinResources(
   const browserBuild = spawnSync(
     process.execPath,
     [
-      path.join(repositoryRoot, "packages/pi/browser/build.mjs"),
+      path.join(repositoryRoot, "packages/pi/pi-browser/build.mjs"),
       path.join(outputDirectory, "internal-packages/browser"),
     ],
     { encoding: "utf8" },

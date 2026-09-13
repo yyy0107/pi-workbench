@@ -1,6 +1,6 @@
 "use client";
 
-import { piAgentRuntimeExtensionGroups } from "@workbench/agent-runtime-pi-contributions/installation";
+import { piAgentRuntimeExtensionGroups } from "@workbench/pi-contributions/installation";
 import { shellExtensionGroups } from "@workbench/shell/extensions";
 
 /**

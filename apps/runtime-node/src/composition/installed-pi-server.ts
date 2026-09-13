@@ -39,7 +39,7 @@ import {
   createPiAgentServerImplementation,
   shutdownPiPackageCatalogService,
   type PiAgentHostBindings,
-} from "@workbench/agent-runtime-pi-server/installation";
+} from "@workbench/pi-server/installation";
 import {
   cancelSession as cancelPiSession,
   createSession as createPiSession,
@@ -53,12 +53,12 @@ import {
   sendPrompt as sendPiPrompt,
   setPromptQueuePaused as setPiPromptQueuePaused,
   steerQueuedPrompt as steerPiQueuedPrompt,
-} from "@workbench/agent-runtime-pi-server/legacy";
+} from "@workbench/pi-server/legacy";
 import {
   createRunningEventResponse as createPiRunningEventResponse,
   createSessionEventResponse as createPiSessionEventResponse,
   pickWorkspaceDirectory as pickPiWorkspaceDirectory,
-} from "@workbench/agent-runtime-pi-server/legacy";
+} from "@workbench/pi-server/legacy";
 import {
   createDefaultPiRpcRouteGroups,
   createPiRpcRouter,
@@ -67,7 +67,7 @@ import {
   handleSessionExportRequest as handlePiSessionExportRequest,
   type PiRpcPostHandler,
   type PiRuntimeHttpHandler,
-} from "@workbench/agent-runtime-pi-server/http";
+} from "@workbench/pi-server/http";
 import { createWorkbenchBashToolOverride } from "@workbench/pi-terminal-tool";
 import { createTerminalShellPreference } from "@workbench/terminal-server/shell";
 import { ToolTerminalSessionManager } from "@workbench/terminal-server/tool-sessions";

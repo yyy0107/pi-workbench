@@ -5,7 +5,7 @@ import path from "node:path";
 import {
   appendConversationDelta,
   longConversation,
-} from "../packages/pi/client/tests/fixtures/long-conversation";
+} from "../packages/pi/pi-client/tests/fixtures/long-conversation";
 
 async function main() {
   const baseline = process.argv.find((argument) => argument.startsWith("--baseline="))?.slice(11);
@@ -13,11 +13,11 @@ async function main() {
   if (baseline) {
     const require = createRequire(path.resolve("package.json"));
     const { build } = require(require.resolve("esbuild", { paths: [require.resolve("tsx")] }));
-    const relative = "packages/pi/client/src/conversation/conversation-assembler.ts";
+    const relative = "packages/pi/pi-client/src/conversation/conversation-assembler.ts";
     const result = await build({
       stdin: {
         contents: execFileSync("git", ["show", `${baseline}:${relative}`], { encoding: "utf8" }),
-        resolveDir: path.resolve("packages/pi/client/src/conversation"),
+        resolveDir: path.resolve("packages/pi/pi-client/src/conversation"),
         loader: "ts",
       },
       bundle: true,

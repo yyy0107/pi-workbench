@@ -4,7 +4,7 @@ import {
   COMPOSER_WORKSPACE_FILE_CONTEXT_TYPE,
   COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
   isComposerJsonValue,
-} from "@workbench/contracts/composer";
+} from "@workbench/core-contracts/composer";
 import type {
   CompiledComposerRequest,
   ComposerCommandArgsBinding,

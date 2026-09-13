@@ -9,7 +9,7 @@ const { resolveRuntimeArtifact } = require("@workbench/host-server/runtime-artif
 const {
   createRuntimeArtifactAdmissionPolicy,
 } = require("@workbench/host-artifact-policy/runtime-admission");
-const { STREAM_PATHS } = require("@workbench/agent-runtime-pi-protocol/stream");
+const { STREAM_PATHS } = require("@workbench/pi-protocol/stream");
 
 const DESKTOP_RUNTIME_ARTIFACT_ADMISSION_POLICY = createRuntimeArtifactAdmissionPolicy([
   STREAM_PATHS.mux,

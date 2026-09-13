@@ -4,15 +4,15 @@ import {
 } from "../src/composition/runtime-http-router";
 type TestRuntimeHttpRouterDependencies = PiRuntimeHttpRouterDependencies &
   Omit<RuntimeHttpRouterDependencies, "handlePiRequest">;
-import { RPC_REQUEST_BODY_LIMITS } from "@workbench/agent-runtime-pi-server/legacy";
+import { RPC_REQUEST_BODY_LIMITS } from "@workbench/pi-server/legacy";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PiServerError } from "@workbench/agent-runtime-pi-server/legacy";
+import { PiServerError } from "@workbench/pi-server/legacy";
 import {
   createPiRuntimeHttpRouter,
   type PiRuntimeHttpRouterDependencies,
-} from "@workbench/agent-runtime-pi-server/http";
+} from "@workbench/pi-server/http";
 
 function request(pathname: string, init: RequestInit = {}): Request {
   const headers = new Headers(init.headers);

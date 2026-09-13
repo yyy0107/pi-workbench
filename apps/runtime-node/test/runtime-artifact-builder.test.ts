@@ -86,7 +86,10 @@ test("bundled resources install into the Pi directory after relocation and pruni
   await build({
     ...createRuntimeArtifactBuildOptions({ outputDirectory }),
     entryPoints: [
-      path.join(repositoryRoot, "packages/pi/server/src/resource-composition/builtin-resources.ts"),
+      path.join(
+        repositoryRoot,
+        "packages/pi/pi-server/src/resource-composition/builtin-resources.ts",
+      ),
     ],
   });
   await symlink(
@@ -396,7 +399,7 @@ test("accepts only app/package source inputs in the Runtime bundle closure", () 
     assertRuntimeArtifactInputClosure(
       metafile([
         "src/main.ts",
-        "../../packages/host/server/src/workbench-http-server.ts",
+        "../../packages/host/host-server/src/workbench-http-server.ts",
         "../../node_modules/ws/index.js",
       ]),
       { appRoot, repositoryRoot },

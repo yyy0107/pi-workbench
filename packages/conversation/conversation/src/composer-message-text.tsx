@@ -7,11 +7,11 @@ import { ComposerCommandToken } from "@workbench/composer/tokens";
 import {
   COMPOSER_CONVERSATION_MENTION_TYPE,
   COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
-} from "@workbench/contracts/composer";
+} from "@workbench/core-contracts/composer";
 import { useConversationI18n as useI18n } from "./use-i18n";
 import { useComposerCommandRegistry } from "@workbench/extension-host";
 import { useWorkbenchAgentCommands } from "@workbench/agent-runtime-client/context";
-import { parseWorkbenchComposerDocument } from "@workbench/contracts/composer/request";
+import { parseWorkbenchComposerDocument } from "@workbench/core-contracts/composer/request";
 
 import {
   formatAgentCommandLabel,

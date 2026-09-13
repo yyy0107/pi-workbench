@@ -2,46 +2,46 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const RPC_ROUTER = new URL("../packages/pi/server/src/transport/rpc-router.ts", import.meta.url);
+const RPC_ROUTER = new URL("../packages/pi/pi-server/src/transport/rpc-router.ts", import.meta.url);
 const RUNTIME_HTTP_ROUTER = new URL(
-  "../packages/pi/server/src/transport/runtime-http-router.ts",
+  "../packages/pi/pi-server/src/transport/runtime-http-router.ts",
   import.meta.url,
 );
 const RPC_ROUTE_COMPOSITION = new URL(
-  "../packages/pi/server/src/transport/rpc-route-composition.ts",
+  "../packages/pi/pi-server/src/transport/rpc-route-composition.ts",
   import.meta.url,
 );
-const HOST_SERVICE = new URL("../packages/pi/server/src/host/host-service.ts", import.meta.url);
+const HOST_SERVICE = new URL("../packages/pi/pi-server/src/host/host-service.ts", import.meta.url);
 const LOCAL_APP_SERVICE = new URL(
-  "../packages/server/local-host/src/local-apps/service.ts",
+  "../packages/server/local-host-server/src/local-apps/service.ts",
   import.meta.url,
 );
 const PROJECT_TRUST_SERVICE = new URL(
-  "../packages/pi/resources-server/src/project-trust-service.ts",
+  "../packages/pi/pi-resources-server/src/project-trust-service.ts",
   import.meta.url,
 );
 const COMMAND_SERVICE = new URL(
-  "../packages/pi/resources-server/src/command-service.ts",
+  "../packages/pi/pi-resources-server/src/command-service.ts",
   import.meta.url,
 );
 const PROMPT_SERVICE = new URL(
-  "../packages/pi/resources-server/src/prompt-service.ts",
+  "../packages/pi/pi-resources-server/src/prompt-service.ts",
   import.meta.url,
 );
 const HOST_ROUTES = new URL(
-  "../packages/server/local-host/src/host-rpc-routes.ts",
+  "../packages/server/local-host-server/src/host-rpc-routes.ts",
   import.meta.url,
 );
 const LOCAL_APP_ROUTES = new URL(
-  "../packages/server/local-host/src/local-app-rpc-routes.ts",
+  "../packages/server/local-host-server/src/local-app-rpc-routes.ts",
   import.meta.url,
 );
 const PROJECT_TRUST_ROUTES = new URL(
-  "../packages/pi/server/src/routes/project-trust-rpc-routes.ts",
+  "../packages/pi/pi-server/src/routes/project-trust-rpc-routes.ts",
   import.meta.url,
 );
 const RESOURCE_CATALOG_ROUTES = new URL(
-  "../packages/pi/server/src/routes/resource-catalog-rpc-routes.ts",
+  "../packages/pi/pi-server/src/routes/resource-catalog-rpc-routes.ts",
   import.meta.url,
 );
 

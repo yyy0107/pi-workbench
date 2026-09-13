@@ -16,7 +16,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import nativeArtifact from "../packages/host/artifact-policy/src/runtime-native.cjs";
+import nativeArtifact from "../packages/host/host-artifact-policy/src/runtime-native.cjs";
 
 test("prepares renderer/runtime packages with normalized native permissions and rejects hash drift", (t) => {
   const root = realpathSync(mkdtempSync(path.join(os.tmpdir(), "workbench-release-assets-test-")));
@@ -31,7 +31,7 @@ test("prepares renderer/runtime packages with normalized native permissions and 
     "scripts/prepare-release-assets.mjs",
     "scripts/validate-release-assets.mjs",
     "scripts/release-update-info.mjs",
-    "packages/host/artifact-policy/src/runtime-native.cjs",
+    "packages/host/host-artifact-policy/src/runtime-native.cjs",
   ]) {
     copyFileSync(new URL(`../${relativePath}`, import.meta.url), write(relativePath, ""));
   }

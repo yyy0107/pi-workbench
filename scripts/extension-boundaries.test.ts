@@ -6,9 +6,10 @@ import test from "node:test";
 
 const PROJECT_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const SHELL_SOURCE_ROOT = resolve(PROJECT_ROOT, "packages/client/shell/src");
-const SHELL_BUILTIN_ROOT = resolve(SHELL_SOURCE_ROOT, "extensions/builtin");
-const PI_BUILTIN_ROOT = resolve(PROJECT_ROOT, "packages/pi/contributions/src/extensions");
-const BUILTIN_ROOTS = [SHELL_BUILTIN_ROOT, PI_BUILTIN_ROOT];
+const SHELL_EXTENSION_ROOT = resolve(SHELL_SOURCE_ROOT, "extensions");
+const PI_BUILTIN_ROOT = resolve(PROJECT_ROOT, "packages/pi/pi-contributions/src/extensions");
+// Shell now assembles public capability packages; it has no nested builtin feature tree.
+const BUILTIN_ROOTS = [PI_BUILTIN_ROOT];
 const SHARED_BUILTIN_TARGETS = new Set([resolve(PI_BUILTIN_ROOT, "project-trust-dialog-copy")]);
 const INSTALLABLE_ROOT = resolve(SHELL_SOURCE_ROOT, "extensions/installable");
 const CONVERSATION_ROOTS = ["src", "lib"].map((directory) =>
@@ -28,28 +29,35 @@ const CONVERSATION_EXTENSION_ROOTS = CONVERSATION_ROOTS.flatMap((root) =>
 );
 const BUSINESS_EXTENSION_ROOTS = [
   ...["src", "lib"].map((directory) =>
-    resolve(PROJECT_ROOT, "packages/pi/session-import-ui", directory),
-  ),
-  ...["src", "lib"].map((directory) => resolve(PROJECT_ROOT, "packages/pi/status-ui", directory)),
-  ...["src", "lib"].map((directory) =>
-    resolve(PROJECT_ROOT, "packages/pi/diagnostics-ui", directory),
-  ),
-  ...["src", "lib"].map((directory) => resolve(PROJECT_ROOT, "packages/pi/toolbox-ui", directory)),
-  ...["src", "lib"].map((directory) => resolve(PROJECT_ROOT, "packages/pi/settings-ui", directory)),
-  ...["src", "lib"].map((directory) =>
-    resolve(PROJECT_ROOT, "packages/client/settings-ui", directory),
+    resolve(PROJECT_ROOT, "packages/pi/pi-ui-session-import", directory),
   ),
   ...["src", "lib"].map((directory) =>
-    resolve(PROJECT_ROOT, "packages/client/automation-ui", directory),
+    resolve(PROJECT_ROOT, "packages/pi/pi-ui-status", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/pi/pi-ui-diagnostics", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/pi/pi-ui-toolbox", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/pi/pi-ui-settings", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/ui-settings", directory),
+  ),
+  ...["src", "lib"].map((directory) =>
+    resolve(PROJECT_ROOT, "packages/client/ui-automation", directory),
   ),
   ...BUILTIN_ROOTS,
+  SHELL_EXTENSION_ROOT,
   INSTALLABLE_ROOT,
   ...CONVERSATION_EXTENSION_ROOTS,
   ...["src", "lib"].map((directory) =>
-    resolve(PROJECT_ROOT, "packages/client/agent-controls", directory),
+    resolve(PROJECT_ROOT, "packages/client/ui-agent-controls", directory),
   ),
   ...["src", "lib"].map((directory) =>
-    resolve(PROJECT_ROOT, "packages/client/terminal-ui", directory),
+    resolve(PROJECT_ROOT, "packages/client/ui-terminal", directory),
   ),
 ].filter(existsSync);
 const COMPONENT_ROOTS = [
@@ -59,14 +67,17 @@ const COMPONENT_ROOTS = [
   resolve(PROJECT_ROOT, "packages/client/ui/src"),
   resolve(PROJECT_ROOT, "packages/conversation/conversation/src"),
   resolve(PROJECT_ROOT, "packages/conversation/composer/src"),
-  resolve(PROJECT_ROOT, "packages/workspace/runtime/src"),
-  resolve(PROJECT_ROOT, "packages/workspace/files/src"),
+  resolve(PROJECT_ROOT, "packages/workspace/workspace-runtime/src"),
+  resolve(PROJECT_ROOT, "packages/workspace/workspace-files/src"),
 ].flatMap((root) =>
   root.endsWith("/src") ? [root, root.slice(0, -4) + "/lib"].filter(existsSync) : [root],
 );
-const PLATFORM_API_ROOT = resolve(PROJECT_ROOT, "packages/extension-platform/sdk/src/api");
+const PLATFORM_API_ROOT = resolve(
+  PROJECT_ROOT,
+  "packages/extension-platform/extension-sdk/src/api",
+);
 const RIGHT_WORKSPACE_ROOTS = ["src", "lib"]
-  .map((directory) => resolve(PROJECT_ROOT, "packages/workspace/runtime", directory))
+  .map((directory) => resolve(PROJECT_ROOT, "packages/workspace/workspace-runtime", directory))
   .filter(existsSync);
 const RUNTIME_ROOTS = [
   resolve(PROJECT_ROOT, "apps/runtime-node/src"),
@@ -77,11 +88,11 @@ const RUNTIME_ROOTS = [
 ];
 const EXTENSION_PUBLIC_ENTRY = resolve(
   PROJECT_ROOT,
-  "packages/extension-platform/sdk/src/index.ts",
+  "packages/extension-platform/extension-sdk/src/index.ts",
 );
 const EXTENSION_AUTHORING_ENTRY = resolve(
   PROJECT_ROOT,
-  "packages/extension-platform/sdk/src/authoring.ts",
+  "packages/extension-platform/extension-sdk/src/authoring.ts",
 );
 const ALLOWED_EXTENSION_SUBPATHS = new Set([
   "@workbench/extension-sdk",
@@ -331,10 +342,13 @@ test("the public extension barrel does not export host implementations", () => {
 });
 
 test("Host barrels do not re-export SDK authoring or lifecycle internals", () => {
-  const hostEntry = resolve(PROJECT_ROOT, "packages/extension-platform/host/src/index.ts");
+  const hostEntry = resolve(
+    PROJECT_ROOT,
+    "packages/extension-platform/extension-host/src/index.ts",
+  );
   const hostInternalEntry = resolve(
     PROJECT_ROOT,
-    "packages/extension-platform/host/src/internal.ts",
+    "packages/extension-platform/extension-host/src/internal.ts",
   );
 
   assert.deepEqual(

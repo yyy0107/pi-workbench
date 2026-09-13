@@ -5,7 +5,7 @@ import type { AgentExecutionPort } from "@workbench/agent-runtime-server/executi
 
 import { AutomationRepository } from "@workbench/automation-server/repository";
 import { AutomationService } from "@workbench/automation-server/service";
-import { createPiAutomationRuntimeBindings } from "@workbench/agent-runtime-pi-server/installation";
+import { createPiAutomationRuntimeBindings } from "@workbench/pi-server/installation";
 
 export interface InstalledPiAutomationServiceOptions {
   readonly agentExecution: Pick<AgentExecutionPort, "cancel" | "submit">;

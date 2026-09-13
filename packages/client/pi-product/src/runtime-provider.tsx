@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, type ReactNode } from "react";
 
-import { PiAgentRuntimeContributionsProvider } from "@workbench/agent-runtime-pi-contributions/installation";
+import { PiAgentRuntimeContributionsProvider } from "@workbench/pi-contributions/installation";
 import {
   WorkbenchAgentRuntimeApplicationProvider,
   type WorkbenchAgentRuntimeInstallationOptions,

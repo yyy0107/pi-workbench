@@ -45,18 +45,18 @@ Do not edit `src/models.generated.ts` directly. Upstream catalog work changes th
 
 ## Workbench ownership map
 
-| Concern                                    | Workbench path                                                |
-| ------------------------------------------ | ------------------------------------------------------------- |
-| Pi dependency and version                  | `package.json`, `pnpm-lock.yaml`                              |
-| Next server externalization                | `apps/web/next.config.ts`                                     |
-| Product model/provider/auth implementation | `packages/pi/model-server/src/model-service.ts`               |
-| Coding-agent model runtime construction    | `packages/pi/session-server/src/session-registry.ts`          |
-| Browser-facing model RPC types             | `packages/pi/protocol/src/rpc.ts`                             |
-| Compact streamed-message wire types        | `packages/pi/protocol/src/stream.ts`                          |
-| Immutable message delta reducer            | `packages/pi/shared/src/messages.ts`                          |
-| Server stream compaction/snapshots         | `packages/pi/session-server/src/session-registry.ts`          |
-| Client stream accumulation                 | `packages/pi/conversation/src/session-message-accumulator.ts` |
-| Inline image admission                     | `packages/pi/session-server/src/inline-image-admission.ts`    |
+| Concern                                    | Workbench path                                                   |
+| ------------------------------------------ | ---------------------------------------------------------------- |
+| Pi dependency and version                  | `package.json`, `pnpm-lock.yaml`                                 |
+| Next server externalization                | `apps/web/next.config.ts`                                        |
+| Product model/provider/auth implementation | `packages/pi/pi-model-server/src/model-service.ts`               |
+| Coding-agent model runtime construction    | `packages/pi/pi-session-server/src/session-registry.ts`          |
+| Browser-facing model RPC types             | `packages/pi/pi-protocol/src/rpc.ts`                             |
+| Compact streamed-message wire types        | `packages/pi/pi-protocol/src/stream.ts`                          |
+| Immutable message delta reducer            | `packages/pi/pi-shared/src/messages.ts`                          |
+| Server stream compaction/snapshots         | `packages/pi/pi-session-server/src/session-registry.ts`          |
+| Client stream accumulation                 | `packages/pi/pi-conversation/src/session-message-accumulator.ts` |
+| Inline image admission                     | `packages/pi/pi-session-server/src/inline-image-admission.ts`    |
 
 Search before adding an abstraction:
 

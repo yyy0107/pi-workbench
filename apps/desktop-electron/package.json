@@ -24,9 +24,9 @@
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
-    "@workbench/agent-runtime-pi-protocol": "workspace:*",
     "@workbench/host-client": "workspace:*",
     "@workbench/host-contracts": "workspace:*",
+    "@workbench/pi-protocol": "workspace:*",
     "electron": "^43.4.1",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",

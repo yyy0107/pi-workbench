@@ -20,7 +20,6 @@
   "dependencies": {
     "@workbench/agent-runtime-client": "workspace:*",
     "@workbench/agent-runtime-contracts": "workspace:*",
-    "@workbench/agent-runtime-pi-protocol": "workspace:*",
     "@workbench/conversation": "workspace:*",
     "@workbench/extension-host": "workspace:*",
     "@workbench/extension-sdk": "workspace:*",
@@ -29,6 +28,7 @@
     "@workbench/host-contracts": "workspace:*",
     "@workbench/host-server": "workspace:*",
     "@workbench/pi-product": "workspace:*",
+    "@workbench/pi-protocol": "workspace:*",
     "@workbench/settings-server": "workspace:*",
     "@workbench/shell": "workspace:*",
     "@workbench/shell-context": "workspace:*",

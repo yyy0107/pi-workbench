@@ -1,11 +1,11 @@
-import { SUPPORTED_LOCALES, isLocale, type Locale } from "@workbench/contracts/locale";
+import { SUPPORTED_LOCALES, isLocale, type Locale } from "@workbench/core-contracts/locale";
 
 export {
   DEFAULT_LOCALE,
   SUPPORTED_LOCALES,
   isLocale,
   type Locale,
-} from "@workbench/contracts/locale";
+} from "@workbench/core-contracts/locale";
 
 export const LOCALE_COOKIE_NAME = "workbench_locale";
 

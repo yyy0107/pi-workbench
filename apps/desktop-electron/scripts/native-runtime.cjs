@@ -440,7 +440,7 @@ function resolveTerminalNativePackageDirectory(
   packageName,
   {
     repositoryRoot,
-    terminalServerDirectory = path.join(repositoryRoot, "packages", "terminal", "server"),
+    terminalServerDirectory = path.join(repositoryRoot, "packages", "terminal", "terminal-server"),
   },
 ) {
   if (!NATIVE_RUNTIME_PACKAGES.includes(packageName)) {

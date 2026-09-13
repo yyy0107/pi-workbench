@@ -16,7 +16,7 @@ const SOURCE_ROOTS = [
   "apps/runtime-node/scripts",
   "apps/runtime-node/src",
   "apps/web/src",
-  "packages/pi/contributions/src",
+  "packages/pi/pi-contributions/src",
   "packages/client/shell/src",
   "packages/client/pi-product/src",
   "packages/client/services-client/src",

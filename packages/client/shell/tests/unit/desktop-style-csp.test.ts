@@ -31,7 +31,7 @@ test("keeps generated diff metadata in DOM attributes instead of runtime styles"
 test("bundles Shell style rules without runtime style elements or cssText", async () => {
   const sources = await Promise.all(
     [
-      "../../../client/settings-ui/src/appearance-background.tsx",
+      "../../../client/ui-settings/src/appearance-background.tsx",
       "../../../client/code-highlighting/src/diff/reviewable-diff.tsx",
       "../../../client/code-highlighting/src/workbench-code-editor.tsx",
     ].map((relativePath) =>
@@ -46,7 +46,7 @@ test("bundles Shell style rules without runtime style elements or cssText", asyn
   for (const stylesheet of [
     "@workbench/code-highlighting/editor.css",
     "@workbench/code-highlighting/diff.css",
-    "@workbench/settings-ui/styles.css",
+    "@workbench/ui-settings/styles.css",
   ]) {
     assert.equal(styles.includes(`@import "${stylesheet}";`), true, stylesheet);
   }

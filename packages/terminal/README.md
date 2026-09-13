@@ -1,6 +1,6 @@
 # Workbench Terminal Runtime
 
-The [Shell Terminal extension](../workbench/shell/src/extensions/builtin/terminal/) exposes a real
+The [Shell Terminal extension](../client/ui-terminal/) exposes a real
 pseudoterminal inside RightWorkspace. It uses Shell's `useRuntimeConnection` and Workbench session
 state; it does not import Pi Client, Pi Protocol, or a Pi-specific connection context.
 
@@ -17,16 +17,16 @@ React Workspace Surface
 
 ## Package boundaries
 
-- [`@workbench/terminal-contracts`](./contracts/) owns the serializable Terminal wire contract and
+- [`@workbench/terminal-contracts`](./terminal-contracts/) owns the serializable Terminal wire contract and
   the Pi-independent Bash input declaration.
-- [`@workbench/terminal-client`](./client/) owns root-relative Terminal socket paths plus browser
+- [`@workbench/terminal-client`](./terminal-client/) owns root-relative Terminal socket paths plus browser
   socket readiness, reconnect, frame batching, disclosure, and title helpers. The Shell extension
   supplies Workbench conversation identity through the package's generic `sessionId` input.
-- [`@workbench/terminal-server`](./server/) owns PTY/session singletons, process-ready writable
+- [`@workbench/terminal-server`](./terminal-server/) owns PTY/session singletons, process-ready writable
   gating, reconnect replay/close policy, the terminal gateway, transcript projection, and the
   Tree-sitter command policy. The gateway is attached only after the outer Runtime Host has
   accepted authentication and trust.
-- [`@workbench/pi-terminal-tool`](./pi-tool/) is the sole Pi SDK adapter. It owns the custom
+- [`@workbench/pi-terminal-tool`](./pi-terminal-tool/) is the sole Pi SDK adapter. It owns the custom
   `interactive-bash-tool` ToolDefinition and delegates execution to Terminal Server without
   leaking Pi types into the general Terminal packages.
 

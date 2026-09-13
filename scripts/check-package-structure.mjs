@@ -72,7 +72,15 @@ export async function packageStructureInventory(repositoryRoot = REPOSITORY_ROOT
         Object.values(value).forEach(inspectExport);
       }
     };
-    inspectExport(JSON.parse(await readFile(manifest, "utf8")).exports);
+    const packageManifest = JSON.parse(await readFile(manifest, "utf8"));
+    // Missing names are checked by check-workspace-dependencies; enforce the
+    // directory/name contract here whenever a manifest declares its identity.
+    if (typeof packageManifest.name === "string") {
+      const expectedName = `@workbench/${path.basename(root)}`;
+      if (packageManifest.name !== expectedName)
+        add("package-name", manifest, `expected package name ${expectedName}`);
+    }
+    inspectExport(packageManifest.exports);
     for (const sourceRoot of ["src", "lib"]) {
       const candidates = allFiles.filter(
         (file) =>
@@ -122,10 +130,10 @@ export async function packageStructureInventory(repositoryRoot = REPOSITORY_ROOT
     if (!SOURCE_EXTENSION.test(filename)) continue;
     // Existing CommonJS artifact policy remains build tooling; no application TS is converted to JS.
     const legacyBuildTool =
-      (relative(owner) === "packages/host/artifact-policy" && filename.endsWith(".cjs")) ||
+      (relative(owner) === "packages/host/host-artifact-policy" && filename.endsWith(".cjs")) ||
       [
-        "packages/host/server/src/host-probe.cjs",
-        "packages/host/server/src/windows-process-census.cjs",
+        "packages/host/host-server/src/host-probe.cjs",
+        "packages/host/host-server/src/windows-process-census.cjs",
       ].includes(relative(filename));
     if (["src", "lib"].includes(local[0]) && /\.[cm]?jsx?$/u.test(filename) && !legacyBuildTool)
       add("source-language", filename, "capability and helper source must use TypeScript");

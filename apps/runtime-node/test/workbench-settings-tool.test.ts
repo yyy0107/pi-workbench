@@ -4,11 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import {
-  bindPiAgentHostBindings,
-  getPiAgentHostBindings,
-} from "@workbench/agent-runtime-pi-server/installation";
-import { createSession } from "@workbench/agent-runtime-pi-server/legacy";
+import { bindPiAgentHostBindings, getPiAgentHostBindings } from "@workbench/pi-server/installation";
+import { createSession } from "@workbench/pi-server/legacy";
 import { subscribeWorkbenchSettingsPreferences } from "@workbench/settings-server/service";
 import { getInstalledPiServer } from "../src/composition/installed-pi-server";
 

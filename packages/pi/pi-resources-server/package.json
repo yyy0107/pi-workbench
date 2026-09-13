@@ -1,0 +1,62 @@
+{
+  "name": "@workbench/pi-resources-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./internal-extensions": "./src/internal-extensions.ts",
+    "./mutations": "./src/pi-resource-mutation-coordinator.ts",
+    "./resource-mutations": "./src/resource-mutations.ts",
+    "./resource-text-file": "./src/resource-text-file.ts",
+    "./contexts": "./src/scoped-resource-context.ts",
+    "./builtin-skills": "./src/builtin-skills.ts",
+    "./skill-enablement": "./src/skill-enablement.ts",
+    "./skills": "./src/skill-service.ts",
+    "./extension-name": "./src/extension-name.ts",
+    "./extensions": "./src/extension-service.ts",
+    "./builtin-packages": "./src/builtin-packages.ts",
+    "./packages": "./src/installed-package-service.ts",
+    "./catalog": "./src/package-catalog-service.ts",
+    "./package-resource-details": "./src/package-resource-details.ts",
+    "./package-update-metadata": "./src/package-update-metadata.ts",
+    "./commands": "./src/command-service.ts",
+    "./composer-command-failure": "./src/composer-command-failure.ts",
+    "./composer-command-planner": "./src/composer-command-planner.ts",
+    "./pi-composer-command-arguments": "./src/pi-composer-command-arguments.ts",
+    "./pi-composer-command-catalog": "./src/pi-composer-command-catalog.ts",
+    "./prompt-template-expander": "./src/prompt-template-expander.ts",
+    "./prompts": "./src/prompt-service.ts",
+    "./settings": "./src/agent-settings-service.ts",
+    "./trust": "./src/project-trust-service.ts",
+    "./workspace-paths": "./src/workspace-paths.ts",
+    "./workspaces": "./src/workspace-protocol-service.ts",
+    "./workspace-store": "./src/workspace-store.ts",
+    "./builtin-resources": "./src/builtin-resources.ts",
+    "./resource-locations": "./src/builtin-resource-locations.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "0.85.1",
+    "@earendil-works/pi-coding-agent": "0.85.1",
+    "@workbench/agent-runtime-server": "workspace:*",
+    "@workbench/core-contracts": "workspace:*",
+    "@workbench/local-host-server": "workspace:*",
+    "@workbench/pi-browser": "workspace:*",
+    "@workbench/pi-protocol": "workspace:*",
+    "@workbench/pi-server-ports": "workspace:*",
+    "@workbench/pi-shared": "workspace:*",
+    "@workbench/server-core": "workspace:*",
+    "mime": "4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@workbench/agent-runtime-testkit": "workspace:*",
+    "@workbench/settings-server": "workspace:*",
+    "typescript": "^7.0.2"
+  }
+}

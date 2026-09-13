@@ -3,9 +3,9 @@ import test from "node:test";
 
 import { isValidElement } from "react";
 
-import { PI_AGENT_RUNTIME_DESCRIPTOR } from "@workbench/agent-runtime-pi-shared/descriptor";
+import { PI_AGENT_RUNTIME_DESCRIPTOR } from "@workbench/pi-shared/descriptor";
 import type { PromptFeedbackPort } from "@workbench/agent-runtime-client/prompt-feedback";
-import type { PiClientTransport } from "@workbench/agent-runtime-pi-client/installation";
+import type { PiClientTransport } from "@workbench/pi-client/installation";
 import type { RuntimeWebSocket, RuntimeWebSocketMessageEvent } from "@workbench/host-client";
 import {
   RUNTIME_CONNECTION_PROTOCOL_VERSION,

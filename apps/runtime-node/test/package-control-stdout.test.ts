@@ -66,7 +66,7 @@ await runRuntimeNodeMain({
     ],
     {
       // Resolve the same SDK instance as the Pi package service, including pnpm peer contexts.
-      cwd: fileURLToPath(new URL("../../../packages/pi/server/", import.meta.url)),
+      cwd: fileURLToPath(new URL("../../../packages/pi/pi-server/", import.meta.url)),
       env: {
         ...process.env,
         PI_CODING_AGENT_DIR: path.join(root, "agent"),

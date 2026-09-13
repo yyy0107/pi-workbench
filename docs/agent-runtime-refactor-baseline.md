@@ -16,8 +16,8 @@ This baseline was recorded before workspace/package infrastructure changes. The 
 contained user changes in these Pi files (paths below reflect the current Runtime layout):
 
 - `packages/pi/README.md`
-- `packages/pi/server/src/streams/websocket-gateway.ts`
-- `packages/pi/server/tests/streams/websocket-gateway.test.ts`
+- `packages/pi/pi-server/src/streams/websocket-gateway.ts`
+- `packages/pi/pi-server/tests/streams/websocket-gateway.test.ts`
 
 Those changes are part of the observed baseline and must not be overwritten by the package migration.
 

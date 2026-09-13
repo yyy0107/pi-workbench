@@ -1,0 +1,50 @@
+{
+  "name": "@workbench/workspace-browser",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./service": "./src/browser-session-service.ts",
+    "./styles.css": "./src/browser-viewport.css",
+    "./i18n": "./src/i18n.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-client": "workspace:*",
+    "@workbench/browser-contracts": "workspace:*",
+    "@workbench/extension-host": "workspace:*",
+    "@workbench/extension-sdk": "workspace:*",
+    "@workbench/host-client": "workspace:*",
+    "@workbench/host-contracts": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/shell-context": "workspace:*",
+    "@workbench/ui": "workspace:*",
+    "@workbench/ui-settings": "workspace:*",
+    "@workbench/workspace-directory-picker": "workspace:*",
+    "@workbench/workspace-files": "workspace:*",
+    "@workbench/workspace-runtime": "workspace:*",
+    "lucide-react": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/settings-runtime": "workspace:*",
+    "@workbench/ui-testkit": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

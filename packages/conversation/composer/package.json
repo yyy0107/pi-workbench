@@ -34,7 +34,7 @@
     "@lexical/rich-text": "0.49.0",
     "@workbench/agent-runtime-client": "workspace:*",
     "@workbench/agent-runtime-contracts": "workspace:*",
-    "@workbench/contracts": "workspace:*",
+    "@workbench/core-contracts": "workspace:*",
     "@workbench/extension-host": "workspace:*",
     "@workbench/extension-sdk": "workspace:*",
     "@workbench/i18n": "workspace:*",

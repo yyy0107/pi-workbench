@@ -3,7 +3,7 @@
 import { createThinkingOrbRenderer } from "../lib/thinking-orb-renderer";
 
 import { type OrbState } from "thinking-orbs";
-import { defineSettingsUiMessage as defineMessage } from "@workbench/settings-ui/i18n";
+import { defineSettingsUiMessage as defineMessage } from "@workbench/ui-settings/i18n";
 import type { LocalizableText } from "@workbench/i18n";
 import type { RunningIndicatorDefinition } from "@workbench/shell-context/running-indicator";
 

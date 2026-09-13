@@ -3,25 +3,31 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const WORKSPACE_PROTOCOL_SERVICE = new URL(
-  "../packages/pi/resources-server/src/workspace-protocol-service.ts",
+  "../packages/pi/pi-resources-server/src/workspace-protocol-service.ts",
   import.meta.url,
 );
 const WORKSPACE_STORE = new URL(
-  "../packages/pi/resources-server/src/workspace-store.ts",
+  "../packages/pi/pi-resources-server/src/workspace-store.ts",
   import.meta.url,
 );
 const WORKSPACE_RPC_ROUTES = new URL(
-  "../packages/pi/server/src/routes/workspace-rpc-routes.ts",
+  "../packages/pi/pi-server/src/routes/workspace-rpc-routes.ts",
   import.meta.url,
 );
 const WORKSPACE_FILE_RPC_ROUTES = new URL(
-  "../packages/server/workspace/src/file-rpc-routes.ts",
+  "../packages/server/workspace-server/src/file-rpc-routes.ts",
   import.meta.url,
 );
-const WORKSPACE_FILES = new URL("../packages/server/workspace/src/files.ts", import.meta.url);
-const WORKSPACE_FILE_CONTENT = new URL("../packages/server/workspace/src/http.ts", import.meta.url);
+const WORKSPACE_FILES = new URL(
+  "../packages/server/workspace-server/src/files.ts",
+  import.meta.url,
+);
+const WORKSPACE_FILE_CONTENT = new URL(
+  "../packages/server/workspace-server/src/http.ts",
+  import.meta.url,
+);
 const RPC_ROUTE_COMPOSITION = new URL(
-  "../packages/pi/server/src/transport/rpc-route-composition.ts",
+  "../packages/pi/pi-server/src/transport/rpc-route-composition.ts",
   import.meta.url,
 );
 
@@ -103,7 +109,7 @@ test("Workspace file service exposes one protocol and a shared late-bound factor
   assert.match(source, /class WorkspaceFileService implements WorkspaceFileProtocol/);
   assert.match(source, /export function createWorkspaceFileService/);
   assert.match(source, /resolveWorkspaceRoot/);
-  assert.doesNotMatch(source, /getWorkspaceStore|WorkspaceStore|agent-runtime-pi/);
+  assert.doesNotMatch(source, /getWorkspaceStore|WorkspaceStore|@workbench\/pi-/);
   assert.doesNotMatch(source, /rpc-transport/);
 });
 
@@ -158,7 +164,10 @@ test("WorkspaceStore remains the owner of Host stream publication", async () => 
   assert.match(source, /this\.publishHost\?\./);
   assert.doesNotMatch(source, /getStreamHub/);
   const adapter = await readFile(
-    new URL("../packages/pi/server/src/resource-composition/workspace-store.ts", import.meta.url),
+    new URL(
+      "../packages/pi/pi-server/src/resource-composition/workspace-store.ts",
+      import.meta.url,
+    ),
     "utf8",
   );
   assert.match(adapter, /getStreamHub\(\)\.publishHost\(payload\)/);

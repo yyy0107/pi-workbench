@@ -63,7 +63,7 @@ test("lib implementation uses production dependencies and cannot import another 
   );
   await packageFixture(
     root,
-    "packages/agent-runtime/client",
+    "packages/agent-runtime/agent-runtime-client",
     {
       name: "@workbench/client",
       dependencies: { "@workbench/base": "workspace:*" },
@@ -94,7 +94,7 @@ test("accepts declared production, peer, development, builtin, and workspace imp
   });
   await packageFixture(
     root,
-    "packages/agent-runtime/client",
+    "packages/agent-runtime/agent-runtime-client",
     {
       name: "@workbench/client",
       private: true,
@@ -183,7 +183,7 @@ test("rejects workspace source internals and non-workspace dependency protocols"
   });
   await packageFixture(
     root,
-    "packages/agent-runtime/client",
+    "packages/agent-runtime/agent-runtime-client",
     {
       name: "@workbench/client",
       private: true,
@@ -225,7 +225,7 @@ test("rejects production dependency cycles while allowing one-way package layeri
     private: true,
     dependencies: { "@workbench/client": "workspace:*" },
   });
-  await packageFixture(root, "packages/agent-runtime/client", {
+  await packageFixture(root, "packages/agent-runtime/agent-runtime-client", {
     name: "@workbench/client",
     private: true,
     dependencies: { "@workbench/base": "workspace:*" },

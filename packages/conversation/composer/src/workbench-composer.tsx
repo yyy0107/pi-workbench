@@ -23,7 +23,7 @@ import { ComposerWorkspaceFeedback } from "@workbench/workspace-runtime/presenta
 import {
   COMPOSER_CONVERSATION_MENTION_TYPE,
   COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
-} from "@workbench/contracts/composer";
+} from "@workbench/core-contracts/composer";
 import { useComposerI18n as useI18n } from "./use-i18n";
 import { useWorkbenchBranding } from "@workbench/shell-context/presentation";
 import { cn } from "@workbench/ui/utils";

@@ -1,4 +1,4 @@
-import { defineSettingsUiMessage } from "@workbench/settings-ui/i18n";
+import { defineSettingsUiMessage } from "@workbench/ui-settings/i18n";
 import { ArchiveIcon } from "lucide-react";
 
 import { defineConversationMessage as defineMessage } from "../i18n";

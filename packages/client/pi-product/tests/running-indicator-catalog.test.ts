@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createRunningIndicatorCatalog } from "@workbench/shell-context/running-indicator";
-import { piRunningIndicatorDefinitions } from "@workbench/agent-runtime-pi-contributions/installation";
+import { piRunningIndicatorDefinitions } from "@workbench/pi-contributions/installation";
 import {
   DEFAULT_RUNNING_INDICATOR_STYLE_ID,
   shellRunningIndicatorDefinitions,

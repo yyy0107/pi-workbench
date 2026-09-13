@@ -72,7 +72,7 @@ function writeFixtureFile(filePath, content = filePath, mode) {
 }
 
 function writeNativeOwner(repositoryRoot) {
-  const owner = path.join(repositoryRoot, "packages", "terminal", "server");
+  const owner = path.join(repositoryRoot, "packages", "terminal", "terminal-server");
   writeFixtureFile(
     path.join(owner, "package.json"),
     JSON.stringify({

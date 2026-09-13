@@ -11,24 +11,24 @@ importers:
 
   .:
     devDependencies:
-      '@workbench/agent-runtime-pi-contributions':
-        specifier: workspace:*
-        version: link:packages/pi/contributions
       '@workbench/conversation':
         specifier: workspace:*
         version: link:packages/conversation/conversation
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:packages/extension-platform/sdk
+        version: link:packages/extension-platform/extension-sdk
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:packages/client/host-contracts
       '@workbench/host-server':
         specifier: workspace:*
-        version: link:packages/host/server
+        version: link:packages/host/host-server
+      '@workbench/pi-contributions':
+        specifier: workspace:*
+        version: link:packages/pi/pi-contributions
       '@workbench/pi-conversation':
         specifier: workspace:*
-        version: link:packages/pi/conversation
+        version: link:packages/pi/pi-conversation
       '@workbench/settings-runtime':
         specifier: workspace:*
         version: link:packages/client/settings-runtime
@@ -46,7 +46,7 @@ importers:
         version: link:packages/client/ui-layout
       '@workbench/workspace-runtime':
         specifier: workspace:*
-        version: link:packages/workspace/runtime
+        version: link:packages/workspace/workspace-runtime
       oxc-parser:
         specifier: ^0.149.0
         version: 0.149.0
@@ -64,10 +64,10 @@ importers:
     dependencies:
       '@workbench/host-artifact-policy':
         specifier: workspace:*
-        version: link:../../packages/host/artifact-policy
+        version: link:../../packages/host/host-artifact-policy
       '@workbench/host-server':
         specifier: workspace:*
-        version: link:../../packages/host/server
+        version: link:../../packages/host/host-server
       electron-updater:
         specifier: ^6.8.9
         version: 6.8.9(supports-color@7.2.0)
@@ -75,15 +75,15 @@ importers:
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../../packages/pi/protocol
       '@workbench/host-client':
         specifier: workspace:*
         version: link:../../packages/client/host-client
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../packages/client/host-contracts
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../../packages/pi/pi-protocol
       electron:
         specifier: ^43.4.1
         version: 43.4.1(supports-color@7.2.0)
@@ -107,7 +107,7 @@ importers:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../packages/agent-runtime/client
+        version: link:../../packages/agent-runtime/agent-runtime-client
       '@workbench/appearance':
         specifier: workspace:*
         version: link:../../packages/client/appearance
@@ -119,10 +119,10 @@ importers:
         version: link:../../packages/client/desktop-contracts
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../packages/extension-platform/host
+        version: link:../../packages/extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../packages/extension-platform/sdk
+        version: link:../../packages/extension-platform/extension-sdk
       '@workbench/host-client':
         specifier: workspace:*
         version: link:../../packages/client/host-client
@@ -177,7 +177,7 @@ importers:
         version: 19.2.4(@types/react@19.2.18)
       '@workbench/host-artifact-policy':
         specifier: workspace:*
-        version: link:../../packages/host/artifact-policy
+        version: link:../../packages/host/host-artifact-policy
       file-viewer-copy-assets:
         specifier: 2.3.0
         version: 2.3.0
@@ -201,49 +201,49 @@ importers:
         version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(ws@8.21.3)
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../packages/agent-runtime/contracts
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../../packages/pi/protocol
-      '@workbench/agent-runtime-pi-server':
-        specifier: workspace:*
-        version: link:../../packages/pi/server
+        version: link:../../packages/agent-runtime/agent-runtime-contracts
       '@workbench/agent-runtime-server':
         specifier: workspace:*
-        version: link:../../packages/agent-runtime/server
+        version: link:../../packages/agent-runtime/agent-runtime-server
       '@workbench/automation-server':
         specifier: workspace:*
-        version: link:../../packages/server/automation
+        version: link:../../packages/server/automation-server
       '@workbench/browser-contracts':
         specifier: workspace:*
-        version: link:../../packages/contracts/browser
+        version: link:../../packages/contracts/browser-contracts
       '@workbench/browser-server':
         specifier: workspace:*
-        version: link:../../packages/server/browser
+        version: link:../../packages/server/browser-server
       '@workbench/host-server':
         specifier: workspace:*
-        version: link:../../packages/host/server
+        version: link:../../packages/host/host-server
       '@workbench/local-host-server':
         specifier: workspace:*
-        version: link:../../packages/server/local-host
+        version: link:../../packages/server/local-host-server
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../../packages/pi/pi-protocol
+      '@workbench/pi-server':
+        specifier: workspace:*
+        version: link:../../packages/pi/pi-server
       '@workbench/pi-terminal-tool':
         specifier: workspace:*
-        version: link:../../packages/terminal/pi-tool
+        version: link:../../packages/terminal/pi-terminal-tool
       '@workbench/server-core':
         specifier: workspace:*
-        version: link:../../packages/server/core
+        version: link:../../packages/server/server-core
       '@workbench/settings-server':
         specifier: workspace:*
-        version: link:../../packages/server/settings
+        version: link:../../packages/server/settings-server
       '@workbench/terminal-contracts':
         specifier: workspace:*
-        version: link:../../packages/terminal/contracts
+        version: link:../../packages/terminal/terminal-contracts
       '@workbench/terminal-server':
         specifier: workspace:*
-        version: link:../../packages/terminal/server
+        version: link:../../packages/terminal/terminal-server
       '@workbench/workspace-server':
         specifier: workspace:*
-        version: link:../../packages/server/workspace
+        version: link:../../packages/server/workspace-server
       ws:
         specifier: ^8.21.3
         version: 8.21.3
@@ -259,7 +259,7 @@ importers:
         version: 1.11.0
       '@workbench/host-artifact-policy':
         specifier: workspace:*
-        version: link:../../packages/host/artifact-policy
+        version: link:../../packages/host/host-artifact-policy
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../packages/client/host-contracts
@@ -277,25 +277,22 @@ importers:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../packages/agent-runtime/client
+        version: link:../../packages/agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../packages/agent-runtime/contracts
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../../packages/pi/protocol
+        version: link:../../packages/agent-runtime/agent-runtime-contracts
       '@workbench/conversation':
         specifier: workspace:*
         version: link:../../packages/conversation/conversation
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../packages/extension-platform/host
+        version: link:../../packages/extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../packages/extension-platform/sdk
+        version: link:../../packages/extension-platform/extension-sdk
       '@workbench/host-artifact-policy':
         specifier: workspace:*
-        version: link:../../packages/host/artifact-policy
+        version: link:../../packages/host/host-artifact-policy
       '@workbench/host-client':
         specifier: workspace:*
         version: link:../../packages/client/host-client
@@ -304,13 +301,16 @@ importers:
         version: link:../../packages/client/host-contracts
       '@workbench/host-server':
         specifier: workspace:*
-        version: link:../../packages/host/server
+        version: link:../../packages/host/host-server
       '@workbench/pi-product':
         specifier: workspace:*
         version: link:../../packages/client/pi-product
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../../packages/pi/pi-protocol
       '@workbench/settings-server':
         specifier: workspace:*
-        version: link:../../packages/server/settings
+        version: link:../../packages/server/settings-server
       '@workbench/shell':
         specifier: workspace:*
         version: link:../../packages/client/shell
@@ -367,20 +367,20 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/agent-runtime/client:
+  packages/agent-runtime/agent-runtime-client:
     dependencies:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../agent-runtime-contracts
       '@workbench/agent-runtime-core':
         specifier: workspace:*
-        version: link:../runtime
+        version: link:../agent-runtime-core
       '@workbench/automation-contracts':
         specifier: workspace:*
-        version: link:../../contracts/automation
-      '@workbench/contracts':
+        version: link:../../contracts/automation-contracts
+      '@workbench/core-contracts':
         specifier: workspace:*
-        version: link:../../contracts/core
+        version: link:../../contracts/core-contracts
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../client/host-contracts
@@ -410,11 +410,11 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/agent-runtime/contracts:
+  packages/agent-runtime/agent-runtime-contracts:
     dependencies:
-      '@workbench/contracts':
+      '@workbench/core-contracts':
         specifier: workspace:*
-        version: link:../../contracts/core
+        version: link:../../contracts/core-contracts
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -423,11 +423,11 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/agent-runtime/runtime:
+  packages/agent-runtime/agent-runtime-core:
     dependencies:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../agent-runtime-contracts
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -436,17 +436,17 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/agent-runtime/server:
+  packages/agent-runtime/agent-runtime-server:
     dependencies:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../agent-runtime-contracts
       '@workbench/automation-contracts':
         specifier: workspace:*
-        version: link:../../contracts/automation
-      '@workbench/contracts':
+        version: link:../../contracts/automation-contracts
+      '@workbench/core-contracts':
         specifier: workspace:*
-        version: link:../../contracts/core
+        version: link:../../contracts/core-contracts
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -455,81 +455,20 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/agent-runtime/testkit:
+  packages/agent-runtime/agent-runtime-testkit:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../client
+        version: link:../agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../agent-runtime-contracts
       '@workbench/agent-runtime-core':
         specifier: workspace:*
-        version: link:../runtime
+        version: link:../agent-runtime-core
       '@workbench/agent-runtime-server':
         specifier: workspace:*
-        version: link:../server
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.4
-        version: 19.2.4(@types/react@19.2.18)
-      '@workbench/ui-testkit':
-        specifier: workspace:*
-        version: link:../../test-support/ui-testkit
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/client/agent-controls:
-    dependencies:
-      '@workbench/agent-runtime-client':
-        specifier: workspace:*
-        version: link:../../agent-runtime/client
-      '@workbench/agent-runtime-contracts':
-        specifier: workspace:*
-        version: link:../../agent-runtime/contracts
-      '@workbench/contracts':
-        specifier: workspace:*
-        version: link:../../contracts/core
-      '@workbench/extension-host':
-        specifier: workspace:*
-        version: link:../../extension-platform/host
-      '@workbench/extension-sdk':
-        specifier: workspace:*
-        version: link:../../extension-platform/sdk
-      '@workbench/i18n':
-        specifier: workspace:*
-        version: link:../i18n
-      '@workbench/settings-runtime':
-        specifier: workspace:*
-        version: link:../settings-runtime
-      '@workbench/settings-ui':
-        specifier: workspace:*
-        version: link:../settings-ui
-      '@workbench/ui':
-        specifier: workspace:*
-        version: link:../ui
-      '@workbench/workspace-runtime':
-        specifier: workspace:*
-        version: link:../../workspace/runtime
-      lucide-react:
-        specifier: ^1.29.0
-        version: 1.31.0(react@19.2.8)
-      zustand:
-        specifier: ^5.0.14
-        version: 5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
+        version: link:../agent-runtime-server
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -571,67 +510,6 @@ importers:
       react:
         specifier: ^19.2.8
         version: 19.2.8
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/client/automation-ui:
-    dependencies:
-      '@workbench/agent-controls':
-        specifier: workspace:*
-        version: link:../agent-controls
-      '@workbench/agent-runtime-client':
-        specifier: workspace:*
-        version: link:../../agent-runtime/client
-      '@workbench/automation-contracts':
-        specifier: workspace:*
-        version: link:../../contracts/automation
-      '@workbench/contracts':
-        specifier: workspace:*
-        version: link:../../contracts/core
-      '@workbench/extension-host':
-        specifier: workspace:*
-        version: link:../../extension-platform/host
-      '@workbench/extension-sdk':
-        specifier: workspace:*
-        version: link:../../extension-platform/sdk
-      '@workbench/i18n':
-        specifier: workspace:*
-        version: link:../i18n
-      '@workbench/shell-context':
-        specifier: workspace:*
-        version: link:../shell-context
-      '@workbench/ui':
-        specifier: workspace:*
-        version: link:../ui
-      '@workbench/workspace-directory-picker':
-        specifier: workspace:*
-        version: link:../../workspace/directory-picker
-      cronstrue:
-        specifier: ^3.24.0
-        version: 3.24.0
-      lucide-react:
-        specifier: ^1.29.0
-        version: 1.31.0(react@19.2.8)
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.4
-        version: 19.2.4(@types/react@19.2.18)
-      '@workbench/ui-testkit':
-        specifier: workspace:*
-        version: link:../../test-support/ui-testkit
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -695,7 +573,7 @@ importers:
         version: link:../host-contracts
       '@workbench/terminal-contracts':
         specifier: workspace:*
-        version: link:../../terminal/contracts
+        version: link:../../terminal/terminal-contracts
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -728,12 +606,12 @@ importers:
 
   packages/client/i18n:
     dependencies:
-      '@workbench/contracts':
+      '@workbench/core-contracts':
         specifier: workspace:*
-        version: link:../../contracts/core
+        version: link:../../contracts/core-contracts
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -849,22 +727,16 @@ importers:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
-      '@workbench/agent-runtime-pi-client':
-        specifier: workspace:*
-        version: link:../../pi/client
-      '@workbench/agent-runtime-pi-contributions':
-        specifier: workspace:*
-        version: link:../../pi/contributions
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/conversation':
         specifier: workspace:*
         version: link:../../conversation/conversation
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/host-client':
         specifier: workspace:*
         version: link:../host-client
@@ -877,24 +749,30 @@ importers:
       '@workbench/markdown':
         specifier: workspace:*
         version: link:../markdown
+      '@workbench/pi-client':
+        specifier: workspace:*
+        version: link:../../pi/pi-client
+      '@workbench/pi-contributions':
+        specifier: workspace:*
+        version: link:../../pi/pi-contributions
       '@workbench/services-client':
         specifier: workspace:*
         version: link:../services-client
       '@workbench/settings-runtime':
         specifier: workspace:*
         version: link:../settings-runtime
-      '@workbench/settings-ui':
-        specifier: workspace:*
-        version: link:../settings-ui
       '@workbench/shell':
         specifier: workspace:*
         version: link:../shell
       '@workbench/shell-context':
         specifier: workspace:*
         version: link:../shell-context
+      '@workbench/ui-settings':
+        specifier: workspace:*
+        version: link:../ui-settings
       '@workbench/workspace-files':
         specifier: workspace:*
-        version: link:../../workspace/files
+        version: link:../../workspace/workspace-files
       thinking-orbs:
         specifier: ^0.3.1
         version: 0.3.1(react@19.2.8)
@@ -908,12 +786,12 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.4
         version: 19.2.4(@types/react@19.2.18)
-      '@workbench/agent-runtime-pi-shared':
+      '@workbench/pi-shared':
         specifier: workspace:*
-        version: link:../../pi/shared
+        version: link:../../pi/pi-shared
       '@workbench/workspace-runtime':
         specifier: workspace:*
-        version: link:../../workspace/runtime
+        version: link:../../workspace/workspace-runtime
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -928,13 +806,13 @@ importers:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/automation-contracts':
         specifier: workspace:*
-        version: link:../../contracts/automation
+        version: link:../../contracts/automation-contracts
       '@workbench/host-client':
         specifier: workspace:*
         version: link:../host-client
@@ -956,7 +834,7 @@ importers:
     dependencies:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
+        version: link:../../agent-runtime/agent-runtime-contracts
       zustand:
         specifier: ^5.0.14
         version: 5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
@@ -983,72 +861,11 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/client/settings-ui:
-    dependencies:
-      '@workbench/appearance':
-        specifier: workspace:*
-        version: link:../appearance
-      '@workbench/code-highlighting':
-        specifier: workspace:*
-        version: link:../code-highlighting
-      '@workbench/contracts':
-        specifier: workspace:*
-        version: link:../../contracts/core
-      '@workbench/extension-host':
-        specifier: workspace:*
-        version: link:../../extension-platform/host
-      '@workbench/extension-sdk':
-        specifier: workspace:*
-        version: link:../../extension-platform/sdk
-      '@workbench/i18n':
-        specifier: workspace:*
-        version: link:../i18n
-      '@workbench/settings-runtime':
-        specifier: workspace:*
-        version: link:../settings-runtime
-      '@workbench/shell-context':
-        specifier: workspace:*
-        version: link:../shell-context
-      '@workbench/ui':
-        specifier: workspace:*
-        version: link:../ui
-      lucide-react:
-        specifier: ^1.29.0
-        version: 1.31.0(react@19.2.8)
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.4
-        version: 19.2.4(@types/react@19.2.18)
-      '@workbench/ui-testkit':
-        specifier: workspace:*
-        version: link:../../test-support/ui-testkit
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
   packages/client/shell:
     dependencies:
-      '@workbench/agent-controls':
-        specifier: workspace:*
-        version: link:../agent-controls
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
-      '@workbench/automation-ui':
-        specifier: workspace:*
-        version: link:../automation-ui
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/code-highlighting':
         specifier: workspace:*
         version: link:../code-highlighting
@@ -1060,10 +877,10 @@ importers:
         version: link:../../conversation/conversation
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../extension-platform/host
+        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../host-contracts
@@ -1076,54 +893,60 @@ importers:
       '@workbench/settings-runtime':
         specifier: workspace:*
         version: link:../settings-runtime
-      '@workbench/settings-ui':
-        specifier: workspace:*
-        version: link:../settings-ui
       '@workbench/shell-context':
         specifier: workspace:*
         version: link:../shell-context
-      '@workbench/terminal-ui':
-        specifier: workspace:*
-        version: link:../terminal-ui
       '@workbench/ui':
         specifier: workspace:*
         version: link:../ui
+      '@workbench/ui-agent-controls':
+        specifier: workspace:*
+        version: link:../ui-agent-controls
+      '@workbench/ui-automation':
+        specifier: workspace:*
+        version: link:../ui-automation
       '@workbench/ui-layout':
         specifier: workspace:*
         version: link:../ui-layout
       '@workbench/ui-panels':
         specifier: workspace:*
         version: link:../ui-panels
+      '@workbench/ui-settings':
+        specifier: workspace:*
+        version: link:../ui-settings
       '@workbench/ui-sidebar':
         specifier: workspace:*
         version: link:../ui-sidebar
+      '@workbench/ui-terminal':
+        specifier: workspace:*
+        version: link:../ui-terminal
       '@workbench/workspace-artifact':
         specifier: workspace:*
-        version: link:../../workspace/artifact
+        version: link:../../workspace/workspace-artifact
       '@workbench/workspace-browser':
         specifier: workspace:*
-        version: link:../../workspace/browser
+        version: link:../../workspace/workspace-browser
       '@workbench/workspace-directory-picker':
         specifier: workspace:*
-        version: link:../../workspace/directory-picker
+        version: link:../../workspace/workspace-directory-picker
       '@workbench/workspace-explorer':
         specifier: workspace:*
-        version: link:../../workspace/explorer
+        version: link:../../workspace/workspace-explorer
       '@workbench/workspace-file-view':
         specifier: workspace:*
-        version: link:../../workspace/file-view
+        version: link:../../workspace/workspace-file-view
       '@workbench/workspace-files':
         specifier: workspace:*
-        version: link:../../workspace/files
+        version: link:../../workspace/workspace-files
       '@workbench/workspace-git-branch':
         specifier: workspace:*
-        version: link:../../workspace/git-branch
+        version: link:../../workspace/workspace-git-branch
       '@workbench/workspace-review':
         specifier: workspace:*
-        version: link:../../workspace/review
+        version: link:../../workspace/workspace-review
       '@workbench/workspace-runtime':
         specifier: workspace:*
-        version: link:../../workspace/runtime
+        version: link:../../workspace/workspace-runtime
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -1136,7 +959,7 @@ importers:
         version: 19.2.4(@types/react@19.2.18)
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/appearance':
         specifier: workspace:*
         version: link:../appearance
@@ -1163,7 +986,7 @@ importers:
     dependencies:
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../host-contracts
@@ -1173,76 +996,6 @@ importers:
       zustand:
         specifier: ^5.0.14
         version: 5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.4
-        version: 19.2.4(@types/react@19.2.18)
-      '@workbench/ui-testkit':
-        specifier: workspace:*
-        version: link:../../test-support/ui-testkit
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/client/terminal-ui:
-    dependencies:
-      '@workbench/agent-runtime-client':
-        specifier: workspace:*
-        version: link:../../agent-runtime/client
-      '@workbench/agent-runtime-contracts':
-        specifier: workspace:*
-        version: link:../../agent-runtime/contracts
-      '@workbench/conversation':
-        specifier: workspace:*
-        version: link:../../conversation/conversation
-      '@workbench/extension-host':
-        specifier: workspace:*
-        version: link:../../extension-platform/host
-      '@workbench/extension-sdk':
-        specifier: workspace:*
-        version: link:../../extension-platform/sdk
-      '@workbench/host-client':
-        specifier: workspace:*
-        version: link:../host-client
-      '@workbench/i18n':
-        specifier: workspace:*
-        version: link:../i18n
-      '@workbench/shell-context':
-        specifier: workspace:*
-        version: link:../shell-context
-      '@workbench/terminal-client':
-        specifier: workspace:*
-        version: link:../../terminal/client
-      '@workbench/terminal-contracts':
-        specifier: workspace:*
-        version: link:../../terminal/contracts
-      '@workbench/ui':
-        specifier: workspace:*
-        version: link:../ui
-      '@workbench/workspace-runtime':
-        specifier: workspace:*
-        version: link:../../workspace/runtime
-      '@xterm/addon-fit':
-        specifier: ^0.11.0
-        version: 0.11.0
-      '@xterm/xterm':
-        specifier: ^6.0.0
-        version: 6.0.0
-      lucide-react:
-        specifier: ^1.29.0
-        version: 1.31.0(react@19.2.8)
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -1318,20 +1071,142 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  packages/client/ui-agent-controls:
+    dependencies:
+      '@workbench/agent-runtime-client':
+        specifier: workspace:*
+        version: link:../../agent-runtime/agent-runtime-client
+      '@workbench/agent-runtime-contracts':
+        specifier: workspace:*
+        version: link:../../agent-runtime/agent-runtime-contracts
+      '@workbench/core-contracts':
+        specifier: workspace:*
+        version: link:../../contracts/core-contracts
+      '@workbench/extension-host':
+        specifier: workspace:*
+        version: link:../../extension-platform/extension-host
+      '@workbench/extension-sdk':
+        specifier: workspace:*
+        version: link:../../extension-platform/extension-sdk
+      '@workbench/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@workbench/settings-runtime':
+        specifier: workspace:*
+        version: link:../settings-runtime
+      '@workbench/ui':
+        specifier: workspace:*
+        version: link:../ui
+      '@workbench/ui-settings':
+        specifier: workspace:*
+        version: link:../ui-settings
+      '@workbench/workspace-runtime':
+        specifier: workspace:*
+        version: link:../../workspace/workspace-runtime
+      lucide-react:
+        specifier: ^1.29.0
+        version: 1.31.0(react@19.2.8)
+      zustand:
+        specifier: ^5.0.14
+        version: 5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      '@workbench/ui-testkit':
+        specifier: workspace:*
+        version: link:../../test-support/ui-testkit
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/client/ui-automation:
+    dependencies:
+      '@workbench/agent-runtime-client':
+        specifier: workspace:*
+        version: link:../../agent-runtime/agent-runtime-client
+      '@workbench/automation-contracts':
+        specifier: workspace:*
+        version: link:../../contracts/automation-contracts
+      '@workbench/core-contracts':
+        specifier: workspace:*
+        version: link:../../contracts/core-contracts
+      '@workbench/extension-host':
+        specifier: workspace:*
+        version: link:../../extension-platform/extension-host
+      '@workbench/extension-sdk':
+        specifier: workspace:*
+        version: link:../../extension-platform/extension-sdk
+      '@workbench/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@workbench/shell-context':
+        specifier: workspace:*
+        version: link:../shell-context
+      '@workbench/ui':
+        specifier: workspace:*
+        version: link:../ui
+      '@workbench/ui-agent-controls':
+        specifier: workspace:*
+        version: link:../ui-agent-controls
+      '@workbench/workspace-directory-picker':
+        specifier: workspace:*
+        version: link:../../workspace/workspace-directory-picker
+      cronstrue:
+        specifier: ^3.24.0
+        version: 3.24.0
+      lucide-react:
+        specifier: ^1.29.0
+        version: 1.31.0(react@19.2.8)
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      '@workbench/ui-testkit':
+        specifier: workspace:*
+        version: link:../../test-support/ui-testkit
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   packages/client/ui-layout:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/conversation':
         specifier: workspace:*
         version: link:../../conversation/conversation
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../extension-platform/host
+        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../i18n
@@ -1352,7 +1227,7 @@ importers:
         version: link:../ui-sidebar
       '@workbench/workspace-runtime':
         specifier: workspace:*
-        version: link:../../workspace/runtime
+        version: link:../../workspace/workspace-runtime
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -1383,10 +1258,10 @@ importers:
     dependencies:
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../extension-platform/host
+        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../i18n
@@ -1416,20 +1291,75 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  packages/client/ui-settings:
+    dependencies:
+      '@workbench/appearance':
+        specifier: workspace:*
+        version: link:../appearance
+      '@workbench/code-highlighting':
+        specifier: workspace:*
+        version: link:../code-highlighting
+      '@workbench/core-contracts':
+        specifier: workspace:*
+        version: link:../../contracts/core-contracts
+      '@workbench/extension-host':
+        specifier: workspace:*
+        version: link:../../extension-platform/extension-host
+      '@workbench/extension-sdk':
+        specifier: workspace:*
+        version: link:../../extension-platform/extension-sdk
+      '@workbench/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@workbench/settings-runtime':
+        specifier: workspace:*
+        version: link:../settings-runtime
+      '@workbench/shell-context':
+        specifier: workspace:*
+        version: link:../shell-context
+      '@workbench/ui':
+        specifier: workspace:*
+        version: link:../ui
+      lucide-react:
+        specifier: ^1.29.0
+        version: 1.31.0(react@19.2.8)
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      '@workbench/ui-testkit':
+        specifier: workspace:*
+        version: link:../../test-support/ui-testkit
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   packages/client/ui-sidebar:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/appearance':
         specifier: workspace:*
         version: link:../appearance
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../extension-platform/host
+        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../i18n
@@ -1463,7 +1393,7 @@ importers:
         version: link:../../test-support/ui-testkit
       '@workbench/workspace-directory-picker':
         specifier: workspace:*
-        version: link:../../workspace/directory-picker
+        version: link:../../workspace/workspace-directory-picker
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -1474,11 +1404,81 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/contracts/automation:
+  packages/client/ui-terminal:
     dependencies:
-      '@workbench/contracts':
+      '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../core
+        version: link:../../agent-runtime/agent-runtime-client
+      '@workbench/agent-runtime-contracts':
+        specifier: workspace:*
+        version: link:../../agent-runtime/agent-runtime-contracts
+      '@workbench/conversation':
+        specifier: workspace:*
+        version: link:../../conversation/conversation
+      '@workbench/extension-host':
+        specifier: workspace:*
+        version: link:../../extension-platform/extension-host
+      '@workbench/extension-sdk':
+        specifier: workspace:*
+        version: link:../../extension-platform/extension-sdk
+      '@workbench/host-client':
+        specifier: workspace:*
+        version: link:../host-client
+      '@workbench/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@workbench/shell-context':
+        specifier: workspace:*
+        version: link:../shell-context
+      '@workbench/terminal-client':
+        specifier: workspace:*
+        version: link:../../terminal/terminal-client
+      '@workbench/terminal-contracts':
+        specifier: workspace:*
+        version: link:../../terminal/terminal-contracts
+      '@workbench/ui':
+        specifier: workspace:*
+        version: link:../ui
+      '@workbench/workspace-runtime':
+        specifier: workspace:*
+        version: link:../../workspace/workspace-runtime
+      '@xterm/addon-fit':
+        specifier: ^0.11.0
+        version: 0.11.0
+      '@xterm/xterm':
+        specifier: ^6.0.0
+        version: 6.0.0
+      lucide-react:
+        specifier: ^1.29.0
+        version: 1.31.0(react@19.2.8)
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      '@workbench/ui-testkit':
+        specifier: workspace:*
+        version: link:../../test-support/ui-testkit
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/contracts/automation-contracts:
+    dependencies:
+      '@workbench/core-contracts':
+        specifier: workspace:*
+        version: link:../core-contracts
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -1487,7 +1487,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/contracts/browser:
+  packages/contracts/browser-contracts:
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -1496,7 +1496,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/contracts/core:
+  packages/contracts/core-contracts:
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -1527,19 +1527,19 @@ importers:
         version: 0.49.0(typescript@7.0.2)
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
-      '@workbench/contracts':
+        version: link:../../agent-runtime/agent-runtime-contracts
+      '@workbench/core-contracts':
         specifier: workspace:*
-        version: link:../../contracts/core
+        version: link:../../contracts/core-contracts
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../extension-platform/host
+        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../../client/i18n
@@ -1557,10 +1557,10 @@ importers:
         version: link:../../client/ui
       '@workbench/workspace-files':
         specifier: workspace:*
-        version: link:../../workspace/files
+        version: link:../../workspace/workspace-files
       '@workbench/workspace-runtime':
         specifier: workspace:*
-        version: link:../../workspace/runtime
+        version: link:../../workspace/workspace-runtime
       lexical:
         specifier: 0.49.0
         version: 0.49.0(typescript@7.0.2)
@@ -1594,10 +1594,10 @@ importers:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/appearance':
         specifier: workspace:*
         version: link:../../client/appearance
@@ -1607,15 +1607,15 @@ importers:
       '@workbench/composer':
         specifier: workspace:*
         version: link:../composer
-      '@workbench/contracts':
+      '@workbench/core-contracts':
         specifier: workspace:*
-        version: link:../../contracts/core
+        version: link:../../contracts/core-contracts
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../extension-platform/host
+        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../../client/i18n
@@ -1625,21 +1625,21 @@ importers:
       '@workbench/settings-runtime':
         specifier: workspace:*
         version: link:../../client/settings-runtime
-      '@workbench/settings-ui':
-        specifier: workspace:*
-        version: link:../../client/settings-ui
       '@workbench/shell-context':
         specifier: workspace:*
         version: link:../../client/shell-context
       '@workbench/ui':
         specifier: workspace:*
         version: link:../../client/ui
+      '@workbench/ui-settings':
+        specifier: workspace:*
+        version: link:../../client/ui-settings
       '@workbench/workspace-files':
         specifier: workspace:*
-        version: link:../../workspace/files
+        version: link:../../workspace/workspace-files
       '@workbench/workspace-runtime':
         specifier: workspace:*
-        version: link:../../workspace/runtime
+        version: link:../../workspace/workspace-runtime
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1667,7 +1667,7 @@ importers:
         version: link:../../test-support/ui-testkit
       '@workbench/workspace-browser':
         specifier: workspace:*
-        version: link:../../workspace/browser
+        version: link:../../workspace/workspace-browser
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -1678,11 +1678,11 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/extension-platform/host:
+  packages/extension-platform/extension-host:
     dependencies:
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../sdk
+        version: link:../extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../../client/i18n
@@ -1712,14 +1712,14 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/extension-platform/sdk:
+  packages/extension-platform/extension-sdk:
     dependencies:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
-      '@workbench/contracts':
+        version: link:../../agent-runtime/agent-runtime-contracts
+      '@workbench/core-contracts':
         specifier: workspace:*
-        version: link:../../contracts/core
+        version: link:../../contracts/core-contracts
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -1743,14 +1743,14 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/host/artifact-policy:
+  packages/host/host-artifact-policy:
     dependencies:
       '@workbench/browser-contracts':
         specifier: workspace:*
-        version: link:../../contracts/browser
+        version: link:../../contracts/browser-contracts
       '@workbench/terminal-contracts':
         specifier: workspace:*
-        version: link:../../terminal/contracts
+        version: link:../../terminal/terminal-contracts
       next:
         specifier: ^16.3.0
         version: 16.3.1(@opentelemetry/api@1.9.0)(@types/node@26.2.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -1759,14 +1759,14 @@ importers:
         specifier: ^4.23.12
         version: 4.23.12
 
-  packages/host/server:
+  packages/host/host-server:
     dependencies:
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../client/host-contracts
       '@workbench/server-core':
         specifier: workspace:*
-        version: link:../../server/core
+        version: link:../../server/server-core
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -1784,14 +1784,14 @@ importers:
         specifier: ^8.21.3
         version: 8.21.3
 
-  packages/pi/browser:
+  packages/pi/pi-browser:
     dependencies:
       '@workbench/browser-contracts':
         specifier: workspace:*
-        version: link:../../contracts/browser
+        version: link:../../contracts/browser-contracts
       '@workbench/browser-server':
         specifier: workspace:*
-        version: link:../../server/browser
+        version: link:../../server/browser-server
     devDependencies:
       '@earendil-works/pi-ai':
         specifier: 0.85.1
@@ -1813,38 +1813,38 @@ importers:
         version: 7.0.2
     publishDirectory: dist
 
-  packages/pi/client:
+  packages/pi/pi-client:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/agent-runtime-core':
         specifier: workspace:*
-        version: link:../../agent-runtime/runtime
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@workbench/agent-runtime-pi-shared':
-        specifier: workspace:*
-        version: link:../shared
+        version: link:../../agent-runtime/agent-runtime-core
       '@workbench/automation-contracts':
         specifier: workspace:*
-        version: link:../../contracts/automation
-      '@workbench/contracts':
+        version: link:../../contracts/automation-contracts
+      '@workbench/core-contracts':
         specifier: workspace:*
-        version: link:../../contracts/core
+        version: link:../../contracts/core-contracts
       '@workbench/host-client':
         specifier: workspace:*
         version: link:../../client/host-client
       '@workbench/pi-conversation':
         specifier: workspace:*
-        version: link:../conversation
+        version: link:../pi-conversation
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../pi-protocol
+      '@workbench/pi-shared':
+        specifier: workspace:*
+        version: link:../pi-shared
       '@workbench/pi-transport-client':
         specifier: workspace:*
-        version: link:../transport-client
+        version: link:../pi-transport-client
       '@workbench/services-client':
         specifier: workspace:*
         version: link:../../client/services-client
@@ -1860,7 +1860,7 @@ importers:
         version: 19.2.4(@types/react@19.2.18)
       '@workbench/agent-runtime-testkit':
         specifier: workspace:*
-        version: link:../../agent-runtime/testkit
+        version: link:../../agent-runtime/agent-runtime-testkit
       '@workbench/ui-testkit':
         specifier: workspace:*
         version: link:../../test-support/ui-testkit
@@ -1874,23 +1874,14 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/pi/contributions:
+  packages/pi/pi-contributions:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
-      '@workbench/agent-runtime-pi-client':
-        specifier: workspace:*
-        version: link:../client
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@workbench/agent-runtime-pi-shared':
-        specifier: workspace:*
-        version: link:../shared
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/code-highlighting':
         specifier: workspace:*
         version: link:../../client/code-highlighting
@@ -1899,37 +1890,43 @@ importers:
         version: link:../../conversation/conversation
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../extension-platform/host
+        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../../client/i18n
       '@workbench/markdown':
         specifier: workspace:*
         version: link:../../client/markdown
-      '@workbench/pi-diagnostics-ui':
+      '@workbench/pi-client':
         specifier: workspace:*
-        version: link:../diagnostics-ui
-      '@workbench/pi-session-import-ui':
+        version: link:../pi-client
+      '@workbench/pi-protocol':
         specifier: workspace:*
-        version: link:../session-import-ui
-      '@workbench/pi-settings-ui':
+        version: link:../pi-protocol
+      '@workbench/pi-shared':
         specifier: workspace:*
-        version: link:../settings-ui
-      '@workbench/pi-status-ui':
+        version: link:../pi-shared
+      '@workbench/pi-ui-diagnostics':
         specifier: workspace:*
-        version: link:../status-ui
-      '@workbench/pi-toolbox-ui':
+        version: link:../pi-ui-diagnostics
+      '@workbench/pi-ui-session-import':
         specifier: workspace:*
-        version: link:../toolbox-ui
+        version: link:../pi-ui-session-import
+      '@workbench/pi-ui-settings':
+        specifier: workspace:*
+        version: link:../pi-ui-settings
+      '@workbench/pi-ui-status':
+        specifier: workspace:*
+        version: link:../pi-ui-status
+      '@workbench/pi-ui-toolbox':
+        specifier: workspace:*
+        version: link:../pi-ui-toolbox
       '@workbench/settings-runtime':
         specifier: workspace:*
         version: link:../../client/settings-runtime
-      '@workbench/settings-ui':
-        specifier: workspace:*
-        version: link:../../client/settings-ui
       '@workbench/shell':
         specifier: workspace:*
         version: link:../../client/shell
@@ -1939,12 +1936,15 @@ importers:
       '@workbench/ui':
         specifier: workspace:*
         version: link:../../client/ui
+      '@workbench/ui-settings':
+        specifier: workspace:*
+        version: link:../../client/ui-settings
       '@workbench/workspace-files':
         specifier: workspace:*
-        version: link:../../workspace/files
+        version: link:../../workspace/workspace-files
       '@workbench/workspace-runtime':
         specifier: workspace:*
-        version: link:../../workspace/runtime
+        version: link:../../workspace/workspace-runtime
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -1977,29 +1977,29 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/pi/conversation:
+  packages/pi/pi-conversation:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/agent-runtime-core':
         specifier: workspace:*
-        version: link:../../agent-runtime/runtime
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@workbench/agent-runtime-pi-shared':
-        specifier: workspace:*
-        version: link:../shared
+        version: link:../../agent-runtime/agent-runtime-core
       '@workbench/automation-contracts':
         specifier: workspace:*
-        version: link:../../contracts/automation
-      '@workbench/contracts':
+        version: link:../../contracts/automation-contracts
+      '@workbench/core-contracts':
         specifier: workspace:*
-        version: link:../../contracts/core
+        version: link:../../contracts/core-contracts
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../pi-protocol
+      '@workbench/pi-shared':
+        specifier: workspace:*
+        version: link:../pi-shared
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -2012,7 +2012,7 @@ importers:
         version: 19.2.4(@types/react@19.2.18)
       '@workbench/agent-runtime-testkit':
         specifier: workspace:*
-        version: link:../../agent-runtime/testkit
+        version: link:../../agent-runtime/agent-runtime-testkit
       '@workbench/ui-testkit':
         specifier: workspace:*
         version: link:../../test-support/ui-testkit
@@ -2026,74 +2026,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/pi/diagnostics-ui:
-    dependencies:
-      '@workbench/agent-runtime-pi-client':
-        specifier: workspace:*
-        version: link:../client
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@workbench/code-highlighting':
-        specifier: workspace:*
-        version: link:../../client/code-highlighting
-      '@workbench/conversation':
-        specifier: workspace:*
-        version: link:../../conversation/conversation
-      '@workbench/extension-host':
-        specifier: workspace:*
-        version: link:../../extension-platform/host
-      '@workbench/extension-sdk':
-        specifier: workspace:*
-        version: link:../../extension-platform/sdk
-      '@workbench/i18n':
-        specifier: workspace:*
-        version: link:../../client/i18n
-      '@workbench/markdown':
-        specifier: workspace:*
-        version: link:../../client/markdown
-      '@workbench/settings-ui':
-        specifier: workspace:*
-        version: link:../../client/settings-ui
-      '@workbench/shell-context':
-        specifier: workspace:*
-        version: link:../../client/shell-context
-      '@workbench/ui':
-        specifier: workspace:*
-        version: link:../../client/ui
-      '@workbench/workspace-runtime':
-        specifier: workspace:*
-        version: link:../../workspace/runtime
-      lucide-react:
-        specifier: ^1.29.0
-        version: 1.31.0(react@19.2.8)
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.4
-        version: 19.2.4(@types/react@19.2.18)
-      '@workbench/settings-runtime':
-        specifier: workspace:*
-        version: link:../../client/settings-runtime
-      '@workbench/ui-testkit':
-        specifier: workspace:*
-        version: link:../../test-support/ui-testkit
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/pi/model-server:
+  packages/pi/pi-model-server:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.85.1
@@ -2101,46 +2034,46 @@ importers:
       '@earendil-works/pi-coding-agent':
         specifier: 0.85.1
         version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
-      '@workbench/agent-runtime-pi-protocol':
+      '@workbench/pi-protocol':
         specifier: workspace:*
-        version: link:../protocol
-      '@workbench/agent-runtime-pi-shared':
-        specifier: workspace:*
-        version: link:../shared
+        version: link:../pi-protocol
       '@workbench/pi-server-ports':
         specifier: workspace:*
-        version: link:../server-ports
+        version: link:../pi-server-ports
+      '@workbench/pi-shared':
+        specifier: workspace:*
+        version: link:../pi-shared
       '@workbench/server-core':
         specifier: workspace:*
-        version: link:../../server/core
+        version: link:../../server/server-core
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
       '@workbench/agent-runtime-testkit':
         specifier: workspace:*
-        version: link:../../agent-runtime/testkit
+        version: link:../../agent-runtime/agent-runtime-testkit
       '@workbench/settings-server':
         specifier: workspace:*
-        version: link:../../server/settings
+        version: link:../../server/settings-server
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/pi/protocol:
+  packages/pi/pi-protocol:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.85.1
         version: 0.85.1(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/automation-contracts':
         specifier: workspace:*
-        version: link:../../contracts/automation
-      '@workbench/contracts':
+        version: link:../../contracts/automation-contracts
+      '@workbench/core-contracts':
         specifier: workspace:*
-        version: link:../../contracts/core
+        version: link:../../contracts/core-contracts
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../client/host-contracts
@@ -2152,7 +2085,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/pi/resources-server:
+  packages/pi/pi-resources-server:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.85.1
@@ -2160,30 +2093,30 @@ importers:
       '@earendil-works/pi-coding-agent':
         specifier: 0.85.1
         version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@workbench/agent-runtime-pi-shared':
-        specifier: workspace:*
-        version: link:../shared
       '@workbench/agent-runtime-server':
         specifier: workspace:*
-        version: link:../../agent-runtime/server
-      '@workbench/contracts':
+        version: link:../../agent-runtime/agent-runtime-server
+      '@workbench/core-contracts':
         specifier: workspace:*
-        version: link:../../contracts/core
+        version: link:../../contracts/core-contracts
       '@workbench/local-host-server':
         specifier: workspace:*
-        version: link:../../server/local-host
+        version: link:../../server/local-host-server
       '@workbench/pi-browser':
         specifier: workspace:*
-        version: link:../browser
+        version: link:../pi-browser
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../pi-protocol
       '@workbench/pi-server-ports':
         specifier: workspace:*
-        version: link:../server-ports
+        version: link:../pi-server-ports
+      '@workbench/pi-shared':
+        specifier: workspace:*
+        version: link:../pi-shared
       '@workbench/server-core':
         specifier: workspace:*
-        version: link:../../server/core
+        version: link:../../server/server-core
       mime:
         specifier: 4.1.0
         version: 4.1.0
@@ -2193,15 +2126,15 @@ importers:
         version: 26.2.0
       '@workbench/agent-runtime-testkit':
         specifier: workspace:*
-        version: link:../../agent-runtime/testkit
+        version: link:../../agent-runtime/agent-runtime-testkit
       '@workbench/settings-server':
         specifier: workspace:*
-        version: link:../../server/settings
+        version: link:../../server/settings-server
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/pi/server:
+  packages/pi/pi-server:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.85.1
@@ -2211,55 +2144,55 @@ importers:
         version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@workbench/agent-runtime-pi-shared':
-        specifier: workspace:*
-        version: link:../shared
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/agent-runtime-server':
         specifier: workspace:*
-        version: link:../../agent-runtime/server
+        version: link:../../agent-runtime/agent-runtime-server
       '@workbench/automation-contracts':
         specifier: workspace:*
-        version: link:../../contracts/automation
+        version: link:../../contracts/automation-contracts
       '@workbench/browser-contracts':
         specifier: workspace:*
-        version: link:../../contracts/browser
-      '@workbench/contracts':
+        version: link:../../contracts/browser-contracts
+      '@workbench/core-contracts':
         specifier: workspace:*
-        version: link:../../contracts/core
+        version: link:../../contracts/core-contracts
       '@workbench/host-server':
         specifier: workspace:*
-        version: link:../../host/server
+        version: link:../../host/host-server
       '@workbench/local-host-server':
         specifier: workspace:*
-        version: link:../../server/local-host
+        version: link:../../server/local-host-server
       '@workbench/pi-browser':
         specifier: workspace:*
-        version: link:../browser
+        version: link:../pi-browser
       '@workbench/pi-model-server':
         specifier: workspace:*
-        version: link:../model-server
+        version: link:../pi-model-server
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../pi-protocol
       '@workbench/pi-resources-server':
         specifier: workspace:*
-        version: link:../resources-server
+        version: link:../pi-resources-server
       '@workbench/pi-server-ports':
         specifier: workspace:*
-        version: link:../server-ports
+        version: link:../pi-server-ports
       '@workbench/pi-session-server':
         specifier: workspace:*
-        version: link:../session-server
+        version: link:../pi-session-server
+      '@workbench/pi-shared':
+        specifier: workspace:*
+        version: link:../pi-shared
       '@workbench/pi-tools':
         specifier: workspace:*
-        version: link:../tools
+        version: link:../pi-tools
       '@workbench/server-core':
         specifier: workspace:*
-        version: link:../../server/core
+        version: link:../../server/server-core
       '@workbench/workspace-server':
         specifier: workspace:*
-        version: link:../../server/workspace
+        version: link:../../server/workspace-server
       mime:
         specifier: 4.1.0
         version: 4.1.0
@@ -2272,15 +2205,15 @@ importers:
         version: 26.2.0
       '@workbench/agent-runtime-testkit':
         specifier: workspace:*
-        version: link:../../agent-runtime/testkit
+        version: link:../../agent-runtime/agent-runtime-testkit
       '@workbench/settings-server':
         specifier: workspace:*
-        version: link:../../server/settings
+        version: link:../../server/settings-server
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/pi/server-ports:
+  packages/pi/pi-server-ports:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.85.1
@@ -2290,53 +2223,173 @@ importers:
         version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../protocol
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/pi-browser':
         specifier: workspace:*
-        version: link:../browser
+        version: link:../pi-browser
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../pi-protocol
       '@workbench/workspace-server':
         specifier: workspace:*
-        version: link:../../server/workspace
+        version: link:../../server/workspace-server
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
       '@workbench/agent-runtime-testkit':
         specifier: workspace:*
-        version: link:../../agent-runtime/testkit
+        version: link:../../agent-runtime/agent-runtime-testkit
       '@workbench/settings-server':
         specifier: workspace:*
-        version: link:../../server/settings
+        version: link:../../server/settings-server
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/pi/session-import-ui:
+  packages/pi/pi-session-server:
     dependencies:
-      '@workbench/agent-runtime-pi-client':
+      '@earendil-works/pi-ai':
+        specifier: 0.85.1
+        version: 0.85.1(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
+      '@earendil-works/pi-coding-agent':
+        specifier: 0.85.1
+        version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
+      '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../client
-      '@workbench/agent-runtime-pi-protocol':
+        version: link:../../agent-runtime/agent-runtime-contracts
+      '@workbench/agent-runtime-server':
         specifier: workspace:*
-        version: link:../protocol
-      '@workbench/extension-sdk':
+        version: link:../../agent-runtime/agent-runtime-server
+      '@workbench/automation-contracts':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
-      '@workbench/i18n':
+        version: link:../../contracts/automation-contracts
+      '@workbench/core-contracts':
         specifier: workspace:*
-        version: link:../../client/i18n
-      '@workbench/settings-ui':
+        version: link:../../contracts/core-contracts
+      '@workbench/host-server':
         specifier: workspace:*
-        version: link:../../client/settings-ui
-      '@workbench/ui':
+        version: link:../../host/host-server
+      '@workbench/pi-model-server':
         specifier: workspace:*
-        version: link:../../client/ui
-      lucide-react:
-        specifier: ^1.29.0
-        version: 1.31.0(react@19.2.8)
+        version: link:../pi-model-server
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../pi-protocol
+      '@workbench/pi-resources-server':
+        specifier: workspace:*
+        version: link:../pi-resources-server
+      '@workbench/pi-server-ports':
+        specifier: workspace:*
+        version: link:../pi-server-ports
+      '@workbench/pi-shared':
+        specifier: workspace:*
+        version: link:../pi-shared
+      '@workbench/pi-tools':
+        specifier: workspace:*
+        version: link:../pi-tools
+      '@workbench/server-core':
+        specifier: workspace:*
+        version: link:../../server/server-core
+      '@workbench/workspace-server':
+        specifier: workspace:*
+        version: link:../../server/workspace-server
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@workbench/agent-runtime-testkit':
+        specifier: workspace:*
+        version: link:../../agent-runtime/agent-runtime-testkit
+      '@workbench/settings-server':
+        specifier: workspace:*
+        version: link:../../server/settings-server
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/pi/pi-shared:
+    dependencies:
+      '@earendil-works/pi-ai':
+        specifier: 0.85.1
+        version: 0.85.1(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
+      '@workbench/agent-runtime-contracts':
+        specifier: workspace:*
+        version: link:../../agent-runtime/agent-runtime-contracts
+      '@workbench/core-contracts':
+        specifier: workspace:*
+        version: link:../../contracts/core-contracts
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../pi-protocol
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/pi/pi-tools:
+    dependencies:
+      '@earendil-works/pi-ai':
+        specifier: 0.85.1
+        version: 0.85.1(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
+      '@earendil-works/pi-coding-agent':
+        specifier: 0.85.1
+        version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
+      '@workbench/agent-runtime-contracts':
+        specifier: workspace:*
+        version: link:../../agent-runtime/agent-runtime-contracts
+      '@workbench/host-server':
+        specifier: workspace:*
+        version: link:../../host/host-server
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../pi-protocol
+      '@workbench/pi-resources-server':
+        specifier: workspace:*
+        version: link:../pi-resources-server
+      '@workbench/pi-server-ports':
+        specifier: workspace:*
+        version: link:../pi-server-ports
+      '@workbench/pi-shared':
+        specifier: workspace:*
+        version: link:../pi-shared
+      '@workbench/workspace-server':
+        specifier: workspace:*
+        version: link:../../server/workspace-server
+      typebox:
+        specifier: 1.3.7
+        version: 1.3.7
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@workbench/agent-runtime-testkit':
+        specifier: workspace:*
+        version: link:../../agent-runtime/agent-runtime-testkit
+      '@workbench/settings-server':
+        specifier: workspace:*
+        version: link:../../server/settings-server
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/pi/pi-transport-client:
+    dependencies:
+      '@workbench/automation-contracts':
+        specifier: workspace:*
+        version: link:../../contracts/automation-contracts
+      '@workbench/host-client':
+        specifier: workspace:*
+        version: link:../../client/host-client
+      '@workbench/pi-conversation':
+        specifier: workspace:*
+        version: link:../pi-conversation
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../pi-protocol
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -2347,6 +2400,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.4
         version: 19.2.4(@types/react@19.2.18)
+      '@workbench/agent-runtime-testkit':
+        specifier: workspace:*
+        version: link:../../agent-runtime/agent-runtime-testkit
       '@workbench/ui-testkit':
         specifier: workspace:*
         version: link:../../test-support/ui-testkit
@@ -2360,105 +2416,44 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/pi/session-server:
+  packages/pi/pi-ui-diagnostics:
     dependencies:
-      '@earendil-works/pi-ai':
-        specifier: 0.85.1
-        version: 0.85.1(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
-      '@earendil-works/pi-coding-agent':
-        specifier: 0.85.1
-        version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
-      '@workbench/agent-runtime-contracts':
-        specifier: workspace:*
-        version: link:../../agent-runtime/contracts
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@workbench/agent-runtime-pi-shared':
-        specifier: workspace:*
-        version: link:../shared
-      '@workbench/agent-runtime-server':
-        specifier: workspace:*
-        version: link:../../agent-runtime/server
-      '@workbench/automation-contracts':
-        specifier: workspace:*
-        version: link:../../contracts/automation
-      '@workbench/contracts':
-        specifier: workspace:*
-        version: link:../../contracts/core
-      '@workbench/host-server':
-        specifier: workspace:*
-        version: link:../../host/server
-      '@workbench/pi-model-server':
-        specifier: workspace:*
-        version: link:../model-server
-      '@workbench/pi-resources-server':
-        specifier: workspace:*
-        version: link:../resources-server
-      '@workbench/pi-server-ports':
-        specifier: workspace:*
-        version: link:../server-ports
-      '@workbench/pi-tools':
-        specifier: workspace:*
-        version: link:../tools
-      '@workbench/server-core':
-        specifier: workspace:*
-        version: link:../../server/core
-      '@workbench/workspace-server':
-        specifier: workspace:*
-        version: link:../../server/workspace
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      '@workbench/agent-runtime-testkit':
-        specifier: workspace:*
-        version: link:../../agent-runtime/testkit
-      '@workbench/settings-server':
-        specifier: workspace:*
-        version: link:../../server/settings
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/pi/settings-ui:
-    dependencies:
-      '@workbench/agent-runtime-client':
-        specifier: workspace:*
-        version: link:../../agent-runtime/client
-      '@workbench/agent-runtime-contracts':
-        specifier: workspace:*
-        version: link:../../agent-runtime/contracts
-      '@workbench/agent-runtime-pi-client':
-        specifier: workspace:*
-        version: link:../client
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@workbench/agent-runtime-pi-shared':
-        specifier: workspace:*
-        version: link:../shared
       '@workbench/code-highlighting':
         specifier: workspace:*
         version: link:../../client/code-highlighting
+      '@workbench/conversation':
+        specifier: workspace:*
+        version: link:../../conversation/conversation
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../extension-platform/host
+        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../../client/i18n
       '@workbench/markdown':
         specifier: workspace:*
         version: link:../../client/markdown
-      '@workbench/settings-ui':
+      '@workbench/pi-client':
         specifier: workspace:*
-        version: link:../../client/settings-ui
+        version: link:../pi-client
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../pi-protocol
+      '@workbench/shell-context':
+        specifier: workspace:*
+        version: link:../../client/shell-context
       '@workbench/ui':
         specifier: workspace:*
         version: link:../../client/ui
+      '@workbench/ui-settings':
+        specifier: workspace:*
+        version: link:../../client/ui-settings
+      '@workbench/workspace-runtime':
+        specifier: workspace:*
+        version: link:../../workspace/workspace-runtime
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -2488,51 +2483,142 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/pi/shared:
+  packages/pi/pi-ui-session-import:
     dependencies:
-      '@earendil-works/pi-ai':
-        specifier: 0.85.1
-        version: 0.85.1(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
-      '@workbench/agent-runtime-contracts':
+      '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
-      '@workbench/agent-runtime-pi-protocol':
+        version: link:../../extension-platform/extension-sdk
+      '@workbench/i18n':
         specifier: workspace:*
-        version: link:../protocol
-      '@workbench/contracts':
+        version: link:../../client/i18n
+      '@workbench/pi-client':
         specifier: workspace:*
-        version: link:../../contracts/core
+        version: link:../pi-client
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../pi-protocol
+      '@workbench/ui':
+        specifier: workspace:*
+        version: link:../../client/ui
+      '@workbench/ui-settings':
+        specifier: workspace:*
+        version: link:../../client/ui-settings
+      lucide-react:
+        specifier: ^1.29.0
+        version: 1.31.0(react@19.2.8)
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      '@workbench/ui-testkit':
+        specifier: workspace:*
+        version: link:../../test-support/ui-testkit
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/pi/status-ui:
+  packages/pi/pi-ui-settings:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
-      '@workbench/agent-runtime-pi-client':
+        version: link:../../agent-runtime/agent-runtime-client
+      '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../client
+        version: link:../../agent-runtime/agent-runtime-contracts
+      '@workbench/code-highlighting':
+        specifier: workspace:*
+        version: link:../../client/code-highlighting
+      '@workbench/extension-host':
+        specifier: workspace:*
+        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../../client/i18n
-      '@workbench/settings-ui':
+      '@workbench/markdown':
         specifier: workspace:*
-        version: link:../../client/settings-ui
+        version: link:../../client/markdown
+      '@workbench/pi-client':
+        specifier: workspace:*
+        version: link:../pi-client
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../pi-protocol
+      '@workbench/pi-shared':
+        specifier: workspace:*
+        version: link:../pi-shared
+      '@workbench/ui':
+        specifier: workspace:*
+        version: link:../../client/ui
+      '@workbench/ui-settings':
+        specifier: workspace:*
+        version: link:../../client/ui-settings
+      lucide-react:
+        specifier: ^1.29.0
+        version: 1.31.0(react@19.2.8)
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      '@workbench/settings-runtime':
+        specifier: workspace:*
+        version: link:../../client/settings-runtime
+      '@workbench/ui-testkit':
+        specifier: workspace:*
+        version: link:../../test-support/ui-testkit
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/pi/pi-ui-status:
+    dependencies:
+      '@workbench/agent-runtime-client':
+        specifier: workspace:*
+        version: link:../../agent-runtime/agent-runtime-client
+      '@workbench/extension-sdk':
+        specifier: workspace:*
+        version: link:../../extension-platform/extension-sdk
+      '@workbench/i18n':
+        specifier: workspace:*
+        version: link:../../client/i18n
+      '@workbench/pi-client':
+        specifier: workspace:*
+        version: link:../pi-client
       '@workbench/shell-context':
         specifier: workspace:*
         version: link:../../client/shell-context
       '@workbench/ui':
         specifier: workspace:*
         version: link:../../client/ui
+      '@workbench/ui-settings':
+        specifier: workspace:*
+        version: link:../../client/ui-settings
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -2562,38 +2648,38 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/pi/toolbox-ui:
+  packages/pi/pi-ui-toolbox:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
-      '@workbench/agent-runtime-pi-client':
-        specifier: workspace:*
-        version: link:../client
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../protocol
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/conversation':
         specifier: workspace:*
         version: link:../../conversation/conversation
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../extension-platform/host
+        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../../client/i18n
       '@workbench/markdown':
         specifier: workspace:*
         version: link:../../client/markdown
-      '@workbench/pi-settings-ui':
+      '@workbench/pi-client':
         specifier: workspace:*
-        version: link:../settings-ui
+        version: link:../pi-client
+      '@workbench/pi-protocol':
+        specifier: workspace:*
+        version: link:../pi-protocol
+      '@workbench/pi-ui-settings':
+        specifier: workspace:*
+        version: link:../pi-ui-settings
       '@workbench/settings-runtime':
         specifier: workspace:*
         version: link:../../client/settings-runtime
@@ -2605,10 +2691,10 @@ importers:
         version: link:../../client/ui
       '@workbench/workspace-files':
         specifier: workspace:*
-        version: link:../../workspace/files
+        version: link:../../workspace/workspace-files
       '@workbench/workspace-runtime':
         specifier: workspace:*
-        version: link:../../workspace/runtime
+        version: link:../../workspace/workspace-runtime
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -2641,103 +2727,17 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/pi/tools:
-    dependencies:
-      '@earendil-works/pi-ai':
-        specifier: 0.85.1
-        version: 0.85.1(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
-      '@earendil-works/pi-coding-agent':
-        specifier: 0.85.1
-        version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
-      '@workbench/agent-runtime-contracts':
-        specifier: workspace:*
-        version: link:../../agent-runtime/contracts
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@workbench/agent-runtime-pi-shared':
-        specifier: workspace:*
-        version: link:../shared
-      '@workbench/host-server':
-        specifier: workspace:*
-        version: link:../../host/server
-      '@workbench/pi-resources-server':
-        specifier: workspace:*
-        version: link:../resources-server
-      '@workbench/pi-server-ports':
-        specifier: workspace:*
-        version: link:../server-ports
-      '@workbench/workspace-server':
-        specifier: workspace:*
-        version: link:../../server/workspace
-      typebox:
-        specifier: 1.3.7
-        version: 1.3.7
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      '@workbench/agent-runtime-testkit':
-        specifier: workspace:*
-        version: link:../../agent-runtime/testkit
-      '@workbench/settings-server':
-        specifier: workspace:*
-        version: link:../../server/settings
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/pi/transport-client:
-    dependencies:
-      '@workbench/agent-runtime-pi-protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@workbench/automation-contracts':
-        specifier: workspace:*
-        version: link:../../contracts/automation
-      '@workbench/host-client':
-        specifier: workspace:*
-        version: link:../../client/host-client
-      '@workbench/pi-conversation':
-        specifier: workspace:*
-        version: link:../conversation
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.4
-        version: 19.2.4(@types/react@19.2.18)
-      '@workbench/agent-runtime-testkit':
-        specifier: workspace:*
-        version: link:../../agent-runtime/testkit
-      '@workbench/ui-testkit':
-        specifier: workspace:*
-        version: link:../../test-support/ui-testkit
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/server/automation:
+  packages/server/automation-server:
     dependencies:
       '@workbench/automation-contracts':
         specifier: workspace:*
-        version: link:../../contracts/automation
+        version: link:../../contracts/automation-contracts
       '@workbench/host-server':
         specifier: workspace:*
-        version: link:../../host/server
+        version: link:../../host/host-server
       '@workbench/server-core':
         specifier: workspace:*
-        version: link:../core
+        version: link:../server-core
       cron-parser:
         specifier: ^5.10.0
         version: 5.10.0
@@ -2752,14 +2752,14 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/server/browser:
+  packages/server/browser-server:
     dependencies:
       '@workbench/browser-contracts':
         specifier: workspace:*
-        version: link:../../contracts/browser
+        version: link:../../contracts/browser-contracts
       '@workbench/server-core':
         specifier: workspace:*
-        version: link:../core
+        version: link:../server-core
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -2768,26 +2768,17 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/server/core:
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/server/local-host:
+  packages/server/local-host-server:
     dependencies:
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../client/host-contracts
       '@workbench/host-server':
         specifier: workspace:*
-        version: link:../../host/server
+        version: link:../../host/host-server
       '@workbench/server-core':
         specifier: workspace:*
-        version: link:../core
+        version: link:../server-core
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -2796,20 +2787,29 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/server/settings:
+  packages/server/server-core:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/server/settings-server:
     dependencies:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
-      '@workbench/contracts':
+        version: link:../../agent-runtime/agent-runtime-contracts
+      '@workbench/core-contracts':
         specifier: workspace:*
-        version: link:../../contracts/core
+        version: link:../../contracts/core-contracts
       '@workbench/host-server':
         specifier: workspace:*
-        version: link:../../host/server
+        version: link:../../host/host-server
       '@workbench/server-core':
         specifier: workspace:*
-        version: link:../core
+        version: link:../server-core
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -2821,17 +2821,17 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/server/workspace:
+  packages/server/workspace-server:
     dependencies:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/host-server':
         specifier: workspace:*
-        version: link:../../host/server
+        version: link:../../host/host-server
       '@workbench/server-core':
         specifier: workspace:*
-        version: link:../core
+        version: link:../server-core
       mime:
         specifier: 4.1.0
         version: 4.1.0
@@ -2846,45 +2846,17 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/terminal/client:
-    dependencies:
-      '@workbench/host-client':
-        specifier: workspace:*
-        version: link:../../client/host-client
-      '@workbench/terminal-contracts':
-        specifier: workspace:*
-        version: link:../contracts
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      '@workbench/host-contracts':
-        specifier: workspace:*
-        version: link:../../client/host-contracts
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/terminal/contracts:
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  packages/terminal/pi-tool:
+  packages/terminal/pi-terminal-tool:
     dependencies:
       '@earendil-works/pi-coding-agent':
         specifier: 0.85.1
         version: 0.85.1(patch_hash=5c6839efabda5ce5dcc703323a85d229afb1f22a2f92a93cea13f3ddfccba579)(ws@8.21.3)
       '@workbench/terminal-contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../terminal-contracts
       '@workbench/terminal-server':
         specifier: workspace:*
-        version: link:../server
+        version: link:../terminal-server
       typebox:
         specifier: 1.3.7
         version: 1.3.7
@@ -2896,14 +2868,42 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/terminal/server:
+  packages/terminal/terminal-client:
+    dependencies:
+      '@workbench/host-client':
+        specifier: workspace:*
+        version: link:../../client/host-client
+      '@workbench/terminal-contracts':
+        specifier: workspace:*
+        version: link:../terminal-contracts
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@workbench/host-contracts':
+        specifier: workspace:*
+        version: link:../../client/host-contracts
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/terminal/terminal-contracts:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/terminal/terminal-server:
     dependencies:
       '@workbench/server-core':
         specifier: workspace:*
-        version: link:../../server/core
+        version: link:../../server/server-core
       '@workbench/terminal-contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../terminal-contracts
       node-pty:
         specifier: ^1.1.0
         version: 1.1.0
@@ -2930,17 +2930,17 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/workspace/artifact:
+  packages/workspace/workspace-artifact:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/code-highlighting':
         specifier: workspace:*
         version: link:../../client/code-highlighting
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../../client/i18n
@@ -2949,7 +2949,7 @@ importers:
         version: link:../../client/markdown
       '@workbench/workspace-runtime':
         specifier: workspace:*
-        version: link:../runtime
+        version: link:../workspace-runtime
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -2976,20 +2976,20 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/workspace/browser:
+  packages/workspace/workspace-browser:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/browser-contracts':
         specifier: workspace:*
-        version: link:../../contracts/browser
+        version: link:../../contracts/browser-contracts
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../extension-platform/host
+        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/host-client':
         specifier: workspace:*
         version: link:../../client/host-client
@@ -2999,24 +2999,24 @@ importers:
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../../client/i18n
-      '@workbench/settings-ui':
-        specifier: workspace:*
-        version: link:../../client/settings-ui
       '@workbench/shell-context':
         specifier: workspace:*
         version: link:../../client/shell-context
       '@workbench/ui':
         specifier: workspace:*
         version: link:../../client/ui
+      '@workbench/ui-settings':
+        specifier: workspace:*
+        version: link:../../client/ui-settings
       '@workbench/workspace-directory-picker':
         specifier: workspace:*
-        version: link:../directory-picker
+        version: link:../workspace-directory-picker
       '@workbench/workspace-files':
         specifier: workspace:*
-        version: link:../files
+        version: link:../workspace-files
       '@workbench/workspace-runtime':
         specifier: workspace:*
-        version: link:../runtime
+        version: link:../workspace-runtime
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -3032,7 +3032,7 @@ importers:
         version: 19.2.4(@types/react@19.2.18)
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/settings-runtime':
         specifier: workspace:*
         version: link:../../client/settings-runtime
@@ -3049,14 +3049,14 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/workspace/directory-picker:
+  packages/workspace/workspace-directory-picker:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../client/host-contracts
@@ -3098,11 +3098,11 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/workspace/explorer:
+  packages/workspace/workspace-explorer:
     dependencies:
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../../client/i18n
@@ -3111,10 +3111,10 @@ importers:
         version: link:../../client/ui
       '@workbench/workspace-files':
         specifier: workspace:*
-        version: link:../files
+        version: link:../workspace-files
       '@workbench/workspace-runtime':
         specifier: workspace:*
-        version: link:../runtime
+        version: link:../workspace-runtime
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -3141,7 +3141,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/workspace/file-view:
+  packages/workspace/workspace-file-view:
     dependencies:
       '@file-viewer/core':
         specifier: 2.3.0
@@ -3160,19 +3160,19 @@ importers:
         version: 3.14.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/code-highlighting':
         specifier: workspace:*
         version: link:../../client/code-highlighting
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../extension-platform/host
+        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../client/host-contracts
@@ -3193,10 +3193,10 @@ importers:
         version: link:../../client/ui
       '@workbench/workspace-files':
         specifier: workspace:*
-        version: link:../files
+        version: link:../workspace-files
       '@workbench/workspace-runtime':
         specifier: workspace:*
-        version: link:../runtime
+        version: link:../workspace-runtime
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -3229,20 +3229,20 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/workspace/files:
+  packages/workspace/workspace-files:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/code-highlighting':
         specifier: workspace:*
         version: link:../../client/code-highlighting
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../client/host-contracts
@@ -3263,7 +3263,7 @@ importers:
         version: link:../../client/ui
       '@workbench/workspace-runtime':
         specifier: workspace:*
-        version: link:../runtime
+        version: link:../workspace-runtime
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -3299,23 +3299,23 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/workspace/git-branch:
+  packages/workspace/workspace-git-branch:
     dependencies:
       '@tanstack/react-virtual':
         specifier: 3.14.10
         version: 3.14.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../extension-platform/host
+        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../../client/i18n
@@ -3324,7 +3324,7 @@ importers:
         version: link:../../client/ui
       '@workbench/workspace-files':
         specifier: workspace:*
-        version: link:../files
+        version: link:../workspace-files
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
@@ -3351,20 +3351,20 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/workspace/review:
+  packages/workspace/workspace-review:
     dependencies:
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/code-highlighting':
         specifier: workspace:*
         version: link:../../client/code-highlighting
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../../client/i18n
@@ -3376,10 +3376,10 @@ importers:
         version: link:../../client/ui
       '@workbench/workspace-files':
         specifier: workspace:*
-        version: link:../files
+        version: link:../workspace-files
       '@workbench/workspace-runtime':
         specifier: workspace:*
-        version: link:../runtime
+        version: link:../workspace-runtime
       diff:
         specifier: 8.0.4
         version: 8.0.4
@@ -3409,23 +3409,23 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/workspace/runtime:
+  packages/workspace/workspace-runtime:
     dependencies:
       '@base-ui/react':
         specifier: ^1.7.0
         version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@workbench/agent-runtime-client':
         specifier: workspace:*
-        version: link:../../agent-runtime/client
+        version: link:../../agent-runtime/agent-runtime-client
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
-        version: link:../../agent-runtime/contracts
+        version: link:../../agent-runtime/agent-runtime-contracts
       '@workbench/extension-host':
         specifier: workspace:*
-        version: link:../../extension-platform/host
+        version: link:../../extension-platform/extension-host
       '@workbench/extension-sdk':
         specifier: workspace:*
-        version: link:../../extension-platform/sdk
+        version: link:../../extension-platform/extension-sdk
       '@workbench/i18n':
         specifier: workspace:*
         version: link:../../client/i18n

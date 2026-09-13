@@ -1,0 +1,31 @@
+{
+  "name": "@workbench/pi-model-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/model-service.ts",
+    "./config": "./src/model-config-store.ts",
+    "./services": "./src/agent-session-services.ts",
+    "./image-probe": "./src/image-probe.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "0.85.1",
+    "@earendil-works/pi-coding-agent": "0.85.1",
+    "@workbench/pi-protocol": "workspace:*",
+    "@workbench/pi-server-ports": "workspace:*",
+    "@workbench/pi-shared": "workspace:*",
+    "@workbench/server-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@workbench/agent-runtime-testkit": "workspace:*",
+    "@workbench/settings-server": "workspace:*",
+    "typescript": "^7.0.2"
+  }
+}

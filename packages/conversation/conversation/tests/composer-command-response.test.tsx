@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { I18nProvider } from "./i18n-test";
 import { WorkbenchSettingsProvider, type WorkbenchSettingsPort } from "@workbench/settings-runtime";
-import type { WorkbenchComposerCommandResponseDetails } from "@workbench/contracts/composer/request";
+import type { WorkbenchComposerCommandResponseDetails } from "@workbench/core-contracts/composer/request";
 
 import { WorkbenchComposerCommandResponse } from "../src/composer-command-response";
 

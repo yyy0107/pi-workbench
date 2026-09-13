@@ -16,11 +16,11 @@ import {
 } from "@workbench/conversation/interactive-requests";
 import { SideChatThreadMenuItem } from "@workbench/conversation/side-chat";
 import { SideChatSurface } from "@workbench/conversation/side-chat";
-import { automationExtension } from "@workbench/automation-ui";
-import { AutomationSidebar } from "@workbench/automation-ui/sidebar";
-import { AutomationMainView } from "@workbench/automation-ui/surface";
-import { ModelSelector } from "@workbench/agent-controls/model-selector";
-import { TokenUsage } from "@workbench/agent-controls/token-usage";
+import { automationExtension } from "@workbench/ui-automation";
+import { AutomationSidebar } from "@workbench/ui-automation/sidebar";
+import { AutomationMainView } from "@workbench/ui-automation/surface";
+import { ModelSelector } from "@workbench/ui-agent-controls/model-selector";
+import { TokenUsage } from "@workbench/ui-agent-controls/token-usage";
 
 test("session entry points stay hidden without capabilities and restored surfaces explain why", () => {
   const wrap = (children: React.ReactNode) => (

@@ -71,9 +71,9 @@ When no existing Slot fits, add a typed host Slot first, then register the featu
 
 ### 1. Inspect before editing
 
-- Inspect `packages/extension-platform/sdk/src/authoring.ts`, the relevant type under
-  `packages/extension-platform/sdk/src/api/`, and runtime hooks in
-  `packages/extension-platform/host/src/index.ts` when a mounted component needs Host state.
+- Inspect `packages/extension-platform/extension-sdk/src/authoring.ts`, the relevant type under
+  `packages/extension-platform/extension-sdk/src/api/`, and runtime hooks in
+  `packages/extension-platform/extension-host/src/index.ts` when a mounted component needs Host state.
 - Inspect the owning package's extension groups, then the application composition in
   `packages/client/pi-product/src/extensions.ts`.
 - Choose the closest builtin example:
@@ -144,7 +144,7 @@ Keep `setup()` synchronous. Do not call React hooks in it. Return every custom e
 
 Export a fixed feature from its local `index.ts` and add it to the owning package's semantic group.
 Shell groups live in `packages/client/shell/src/extensions/builtin-extensions.ts`; Pi groups live
-behind `@workbench/agent-runtime-pi-contributions/installation`. The Web application interleaves
+behind `@workbench/pi-contributions/installation`. The Web application interleaves
 those groups only in
 `packages/client/pi-product/src/extensions.ts`. Export independently installable contributions from their capability package and assemble them in
 `packages/client/pi-product/src/extensions.ts`. Keep Shell-owned brand and sidebar extensions in
@@ -198,7 +198,7 @@ For Pi transport or session behavior, run the relevant tests identified in `pack
   `apps/web/src/components/right-workspace/`.
 - Do not assume registering a Renderer exposes or executes a model tool.
 - Shell, Core, and Extension SDK/Host must not import Pi packages, parse Pi raw events, or handle `PiApiError`. Generic UI consumes Workbench projections, optional capability hooks, and `WorkbenchAgentCapabilityError`; hide unsupported entries or show an unavailable state for restored UI, without Runtime ID branches or fake capabilities.
-- Only Pi-specific contributions use the narrow `@workbench/agent-runtime-pi-client/*` facades described in `packages/pi/README.md`. Do not call raw endpoints, open another event stream, or copy RPC payload types. Treat `/api/pi/**` as compatibility-only unless the README names an exception. Route server-side coding-agent work through `$pi-coding-agent-sdk` and direct Pi model/provider/stream work through `$pi-ai-sdk`.
+- Only Pi-specific contributions use the narrow `@workbench/pi-client/*` facades described in `packages/pi/README.md`. Do not call raw endpoints, open another event stream, or copy RPC payload types. Treat `/api/pi/**` as compatibility-only unless the README names an exception. Route server-side coding-agent work through `$pi-coding-agent-sdk` and direct Pi model/provider/stream work through `$pi-ai-sdk`.
 - Handle rejected Promises in event handlers; React Error Boundaries do not catch event or arbitrary async errors.
 - Keep API keys, secrets, and privileged execution out of frontend extensions.
 

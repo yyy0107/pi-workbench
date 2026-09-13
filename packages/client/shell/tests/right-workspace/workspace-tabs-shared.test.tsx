@@ -47,7 +47,10 @@ test("shared tabs preserve nested workspace trigger ARIA relationships", () => {
 
 test("WorkspaceTabs delegates keyboard navigation to the shared Tabs primitive", async () => {
   const source = await readFile(
-    new URL("../../../../workspace/runtime/src/presentation/workspace-tabs.tsx", import.meta.url),
+    new URL(
+      "../../../../workspace/workspace-runtime/src/presentation/workspace-tabs.tsx",
+      import.meta.url,
+    ),
     "utf8",
   );
 

@@ -26,7 +26,10 @@ test("Shell chrome hides RightWorkspace without conditionally removing its mount
     "utf8",
   );
   const workspace = await readFile(
-    new URL("../../../../workspace/runtime/src/presentation/right-workspace.tsx", import.meta.url),
+    new URL(
+      "../../../../workspace/workspace-runtime/src/presentation/right-workspace.tsx",
+      import.meta.url,
+    ),
     "utf8",
   );
   assert.match(shell, /<\/div>\s*<RightWorkspace isVisible=\{rightWorkspaceVisible\} \/>/);

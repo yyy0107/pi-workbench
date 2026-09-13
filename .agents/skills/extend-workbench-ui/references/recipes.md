@@ -400,12 +400,12 @@ Read `packages/pi/README.md` for that implementation boundary. Use:
 - Workbench session/thread hooks from `@workbench/agent-runtime-client` and its `/context` entry,
   plus `useWorkspaceSelection()` from `/workspaces`, for generic subscribed state;
 - Workbench capability hooks from `@workbench/agent-runtime-client/context` for generic operations;
-- `usePiThreadStateSnapshot()` from `@workbench/agent-runtime-pi-client/context-trace` for Pi trace
-  diagnostics, and `usePiWorkspaces()` from `@workbench/agent-runtime-pi-client/workspace` for Toolbox;
-- an installation-bound hook from the owning `@workbench/agent-runtime-pi-client/*` feature facade
+- `usePiThreadStateSnapshot()` from `@workbench/pi-client/context-trace` for Pi trace
+  diagnostics, and `usePiWorkspaces()` from `@workbench/pi-client/workspace` for Toolbox;
+- an installation-bound hook from the owning `@workbench/pi-client/*` feature facade
   for Pi-specific unary RPC;
-- shared types from `@workbench/agent-runtime-pi-protocol/rpc` or
-  `@workbench/agent-runtime-pi-protocol/stream`.
+- shared types from `@workbench/pi-protocol/rpc` or
+  `@workbench/pi-protocol/stream`.
 
 Do not write raw `/api/pi/**` or `/api/<method>` fetches in a component, open a second WebSocket/SSE
 connection, or copy payload shapes into the extension. The shared manager already owns mux/host
@@ -585,7 +585,7 @@ extension.
 
 Use this only when no existing host contract can represent a broadly reusable insertion point.
 
-1. Add the literal name to `WORKBENCH_SLOTS` in `packages/extension-platform/sdk/src/api/slot.ts`.
+1. Add the literal name to `WORKBENCH_SLOTS` in `packages/extension-platform/extension-sdk/src/api/slot.ts`.
 2. Add its props to `SlotPropsMap`.
 3. Mount `SlotHost` in the appropriate `packages/client/shell/src/` Host component, or in
    `apps/web/src/workbench/` only when the insertion point is application-specific.
@@ -593,7 +593,7 @@ Use this only when no existing host contract can represent a broadly reusable in
 5. Add or update the public extension guide.
 
 ```ts
-// packages/extension-platform/sdk/src/api/slot.ts
+// packages/extension-platform/extension-sdk/src/api/slot.ts
 export interface SlotPropsMap {
   // existing slots...
   "thread.toolbar": { threadId?: string };

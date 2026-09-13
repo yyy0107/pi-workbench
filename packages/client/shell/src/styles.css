@@ -1,7 +1,7 @@
 @import "@workbench/code-highlighting/editor.css";
 @import "@workbench/code-highlighting/diff.css";
 @import "@workbench/workspace-review/styles.css";
-@import "@workbench/settings-ui/styles.css";
+@import "@workbench/ui-settings/styles.css";
 @import "@workbench/conversation/user-message-index.css";
 @import "@workbench/workspace-browser/styles.css";
 @import "@workbench/ui-layout/styles.css";

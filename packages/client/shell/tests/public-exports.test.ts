@@ -110,8 +110,11 @@ test("RightWorkspace exposes state without re-exporting SDK authoring contracts"
   assert.equal("useRightWorkspaceEnvironment" in rightWorkspaceReact, false);
 
   const [publicEntry, surfaceTypes] = await Promise.all([
-    readFile(new URL("../../../workspace/runtime/src/index.ts", import.meta.url), "utf8"),
-    readFile(new URL("../../../workspace/runtime/src/surface-types.ts", import.meta.url), "utf8"),
+    readFile(new URL("../../../workspace/workspace-runtime/src/index.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../../../workspace/workspace-runtime/src/surface-types.ts", import.meta.url),
+      "utf8",
+    ),
   ]);
   const sdkAuthoringTypeNames = [
     "AnyWorkspaceSurfaceDefinition",

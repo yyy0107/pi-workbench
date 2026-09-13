@@ -20,8 +20,8 @@ import {
   parseWorkbenchMessageTermination,
   readWorkbenchMessageUsage,
 } from "@workbench/agent-runtime-contracts/message-metadata";
-import { parseWorkbenchComposerCommandResponseDetails } from "@workbench/contracts/composer/request";
-import { parseWorkbenchPromptFailureDetails } from "@workbench/contracts/composer/request";
+import { parseWorkbenchComposerCommandResponseDetails } from "@workbench/core-contracts/composer/request";
+import { parseWorkbenchPromptFailureDetails } from "@workbench/core-contracts/composer/request";
 
 import { WorkbenchComposerCommandResponse } from "./composer-command-response";
 import { WorkbenchMessageActions } from "./message-actions";

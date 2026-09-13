@@ -12,7 +12,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import nativeArtifact from "../packages/host/artifact-policy/src/runtime-native.cjs";
+import nativeArtifact from "../packages/host/host-artifact-policy/src/runtime-native.cjs";
 import { releaseUpdateInfo } from "./release-update-info.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

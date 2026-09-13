@@ -25,7 +25,7 @@ import {
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { createContext, useContext, useEffect, type FC, type ReactNode } from "react";
 
-import type { ComposerJsonValue } from "@workbench/contracts/composer";
+import type { ComposerJsonValue } from "@workbench/core-contracts/composer";
 
 export interface ComposerTriggerItem {
   readonly id: string;

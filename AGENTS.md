@@ -12,6 +12,10 @@
 
 禁止使用 `npm install` / `npm i` / `yarn`，避免生成 `package-lock.json` 破坏锁文件一致性（锁文件为 `pnpm-lock.yaml`）。
 
+## 包命名
+
+- 库包目录为 `packages/<domain>/<package-name>`，叶目录名必须等于 `package.json` 中 `@workbench/` 后的包名。命名约定及迁移映射见 [docs/package-naming.md](docs/package-naming.md)。包名变化不得修改扩展、协议、持久化或翻译 bundle 的稳定 ID。
+
 ## i18n 总则
 
 - 国际化规范按组件边界拆分；修改文件时，继续读取离它最近的 `AGENTS.md`，不要把各组件细则回填到根文件。

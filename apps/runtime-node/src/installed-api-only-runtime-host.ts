@@ -4,7 +4,7 @@ import {
   isStdoutTakenOver,
   restoreStdout,
   takeOverStdout,
-} from "@workbench/agent-runtime-pi-server/installation";
+} from "@workbench/pi-server/installation";
 
 import {
   API_ONLY_RUNTIME_HOST,
@@ -19,7 +19,7 @@ import {
   runRuntimeHostControlSession,
 } from "@workbench/host-server/runtime-host-control-session";
 import type { DesktopSidecarRuntimeAuthPolicy } from "@workbench/host-server/runtime-transport-auth";
-import { migrateLegacyWorkbenchMessageTerminationExtension } from "@workbench/agent-runtime-pi-server/legacy";
+import { migrateLegacyWorkbenchMessageTerminationExtension } from "@workbench/pi-server/legacy";
 
 import { createInstalledRuntimeService } from "./installed-runtime-service";
 import { warmRuntimeRpc } from "./runtime-rpc-warmup";

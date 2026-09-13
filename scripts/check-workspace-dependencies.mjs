@@ -30,7 +30,7 @@ const PACKAGE_PRODUCTION_DEPENDENCY_POLICIES = new Map([
     "@workbench/settings-server",
     new Set([
       "@workbench/agent-runtime-contracts",
-      "@workbench/contracts",
+      "@workbench/core-contracts",
       "@workbench/host-server",
       "@workbench/server-core",
     ]),

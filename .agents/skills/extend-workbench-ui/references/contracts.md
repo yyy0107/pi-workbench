@@ -47,11 +47,11 @@ import {
 
 Source of truth:
 
-- `packages/extension-platform/sdk/src/authoring.ts`
-- `packages/extension-platform/sdk/src/index.ts`
-- `packages/extension-platform/sdk/src/api/`
-- `packages/extension-platform/host/src/index.ts`
-- `packages/extension-platform/host/src/extension-context.ts`
+- `packages/extension-platform/extension-sdk/src/authoring.ts`
+- `packages/extension-platform/extension-sdk/src/index.ts`
+- `packages/extension-platform/extension-sdk/src/api/`
+- `packages/extension-platform/extension-host/src/index.ts`
+- `packages/extension-platform/extension-host/src/extension-context.ts`
 
 Business extensions import authoring definitions and contribution types from the SDK. Mounted
 components may import the explicit runtime hooks and Host-owned error types from the Host root, but
@@ -654,23 +654,23 @@ capabilities are Workspace Surface contributions registered through `ExtensionCo
 
 Source of truth:
 
-- `packages/extension-platform/sdk/src/api/workspace-surface.ts`: public contribution, instance, scope, and registry contracts;
-- `packages/extension-platform/sdk/src/registries/workspace-surface-registry.ts`: tracked capability registry;
+- `packages/extension-platform/extension-sdk/src/api/workspace-surface.ts`: public contribution, instance, scope, and registry contracts;
+- `packages/extension-platform/extension-sdk/src/registries/workspace-surface-registry.ts`: tracked capability registry;
 - `apps/web/src/components/right-workspace/index.ts`: Web application facade for product presentation only, including the
   visual workspace, feedback forms/chrome, toggle, and product composition Provider;
-- `packages/workspace/runtime/src/index.ts`: finite public entry for generic
+- `packages/workspace/workspace-runtime/src/index.ts`: finite public entry for generic
   RightWorkspace controller/persistence ports, layout state, selectors, mount/split policy, tabs,
   and resize preview. It does not re-export SDK authoring constants or Workspace Surface contracts;
-- `packages/workspace/runtime/src/`: implementation of those platform-independent
+- `packages/workspace/workspace-runtime/src/`: implementation of those platform-independent
   primitives; it must not import business extensions, Pi, Next, or a root alias;
-- `packages/workspace/runtime/src/workspace-controller.ts`: `open`, `reveal`, `focus`,
+- `packages/workspace/workspace-runtime/src/workspace-controller.ts`: `open`, `reveal`, `focus`,
   `close`, update, layout, restore, hydration arbitration, ordered persistence, and disposal. Product
   settings/localStorage and catalog validation enter only through injected root-owned adapters;
-- `packages/workspace/runtime/src/react.ts`: finite `./right-workspace/react` entry for
+- `packages/workspace/workspace-runtime/src/react.ts`: finite `./right-workspace/react` entry for
   generic context/hooks, immutable installation Provider, and Surface runtime host. Provider inputs
   are installation-scoped and require a keyed remount to change; the entry exposes selector hooks,
   not the internal environment or raw Store owner;
-- `packages/workspace/runtime/src/workspace-feedback-*.ts`: runtime-neutral feedback
+- `packages/workspace/workspace-runtime/src/workspace-feedback-*.ts`: runtime-neutral feedback
   store and immutable claim/CAS contract; it does not import an Agent Runtime;
 - `apps/web/src/components/right-workspace/right-workspace-provider.tsx`: Web product wrapper injecting settings,
   legacy storage, catalog validation, application context, and opener construction. Product visual
@@ -745,9 +745,9 @@ Shell, Core, and Extension SDK/Host must not import Pi packages or interpret Pi 
 For Pi-specific configuration, resources, and diagnostics inside Pi Contributions, read
 `packages/pi/README.md` and verify exact shapes against:
 
-- `@workbench/agent-runtime-pi-protocol/rpc` for unary RPC envelopes and payload/value types;
-- `@workbench/agent-runtime-pi-protocol/stream` for mux/host WebSocket frames;
-- the owning `@workbench/agent-runtime-pi-client/*` feature facade for browser-side RPC helpers and
+- `@workbench/pi-protocol/rpc` for unary RPC envelopes and payload/value types;
+- `@workbench/pi-protocol/stream` for mux/host WebSocket frames;
+- the owning `@workbench/pi-client/*` feature facade for browser-side RPC helpers and
   subscribed state.
 
 Pi Client owns authoritative snapshots and deltas through the shared paired mux/host WebSocket
@@ -793,7 +793,7 @@ extensions normally register sections/items synchronously through `context.setti
 
 RightWorkspace and `useOpenerService()` hooks come from `@workbench/workspace-runtime/react`, Workspace
 Surface/Open Handler registration comes from `context.workspace`/`context.openers`, and Pi hooks come
-from the relevant `@workbench/agent-runtime-pi-client/*` feature facade.
+from the relevant `@workbench/pi-client/*` feature facade.
 
 Use the Workbench Agent Runtime hooks for Session state. Message/Block renderers should prefer their
 Host-provided `node`/`block` props; do not mirror chat state in a separate extension store.

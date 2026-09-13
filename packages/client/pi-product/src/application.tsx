@@ -4,7 +4,7 @@ import { useMemo, type ComponentProps } from "react";
 import {
   piRunningIndicatorDefinitions,
   piTranslationBundles,
-} from "@workbench/agent-runtime-pi-contributions/installation";
+} from "@workbench/pi-contributions/installation";
 import type { WorkbenchExtension } from "@workbench/extension-sdk";
 import {
   WorkbenchApplicationProviders,

@@ -3,32 +3,32 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const AGENT_SETTINGS_SERVICE = new URL(
-  "../packages/pi/resources-server/src/agent-settings-service.ts",
+  "../packages/pi/pi-resources-server/src/agent-settings-service.ts",
   import.meta.url,
 );
 const REPOSITORY_ROOT = new URL("..", import.meta.url);
 const WORKBENCH_SETTINGS_SERVICE = new URL(
-  "packages/server/settings/src/service.ts",
+  "packages/server/settings-server/src/service.ts",
   REPOSITORY_ROOT,
 );
 const WORKBENCH_SETTINGS_FILE = new URL(
-  "packages/server/core/src/workbench-settings-file.ts",
+  "packages/server/server-core/src/workbench-settings-file.ts",
   REPOSITORY_ROOT,
 );
 const WORKBENCH_SETTINGS_PUBLIC_FILE = new URL(
-  "packages/server/settings/src/file.ts",
+  "packages/server/settings-server/src/file.ts",
   REPOSITORY_ROOT,
 );
 const AGENT_SETTINGS_ROUTES = new URL(
-  "../packages/pi/server/src/routes/agent-settings-rpc-routes.ts",
+  "../packages/pi/pi-server/src/routes/agent-settings-rpc-routes.ts",
   import.meta.url,
 );
 const WORKBENCH_SETTINGS_ROUTES = new URL(
-  "../packages/server/settings/src/rpc.ts",
+  "../packages/server/settings-server/src/rpc.ts",
   import.meta.url,
 );
 const RPC_ROUTE_COMPOSITION = new URL(
-  "../packages/pi/server/src/transport/rpc-route-composition.ts",
+  "../packages/pi/pi-server/src/transport/rpc-route-composition.ts",
   import.meta.url,
 );
 
@@ -107,17 +107,14 @@ test("Settings services implement narrow protocols while retaining persistence o
   assert.match(workbench, /readWorkbenchSettingsDocument/);
   assert.match(workbench, /preferenceListenersByStateFile/);
   assert.doesNotMatch(workbench, /@earendil-works\/pi-coding-agent/);
-  assert.doesNotMatch(workbench, /agent-runtime-pi-protocol/);
+  assert.doesNotMatch(workbench, /pi-protocol/);
   assert.doesNotMatch(workbench, /workbench-settings-rpc-routes|rpc-transport/);
   assert.match(workbenchFile, /configuredFile\?: string/);
   assert.match(workbenchFile, /defaultDirectory: string/);
-  assert.doesNotMatch(workbenchFile, /@earendil-works\/pi-coding-agent|agent-runtime-pi-protocol/);
+  assert.doesNotMatch(workbenchFile, /@earendil-works\/pi-coding-agent|pi-protocol/);
   assert.match(workbenchPublicFile, /@workbench\/server-core\/workbench-settings-file/);
   assert.match(workbenchPublicFile, /configuredWorkbenchSettingsFile/);
-  assert.doesNotMatch(
-    workbenchPublicFile,
-    /@earendil-works\/pi-coding-agent|agent-runtime-pi-protocol/,
-  );
+  assert.doesNotMatch(workbenchPublicFile, /@earendil-works\/pi-coding-agent|pi-protocol/);
 });
 
 test("the route composition creates Settings groups without retaining transport details", async () => {

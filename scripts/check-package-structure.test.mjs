@@ -38,11 +38,11 @@ test("accepts a two-level package with shallow src and lib and root tests", asyn
 
 test("detects unlisted deep roots, nested packages, deep assets, relative imports and old test locations", async (t) => {
   const root = await fixture(t, {
-    "packages/pi/server/package.json": "{}",
-    "packages/pi/server/src/styles/nested/theme.css": "",
-    "packages/pi/server/src/internal/browser/package.json": "{}",
-    "packages/pi/server/src/internal/browser/src/index.ts": "",
-    "packages/pi/server/src/session.test.ts":
+    "packages/pi/pi-server/package.json": "{}",
+    "packages/pi/pi-server/src/styles/nested/theme.css": "",
+    "packages/pi/pi-server/src/internal/browser/package.json": "{}",
+    "packages/pi/pi-server/src/internal/browser/src/index.ts": "",
+    "packages/pi/pi-server/src/session.test.ts":
       'import "../../../contracts"; const fixture = `import "../../../../fake";`;',
   });
   const { violations } = await packageStructureInventory(root);
@@ -124,10 +124,10 @@ test("rejects JavaScript capability and helper source while retaining existing b
     "packages/client/ui/src/index.ts": "export interface Button {}",
     "packages/client/ui/lib/normalize.js":
       "export function normalize(value) { return value.trim(); }",
-    "packages/host/artifact-policy/package.json": "{}",
-    "packages/host/artifact-policy/src/policy.cjs":
+    "packages/host/host-artifact-policy/package.json": "{}",
+    "packages/host/host-artifact-policy/src/policy.cjs":
       "function check() { return true; } module.exports={check};",
-    "packages/host/artifact-policy/lib/filesystem.cjs":
+    "packages/host/host-artifact-policy/lib/filesystem.cjs":
       "function inside() { return true; } module.exports={inside};",
   });
   const { violations } = await packageStructureInventory(root);
@@ -159,4 +159,28 @@ test("baseline allows only exact existing violations and rejects both new and st
     retained: [],
   });
   assert.throws(() => compareStructureBaseline([], [original, original]), /duplicate/);
+});
+
+test("library directory names match their scoped package identity", async (t) => {
+  const root = await fixture(t, {
+    "packages/client/ui-settings/package.json": JSON.stringify({ name: "@workbench/ui-settings" }),
+    "packages/client/ui-settings/src/index.ts": "export const settings = true;",
+    "packages/client/ui-settings/lib/settings.ts": "export const helper = true;",
+  });
+  await checkPackageStructure(root);
+  for (const name of ["@workbench/settings-ui", "@another/ui-settings"]) {
+    await writeFile(
+      path.join(root, "packages/client/ui-settings/package.json"),
+      JSON.stringify({ name }),
+    );
+    const { violations } = await packageStructureInventory(root);
+    assert.deepEqual(
+      violations.map(({ rule }) => rule),
+      ["package-name"],
+    );
+    await assert.rejects(
+      checkPackageStructure(root),
+      /expected package name @workbench\/ui-settings/,
+    );
+  }
 });

@@ -1,14 +1,14 @@
 import type { WorkbenchExtension } from "@workbench/extension-sdk";
 
 import { archivedChatsExtension } from "@workbench/conversation/archived-chats";
-import { appearanceExtension } from "@workbench/settings-ui";
-import { localeSelectorExtension } from "@workbench/settings-ui";
+import { appearanceExtension } from "@workbench/ui-settings";
+import { localeSelectorExtension } from "@workbench/ui-settings";
 import { messageActionsExtension } from "@workbench/conversation/message-actions";
 import { messagePresentationExtension } from "@workbench/conversation/message-presentation";
 import { messageQueueExtension } from "@workbench/conversation/message-queue";
 import { todoPanelExtension } from "@workbench/conversation/todo-panel";
-import { settingsExtension } from "@workbench/settings-ui";
-import { terminalExtension } from "@workbench/terminal-ui";
+import { settingsExtension } from "@workbench/ui-settings";
+import { terminalExtension } from "@workbench/ui-terminal";
 import { userMessageIndexExtension } from "@workbench/conversation/user-message-index";
 import { workbenchBrandExtension } from "@workbench/ui-layout/extension";
 import { workspaceArtifactExtension } from "@workbench/workspace-artifact";
@@ -22,9 +22,9 @@ import { gitBranchExtension } from "@workbench/workspace-git-branch";
 
 import { interactiveRequestsExtension } from "@workbench/conversation/interactive-requests";
 import { sideChatExtension } from "@workbench/conversation/side-chat";
-import { automationExtension } from "@workbench/automation-ui";
-import { modelSelectorExtension } from "@workbench/agent-controls";
-import { tokenUsageExtension } from "@workbench/agent-controls";
+import { automationExtension } from "@workbench/ui-automation";
+import { modelSelectorExtension } from "@workbench/ui-agent-controls";
+import { tokenUsageExtension } from "@workbench/ui-agent-controls";
 
 /** Stable frame and conversation contributions mounted before runtime-specific setup. */
 export const shellCoreExtensions: readonly WorkbenchExtension[] = Object.freeze([

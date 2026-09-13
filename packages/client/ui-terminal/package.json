@@ -1,0 +1,53 @@
+{
+  "name": "@workbench/ui-terminal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./service": "./src/terminal-workspace-service.ts",
+    "./commands": "./src/open-terminal-command.ts",
+    "./target": "./src/terminal-target.ts",
+    "./surface": "./src/terminal-surface.tsx",
+    "./renderer": "./src/bash-tool-renderer.tsx",
+    "./disclosure": "./src/bash-tool-disclosure-controller.tsx",
+    "./i18n": "./src/i18n.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-client": "workspace:*",
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/conversation": "workspace:*",
+    "@workbench/extension-host": "workspace:*",
+    "@workbench/extension-sdk": "workspace:*",
+    "@workbench/host-client": "workspace:*",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/shell-context": "workspace:*",
+    "@workbench/terminal-client": "workspace:*",
+    "@workbench/terminal-contracts": "workspace:*",
+    "@workbench/ui": "workspace:*",
+    "@workbench/workspace-runtime": "workspace:*",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "lucide-react": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@workbench/ui-testkit": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

@@ -1,6 +1,6 @@
 # @workbench/i18n
 
-Shared translation runtime and controlled React Provider. Locale identities come from @workbench/contracts/locale. A runtime starts with an empty catalog; explicitly install immutable translation bundles and use their typed message factories/hooks. Dictionaries stay with their owning capabilities. Each provider installation owns its catalog and rejects changed bundle identities.
+Shared translation runtime and controlled React Provider. Locale identities come from @workbench/core-contracts/locale. A runtime starts with an empty catalog; explicitly install immutable translation bundles and use their typed message factories/hooks. Dictionaries stay with their owning capabilities. Each provider installation owns its catalog and rejects changed bundle identities.
 
 The application owns settings hydration, persistence, document language and cookies. Runtime instances do not register process-wide dictionaries.
 

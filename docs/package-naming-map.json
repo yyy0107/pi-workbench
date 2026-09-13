@@ -1,0 +1,434 @@
+[
+  {
+    "from": "packages/agent-runtime/client",
+    "to": "packages/agent-runtime/agent-runtime-client",
+    "nameBefore": "@workbench/agent-runtime-client",
+    "nameAfter": "@workbench/agent-runtime-client"
+  },
+  {
+    "from": "packages/agent-runtime/contracts",
+    "to": "packages/agent-runtime/agent-runtime-contracts",
+    "nameBefore": "@workbench/agent-runtime-contracts",
+    "nameAfter": "@workbench/agent-runtime-contracts"
+  },
+  {
+    "from": "packages/agent-runtime/runtime",
+    "to": "packages/agent-runtime/agent-runtime-core",
+    "nameBefore": "@workbench/agent-runtime-core",
+    "nameAfter": "@workbench/agent-runtime-core"
+  },
+  {
+    "from": "packages/agent-runtime/server",
+    "to": "packages/agent-runtime/agent-runtime-server",
+    "nameBefore": "@workbench/agent-runtime-server",
+    "nameAfter": "@workbench/agent-runtime-server"
+  },
+  {
+    "from": "packages/agent-runtime/testkit",
+    "to": "packages/agent-runtime/agent-runtime-testkit",
+    "nameBefore": "@workbench/agent-runtime-testkit",
+    "nameAfter": "@workbench/agent-runtime-testkit"
+  },
+  {
+    "from": "packages/client/agent-controls",
+    "to": "packages/client/ui-agent-controls",
+    "nameBefore": "@workbench/agent-controls",
+    "nameAfter": "@workbench/ui-agent-controls"
+  },
+  {
+    "from": "packages/client/appearance",
+    "to": "packages/client/appearance",
+    "nameBefore": "@workbench/appearance",
+    "nameAfter": "@workbench/appearance"
+  },
+  {
+    "from": "packages/client/automation-ui",
+    "to": "packages/client/ui-automation",
+    "nameBefore": "@workbench/automation-ui",
+    "nameAfter": "@workbench/ui-automation"
+  },
+  {
+    "from": "packages/client/code-highlighting",
+    "to": "packages/client/code-highlighting",
+    "nameBefore": "@workbench/code-highlighting",
+    "nameAfter": "@workbench/code-highlighting"
+  },
+  {
+    "from": "packages/client/desktop-contracts",
+    "to": "packages/client/desktop-contracts",
+    "nameBefore": "@workbench/desktop-contracts",
+    "nameAfter": "@workbench/desktop-contracts"
+  },
+  {
+    "from": "packages/client/host-client",
+    "to": "packages/client/host-client",
+    "nameBefore": "@workbench/host-client",
+    "nameAfter": "@workbench/host-client"
+  },
+  {
+    "from": "packages/client/host-contracts",
+    "to": "packages/client/host-contracts",
+    "nameBefore": "@workbench/host-contracts",
+    "nameAfter": "@workbench/host-contracts"
+  },
+  {
+    "from": "packages/client/i18n",
+    "to": "packages/client/i18n",
+    "nameBefore": "@workbench/i18n",
+    "nameAfter": "@workbench/i18n"
+  },
+  {
+    "from": "packages/client/markdown",
+    "to": "packages/client/markdown",
+    "nameBefore": "@workbench/markdown",
+    "nameAfter": "@workbench/markdown"
+  },
+  {
+    "from": "packages/client/pi-product",
+    "to": "packages/client/pi-product",
+    "nameBefore": "@workbench/pi-product",
+    "nameAfter": "@workbench/pi-product"
+  },
+  {
+    "from": "packages/client/services-client",
+    "to": "packages/client/services-client",
+    "nameBefore": "@workbench/services-client",
+    "nameAfter": "@workbench/services-client"
+  },
+  {
+    "from": "packages/client/settings-runtime",
+    "to": "packages/client/settings-runtime",
+    "nameBefore": "@workbench/settings-runtime",
+    "nameAfter": "@workbench/settings-runtime"
+  },
+  {
+    "from": "packages/client/settings-ui",
+    "to": "packages/client/ui-settings",
+    "nameBefore": "@workbench/settings-ui",
+    "nameAfter": "@workbench/ui-settings"
+  },
+  {
+    "from": "packages/client/shell",
+    "to": "packages/client/shell",
+    "nameBefore": "@workbench/shell",
+    "nameAfter": "@workbench/shell"
+  },
+  {
+    "from": "packages/client/shell-context",
+    "to": "packages/client/shell-context",
+    "nameBefore": "@workbench/shell-context",
+    "nameAfter": "@workbench/shell-context"
+  },
+  {
+    "from": "packages/client/terminal-ui",
+    "to": "packages/client/ui-terminal",
+    "nameBefore": "@workbench/terminal-ui",
+    "nameAfter": "@workbench/ui-terminal"
+  },
+  {
+    "from": "packages/client/ui",
+    "to": "packages/client/ui",
+    "nameBefore": "@workbench/ui",
+    "nameAfter": "@workbench/ui"
+  },
+  {
+    "from": "packages/client/ui-layout",
+    "to": "packages/client/ui-layout",
+    "nameBefore": "@workbench/ui-layout",
+    "nameAfter": "@workbench/ui-layout"
+  },
+  {
+    "from": "packages/client/ui-panels",
+    "to": "packages/client/ui-panels",
+    "nameBefore": "@workbench/ui-panels",
+    "nameAfter": "@workbench/ui-panels"
+  },
+  {
+    "from": "packages/client/ui-sidebar",
+    "to": "packages/client/ui-sidebar",
+    "nameBefore": "@workbench/ui-sidebar",
+    "nameAfter": "@workbench/ui-sidebar"
+  },
+  {
+    "from": "packages/contracts/automation",
+    "to": "packages/contracts/automation-contracts",
+    "nameBefore": "@workbench/automation-contracts",
+    "nameAfter": "@workbench/automation-contracts"
+  },
+  {
+    "from": "packages/contracts/browser",
+    "to": "packages/contracts/browser-contracts",
+    "nameBefore": "@workbench/browser-contracts",
+    "nameAfter": "@workbench/browser-contracts"
+  },
+  {
+    "from": "packages/contracts/core",
+    "to": "packages/contracts/core-contracts",
+    "nameBefore": "@workbench/contracts",
+    "nameAfter": "@workbench/core-contracts"
+  },
+  {
+    "from": "packages/conversation/composer",
+    "to": "packages/conversation/composer",
+    "nameBefore": "@workbench/composer",
+    "nameAfter": "@workbench/composer"
+  },
+  {
+    "from": "packages/conversation/conversation",
+    "to": "packages/conversation/conversation",
+    "nameBefore": "@workbench/conversation",
+    "nameAfter": "@workbench/conversation"
+  },
+  {
+    "from": "packages/extension-platform/host",
+    "to": "packages/extension-platform/extension-host",
+    "nameBefore": "@workbench/extension-host",
+    "nameAfter": "@workbench/extension-host"
+  },
+  {
+    "from": "packages/extension-platform/sdk",
+    "to": "packages/extension-platform/extension-sdk",
+    "nameBefore": "@workbench/extension-sdk",
+    "nameAfter": "@workbench/extension-sdk"
+  },
+  {
+    "from": "packages/host/artifact-policy",
+    "to": "packages/host/host-artifact-policy",
+    "nameBefore": "@workbench/host-artifact-policy",
+    "nameAfter": "@workbench/host-artifact-policy"
+  },
+  {
+    "from": "packages/host/server",
+    "to": "packages/host/host-server",
+    "nameBefore": "@workbench/host-server",
+    "nameAfter": "@workbench/host-server"
+  },
+  {
+    "from": "packages/pi/browser",
+    "to": "packages/pi/pi-browser",
+    "nameBefore": "@workbench/pi-browser",
+    "nameAfter": "@workbench/pi-browser"
+  },
+  {
+    "from": "packages/pi/client",
+    "to": "packages/pi/pi-client",
+    "nameBefore": "@workbench/agent-runtime-pi-client",
+    "nameAfter": "@workbench/pi-client"
+  },
+  {
+    "from": "packages/pi/contributions",
+    "to": "packages/pi/pi-contributions",
+    "nameBefore": "@workbench/agent-runtime-pi-contributions",
+    "nameAfter": "@workbench/pi-contributions"
+  },
+  {
+    "from": "packages/pi/conversation",
+    "to": "packages/pi/pi-conversation",
+    "nameBefore": "@workbench/pi-conversation",
+    "nameAfter": "@workbench/pi-conversation"
+  },
+  {
+    "from": "packages/pi/diagnostics-ui",
+    "to": "packages/pi/pi-ui-diagnostics",
+    "nameBefore": "@workbench/pi-diagnostics-ui",
+    "nameAfter": "@workbench/pi-ui-diagnostics"
+  },
+  {
+    "from": "packages/pi/model-server",
+    "to": "packages/pi/pi-model-server",
+    "nameBefore": "@workbench/pi-model-server",
+    "nameAfter": "@workbench/pi-model-server"
+  },
+  {
+    "from": "packages/pi/protocol",
+    "to": "packages/pi/pi-protocol",
+    "nameBefore": "@workbench/agent-runtime-pi-protocol",
+    "nameAfter": "@workbench/pi-protocol"
+  },
+  {
+    "from": "packages/pi/resources-server",
+    "to": "packages/pi/pi-resources-server",
+    "nameBefore": "@workbench/pi-resources-server",
+    "nameAfter": "@workbench/pi-resources-server"
+  },
+  {
+    "from": "packages/pi/server",
+    "to": "packages/pi/pi-server",
+    "nameBefore": "@workbench/agent-runtime-pi-server",
+    "nameAfter": "@workbench/pi-server"
+  },
+  {
+    "from": "packages/pi/server-ports",
+    "to": "packages/pi/pi-server-ports",
+    "nameBefore": "@workbench/pi-server-ports",
+    "nameAfter": "@workbench/pi-server-ports"
+  },
+  {
+    "from": "packages/pi/session-import-ui",
+    "to": "packages/pi/pi-ui-session-import",
+    "nameBefore": "@workbench/pi-session-import-ui",
+    "nameAfter": "@workbench/pi-ui-session-import"
+  },
+  {
+    "from": "packages/pi/session-server",
+    "to": "packages/pi/pi-session-server",
+    "nameBefore": "@workbench/pi-session-server",
+    "nameAfter": "@workbench/pi-session-server"
+  },
+  {
+    "from": "packages/pi/settings-ui",
+    "to": "packages/pi/pi-ui-settings",
+    "nameBefore": "@workbench/pi-settings-ui",
+    "nameAfter": "@workbench/pi-ui-settings"
+  },
+  {
+    "from": "packages/pi/shared",
+    "to": "packages/pi/pi-shared",
+    "nameBefore": "@workbench/agent-runtime-pi-shared",
+    "nameAfter": "@workbench/pi-shared"
+  },
+  {
+    "from": "packages/pi/status-ui",
+    "to": "packages/pi/pi-ui-status",
+    "nameBefore": "@workbench/pi-status-ui",
+    "nameAfter": "@workbench/pi-ui-status"
+  },
+  {
+    "from": "packages/pi/toolbox-ui",
+    "to": "packages/pi/pi-ui-toolbox",
+    "nameBefore": "@workbench/pi-toolbox-ui",
+    "nameAfter": "@workbench/pi-ui-toolbox"
+  },
+  {
+    "from": "packages/pi/tools",
+    "to": "packages/pi/pi-tools",
+    "nameBefore": "@workbench/pi-tools",
+    "nameAfter": "@workbench/pi-tools"
+  },
+  {
+    "from": "packages/pi/transport-client",
+    "to": "packages/pi/pi-transport-client",
+    "nameBefore": "@workbench/pi-transport-client",
+    "nameAfter": "@workbench/pi-transport-client"
+  },
+  {
+    "from": "packages/server/automation",
+    "to": "packages/server/automation-server",
+    "nameBefore": "@workbench/automation-server",
+    "nameAfter": "@workbench/automation-server"
+  },
+  {
+    "from": "packages/server/browser",
+    "to": "packages/server/browser-server",
+    "nameBefore": "@workbench/browser-server",
+    "nameAfter": "@workbench/browser-server"
+  },
+  {
+    "from": "packages/server/core",
+    "to": "packages/server/server-core",
+    "nameBefore": "@workbench/server-core",
+    "nameAfter": "@workbench/server-core"
+  },
+  {
+    "from": "packages/server/local-host",
+    "to": "packages/server/local-host-server",
+    "nameBefore": "@workbench/local-host-server",
+    "nameAfter": "@workbench/local-host-server"
+  },
+  {
+    "from": "packages/server/settings",
+    "to": "packages/server/settings-server",
+    "nameBefore": "@workbench/settings-server",
+    "nameAfter": "@workbench/settings-server"
+  },
+  {
+    "from": "packages/server/workspace",
+    "to": "packages/server/workspace-server",
+    "nameBefore": "@workbench/workspace-server",
+    "nameAfter": "@workbench/workspace-server"
+  },
+  {
+    "from": "packages/terminal/client",
+    "to": "packages/terminal/terminal-client",
+    "nameBefore": "@workbench/terminal-client",
+    "nameAfter": "@workbench/terminal-client"
+  },
+  {
+    "from": "packages/terminal/contracts",
+    "to": "packages/terminal/terminal-contracts",
+    "nameBefore": "@workbench/terminal-contracts",
+    "nameAfter": "@workbench/terminal-contracts"
+  },
+  {
+    "from": "packages/terminal/pi-tool",
+    "to": "packages/terminal/pi-terminal-tool",
+    "nameBefore": "@workbench/pi-terminal-tool",
+    "nameAfter": "@workbench/pi-terminal-tool"
+  },
+  {
+    "from": "packages/terminal/server",
+    "to": "packages/terminal/terminal-server",
+    "nameBefore": "@workbench/terminal-server",
+    "nameAfter": "@workbench/terminal-server"
+  },
+  {
+    "from": "packages/test-support/ui-testkit",
+    "to": "packages/test-support/ui-testkit",
+    "nameBefore": "@workbench/ui-testkit",
+    "nameAfter": "@workbench/ui-testkit"
+  },
+  {
+    "from": "packages/workspace/artifact",
+    "to": "packages/workspace/workspace-artifact",
+    "nameBefore": "@workbench/workspace-artifact",
+    "nameAfter": "@workbench/workspace-artifact"
+  },
+  {
+    "from": "packages/workspace/browser",
+    "to": "packages/workspace/workspace-browser",
+    "nameBefore": "@workbench/workspace-browser",
+    "nameAfter": "@workbench/workspace-browser"
+  },
+  {
+    "from": "packages/workspace/directory-picker",
+    "to": "packages/workspace/workspace-directory-picker",
+    "nameBefore": "@workbench/workspace-directory-picker",
+    "nameAfter": "@workbench/workspace-directory-picker"
+  },
+  {
+    "from": "packages/workspace/explorer",
+    "to": "packages/workspace/workspace-explorer",
+    "nameBefore": "@workbench/workspace-explorer",
+    "nameAfter": "@workbench/workspace-explorer"
+  },
+  {
+    "from": "packages/workspace/file-view",
+    "to": "packages/workspace/workspace-file-view",
+    "nameBefore": "@workbench/workspace-file-view",
+    "nameAfter": "@workbench/workspace-file-view"
+  },
+  {
+    "from": "packages/workspace/files",
+    "to": "packages/workspace/workspace-files",
+    "nameBefore": "@workbench/workspace-files",
+    "nameAfter": "@workbench/workspace-files"
+  },
+  {
+    "from": "packages/workspace/git-branch",
+    "to": "packages/workspace/workspace-git-branch",
+    "nameBefore": "@workbench/workspace-git-branch",
+    "nameAfter": "@workbench/workspace-git-branch"
+  },
+  {
+    "from": "packages/workspace/review",
+    "to": "packages/workspace/workspace-review",
+    "nameBefore": "@workbench/workspace-review",
+    "nameAfter": "@workbench/workspace-review"
+  },
+  {
+    "from": "packages/workspace/runtime",
+    "to": "packages/workspace/workspace-runtime",
+    "nameBefore": "@workbench/workspace-runtime",
+    "nameAfter": "@workbench/workspace-runtime"
+  }
+]

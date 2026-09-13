@@ -9,7 +9,7 @@ not import Next.js, React, browser state, or Electron implementation code.
 flowchart LR
   OWNER["Root or Electron process owner"] -->|"versioned NDJSON control"| APP["apps/runtime-node"]
   APP --> HOST["@workbench/host-server"]
-  APP --> PI["@workbench/agent-runtime-pi-server"]
+  APP --> PI["@workbench/pi-server"]
   APP --> TERMINAL["@workbench/terminal-server"]
   APP --> AUTOMATION["@workbench/automation-server"]
   APP --> SETTINGS["@workbench/settings-server"]
@@ -30,20 +30,20 @@ flowchart LR
 - [`src/composition/`](./src/composition/) is the sole installed-implementation selection layer. It
   may connect the concrete Pi implementation to Workbench ports and leaf services; reusable domain behavior
   belongs in the package that owns it, not in this app.
-- [`@workbench/agent-runtime-server`](../../packages/agent-runtime/server/README.md) owns the
+- [`@workbench/agent-runtime-server`](../../packages/agent-runtime/agent-runtime-server/README.md) owns the
   Runtime-neutral command, execution, and thread ports plus the singular installation contract.
   Pi session, history, model, resource, and transport semantics remain in the
   [Pi Runtime packages](../../packages/pi/README.md).
-  [`createPiAgentServerImplementation`](../../packages/pi/server/src/agent-runtime/pi-agent-server-implementation.ts)
+  [`createPiAgentServerImplementation`](../../packages/pi/pi-server/src/agent-runtime/pi-agent-server-implementation.ts)
   implements `WorkbenchAgentServerAdapter`; Host, workspace, Terminal, and Automation retain their
   separate domain ports and composition bindings.
-- [`@workbench/automation-server`](../../packages/server/automation/) owns Automation definitions,
+- [`@workbench/automation-server`](../../packages/server/automation-server/) owns Automation definitions,
   persistence, and scheduling. Its installed Pi binding launches an ordinary visible session
   through the generic Agent execution port.
-- [`@workbench/settings-server`](../../packages/server/settings/) owns Workbench preference
+- [`@workbench/settings-server`](../../packages/server/settings-server/) owns Workbench preference
   persistence and subscriptions. This app injects the installed Pi agent directory and compatibility
   environment variables.
-- [`@workbench/terminal-server`](../../packages/terminal/server/README.md) owns PTY/session lifecycle
+- [`@workbench/terminal-server`](../../packages/terminal/terminal-server/README.md) owns PTY/session lifecycle
   and native dependencies. The Pi-specific Bash tool adapter is the separate
   `@workbench/pi-terminal-tool` leaf.
 
