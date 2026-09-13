@@ -108,12 +108,14 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
   );
   const context = { messageId, role, isLast };
   const copyText =
-    "blocks" in node
-      ? node.blocks
-          .filter((block) => block.kind === "text")
-          .map((block) => block.text)
-          .join("\n\n")
-      : "";
+    node.kind === "assistant"
+      ? (node.blocks.findLast((block) => block.kind === "text")?.text ?? "")
+      : node.kind === "user"
+        ? node.blocks
+            .filter((block) => block.kind === "text")
+            .map((block) => block.text)
+            .join("\n\n")
+        : "";
 
   if (!actionsVisible && !navigationVisible && !hideActionBar) return null;
 
