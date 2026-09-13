@@ -532,33 +532,19 @@ Project Trust 遵循 Pi 的资源判定与持久化规则：没有受保护的�
 
 ## Skills
 
-Browser 的 Pi 工具实现位于 [`pi-workbench-runtime/src/browser/`](../product/pi-workbench-runtime/src/browser)，扩展注册入口位于
-[`pi-workbench-runtime/resources/extensions/`](../product/pi-workbench-runtime/resources/extensions)，工具执行与状态位于
+产品工具的扩展注册入口位于 [`pi-workbench-runtime/resources/extensions/`](../product/pi-workbench-runtime/resources/extensions)，工具执行与状态位于
 [`pi-workbench-runtime/src/`](../product/pi-workbench-runtime/src)。内置技能和提示词分别位于
 [`pi-workbench-runtime/resources/skills/`](../product/pi-workbench-runtime/resources/skills) 与
 [`pi-workbench-runtime/resources/prompts/`](../product/pi-workbench-runtime/resources/prompts)。这些源码目录由 Runtime
 构建器复制到产物的既有 `internal-skills`、`internal-prompts` 和 `internal-extensions` 目录。
-产品构建脚本将 Browser 扩展与专属技能生成兼容 Pi 部署产物，保留安装标识 `@workbench/pi-runtime-browser`；仓库不再保留同名独立工作区包。
-Workbench 将完整内置包部署到 Pi 用户目录的 `packages/.builtin/browser/`，并通过 Pi 原生 `packages`
-配置注册本地包。工具、技能和生命周期事件统一由同一份 `package.json` manifest 加载，来源为
-`package`；不再注册 `workbench.browser` 内联扩展或单独安装 Browser 技能。
-工具箱在 Pi Packages 中显示带内置标记的 Browser，详情展示包内技能及扩展注册的工具、事件；
-包随 Workbench 更新，不单独卸载或更新，包内资源沿用 Pi 原生过滤规则启停。
-Browser 扩展默认关闭；注册时仅为没有扩展开关的配置补上空过滤列表，保留已保存的启用和关闭选择。
 Workbench 的所有技能（内置、用户、项目和安装包来源，包括后续新增技能）默认关闭。
 加载、技能目录和安装包详情统一要求所属范围的显式启用规则；用户可在工具箱中启用，
 继续使用 Pi 原生 `+path` / `-path` 持久化和重载机制，关闭的资源仍可查看文档和重新启用。
-Workbench 与使用同一 Pi 用户目录的独立 Pi CLI 消费同一份包，技能唯一源码位于产品 `resources/skills/browser-use/`，仅随产物部署到 `skills/browser-use/`，不再复制到普通内置 Skill 目录。
-独立 Pi CLI 惰性启动同一 BrowserManager 引擎，通过 Pi UI 处理权限确认，并在会话结束时释放浏览器；
-Workbench 则继续使用应用的共享浏览器与权限 UI。
-`browser-use` 技能通过同包扩展的 `workbench_browser` 工具控制应用内浏览器，
-与用户复用同一标签和权限设置。`tabs.list` 只列举当前项目已有的标签；`snapshot` 返回页面无障碍树
-及元素引用，`click` / `fill` 使用当前快照的引用操作元素，导航后旧引用失效。Workbench Host 将
-当前对话的 cwd 解析为已登记的 workspaceId，确保工具能发现和复用用户打开的标签。导航、截图、键盘和
-鼠标输入继续复用共享 BrowserManager，普通操作不要求开启完整 CDP 权限。工具结果沿现有
-Browser Runtime Bridge 展示在右侧浏览器工作区，不创建另一套浏览器进程或会话协议。
-该技能默认在工具箱中可见，启用后支持 `/skill:browser-use` 与现有技能启停、文档查看流程；本地站点和 HTML
-通过项目的开发或静态 HTTP 服务打开，直接 `file:` 导航不在此工具范围内。
+模型可调用的 Browser Pi 扩展、兼容 package 与 browser-use Skill 已退役。内置资源部署会从用户级
+Pi settings 中移除保留的 `packages/.builtin/browser` package 及更早的 Browser Skill/Extension filter，
+并删除产品拥有的 `.builtin/browser` package 目录；其他用户 package 和资源保持不变。右侧工作区浏览器标签
+继续由 workspace-browser、browser-contracts、browser-server 与 Runtime Browser gateway 提供，不再向
+Pi Agent 注入 BrowserHost，也不会在工具箱的 Extensions、Skills 或已安装 Packages 中列出官方 Browser 资源。
 
 `workbench-settings` 内置技能通过宿主工具 `workbench_settings` 读取和修改当前 Runtime 的
 Workbench preferences，覆盖外观、语言、对话行为和内置工具开关。工具复用 Settings RPC 校验和

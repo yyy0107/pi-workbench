@@ -48,7 +48,6 @@ import {
 } from "../lib/resource-text-file";
 import { isWorkbenchInternalPiExtensionPath } from "../lib/internal-extension-path";
 import { extensionDisplayName } from "../lib/extension-name";
-import { isWorkbenchBuiltinPackage } from "./builtin-packages";
 
 export const MAX_EXTENSION_FILE_BYTES = 5 * 1024 * 1024;
 const EXTENSION_DIRECTORY_ENTRY_LIMIT = 2_000;
@@ -738,10 +737,6 @@ export class ExtensionService implements ExtensionProtocol {
             source: extension.sourceInfo.source,
             scope: extension.sourceInfo.scope,
             origin: extension.sourceInfo.origin,
-            ...(extension.sourceInfo.origin === "package" &&
-            isWorkbenchBuiltinPackage(extension.sourceInfo.source, extension.sourceInfo.scope)
-              ? { packageBuiltin: true }
-              : {}),
             enabled: extension.enabled,
             ...extensionContributions(extension),
           })),

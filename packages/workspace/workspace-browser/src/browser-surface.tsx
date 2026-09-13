@@ -19,7 +19,6 @@ import {
   PrinterIcon,
   RefreshCwIcon,
   SearchIcon,
-  SettingsIcon,
   SmartphoneIcon,
   SquareIcon,
   Trash2Icon,
@@ -27,14 +26,13 @@ import {
   XIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useExtensionErrorReporter, useMainViewService } from "@workbench/extension-host";
+import { useExtensionErrorReporter } from "@workbench/extension-host";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 import type { BrowserDevice, BrowserFile, BrowserPage } from "@workbench/browser-contracts";
 
 import { defineBrowserMessage as defineMessage } from "./i18n";
 
 import { useRightWorkspace, useWorkspaceDraftStore } from "@workbench/ui-workspace/react";
-import { createSettingsMainViewRequest } from "@workbench/ui-settings/request";
 import {
   Button,
   DropdownMenu,
@@ -76,7 +74,6 @@ export function BrowserSurface({
   const browser = useBrowserSessionService();
   const drafts = useWorkspaceDraftStore();
   const controller = useRightWorkspace();
-  const mainViews = useMainViewService();
   const reportError = useExtensionErrorReporter();
   useSyncExternalStore(browser.subscribe.bind(browser), browser.getRevision.bind(browser), () => 0);
   const sessionId = surface.params.browserSessionId;
@@ -449,13 +446,6 @@ export function BrowserSurface({
             <DropdownMenuItem onClick={() => openPage("clear-data")}>
               <Trash2Icon />
               {t("extensions.workspaceBrowser.settings.clearData")}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => mainViews.open(createSettingsMainViewRequest("browser"))}
-            >
-              <SettingsIcon />
-              {t("extensions.workspaceBrowser.browserSettings")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

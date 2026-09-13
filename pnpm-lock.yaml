@@ -2992,9 +2992,6 @@ importers:
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../contracts/automation-contracts
-      '@workbench/browser-contracts':
-        specifier: workspace:*
-        version: link:../../contracts/browser-contracts
       '@workbench/core-contracts':
         specifier: workspace:*
         version: link:../../contracts/core-contracts
@@ -3096,9 +3093,6 @@ importers:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../agent-runtime/agent-runtime-contracts
-      '@workbench/browser-contracts':
-        specifier: workspace:*
-        version: link:../../contracts/browser-contracts
       '@workbench/pi-rpc-contracts':
         specifier: workspace:*
         version: link:../../pi-runtime/pi-rpc-contracts
@@ -3825,12 +3819,6 @@ importers:
       '@workbench/api':
         specifier: workspace:*
         version: link:../../transport/api
-      '@workbench/browser-contracts':
-        specifier: workspace:*
-        version: link:../../contracts/browser-contracts
-      '@workbench/browser-server':
-        specifier: workspace:*
-        version: link:../../server/browser-server
       '@workbench/pi-rpc-contracts':
         specifier: workspace:*
         version: link:../../pi-runtime/pi-rpc-contracts
@@ -4185,9 +4173,6 @@ importers:
       '@workbench/ui-selectors':
         specifier: workspace:*
         version: link:../../client/ui-selectors
-      '@workbench/ui-settings':
-        specifier: workspace:*
-        version: link:../../client/ui-settings
       '@workbench/ui-workspace':
         specifier: workspace:*
         version: link:../../client/ui-workspace

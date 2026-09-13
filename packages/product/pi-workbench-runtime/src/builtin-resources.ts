@@ -1,6 +1,6 @@
 import { lstat, mkdir, readFile, readdir, realpath, rm, rmdir } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 import {
   getAgentDir,
@@ -14,16 +14,11 @@ import {
 import { withCrossProcessFileLock } from "@workbench/server-core/file-persistence";
 import { pathWithin } from "@workbench/pi-sdk-resources/resource-mutations";
 import {
-  browserPackageArtifactRelativePath,
-  browserPackageDirectory,
-  createBrowserPackageManifest,
-} from "./browser/resources";
-import {
   workbenchToolSourceDirectory,
   WORKBENCH_TOOL_SOURCE_PATHS,
   RETIRED_WORKBENCH_TOOL_SOURCE_PATHS,
 } from "./tool-resources";
-import { registerWorkbenchBuiltinPackages } from "./builtin-packages";
+import { removeRetiredWorkbenchBrowserPackage } from "./builtin-packages";
 import { workbenchBuiltinResourceUrl } from "./resource-locations";
 
 import {
@@ -96,55 +91,15 @@ export async function ensureWorkbenchBuiltinResources(
           continue;
         }
         for (const entry of await readdir(source, { withFileTypes: true })) {
-          if (entry.isDirectory() && !(kind === "skills" && entry.name === "browser-use"))
+          if (entry.isDirectory())
             await copyBuiltinDirectory(
               path.join(source, entry.name),
               path.join(directories[kind], entry.name),
             );
         }
       }
-      // Development follows the live source; artifacts ship an independent compiled Pi package.
-      const sourceRoot = fileURLToPath(browserPackageDirectory);
-      const sourceEntry = path.join(sourceRoot, "resources", "extensions", "browser", "index.ts");
-      const development = await lstat(sourceEntry).then(
-        (entry) => entry.isFile(),
-        (error: NodeJS.ErrnoException) => {
-          if (error.code !== "ENOENT") throw error;
-          return false;
-        },
-      );
-      const browserRoot = development
-        ? sourceRoot
-        : fileURLToPath(new URL(browserPackageArtifactRelativePath, import.meta.url));
-      const browserDirectory = path.join(directories.packages, "browser");
-      await ensureBuiltinDirectory(browserDirectory);
-      if (development) {
-        await ensureBuiltinDirectory(path.join(browserDirectory, "skills"));
-        await copyBuiltinDirectory(
-          path.join(browserRoot, "resources", "skills", "browser-use"),
-          path.join(browserDirectory, "skills", "browser-use"),
-        );
-        await writeBuiltinFile(
-          path.join(browserDirectory, "README.md"),
-          await readFile(path.join(browserRoot, "src", "browser", "README.md"), "utf8"),
-        );
-        await writeBuiltinFile(
-          path.join(browserDirectory, "index.js"),
-          `export { default } from ${JSON.stringify(pathToFileURL(sourceEntry).href)};\n`,
-        );
-        await writeBuiltinFile(
-          path.join(browserDirectory, "resources.js"),
-          'export const browserPackageDirectory = new URL("./", import.meta.url);\n' +
-            `export const browserPackageArtifactRelativePath = ${JSON.stringify(browserPackageArtifactRelativePath)};\n`,
-        );
-        await writeBuiltinFile(
-          path.join(browserDirectory, "package.json"),
-          JSON.stringify(createBrowserPackageManifest(), null, 2) + "\n",
-        );
-      } else {
-        await copyBuiltinDirectory(browserRoot, browserDirectory);
-      }
-      await registerWorkbenchBuiltinPackages(agentDir);
+      await rm(path.join(directories.packages, "browser"), { recursive: true, force: true });
+      await removeRetiredWorkbenchBrowserPackage(agentDir);
       // The installed validator lives outside node_modules; record this Runtime's public SDK entry.
       await writeBuiltinFile(
         path.join(directories.skills, "skill-creator", "runtime.json"),

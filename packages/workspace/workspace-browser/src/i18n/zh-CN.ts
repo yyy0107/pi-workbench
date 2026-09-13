@@ -18,7 +18,6 @@ export const messages = {
       screenshot: "截取屏幕截图",
       importCookies: "导入 Cookie…",
       importPasswords: "导入密码…",
-      browserSettings: "浏览器设置",
       notFound: "无匹配结果",
       findPrevious: "上一项",
       findNext: "下一项",

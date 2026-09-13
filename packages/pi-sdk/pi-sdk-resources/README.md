@@ -41,7 +41,6 @@ These examples identify public imports. Supply the dependencies and options decl
 | `@workbench/pi-sdk-resources/skills`                        | [src/skill-service.ts](./src/skill-service.ts)                                       |
 | `@workbench/pi-sdk-resources/extension-name`                | [src/extension-name.ts](./src/extension-name.ts)                                     |
 | `@workbench/pi-sdk-resources/extensions`                    | [src/extension-service.ts](./src/extension-service.ts)                               |
-| `@workbench/pi-sdk-resources/builtin-packages`              | [src/builtin-packages.ts](./src/builtin-packages.ts)                                 |
 | `@workbench/pi-sdk-resources/packages`                      | [src/installed-package-service.ts](./src/installed-package-service.ts)               |
 | `@workbench/pi-sdk-resources/catalog`                       | [src/package-catalog-service.ts](./src/package-catalog-service.ts)                   |
 | `@workbench/pi-sdk-resources/package-resource-details`      | [src/package-resource-details.ts](./src/package-resource-details.ts)                 |

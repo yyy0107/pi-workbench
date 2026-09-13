@@ -2,15 +2,14 @@
 
 The shared browser engine for Workbench Web and Electron. The Runtime owns one lazily started
 Chrome process and a dedicated persistent profile. Both clients display its page frames and send
-input through the authenticated `/api/browser/ws` gateway; the Pi `workbench_browser` tool uses
-the same `BrowserManager`. Browser session IDs identify tabs, not isolated browser profiles.
+input through the authenticated `/api/browser/ws` gateway. Browser session IDs identify tabs, not isolated browser profiles.
 Conversations and projects share login cookies, site storage, and profile-wide browsing history;
 each tab keeps its own page, back/forward stack, and `sessionStorage`.
 
 ## Setup
 
 Install Google Chrome or Chromium **on the machine running the Runtime**. The Runtime artifact
-bundles this package's JavaScript, contracts, and Pi tool; it does not bundle a browser executable.
+bundles this package's JavaScript and contracts; it does not bundle a browser executable.
 Electron also uses this Runtime-owned browser, so its bundled Chromium does not satisfy this
 requirement.
 
@@ -51,7 +50,7 @@ The default state directory is `${PI_WORKBENCH_STATE_DIR}/browser`, or
 | Path             | Contents                                                                                   |
 | ---------------- | ------------------------------------------------------------------------------------------ |
 | `profile/`       | Chrome-owned cookies, history, saved passwords, and browser preferences                    |
-| `settings.json`  | Workbench browser preferences and agent permissions                                        |
+| `settings.json`  | Workbench browser preferences and programmatic-client permissions                          |
 | `downloads/`     | Default download destination; configurable with `downloadDirectory`                        |
 | `downloads.json` | The last 1,000 completed Workbench download records                                        |
 | `uploads/`       | Temporary uploaded files, removed when their browser tab closes or the manager is disposed |
@@ -111,7 +110,7 @@ files and in-progress downloads, and returns the remaining `BrowserDownload[]` l
   an absolute path or `~/...`; an empty setting uses `downloads/` above. `askDownloadLocation`
   emits a file event for the client save dialog after completion.
 
-## Agent permissions and API
+## Browser manager API
 
 ```ts
 import { BrowserManager } from "@workbench/browser-server";
@@ -140,12 +139,13 @@ unsubscribe();
 browser.dispose();
 ```
 
-Model callers must pass `source: "agent"`; the installed Pi host binding fixes this source and
-forwards its cancellation signal. An omitted source represents an interactive user operation.
-Agent navigation, history, download, and upload permissions default to `ask`, with global and
+Programmatic clients can pass `source: "agent"` to use the manager's permission and control-lifetime
+semantics. Workbench no longer injects this path into Pi sessions; an omitted source represents an
+interactive operation from the right-workspace Browser tab. Programmatic navigation, history,
+download, and upload permissions default to `ask`, with global and
 HTTP(S)-origin-specific `allow`/`ask`/`deny` overrides. Approval requests expire after 120 seconds;
-aborting the agent removes pending approvals and prevents a later Allow from resuming the action.
-Standard agent commands cannot change settings, answer approval prompts, or import cookies/passwords.
+aborting the caller removes pending approvals and prevents a later Allow from resuming the action.
+Programmatic commands cannot change settings, answer approval prompts, or import cookies/passwords.
 Their internal page access is limited to history and downloads, with the relevant permissions.
 
 `fullCdpAccess` defaults to `false`. Enabling it exposes arbitrary CDP methods through `cdp` after
@@ -166,11 +166,11 @@ Tabs are shared with the user. Session results include `userControlled` and the 
 in CSS input coordinates. Mouse movement (including hover), clicks, scrolling, keyboard input,
 and user page actions give that tab priority until 1.5 seconds without new activity. Pointer
 updates are kept in memory; state events announce activity transitions rather than every move.
-Conflicting agent actions immediately return `browser-user-active`, including pending CDP calls,
-without canceling the agent run or waiting for the activity lease. Snapshots, screenshots, other
+Conflicting programmatic actions immediately return `browser-user-active`, including pending CDP calls,
+without canceling the caller or waiting for the activity lease. Snapshots, screenshots, other
 observation commands, and actions in other tabs remain available. Raw CDP is treated as an action
 because arbitrary commands can change the page. Viewport updates from the display are not user
-activity. Takeover releases agent-held keys/buttons and prevents later steps of that action;
+activity. Takeover releases programmatically held keys/buttons and prevents later steps of that action;
 Chrome commands already dispatched cannot be undone. Do not automatically replay a yielded action
 or busy-poll for control: continue independent work, then observe again before retrying.
 

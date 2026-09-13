@@ -33,7 +33,6 @@ import {
   bindPiAgentHostBindings,
   resolvePiWorkspaceRoot,
   resolvePiReviewSnapshots,
-  resolvePiWorkspaceId,
   mutatePiWorkspace,
   CommandService,
   createPiAgentServerImplementation,
@@ -183,15 +182,9 @@ function createInstalledPiAgentHostBindings(
   workspaceFiles: WorkspaceFileService,
   terminalShell: ReturnType<typeof createTerminalShellPreference>,
   toolTerminalSessions: ToolTerminalSessionManager,
-  browser: BrowserManager,
 ): PiAgentHostBindings {
   const settings = createInstalledWorkbenchSettingsService();
   return {
-    browser: {
-      command: (command, signal, controlSignal) =>
-        browser.handle(command, { source: "agent", signal, controlSignal }),
-      resolveProjectId: async (cwd) => (await resolvePiWorkspaceId(cwd)) ?? cwd,
-    },
     workbenchSettings: createInstalledWorkbenchSettingsAgentAccess(),
     workspaceFiles,
     getDefaultTerminalShell: terminalShell.getShell,
@@ -305,7 +298,6 @@ function createInstalledPiServer(
     workspaceFiles,
     terminalShell,
     toolTerminalSessions,
-    browser,
   );
   bindPiAgentHostBindings(host);
   const commands = new CommandService();

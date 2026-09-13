@@ -17,7 +17,6 @@ import type { WorkbenchToolboxScopePreference } from "@workbench/agent-runtime-c
 
 import {
   bindCapabilityToCatalogTarget,
-  browserCapabilityPresentation,
   builtinExtensionDescription,
   builtinExtensionSurfaceParams,
   builtinToolPreferenceKey,
@@ -414,18 +413,15 @@ export function useToolboxCatalogs(
                 entryTarget.resource,
                 entryTarget.project,
               );
-              const browser = browserCapabilityPresentation(params, t);
-              const name = browser?.name ?? params.name;
-              const description = browser?.description ?? item.description;
               return {
                 id: params.capabilityId,
                 kind: "package" as const,
-                name,
-                ...(description ? { description } : {}),
+                name: params.name,
+                ...(item.description ? { description: item.description } : {}),
                 ...(params.projectId && entryTarget.project
                   ? { project: entryTarget.project }
                   : {}),
-                searchText: `${name} ${description ?? ""} ${item.name ?? ""} ${item.source} ${item.scope} ${
+                searchText: `${params.name} ${item.description ?? ""} ${item.name ?? ""} ${item.source} ${item.scope} ${
                   params.projectId ? projectSearchText(entryTarget) : ""
                 }`,
                 params,

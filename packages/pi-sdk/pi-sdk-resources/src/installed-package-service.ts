@@ -41,7 +41,6 @@ import {
   type InstalledPackageUpdateState,
 } from "../lib/package-update-metadata";
 import { readPackageResourceDetails } from "../lib/package-resource-details";
-import { isWorkbenchBuiltinPackage } from "./builtin-packages";
 
 interface PackageSettingsSnapshot {
   packages?: readonly PackageSource[];
@@ -306,9 +305,6 @@ function packageView(
   return {
     source: packageSource,
     scope,
-    ...(isWorkbenchBuiltinPackage(packageSource, scope)
-      ? { builtin: true, name: "@workbench/pi-runtime-browser" }
-      : {}),
     filtered:
       typeof source === "object" &&
       (source.extensions !== undefined ||
@@ -777,9 +773,6 @@ export class InstalledPackageService implements InstalledPackageProtocol {
       const details = await this.dependencies.describeInstalledPackage(request);
       return {
         ...details,
-        ...(isWorkbenchBuiltinPackage(request.source, request.target.scope)
-          ? { builtin: true }
-          : {}),
       };
     } catch (error) {
       if (error instanceof InstalledPackageServiceError) throw error;
@@ -901,13 +894,6 @@ export class InstalledPackageService implements InstalledPackageProtocol {
   }
 
   async update({ source, target }: PiPackageUpdatePayload): Promise<PiPackageUpdateValue> {
-    if (isWorkbenchBuiltinPackage(source, target.scope)) {
-      throw new InstalledPackageServiceError(
-        "package-read-only",
-        "Built-in Pi packages are updated with Workbench.",
-        { source, scope: target.scope },
-      );
-    }
     if (target.scope === "project") {
       let workspace: { path: string } | undefined;
       try {
@@ -1028,13 +1014,6 @@ export class InstalledPackageService implements InstalledPackageProtocol {
   }
 
   async remove({ source, target }: PiPackageRemovePayload): Promise<PiPackageRemoveValue> {
-    if (isWorkbenchBuiltinPackage(source, target.scope)) {
-      throw new InstalledPackageServiceError(
-        "package-read-only",
-        "Built-in Pi packages cannot be removed.",
-        { source, scope: target.scope },
-      );
-    }
     if (target.scope === "project") {
       let workspace: { path: string } | undefined;
       try {

@@ -3201,8 +3201,6 @@ export async function copyRuntimeBuiltinResources(
   ]) {
     await mkdir(path.join(outputDirectory, relative), { recursive: true });
     for (const entry of await readdir(path.join(repositoryRoot, source))) {
-      // Browser's Skill is installed only through the product-generated compatibility package.
-      if (relative === "internal-skills" && entry === "browser-use") continue;
       await cp(
         path.join(repositoryRoot, source, entry),
         path.join(outputDirectory, relative, entry),
@@ -3219,20 +3217,6 @@ export async function copyRuntimeBuiltinResources(
       { recursive: true },
     );
   }
-  const browserBuild = spawnSync(
-    process.execPath,
-    [
-      path.join(
-        repositoryRoot,
-        "packages/product/pi-workbench-runtime/scripts/build-browser-package.mjs",
-      ),
-      path.join(outputDirectory, "internal-packages/browser"),
-    ],
-    { encoding: "utf8" },
-  );
-  if (browserBuild.error) throw browserBuild.error;
-  if (browserBuild.status !== 0)
-    throw new Error(browserBuild.stderr || browserBuild.stdout || "Browser package build failed.");
 }
 
 export async function buildRuntimeArtifact({

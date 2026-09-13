@@ -9,8 +9,7 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts",
       "default": "./src/index.ts"
-    },
-    "./host": "./src/host.ts"
+    }
   },
   "scripts": {
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",

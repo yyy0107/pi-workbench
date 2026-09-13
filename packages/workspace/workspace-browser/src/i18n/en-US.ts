@@ -18,7 +18,6 @@ export const messages = {
       screenshot: "Take screenshot",
       importCookies: "Import cookies…",
       importPasswords: "Import passwords…",
-      browserSettings: "Browser settings",
       notFound: "No match",
       findPrevious: "Previous match",
       findNext: "Next match",

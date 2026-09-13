@@ -46,7 +46,6 @@ import {
 
 import { builtinSkillEnabled, withWorkbenchBuiltinSkills } from "./builtin-skills";
 import { skillExplicitlyEnabled } from "../lib/skill-enablement";
-import { isWorkbenchBuiltinPackage } from "./builtin-packages";
 
 export const MAX_SKILL_DOCUMENT_BYTES = 1024 * 1024;
 export const MAX_SKILL_FILE_BYTES = 5 * 1024 * 1024;
@@ -513,10 +512,6 @@ export class SkillService implements SkillProtocol {
             source: skill.sourceInfo.source,
             scope: skill.sourceInfo.scope,
             origin: skill.sourceInfo.origin,
-            ...(skill.sourceInfo.origin === "package" &&
-            isWorkbenchBuiltinPackage(skill.sourceInfo.source, skill.sourceInfo.scope)
-              ? { packageBuiltin: true }
-              : {}),
           })),
       };
     } catch (error) {

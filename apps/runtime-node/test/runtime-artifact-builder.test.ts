@@ -30,7 +30,6 @@ import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build, type Metafile } from "esbuild";
-import { DefaultResourceLoader, SettingsManager } from "@earendil-works/pi-coding-agent";
 
 async function temporaryDirectory(prefix: string): Promise<string> {
   return realpath(await mkdtemp(path.join(os.tmpdir(), prefix)));
@@ -118,14 +117,6 @@ test("bundled resources install into the Pi directory after relocation and pruni
   assert.ok(
     (
       await readFile(
-        path.join(directories.packages, "browser", "skills/browser-use/SKILL.md"),
-        "utf8",
-      )
-    ).includes("name: browser-use"),
-  );
-  assert.ok(
-    (
-      await readFile(
         path.join(directories.extensions, "resources", "extensions", "rpiv-todo", "index.ts"),
         "utf8",
       )
@@ -141,35 +132,7 @@ test("bundled resources install into the Pi directory after relocation and pruni
     assert.ok(
       (await readdir(directory, { withFileTypes: true })).every((entry) => entry.isDirectory()),
     );
-  const browserEntry = path.join(directories.packages, "browser", "index.js");
-  const browserCode = await readFile(browserEntry, "utf8");
-  assert.doesNotMatch(browserCode, /file:\/\/|from ["']@workbench\//);
-  assert.ok(browserCode.length > 1_000);
-  const loaderSettings = SettingsManager.create(agentDir, agentDir, { projectTrusted: false });
-  loaderSettings.setPackages([
-    { source: "./packages/.builtin/browser", extensions: ["+./index.js"] },
-  ]);
-  await loaderSettings.flush();
-  const loader = new DefaultResourceLoader({
-    cwd: agentDir,
-    agentDir,
-    settingsManager: loaderSettings,
-    noThemes: true,
-    noContextFiles: true,
-  });
-  await loader.reload();
-  assert.deepEqual(loader.getExtensions().errors, []);
-  const extension = loader
-    .getExtensions()
-    .extensions.find((entry) => entry.resolvedPath === browserEntry);
-  assert.ok(extension);
-  assert.equal(extension.sourceInfo.origin, "package");
-  assert.equal(extension.tools.has("workbench_browser"), true);
-  assert.equal(extension.handlers.has("session_shutdown"), true);
-  assert.equal(loader.getSkills().skills.filter((skill) => skill.name === "browser-use").length, 1);
-  const browserSkill = loader.getSkills().skills.find((skill) => skill.name === "browser-use");
-  assert.equal(browserSkill?.sourceInfo.origin, "package");
-  assert.equal(browserSkill?.sourceInfo.source, extension.sourceInfo.source);
+  assert.deepEqual(await readdir(directories.packages), []);
   const validation = spawnSync(
     process.execPath,
     [path.join(skillDirectory, "scripts/validate-skill.mjs"), skillDirectory],

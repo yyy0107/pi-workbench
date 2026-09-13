@@ -236,10 +236,6 @@ test("bundled validator accepts a real skill and rejects missing descriptions an
     spawnSync(process.execPath, [validator, directory], { encoding: "utf8" });
   const valid = run(builtin.baseDir);
   assert.equal(valid.status, 0, valid.stderr);
-  const browserValidation = run(
-    path.join(root, "packages", ".builtin", "browser", "skills", "browser-use"),
-  );
-  assert.equal(browserValidation.status, 0, browserValidation.stderr);
   const piDocs = skills.find(({ name }) => name === "pi-docs")!;
   const docsValidation = run(piDocs.baseDir);
   assert.equal(docsValidation.status, 0, docsValidation.stderr);
@@ -362,7 +358,7 @@ test("installs built-in skills and extensions and removes retired prompts withou
   const directories = await ensureWorkbenchBuiltinResources(agentDir);
   await assert.rejects(stat(path.join(directories.skills, "browser")), { code: "ENOENT" });
   await assert.rejects(stat(path.join(directories.extensions, "browser")), { code: "ENOENT" });
-  assert.ok((await stat(path.join(directories.packages, "browser", "package.json"))).isFile());
+  await assert.rejects(stat(path.join(directories.packages, "browser")), { code: "ENOENT" });
   await assert.rejects(stat(legacySkill), { code: "ENOENT" });
   assert.deepEqual(SettingsManager.create(agentDir, agentDir).getGlobalSettings().skills, [
     "-skills/.builtin/skill-creator/SKILL.md",

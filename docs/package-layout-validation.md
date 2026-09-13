@@ -2,6 +2,8 @@
 
 基线：`a2427637`。按确认的 `pi-sdk`、`pi-runtime`、`pi-ui` 和 `product` 分类执行，随后按所有权修正 SDK 内的产品内容。21 个既有包移动、15 个包重命名，新增一个独立 Node 产品包，合计 97 个库包。完整映射见 [package-layout-map.json](package-layout-map.json)，导入与职责见 [Packages 导航](../packages/README.md)。
 
+> 后续状态：本页保留当时的迁移验收记录。当前模型可调用的 Browser package、扩展与 `browser-use` Skill 已退役；仅保留由 `workspace-browser` 与 `browser-server` 提供的右侧浏览器标签。
+
 ## 最终所有权
 
 | 层                | 包与职责                                                                                                                                                                           |

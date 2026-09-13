@@ -1,68 +1,47 @@
 import path from "node:path";
-import { SettingsManager, type PackageSource } from "@earendil-works/pi-coding-agent";
-import { withResourceEnabled } from "@workbench/pi-sdk-resources/resource-mutations";
-import {
-  isWorkbenchBuiltinPackage,
-  WORKBENCH_BROWSER_PACKAGE_SOURCE,
-} from "@workbench/pi-sdk-resources/builtin-packages";
-export {
-  isWorkbenchBuiltinPackage,
-  WORKBENCH_BROWSER_PACKAGE_SOURCE,
-} from "@workbench/pi-sdk-resources/builtin-packages";
+import { SettingsManager } from "@earendil-works/pi-coding-agent";
 
-/** Register only after the application has deployed the package manifest and its resources. */
-export async function registerWorkbenchBuiltinPackages(agentDir: string): Promise<void> {
+const RETIRED_WORKBENCH_BROWSER_PACKAGE_SOURCE = "packages/.builtin/browser";
+
+function isRetiredWorkbenchBrowserPackage(source: string): boolean {
+  return (
+    source.replaceAll("\\", "/").replace(/^\.\//u, "") === RETIRED_WORKBENCH_BROWSER_PACKAGE_SOURCE
+  );
+}
+
+function isRetiredBrowserResourcePath(
+  entry: string,
+  agentDir: string,
+  kind: "extensions" | "skills",
+): boolean {
+  const relative = entry.replace(/^[!+-]/u, "").replaceAll("\\", "/");
+  const resolved = path.resolve(agentDir, relative);
+  const root = path.join(agentDir, kind, ".builtin", "browser");
+  if (resolved === root) return true;
+  return resolved === path.join(root, kind === "extensions" ? "index.ts" : "SKILL.md");
+}
+
+/** Remove the retired product Browser package and its earlier standalone resource filters. */
+export async function removeRetiredWorkbenchBrowserPackage(agentDir: string): Promise<void> {
   const settings = SettingsManager.create(agentDir, agentDir, { projectTrusted: false });
   const loadFailure = settings.drainErrors()[0];
   if (loadFailure) throw loadFailure.error;
   const global = settings.getGlobalSettings();
   const packages = global.packages ?? [];
-  const index = packages.findIndex((entry) =>
-    isWorkbenchBuiltinPackage(typeof entry === "string" ? entry : entry.source),
+  const nextPackages = packages.filter(
+    (entry) => !isRetiredWorkbenchBrowserPackage(typeof entry === "string" ? entry : entry.source),
   );
-  let browser: PackageSource = packages[index] ?? WORKBENCH_BROWSER_PACKAGE_SOURCE;
-  if (typeof browser === "string" || browser.extensions === undefined) {
-    browser = { ...(typeof browser === "string" ? { source: browser } : browser), extensions: [] };
-  }
-  if (typeof browser !== "string" && browser.skills) {
-    const previousSkills = browser.skills;
-    const skills = previousSkills.map((pattern) =>
-      pattern.replace(/^([+-]?(?:\.\/)?skills\/)browser(?=\/|$)/u, "$1browser-use"),
-    );
-    if (skills.some((pattern, index) => pattern !== previousSkills[index]))
-      browser = { ...browser, skills };
-  }
-  const previousSkillRoot = path.join(agentDir, "skills", ".builtin", "browser");
-  const previousSkillPatterns = (global.skills ?? []).filter(
-    (pattern) =>
-      /^[+-]/u.test(pattern) &&
-      [previousSkillRoot, path.join(previousSkillRoot, "SKILL.md")].includes(
-        path.resolve(agentDir, pattern.slice(1).replaceAll("\\", "/")),
-      ),
+  const extensions = global.extensions ?? [];
+  const nextExtensions = extensions.filter(
+    (entry) => !isRetiredBrowserResourcePath(entry, agentDir, "extensions"),
   );
-  // A package filter already saved by the user takes precedence over the retired skill switch.
-  if (
-    previousSkillPatterns.length > 0 &&
-    (typeof browser === "string" || browser.skills === undefined)
-  ) {
-    browser = {
-      ...(typeof browser === "string" ? { source: browser } : browser),
-      skills: withResourceEnabled(
-        [],
-        "skills/browser-use/SKILL.md",
-        !previousSkillPatterns.some((pattern) => pattern.startsWith("-")),
-      ),
-    };
-  }
-  if (index < 0) settings.setPackages([...packages, browser]);
-  else if (browser !== packages[index]) {
-    packages[index] = browser;
-    settings.setPackages(packages);
-  }
-  if (previousSkillPatterns.length > 0)
-    settings.setSkillPaths(
-      (global.skills ?? []).filter((pattern) => !previousSkillPatterns.includes(pattern)),
-    );
+  const skills = global.skills ?? [];
+  const nextSkills = skills.filter(
+    (entry) => !isRetiredBrowserResourcePath(entry, agentDir, "skills"),
+  );
+  if (nextPackages.length !== packages.length) settings.setPackages(nextPackages);
+  if (nextExtensions.length !== extensions.length) settings.setExtensionPaths(nextExtensions);
+  if (nextSkills.length !== skills.length) settings.setSkillPaths(nextSkills);
   await settings.flush();
   const writeFailure = settings.drainErrors()[0];
   if (writeFailure) throw writeFailure.error;

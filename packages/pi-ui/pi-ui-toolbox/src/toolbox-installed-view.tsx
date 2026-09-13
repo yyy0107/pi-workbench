@@ -7,7 +7,6 @@ import {
   BoxIcon,
   CheckIcon,
   FileTextIcon,
-  Globe2Icon,
   PackageIcon,
   PlugIcon,
   PlusIcon,
@@ -28,11 +27,7 @@ import {
 import { cn } from "@workbench/ui/utils";
 
 import { definePiMessage } from "./i18n";
-import {
-  browserCapabilityPresentation,
-  type ToolboxCapabilitySurfaceParams,
-  type ToolboxMainSection,
-} from "./toolbox-capability";
+import { type ToolboxCapabilitySurfaceParams, type ToolboxMainSection } from "./toolbox-capability";
 import { ToolboxCapabilityDetails } from "./toolbox-capability-surface";
 import { useToolboxCatalogs, type ToolboxCapabilityItem } from "./toolbox-catalog";
 import { useToolboxScope } from "./toolbox-scope-store";
@@ -124,9 +119,7 @@ export function ToolboxResourceList({
           items={group.items}
           query={query}
           renderItem={(item) => {
-            const Icon = browserCapabilityPresentation(item.params, t)
-              ? Globe2Icon
-              : CAPABILITY_ICONS[item.kind];
+            const Icon = CAPABILITY_ICONS[item.kind];
             const disabled = item.params.enabled === false;
             const status =
               item.params.builtin && item.params.enabled === undefined

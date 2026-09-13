@@ -16,7 +16,6 @@
     "./skills": "./src/skill-service.ts",
     "./extension-name": "./src/extension-name.ts",
     "./extensions": "./src/extension-service.ts",
-    "./builtin-packages": "./src/builtin-packages.ts",
     "./packages": "./src/installed-package-service.ts",
     "./catalog": "./src/package-catalog-service.ts",
     "./package-resource-details": "./src/package-resource-details.ts",

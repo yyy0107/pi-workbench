@@ -27,7 +27,6 @@
     "@workbench/shell-context": "workspace:*",
     "@workbench/ui": "workspace:*",
     "@workbench/ui-selectors": "workspace:*",
-    "@workbench/ui-settings": "workspace:*",
     "@workbench/ui-workspace": "workspace:*",
     "@workbench/workspace-directory-picker": "workspace:*",
     "@workbench/workspace-files": "workspace:*",

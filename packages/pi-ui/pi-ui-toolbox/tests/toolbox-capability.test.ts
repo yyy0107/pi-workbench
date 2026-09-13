@@ -3,10 +3,8 @@ import test from "node:test";
 
 import {
   bindCapabilityToCatalogTarget,
-  browserCapabilityPresentation,
   builtinExtensionSurfaceParams,
   extensionSurfaceParams,
-  installedPackageSurfaceParams,
   npmPackageNameFromSource,
   resourcePackageSurfaceParams,
   sectionForCapability,
@@ -14,7 +12,6 @@ import {
   toolboxDirectoryResource,
   type ToolboxCapabilitySurfaceParams,
 } from "../src/toolbox-capability";
-import { createPiI18n } from "../src/i18n";
 
 function capability(
   capabilityKind: ToolboxCapabilitySurfaceParams["capabilityKind"],
@@ -52,94 +49,6 @@ test("derives official catalog package names only from canonical npm sources", (
   assert.equal(npmPackageNameFromSource("npm:@acme/pi-review"), "@acme/pi-review");
   assert.equal(npmPackageNameFromSource("git:github.com/acme/pi-review"), undefined);
   assert.equal(npmPackageNameFromSource("npm:@acme/pi-review@next"), undefined);
-});
-
-test("Browser is a bundled package while its resources retain native Pi identities", () => {
-  const source = "./packages/.builtin/browser";
-  const packageParams = installedPackageSurfaceParams({
-    source,
-    scope: "user",
-    filtered: true,
-    builtin: true,
-    name: "@workbench/pi-runtime-browser",
-    description: "Browser package",
-  });
-  assert.equal(packageParams.capabilityKind, "package");
-  assert.equal(packageParams.builtin, true);
-  assert.equal(packageParams.packageFiltered, true);
-  assert.equal(packageParams.description, "Browser package");
-  assert.equal(packageParams.packageName, undefined);
-  for (const sourceAlias of ["packages/.builtin/browser", ".\\packages\\.builtin\\browser"]) {
-    assert.equal(
-      browserCapabilityPresentation(
-        { ...packageParams, name: sourceAlias, source: sourceAlias },
-        createPiI18n("en-US").t,
-      )?.name,
-      "Browser",
-    );
-  }
-  assert.equal(
-    browserCapabilityPresentation(packageParams, createPiI18n("en-US").t)?.name,
-    "Browser",
-  );
-
-  const skill = skillSurfaceParams({
-    name: "browser",
-    description: "Use the browser",
-    enabled: false,
-    modelInvocable: true,
-    source,
-    scope: "user",
-    origin: "package",
-    packageBuiltin: true,
-  });
-  assert.equal(skill.builtin, undefined);
-  assert.equal(skill.packageBuiltin, true);
-  assert.equal(skill.enabled, false);
-  assert.equal(browserCapabilityPresentation(skill, createPiI18n("en-US").t), undefined);
-  const extension = extensionSurfaceParams({
-    name: "browser",
-    filePath: "/agent/packages/.builtin/browser/dist/index.js",
-    source,
-    scope: "user",
-    origin: "package",
-    packageBuiltin: true,
-    enabled: true,
-    eventNames: ["session_start", "session_shutdown"],
-    toolNames: ["workbench_browser"],
-    commandNames: [],
-    eventDetails: [],
-    toolDetails: [],
-    commandDetails: [],
-  });
-  assert.equal(extension.builtin, undefined);
-  assert.equal(extension.packageBuiltin, true);
-  assert.equal(
-    toolboxDirectoryResource(extension, { scope: "user" })?.scheme,
-    "extension-directory",
-  );
-  assert.equal(
-    browserCapabilityPresentation(
-      {
-        capabilityId: "old-inline",
-        capabilityKind: "extension",
-        name: "workbench.browser",
-        builtin: true,
-      },
-      createPiI18n("en-US").t,
-    ),
-    undefined,
-  );
-
-  for (const resource of [skill, extension]) {
-    const supplying = resourcePackageSurfaceParams(resource, { scope: "user" });
-    assert.equal(supplying?.source, source);
-    assert.equal(supplying?.installed, true);
-    assert.equal(supplying?.builtin, true);
-    assert.equal(supplying?.packageName, undefined);
-    assert.equal(supplying?.packageFiltered, undefined);
-    assert.deepEqual(supplying?.catalogTarget, { scope: "user" });
-  }
 });
 
 test("package source links preserve pinned local identity and project target", () => {

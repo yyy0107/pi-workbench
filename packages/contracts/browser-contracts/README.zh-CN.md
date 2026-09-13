@@ -14,5 +14,3 @@ pnpm --filter @workbench/browser-contracts test
 ```
 
 源码分工：src 承载本包能力与契约，lib 仅放实际使用的内部辅助，tests 为包根测试。实际消费者示例：`src/index.ts` 引用 `lib/validation.ts`。实现保留 TS/TSX；既有构建工具保持原语言。
-
-`./host` 拥有与实现无关的 BrowserHost 命令端口。Pi 工具和宿主绑定直接使用该合同，无需依赖 browser-server 或 Pi 产品。

@@ -2,7 +2,6 @@ import type {
   BuiltinResourcePreferenceKey,
   WorkbenchSettingsProtocol,
 } from "@workbench/agent-runtime-contracts/settings";
-import type { BrowserHost } from "@workbench/browser-contracts/host";
 import type { WorkspaceFileReader } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type {
@@ -18,7 +17,6 @@ export interface PiBashToolFactoryInput {
 }
 
 export interface PiAgentHostBindings {
-  readonly browser?: BrowserHost;
   readonly workbenchSettings?: Pick<WorkbenchSettingsProtocol, "describe" | "update">;
   readonly getDefaultTerminalShell?: () => string;
   readonly workspaceFiles?: WorkspaceFileReader;

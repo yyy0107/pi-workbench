@@ -9,7 +9,6 @@ import {
   CircleXIcon,
   ClipboardIcon,
   FolderIcon,
-  Globe2Icon,
   LoaderCircleIcon,
   MapPinIcon,
   PackageIcon,
@@ -68,7 +67,6 @@ import { useFileWorkspaceTargetService } from "@workbench/workspace-files";
 
 import {
   toolboxDirectoryResource,
-  browserCapabilityPresentation,
   builtinToolPreferenceKey,
   resourcePackageSurfaceParams,
   type ToolboxCapabilitySurfaceParams,
@@ -187,8 +185,7 @@ function EnhancedSearchSettings() {
 function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfaceParams }) {
   const { number, t } = useI18n(toolboxUiTranslationBundle);
   const mainViews = useMainViewService();
-  const browser = browserCapabilityPresentation(params, t);
-  const displayedName = browser?.name ?? params.name;
+  const displayedName = params.name;
   const builtinPreferenceKey = builtinToolPreferenceKey(params);
   const builtinPreference = useToolCapabilityPreferences(builtinPreferenceKey ?? "askUserEnabled");
   const builtinController = useToolCapabilityPreferencesController(
@@ -287,7 +284,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
   const displayedPackageDetails = isInstalledPackage
     ? installedPackageDetails.value
     : officialDetails;
-  const Icon = browser ? Globe2Icon : isPackage ? PackageIcon : isSkill ? BoxIcon : PlugIcon;
+  const Icon = isPackage ? PackageIcon : isSkill ? BoxIcon : PlugIcon;
   const {
     copy: copyInstallCommandText,
     isCopied: installCommandCopied,
@@ -522,23 +519,21 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
         : packageSizeBytes >= 1_000
           ? `${number(packageSizeBytes / 1_000, { maximumFractionDigits: 1 })} KB`
           : `${number(packageSizeBytes)} B`;
-  const displayedDescription =
-    browser?.description ??
-    (isInstalledPackage
-      ? installedPackageDetails.value?.description ||
-        (installedPackageDetails.loadState === "loading"
-          ? "…"
-          : t("extensions.toolbox.packages.installedDescriptionUnavailable"))
-      : isSkill && params.builtin && params.name === "skill-creator"
-        ? t("extensions.toolbox.skills.creatorDescription")
-        : params.description ||
-          (isExtension
-            ? t("extensions.toolbox.extensions.capabilitySummary", {
-                events: params.eventNames?.length ?? 0,
-                tools: params.toolNames?.length ?? 0,
-                commands: params.commandNames?.length ?? 0,
-              })
-            : t("extensions.toolbox.details.descriptionUnavailable")));
+  const displayedDescription = isInstalledPackage
+    ? installedPackageDetails.value?.description ||
+      (installedPackageDetails.loadState === "loading"
+        ? "…"
+        : t("extensions.toolbox.packages.installedDescriptionUnavailable"))
+    : isSkill && params.builtin && params.name === "skill-creator"
+      ? t("extensions.toolbox.skills.creatorDescription")
+      : params.description ||
+        (isExtension
+          ? t("extensions.toolbox.extensions.capabilitySummary", {
+              events: params.eventNames?.length ?? 0,
+              tools: params.toolNames?.length ?? 0,
+              commands: params.commandNames?.length ?? 0,
+            })
+          : t("extensions.toolbox.details.descriptionUnavailable"));
 
   const copyInstallCommand = () => {
     if (!selectedInstallCommand) return;
@@ -1019,7 +1014,6 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
         >
           {displayedDescription}
         </p>
-        {browser ? <p className="text-muted-foreground mt-3 text-sm">{browser.details}</p> : null}
         {supplyingPackage ? (
           <Button
             type="button"
@@ -1029,8 +1023,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
             onClick={() =>
               mainViews.open({
                 kind: "toolbox",
-                title:
-                  browserCapabilityPresentation(supplyingPackage, t)?.name ?? supplyingPackage.name,
+                title: supplyingPackage.name,
                 params: { section: "installed", detailOnly: true, selected: supplyingPackage },
               })
             }

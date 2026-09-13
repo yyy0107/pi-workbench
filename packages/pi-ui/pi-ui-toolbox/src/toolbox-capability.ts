@@ -79,24 +79,6 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   projectPath?: string;
 }
 
-export function browserCapabilityPresentation(
-  params: ToolboxCapabilitySurfaceParams,
-  t: PiTranslate,
-) {
-  if (
-    !params.builtin ||
-    params.capabilityKind !== "package" ||
-    (params.name !== "@workbench/pi-runtime-browser" &&
-      params.source?.replace(/\\/g, "/").replace(/^\.\//, "") !== "packages/.builtin/browser")
-  )
-    return undefined;
-  return {
-    name: t("extensions.toolbox.browser.name"),
-    description: t("extensions.toolbox.browser.description"),
-    details: t("extensions.toolbox.browser.details"),
-  };
-}
-
 export function bindCapabilityToCatalogTarget(
   params: ToolboxCapabilitySurfaceParams,
   scope: ExtensionView["scope"] | InstalledPackageView["scope"],

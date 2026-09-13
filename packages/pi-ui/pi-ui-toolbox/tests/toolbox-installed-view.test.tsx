@@ -228,11 +228,6 @@ test("Pi extensions group by source after search while keeping disabled entries"
     extension("Legacy builtin", { builtin: true }),
     extension("Own review", { origin: "top-level", source: "auto", enabled: false }),
     extension("Package search", { origin: "package", source: "npm:pi-search", enabled: true }),
-    extension("Browser package", {
-      origin: "package",
-      source: "./packages/.builtin/browser",
-      packageBuiltin: true,
-    }),
   ];
   const html = render("", "en-US", resources, true);
   const groups = [...html.matchAll(/<h2\b[^>]*>([^<]*)<\/h2>([\s\S]*?)(?=<h2\b|$)/g)];
@@ -241,8 +236,6 @@ test("Pi extensions group by source after search while keeping disabled entries"
     ["Pi Packages", "Custom extensions", "Workbench extensions", "Built-in extensions"],
   );
   assert.match(groups[0][2], /Package search/);
-  assert.match(groups[0][2], /Browser package/);
-  assert.doesNotMatch(groups[2][2], /Browser package/);
   assert.match(groups[1][2], /Own review/);
   assert.match(groups[1][2], />Disabled</);
   assert.match(groups[2][2], /Workbench Todo/);

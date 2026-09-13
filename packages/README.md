@@ -2,24 +2,24 @@
 
 先按职责找目录，再按能力找包。叶目录名始终等于 `@workbench/` 后的包名；跨包通过 `package.json` 的 `exports` 导入。
 
-| 你要做什么                                                    | 从哪里开始                                                                      |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| 接入 Pi SDK：模型、会话、资源加载                             | [pi-sdk](pi-sdk/README.md)                                                      |
-| 将 Pi 接到 Workbench：客户端、服务端、RPC、会话投影与工具适配 | [pi-runtime](pi-runtime/README.md)                                              |
-| 修改 Pi 专属界面、扩展贡献和词典                              | [pi-ui](pi-ui/README.md)                                                        |
-| 选择内置 Skills、Prompts、默认扩展及安装顺序                  | [product](product/README.md)                                                    |
-| 找 Browser 控制工具、Pi 扩展与 browser-use Skill              | [产品 Browser](product/pi-workbench-runtime/src/browser/README.zh-CN.md)        |
-| 找通用 Agent 抽象、客户端能力合同和服务端执行端口             | `agent-runtime/agent-runtime-{core,contracts,client,server,testkit}`            |
-| 找可复用 UI、Shell、设置与外观能力                            | `client/ui-*`、`client/shell`、`client/settings-*`                              |
-| 找工作区状态、目录、文件与 Git 能力                           | `workspace/`；工作区界面在 `client/ui-workspace`                                |
-| 找通用扩展 SDK、安装与 Host 生命周期                          | `extension-platform/`                                                           |
-| 找 HTTP/WebSocket 连接、认证与代理                            | [transport](transport/README.md)                                                |
-| 找 Runtime/Web 服务进程启动、探测与退出                       | [process](process/README.md)                                                    |
-| 找构建产物读取、原生依赖与资源准入                            | [build](build/README.md)                                                        |
-| 找通用 RPC/HTTP 基础能力                                      | `transport/api`（Pi 协议在 `pi-runtime/pi-rpc-contracts`）                      |
-| 找业务 DTO 和公共服务                                         | `contracts/`、`server/`                                                         |
-| 找 PTY、终端连接与合同                                        | `terminal/`；Pi 工具适配在 `product/pi-workbench-runtime` 的 `/tools/bash` 入口 |
-| 找可复用测试支持                                              | `test-support/`、`agent-runtime/agent-runtime-testkit`                          |
+| 你要做什么                                                    | 从哪里开始                                                                            |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| 接入 Pi SDK：模型、会话、资源加载                             | [pi-sdk](pi-sdk/README.md)                                                            |
+| 将 Pi 接到 Workbench：客户端、服务端、RPC、会话投影与工具适配 | [pi-runtime](pi-runtime/README.md)                                                    |
+| 修改 Pi 专属界面、扩展贡献和词典                              | [pi-ui](pi-ui/README.md)                                                              |
+| 选择内置 Skills、Prompts、默认扩展及安装顺序                  | [product](product/README.md)                                                          |
+| 找右侧浏览器标签、协议与服务端引擎                            | `workspace/workspace-browser`、`contracts/browser-contracts`、`server/browser-server` |
+| 找通用 Agent 抽象、客户端能力合同和服务端执行端口             | `agent-runtime/agent-runtime-{core,contracts,client,server,testkit}`                  |
+| 找可复用 UI、Shell、设置与外观能力                            | `client/ui-*`、`client/shell`、`client/settings-*`                                    |
+| 找工作区状态、目录、文件与 Git 能力                           | `workspace/`；工作区界面在 `client/ui-workspace`                                      |
+| 找通用扩展 SDK、安装与 Host 生命周期                          | `extension-platform/`                                                                 |
+| 找 HTTP/WebSocket 连接、认证与代理                            | [transport](transport/README.md)                                                      |
+| 找 Runtime/Web 服务进程启动、探测与退出                       | [process](process/README.md)                                                          |
+| 找构建产物读取、原生依赖与资源准入                            | [build](build/README.md)                                                              |
+| 找通用 RPC/HTTP 基础能力                                      | `transport/api`（Pi 协议在 `pi-runtime/pi-rpc-contracts`）                            |
+| 找业务 DTO 和公共服务                                         | `contracts/`、`server/`                                                               |
+| 找 PTY、终端连接与合同                                        | `terminal/`；Pi 工具适配在 `product/pi-workbench-runtime` 的 `/tools/bash` 入口       |
+| 找可复用测试支持                                              | `test-support/`、`agent-runtime/agent-runtime-testkit`                                |
 
 `agent-runtime` 是 Workbench 的通用抽象；实际 Pi SDK 接入在 `pi-sdk`。这次名称整理保持现有依赖关系：三类 Pi 目录表达职责，并不宣称严格单向依赖。SDK 实现仍使用 `pi-rpc-contracts` 和纯数据适配器；后续若解耦传输 DTO，应另立行为重构任务。
 
@@ -154,4 +154,4 @@ import {
 | [workspace/workspace-review](workspace/workspace-review)                       | Owns workspace-review implementation and its bilingual translation bundle. Consumers use the package exports.…                                     |
 | [workspace/workspace-runtime](workspace/workspace-runtime)                     | Owns the headless inspector controller, Surface state, draft and feedback stores, persistence and workspace-di…                                    |
 
-产品内置 Skills 和 Prompts 位于 [pi-workbench-runtime/resources](product/pi-workbench-runtime/resources)。Browser 包配套的 browser-use 技能与扩展共置，供独立 Pi CLI 复用。
+产品内置 Skills 和 Prompts 位于 [pi-workbench-runtime/resources](product/pi-workbench-runtime/resources)。模型可调用的 Browser 扩展与 browser-use Skill 已退役；右侧工作区浏览器标签仍由 workspace-browser 提供。

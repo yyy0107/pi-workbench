@@ -60,7 +60,6 @@ Related owners:
 - [@workbench/pi-sdk-sessions](../pi-sdk-sessions/README.md)
 - [@workbench/pi-sdk-models](../pi-sdk-models/README.md)
 - [@workbench/pi-workbench-runtime/tools](../../product/pi-workbench-runtime/README.md)
-- [@workbench/browser-contracts](../../contracts/browser-contracts/README.md)
 
 ## Maintenance and validation
 

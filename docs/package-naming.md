@@ -74,3 +74,5 @@ Spec011 将 Workbench 专属工具、提示、交互与 Todo 策略统一归入 
 ## Browser 产品归属（Spec012）
 
 Browser Pi 工具、扩展与 browser-use Skill 迁入 product/pi-workbench-runtime，删除独立 pi-runtime-browser 工作区包。库包总数 96。通用 browser-server/browser-contracts 保持原职责。旧 @workbench/pi-runtime-browser 名称只作为安装产物的稳定身份保留，源码与构建由产品持有；见 [迁移计划](../specs/012-product-browser-ownership/plan.md)。
+
+后续模型可调用的 Browser package、扩展与 `browser-use` Skill 已退役；旧内置安装只用于升级清理，不再导出、部署或显示。`workspace-browser` 与 `browser-server` 继续提供右侧浏览器标签。

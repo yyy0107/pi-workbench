@@ -4,13 +4,11 @@ import { browserTranslationBundle } from "../src/i18n";
 import { uiTranslationBundle } from "@workbench/ui/i18n";
 import { workspaceTranslationBundle } from "@workbench/ui-workspace/i18n";
 import { directoryPickerTranslationBundle } from "@workbench/workspace-directory-picker/i18n";
-import { settingsUiTranslationBundle } from "@workbench/ui-settings/i18n";
 const bundles = [
   browserTranslationBundle,
   uiTranslationBundle,
   workspaceTranslationBundle,
   directoryPickerTranslationBundle,
-  settingsUiTranslationBundle,
 ];
 export function BrowserTestI18nProvider({
   initialLocale,

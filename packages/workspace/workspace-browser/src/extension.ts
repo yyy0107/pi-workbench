@@ -1,4 +1,3 @@
-import { defineSettingsUiMessage } from "@workbench/ui-settings/i18n";
 import { Globe2Icon } from "lucide-react";
 
 import {
@@ -7,8 +6,6 @@ import {
   type WorkspaceSurfaceDefinition,
 } from "@workbench/extension-sdk";
 
-import { defineBrowserMessage as defineMessage } from "./i18n";
-import { BrowserSettingsItem, BROWSER_SETTINGS_SECTION_ID } from "./browser-settings";
 import { BrowserEventsOverlay } from "./browser-events-overlay";
 import { createBrowserFileOpener } from "./browser-file-opener";
 import { BrowserRuntimeBridge } from "./browser-runtime-bridge";
@@ -55,29 +52,6 @@ export const workspaceBrowserExtension = defineExtension({
       context.slots.register("shell.overlay", {
         id: "browser-events",
         component: BrowserEventsOverlay,
-      }),
-      context.settings.registerSection({
-        id: BROWSER_SETTINGS_SECTION_ID,
-        title: defineMessage("extensions.workspaceBrowser.settings.title"),
-        description: defineMessage("extensions.workspaceBrowser.settings.description"),
-        icon: Globe2Icon,
-        group: {
-          id: "capabilities",
-          title: defineSettingsUiMessage("extensions.settings.groups.capabilities"),
-        },
-        order: 50,
-      }),
-      context.settings.registerItem({
-        sectionId: BROWSER_SETTINGS_SECTION_ID,
-        id: "preferences",
-        title: defineMessage("extensions.workspaceBrowser.settings.title"),
-        description: defineMessage("extensions.workspaceBrowser.settings.description"),
-        keywords: [
-          defineMessage("extensions.workspaceBrowser.settings.passwords"),
-          defineMessage("extensions.workspaceBrowser.settings.downloads"),
-          defineMessage("extensions.workspaceBrowser.settings.permissions"),
-        ],
-        component: BrowserSettingsItem,
       }),
     ];
   },
