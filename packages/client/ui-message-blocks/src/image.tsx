@@ -235,6 +235,7 @@ function ImagePreview({
           ref={imgRef}
           src={src}
           alt={alt ?? t("assistant.image.contentAlt")}
+          decoding="async"
           className={cn("block h-auto w-full object-contain", !loaded && "invisible", className)}
           onLoad={(e) => {
             if (typeof src === "string") setLoadedSrc(src);
@@ -291,14 +292,17 @@ function ImageZoom({ src, alt, children, className }: ImageZoomProps) {
         closeButtonFrame="none"
         closeButtonInteraction="static"
         closeButtonClassName="top-0 end-0 bg-black/65 text-white"
-        overlayClassName="bg-black/80 supports-backdrop-filter:backdrop-blur-sm"
-        className="aui-image-zoom-dialog h-fit w-fit max-w-[calc(100vw-2rem)] gap-0 rounded-none bg-transparent p-0 pt-[calc(var(--icon-frame-size-sm)+0.5rem)] shadow-none ring-0 sm:max-w-[calc(100vw-2rem)]"
+        overlayClassName="bg-black/80 supports-backdrop-filter:backdrop-blur-none data-open:animate-none data-closed:animate-none"
+        // Keep large image previews out of the appearance system's floating-surface blur.
+        style={{ backdropFilter: "none" }}
+        className="aui-image-zoom-dialog h-fit w-fit max-w-[calc(100vw-2rem)] gap-0 rounded-none bg-transparent p-0 pt-[calc(var(--icon-frame-size-sm)+0.5rem)] shadow-none ring-0 data-open:animate-none data-closed:animate-none sm:max-w-[calc(100vw-2rem)]"
       >
         <DialogTitle className="sr-only">{t("assistant.image.zoom")}</DialogTitle>
         <img
           data-slot="image-zoom-content"
           src={src}
           alt={alt ?? t("assistant.image.contentAlt")}
+          decoding="async"
           className="aui-image-zoom-content max-h-[90dvh] max-w-[90vw] rounded-lg object-contain"
         />
       </DialogContent>
