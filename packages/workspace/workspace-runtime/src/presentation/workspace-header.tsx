@@ -1,10 +1,12 @@
 "use client";
+import { workspaceTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { Maximize2Icon, Minimize2Icon } from "lucide-react";
 import { useMemo } from "react";
 
 import { Button } from "@workbench/ui";
-import { useWorkspaceI18n } from "../use-i18n";
+
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 import { selectActiveSurface, selectContextSurfaces } from "../index";
 import { useRightWorkspace, useRightWorkspaceState, useWorkspaceContext } from "../react";
@@ -12,7 +14,7 @@ import { WorkspaceAddMenu } from "./workspace-add-menu";
 import { WorkspaceTabs } from "./workspace-tabs";
 
 export function WorkspaceHeader() {
-  const { t } = useWorkspaceI18n();
+  const { t } = useI18n(workspaceTranslationBundle);
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const state = useRightWorkspaceState((value) => value);

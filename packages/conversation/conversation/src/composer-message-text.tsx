@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useConversationNode } from "@workbench/agent-runtime-client";
 
@@ -8,7 +10,7 @@ import {
   COMPOSER_CONVERSATION_MENTION_TYPE,
   COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
 } from "@workbench/core-contracts/composer";
-import { useConversationI18n as useI18n } from "./use-i18n";
+
 import { useComposerCommandRegistry } from "@workbench/extension-host";
 import { useWorkbenchAgentCommands } from "@workbench/agent-runtime-client/context";
 import { parseWorkbenchComposerDocument } from "@workbench/core-contracts/composer/request";
@@ -44,7 +46,7 @@ export function WorkbenchComposerMessageTextContent({
   text,
   persistedDocument,
 }: Readonly<{ text: string; persistedDocument?: unknown }>) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const commands = useWorkbenchAgentCommands();
   const composerCommandRegistry = useComposerCommandRegistry();
   const agentCommandKindsById = new Map(

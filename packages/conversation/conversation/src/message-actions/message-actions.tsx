@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   ChevronLeftIcon,
@@ -25,7 +27,7 @@ import type { MessageSlotContext } from "@workbench/extension-sdk";
 
 import { TooltipIconButton } from "@workbench/ui";
 import { formatAdaptiveDuration } from "@workbench/i18n/duration";
-import { useConversationI18n as useI18n } from "../use-i18n";
+
 import { useWorkbenchNavigation } from "@workbench/shell-context/navigation";
 import { Button } from "@workbench/ui";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@workbench/ui";
@@ -48,7 +50,7 @@ function MessagePerformance({ node }: Readonly<{ node: ConversationNode }>) {
     () => readWorkbenchTurnStatistics(custom?.workbenchTurnStatistics),
     [custom?.workbenchTurnStatistics],
   );
-  const { locale, number, t } = useI18n();
+  const { locale, number, t } = useI18n(conversationTranslationBundle);
   const stats: { label: string; value: string }[] = [];
   const formatTokens = (tokens: number) =>
     number(tokens, { notation: "compact", maximumFractionDigits: 1 });
@@ -122,7 +124,7 @@ function MessagePerformance({ node }: Readonly<{ node: ConversationNode }>) {
 }
 
 function BranchPicker({ node }: Readonly<{ node: ConversationNode }>) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const session = useConversationSession();
   const reportError = useExtensionErrorReporter();
   const branch = node.presentation?.branch;
@@ -164,7 +166,7 @@ function BranchPicker({ node }: Readonly<{ node: ConversationNode }>) {
 }
 
 function AssistantActions({ node }: Readonly<{ node: ConversationNode }>) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const session = useConversationSession();
   const isRunning = useSessionState((snapshot) => snapshot.isRunning);
   const reportError = useExtensionErrorReporter();

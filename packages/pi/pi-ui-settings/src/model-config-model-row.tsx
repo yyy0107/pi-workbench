@@ -1,4 +1,6 @@
 "use client";
+import { piSettingsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useModelTestFeedback } from "./use-model-test-feedback";
 import { memo, useState } from "react";
@@ -24,7 +26,7 @@ import {
   SettingsDropdownTrigger,
   SettingsField,
 } from "@workbench/ui";
-import { usePiSettingsI18n as usePiI18n } from "./use-i18n";
+
 import type { PiSettingsStaticMessageKey as PiStaticMessageKey } from "./i18n";
 import {
   supportedModelThinkingLevels,
@@ -205,7 +207,7 @@ function ModelCatalogRowComponent({
   onComplete,
   completionError,
 }: ModelCatalogRowProps) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(piSettingsUiTranslationBundle);
   const testResult = useModelTestFeedback(storedTestResult);
   const [editorOpen, setEditorOpen] = useState(
     Boolean(onComplete) || model.expanded || !model.id.trim(),

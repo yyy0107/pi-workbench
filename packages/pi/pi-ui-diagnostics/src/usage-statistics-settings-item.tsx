@@ -1,4 +1,6 @@
 "use client";
+import { diagnosticsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDownIcon, RefreshCwIcon } from "lucide-react";
@@ -23,7 +25,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@workbench/ui";
-import { usePiI18n } from "./use-i18n";
 
 import {
   activityCalendar,
@@ -46,7 +47,7 @@ const MODES = ["daily", "weekly", "cumulative"] as const;
 const RANGES = [7, 30] as const;
 
 function TokenActivity({ snapshot }: { snapshot: UsageStatisticsValue }) {
-  const { date, number, t } = usePiI18n();
+  const { date, number, t } = useI18n(diagnosticsUiTranslationBundle);
   const [mode, setMode] = useState<ActivityMode>("daily");
   const calendar = useMemo(
     () => activityCalendar(snapshot.days, snapshot.today, mode),
@@ -166,7 +167,7 @@ function TokenActivity({ snapshot }: { snapshot: UsageStatisticsValue }) {
 }
 
 function TokenTrend({ snapshot }: { snapshot: UsageStatisticsValue }) {
-  const { date, number, t } = usePiI18n();
+  const { date, number, t } = useI18n(diagnosticsUiTranslationBundle);
   const [range, setRange] = useState<number>(7);
   const [group, setGroup] = useState("");
   const days = useMemo(() => usageDays(snapshot.days, snapshot.today, range), [snapshot, range]);
@@ -401,7 +402,7 @@ function TokenTrend({ snapshot }: { snapshot: UsageStatisticsValue }) {
 
 export function UsageStatisticsSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
   const client = usePiUsageStatisticsClient();
-  const { date, number, locale, t } = usePiI18n();
+  const { date, number, locale, t } = useI18n(diagnosticsUiTranslationBundle);
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [result, setResult] = useState<{ client: typeof client; value: UsageStatisticsValue }>();
   const snapshot =

@@ -1,4 +1,6 @@
 "use client";
+import { reviewTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { FileDiffIcon } from "lucide-react";
 import type { WorkspaceSurfaceMenuItemProps } from "@workbench/extension-sdk";
@@ -6,13 +8,12 @@ import { useWorkbenchWorkspaceCapability } from "@workbench/agent-runtime-client
 import { useRightWorkspace, useWorkspaceContext } from "@workbench/workspace-runtime/react";
 import { Button } from "@workbench/ui";
 import { defineReviewMessage as defineMessage } from "./i18n";
-import { useReviewI18n as useI18n } from "./use-i18n";
 
 export function ReviewMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
   const workspace = useWorkbenchWorkspaceCapability();
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
-  const { t } = useI18n();
+  const { t } = useI18n(reviewTranslationBundle);
   const repositoryId = context.worktreeId ?? context.projectId;
   if (!workspace?.readGitDiff) return null;
 

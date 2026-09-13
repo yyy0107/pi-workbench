@@ -1,4 +1,6 @@
 "use client";
+import { settingsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { CheckIcon, ChevronDownIcon, LanguagesIcon } from "lucide-react";
 import { useCallback, useMemo } from "react";
@@ -18,7 +20,7 @@ import {
   SettingsDropdownTrigger,
 } from "@workbench/ui";
 import { SUPPORTED_LOCALES, isLocale, type Locale } from "@workbench/i18n";
-import { useSettingsUiI18n as useI18n } from "./use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 import { useWorkbenchNavigation } from "@workbench/shell-context/navigation";
 import type { SettingsItemComponentProps } from "@workbench/extension-sdk";
@@ -27,7 +29,7 @@ import { createLocaleDisplayName } from "../lib/locale-display-name";
 
 function useSelectLocale() {
   const navigation = useWorkbenchNavigation();
-  const { setLocale } = useI18n();
+  const { setLocale } = useI18n(settingsUiTranslationBundle);
 
   return useCallback(
     (locale: Locale) => {
@@ -39,7 +41,7 @@ function useSelectLocale() {
 }
 
 function LocaleSelector({ compact = false }: { compact?: boolean }) {
-  const { locale, t } = useI18n();
+  const { locale, t } = useI18n(settingsUiTranslationBundle);
   const selectLocale = useSelectLocale();
   const localeLabel = useMemo(() => createLocaleDisplayName(locale), [locale]);
   const selectLanguageLabel = t("extensions.localeSelector.selectLanguage");
@@ -105,7 +107,7 @@ export function MobileLocaleSelector() {
 }
 
 export function LocaleSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
-  const { locale, t } = useI18n();
+  const { locale, t } = useI18n(settingsUiTranslationBundle);
   const selectLocale = useSelectLocale();
   const localeLabel = useMemo(() => createLocaleDisplayName(locale), [locale]);
 

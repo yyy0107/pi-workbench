@@ -1,4 +1,6 @@
 "use client";
+import { automationUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useCallback, useEffect, useId, useState } from "react";
 import {
@@ -27,7 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workbench/ui";
-import { useAutomationUiI18n as useI18n } from "./use-i18n";
+
 import { ProjectTrustDialog } from "@workbench/ui";
 import { cn } from "@workbench/ui/utils";
 import { useMainViewService } from "@workbench/extension-host";
@@ -73,7 +75,7 @@ export function AutomationHome({
   const domScopeId = useId();
   const titleId = `${domScopeId}-automation-home-title`;
   const templatesTitleId = `${domScopeId}-automation-templates-title`;
-  const { t } = useI18n();
+  const { t } = useI18n(automationUiTranslationBundle);
   const trustDialogCopy = automationProjectTrustDialogCopy(t);
   const mainViews = useMainViewService();
   const { workspaces } = useWorkspaceSelection();
@@ -346,7 +348,7 @@ function AutomationCard({
   onSetEnabled(enabled: boolean): Promise<void>;
   onArchive(): Promise<void>;
 }) {
-  const { locale, relativeTime, t } = useI18n();
+  const { locale, relativeTime, t } = useI18n(automationUiTranslationBundle);
   const parsedSchedule = parseScheduleCron(automation.schedule.cron);
   const recurrence = t(
     `extensions.automations.automationTask.frequencySummary.${parsedSchedule.frequency}`,

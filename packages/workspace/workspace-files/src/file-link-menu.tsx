@@ -1,4 +1,6 @@
 "use client";
+import { filesTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useEffect, useState, type ReactElement } from "react";
 import { useStore } from "zustand";
@@ -9,7 +11,7 @@ import type {
 } from "@workbench/host-contracts/runtime-capabilities";
 import { writeClipboardText } from "@workbench/ui/clipboard";
 import { saveFileAs } from "./file-download";
-import { useFilesI18n } from "./use-i18n";
+
 import { useOpenerService, useWorkspaceContext } from "@workbench/workspace-runtime/react";
 import { useWorkbenchSettingsResource } from "@workbench/settings-runtime";
 import {
@@ -55,7 +57,7 @@ export function FileLinkContextMenu({ href, children }: { href: string; children
 
 // The shared menu portal mounts these hooks only when the user opens the menu.
 function FileLinkMenuItems({ href }: { href: string }) {
-  const { t } = useFilesI18n();
+  const { t } = useI18n(filesTranslationBundle);
   const host = useWorkbenchRuntimeHostCapability();
   const context = useWorkspaceContext();
   const opener = useOpenerService();

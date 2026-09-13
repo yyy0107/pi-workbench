@@ -1,6 +1,7 @@
 "use client";
-
-import { useFilesI18n } from "@workbench/workspace-files/translations";
+import { filesTranslationBundle } from "@workbench/workspace-files/i18n";
+import { conversationTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import {
@@ -30,7 +31,7 @@ import { ShimmerLabel } from "@workbench/ui";
 import { useToastManager } from "@workbench/ui";
 import { ToolCall, ToolCallDetails } from "../elements/tool-call";
 import { useOpenerService, useWorkspaceContext } from "@workbench/workspace-runtime/react";
-import { useConversationI18n as useI18n } from "../use-i18n";
+
 import { formatCompactDuration } from "@workbench/i18n/duration";
 import { cn } from "@workbench/ui/utils";
 import type { MessageRendererNode, ToolPresentationDefinition } from "@workbench/extension-sdk";
@@ -162,7 +163,7 @@ function TimelineReasoning({
   preview: string;
   disclosureId: string | number;
 }) {
-  const { locale, t } = useI18n();
+  const { locale, t } = useI18n(conversationTranslationBundle);
   const [open, setOpen] = useMessageDisclosure("reasoning", disclosureId);
   const elapsedSeconds = useElapsedSeconds(running, block.timing);
   const content = block.text;
@@ -227,8 +228,8 @@ function TimelineToolCall({
   query: string;
   presentation?: ToolPresentationDefinition;
 }) {
-  const { locale, number, t, text } = useI18n();
-  const { t: filesT } = useFilesI18n();
+  const { locale, number, t, text } = useI18n(conversationTranslationBundle);
+  const { t: filesT } = useI18n(filesTranslationBundle);
   const { add: addToast } = useToastManager();
   const [open, setOpen] = useMessageDisclosure("tool", block.callId);
   const openers = useOpenerService();
@@ -449,7 +450,7 @@ function ParallelToolGroup({
   queries: readonly string[];
   presentations: readonly (ToolPresentationDefinition | undefined)[];
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const running = blocks.some((block) => block.status === "running");
   const [open, setOpen] = useMessageDisclosure("parallel-tools", batchId);
 
@@ -508,7 +509,7 @@ export function MessageToolTimeline({
   node: MessageRendererNode;
   transportRecovering: boolean;
 }>) {
-  const { t, text } = useI18n();
+  const { t, text } = useI18n(conversationTranslationBundle);
   const groups = useConversationPreferences((state) => state.preferences);
   const toolPresentations = useToolPresentationMap();
   const dataPresentations = useDataPresentationMap();

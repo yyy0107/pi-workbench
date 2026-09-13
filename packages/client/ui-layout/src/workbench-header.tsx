@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react";
 
 import { Button } from "@workbench/ui";
 import { useSidebar } from "@workbench/ui";
-import { useI18n, useTranslationBundle } from "@workbench/i18n";
+import { useI18n } from "@workbench/i18n";
 import { sidebarTranslationBundle } from "@workbench/ui-sidebar/i18n";
 import { cn } from "@workbench/ui/utils";
 import { useMainViewService } from "@workbench/extension-host";
@@ -75,9 +75,8 @@ function MainViewBreadcrumbs({
 }
 
 export function WorkbenchHeader() {
-  const { text } = useI18n();
-  const { t: layoutT } = useTranslationBundle(layoutTranslationBundle);
-  const { t: sidebarT } = useTranslationBundle(sidebarTranslationBundle);
+  const { text, t: layoutT } = useI18n(layoutTranslationBundle);
+  const { t: sidebarT } = useI18n(sidebarTranslationBundle);
   const { isMobile, state: sidebarState } = useSidebar();
   const mainViews = useMainViewService();
   const activeMainView = useSyncExternalStore(

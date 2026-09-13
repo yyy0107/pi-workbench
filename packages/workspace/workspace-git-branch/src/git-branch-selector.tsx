@@ -1,4 +1,6 @@
 "use client";
+import { gitBranchTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   AlertCircleIcon,
@@ -44,7 +46,7 @@ import {
   SearchableSelectorTrigger,
 } from "@workbench/ui";
 import { FileTypeIcon } from "@workbench/workspace-files/tree";
-import { useGitBranchI18n as useI18n } from "./use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 import { useMainViewService } from "@workbench/extension-host";
 import { useCurrentSession, useThreadList } from "@workbench/agent-runtime-client";
@@ -78,7 +80,7 @@ function GitBranchSelector({
   placement: GitBranchSelectorPlacement;
   workspaceId?: string;
 }>) {
-  const { t } = useI18n();
+  const { t } = useI18n(gitBranchTranslationBundle);
   const workspaceClient = useWorkbenchWorkspaceCapability();
   const activeWorkspaceId = useRef(workspaceId);
   activeWorkspaceId.current = workspaceId;

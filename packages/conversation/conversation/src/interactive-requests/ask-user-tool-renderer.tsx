@@ -1,9 +1,11 @@
 "use client";
+import { conversationTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { CircleSlashIcon, Clock3Icon, LoaderCircleIcon } from "lucide-react";
 
 import type { ToolRendererComponent } from "@workbench/extension-sdk";
-import { useConversationI18n as useI18n } from "../use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 
 import { AskUserRecommendedMark } from "./ask-user-recommended-mark";
@@ -24,7 +26,7 @@ function AnswerRecord({
   pending: boolean;
   cancelled: boolean;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const custom = answer?.custom?.trim();
 
   if (pending) {
@@ -69,7 +71,7 @@ function AnswerRecord({
 }
 
 export const AskUserToolRenderer: ToolRendererComponent = ({ block }) => {
-  const { number, t } = useI18n();
+  const { number, t } = useI18n(conversationTranslationBundle);
   const output = block.result;
   const record = readAskUserToolRecord(block.arguments, output);
   const pending = block.status === "running" || block.status === "requires-action";

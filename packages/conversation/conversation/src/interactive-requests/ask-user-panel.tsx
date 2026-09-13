@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   ArrowRightIcon,
@@ -16,7 +18,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } f
 import { Button } from "@workbench/ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@workbench/ui";
 import { Textarea } from "@workbench/ui";
-import { useConversationI18n as useI18n } from "../use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 
 import {
@@ -56,7 +58,7 @@ function isRequired(question: AskUserQuestion): boolean {
 }
 
 function QuestionCountdown({ expiresAt }: { expiresAt: number }) {
-  const { number, t } = useI18n();
+  const { number, t } = useI18n(conversationTranslationBundle);
   const [now, setNow] = useState(Date.now);
 
   useEffect(() => {
@@ -95,7 +97,7 @@ function QuestionNavigator({
   disabled: boolean;
   onNavigate(index: number): void;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const [open, setOpen] = useState(false);
 
   return (
@@ -211,7 +213,7 @@ function QuestionControl({
   formatOptionLabel(question: AskUserQuestion, label: string): string;
   onOptionChange(label: string, checked: boolean): void;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const options = question.options ?? [];
 
   if (options.length === 0) return null;
@@ -296,7 +298,7 @@ function CustomAnswerControl({
   validationId: string;
   onCustomChange(value: string): void;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const hasOptions = (question.options?.length ?? 0) > 0;
   if (hasOptions && !question.allowCustom) return null;
 
@@ -360,7 +362,7 @@ export function AskUserPanel({
   onCancel,
   onSubmit,
 }: AskUserPanelProps) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const id = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [drafts, setDrafts] = useState(() =>

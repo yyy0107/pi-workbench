@@ -1,8 +1,9 @@
 "use client";
+import { workspaceTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useLayoutEffect, useRef, type CSSProperties } from "react";
 
-import { useWorkspaceI18n } from "../use-i18n";
 import { MIN_RIGHT_WORKSPACE_WIDTH, resolveRightWorkspacePresentation } from "../index";
 import { WorkspaceFeedbackLayer } from "../feedback/feedback-layer";
 import { SurfaceHost } from "./surface-host";
@@ -15,7 +16,7 @@ import { proportionalPanelWidthCss } from "@workbench/ui/resize";
 import { useProportionalPanelSize } from "@workbench/ui/resize";
 
 export function RightWorkspace({ isVisible = true }: { isVisible?: boolean }) {
-  const { t } = useWorkspaceI18n();
+  const { t } = useI18n(workspaceTranslationBundle);
   const domIds = useWorkbenchDomIds();
   const controller = useRightWorkspace();
   const workspaceOpen = useRightWorkspaceState((state) => state.open);

@@ -1,4 +1,6 @@
 "use client";
+import { toolboxUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   ArrowLeftIcon,
@@ -25,7 +27,6 @@ import {
 } from "@workbench/ui";
 import { cn } from "@workbench/ui/utils";
 
-import { usePiI18n } from "./use-i18n";
 import { definePiMessage } from "./i18n";
 import {
   browserCapabilityPresentation,
@@ -58,7 +59,7 @@ export function ToolboxResourceList({
   groupBySource?: boolean;
   onOpen(item: ToolboxCapabilityItem, event: MouseEvent<HTMLButtonElement>): void;
 }) {
-  const { locale, t } = usePiI18n();
+  const { locale, t } = useI18n(toolboxUiTranslationBundle);
   const normalizedQuery = query.trim().toLocaleLowerCase(locale);
   const visibleItems = items.filter((item) =>
     item.searchText.toLocaleLowerCase(locale).includes(normalizedQuery),
@@ -218,7 +219,7 @@ export function ToolboxInstalledView({
   section: InstalledSection;
   initialQuery?: string;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
   const mainViews = useMainViewService();
   const scope = useToolboxScope();
   const kinds = {
@@ -389,7 +390,7 @@ export function ToolboxDetailView({
   backButtonRef: Ref<HTMLButtonElement>;
   onBack(): void;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
 
   return (
     <div className="@container flex min-h-0 flex-1 flex-col">

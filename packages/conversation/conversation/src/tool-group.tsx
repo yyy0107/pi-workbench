@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useCallback, useState } from "react";
 import { ChevronDownIcon, LoaderIcon, type LucideIcon } from "lucide-react";
@@ -7,7 +9,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@workbench/
 import { collapsePanel } from "@workbench/ui";
 import { useDisclosureScrollLock } from "@workbench/ui/disclosure";
 import { cn } from "@workbench/ui/utils";
-import { useConversationI18n as useI18n } from "./use-i18n";
 
 const ANIMATION_DURATION = 200;
 
@@ -90,7 +91,7 @@ function ToolGroupTrigger({
   active?: boolean;
   icon?: LucideIcon;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const label = labelOverride ?? t("assistant.tool.calls", { count });
 
   return (

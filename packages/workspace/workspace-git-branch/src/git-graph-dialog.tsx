@@ -1,4 +1,6 @@
 "use client";
+import { gitBranchTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -21,7 +23,7 @@ import {
 
 import { Button } from "@workbench/ui";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@workbench/ui";
-import { useGitBranchI18n as useI18n } from "./use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 import { useWorkbenchWorkspaceCapability } from "@workbench/agent-runtime-client/context";
 import type {
@@ -192,7 +194,7 @@ export function GitGraphDialog({
   open: boolean;
   workspaceId: string;
 }>) {
-  const { date, t } = useI18n();
+  const { date, t } = useI18n(gitBranchTranslationBundle);
   const workspaceClient = useWorkbenchWorkspaceCapability();
   const [data, setData] = useState<WorkbenchWorkspaceGitLog>();
   const [selectedHash, setSelectedHash] = useState<string>();
@@ -593,7 +595,7 @@ export function GitGraphDialog({
 }
 
 function CommitDetails({ commit }: Readonly<{ commit: WorkbenchWorkspaceGitCommit }>) {
-  const { date, t } = useI18n();
+  const { date, t } = useI18n(gitBranchTranslationBundle);
   return (
     <section
       aria-label={t("extensions.gitBranch.graph.details.label")}

@@ -1,16 +1,18 @@
 "use client";
+import { conversationTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import type { ReactNode } from "react";
 
 import { Button } from "@workbench/ui";
-import { useConversationI18n as useI18n } from "./use-i18n";
+
 import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 import { NEW_THREAD_COMPOSER_WIDTH_CLASS_NAME } from "@workbench/shell-context/layout";
 import { useWorkbenchBranding } from "@workbench/shell-context/presentation";
 import { useConversationSession, useCurrentSession } from "@workbench/agent-runtime-client";
 
 export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const { productLogoUrl, productName } = useWorkbenchBranding();
   const session = useConversationSession();
   const isNewThread = useCurrentSession().isNewThread;

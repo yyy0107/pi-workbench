@@ -1,4 +1,7 @@
 "use client";
+import { composerTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
+import type { CatalogTranslate, MessageFormatters } from "@workbench/i18n/runtime";
 
 import { SlidersHorizontalIcon, XIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -8,7 +11,7 @@ import { Button } from "@workbench/ui";
 import { Input } from "@workbench/ui";
 import { Select } from "@workbench/ui";
 import { Textarea } from "@workbench/ui";
-import { useComposerI18n as useI18n } from "./use-i18n";
+
 import type {
   ComposerCommandArgsBinding,
   ComposerCommandArgsSchema,
@@ -46,8 +49,8 @@ function numberValue(value: ComposerJsonValue | undefined): number | undefined {
 
 function parameterIssueMessage(
   issue: ComposerCommandParameterIssue,
-  t: ReturnType<typeof useI18n>["t"],
-  number: ReturnType<typeof useI18n>["number"],
+  t: CatalogTranslate<(typeof composerTranslationBundle.messages)["en-US"]>,
+  number: MessageFormatters["number"],
 ): string {
   switch (issue.code) {
     case "required":
@@ -96,7 +99,7 @@ function CommandParameterFieldEditor({
   onBlur(): void;
   onChange(value: ComposerJsonValue | undefined): void;
 }>) {
-  const { t, number } = useI18n();
+  const { t, number } = useI18n(composerTranslationBundle);
   const inputId = useId();
   const descriptionId = `${inputId}-description`;
   const errorId = `${inputId}-error`;
@@ -247,7 +250,7 @@ export function ComposerCommandParameterPanel({
   onChange,
   onClose,
 }: ComposerCommandParameterPanelProps) {
-  const { t } = useI18n();
+  const { t } = useI18n(composerTranslationBundle);
   const panelRef = useRef<HTMLElement>(null);
   const [touchedFields, setTouchedFields] = useState<ReadonlySet<string>>(() => new Set());
   const fields = composerCommandParameterFields(command.argsSchema, command.argsBinding);

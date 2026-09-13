@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { memo, useMemo, type ReactNode } from "react";
 
@@ -11,7 +13,7 @@ import type { ConversationNode } from "@workbench/agent-runtime-contracts/conver
 
 import { DaySeparator } from "./elements/conversation-separator";
 import { MessagePair } from "./elements/message-pair";
-import { useConversationI18n as useI18n } from "./use-i18n";
+
 import { THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME } from "@workbench/shell-context/layout";
 import { cn } from "@workbench/ui/utils";
 
@@ -125,7 +127,7 @@ function ConversationMessages({
   isRunning,
   renderWorkingStatus,
 }: Readonly<{ isRunning: boolean; renderWorkingStatus: () => ReactNode }>) {
-  const { date } = useI18n();
+  const { date } = useI18n(conversationTranslationBundle);
   const nodes = useConversationNodes({ select: selectRow, isEqual: sameRow });
   const rows = useMemo<readonly ConversationRow[]>(
     () =>

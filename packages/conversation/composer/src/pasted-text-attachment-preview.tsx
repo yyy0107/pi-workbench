@@ -1,4 +1,6 @@
 "use client";
+import { composerTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useEffect, useRef, useState } from "react";
 import { FileTextIcon } from "lucide-react";
@@ -6,7 +8,7 @@ import { useConversationSession } from "@workbench/agent-runtime-client";
 import type { PastedTextAttachment } from "@workbench/agent-runtime-contracts/composer-attachments";
 import { Button } from "@workbench/ui";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@workbench/ui";
-import { useComposerI18n as useI18n } from "./use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 
 export function PastedTextAttachmentPreview({
@@ -16,7 +18,7 @@ export function PastedTextAttachmentPreview({
   attachment: PastedTextAttachment;
   compact?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(composerTranslationBundle);
   const session = useConversationSession();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");

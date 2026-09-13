@@ -1,4 +1,6 @@
-import { useConversationI18n as useI18n } from "@workbench/conversation/translations";
+import { conversationTranslationBundle } from "@workbench/conversation/i18n";
+import { useI18n } from "@workbench/i18n";
+
 import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -20,7 +22,7 @@ const applicationBundle = defineTranslationBundle({
   },
 });
 function Probe() {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const application = useTranslationBundle(applicationBundle);
   return (
     <p>

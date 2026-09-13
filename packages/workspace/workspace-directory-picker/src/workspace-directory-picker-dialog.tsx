@@ -1,4 +1,6 @@
 "use client";
+import { directoryPickerTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { GlobeIcon, LaptopIcon, LoaderCircleIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -7,7 +9,7 @@ import {
   WorkbenchAgentCapabilityError,
   type WorkbenchRuntimeHostCapability,
 } from "@workbench/agent-runtime-client";
-import { useDirectoryPickerI18n as useI18n } from "./use-i18n";
+
 import { useRuntimeConnection } from "@workbench/shell-context/runtime-connection";
 import { cn } from "@workbench/ui/utils";
 import {
@@ -34,7 +36,7 @@ export function WorkspaceDirectoryPickerDialog({
   onClose(): void;
   onSelectPath(path: string): void | Promise<void>;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(directoryPickerTranslationBundle);
   const connection = useRuntimeConnection();
   const groupId = useId();
   const [type, setType] = useState<"local" | "remote">(() =>

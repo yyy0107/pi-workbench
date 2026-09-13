@@ -1,6 +1,9 @@
 "use client";
+import { piSettingsUiTranslationBundle } from "@workbench/pi-ui-settings/i18n";
+import { toolboxUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
+
 import { definePiSettingsMessage } from "@workbench/pi-ui-settings/i18n";
-import { usePiSettingsI18n } from "@workbench/pi-ui-settings/translations";
 
 import { BoxIcon, FileTextIcon, PackageIcon, PlugIcon } from "lucide-react";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
@@ -11,7 +14,6 @@ import { useMainViewService } from "@workbench/extension-host";
 import type { SidebarSectionComponentProps } from "@workbench/extension-sdk";
 import type { PiResourceCatalogTarget } from "@workbench/pi-protocol/rpc";
 
-import { usePiI18n } from "./use-i18n";
 import { definePiMessage, type PiI18nRuntime } from "./i18n";
 import { type ToolboxMainSection } from "./toolbox-capability";
 import { useToolboxCatalogs } from "./toolbox-catalog";
@@ -37,8 +39,8 @@ const TOOLBOX_SECTION_TITLES = {
 } satisfies Readonly<Record<ToolboxMainSection, LocalizableText>>;
 
 export function ToolboxSidebar({ onNavigate }: SidebarSectionComponentProps) {
-  const { number, t, text } = usePiI18n();
-  const { t: settingsT } = usePiSettingsI18n();
+  const { number, t, text } = useI18n(toolboxUiTranslationBundle);
+  const { t: settingsT } = useI18n(piSettingsUiTranslationBundle);
   const mainViews = useMainViewService();
   const activeView = useSyncExternalStore(
     mainViews.subscribe,

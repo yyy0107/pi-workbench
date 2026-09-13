@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useMemo, type PropsWithChildren, type ReactNode } from "react";
 
@@ -24,7 +26,7 @@ import {
 } from "../renderers/message-blocks";
 import { ReasoningPanel } from "../elements/reasoning-panel";
 import type { Source } from "@workbench/markdown";
-import { useConversationI18n as useI18n } from "../use-i18n";
+
 import { useConversationPreferences } from "@workbench/settings-runtime/conversation-preferences";
 import { SteeredTurnWork, useSteeredTurn } from "../steered-turn";
 
@@ -60,7 +62,7 @@ function MessageDataTimelineGroup({
   firstIndex: number;
   running: boolean;
 }>) {
-  const { text } = useI18n();
+  const { text } = useI18n(conversationTranslationBundle);
   const [open, setOpen] = useMessageDisclosure("steps", `data-group:${firstIndex}`);
 
   return (
@@ -93,7 +95,7 @@ function PresentedBlock({
   inlineSourcePartIndices: ReadonlySet<number>;
   sources?: readonly Source[];
 }>) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const attachmentReference =
     node.kind === "user" ? messageAttachmentReference(node.blocks, index) : undefined;
   const referenceLabel = attachmentReference
@@ -269,7 +271,7 @@ function MessageBlockRange({
 
 export function WorkbenchMessagePresentation({ node: sourceNode }: MessageRendererProps) {
   const steeredTurn = useSteeredTurn();
-  const { t, date, locale } = useI18n();
+  const { t, date, locale } = useI18n(conversationTranslationBundle);
   const { showReasoning, showTodos, groupParallelTools } = useConversationPreferences(
     (state) => state.preferences,
   );

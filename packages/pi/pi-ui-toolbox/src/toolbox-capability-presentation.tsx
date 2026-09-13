@@ -1,4 +1,6 @@
 "use client";
+import { toolboxUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   AnchorIcon,
@@ -21,8 +23,6 @@ import type { ReactNode } from "react";
 
 import { MarkdownTextContent } from "@workbench/markdown/render";
 import { Button, StatusBadge, Switch, buttonVariants } from "@workbench/ui";
-
-import { usePiI18n } from "./use-i18n";
 
 import type { PiPackageResourceView } from "@workbench/pi-protocol/rpc";
 import type { ToolboxCapabilitySurfaceParams } from "./toolbox-capability";
@@ -175,7 +175,7 @@ function ExtensionContributionGroup({
   names: readonly string[];
   getDescription?: (name: string) => string | undefined;
 }) {
-  const { number } = usePiI18n();
+  const { number } = useI18n(toolboxUiTranslationBundle);
   if (names.length === 0) return null;
 
   return (
@@ -195,7 +195,7 @@ function ExtensionContributionGroup({
 }
 
 function ExtensionContributionsPanel({ params }: { params: ToolboxCapabilitySurfaceParams }) {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(toolboxUiTranslationBundle);
 
   return (
     <section className="min-w-0 space-y-8">
@@ -234,7 +234,7 @@ function ExtensionContributionsPanel({ params }: { params: ToolboxCapabilitySurf
 }
 
 export function CapabilityMetadataFields({ params }: { params: ToolboxCapabilitySurfaceParams }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
   const isPrompt = params.capabilityKind === "prompt";
   const isInstalledPackage = params.capabilityKind === "package" && params.installed === true;
   const scopeLabel = (scope: "user" | "project" | "temporary") =>
@@ -349,7 +349,7 @@ export function PackageInstallContents({
   catalogTypes?: ToolboxCapabilitySurfaceParams["packageTypes"];
   loadState: DetailsLoadState;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
 
   return (
     <section className="mb-5" aria-live="polite">
@@ -401,7 +401,7 @@ export function PackageResourceSections({
   loadState: DetailsLoadState;
   onRefresh(): void;
 }) {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(toolboxUiTranslationBundle);
   return (
     <div className="mt-8 space-y-8" aria-live="polite">
       {resources ? (
@@ -536,7 +536,7 @@ export function PackageOverviewPanel({
   showPackageOverview,
   weeklyDownloads,
 }: PackageOverviewPanelProps) {
-  const { date, number, t } = usePiI18n();
+  const { date, number, t } = useI18n(toolboxUiTranslationBundle);
 
   return (
     <div className="mt-8">
@@ -716,7 +716,7 @@ export function ExtensionCapabilityDetailsPanel({
 }: {
   params: ToolboxCapabilitySurfaceParams;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
 
   return (
     <div className="mt-8">
@@ -766,7 +766,7 @@ export function ExtensionControls({
   onOpenDirectory,
   onToggle,
 }: ExtensionControlsProps) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
 
   return (
     <div className="mt-5 shrink-0">
@@ -882,7 +882,7 @@ export function SkillControls({
   onOpenDirectory,
   onToggle,
 }: SkillControlsProps) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
 
   return (
     <div className="flex shrink-0 items-center gap-2">
@@ -972,7 +972,7 @@ export function SkillDocumentPanel({
   onDocumentModeChange,
   onRefresh,
 }: SkillDocumentPanelProps) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
 
   return (
     <div className="mt-6 min-w-0">

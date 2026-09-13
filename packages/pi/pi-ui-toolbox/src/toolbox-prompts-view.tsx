@@ -1,4 +1,6 @@
 "use client";
+import { toolboxUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useEffect, useRef, useState } from "react";
 import { FileTextIcon, PlayIcon, PlusIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
@@ -13,7 +15,7 @@ import {
   Skeleton,
   TooltipIconButton,
 } from "@workbench/ui";
-import { usePiI18n } from "./use-i18n";
+
 import { definePiMessage } from "./i18n";
 import {
   bindCapabilityToCatalogTarget,
@@ -28,7 +30,7 @@ import { toolboxScopeTarget } from "../lib/toolbox-scope";
 import { useToolboxScope } from "./toolbox-scope-store";
 
 export function ToolboxPromptsView({ initialQuery = "" }: { initialQuery?: string }) {
-  const { t, locale } = usePiI18n();
+  const { t, locale } = useI18n(toolboxUiTranslationBundle);
   const scope = useToolboxScope();
   const client = usePiResourceClient();
   const mainViews = useMainViewService();

@@ -9,3 +9,5 @@
 实际调用示例：`src/runtime.ts` → `lib/catalog-tree.ts`.
 
 源码分工：src 承载本包能力与契约，lib 仅放实际使用的内部辅助，tests 为包根测试。实际消费者示例：`src/runtime.ts` 引用 `lib/catalog-tree.ts`。实现保留 TS/TSX；既有构建工具保持原语言。
+
+能力包将词典集中于 `src/i18n/{index,en-US,zh-CN}.ts`，由不依赖 React 的 `./i18n` 公开入口暴露 bundle。组件直接调用共享 `useI18n(bundle)`，无需本地 Hook 包装；重载将 `t` 限定为该 bundle 的键，同时保留已安装词典的描述符解析、formatter 和 `setLocale`。无参 `useI18n()` 保持全局 Context API；`useTranslationBundle(bundle)` 继续提供原有较窄的翻译和格式化接口。

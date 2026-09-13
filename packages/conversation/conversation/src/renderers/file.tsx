@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { memo, type FC } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -11,7 +13,7 @@ import {
   BracesIcon,
   DownloadIcon,
 } from "lucide-react";
-import { useConversationI18n as useI18n } from "../use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 
 interface FileMessagePartProps {
@@ -128,7 +130,7 @@ function FileIconDisplay({ mimeType, className, children, ...props }: FileIconDi
 }
 
 function FileName({ className, children, ...props }: React.ComponentProps<"span">) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
 
   return (
     <span
@@ -146,7 +148,7 @@ type FileSizeProps = React.ComponentProps<"span"> & {
 };
 
 function FileSize({ bytes, className, ...props }: FileSizeProps) {
-  const { number } = useI18n();
+  const { number } = useI18n(conversationTranslationBundle);
 
   return (
     <span

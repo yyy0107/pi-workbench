@@ -1,6 +1,8 @@
 "use client";
-
-import { useAgentControlsI18n } from "@workbench/ui-agent-controls/translations";
+import { agentControlsTranslationBundle } from "@workbench/ui-agent-controls/i18n";
+import { directoryPickerTranslationBundle } from "@workbench/workspace-directory-picker/i18n";
+import { automationUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
@@ -40,8 +42,7 @@ import { ProjectTrustDialog } from "@workbench/ui";
 import { Textarea } from "@workbench/ui";
 import { TimePicker } from "@workbench/ui";
 import { WorkspaceSelector } from "@workbench/ui";
-import { useDirectoryPickerI18n } from "@workbench/workspace-directory-picker/translations";
-import { useAutomationUiI18n as useI18n } from "./use-i18n";
+
 import { formatCompactDuration } from "@workbench/i18n/duration";
 import { cn } from "@workbench/ui/utils";
 import { useMainViewService } from "@workbench/extension-host";
@@ -137,9 +138,9 @@ export function AutomationTaskForm({
   const addScheduleId = `${domScopeId}-automation-task-add-schedule`;
   const promptId = `${domScopeId}-automation-task-prompt`;
   const workspaceTriggerId = `${domScopeId}-automation-task-workspace-trigger`;
-  const { locale, t } = useI18n();
-  const { t: controlsT } = useAgentControlsI18n();
-  const { t: directoryT } = useDirectoryPickerI18n();
+  const { locale, t } = useI18n(automationUiTranslationBundle);
+  const { t: controlsT } = useI18n(agentControlsTranslationBundle);
+  const { t: directoryT } = useI18n(directoryPickerTranslationBundle);
   const trustDialogCopy = automationProjectTrustDialogCopy(t);
   const mainViews = useMainViewService();
   const navigation = useWorkbenchNavigation();

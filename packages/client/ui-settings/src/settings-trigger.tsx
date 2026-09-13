@@ -1,14 +1,16 @@
 "use client";
+import { settingsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { SettingsIcon } from "lucide-react";
 
 import { Button } from "@workbench/ui";
-import { useSettingsUiI18n as useI18n } from "./use-i18n";
+
 import { useCommandService } from "@workbench/extension-host";
 
 export function SidebarSettingsTrigger() {
   const commands = useCommandService();
-  const { t } = useI18n();
+  const { t } = useI18n(settingsUiTranslationBundle);
   const label = t("extensions.settings.open");
 
   return (

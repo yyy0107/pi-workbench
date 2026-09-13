@@ -1,4 +1,6 @@
 "use client";
+import { piSettingsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
@@ -28,7 +30,7 @@ import { SettingsGroup, SettingsRow } from "@workbench/ui";
 import { Switch } from "@workbench/ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workbench/ui";
 import { WorkbenchCodeEditor } from "@workbench/code-highlighting";
-import { usePiSettingsI18n as usePiI18n } from "./use-i18n";
+
 import { MarkdownPreview } from "@workbench/markdown";
 import type { MainViewProps, SettingsItemComponentProps } from "@workbench/extension-sdk";
 import { usePiConfigurationClient } from "@workbench/pi-client/configuration";
@@ -89,7 +91,7 @@ function useAgentSettingsNamespace(target?: PiResourceCatalogTarget) {
 }
 
 function LoadFailure({ onRetry }: { onRetry(): void }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(piSettingsUiTranslationBundle);
   return (
     <div className="py-6">
       <p className="text-destructive text-sm" role="alert">
@@ -103,7 +105,7 @@ function LoadFailure({ onRetry }: { onRetry(): void }) {
 }
 
 function SaveFeedback({ saved, error }: { saved: boolean; error?: string }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(piSettingsUiTranslationBundle);
   if (error) {
     return (
       <p className="text-destructive text-sm" role="alert">
@@ -124,7 +126,7 @@ function saveErrorLabel(error: unknown, conflict: string, fallback: string): str
 }
 
 export function SystemPromptMainView({ view }: MainViewProps<{ target: PiResourceCatalogTarget }>) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(piSettingsUiTranslationBundle);
   const target = view.params.target;
   if (!target) return null;
 
@@ -177,7 +179,7 @@ export function SystemPromptMainView({ view }: MainViewProps<{ target: PiResourc
 }
 
 function SystemPromptEditor({ target }: { target: PiResourceCatalogTarget }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(piSettingsUiTranslationBundle);
   const { view, setView, loadState, load } = useAgentSettingsNamespace(target);
   const [saving, setSaving] = useState(false);
 
@@ -209,7 +211,7 @@ function SystemPromptEditor({ target }: { target: PiResourceCatalogTarget }) {
 }
 
 function PlaceholderCopyButton({ placeholder }: { placeholder: string }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(piSettingsUiTranslationBundle);
   const { copy, status } = useClipboardCopy();
   const copyLabel = t(
     status === "copied"
@@ -253,7 +255,7 @@ function PromptSettingsEditor({
   saving: boolean;
   setSaving(saving: boolean): void;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(piSettingsUiTranslationBundle);
   const systemPromptId = useId();
   const promptContainerRef = useRef<HTMLDivElement>(null);
   const configurationClient = usePiConfigurationClient();
@@ -541,7 +543,7 @@ function InlineNumberEditor({
   onChange(value: string): void;
   onEditingChange(editing: boolean): void;
 }) {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(piSettingsUiTranslationBundle);
   const editStartValueRef = useRef(value);
 
   const cancelEditing = () => {
@@ -614,7 +616,7 @@ function compactionSignature(
 }
 
 export function ContextManagementSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(piSettingsUiTranslationBundle);
   const configurationClient = usePiConfigurationClient();
   const { view, setView, loadState, load } = useAgentSettingsNamespace();
   const [enabled, setEnabled] = useState(true);
@@ -819,7 +821,7 @@ export function ContextManagementSettingsItem({ sectionId, itemId }: SettingsIte
 }
 
 export function CacheMissSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(piSettingsUiTranslationBundle);
   const configurationClient = usePiConfigurationClient();
   const { view, setView, loadState, load } = useAgentSettingsNamespace();
   const [saving, setSaving] = useState(false);

@@ -1,9 +1,11 @@
 "use client";
+import { reviewTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useEffect, useState } from "react";
 import { useWorkbenchWorkspaceCapability } from "@workbench/agent-runtime-client/context";
 import type { WorkbenchWorkspaceGitCommit } from "@workbench/agent-runtime-contracts/runtime-capabilities";
-import { useReviewI18n as useI18n } from "./use-i18n";
+
 import {
   Button,
   DropdownMenu,
@@ -26,7 +28,7 @@ export function CommitSelection({
   onChange: (value: string) => void;
 }) {
   const workspace = useWorkbenchWorkspaceCapability();
-  const { t } = useI18n();
+  const { t } = useI18n(reviewTranslationBundle);
   const [commits, setCommits] = useState<WorkbenchWorkspaceGitCommit[]>([]);
   const [offset, setOffset] = useState(0);
   const [more, setMore] = useState(false);

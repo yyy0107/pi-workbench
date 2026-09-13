@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { PastedTextAttachmentPreview } from "@workbench/composer/attachments";
 
@@ -22,7 +24,6 @@ import { MessageSource, type MessageSourceVariant } from "./message-source";
 import { ErrorState } from "../elements/error-state";
 import type { Source } from "@workbench/markdown";
 import { ScrollCompensatedDetails } from "@workbench/ui/disclosure";
-import { useConversationI18n as useI18n } from "../use-i18n";
 
 import { WorkbenchComposerMessageTextContent } from "../composer-message-text";
 
@@ -258,7 +259,7 @@ export function WorkbenchConversationError({
   nodeKey,
   className,
 }: Readonly<{ error: ConversationError; nodeKey: string; className?: string }>) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const session = useConversationSession();
   const isLast = useSessionState((snapshot) => snapshot.nodeKeys.at(-1) === nodeKey);
   const isRunning = useSessionState((snapshot) => snapshot.isRunning);

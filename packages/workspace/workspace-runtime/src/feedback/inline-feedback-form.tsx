@@ -1,4 +1,6 @@
 "use client";
+import { workspaceTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { MessageSquarePlusIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -6,7 +8,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@workbench/ui";
 import { Textarea } from "@workbench/ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@workbench/ui";
-import { useWorkspaceI18n } from "../use-i18n";
+
 import type { WorkspaceSurfaceInstance } from "@workbench/extension-sdk";
 import type { WorkspaceDraftStore, WorkspaceFeedbackDraft, WorkspaceFeedbackKind } from "../index";
 import { useWorkspaceContext, useWorkspaceDraftStore, useWorkspaceFeedbackStore } from "../react";
@@ -59,7 +61,7 @@ export function InlineFeedbackForm({
   prepare?: () => Promise<Partial<Pick<WorkspaceFeedbackDraft, "target" | "images">>>;
   prepareError?: string;
 }>) {
-  const { t } = useWorkspaceI18n();
+  const { t } = useI18n(workspaceTranslationBundle);
   const context = useWorkspaceContext();
   const drafts = useWorkspaceDraftStore();
   const feedback = useWorkspaceFeedbackStore();

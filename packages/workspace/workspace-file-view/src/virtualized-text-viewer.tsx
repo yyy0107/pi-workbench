@@ -1,4 +1,6 @@
 "use client";
+import { fileViewTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { tokenStyle } from "@workbench/code-highlighting";
 
@@ -10,7 +12,7 @@ import type { ThemedToken } from "shiki/core";
 import type { WorkbenchShikiLanguage } from "@workbench/code-highlighting";
 import { useWorkbenchHighlightedLines } from "@workbench/code-highlighting";
 import { Button } from "@workbench/ui";
-import { useFileViewI18n as useI18n } from "./use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 
 import type {
@@ -66,7 +68,7 @@ export function VirtualizedTextViewer({
   stage: ProgressiveTextStage;
   onRetry(): void;
 }>) {
-  const { t } = useI18n();
+  const { t } = useI18n(fileViewTranslationBundle);
   const scrollRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: snapshot.lineCount,

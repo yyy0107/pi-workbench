@@ -1,13 +1,15 @@
 "use client";
+import { settingsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useId } from "react";
 
 import { useConversationPreferences } from "@workbench/settings-runtime/conversation-preferences";
-import { useSettingsUiI18n as useI18n } from "./use-i18n";
+
 import { Button, SettingsGroup, SettingsRow, Switch } from "@workbench/ui";
 
 export function ConversationSettingsItem() {
-  const { t } = useI18n();
+  const { t } = useI18n(settingsUiTranslationBundle);
   const id = useId();
   const { preferences, status, saveFailed, hydrate, update } = useConversationPreferences(
     (state) => state,

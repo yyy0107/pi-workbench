@@ -1,4 +1,6 @@
 "use client";
+import { browserTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { MousePointer2Icon } from "lucide-react";
@@ -9,7 +11,6 @@ import {
   type BrowserInput,
 } from "@workbench/browser-contracts";
 import type { BrowserSessionService } from "./browser-session-service";
-import { useBrowserI18n as useI18n } from "./use-i18n";
 
 function modifiers(event: {
   altKey: boolean;
@@ -123,7 +124,7 @@ export function BrowserViewport({
   onError(error: unknown): void;
   onFind(): void;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(browserTranslationBundle);
   const [imageStatus, setImageStatus] = useState<"waiting" | "ready" | "error">("waiting");
   useEffect(() => setImageStatus("waiting"), [browser, sessionId]);
   const container = useRef<HTMLDivElement>(null);

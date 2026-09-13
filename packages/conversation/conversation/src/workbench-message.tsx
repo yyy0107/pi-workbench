@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useEffect, useState } from "react";
 import {
@@ -8,7 +10,7 @@ import {
 } from "./elements/conversation-separator";
 import { DisclosureScrollDirectionProvider } from "@workbench/ui/disclosure";
 import { ErrorState } from "./elements/error-state";
-import { useConversationI18n as useI18n } from "./use-i18n";
+
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 import {
   useConversationNode,
@@ -47,7 +49,7 @@ function MessageSlot({ name }: { name: "message.before" | "message.after" }) {
 }
 
 function WorkbenchMessageError() {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const session = useConversationSession();
   const { messageId, index } = useConversationMessageContext();
   const node = useConversationNode(messageId);
@@ -257,7 +259,7 @@ export function WorkbenchAssistantMessage() {
 }
 
 export function WorkbenchSystemMessage() {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const { messageId } = useConversationMessageContext();
   const custom = useConversationNode(messageId, (node) => node?.presentation?.custom);
   const conversationEvent = parseWorkbenchConversationEvent(custom?.workbenchConversationEvent);

@@ -1,4 +1,6 @@
 "use client";
+import { toolboxUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   CheckIcon,
@@ -40,7 +42,7 @@ import {
 } from "@workbench/ui";
 import { Skeleton } from "@workbench/ui";
 import { useMainViewService } from "@workbench/extension-host";
-import { usePiI18n } from "./use-i18n";
+
 import { definePiMessage } from "./i18n";
 import { cn } from "@workbench/ui/utils";
 import type { MainViewProps } from "@workbench/extension-sdk";
@@ -187,7 +189,7 @@ function MainPackageRow({
   item: PiPackageCatalogItemView;
   onOpen(item: PiPackageCatalogItemView, event: MouseEvent<HTMLButtonElement>): void;
 }) {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(toolboxUiTranslationBundle);
 
   return (
     <Button
@@ -260,7 +262,7 @@ export function PackageUpdateRow({
   onOpen(item: PiPackageUpdateView, event: MouseEvent<HTMLButtonElement>): void;
   onUpdate(item: PiPackageUpdateView): void;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
   const updating = feedback?.status === "updating";
   const updated = feedback?.status === "updated";
   const failed = feedback?.status === "failed";
@@ -374,7 +376,7 @@ function SearchField({
   setQuery(query: string): void;
   inputRef?: Ref<HTMLInputElement>;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
 
   return (
     <InputGroup className="min-w-0 basis-full @3xl/toolbox-market:basis-64 @3xl/toolbox-market:flex-1">
@@ -397,7 +399,7 @@ function SearchField({
 }
 
 function DetailPane({ selected }: { selected?: ToolboxCapabilitySurfaceParams }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
 
   return (
     <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
@@ -423,7 +425,7 @@ function DetailPane({ selected }: { selected?: ToolboxCapabilitySurfaceParams })
 }
 
 function PackageUpdatesView() {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
   const resourceClient = usePiResourceClient();
   const scope = useToolboxScope();
   const workspaces = usePiWorkspaces();
@@ -644,7 +646,7 @@ function PackageUpdatesView() {
 }
 
 export function ToolboxMainView(props: MainViewProps<ToolboxMainViewParams>) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
   const mainViews = useMainViewService();
   const { section, detailOnly } = props.view.params;
   if (detailOnly || !["installed", "packages", "updates"].includes(section)) {
@@ -688,7 +690,7 @@ export function ToolboxMainView(props: MainViewProps<ToolboxMainViewParams>) {
 }
 
 function ToolboxMainContent({ close, view }: MainViewProps<ToolboxMainViewParams>) {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(toolboxUiTranslationBundle);
   const scope = useToolboxScope();
   const detailOnly = view.params.detailOnly === true;
   const [selected, setSelected] = useState<ToolboxCapabilitySurfaceParams | undefined>(

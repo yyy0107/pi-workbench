@@ -1,4 +1,6 @@
 "use client";
+import { agentControlsTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   useConversationNodes,
@@ -24,7 +26,7 @@ import {
   SettingsDropdownRadioItem,
   SettingsDropdownTrigger,
 } from "@workbench/ui";
-import { useAgentControlsI18n as useI18n } from "./use-i18n";
+
 import { useReducedMotion } from "@workbench/ui/hooks";
 import { formatAdaptiveDuration, formatCompactDuration } from "@workbench/i18n/duration";
 import { useMainViewService } from "@workbench/extension-host";
@@ -218,7 +220,7 @@ function useAnimatedTokenStatistics(
 }
 
 function ThreadTokenUsage() {
-  const { locale, number, t } = useI18n();
+  const { locale, number, t } = useI18n(agentControlsTranslationBundle);
   const contextBudgetValidationId = useId();
   const remoteId = useCurrentSession().threadId;
   const reduceMotion = useReducedMotion();

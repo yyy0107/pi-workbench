@@ -1,4 +1,6 @@
 "use client";
+import { workspaceTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   AlertCircleIcon,
@@ -9,14 +11,14 @@ import {
 } from "lucide-react";
 
 import { Button } from "@workbench/ui";
-import { useWorkspaceI18n } from "../use-i18n";
+
 import type { WorkspaceSurfaceInstance } from "@workbench/extension-sdk";
 
 export function WorkspaceStatusLayer({
   surface,
   onRetry,
 }: Readonly<{ surface: WorkspaceSurfaceInstance; onRetry(): void }>) {
-  const { t, text } = useWorkspaceI18n();
+  const { t, text } = useI18n(workspaceTranslationBundle);
 
   if (surface.status === "idle" || surface.status === "ready") return null;
 

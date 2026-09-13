@@ -1,4 +1,6 @@
 "use client";
+import { markdownTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useContext, useEffect, useId, useMemo, useState } from "react";
 import { MarkdownCodeBlock } from "@workbench/code-highlighting";
@@ -6,7 +8,7 @@ import { MarkdownFenceContext } from "./workbench-markdown";
 
 import { useAppearancePreferences } from "@workbench/appearance";
 import { useMediaQuery } from "@workbench/ui/hooks";
-import { useMarkdownI18n } from "./use-i18n";
+
 import { CodexCodeHeader } from "@workbench/code-highlighting/header";
 
 // Mermaid configuration is global. Keep initialization and each queued render
@@ -23,7 +25,7 @@ function renderDiagram(id: string, code: string, config: import("mermaid").Merma
 }
 
 export function MermaidCode({ code }: Readonly<{ code: string }>) {
-  const { t } = useMarkdownI18n();
+  const { t } = useI18n(markdownTranslationBundle);
   const preferences = useAppearancePreferences();
   const systemDark = useMediaQuery("(prefers-color-scheme: dark)");
   const dark =

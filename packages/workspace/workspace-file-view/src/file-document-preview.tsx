@@ -1,8 +1,9 @@
 "use client";
+import { fileViewTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 
-import { useFileViewI18n as useI18n } from "./use-i18n";
 import { WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
 import { FileImagePreview } from "./file-image-preview";
@@ -28,7 +29,7 @@ export interface FileDocumentPreviewProps {
 }
 
 export function FileDocumentPreview(props: FileDocumentPreviewProps) {
-  const { locale, t } = useI18n();
+  const { locale, t } = useI18n(fileViewTranslationBundle);
   const loadingLabel = t("extensions.workspaceFile.loadingPreview");
   const [previewLoading, setPreviewLoading] = useState(true);
   const [previewError, setPreviewError] = useState(false);

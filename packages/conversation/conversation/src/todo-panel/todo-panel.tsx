@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useEffect, useMemo, useState } from "react";
 import { useConversationNodes, useConversationSession } from "@workbench/agent-runtime-client";
@@ -9,7 +11,7 @@ import { composerPanel, composerPanelIcon, composerPanelRow } from "@workbench/c
 import { useConversationPreferences } from "@workbench/settings-runtime/conversation-preferences";
 import { TodoList } from "../todo-list";
 import { latestTodoSnapshots, readTodoSnapshot, type TodoSnapshot } from "../../lib/todo-model";
-import { useConversationI18n as useI18n } from "../use-i18n";
+
 import { Button } from "@workbench/ui";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@workbench/ui";
 import { collapsePanel } from "@workbench/ui";
@@ -27,7 +29,7 @@ export function useTodoPanelHidden(allCompleted: boolean): boolean {
 }
 
 export function TodoPanelContent({ snapshots }: { snapshots: readonly TodoSnapshot[] }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const items = snapshots.flatMap((snapshot) => snapshot.items);
   const hidden = useTodoPanelHidden(
     items.length > 0 && items.every((item) => item.status === "completed"),

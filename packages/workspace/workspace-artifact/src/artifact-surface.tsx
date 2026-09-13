@@ -1,9 +1,10 @@
 "use client";
+import { artifactTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { FileOutputIcon } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 
-import { useArtifactI18n as useI18n } from "./use-i18n";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 
 import { InlineFeedbackForm } from "@workbench/workspace-runtime/presentation";
@@ -16,7 +17,7 @@ export interface ArtifactSurfaceParams extends Record<string, unknown> {
 }
 
 export function ArtifactSurface({ surface }: WorkspaceSurfaceProps<ArtifactSurfaceParams>) {
-  const { t } = useI18n();
+  const { t } = useI18n(artifactTranslationBundle);
   const artifacts = useArtifactPreviewService();
   useSyncExternalStore(
     artifacts.subscribe.bind(artifacts),

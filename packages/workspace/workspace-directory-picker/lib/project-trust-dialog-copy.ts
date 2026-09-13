@@ -1,6 +1,8 @@
+import { directoryPickerTranslationBundle } from "../src/i18n";
+import type { CatalogTranslate } from "@workbench/i18n/runtime";
 import type { ProjectTrustDialogCopy } from "@workbench/ui";
-import type { useDirectoryPickerI18n } from "../src/use-i18n";
-type Translate = ReturnType<typeof useDirectoryPickerI18n>["t"];
+
+type Translate = CatalogTranslate<(typeof directoryPickerTranslationBundle.messages)["en-US"]>;
 
 export function workspaceProjectTrustDialogCopy(t: Translate): ProjectTrustDialogCopy {
   return {

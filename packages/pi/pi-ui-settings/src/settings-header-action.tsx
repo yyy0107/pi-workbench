@@ -1,4 +1,6 @@
 "use client";
+import { piSettingsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { ChevronDownIcon, FileJson2Icon } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
@@ -12,8 +14,6 @@ import {
 } from "@workbench/ui";
 import { usePiConfigurationClient } from "@workbench/pi-client/configuration";
 import { useMainViewService } from "@workbench/extension-host";
-
-import { usePiSettingsI18n as usePiI18n } from "./use-i18n";
 
 export type SettingsDocumentKind = "pi" | "workbench";
 
@@ -36,7 +36,7 @@ export function openSettingsConfigurationDocument(
  * this component, so this leaf has no dependency on the Settings main-view or mobile trigger owners.
  */
 export function PiSettingsConfigurationMenu() {
-  const { t } = usePiI18n();
+  const { t } = useI18n(piSettingsUiTranslationBundle);
   const configuration = usePiConfigurationClient();
   const [openingDocument, setOpeningDocument] = useState<SettingsDocumentKind | null>(null);
   const [documentError, setDocumentError] = useState(false);

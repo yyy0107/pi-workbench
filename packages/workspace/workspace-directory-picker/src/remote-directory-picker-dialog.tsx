@@ -1,4 +1,6 @@
 "use client";
+import { directoryPickerTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { ArrowUpIcon, FolderIcon, LoaderCircleIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -13,7 +15,7 @@ import {
   DialogTitle,
   Input,
 } from "@workbench/ui";
-import { useDirectoryPickerI18n as useI18n } from "./use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 import type { WorkbenchRuntimeHostCapability } from "@workbench/agent-runtime-client";
 import type { WorkbenchHostDirectoryListing } from "@workbench/host-contracts/runtime-capabilities";
@@ -44,7 +46,7 @@ export function RemoteDirectoryPickerDialog({
     selectError: string;
   };
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(directoryPickerTranslationBundle);
   const requestId = useRef(0);
   const [listing, setListing] = useState<WorkbenchHostDirectoryListing | null>(null);
   const [pathInput, setPathInput] = useState("");

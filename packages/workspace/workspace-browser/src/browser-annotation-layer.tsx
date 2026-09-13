@@ -1,10 +1,12 @@
 "use client";
+import { browserTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { InlineFeedbackForm } from "@workbench/workspace-runtime/presentation";
 import type { WorkspaceSurfaceInstance } from "@workbench/extension-sdk";
 import type { BrowserFile } from "@workbench/browser-contracts";
 import { useState, useSyncExternalStore } from "react";
-import { useBrowserI18n as useI18n } from "./use-i18n";
+
 import { Switch } from "@workbench/ui";
 import { useBrowserSessionService } from "./browser-session-service";
 
@@ -14,7 +16,7 @@ export function BrowserAnnotationLayer({
   surface,
   label,
 }: Readonly<{ surface: WorkspaceSurfaceInstance<BrowserSurfaceParams>; label: string }>) {
-  const { t } = useI18n();
+  const { t } = useI18n(browserTranslationBundle);
   const browser = useBrowserSessionService();
   useSyncExternalStore(
     (listener) => browser.subscribe(listener),

@@ -1,8 +1,9 @@
 "use client";
+import { conversationTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { CheckCircle2Icon, CircleIcon, LoaderCircleIcon } from "lucide-react";
 
-import { useConversationI18n as useI18n } from "./use-i18n";
 import { cn } from "@workbench/ui/utils";
 import type { TodoItem } from "../lib/todo-model";
 
@@ -13,7 +14,7 @@ const statusIcons = {
 };
 
 export function TodoList({ items }: { items: readonly TodoItem[] }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">{t("extensions.todoPanel.empty")}</p>;
   }

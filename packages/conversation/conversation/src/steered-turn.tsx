@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   createContext,
@@ -17,7 +19,7 @@ import {
 } from "@workbench/agent-runtime-contracts/message-metadata";
 
 import { useDisclosureScrollLock } from "@workbench/ui/disclosure";
-import { useConversationI18n as useI18n } from "./use-i18n";
+
 import { CompletedTurnHeader } from "./completed-turn-header";
 import { CompletedTurnContent } from "./completed-turn-content";
 import { Collapsible } from "@workbench/ui";
@@ -79,7 +81,7 @@ export function SteeredTurn({
   children: (state: SteeredTurnState) => ReactNode;
 }>) {
   const nodes = useConversationNodes({ nodeKeys, select: selectTurnNode, isEqual: sameTurnNode });
-  const { t, locale, date } = useI18n();
+  const { t, locale, date } = useI18n(conversationTranslationBundle);
   const contentId = useId();
   // An override belongs to one lifecycle phase; completion defaults to collapsed.
   const [override, setOverride] = useState<{ running: boolean; open: boolean }>();

@@ -1,4 +1,6 @@
 "use client";
+import { piSettingsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { startTransition, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
@@ -28,7 +30,7 @@ import {
   SettingsDropdownRadioItem,
   SettingsDropdownTrigger,
 } from "@workbench/ui";
-import { usePiSettingsI18n as usePiI18n } from "./use-i18n";
+
 import type { PiSettingsStaticMessageKey as PiStaticMessageKey } from "./i18n";
 import type { SettingsItemComponentProps } from "@workbench/extension-sdk";
 import { usePiConfigurationClient } from "@workbench/pi-client/configuration";
@@ -104,7 +106,7 @@ function safeExternalUrl(raw: string): string | undefined {
 }
 
 export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(piSettingsUiTranslationBundle);
   const domScopeId = useId();
   const configurationClient = usePiConfigurationClient();
   const [value, setValue] = useState<ModelProvidersValue>();

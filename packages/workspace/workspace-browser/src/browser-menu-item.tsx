@@ -1,4 +1,6 @@
 "use client";
+import { browserTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { Globe2Icon, LoaderCircleIcon } from "lucide-react";
 import { useState } from "react";
@@ -7,13 +9,13 @@ import { useExtensionErrorReporter } from "@workbench/extension-host";
 import type { WorkspaceSurfaceMenuItemProps } from "@workbench/extension-sdk";
 
 import { defineBrowserMessage as defineMessage } from "./i18n";
-import { useBrowserI18n as useI18n } from "./use-i18n";
+
 import { useRightWorkspace, useWorkspaceContext } from "@workbench/workspace-runtime/react";
 import { Button } from "@workbench/ui";
 import { useBrowserSessionService } from "./browser-session-service";
 
 export function BrowserMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
-  const { t } = useI18n();
+  const { t } = useI18n(browserTranslationBundle);
   const browser = useBrowserSessionService();
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();

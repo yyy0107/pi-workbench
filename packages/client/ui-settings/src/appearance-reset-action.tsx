@@ -1,9 +1,11 @@
 "use client";
+import { settingsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { RotateCcwIcon } from "lucide-react";
 
 import { Button } from "@workbench/ui";
-import { useSettingsUiI18n as useI18n } from "./use-i18n";
+
 import type { SettingsSectionHeaderActionComponentProps } from "@workbench/extension-sdk";
 import { useAppearanceController, useAppearancePreferences } from "@workbench/appearance";
 
@@ -15,7 +17,7 @@ import {
 } from "../lib/appearance-settings-pages";
 
 export function AppearanceResetAction({ sectionId }: SettingsSectionHeaderActionComponentProps) {
-  const { t } = useI18n();
+  const { t } = useI18n(settingsUiTranslationBundle);
   const appearanceController = useAppearanceController();
   const preferences = useAppearancePreferences();
   const backgroundImageController = useBackgroundImageController();

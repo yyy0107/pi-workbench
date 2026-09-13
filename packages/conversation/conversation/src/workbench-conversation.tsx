@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { ArrowDownIcon } from "lucide-react";
 import {
@@ -17,7 +19,7 @@ import {
 } from "@workbench/agent-runtime-client";
 import { Button } from "@workbench/ui";
 import { TypingIndicator } from "./elements/typing-indicator";
-import { useConversationI18n as useI18n } from "./use-i18n";
+
 import { formatCompactDuration } from "@workbench/i18n/duration";
 import { cn } from "@workbench/ui/utils";
 import { useWorkbenchBranding } from "@workbench/shell-context/presentation";
@@ -52,7 +54,7 @@ const THREAD_INLINE_GUTTER_CLASS_NAME =
   "[padding-inline:var(--thread-viewport-inline-padding)] [scrollbar-gutter:stable_both-edges]";
 
 function AssistantWorkingStatus() {
-  const { locale, t } = useI18n();
+  const { locale, t } = useI18n(conversationTranslationBundle);
   const { runtimeName } = useWorkbenchBranding();
   const { runningIndicatorSize, runningIndicatorStyleId } = useAppearancePreferences();
   const indicatorDefinition = useRunningIndicatorCatalog().resolve(runningIndicatorStyleId);
@@ -139,7 +141,7 @@ function AssistantWorkingStatus() {
 }
 
 function ThreadHistoryLoading() {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const activityIndicators = useRunningIndicatorCatalog();
 
   return (
@@ -196,7 +198,7 @@ export function WorkbenchConversationContent({
   rootClassName,
   rootDataSurface = "thread",
 }: Omit<WorkbenchConversationProps, "sessionId">) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const session = useConversationSession();
   const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
   const isThreadLoading = useSessionState((snapshot) => snapshot.isLoading);

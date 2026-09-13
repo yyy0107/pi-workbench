@@ -1,9 +1,10 @@
 "use client";
+import { toolboxUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { UserRoundIcon } from "lucide-react";
 
 import { WorkspaceSelector, type WorkspaceSelectorOption } from "@workbench/ui";
-import { usePiI18n } from "./use-i18n";
 
 import { usePiHostDescription } from "@workbench/pi-client/host";
 import { usePiWorkspaces } from "@workbench/pi-client/workspace";
@@ -12,7 +13,7 @@ import { parseToolboxScopeKey, toolboxScopeKey } from "../lib/toolbox-scope";
 import { useSetToolboxScope, useToolboxScope } from "./toolbox-scope-store";
 
 export function ToolboxScopeSelect() {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
   const setToolboxScope = useSetToolboxScope();
   const scope = useToolboxScope();
   const workspaces = usePiWorkspaces();

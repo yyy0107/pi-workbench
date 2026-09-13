@@ -9,7 +9,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./request": "./src/settings-main-view.ts",
-    "./i18n": "./src/i18n.ts",
+    "./i18n": "./src/i18n/index.ts",
     "./surface": "./src/settings-main-view-content.tsx",
     "./sidebar": "./src/settings-sidebar.tsx",
     "./sidebar-rail": "./src/settings-sidebar-rail.tsx",

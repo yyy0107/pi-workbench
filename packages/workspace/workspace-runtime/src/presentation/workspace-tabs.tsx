@@ -1,4 +1,6 @@
 "use client";
+import { workspaceTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { PanelsTopLeftIcon, PinIcon, XIcon } from "lucide-react";
@@ -22,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workbench/ui";
-import { useWorkspaceI18n } from "../use-i18n";
+
 import { useWorkbenchDomIds } from "@workbench/shell-context/dom";
 import { useReducedMotion } from "@workbench/ui/hooks";
 import { cn } from "@workbench/ui/utils";
@@ -119,7 +121,7 @@ function horizontalLayoutBounds(element: HTMLElement) {
 }
 
 export function WorkspaceTabs() {
-  const { t, text } = useWorkspaceI18n();
+  const { t, text } = useI18n(workspaceTranslationBundle);
   const domIds = useWorkbenchDomIds();
   const workbenchPortalContainer = useWorkbenchPortalContainer();
   const reduceMotion = useReducedMotion();

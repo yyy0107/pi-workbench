@@ -8,7 +8,7 @@
     ".": "./src/index.ts",
     "./request": "./src/automation-main-view.ts",
     "./surface": "./src/automation-main-view-content.tsx",
-    "./i18n": "./src/i18n.ts",
+    "./i18n": "./src/i18n/index.ts",
     "./sidebar": "./src/automation-sidebar.tsx"
   },
   "scripts": {

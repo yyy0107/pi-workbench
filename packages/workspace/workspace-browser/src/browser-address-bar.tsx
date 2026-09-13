@@ -1,10 +1,11 @@
 "use client";
+import { browserTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { ExternalLinkIcon, Globe2Icon } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { BrowserHistoryEntry } from "@workbench/browser-contracts";
 
-import { useBrowserI18n as useI18n } from "./use-i18n";
 import { Button } from "@workbench/ui";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@workbench/ui";
 import {
@@ -44,7 +45,7 @@ export function BrowserAddressBar({
   onChange(value: string): void;
   onNavigate(value: string): void;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(browserTranslationBundle);
   const [focused, setFocused] = useState(false);
   const [open, setOpen] = useState(false);
   const [edited, setEdited] = useState(false);

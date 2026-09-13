@@ -21,7 +21,7 @@ import {
   useWorkbenchPortalContainer,
 } from "@workbench/ui";
 import { shellOwnsKeyboardEvent } from "@workbench/ui/keyboard";
-import { useI18n, useTranslationBundle } from "@workbench/i18n";
+import { useI18n } from "@workbench/i18n";
 import type { CommandDefinition } from "@workbench/extension-sdk";
 import {
   DEFAULT_COMMAND_PALETTE_SHORTCUT,
@@ -54,8 +54,7 @@ export function CommandPaletteHost({
   emptyMessage,
   ownerRootRef,
 }: CommandPaletteHostProps) {
-  const { t } = useTranslationBundle(platformExtensionsTranslationBundle);
-  const { text } = useI18n();
+  const { t, text } = useI18n(platformExtensionsTranslationBundle);
   const commandService = useCommandService();
   const reportError = useExtensionErrorReporter();
   const commands = useSyncExternalStore(

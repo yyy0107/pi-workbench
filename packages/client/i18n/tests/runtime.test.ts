@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { useI18n } from "../src/provider";
 import {
   createI18n,
   defineTranslationBundle,
@@ -65,3 +66,21 @@ test("duplicate identities, conflicting keys and locale mismatch fail before ins
     /different message keys/,
   );
 });
+
+// Compile-only API checks: this function is never invoked and mounts no UI.
+function typedBundleHookContract(readI18n: typeof useI18n) {
+  const local = readI18n(bundle);
+  local.t("fixture.title");
+  local.t("fixture.count", { count: 2 });
+  local.text(message("fixture.title"));
+  local.isLocalizableText(message("fixture.title"));
+  local.setLocale("zh-CN");
+  readI18n().setLocale("en-US");
+  // @ts-expect-error Local translations reject keys outside this bundle.
+  local.t("another.title");
+  // @ts-expect-error Named interpolation parameters remain required.
+  local.t("fixture.count");
+  // @ts-expect-error Parameter names cannot be widened by the global runtime.
+  local.t("fixture.count", { total: 2 });
+}
+void typedBundleHookContract;

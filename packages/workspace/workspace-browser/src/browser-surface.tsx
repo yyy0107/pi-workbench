@@ -1,6 +1,7 @@
 "use client";
-
-import { useWorkspaceI18n } from "@workbench/workspace-runtime/translations";
+import { workspaceTranslationBundle } from "@workbench/workspace-runtime/i18n";
+import { browserTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   ArrowLeftIcon,
@@ -31,7 +32,7 @@ import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 import type { BrowserDevice, BrowserFile, BrowserPage } from "@workbench/browser-contracts";
 
 import { defineBrowserMessage as defineMessage } from "./i18n";
-import { useBrowserI18n as useI18n } from "./use-i18n";
+
 import { useRightWorkspace, useWorkspaceDraftStore } from "@workbench/workspace-runtime/react";
 import { createSettingsMainViewRequest } from "@workbench/ui-settings/request";
 import {
@@ -70,8 +71,8 @@ export function BrowserSurface({
   isVisible,
   retryToken = 0,
 }: WorkspaceSurfaceProps<BrowserSurfaceParams>) {
-  const { t, locale } = useI18n();
-  const { t: workspaceT } = useWorkspaceI18n();
+  const { t, locale } = useI18n(browserTranslationBundle);
+  const { t: workspaceT } = useI18n(workspaceTranslationBundle);
   const browser = useBrowserSessionService();
   const drafts = useWorkspaceDraftStore();
   const controller = useRightWorkspace();

@@ -1,4 +1,6 @@
 "use client";
+import { diagnosticsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { ScanSearchIcon } from "lucide-react";
 
@@ -9,7 +11,6 @@ import {
   useWorkspaceOpen,
 } from "@workbench/workspace-runtime/react";
 import { DropdownMenuItem } from "@workbench/ui";
-import { usePiI18n } from "./use-i18n";
 
 import type { ThreadMenuSlotContext } from "@workbench/extension-sdk";
 import { useWorkbenchDomIds } from "@workbench/shell-context/dom";
@@ -18,7 +19,7 @@ import { usePiThreadStateSnapshot } from "@workbench/pi-client/context-trace";
 import { CONTEXT_TRACE_SURFACE_KIND, revealContextTrace } from "./context-trace-workspace";
 
 export function ContextTraceTrigger({ threadId: sessionId, closeMenu }: ThreadMenuSlotContext) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const controller = useRightWorkspace();
   const domIds = useWorkbenchDomIds();
   const context = useWorkspaceContext();

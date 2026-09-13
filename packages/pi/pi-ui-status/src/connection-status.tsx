@@ -1,8 +1,8 @@
 "use client";
+import { statusUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useSessionState } from "@workbench/agent-runtime-client";
-
-import { usePiI18n } from "./use-i18n";
 
 import { withTooltip } from "@workbench/ui";
 
@@ -19,7 +19,7 @@ const STATUS = {
 } as const;
 
 export function ConnectionStatus() {
-  const { t } = usePiI18n();
+  const { t } = useI18n(statusUiTranslationBundle);
   const phase = useSessionState((state) => {
     if (state.isLoading) return "loading";
     if (state.isRunning) return "streaming";

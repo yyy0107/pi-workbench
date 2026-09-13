@@ -1,11 +1,13 @@
 "use client";
+import { directoryPickerTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { FolderPlusIcon, LoaderCircleIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { Button } from "@workbench/ui";
 import { WorkspaceSelector } from "@workbench/ui";
-import { useDirectoryPickerI18n as useI18n } from "./use-i18n";
+
 import type { ComposerSlotContext } from "@workbench/extension-sdk";
 import { useCurrentSession } from "@workbench/agent-runtime-client";
 import {
@@ -47,7 +49,7 @@ function WorkspaceDirectorySummaryContent({
   hostClient: WorkbenchRuntimeHostCapability;
   workspaceClient: WorkbenchWorkspaceCapability;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(directoryPickerTranslationBundle);
   const trustDialogCopy = workspaceProjectTrustDialogCopy(t);
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [picking, setPicking] = useState(false);

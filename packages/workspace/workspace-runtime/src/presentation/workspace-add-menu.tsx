@@ -1,11 +1,13 @@
 "use client";
+import { workspaceTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@workbench/ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@workbench/ui";
-import { useWorkspaceI18n } from "../use-i18n";
+
 import { useExtensionErrorReporter } from "@workbench/extension-host";
 import { ExtensionErrorBoundary } from "@workbench/extension-host/hosts/extension-error-boundary";
 
@@ -37,7 +39,7 @@ export function WorkspaceSurfaceMenuItems({ closeMenu }: WorkspaceSurfaceMenuIte
 }
 
 export function WorkspaceAddMenu() {
-  const { t } = useWorkspaceI18n();
+  const { t } = useI18n(workspaceTranslationBundle);
   const definitions = useWorkspaceSurfaceDefinitions();
   const [open, setOpen] = useState(false);
   const contributions = definitions.filter((definition) => definition.menuItem);

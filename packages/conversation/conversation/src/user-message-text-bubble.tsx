@@ -1,13 +1,15 @@
 "use client";
+import { conversationTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Button } from "@workbench/ui";
-import { useConversationI18n as useI18n } from "./use-i18n";
+
 import { useDisclosureScrollLock } from "@workbench/ui/disclosure";
 
 export function UserMessageTextBubble({ children }: { children: ReactNode }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const id = useId();
   const [expanded, setExpanded] = useState(false);
   const [previewHeight, setPreviewHeight] = useState<number>();

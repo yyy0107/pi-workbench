@@ -1,7 +1,9 @@
 "use client";
+import { filesTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import type { ComponentProps } from "react";
-import { useFilesI18n } from "./use-i18n";
+
 import { useOpenerService, useWorkspaceContext } from "@workbench/workspace-runtime/react";
 import { openFileLink } from "./file-link";
 import { cn } from "@workbench/ui/utils";
@@ -19,7 +21,7 @@ export function FileLink({
   const opener = useOpenerService();
   const context = useWorkspaceContext();
   const notifications = useToastManager();
-  const { t } = useFilesI18n();
+  const { t } = useI18n(filesTranslationBundle);
   return (
     <FileLinkContextMenu href={href}>
       <a

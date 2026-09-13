@@ -1,4 +1,6 @@
 "use client";
+import { toolboxUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useId, useRef, useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
@@ -29,7 +31,6 @@ import {
   Textarea,
   WorkspaceSelector,
 } from "@workbench/ui";
-import { usePiI18n } from "./use-i18n";
 
 import { insertPromptDraft } from "../lib/prompt-composer-draft";
 
@@ -71,7 +72,7 @@ export function PromptEditorDialog({
   onClose(): void;
   onSaved(value: PromptDescribeValue): void;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
   const client = usePiResourceClient();
   const id = useId();
   const initialName = template ? `${template.name}${copy ? "-copy" : ""}` : "";
@@ -240,7 +241,7 @@ export function PromptUseDialog({
   template: PromptDescribeValue;
   onClose(): void;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
   const client = usePiResourceClient();
   const runtime = useAgentRuntime();
   const current = useCurrentSession();

@@ -1,4 +1,6 @@
 "use client";
+import { toolboxUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { CopyIcon, FileTextIcon, PencilIcon, PlayIcon, Trash2Icon } from "lucide-react";
@@ -16,7 +18,7 @@ import {
   Switch,
   TooltipIconButton,
 } from "@workbench/ui";
-import { usePiI18n } from "./use-i18n";
+
 import { definePiMessage } from "./i18n";
 import type { ToolboxCapabilitySurfaceParams } from "./toolbox-capability";
 import { SkillDocumentPanel } from "./toolbox-capability-presentation";
@@ -25,7 +27,7 @@ import { toolboxScopeTarget } from "../lib/toolbox-scope";
 import { useToolboxScope } from "./toolbox-scope-store";
 
 export function ToolboxPromptDetails({ params }: { params: ToolboxCapabilitySurfaceParams }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
   const client = usePiResourceClient();
   const mainViews = useMainViewService();
   const scope = useToolboxScope();

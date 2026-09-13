@@ -1,4 +1,6 @@
 "use client";
+import { automationUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   useWorkbenchAutomationCapability,
@@ -13,11 +15,10 @@ import { useMainViewService } from "@workbench/extension-host";
 import type { SidebarSectionComponentProps } from "@workbench/extension-sdk";
 import { Button } from "@workbench/ui";
 
-import { useAutomationUiI18n as useI18n } from "./use-i18n";
 import { AUTOMATION_MAIN_VIEW_KIND, automationMainViewRequest } from "./automation-main-view";
 
 function AvailableAutomationSidebar({ onNavigate }: SidebarSectionComponentProps) {
-  const { t } = useI18n();
+  const { t } = useI18n(automationUiTranslationBundle);
   const mainViews = useMainViewService();
 
   useEffect(() => {

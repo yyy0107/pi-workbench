@@ -1,4 +1,6 @@
 "use client";
+import { statusUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { usePiHostDescription } from "@workbench/pi-client/host";
 import { useWorkbenchBranding } from "@workbench/shell-context/presentation";
@@ -20,8 +22,6 @@ import {
   siTailwindcss,
   siTypescript,
 } from "simple-icons";
-
-import { usePiI18n } from "./use-i18n";
 
 const REPOSITORY_URL = "https://github.com/yyy0107/pi-workbench";
 // Source: https://pi.dev/logo-auto.svg
@@ -110,7 +110,7 @@ function AboutLink({
   label: string;
   children?: ReactNode;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(statusUiTranslationBundle);
   return (
     <a
       href={href}
@@ -137,7 +137,7 @@ function AboutGitHubLink() {
 }
 
 export function AboutSettingsItem() {
-  const { t } = usePiI18n();
+  const { t } = useI18n(statusUiTranslationBundle);
   const { productName, productLogoUrl } = useWorkbenchBranding();
   const host = usePiHostDescription();
   const projectRows = OPEN_SOURCE_PROJECTS.map(({ name, license, href, icon }) => (

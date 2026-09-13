@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { Loader2Icon } from "lucide-react";
 
@@ -10,8 +12,6 @@ import type {
   AssistantMessageNode,
 } from "@workbench/agent-runtime-contracts/conversation";
 import { MessageRendererHost, RendererHost } from "@workbench/extension-host/hosts/renderer-host";
-
-import { useConversationI18n as useI18n } from "./use-i18n";
 
 import { useConversationMessageContext } from "./conversation-message-context";
 import {
@@ -30,7 +30,7 @@ function DefaultBlock({
   index,
   node,
 }: Readonly<{ block: MessageBlock; index: number; node: MessageNode }>) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const role = node.kind;
   const streaming =
     node.kind === "assistant" && node.status === "running" && index === node.blocks.length - 1;

@@ -1,10 +1,11 @@
 "use client";
+import { workspaceTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { MessageSquareTextIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@workbench/ui";
-import { useWorkspaceI18n } from "../use-i18n";
 
 import {
   useActiveWorkspaceSurface,
@@ -13,7 +14,7 @@ import {
 } from "../react";
 
 export function WorkspaceFeedbackLayer() {
-  const { t } = useWorkspaceI18n();
+  const { t } = useI18n(workspaceTranslationBundle);
   const activeSurfaceId = useActiveWorkspaceSurface()?.id;
   const feedbackStore = useWorkspaceFeedbackStore();
   const feedback = useWorkspaceFeedbackState((snapshot) =>

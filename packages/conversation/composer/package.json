@@ -15,8 +15,7 @@
     "./commands": "./src/agent-command.ts",
     "./attachments": "./src/attachments.ts",
     "./panels": "./src/composer-panel-styles.ts",
-    "./i18n": "./src/i18n.ts",
-    "./translations": "./src/use-i18n.ts",
+    "./i18n": "./src/i18n/index.ts",
     "./icons.css": "./src/composer-icons.css",
     "./surface.css": "./src/composer.css",
     "./styles.css": "./src/styles.css"

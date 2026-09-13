@@ -5,7 +5,7 @@ import { SearchIcon } from "lucide-react";
 import type { SidebarSectionDefinition } from "@workbench/extension-sdk";
 
 import { Button } from "@workbench/ui";
-import { useI18n, useTranslationBundle } from "@workbench/i18n";
+import { useI18n } from "@workbench/i18n";
 import { sidebarTranslationBundle } from "@workbench/ui-sidebar/i18n";
 import { cn } from "@workbench/ui/utils";
 
@@ -24,8 +24,7 @@ export function SidebarPrimaryNavigation({
   onSectionChange(sectionId: string): void;
   onSearchToggle(): void;
 }) {
-  const { text } = useI18n();
-  const { t } = useTranslationBundle(sidebarTranslationBundle);
+  const { t, text } = useI18n(sidebarTranslationBundle);
   const activeSection = sections.find(({ id }) => id === activeSectionId);
   const searchLabel = activeSection?.search ? text(activeSection.search.label) : "";
 

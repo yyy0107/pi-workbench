@@ -1,4 +1,6 @@
 "use client";
+import { toolboxUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   PlugIcon,
@@ -57,7 +59,6 @@ import {
   useToolCapabilityPreferencesController,
 } from "@workbench/settings-runtime/tool-capability-preferences";
 import { useClipboardCopy } from "@workbench/ui/hooks";
-import { usePiI18n } from "./use-i18n";
 
 import { PiApiError } from "@workbench/pi-client/errors";
 import { usePiHostDescription } from "@workbench/pi-client/host";
@@ -151,7 +152,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
 }
 
 function EnhancedSearchSettings() {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
   const id = useId();
   const { enabled, status, saveFailed } = useToolCapabilityPreferences("enhancedSearch");
   const { setEnabled } = useToolCapabilityPreferencesController("enhancedSearch");
@@ -184,7 +185,7 @@ function EnhancedSearchSettings() {
 }
 
 function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfaceParams }) {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(toolboxUiTranslationBundle);
   const mainViews = useMainViewService();
   const browser = browserCapabilityPresentation(params, t);
   const displayedName = browser?.name ?? params.name;

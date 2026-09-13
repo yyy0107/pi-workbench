@@ -1,12 +1,13 @@
 "use client";
+import { filesTranslationBundle } from "@workbench/workspace-files/i18n";
+import { explorerTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { AlertCircleIcon, FolderTreeIcon, LoaderCircleIcon, SearchIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 
-import { useFilesI18n } from "@workbench/workspace-files/translations";
-import { useExplorerI18n as useI18n } from "./use-i18n";
 import { useActiveWorkspaceSurface, useOpenerService } from "@workbench/workspace-runtime/react";
 import { Button, Input, useToastManager } from "@workbench/ui";
 import {
@@ -45,8 +46,8 @@ export function ExplorerSurface({
   context,
   isVisible,
 }: WorkspaceSurfaceProps<ExplorerSurfaceParams>) {
-  const { t } = useI18n();
-  const { t: treeT } = useFilesI18n();
+  const { t } = useI18n(explorerTranslationBundle);
+  const { t: treeT } = useI18n(filesTranslationBundle);
   const notifications = useToastManager();
   const openers = useOpenerService();
   const { files } = useWorkspaceFileRuntime();

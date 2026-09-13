@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { ArrowUpRightIcon, LoaderCircleIcon, MessagesSquareIcon } from "lucide-react";
 import { useState } from "react";
@@ -6,7 +8,7 @@ import { useState } from "react";
 import { useRightWorkspace } from "@workbench/workspace-runtime/react";
 import { Button } from "@workbench/ui";
 import { useWorkbenchNavigation } from "@workbench/shell-context/navigation";
-import { useConversationI18n as useI18n } from "../use-i18n";
+
 import { useExtensionErrorReporter } from "@workbench/extension-host";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 import { useWorkbenchScratchSessionCapability } from "@workbench/agent-runtime-client/context";
@@ -19,7 +21,7 @@ function AvailableSideChatHeader({
   surface,
   context,
 }: WorkspaceSurfaceProps<SideChatSurfaceParams>) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const controller = useRightWorkspace();
   const navigation = useWorkbenchNavigation();
   const manager = useWorkbenchScratchSessionCapability();

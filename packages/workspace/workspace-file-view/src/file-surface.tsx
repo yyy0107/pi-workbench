@@ -1,4 +1,6 @@
 "use client";
+import { fileViewTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { isMarkdownFile } from "@workbench/workspace-files/classification";
 
@@ -8,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useRightWorkspace, useWorkspaceDraftStore } from "@workbench/workspace-runtime/react";
 import { shouldHighlightWorkbenchCode } from "@workbench/code-highlighting";
 import { languageForFilename } from "@workbench/code-highlighting";
-import { useFileViewI18n as useI18n } from "./use-i18n";
+
 import { MarkdownPreview } from "@workbench/markdown";
 import { useExtensionErrorReporter } from "@workbench/extension-host";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
@@ -103,7 +105,7 @@ function UnavailableFile({ title, description }: { title: string; description: s
 }
 
 export function FileSurface(props: WorkspaceSurfaceProps<FileSurfaceParams>) {
-  const { t } = useI18n();
+  const { t } = useI18n(fileViewTranslationBundle);
   const workspace = useWorkbenchWorkspaceCapability();
   const localFiles = useWorkbenchRuntimeHostCapability()?.files;
   if (
@@ -125,7 +127,7 @@ function AvailableFileSurface({
   isVisible,
   retryToken = 0,
 }: WorkspaceSurfaceProps<FileSurfaceParams>) {
-  const { t } = useI18n();
+  const { t } = useI18n(fileViewTranslationBundle);
   const controller = useRightWorkspace();
   const reportError = useExtensionErrorReporter();
   const runtimeConnection = useRuntimeConnection();

@@ -1,10 +1,11 @@
 "use client";
+import { diagnosticsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { ScanSearchIcon } from "lucide-react";
 
 import { useRightWorkspace, useWorkspaceContext } from "@workbench/workspace-runtime/react";
 import { Button } from "@workbench/ui";
-import { usePiI18n } from "./use-i18n";
 
 import type { WorkspaceSurfaceMenuItemProps } from "@workbench/extension-sdk";
 import { usePiActiveSessionId } from "@workbench/pi-client/context-trace";
@@ -12,7 +13,7 @@ import { usePiActiveSessionId } from "@workbench/pi-client/context-trace";
 import { revealContextTrace } from "./context-trace-workspace";
 
 export function ContextTraceMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const sessionId = usePiActiveSessionId();

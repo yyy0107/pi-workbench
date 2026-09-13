@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import type { ComposerQueueItem } from "@workbench/agent-runtime-contracts/conversation";
 import { useConversationSession, useSessionState } from "@workbench/agent-runtime-client";
@@ -22,7 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workbench/ui";
-import { useConversationI18n as useI18n } from "../use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 import { visibleComposerQueueItems } from "../../lib/message-queue/message-queue-preview";
 
@@ -72,7 +74,7 @@ function ComposerQueueItem({
   queuePaused,
   onToggleQueueMode,
 }: ComposerQueueItemProps) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const text = queueItem.text;
 
   return (

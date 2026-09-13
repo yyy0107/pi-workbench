@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { CheckIcon, CircleXIcon, CopyIcon } from "lucide-react";
 
@@ -11,7 +13,7 @@ import type { ConversationNode } from "@workbench/agent-runtime-contracts/conver
 
 import { TooltipIconButton } from "@workbench/ui";
 import { useClipboardCopy } from "@workbench/ui/hooks";
-import { useConversationI18n as useI18n } from "./use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 
@@ -29,7 +31,7 @@ import {
 import { useSteeredTurn } from "./steered-turn";
 
 function CopyAction({ role, text }: Readonly<{ role: "user" | "assistant"; text: string }>) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const { copy, isCopied, status } = useClipboardCopy();
   const tooltip = t(
     status === "copied"
@@ -81,7 +83,7 @@ function visibilityMessage(
 
 export function WorkbenchMessageActions({ className }: Readonly<{ className?: string }>) {
   const steeredTurn = useSteeredTurn();
-  const { date } = useI18n();
+  const { date } = useI18n(conversationTranslationBundle);
   const { messageId, role, isLast, index } = useConversationMessageContext();
   const session = useConversationSession();
   const node = useConversationNode(messageId);

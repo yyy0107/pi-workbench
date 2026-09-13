@@ -1,4 +1,6 @@
 "use client";
+import { fileViewTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { FileCode2Icon } from "lucide-react";
 import { useSyncExternalStore } from "react";
@@ -10,7 +12,7 @@ import {
 } from "@workbench/workspace-runtime/react";
 import { Button } from "@workbench/ui";
 import { defineFileViewMessage as defineMessage } from "./i18n";
-import { useFileViewI18n as useI18n } from "./use-i18n";
+
 import { useExtensionErrorReporter } from "@workbench/extension-host";
 import type { WorkspaceSurfaceMenuItemProps } from "@workbench/extension-sdk";
 import { useFileWorkspaceTargetService } from "@workbench/workspace-files";
@@ -18,7 +20,7 @@ import { useWorkbenchWorkspaceCapability } from "@workbench/agent-runtime-client
 
 export function FileMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
   const workspace = useWorkbenchWorkspaceCapability();
-  const { t } = useI18n();
+  const { t } = useI18n(fileViewTranslationBundle);
   const controller = useRightWorkspace();
   const opener = useOpenerService();
   const context = useWorkspaceContext();

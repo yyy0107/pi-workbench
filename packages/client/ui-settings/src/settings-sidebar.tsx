@@ -1,10 +1,12 @@
 "use client";
+import { settingsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { ArrowLeftIcon, SearchIcon, SettingsIcon } from "lucide-react";
 import { useMemo, useState, useSyncExternalStore } from "react";
 
 import { Button, Input } from "@workbench/ui";
-import { useSettingsUiI18n as useI18n } from "./use-i18n";
+
 import type { LocalizableText } from "@workbench/i18n";
 import { cn } from "@workbench/ui/utils";
 import { useMainViewService, useSettingsRegistry } from "@workbench/extension-host";
@@ -89,7 +91,7 @@ export function SettingsSidebar({
   onNavigate,
   view,
 }: MainViewSidebarProps<SettingsMainViewParams> & { compact?: boolean }) {
-  const { t, text } = useI18n();
+  const { t, text } = useI18n(settingsUiTranslationBundle);
   const mainViews = useMainViewService();
   const registry = useSettingsRegistry();
   const sections = useSyncExternalStore(

@@ -1,6 +1,6 @@
 "use client";
-
-import { usePiI18n } from "./use-i18n";
+import { statusUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { usePiHostDescription } from "@workbench/pi-client/host";
 import { useWorkbenchBranding } from "@workbench/shell-context/presentation";
@@ -9,7 +9,7 @@ import { ConnectionStatus } from "./connection-status";
 import { withTooltip } from "@workbench/ui";
 
 export function PiVersion() {
-  const { t } = usePiI18n();
+  const { t } = useI18n(statusUiTranslationBundle);
   const { productLogoUrl, productName } = useWorkbenchBranding();
   const version = usePiHostDescription()?.version;
   const description = version

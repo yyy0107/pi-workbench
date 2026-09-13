@@ -1,16 +1,17 @@
 "use client";
+import { browserTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { MousePointer2Icon } from "lucide-react";
 import { useSyncExternalStore } from "react";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 
-import { useBrowserI18n as useI18n } from "./use-i18n";
 import { StatusBadge } from "@workbench/ui";
 import { useBrowserSessionService } from "./browser-session-service";
 import type { BrowserSurfaceParams } from "./browser-surface";
 
 export function BrowserControlBadge() {
-  const { t } = useI18n();
+  const { t } = useI18n(browserTranslationBundle);
   const label = t("extensions.workspaceBrowser.agentControlled");
   return (
     <StatusBadge tone="info" className="shrink-0" role="img" title={label} aria-label={label}>

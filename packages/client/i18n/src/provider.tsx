@@ -38,10 +38,21 @@ export function I18nProvider({
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
-export function useI18n(): I18nContextValue {
+type BundleI18nContextValue<TCatalog extends object> = Omit<I18nContextValue, "t"> &
+  I18nRuntime<CatalogTranslate<TCatalog>>;
+
+export function useI18n(): I18nContextValue;
+export function useI18n<TCatalog extends object>(
+  bundle: TranslationBundle<TCatalog>,
+): BundleI18nContextValue<TCatalog>;
+/** Bind local keys while retaining installed descriptor resolution and locale controls. */
+export function useI18n(bundle?: TranslationBundle): unknown {
   const context = useContext(I18nContext);
   if (!context) throw new Error("useI18n must be used within an I18nProvider");
-  return context;
+  return useMemo(
+    () => (bundle ? { ...context, ...context.forBundle(bundle) } : context),
+    [bundle, context],
+  );
 }
 
 export function useTranslationBundle<TCatalog extends object>(

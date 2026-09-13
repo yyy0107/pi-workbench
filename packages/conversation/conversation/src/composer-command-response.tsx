@@ -1,10 +1,13 @@
 "use client";
+import { conversationTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
+import type { CatalogTranslate } from "@workbench/i18n/runtime";
 
 import { CircleCheckIcon, CircleXIcon, LoaderCircleIcon } from "lucide-react";
 
 import { ComposerCommandToken } from "@workbench/composer/tokens";
 import { CompactionSeparator } from "./elements/conversation-separator";
-import { useConversationI18n as useI18n } from "./use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 import type {
   WorkbenchComposerCommandFailureReason,
@@ -14,7 +17,7 @@ import type {
 import { ComposerCommandArguments } from "@workbench/composer/arguments";
 import { ComposerTokenIcon } from "@workbench/composer/tokens";
 
-type Translate = ReturnType<typeof useI18n>["t"];
+type Translate = CatalogTranslate<(typeof conversationTranslationBundle.messages)["en-US"]>;
 
 function commandFailureDetail(
   reason: WorkbenchComposerCommandFailureReason | undefined,
@@ -114,7 +117,7 @@ export function WorkbenchComposerCommandResponse({
   response: WorkbenchComposerCommandResponseDetails;
   compactionDetail?: string;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const running = response.status === "running";
   const failed = response.status === "execution-failed";
   const message = commandResponseMessage(response, t);

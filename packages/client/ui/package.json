@@ -14,7 +14,7 @@
     "./hooks": "./src/hooks/index.ts",
     "./resize": "./src/resize.ts",
     "./disclosure": "./src/disclosure.ts",
-    "./i18n": "./src/i18n.ts",
+    "./i18n": "./src/i18n/index.ts",
     "./styles.css": "./src/styles.css",
     "./tokens.css": "./src/tokens.css",
     "./components.css": "./src/components.css",

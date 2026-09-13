@@ -1,6 +1,7 @@
 "use client";
+import { workspaceTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
-import { useWorkspaceI18n } from "../use-i18n";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 
 import { WorkspaceSurfaceMenuItems } from "./workspace-add-menu";
@@ -8,7 +9,7 @@ import { WorkspaceSurfaceMenuItems } from "./workspace-add-menu";
 const keepLauncherListOpen = () => undefined;
 
 export function WorkspaceEmptyState() {
-  const { t } = useWorkspaceI18n();
+  const { t } = useI18n(workspaceTranslationBundle);
 
   return (
     <div className="flex size-full items-center justify-center px-8 py-16">

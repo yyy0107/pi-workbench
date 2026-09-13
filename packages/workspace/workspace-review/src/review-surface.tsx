@@ -1,4 +1,7 @@
 "use client";
+import { filesTranslationBundle } from "@workbench/workspace-files/i18n";
+import { reviewTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   CheckIcon,
@@ -16,9 +19,8 @@ import type {
   WorkbenchWorkspaceGitReviewScope,
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
-import { useFilesI18n } from "@workbench/workspace-files/translations";
 import { defineReviewMessage as defineMessage } from "./i18n";
-import { useReviewI18n as useI18n } from "./use-i18n";
+
 import {
   useOpenerService,
   useRightWorkspace,
@@ -66,7 +68,7 @@ export interface ReviewSurfaceParams extends Record<string, unknown> {
 type ReviewProps = WorkspaceSurfaceProps<ReviewSurfaceParams>;
 
 function DiffState({ query }: { query: ReturnType<typeof useGitDiff> }) {
-  const { t } = useI18n();
+  const { t } = useI18n(reviewTranslationBundle);
   if (query.error)
     return (
       <div
@@ -107,7 +109,7 @@ function DiffState({ query }: { query: ReturnType<typeof useGitDiff> }) {
 }
 
 function MoreDiff({ query }: { query: ReturnType<typeof useGitDiff> }) {
-  const { t } = useI18n();
+  const { t } = useI18n(reviewTranslationBundle);
   return query.data?.repository && query.data.nextOffset !== undefined ? (
     <div className="px-3 py-2">
       <p className="text-xs text-muted-foreground">{t("extensions.workspaceReview.partial")}</p>
@@ -135,7 +137,7 @@ const FilePatch = memo(function FilePatch({
   file: WorkbenchWorkspaceGitChangedFile;
   cacheKey: string;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(reviewTranslationBundle);
   const richText = options.richText && isMarkdownFile(file.path);
   const fileRequest = useMemo(
     () => ({ ...request, path: file.path, fullContext: options.fullFile || richText }),
@@ -271,8 +273,8 @@ const ReviewFile = memo(function ReviewFile({
   filesExpanded: boolean;
   cacheKey: string;
 }) {
-  const { t, number } = useI18n();
-  const { t: filesT } = useFilesI18n();
+  const { t, number } = useI18n(reviewTranslationBundle);
+  const { t: filesT } = useI18n(filesTranslationBundle);
   const openers = useOpenerService();
   const notifications = useToastManager();
   const { copy, status: copyStatus } = useClipboardCopy();
@@ -402,7 +404,7 @@ const ReviewFile = memo(function ReviewFile({
 });
 
 function ReviewComparison({ surface, reviewRevision }: ReviewProps & { reviewRevision: number }) {
-  const { t } = useI18n();
+  const { t } = useI18n(reviewTranslationBundle);
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const isCommit =

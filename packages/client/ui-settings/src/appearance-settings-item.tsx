@@ -1,4 +1,6 @@
 "use client";
+import { settingsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { CheckIcon, ChevronDownIcon, ImagePlusIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -22,7 +24,7 @@ import {
 import { Switch } from "@workbench/ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workbench/ui";
 import { useMediaQuery } from "@workbench/ui/hooks";
-import { useSettingsUiI18n as useI18n } from "./use-i18n";
+
 import {
   RunningIndicator,
   useRunningIndicatorCatalog,
@@ -289,7 +291,7 @@ function ColorModePicker({
 }
 
 function BackgroundImagePicker({ image }: { image: BackgroundImageSnapshot }) {
-  const { t } = useI18n();
+  const { t } = useI18n(settingsUiTranslationBundle);
   const backgroundImage = useBackgroundImageController();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const errorLabel = (error: BackgroundImageError): string => {
@@ -426,7 +428,7 @@ function FontControl<Value extends string>({
   onChange(value: Value): void;
   onWeightChange(value: FontWeight): void;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(settingsUiTranslationBundle);
   return (
     <div className="flex min-w-0 flex-wrap justify-end gap-2">
       <SelectControl
@@ -459,7 +461,7 @@ function AccentColorControl({
   color: string;
   onChange(color: string): void;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(settingsUiTranslationBundle);
   const [custom, setCustom] = useState(false);
   const preset = ACCENT_PRESETS.find(
     (id) => id !== "custom" && ACCENT_PALETTES[id][mode] === color,
@@ -824,7 +826,7 @@ function ColorControl({
 }
 
 export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
-  const { t, text, number, locale } = useI18n();
+  const { t, text, number, locale } = useI18n(settingsUiTranslationBundle);
   const { fonts: systemFonts, status: systemFontStatus } = useSystemFonts();
   const systemFontOptions = useMemo(
     () => [...systemFonts].sort((a, b) => a.slice(6).localeCompare(b.slice(6), locale)),

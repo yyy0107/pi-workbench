@@ -1,4 +1,6 @@
 "use client";
+import { composerTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { ChevronRightIcon, ScanTextIcon, XIcon } from "lucide-react";
 import { useState } from "react";
@@ -17,12 +19,12 @@ import { PastedTextAttachmentPreview } from "./pasted-text-attachment-preview";
 import { TooltipIconButton } from "@workbench/ui";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@workbench/ui";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@workbench/ui";
-import { useComposerI18n as useI18n } from "./use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 import { FileTypeIcon } from "@workbench/workspace-files/tree";
 
 function AttachmentPreview({ source }: Readonly<{ source: string }>) {
-  const { t } = useI18n();
+  const { t } = useI18n(composerTranslationBundle);
   const [loaded, setLoaded] = useState(false);
   return (
     <img
@@ -44,7 +46,7 @@ function AttachmentTile({
   attachment: InlineComposerAttachment | ManagedFileComposerAttachment;
   onRemove(key: string): void;
 }>) {
-  const { t } = useI18n();
+  const { t } = useI18n(composerTranslationBundle);
   const sourceMediaType = /^data:([^;,]+)/u.exec(attachment.source)?.[1];
   const isImage =
     attachment.mediaType?.startsWith("image/") === true ||
@@ -183,7 +185,7 @@ function PastedTextTile({
   onRetry(key: string): void;
   onRestore(key: string): Promise<void>;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(composerTranslationBundle);
   const [restoring, setRestoring] = useState(false);
   const [restoreFailed, setRestoreFailed] = useState(false);
   const ready = attachment.status === "ready";

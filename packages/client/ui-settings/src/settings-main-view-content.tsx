@@ -1,8 +1,9 @@
 "use client";
+import { settingsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { memo, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-import { useSettingsUiI18n as useI18n } from "./use-i18n";
 import { useExtensionErrorReporter, useSettingsRegistry } from "@workbench/extension-host";
 import type {
   MainViewProps,
@@ -30,7 +31,7 @@ const SettingsSectionContent = memo(function SettingsSectionContent({
   section,
   items,
 }: SettingsSectionContentProps) {
-  const { t, text } = useI18n();
+  const { t, text } = useI18n(settingsUiTranslationBundle);
   const reportError = useExtensionErrorReporter();
   const HeaderAction = section.headerAction;
 
@@ -122,7 +123,7 @@ const SettingsSectionPanel = memo(function SettingsSectionPanel({
 });
 
 export function SettingsMainViewContent({ view }: MainViewProps<SettingsMainViewParams>) {
-  const { t } = useI18n();
+  const { t } = useI18n(settingsUiTranslationBundle);
   const domScopeId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const registry = useSettingsRegistry();

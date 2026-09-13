@@ -1,4 +1,6 @@
 "use client";
+import { diagnosticsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useState } from "react";
 import { ScanSearchIcon } from "lucide-react";
@@ -7,7 +9,6 @@ import type { DataRendererComponent } from "@workbench/extension-sdk";
 import { field, mono } from "@workbench/ui";
 import { ToolCall } from "@workbench/conversation/elements";
 import { Button } from "@workbench/ui";
-import { usePiI18n } from "./use-i18n";
 
 import {
   parsePiContextTraceData,
@@ -75,7 +76,7 @@ type SystemPromptContentState =
   | { traceId: string; status: "ready"; text: string };
 
 export const ContextTraceMessagePart: DataRendererComponent = ({ block }) => {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(diagnosticsUiTranslationBundle);
   const traceClient = usePiContextTraceClient();
   const [open, setOpen] = useState(false);
   const [systemPromptContent, setSystemPromptContent] = useState<SystemPromptContentState>();

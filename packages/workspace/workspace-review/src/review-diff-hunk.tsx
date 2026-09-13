@@ -1,11 +1,13 @@
 "use client";
+import { reviewTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { memo, useMemo } from "react";
 import type { WorkbenchHighlightedTokens } from "@workbench/code-highlighting/engine";
 import { tokenStyle } from "@workbench/code-highlighting";
 import { DiffContextSummary, numberedHunkLines, type DiffHunk } from "@workbench/code-highlighting";
 import { InlineFeedbackForm } from "@workbench/workspace-runtime/presentation";
-import { useReviewI18n as useI18n } from "./use-i18n";
+
 import type { WorkspaceSurfaceInstance } from "@workbench/extension-sdk";
 import type { WorkbenchWorkspaceGitDiffRequest } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 import { reviewWordRanges, type ReviewDisplayOptions, type WordRange } from "../lib/review-options";
@@ -60,7 +62,7 @@ export const ReviewDiffHunk = memo(function ReviewDiffHunk({
   options: ReviewDisplayOptions;
   tokens?: WorkbenchHighlightedTokens;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(reviewTranslationBundle);
   const words = useMemo(
     () =>
       options.wordDiff ? reviewWordRanges(hunk.lines) : new Map<number, readonly WordRange[]>(),

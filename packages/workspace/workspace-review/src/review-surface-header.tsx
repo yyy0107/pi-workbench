@@ -1,4 +1,6 @@
 "use client";
+import { reviewTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { ChevronDownIcon } from "lucide-react";
 import { useMemo, useSyncExternalStore } from "react";
@@ -6,7 +8,7 @@ import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 import type { WorkbenchWorkspaceGitDiffRequest } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
 import { defineReviewMessage as defineMessage } from "./i18n";
-import { useReviewI18n as useI18n } from "./use-i18n";
+
 import { useRightWorkspace } from "@workbench/workspace-runtime/react";
 import {
   Button,
@@ -34,7 +36,7 @@ function ReviewSurfaceHeaderContent({
   refresh,
   reviewRevision,
 }: ReviewProps & { refresh(): void; reviewRevision: number }) {
-  const { t, number } = useI18n();
+  const { t, number } = useI18n(reviewTranslationBundle);
   const controller = useRightWorkspace();
   const isCommit =
     surface.params.reviewScope === "commit" || surface.params.reviewScope === "range";

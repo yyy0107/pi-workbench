@@ -1,4 +1,6 @@
 "use client";
+import { reviewTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -25,7 +27,7 @@ import {
 } from "@workbench/ui";
 import { useCopyFeedback } from "@workbench/ui/hooks";
 import { writeClipboardText } from "@workbench/ui/clipboard";
-import { useReviewI18n as useI18n } from "./use-i18n";
+
 import { gitApplyCommand, readReviewPatch, type ReviewDisplayOptions } from "../lib/review-options";
 
 export function ReviewToolbar({
@@ -45,7 +47,7 @@ export function ReviewToolbar({
   filesExpanded: boolean;
   onToggleFiles: () => void;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(reviewTranslationBundle);
   const workspace = useWorkbenchWorkspaceCapability();
   const { runCopy, status } = useCopyFeedback();
   const [pending, setPending] = useState(false);

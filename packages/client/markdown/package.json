@@ -11,7 +11,7 @@
     "./render": "./src/markdown-text.tsx",
     "./links": "./src/link-adapter.tsx",
     "./website-icon": "./src/website-icon.ts",
-    "./i18n": "./src/i18n.ts",
+    "./i18n": "./src/i18n/index.ts",
     "./styles.css": "./src/styles.css"
   },
   "scripts": {

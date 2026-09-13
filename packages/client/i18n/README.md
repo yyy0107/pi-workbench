@@ -9,3 +9,5 @@ Source roles: src/ owns capability implementation, contracts, components and com
 Internal helpers: `lib/catalog-tree.ts`.
 
 Example consumer: `src/runtime.ts` → `lib/catalog-tree.ts`.
+
+Capability catalogs live in `src/i18n/{index,en-US,zh-CN}.ts` and expose a React-free `./i18n` package entry. Components import that bundle and call the shared `useI18n(bundle)` directly; no per-capability hook wrappers are needed. The overload narrows `t` to the bundle while retaining installed descriptor resolution, formatters and `setLocale`. Calling `useI18n()` preserves the global context API. `useTranslationBundle(bundle)` remains available for its narrower formatter/translation view.

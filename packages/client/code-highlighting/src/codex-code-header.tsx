@@ -1,10 +1,12 @@
 "use client";
+import { codeHighlightingTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { CheckIcon, CircleXIcon, CopyIcon, MaximizeIcon, MinimizeIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@workbench/ui";
 import { useClipboardCopy } from "@workbench/ui/hooks";
-import { useCodeHighlightingI18n } from "./use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 
 export interface CodexCodeHeaderProps {
@@ -22,7 +24,7 @@ export function CodexCodeHeader({
   expanded,
   onToggleExpanded,
 }: CodexCodeHeaderProps) {
-  const { t } = useCodeHighlightingI18n();
+  const { t } = useI18n(codeHighlightingTranslationBundle);
   const { copy, isCopied, status } = useClipboardCopy();
   const displayedLanguage = displayCodeLanguage(language, t("codeHighlighting.plainText"));
   const copyLabel = t(

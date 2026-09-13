@@ -10,7 +10,7 @@
     ".": "./src/index.ts",
     "./service": "./src/browser-session-service.ts",
     "./styles.css": "./src/browser-viewport.css",
-    "./i18n": "./src/i18n.ts"
+    "./i18n": "./src/i18n/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",

@@ -15,7 +15,7 @@ import { PanelLeftCloseIcon, SearchIcon, XIcon } from "lucide-react";
 import { Button } from "@workbench/ui";
 import { Input } from "@workbench/ui";
 import { Sidebar, useSidebar } from "@workbench/ui";
-import { useI18n, useTranslationBundle } from "@workbench/i18n";
+import { useI18n } from "@workbench/i18n";
 import { sidebarTranslationBundle } from "@workbench/ui-sidebar/i18n";
 import { useMainViewService, useSidebarSectionRegistry } from "@workbench/extension-host";
 import { MainViewSidebarHost } from "@workbench/extension-host/hosts/main-view-sidebar-host";
@@ -35,8 +35,7 @@ export function WorkbenchSidebarContent({
   mobile?: boolean;
   onNavigate?: () => void;
 }) {
-  const { text } = useI18n();
-  const { t } = useTranslationBundle(sidebarTranslationBundle);
+  const { t, text } = useI18n(sidebarTranslationBundle);
   const mainViews = useMainViewService();
   const sectionRegistry = useSidebarSectionRegistry();
   const sections = useSyncExternalStore(
@@ -190,7 +189,7 @@ export function WorkbenchSidebarContent({
 }
 
 function MobileSidebarHeader() {
-  const { t } = useTranslationBundle(sidebarTranslationBundle);
+  const { t } = useI18n(sidebarTranslationBundle);
   const { setOpenMobile } = useSidebar();
 
   return (
@@ -225,7 +224,7 @@ export function WorkbenchSidebar({
   shellRef,
   onResize,
 }: WorkbenchSidebarProps) {
-  const { t } = useTranslationBundle(sidebarTranslationBundle);
+  const { t } = useI18n(sidebarTranslationBundle);
   const { isMobile, setOpenMobile, state } = useSidebar();
   const desktopState = isMobile ? "collapsed" : state;
   const sidebarLayoutRef = useRef<HTMLDivElement>(null);

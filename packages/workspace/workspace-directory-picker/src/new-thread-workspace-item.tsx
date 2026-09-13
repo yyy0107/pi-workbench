@@ -1,4 +1,6 @@
 "use client";
+import { directoryPickerTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { MessageCirclePlusIcon } from "lucide-react";
 
@@ -6,7 +8,7 @@ import { Button } from "@workbench/ui";
 import { useAgentRuntime } from "@workbench/agent-runtime-client";
 import { useWorkbenchNavigation } from "@workbench/shell-context/navigation";
 import { useNewThreadLayout } from "@workbench/shell-context/layout";
-import { useDirectoryPickerI18n as useI18n } from "./use-i18n";
+
 import {
   useWorkspaceCapabilities,
   useWorkspaceSelection,
@@ -14,7 +16,7 @@ import {
 import { preferredNewThreadWorkspaceId } from "../lib/new-thread-workspace-policy";
 
 export function NewThreadWorkspaceItem() {
-  const { t } = useI18n();
+  const { t } = useI18n(directoryPickerTranslationBundle);
   const runtime = useAgentRuntime();
   const navigation = useWorkbenchNavigation();
   const { setDockComposerWhenEmpty } = useNewThreadLayout();

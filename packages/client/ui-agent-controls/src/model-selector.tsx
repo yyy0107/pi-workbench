@@ -1,4 +1,6 @@
 "use client";
+import { agentControlsTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import type { ModelSelection } from "@workbench/core-contracts/model-selection";
 import type { ComposerSlotContext } from "@workbench/extension-sdk";
@@ -13,7 +15,7 @@ import {
   ModelSelector as ModelSelectorControl,
 } from "@workbench/ui";
 import { createSettingsMainViewRequest } from "@workbench/ui-settings/request";
-import { useAgentControlsI18n as useI18n } from "./use-i18n";
+
 import {
   useWorkbenchModelSelectionCapability,
   useWorkbenchSessionContextPolicy,
@@ -53,7 +55,7 @@ function AvailableModelSelector({
   modelsCapability: WorkbenchModelSelectionCapability;
 } & ComposerSlotContext) {
   useHydrateModelSelectorStore();
-  const { t } = useI18n();
+  const { t } = useI18n(agentControlsTranslationBundle);
   const mainViews = useMainViewService();
   const current = useCurrentSession();
   const localThreadId = useConversationSession().id;

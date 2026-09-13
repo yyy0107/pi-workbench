@@ -1,11 +1,12 @@
 "use client";
+import { sessionImportUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { AlertCircleIcon, CheckCircle2Icon, ImportIcon, RefreshCwIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@workbench/ui";
 import { Skeleton } from "@workbench/ui";
-import { usePiI18n } from "./use-i18n";
 
 import { cn } from "@workbench/ui/utils";
 import type { SettingsItemComponentProps } from "@workbench/extension-sdk";
@@ -20,7 +21,7 @@ import { withTooltip } from "@workbench/ui";
 import { IMPORT_BATCH_SIZE, selectionKey } from "../lib/import-selection";
 
 function SourceName({ source }: { source: ExternalSessionSource }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(sessionImportUiTranslationBundle);
   return <>{t(`extensions.externalSessionImport.sources.${source}`)}</>;
 }
 
@@ -50,7 +51,7 @@ function SessionRow({
   onCheckedChange(checked: boolean): void;
   session: ExternalSessionImportView;
 }) {
-  const { date, number, t } = usePiI18n();
+  const { date, number, t } = useI18n(sessionImportUiTranslationBundle);
   const issueLabel = session.alreadyImported
     ? t("extensions.externalSessionImport.states.imported")
     : session.issue
@@ -113,7 +114,7 @@ export function ExternalSessionImportSettingsItem({
   itemId,
 }: SettingsItemComponentProps) {
   const externalImportClient = usePiExternalImportClient();
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(sessionImportUiTranslationBundle);
   const [snapshot, setSnapshot] = useState<ExternalSessionImportScanValue>();
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);

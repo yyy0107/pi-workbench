@@ -1,9 +1,11 @@
 "use client";
+import { workspaceTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 import { Button } from "@workbench/ui";
-import { useWorkspaceI18n } from "../use-i18n";
+
 import { useExtensionErrorReporter } from "@workbench/extension-host";
 
 class SurfaceErrorBoundary extends Component<
@@ -34,7 +36,7 @@ export function WorkspaceSurfaceBoundary({
   surfaceId,
   children,
 }: Readonly<{ surfaceId: string; children: ReactNode }>) {
-  const { t } = useWorkspaceI18n();
+  const { t } = useI18n(workspaceTranslationBundle);
   const reportError = useExtensionErrorReporter();
 
   return (

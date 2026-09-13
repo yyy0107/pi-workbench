@@ -1,4 +1,6 @@
 "use client";
+import { diagnosticsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   BotIcon,
@@ -18,8 +20,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-
-import { usePiI18n } from "./use-i18n";
 
 import { cn } from "@workbench/ui/utils";
 import type {
@@ -359,7 +359,7 @@ export function ContextTraceContextView({
   selectedFocus?: ContextTraceDetailFocus;
   selectedTraceId?: string;
 }) {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(diagnosticsUiTranslationBundle);
   const normalizedQuery = normalizeContextTraceSearchText(query);
   const turns = useMemo(() => projectContextTraceTurns(events), [events]);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());

@@ -1,6 +1,6 @@
 # Workspace runtime
 
-Owns the inspector controller, Surface and feedback stores, React host, persistence, tabs, resize/presentation and workspace-directory selection. Use the root for controllers, `/react` for installation and resources, `/presentation` for shared views, `/persistence` and `/directory-store` for persistence factories. `/i18n` is neutral; `/translations` is the React translation hook.
+Owns the inspector controller, Surface and feedback stores, React host, persistence, tabs, resize/presentation and workspace-directory selection. Use the root for controllers, `/react` for installation and resources, `/presentation` for shared views, `/persistence` and `/directory-store` for persistence factories. `/i18n` exposes the neutral bundle; React consumers call shared `useI18n(bundle)`.
 
 Registry, opener, catalog validator and persistence ports are immutable installation inputs. Replacing an installation requires remounting its Provider. Concrete file/browser/terminal Surfaces are supplied by extension registries. Existing IDs, close/retry/dispose rules and persistence formats are preserved. Run `pnpm --filter @workbench/workspace-runtime test` and `typecheck`.
 

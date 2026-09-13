@@ -1,9 +1,10 @@
 "use client";
+import { workspaceTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { MessageSquareTextIcon, XIcon } from "lucide-react";
 
 import { Button } from "@workbench/ui";
-import { useWorkspaceI18n } from "../use-i18n";
 
 import {
   useWorkspaceContext,
@@ -12,7 +13,7 @@ import {
 } from "../react";
 
 export function ComposerWorkspaceFeedback() {
-  const { t } = useWorkspaceI18n();
+  const { t } = useI18n(workspaceTranslationBundle);
   const context = useWorkspaceContext();
   const store = useWorkspaceFeedbackStore();
   const feedback = useWorkspaceFeedbackState(() => store.forContext(context));

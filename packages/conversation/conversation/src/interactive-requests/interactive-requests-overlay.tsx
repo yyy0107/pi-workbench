@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { LoaderCircleIcon, ShieldAlertIcon } from "lucide-react";
 import {
@@ -20,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workbench/ui";
-import { useConversationI18n as useI18n } from "../use-i18n";
+
 import type { ComposerOverlaySlotContext } from "@workbench/extension-sdk";
 import { useWorkbenchAgentThreadId } from "@workbench/agent-runtime-client/context";
 import {
@@ -53,7 +55,7 @@ function InteractionMetadata({
   interaction: WorkbenchPendingInteraction;
   pendingCount: number;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
 
   return (
     <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -66,7 +68,7 @@ function InteractionMetadata({
 }
 
 function SubmitErrorMessage({ error }: { error: SubmitError | null }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   if (!error) return null;
 
   const message =
@@ -131,7 +133,7 @@ function QuestionComposerOverlay({
   manager: WorkbenchInteractionCapability;
   setOverlayVisible(visible: boolean): void;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const askUserPreference = useAskUserPreferences();
   const { error, submitting, submit } = useInteractionSubmit(manager, interaction.requestId);
   const preferenceReady = askUserPreference.status !== "loading";
@@ -200,7 +202,7 @@ function ApprovalDialog({
   manager: WorkbenchInteractionCapability;
   pendingCount: number;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const { error, submitting, submit } = useInteractionSubmit(manager, interaction.requestId);
 
   return (

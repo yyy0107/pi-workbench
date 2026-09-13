@@ -12,8 +12,7 @@
     "./presentation": "./src/presentation/index.ts",
     "./persistence": "./src/right-workspace-persistence.ts",
     "./directory-store": "./src/workspace-directory-store.ts",
-    "./i18n": "./src/i18n.ts",
-    "./translations": "./src/use-i18n.ts",
+    "./i18n": "./src/i18n/index.ts",
     "./styles.css": "./src/presentation/right-workspace.css"
   },
   "scripts": {

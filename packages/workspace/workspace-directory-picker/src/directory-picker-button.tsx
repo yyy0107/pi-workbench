@@ -1,11 +1,13 @@
 "use client";
+import { directoryPickerTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { PlusIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { Button } from "@workbench/ui";
 import { useAgentRuntime } from "@workbench/agent-runtime-client";
-import { useDirectoryPickerI18n as useI18n } from "./use-i18n";
+
 import {
   useWorkspaceCapabilities,
   type WorkbenchWorkspaceSummary,
@@ -41,7 +43,7 @@ function DirectoryPickerButtonContent({
   hostClient: WorkbenchRuntimeHostCapability;
   workspaceClient: WorkbenchWorkspaceCapability;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(directoryPickerTranslationBundle);
   const trustDialogCopy = workspaceProjectTrustDialogCopy(t);
   const runtime = useAgentRuntime();
   const navigation = useWorkbenchNavigation();

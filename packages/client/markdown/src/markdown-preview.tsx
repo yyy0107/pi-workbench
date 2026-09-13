@@ -1,12 +1,12 @@
 "use client";
+import { markdownTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { CheckIcon, CircleXIcon, CopyIcon } from "lucide-react";
 
 import { MarkdownTextContent } from "./lazy-markdown-text";
 import { TooltipIconButton } from "@workbench/ui";
 import { useClipboardCopy } from "@workbench/ui/hooks";
-
-import { useMarkdownI18n } from "./use-i18n";
 
 const COPY_FEEDBACK_DURATION_MS = 2_000;
 
@@ -17,7 +17,7 @@ export function MarkdownPreview({
   ariaLabel: string;
   content: string;
 }>) {
-  const { t } = useMarkdownI18n();
+  const { t } = useI18n(markdownTranslationBundle);
   const { copy, isCopied, status } = useClipboardCopy({
     duration: COPY_FEEDBACK_DURATION_MS,
   });

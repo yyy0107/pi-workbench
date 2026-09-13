@@ -1,4 +1,6 @@
 "use client";
+import { browserTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { ChevronDownIcon, PlusIcon, ShieldAlertIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
@@ -13,7 +15,7 @@ import type {
 } from "@workbench/browser-contracts";
 
 import { defineBrowserMessage as defineMessage } from "./i18n";
-import { useBrowserI18n as useI18n } from "./use-i18n";
+
 import {
   RemoteDirectoryPickerDialog,
   shouldUseNativeDirectoryPicker,
@@ -116,7 +118,7 @@ function Row({
 }
 
 export function BrowserSettingsItem() {
-  const { t, locale } = useI18n();
+  const { t, locale } = useI18n(browserTranslationBundle);
   const text = (key: PlainSettingsKey) => t(`extensions.workspaceBrowser.settings.${key}`);
   const browser = useBrowserSessionService();
   const hostClient = useWorkbenchRuntimeHostCapability();

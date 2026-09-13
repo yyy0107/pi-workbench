@@ -1,10 +1,10 @@
 "use client";
+import { toolboxUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { useToolCapabilityPreferences } from "@workbench/settings-runtime/tool-capability-preferences";
-
-import { usePiI18n } from "./use-i18n";
 
 import { usePiResourceClient } from "@workbench/pi-client/resources";
 import { usePiWorkspaces } from "@workbench/pi-client/workspace";
@@ -144,7 +144,7 @@ export function useToolboxCatalogs(
   scope: WorkbenchToolboxScopePreference,
   kind?: ToolboxCapabilityItem["kind"],
 ) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(toolboxUiTranslationBundle);
   const askUserPreference = useToolCapabilityPreferences("askUserEnabled");
   const workbenchSettingsPreference = useToolCapabilityPreferences("workbenchSettingsEnabled");
   const messageTerminationPreference = useToolCapabilityPreferences(

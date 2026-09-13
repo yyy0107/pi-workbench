@@ -1,4 +1,6 @@
 "use client";
+import { markdownTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import "katex/dist/katex.min.css";
 import { normalizeMarkdownText } from "../lib/markdown-normalize";
@@ -21,7 +23,7 @@ import { WorkbenchCodeBlockBody } from "@workbench/code-highlighting";
 import { type CodeTheme } from "@workbench/appearance";
 import { InlineCitation, type Source } from "./inline-citation";
 import { useClipboardCopy } from "@workbench/ui/hooks";
-import { useMarkdownI18n } from "./use-i18n";
+
 import { Button } from "@workbench/ui";
 import {
   Dialog,
@@ -215,7 +217,7 @@ function MarkdownLink({
 }
 
 function MarkdownLinkSafetyDialog({ isOpen, onClose, onConfirm, url }: LinkSafetyModalProps) {
-  const { t } = useMarkdownI18n();
+  const { t } = useI18n(markdownTranslationBundle);
   const { copy, reset, status } = useClipboardCopy();
   const copyLabel = t(
     status === "copied"
@@ -302,7 +304,7 @@ const RenderedMarkdownText = memo(function RenderedMarkdownText({
   text,
   ...props
 }: MarkdownTextProps & Readonly<{ text: string; renderDiagrams?: boolean }>) {
-  const { t } = useMarkdownI18n();
+  const { t } = useI18n(markdownTranslationBundle);
   const labels = useMemo(
     () => ({
       footnotes: t("markdown.document.footnotes"),

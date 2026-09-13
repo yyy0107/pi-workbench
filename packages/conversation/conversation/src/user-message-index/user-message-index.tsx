@@ -1,11 +1,13 @@
 "use client";
+import { conversationTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConversationNodes } from "@workbench/agent-runtime-client";
 
 import { MarkdownTextContent } from "@workbench/markdown";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@workbench/ui";
-import { useConversationI18n as useI18n } from "../use-i18n";
+
 import { useReducedMotion } from "@workbench/ui/hooks";
 import { cn } from "@workbench/ui/utils";
 import { isWorkbenchLayoutMoving } from "@workbench/shell-context/layout";
@@ -80,7 +82,7 @@ function getScrollViewport(element: HTMLElement, threadRoot: HTMLElement): HTMLE
 }
 
 export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const reduceMotion = useReducedMotion();
   const nodes = useConversationNodes();
   const navRef = useRef<HTMLElement>(null);

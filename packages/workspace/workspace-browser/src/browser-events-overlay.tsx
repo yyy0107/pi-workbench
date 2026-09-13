@@ -1,11 +1,13 @@
 "use client";
+import { browserTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import type { BrowserEvent, BrowserFile, BrowserSettings } from "@workbench/browser-contracts";
 
 import { parseLocalFileHref } from "@workbench/workspace-files";
 import { defineBrowserMessage as defineMessage } from "./i18n";
-import { useBrowserI18n as useI18n } from "./use-i18n";
+
 import {
   useRightWorkspace,
   useRightWorkspaceState,
@@ -56,7 +58,7 @@ function useBrowserLinkRouting(root: RefObject<HTMLElement | null>, settingsRead
   const context = useWorkspaceContext();
   const surfaces = useRightWorkspaceState((state) => state.surfaces);
   const opening = useRef(new Set<string>());
-  const { t } = useI18n();
+  const { t } = useI18n(browserTranslationBundle);
   const { add } = useToastManager();
 
   useEffect(() => {
@@ -162,7 +164,7 @@ function useBrowserLinkRouting(root: RefObject<HTMLElement | null>, settingsRead
 
 function BrowserPromptDialog({ event, onDone }: { event: PromptEvent; onDone(): void }) {
   const browser = useBrowserSessionService();
-  const { t } = useI18n();
+  const { t } = useI18n(browserTranslationBundle);
   const id = useId();
   const [answer, setAnswer] = useState(event.type === "dialog" ? (event.defaultPrompt ?? "") : "");
   const [files, setFiles] = useState<File[]>([]);
@@ -353,7 +355,7 @@ export function BrowserEventsOverlay() {
   const controller = useRightWorkspace();
   const store = useRightWorkspaceStateStore();
   const context = useWorkspaceContext();
-  const { t } = useI18n();
+  const { t } = useI18n(browserTranslationBundle);
   const { add } = useToastManager();
   const root = useRef<HTMLSpanElement>(null);
   const [settingsReady, setSettingsReady] = useState(false);

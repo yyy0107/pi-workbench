@@ -1,9 +1,10 @@
 "use client";
+import { browserTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useEffect, useState } from "react";
 import type { BrowserDownload, BrowserFile } from "@workbench/browser-contracts";
 
-import { useBrowserI18n as useI18n } from "./use-i18n";
 import {
   Button,
   Dialog,
@@ -22,7 +23,7 @@ export function BrowserDownloadsDialog({
   open: boolean;
   onOpenChange(open: boolean): void;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(browserTranslationBundle);
   const browser = useBrowserSessionService();
   const [downloads, setDownloads] = useState<BrowserDownload[]>([]);
   const [loading, setLoading] = useState(true);

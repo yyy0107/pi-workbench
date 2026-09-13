@@ -1,4 +1,7 @@
 "use client";
+import { diagnosticsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
+import type { CatalogTranslate } from "@workbench/i18n/runtime";
 
 import {
   ArrowDownIcon,
@@ -18,7 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useRightWorkspace } from "@workbench/workspace-runtime/react";
 import { Button, Input, Tabs, TabsIndicator, TabsList, TabsTrigger } from "@workbench/ui";
-import { usePiI18n } from "./use-i18n";
+
 import { definePiMessage } from "./i18n";
 import { cn } from "@workbench/ui/utils";
 import { useExtensionErrorReporter } from "@workbench/extension-host";
@@ -122,7 +125,7 @@ function eventCategoryTone(category: TraceEventCategory): string {
 }
 
 function eventCategoryLabel(
-  t: ReturnType<typeof usePiI18n>["t"],
+  t: CatalogTranslate<(typeof diagnosticsUiTranslationBundle.messages)["en-US"]>,
   category: TraceEventCategory,
 ): string {
   return t(`extensions.contextTrace.eventCategories.${category}`);
@@ -177,7 +180,10 @@ function pairedDuration(
   return start ? Math.max(0, event.time - start.time) : undefined;
 }
 
-function viewLabel(t: ReturnType<typeof usePiI18n>["t"], view: TraceViewMode): string {
+function viewLabel(
+  t: CatalogTranslate<(typeof diagnosticsUiTranslationBundle.messages)["en-US"]>,
+  view: TraceViewMode,
+): string {
   switch (view) {
     case "duration":
       return t("extensions.contextTrace.views.duration");
@@ -189,7 +195,7 @@ function viewLabel(t: ReturnType<typeof usePiI18n>["t"], view: TraceViewMode): s
 }
 
 function detailViewLabel(
-  t: ReturnType<typeof usePiI18n>["t"],
+  t: CatalogTranslate<(typeof diagnosticsUiTranslationBundle.messages)["en-US"]>,
   view: ContextTraceDetailView,
 ): string {
   switch (view) {
@@ -221,7 +227,7 @@ function TraceViewTabs({
   value: TraceViewMode;
   onChange(value: TraceViewMode): void;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const views = ["duration", "turns", "calls"] as const;
   return (
     <Tabs
@@ -283,7 +289,7 @@ function Timeline({
   searchMatches: ReadonlyMap<string, readonly ContextTraceSearchMatch[]>;
   selectedTraceId?: string;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   return (
     <div>
       {events.map((event, index) => {
@@ -393,7 +399,7 @@ export function ContextTraceSurface({
   surface,
 }: WorkspaceSurfaceProps<ContextTraceSurfaceParams>) {
   const traceClient = usePiContextTraceClient();
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(diagnosticsUiTranslationBundle);
   const controller = useRightWorkspace();
   const reportError = useExtensionErrorReporter();
   const { metadata } = usePiThreadStateSnapshot(surface.params.sessionId);

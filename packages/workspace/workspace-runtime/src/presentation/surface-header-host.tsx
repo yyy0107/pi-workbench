@@ -1,8 +1,9 @@
 "use client";
+import { workspaceTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { Suspense } from "react";
 
-import { useWorkspaceI18n } from "../use-i18n";
 import type {
   AnyWorkspaceSurfaceDefinition,
   WorkspaceContext,
@@ -19,7 +20,7 @@ export function SurfaceHeaderHost({
   context: WorkspaceContext;
   definition?: AnyWorkspaceSurfaceDefinition;
 }>) {
-  const { t } = useWorkspaceI18n();
+  const { t } = useI18n(workspaceTranslationBundle);
   const Header = definition?.header;
 
   if (!active || !Header) return null;

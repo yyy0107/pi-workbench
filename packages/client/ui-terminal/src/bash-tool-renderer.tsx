@@ -1,4 +1,6 @@
 "use client";
+import { terminalUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { KeyboardIcon, SquareTerminalIcon } from "lucide-react";
 
@@ -8,7 +10,7 @@ import { normalizeTerminalTabTitle } from "@workbench/terminal-client";
 import { workbenchBashInputFromArgs, type WorkbenchBashInput } from "@workbench/terminal-contracts";
 
 import { TerminalBlock } from "@workbench/conversation/elements";
-import { useTerminalUiI18n as useI18n } from "./use-i18n";
+
 import { useRightWorkspace, useWorkspaceContext } from "@workbench/workspace-runtime/react";
 import { Button, TooltipIconButton } from "@workbench/ui";
 
@@ -24,7 +26,7 @@ export interface BashTerminalProps {
 }
 
 export function BashTerminal({ toolCallId, command, result, running, input }: BashTerminalProps) {
-  const { t } = useI18n();
+  const { t } = useI18n(terminalUiTranslationBundle);
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const piSessionId = useWorkbenchAgentThreadId();

@@ -1,4 +1,6 @@
 "use client";
+import { diagnosticsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   useEffect,
@@ -11,7 +13,6 @@ import {
 } from "react";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@workbench/ui";
-import { usePiI18n } from "./use-i18n";
 
 import type { SessionContextTraceEventSummary } from "@workbench/pi-protocol/rpc";
 
@@ -94,7 +95,7 @@ export function ContextTraceOverview({
   onRangeChange,
   onSelect,
 }: TraceOverviewProps) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const timelineScale = useMemo(
     () => createContextTraceTimelineScale(events.map((event) => event.time)),
     [events],

@@ -1,9 +1,11 @@
 "use client";
+import { workspaceTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useLayoutEffect, useRef, type RefObject } from "react";
 
 import { CollapsibleResizeHandle } from "@workbench/ui";
-import { useWorkspaceI18n } from "../use-i18n";
+
 import {
   DEFAULT_RIGHT_WORKSPACE_WIDTH,
   MIN_RIGHT_WORKSPACE_WIDTH,
@@ -26,7 +28,7 @@ export function WorkspaceResizeHandle({
   workspaceRef: RefObject<HTMLElement | null>;
   onCommit(width: number): void;
 }>) {
-  const { t } = useWorkspaceI18n();
+  const { t } = useI18n(workspaceTranslationBundle);
   const controller = useRightWorkspace();
   const finishResizeRef = useRef<(() => void) | null>(null);
 

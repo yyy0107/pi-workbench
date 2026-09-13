@@ -1,4 +1,6 @@
 "use client";
+import { diagnosticsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   BotIcon,
@@ -18,7 +20,7 @@ import { useState, type ReactNode } from "react";
 
 import { MarkdownTextContent } from "@workbench/markdown/render";
 import { WorkbenchCodeView } from "@workbench/code-highlighting";
-import { usePiI18n } from "./use-i18n";
+
 import { type PiTranslate } from "./i18n";
 import type {
   SessionContextTraceCaptureMetadata,
@@ -174,7 +176,7 @@ function KeyValueGrid({ items }: { items: readonly [string, ReactNode][] }) {
 }
 
 function TokenUsageView({ usage }: { usage: SessionContextTraceTokenUsage }) {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(diagnosticsUiTranslationBundle);
   const totalTokens =
     usage.totalTokens || usage.input + usage.output + usage.cacheRead + usage.cacheWrite;
   const items: [string, ReactNode][] = [
@@ -202,7 +204,7 @@ function TokenUsageView({ usage }: { usage: SessionContextTraceTokenUsage }) {
 }
 
 function ContextWindowUsageView({ usage }: { usage: SessionContextTraceContextUsage }) {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(diagnosticsUiTranslationBundle);
   const percent = usage.percent === null ? undefined : Math.max(0, Math.min(100, usage.percent));
   return (
     <Section title={t("extensions.contextTrace.contextWindowOccupancy")}>
@@ -234,7 +236,7 @@ function ContextWindowUsageView({ usage }: { usage: SessionContextTraceContextUs
 }
 
 function CaptureMetadata({ capture }: { capture: SessionContextTraceCaptureMetadata }) {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(diagnosticsUiTranslationBundle);
   if (!capture.truncated && capture.redactedPaths.length === 0) return null;
 
   return (
@@ -264,7 +266,7 @@ function CaptureMetadata({ capture }: { capture: SessionContextTraceCaptureMetad
 }
 
 function CodeBlock({ children, ariaLabel }: { children: string; ariaLabel?: string }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   return (
     <WorkbenchCodeView
       ariaLabel={ariaLabel ?? t("extensions.contextTrace.detailTabs.preview")}
@@ -287,7 +289,7 @@ function TextBlock({ children }: { children: string }) {
 }
 
 function MessageAttachmentPreview({ attachment }: { attachment: ContextTraceMessageAttachment }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const [failed, setFailed] = useState(false);
   const label =
     attachment.name ??
@@ -457,7 +459,7 @@ function SemanticSection({
 }
 
 function DetailStateMessage({ state }: { state: ContextTraceDetailState | undefined }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   return (
     <p className="text-muted-foreground text-xs">
       {state?.status === "loading"
@@ -478,7 +480,7 @@ function UserMessagePreview({
   event: SessionContextTraceEvent;
   focus?: ContextTraceDetailFocus;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   if (event.kind === "prompt-composition") {
     const attachments = listContextTraceAttachments(event.detail.images.value);
     const visibleAttachments =
@@ -542,7 +544,7 @@ function UserMessageSummary({
   focus?: ContextTraceDetailFocus;
   onViewChange?: (view: ContextTraceDetailView) => void;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   return (
     <div>
       <div className="border-b px-3 py-4">
@@ -576,7 +578,7 @@ function UserMessageSummary({
 }
 
 function UserMessageSourceDetail({ event }: { event: SessionContextTraceEvent }) {
-  const { date, t } = usePiI18n();
+  const { date, t } = useI18n(diagnosticsUiTranslationBundle);
   return (
     <SemanticSection title={t("extensions.contextTrace.detailTabs.source")}>
       <SemanticKeyValueGrid
@@ -654,7 +656,7 @@ function ToolExecutionSchemaDetail({
   context?: ContextTraceToolDetailContext;
   showParameters: boolean;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const tool = context?.schema;
   if (!tool) return <DetailStateMessage state={context?.schemaDetail} />;
   return (
@@ -673,7 +675,7 @@ function ToolTimingDetail({
   context?: ContextTraceToolDetailContext;
   event: SessionContextTraceEvent;
 }) {
-  const { date, t } = usePiI18n();
+  const { date, t } = useI18n(diagnosticsUiTranslationBundle);
   const start =
     context?.start?.summary ?? (event.kind === "tool-execution-start" ? event : undefined);
   const end = context?.end?.summary ?? (event.kind === "tool-execution-end" ? event : undefined);
@@ -703,7 +705,7 @@ function ToolExecutionSummary({
   event: SessionContextTraceEvent;
   onViewChange?: (view: ContextTraceDetailView) => void;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const end = readyToolEnd(event, context);
   const status = end?.detail.isError
     ? t("extensions.contextTrace.failed")
@@ -762,7 +764,7 @@ function ToolExecutionDetailView({
   event: SessionContextTraceEvent;
   view: Exclude<ContextTraceDetailView, "summary" | "preview" | "raw" | "source">;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   switch (view) {
     case "payload":
       return (
@@ -798,7 +800,7 @@ function MessageList({
   capture: SessionContextTraceJsonCapture;
   roles?: readonly ContextTraceMessageRole[];
 }) {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(diagnosticsUiTranslationBundle);
   if (!Array.isArray(capture.value)) return <JsonCaptureView capture={capture} />;
   const groups = groupContextTraceMessages(capture.value);
   const visibleRoles = roles.filter((role) => groups[role].length > 0);
@@ -927,7 +929,7 @@ function systemPromptSourceScopeLabel(
 }
 
 function SystemPromptSourceMetadata({ source }: { source: SessionContextTraceSystemPromptSource }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const items: [string, ReactNode][] = [
     [t("extensions.contextTrace.fields.scope"), systemPromptSourceScopeLabel(t, source.scope)],
   ];
@@ -948,7 +950,7 @@ function SystemPromptSourceMetadata({ source }: { source: SessionContextTraceSys
 }
 
 function SystemPromptSourceView({ metadata, index }: { metadata: PromptMetadata; index: number }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const source = metadata.systemPromptSources?.[index];
   if (!source) {
     return <p className="text-muted-foreground p-3 text-xs">{t("extensions.contextTrace.none")}</p>;
@@ -970,7 +972,7 @@ function SystemPromptSourceView({ metadata, index }: { metadata: PromptMetadata;
 }
 
 function SkillsView({ metadata }: { metadata: PromptMetadata }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const skills = metadata.systemPromptOptions.skills;
   return (
     <Section title={t("extensions.contextTrace.skills")}>
@@ -1005,7 +1007,7 @@ function ToolSchemasView({
   activeOnly?: boolean;
   metadata: PromptMetadata;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const tools = activeOnly ? metadata.tools.filter((tool) => tool.active) : metadata.tools;
   return (
     <Section title={t("extensions.contextTrace.toolSchemas")}>
@@ -1049,7 +1051,7 @@ function ToolSchemasView({
 }
 
 function ToolSchemaView({ metadata, toolName }: { metadata: PromptMetadata; toolName: string }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const tool = metadata.tools.find((candidate) => candidate.name === toolName);
   if (!tool) {
     return <p className="text-muted-foreground p-3 text-xs">{t("extensions.contextTrace.none")}</p>;
@@ -1071,7 +1073,7 @@ function ToolSchemaView({ metadata, toolName }: { metadata: PromptMetadata; tool
 }
 
 function PromptCompositionDetail({ event }: { event: PromptCompositionEvent }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const detail = event.detail;
   const sourceOptions = detail.systemPromptOptions;
 
@@ -1137,7 +1139,7 @@ function CompactionDetail({
   event: CompactionTraceEvent;
   section?: "overview" | "summary" | "messages-to-summarize" | "turn-prefix";
 }) {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(diagnosticsUiTranslationBundle);
   const { preparation, result } = event.detail;
   const overview = (
     <>
@@ -1297,7 +1299,7 @@ function CompactionDetail({
 }
 
 function EventSpecificDetail({ event }: { event: SessionContextTraceEvent }) {
-  const { number, t } = usePiI18n();
+  const { number, t } = useI18n(diagnosticsUiTranslationBundle);
 
   switch (event.kind) {
     case "prompt-composition":
@@ -1505,7 +1507,7 @@ function FocusedContextDetail({
   event: SessionContextTraceEvent;
   focus: ContextTraceDetailFocus;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const metadata = promptMetadata(event);
   if (focus.type === "prompt-section" && metadata) {
     switch (focus.section) {
@@ -1647,7 +1649,7 @@ function EventOverview({
   event: SessionContextTraceEvent;
   summary: SessionContextTraceEventSummary;
 }) {
-  const { date, number, t } = usePiI18n();
+  const { date, number, t } = useI18n(diagnosticsUiTranslationBundle);
   const model =
     event.kind === "prompt-composition" ||
     event.kind === "context-snapshot" ||
@@ -1948,7 +1950,7 @@ function EventSourceDetail({
   event: SessionContextTraceEvent;
   focus?: ContextTraceDetailFocus;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
   const metadata = promptMetadata(event);
   if (!metadata) {
     return (
@@ -1998,7 +2000,7 @@ export function ContextTraceDetail({
   toolContext?: ContextTraceToolDetailContext;
   view?: ContextTraceDetailView;
 }) {
-  const { t } = usePiI18n();
+  const { t } = useI18n(diagnosticsUiTranslationBundle);
 
   if (!summary || detail.status === "idle") {
     return (

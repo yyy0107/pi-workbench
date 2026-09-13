@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   memo,
@@ -23,7 +25,7 @@ import {
 import { Button } from "@workbench/ui";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@workbench/ui";
 import { useCopyFeedback } from "@workbench/ui/hooks";
-import { useConversationI18n as useI18n } from "../use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 import { downloadBlob } from "@workbench/workspace-files/download";
 
@@ -190,7 +192,7 @@ function ImagePreview({
   src,
   ...props
 }: ImagePreviewProps) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const imgRef = useRef<HTMLImageElement>(null);
   const [loadedSrc, setLoadedSrc] = useState<string | undefined>(undefined);
   const [errorSrc, setErrorSrc] = useState<string | undefined>(undefined);
@@ -270,7 +272,7 @@ type ImageZoomProps = PropsWithChildren<{
 }>;
 
 function ImageZoom({ src, alt, children, className }: ImageZoomProps) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
 
   return (
     <Dialog>
@@ -305,7 +307,7 @@ function ImageZoom({ src, alt, children, className }: ImageZoomProps) {
 }
 
 function ImageGenerating({ className }: { className?: string }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
 
   return (
     <div
@@ -331,7 +333,7 @@ function ImageContentFilterError({
   reason?: string;
   stopped?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
 
   return (
     <div
@@ -372,7 +374,7 @@ export type ImageActionsProps = {
 };
 
 function RegenerateButton({ onRegenerate }: { onRegenerate: () => void | Promise<void> }) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const [isRegenerating, setIsRegenerating] = useState(false);
   return (
     <Button
@@ -397,7 +399,7 @@ function RegenerateButton({ onRegenerate }: { onRegenerate: () => void | Promise
 }
 
 function ImageActions({ part, onRegenerate, className }: ImageActionsProps) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const { isCopied, runCopy, status } = useCopyFeedback();
   const copyLabel = t(
     status === "copied"
@@ -442,7 +444,7 @@ function ImageActions({ part, onRegenerate, className }: ImageActionsProps) {
 }
 
 const ImageImpl: FC<ImageMessagePart> = (props) => {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const { image, filename, status } = props;
 
   return (

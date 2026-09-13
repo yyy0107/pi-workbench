@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   ArrowDownAZIcon,
@@ -19,7 +21,7 @@ import {
   SettingsDropdownRadioItem,
   SettingsDropdownTrigger,
 } from "@workbench/ui";
-import { useConversationI18n as useI18n } from "../use-i18n";
+
 import type { SettingsItemComponentProps } from "@workbench/extension-sdk";
 import { useAgentRuntime, useThreadList } from "@workbench/agent-runtime-client";
 import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
@@ -71,7 +73,7 @@ function ArchivedChatRowsSkeleton({ label, count }: { label: string; count: numb
 }
 
 export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
-  const { date: formatDate, locale, t } = useI18n();
+  const { date: formatDate, locale, t } = useI18n(conversationTranslationBundle);
   const runtime = useAgentRuntime();
   const threadActions = runtime.threadActions;
   const { workspaces } = useWorkspaceSelection();

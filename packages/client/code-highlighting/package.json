@@ -10,7 +10,7 @@
     ".": "./src/index.ts",
     "./engine": "./src/shiki-highlighter.ts",
     "./header": "./src/codex-code-header.tsx",
-    "./i18n": "./src/i18n.ts",
+    "./i18n": "./src/i18n/index.ts",
     "./styles.css": "./src/styles.css",
     "./editor.css": "./src/workbench-code-editor.css",
     "./diff.css": "./src/diff/reviewable-diff.css",

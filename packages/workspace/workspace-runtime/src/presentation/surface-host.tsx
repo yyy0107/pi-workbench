@@ -1,4 +1,6 @@
 "use client";
+import { workspaceTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import {
   Suspense,
@@ -10,7 +12,6 @@ import {
   type ReactNode,
 } from "react";
 
-import { useWorkspaceI18n } from "../use-i18n";
 import { cn } from "@workbench/ui/utils";
 import type {
   AnyWorkspaceSurfaceDefinition,
@@ -67,7 +68,7 @@ function SurfacePane({
   surfaces,
   tabbed = false,
 }: SurfacePaneProps) {
-  const { t, text } = useWorkspaceI18n();
+  const { t, text } = useI18n(workspaceTranslationBundle);
   const domIds = useWorkbenchDomIds();
   const controller = useRightWorkspace();
   const [retryTokens, setRetryTokens] = useState<Readonly<Record<string, number>>>({});
@@ -194,7 +195,7 @@ function SurfaceOwnerContext({
 }
 
 export function SurfaceHost({ isVisible = true }: { isVisible?: boolean }) {
-  const { text } = useWorkspaceI18n();
+  const { text } = useI18n(workspaceTranslationBundle);
   const domIds = useWorkbenchDomIds();
   const context = useWorkspaceContext();
   const state = useRightWorkspaceState((current) => current);

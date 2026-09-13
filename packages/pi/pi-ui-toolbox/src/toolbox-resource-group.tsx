@@ -1,8 +1,9 @@
 "use client";
+import { toolboxUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useId, useState, type ReactNode } from "react";
 import { Button } from "@workbench/ui";
-import { usePiI18n } from "./use-i18n";
 
 import type { ToolboxCapabilityItem } from "./toolbox-catalog";
 
@@ -15,7 +16,7 @@ export function ToolboxResourceGroup({
   query: string;
   renderItem(item: ToolboxCapabilityItem): ReactNode;
 }) {
-  const { locale, t } = usePiI18n();
+  const { locale, t } = useI18n(toolboxUiTranslationBundle);
   const listId = useId();
   const [expanded, setExpanded] = useState(false);
   const remaining = items.slice(6);

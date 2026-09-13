@@ -1,4 +1,6 @@
 "use client";
+import { fileViewTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { isMarkdownFile } from "@workbench/workspace-files/classification";
 
@@ -36,7 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@workbench/ui";
 import { Button } from "@workbench/ui";
-import { useFileViewI18n as useI18n } from "./use-i18n";
+
 import { useClipboardCopy } from "@workbench/ui/hooks";
 import { useWorkbenchSettingsResource } from "@workbench/settings-runtime";
 import { useExtensionErrorReporter } from "@workbench/extension-host";
@@ -106,7 +108,7 @@ function AvailableFileSurfaceHeader({
   context,
   isVisible,
 }: WorkspaceSurfaceProps<FileSurfaceParams>) {
-  const { t } = useI18n();
+  const { t } = useI18n(fileViewTranslationBundle);
   const hostClient = useWorkbenchRuntimeHostCapability();
   const { files } = useWorkspaceFileRuntime();
   const draftStore = useWorkspaceDraftStore();

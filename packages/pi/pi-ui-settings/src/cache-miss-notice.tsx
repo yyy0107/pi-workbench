@@ -1,4 +1,6 @@
 "use client";
+import { piSettingsUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { DatabaseZapIcon } from "lucide-react";
 import { useConversationNode } from "@workbench/agent-runtime-client";
@@ -6,11 +8,10 @@ import type { DataBlock } from "@workbench/agent-runtime-contracts/conversation"
 import { PI_CACHE_MISS_DATA_NAME } from "@workbench/pi-protocol/messages";
 import type { DataRendererComponent, MessageSlotContext } from "@workbench/extension-sdk";
 import { Button, Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@workbench/ui";
-import { usePiSettingsI18n as usePiI18n } from "./use-i18n";
 
 export function CacheMissAction({ messageId, role }: MessageSlotContext) {
   const node = useConversationNode(messageId);
-  const { t } = usePiI18n();
+  const { t } = useI18n(piSettingsUiTranslationBundle);
   if (role !== "assistant" || node?.kind !== "assistant") return null;
   const blocks = node.blocks.filter(
     (block): block is DataBlock => block.kind === "data" && block.name === PI_CACHE_MISS_DATA_NAME,
@@ -38,7 +39,7 @@ export function CacheMissAction({ messageId, role }: MessageSlotContext) {
 export const CacheMissBody: DataRendererComponent = () => null;
 
 export const CacheMissNotice: DataRendererComponent = ({ block, fallback }) => {
-  const { t, number } = usePiI18n();
+  const { t, number } = useI18n(piSettingsUiTranslationBundle);
   const data = block.data;
   if (
     !data ||

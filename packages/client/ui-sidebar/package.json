@@ -7,7 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./extension": "./src/extension.ts",
-    "./i18n": "./src/i18n.ts"
+    "./i18n": "./src/i18n/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",

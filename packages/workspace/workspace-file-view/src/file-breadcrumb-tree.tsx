@@ -1,4 +1,7 @@
 "use client";
+import { filesTranslationBundle } from "@workbench/workspace-files/i18n";
+import { fileViewTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { AlertCircleIcon, ChevronRightIcon, LoaderCircleIcon } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -7,8 +10,7 @@ import { useOpenerService } from "@workbench/workspace-runtime/react";
 import { Button, useToastManager } from "@workbench/ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@workbench/ui";
 import { ExplorerTree } from "@workbench/workspace-files/tree";
-import { useFilesI18n } from "@workbench/workspace-files/translations";
-import { useFileViewI18n as useI18n } from "./use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 import {
@@ -34,8 +36,8 @@ function fileName(path: string): string {
 }
 
 export function FileBreadcrumbTree({ surface, context }: WorkspaceSurfaceProps<FileSurfaceParams>) {
-  const { t } = useI18n();
-  const { t: treeT } = useFilesI18n();
+  const { t } = useI18n(fileViewTranslationBundle);
+  const { t: treeT } = useI18n(filesTranslationBundle);
   const notifications = useToastManager();
   const { files } = useWorkspaceFileRuntime();
   const openers = useOpenerService();

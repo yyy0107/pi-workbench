@@ -1,8 +1,9 @@
 "use client";
+import { terminalUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { TerminalIcon } from "lucide-react";
 
-import { useTerminalUiI18n as useI18n } from "./use-i18n";
 import { useRightWorkspace, useWorkspaceContext } from "@workbench/workspace-runtime/react";
 import { Button } from "@workbench/ui";
 
@@ -10,7 +11,7 @@ import { useTerminalLaunchContext } from "./terminal-target";
 import { openTerminal, TERMINAL_SURFACE_TITLE } from "./terminal-workspace-service";
 
 export function TerminalTrigger() {
-  const { t } = useI18n();
+  const { t } = useI18n(terminalUiTranslationBundle);
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const launch = useTerminalLaunchContext();

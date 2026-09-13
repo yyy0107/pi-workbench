@@ -1,4 +1,6 @@
 "use client";
+import { terminalUiTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
 
 import "@xterm/xterm/css/xterm.css";
 
@@ -35,7 +37,7 @@ import {
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 
 import { resolveWorkbenchShellOwner } from "@workbench/shell-context/dom";
-import { useTerminalUiI18n as useI18n } from "./use-i18n";
+
 import { useRightWorkspace } from "@workbench/workspace-runtime/react";
 import { useRuntimeConnection } from "@workbench/shell-context/runtime-connection";
 import { Button } from "@workbench/ui";
@@ -229,7 +231,7 @@ function terminalText(value: string): string {
 }
 
 export function TerminalSurface({ surface, isVisible }: WorkspaceSurfaceProps<TerminalTarget>) {
-  const { text } = useI18n();
+  const { text } = useI18n(terminalUiTranslationBundle);
 
   if (isTerminalTranscriptTarget(surface.params)) {
     return (
@@ -258,7 +260,7 @@ function TerminalTranscriptSurface({
   target: TerminalTranscriptTarget;
   isVisible: boolean;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(terminalUiTranslationBundle);
   const controller = useRightWorkspace();
   const runtimeConnection = useRuntimeConnection();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -597,7 +599,7 @@ function PtyTerminalSurface({
   target: TerminalPtyTarget;
   isVisible: boolean;
 }) {
-  const { t } = useI18n();
+  const { t } = useI18n(terminalUiTranslationBundle);
   const controller = useRightWorkspace();
   const runtimeConnection = useRuntimeConnection();
   const containerRef = useRef<HTMLDivElement>(null);

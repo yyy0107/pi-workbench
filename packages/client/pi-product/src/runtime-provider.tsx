@@ -1,4 +1,6 @@
 "use client";
+import { conversationTranslationBundle } from "@workbench/conversation/i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useCallback, useMemo, type ReactNode } from "react";
 
@@ -9,7 +11,6 @@ import {
   type WorkbenchRuntimeContributionsProviderProps,
 } from "@workbench/shell/application";
 import { useWorkbenchSettingsService } from "@workbench/settings-runtime";
-import { useConversationI18n as useI18n } from "@workbench/conversation/translations";
 
 import { createInstalledAgentRuntime } from "./installation";
 
@@ -21,7 +22,7 @@ function InstalledRuntimeContributions({ children }: WorkbenchRuntimeContributio
 
 /** Web selection point for the concrete Agent Runtime and its contribution bundle. */
 export function PiWorkbenchRuntimeProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const { t } = useI18n();
+  const { t } = useI18n(conversationTranslationBundle);
   const settings = useWorkbenchSettingsService();
   const copy = useMemo(
     () => ({

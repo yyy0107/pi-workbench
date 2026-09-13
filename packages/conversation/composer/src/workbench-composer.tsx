@@ -1,4 +1,7 @@
 "use client";
+import { composerTranslationBundle } from "./i18n";
+import { useI18n } from "@workbench/i18n";
+import type { CatalogTranslate } from "@workbench/i18n/runtime";
 
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
@@ -24,7 +27,7 @@ import {
   COMPOSER_CONVERSATION_MENTION_TYPE,
   COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
 } from "@workbench/core-contracts/composer";
-import { useComposerI18n as useI18n } from "./use-i18n";
+
 import { useWorkbenchBranding } from "@workbench/shell-context/presentation";
 import { cn } from "@workbench/ui/utils";
 import { useComposerCommandRegistry, useExtensionErrorReporter } from "@workbench/extension-host";
@@ -165,7 +168,7 @@ function suggestionHasParameterFields(
 
 function suggestionGroupLabel(
   group: WorkbenchComposerSuggestionGroup,
-  t: ReturnType<typeof useI18n>["t"],
+  t: CatalogTranslate<(typeof composerTranslationBundle.messages)["en-US"]>,
   runtimeName: string,
   count: number,
 ): string {
@@ -185,7 +188,7 @@ function suggestionGroupLabel(
 
 function commandSourceMeta(
   command: WorkbenchAgentCommand,
-  t: ReturnType<typeof useI18n>["t"],
+  t: CatalogTranslate<(typeof composerTranslationBundle.messages)["en-US"]>,
 ): string | undefined {
   if (command.kind === "builtin") return undefined;
   return t(`workbench.chat.composer.commandScopes.${command.source.scope}`);
@@ -193,7 +196,7 @@ function commandSourceMeta(
 
 function builtinCommandPresentation(
   command: WorkbenchAgentCommand,
-  t: ReturnType<typeof useI18n>["t"],
+  t: CatalogTranslate<(typeof composerTranslationBundle.messages)["en-US"]>,
 ): { label: string; description: string; argumentHint?: string } | undefined {
   if (command.kind !== "builtin") return undefined;
   switch (command.name) {
@@ -369,7 +372,10 @@ function ComposerSuggestionKeyboardPlugin({
   return null;
 }
 
-function composerErrorMessage(error: string, t: ReturnType<typeof useI18n>["t"]): string {
+function composerErrorMessage(
+  error: string,
+  t: CatalogTranslate<(typeof composerTranslationBundle.messages)["en-US"]>,
+): string {
   switch (error) {
     case "model-attachment-unsupported":
       return t("composer.errors.modelDoesNotSupportAttachments");
@@ -387,7 +393,7 @@ function composerErrorMessage(error: string, t: ReturnType<typeof useI18n>["t"])
 export function WorkbenchComposer({
   forceExistingThread = false,
 }: Readonly<{ forceExistingThread?: boolean }> = {}) {
-  const { t, text: localize } = useI18n();
+  const { t, text: localize } = useI18n(composerTranslationBundle);
   const { runtimeName } = useWorkbenchBranding();
   const runtime = useAgentRuntime();
   const session = useConversationSession();

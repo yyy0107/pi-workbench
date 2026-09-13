@@ -1,10 +1,12 @@
 "use client";
+import { codeHighlightingTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useLayoutEffect, useMemo, useRef, type ComponentProps } from "react";
 
 import { languageForFilename } from "../shiki-catalog";
 import { useWorkbenchHighlightedCode } from "../use-workbench-highlighted-code";
-import { useCodeHighlightingI18n } from "../use-i18n";
+
 import { cn } from "@workbench/ui/utils";
 
 import { DiffHeader, type DiffLine } from "./code-diff";
@@ -22,7 +24,7 @@ export interface DiffHunk {
 }
 
 export function DiffContextSummary({ count = 0 }: { count?: number }) {
-  const { t } = useCodeHighlightingI18n();
+  const { t } = useI18n(codeHighlightingTranslationBundle);
   if (count <= 0) return null;
   const label = t("codeHighlighting.unmodifiedLines", { count });
 

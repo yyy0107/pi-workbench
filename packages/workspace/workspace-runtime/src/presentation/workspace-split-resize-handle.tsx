@@ -1,8 +1,9 @@
 "use client";
+import { workspaceTranslationBundle } from "../i18n";
+import { useI18n } from "@workbench/i18n";
 
 import { useRef, type RefObject } from "react";
 
-import { useWorkspaceI18n } from "../use-i18n";
 import { MIN_AUXILIARY_SURFACE_WIDTH, auxiliarySurfaceSnapPoints } from "../index";
 import { useCollapsibleResize } from "@workbench/ui/resize";
 import { useRightWorkspace } from "../react";
@@ -17,7 +18,7 @@ export function WorkspaceSplitResizeHandle({
   maximum: number;
   paneRef: RefObject<HTMLElement | null>;
 }>) {
-  const { t } = useWorkspaceI18n();
+  const { t } = useI18n(workspaceTranslationBundle);
   const controller = useRightWorkspace();
   const finishResizeRef = useRef<(() => void) | null>(null);
   const resize = useCollapsibleResize({
