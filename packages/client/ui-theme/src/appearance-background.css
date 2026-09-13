@@ -3,6 +3,7 @@
 }
 
 [data-workbench-shell][data-workbench-appearance] {
+  color-scheme: light;
   --background: var(--workbench-theme-background);
   --workbench-canvas-background: var(--workbench-theme-background);
   --foreground: var(--workbench-theme-foreground);
@@ -142,6 +143,7 @@
 }
 
 [data-workbench-shell][data-workbench-appearance].dark {
+  color-scheme: dark;
   --workbench-theme-accent: var(--workbench-dark-accent);
   --workbench-theme-background: var(--workbench-dark-background);
   --workbench-theme-foreground: var(--workbench-dark-foreground);

@@ -42,8 +42,6 @@ export function MarkdownCodeBlock({
   const lang = normalizeShikiLanguage(language);
   const enabled = visible && lang !== "plaintext" && shouldHighlightWorkbenchCode(code);
   const [session, setSession] = useState<{
-    light: string;
-    dark: string;
     lang: string;
     stream: Awaited<ReturnType<typeof createWorkbenchCodeStream>>;
   } | null>(null);
@@ -70,7 +68,7 @@ export function MarkdownCodeBlock({
     void import("./shiki-highlighter")
       .then(({ createWorkbenchCodeStream }) => createWorkbenchCodeStream(lang, light, dark))
       .then((stream) => {
-        if (active) setSession({ light, dark, lang, stream });
+        if (active) setSession({ lang, stream });
       })
       .catch(() => {
         if (active) setSession(null);
@@ -81,20 +79,15 @@ export function MarkdownCodeBlock({
   }, [enabled, light, dark, lang]);
 
   const tokens = useMemo<WorkbenchHighlightedTokens | null>(() => {
-    if (
-      !enabled ||
-      !session ||
-      session.light !== light ||
-      session.dark !== dark ||
-      session.lang !== lang
-    )
-      return null;
+    if (!enabled || !session || session.lang !== lang) return null;
     try {
+      // Keep the current palette painted while the next theme loads. The new
+      // session replaces these tokens atomically instead of flashing plain text.
       return session.stream.update(code);
     } catch {
       return null;
     }
-  }, [enabled, session, light, dark, lang, code]);
+  }, [enabled, session, lang, code]);
 
   return (
     <div ref={root} data-markdown="code-block" data-language={language}>

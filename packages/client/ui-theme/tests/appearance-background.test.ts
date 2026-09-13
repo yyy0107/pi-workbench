@@ -58,6 +58,14 @@ test("appearance production effects and selectors contain no document-root owner
   assert.doesNotMatch(selectorSource, /:root/u);
   assert.doesNotMatch(selectorSource, /filter:\s*contrast\(/u);
   assert.match(selectorSource, /\[data-workbench-shell\]\[data-workbench-appearance\]/u);
+  assert.match(
+    selectorSource,
+    /\[data-workbench-shell\]\[data-workbench-appearance\]\s*\{[\s\S]*?color-scheme:\s*light;/u,
+  );
+  assert.match(
+    selectorSource,
+    /\[data-workbench-shell\]\[data-workbench-appearance\]\.dark\s*\{[\s\S]*?color-scheme:\s*dark;/u,
+  );
 });
 
 test("captures aliased surface colors before applying opacity to their source token", () => {
