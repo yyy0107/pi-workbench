@@ -812,10 +812,6 @@ export function ContextManagementSettingsItem({ sectionId, itemId }: SettingsIte
           </Button>
         </div>
       </div>
-
-      <p className="text-muted-foreground mt-3 text-xs leading-5">
-        {t("extensions.agentConfiguration.appliesAfterReload")}
-      </p>
     </div>
   );
 }
