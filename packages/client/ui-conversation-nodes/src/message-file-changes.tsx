@@ -80,7 +80,7 @@ function MessageFileChangeRow({
             text={displayPath}
             prefixChars={24}
             suffixChars={32}
-            className="min-w-0 shrink text-left text-muted-foreground"
+            className="min-w-0 shrink text-left text-muted-foreground/60"
           />
           <span className="ms-auto flex shrink-0 gap-1 text-sm tabular-nums">
             <span className="text-success-foreground">+{number(change.additions)}</span>
