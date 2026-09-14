@@ -31,11 +31,7 @@ import {
   type RunningIndicatorCatalog,
 } from "@workbench/shell-context/running-indicator";
 
-import {
-  WorkbenchMain,
-  resolveExpandedThreadWidth,
-  resolveThreadResponsiveLayout,
-} from "@workbench/shell-context/layout";
+import { WorkbenchMain, resolveThreadResponsiveLayout } from "@workbench/shell-context/layout";
 import { WorkbenchStatusbar } from "./statusbar";
 import {
   resolveRightWorkspacePresentation,
@@ -230,12 +226,17 @@ export function WorkbenchShell({
       // Sidebar drags own their open state; right-workspace drags still drive responsiveness.
       if (shell.dataset.sidebarResizing === "true" || conversationHidden) return;
 
+      const conversationHostWidth = conversationHost.getBoundingClientRect().width;
       const currentThreadWidth = Math.min(
         observedThreadRoot.getBoundingClientRect().width,
-        conversationHost.getBoundingClientRect().width,
+        conversationHostWidth,
       );
       const shellWidth = shell.getBoundingClientRect().width;
       const desktopSidebarParticipates = shellWidth >= MOBILE_BREAKPOINT;
+      const renderedSidebarWidth = Math.min(
+        sidebarWidth,
+        Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, Math.floor(shell.clientWidth / 2))),
+      );
       const sidebarOccupiedWidth = desktopSidebarParticipates
         ? (shell
             .querySelector<HTMLElement>('[data-slot="workbench-sidebar-layout"]')
@@ -247,6 +248,15 @@ export function WorkbenchShell({
       const workspaceOccupiedWidth = workspaceLayout?.getBoundingClientRect().width ?? 0;
       const workspaceAvailableWidth =
         workspaceLayout?.parentElement?.getBoundingClientRect().width ?? 0;
+      const navigationRailWidth =
+        shell.querySelector<HTMLElement>("[data-main-view-sidebar-rail]")?.getBoundingClientRect()
+          .width ?? 0;
+      // Compute the expanded budget from the outer frame, independently of either
+      // panel's animation. Preserve space occupied by panels inside the main view.
+      const expandedWorkspaceAvailableWidth = Math.max(
+        0,
+        shellWidth - navigationRailWidth - (desktopSidebarParticipates ? renderedSidebarWidth : 0),
+      );
       // Use the panel's final width so gutters and panel motion start together, instead of
       // changing the gutter target halfway through the panel's CSS transition.
       const workspaceWidth =
@@ -254,32 +264,22 @@ export function WorkbenchShell({
           ? 0
           : workspaceLayout?.dataset.resizing === "true"
             ? workspaceOccupiedWidth
-            : resolveProportionalPanelWidth(
-                Math.max(
-                  0,
-                  workspaceAvailableWidth - Math.max(0, sidebarWidth - sidebarOccupiedWidth),
-                ),
-                {
-                  share: Number(workspaceLayout?.dataset.panelShare ?? 0),
-                  minimum: MIN_RIGHT_WORKSPACE_WIDTH,
-                  remainingMinimum: MIN_CONVERSATION_WIDTH,
-                },
-              );
-      const expandedThreadWidth = resolveExpandedThreadWidth({
-        currentThreadWidth,
-        sidebarWidth,
-        sidebarOccupiedWidth,
-        workspaceWidth,
-        workspaceOccupiedWidth,
-      });
-      const layout =
-        expandedThreadWidth === undefined
-          ? undefined
-          : resolveThreadResponsiveLayout(expandedThreadWidth);
+            : resolveProportionalPanelWidth(expandedWorkspaceAvailableWidth, {
+                share: Number(workspaceLayout?.dataset.panelShare ?? 0),
+                minimum: MIN_RIGHT_WORKSPACE_WIDTH,
+                remainingMinimum: MIN_CONVERSATION_WIDTH,
+              });
+      const expandedThreadWidth = Math.max(
+        0,
+        expandedWorkspaceAvailableWidth -
+          workspaceWidth -
+          (conversationHostWidth - currentThreadWidth),
+      );
+      const layout = resolveThreadResponsiveLayout(expandedThreadWidth);
       if (!layout) return;
 
       const sidebarTargetWidth =
-        desktopSidebarParticipates && sidebarEffectivelyOpen ? sidebarWidth : 0;
+        desktopSidebarParticipates && sidebarEffectivelyOpen ? renderedSidebarWidth : 0;
       const indexWorkspaceWidth =
         workspacePresentation === "closed"
           ? 0
@@ -315,12 +315,19 @@ export function WorkbenchShell({
         current === nextConversationIndexHidden ? current : nextConversationIndexHidden,
       );
 
-      const nextSidebarAutoCollapsed =
-        desktopSidebarParticipates && sidebarOpen && layout.sidebarAutoCollapsed;
-      setSidebarAutoCollapsed((current) =>
-        current === nextSidebarAutoCollapsed ? current : nextSidebarAutoCollapsed,
+      setSidebarAutoCollapsed(
+        (current) =>
+          desktopSidebarParticipates &&
+          sidebarOpen &&
+          resolveThreadResponsiveLayout(expandedThreadWidth, current)!.sidebarAutoCollapsed,
       );
-      if (!nextSidebarAutoCollapsed) setSidebarAutoCollapseSuppressed(false);
+      if (
+        !desktopSidebarParticipates ||
+        !sidebarOpen ||
+        !resolveThreadResponsiveLayout(expandedThreadWidth, true)!.sidebarAutoCollapsed
+      ) {
+        setSidebarAutoCollapseSuppressed(false);
+      }
     };
 
     observer = new ResizeObserver(update);

@@ -95,11 +95,15 @@ export function resolveExpandedThreadWidth({
 
 export function resolveThreadResponsiveLayout(
   expandedThreadWidth: number,
+  sidebarAutoCollapsed = false,
 ): ThreadResponsiveLayout | undefined {
   if (!Number.isFinite(expandedThreadWidth)) return undefined;
 
   return {
     conversationIndexHidden: expandedThreadWidth <= THREAD_INDEX_HIDE_WIDTH_PX,
-    sidebarAutoCollapsed: expandedThreadWidth <= THREAD_SIDEBAR_AUTO_COLLAPSE_WIDTH_PX,
+    // Require one CSS pixel of spare room before restoring an auto-collapsed sidebar.
+    // Fractional layout measurements at the shared panel minimum must not reverse it.
+    sidebarAutoCollapsed:
+      expandedThreadWidth <= THREAD_SIDEBAR_AUTO_COLLAPSE_WIDTH_PX + (sidebarAutoCollapsed ? 1 : 0),
   };
 }

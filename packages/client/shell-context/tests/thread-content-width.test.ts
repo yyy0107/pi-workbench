@@ -38,6 +38,36 @@ test("collapses the sidebar only after the compact conversation reaches its thre
   });
 });
 
+test("does not reopen an auto-collapsed sidebar on fractional threshold noise", () => {
+  let collapsed = false;
+  for (const width of [340, 340.015625, 339.984375, 340.5, 341, 340]) {
+    collapsed = resolveThreadResponsiveLayout(width, collapsed)!.sidebarAutoCollapsed;
+    assert.equal(collapsed, true, `sidebar must stay collapsed at ${width}px`);
+  }
+
+  collapsed = resolveThreadResponsiveLayout(342, collapsed)!.sidebarAutoCollapsed;
+  assert.equal(collapsed, false);
+  assert.equal(resolveThreadResponsiveLayout(341, collapsed)!.sidebarAutoCollapsed, false);
+  assert.equal(resolveThreadResponsiveLayout(340, collapsed)!.sidebarAutoCollapsed, true);
+});
+
+test("restores the sidebar once closing the workspace releases enough room", () => {
+  let collapsed = true;
+  for (const workspaceOccupiedWidth of [420, 315.25, 210.5, 105.75, 0]) {
+    for (const sidebarOccupiedWidth of [0, 67.25, 134.5, 201.75, 268]) {
+      const expandedWidth = resolveExpandedThreadWidth({
+        currentThreadWidth: 1024 - sidebarOccupiedWidth - workspaceOccupiedWidth,
+        sidebarWidth: 268,
+        sidebarOccupiedWidth,
+        workspaceWidth: 0,
+        workspaceOccupiedWidth,
+      })!;
+      collapsed = resolveThreadResponsiveLayout(expandedWidth, collapsed)!.sidebarAutoCollapsed;
+      assert.equal(collapsed, false);
+    }
+  }
+});
+
 test("measures responsive stages against the width with the sidebar expanded", () => {
   assert.equal(
     resolveExpandedThreadWidth({
