@@ -142,6 +142,7 @@ export function WorkspaceTabs() {
   const previousTabLayouts = useRef<Map<string, TabLayout> | null>(null);
   const tabAnimations = useRef(new Map<string, Animation>());
   const tabWidthAnimations = useRef(new Map<string, Animation>());
+  const closingTabAnimations = useRef(new Map<string, Animation>());
   const tabTrailingSpaceAnimation = useRef<Animation | null>(null);
   const tabWidthLockStartedAt = useRef<number | null>(null);
   const tabWidthReleaseTimer = useRef<number | null>(null);
@@ -183,6 +184,7 @@ export function WorkspaceTabs() {
       window.clearTimeout(tabWidthReleaseTimer.current);
       tabWidthReleaseTimer.current = null;
     }
+    if (closingTabAnimations.current.size > 0) return;
     if (tabWidthLockStartedAt.current === null) return;
     tabWidthLockStartedAt.current = null;
 
@@ -314,6 +316,7 @@ export function WorkspaceTabs() {
       cancelTabWidthAnimations();
       if (list && hadScrollableOverflow) {
         const closedLayouts = closedSurfaceIds.flatMap((surfaceId) => {
+          if (closingTabAnimations.current.has(surfaceId)) return [];
           const layout = layouts.get(surfaceId);
           return layout ? [layout] : [];
         });
@@ -332,10 +335,57 @@ export function WorkspaceTabs() {
       }
       tabWidthLockStartedAt.current = performance.now();
 
-      close();
-      if (!holdWidthsForPointer) scheduleTabWidthRelease();
+      const finishClose = () => {
+        // The flex animation has already moved the neighbours into place.
+        previousTabLayouts.current = captureTabLayouts();
+        close();
+        if (list?.isConnected && (!holdWidthsForPointer || !list.matches(":hover"))) {
+          scheduleTabWidthRelease();
+        }
+      };
+      if (reduceMotion || !list) {
+        close();
+        if (!holdWidthsForPointer) scheduleTabWidthRelease();
+        return;
+      }
+
+      const gap = Number.parseFloat(getComputedStyle(list).columnGap) || 0;
+      const animations = closedSurfaceIds.flatMap((surfaceId) => {
+        const pendingAnimation = closingTabAnimations.current.get(surfaceId);
+        if (pendingAnimation) return [pendingAnimation.finished.catch(() => undefined)];
+        const element = tabElements.current.get(surfaceId);
+        const layout = layouts.get(surfaceId);
+        if (!element || !layout) return [];
+        // Shrink the real flex item so the strip and adjacent controls follow it.
+        // Clip the contents instead of scaling the title and icon.
+        element.inert = true;
+        element.style.setProperty("overflow", "hidden");
+        const animation = element.animate(
+          [
+            { flexBasis: `${layout.width}px`, minWidth: "0px", marginInlineEnd: "0px", opacity: 1 },
+            { flexBasis: "0px", minWidth: "0px", marginInlineEnd: `${-gap}px`, opacity: 0 },
+          ],
+          {
+            duration: TAB_LAYOUT_ANIMATION_DURATION_MS,
+            easing: "cubic-bezier(0.2, 0, 0, 1)",
+            fill: "forwards",
+          },
+        );
+        closingTabAnimations.current.set(surfaceId, animation);
+        return [animation.finished.catch(() => undefined)];
+      });
+      void Promise.all(animations).then(() => {
+        for (const surfaceId of closedSurfaceIds) closingTabAnimations.current.delete(surfaceId);
+        finishClose();
+      });
     },
-    [cancelTabAnimations, cancelTabWidthAnimations, captureTabLayouts, scheduleTabWidthRelease],
+    [
+      cancelTabAnimations,
+      cancelTabWidthAnimations,
+      captureTabLayouts,
+      reduceMotion,
+      scheduleTabWidthRelease,
+    ],
   );
   const requestCloseWithTabAnimation = useCallback(
     (closedSurfaceIds: readonly string[], close: () => void, holdWidthsForPointer: boolean) => {
@@ -611,6 +661,8 @@ export function WorkspaceTabs() {
       }
       cancelTabAnimations();
       cancelTabWidthAnimations();
+      for (const animation of closingTabAnimations.current.values()) animation.cancel();
+      closingTabAnimations.current.clear();
     };
   }, [
     cancelTabAnimations,
