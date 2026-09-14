@@ -6,8 +6,8 @@ import {
   type WorkspaceSurfaceDefinition,
 } from "@workbench/extension-sdk";
 
-import { SideChatHeader } from "./side-chat-header";
 import { SideChatThreadMenuItem } from "./side-chat-menu-item";
+import { SideChatPromoteButton } from "./side-chat-promote-button";
 import { SideChatRuntimeBridge } from "./side-chat-runtime-bridge";
 import {
   sideChatResourceKey,
@@ -29,7 +29,6 @@ export const sideChatSurfaceDefinition = {
   allowDuplicateResources: false,
   getResourceKey: sideChatResourceKey,
   getDefaultScope: (params) => ({ type: "thread", key: params.sourceSessionId }),
-  header: SideChatHeader,
   render: SideChatSurface,
   runtime: SideChatRuntimeBridge,
 } satisfies WorkspaceSurfaceDefinition<SideChatSurfaceParams>;
@@ -45,6 +44,11 @@ export const sideChatExtension = defineExtension({
       order: 40,
       component: SideChatThreadMenuItem,
     });
-    return [surface, threadMenu];
+    const promoteAction = context.slots.register("workspace.actions", {
+      id: "workbench.side-chat.promote",
+      order: 20,
+      component: SideChatPromoteButton,
+    });
+    return [surface, threadMenu, promoteAction];
   },
 });
