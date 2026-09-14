@@ -81,7 +81,7 @@ export function PiSettingsConfigurationMenu() {
           </span>
           <ChevronDownIcon aria-hidden="true" className="size-3.5" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="bottom" className="min-w-44">
+        <DropdownMenuContent align="end" side="bottom">
           <DropdownMenuItem onClick={() => void openDocument("pi")}>
             {t("extensions.settings.piConfigurationFile")}
           </DropdownMenuItem>

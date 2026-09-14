@@ -365,7 +365,7 @@ function ModelCatalogRowComponent({
                       </DropdownMenuTrigger>
                     </InputGroupAddon>
                   </InputGroup>
-                  <SettingsDropdownContent align="end" side="bottom" className="max-h-72 min-w-64">
+                  <SettingsDropdownContent align="end" side="bottom">
                     {!modelMenuOpen ? null : modelPickerLoading ? (
                       <div className="text-muted-foreground px-2.5 py-2 text-sm" role="status">
                         {t("extensions.modelConfig.fetchingAvailableModels")}
@@ -463,7 +463,7 @@ function ModelCatalogRowComponent({
                     </span>
                     <ChevronDownIcon className="text-muted-foreground" />
                   </SettingsDropdownTrigger>
-                  <SettingsDropdownContent align="end" className="w-60">
+                  <SettingsDropdownContent align="end">
                     <DropdownMenuRadioGroup
                       value={model.reasoning ? "" : "off"}
                       onValueChange={() => onUpdateModel(model.key, { reasoning: false })}

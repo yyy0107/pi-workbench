@@ -341,7 +341,6 @@ function AvailableModelSelector({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => mainViews.open(createSettingsMainViewRequest("model-config"))}
-            className="h-[var(--dropdown-control-height)] gap-2 px-2"
           >
             <SettingsIcon aria-hidden="true" />
             {t("extensions.modelSelector.manageModels")}

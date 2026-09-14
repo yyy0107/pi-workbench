@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderIcon, LoaderCircleIcon, SearchIcon, XIcon } from "lucide-react";
+import { FolderIcon, LoaderCircleIcon, XIcon } from "lucide-react";
 import type { ReactNode, Ref } from "react";
 
 import {
@@ -8,13 +8,13 @@ import {
   SearchableSelectorClear,
   SearchableSelectorContent,
   SearchableSelectorEmpty,
-  SearchableSelectorInput,
+  SearchableSelectorSearch,
   SearchableSelectorItem,
   SearchableSelectorList,
   SearchableSelectorTrigger,
 } from "./searchable-selector";
 import { cn } from "@workbench/ui/utils";
-import { selectorValidationErrorStyles, withTooltip } from "@workbench/ui";
+import { selectorValidationErrorStyles, withTooltip, type MenuLayoutOptions } from "@workbench/ui";
 
 export interface WorkspaceSelectorOption {
   id: string;
@@ -47,6 +47,8 @@ export function WorkspaceSelector({
   triggerRef,
   variant = "ghost",
   workspaces,
+  reserveScrollbarSpace = workspaces.length > 8,
+  limitHeight = true,
   onClear,
   onOpenChange,
   onValueChange,
@@ -66,7 +68,7 @@ export function WorkspaceSelector({
   onClear?(): void;
   onOpenChange?(open: boolean): void;
   onValueChange(workspaceId: string): void;
-}) {
+} & MenuLayoutOptions) {
   const clearable = canClear && selectedWorkspace !== undefined && !picking;
 
   return (
@@ -164,31 +166,26 @@ export function WorkspaceSelector({
         alignOffset={clearable ? -32 : 0}
         side="bottom"
         sideOffset={6}
-        className="grid max-h-[min(336px,var(--available-height))] w-80 max-w-[calc(100vw-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] rounded-2xl p-0 shadow-xl ring-1 ring-foreground/15"
+        reserveScrollbarSpace={reserveScrollbarSpace}
+        limitHeight={limitHeight}
       >
-        <div className="flex h-11 items-center gap-2 border-b px-3">
-          <SearchIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-          <SearchableSelectorInput
-            autoFocus
-            aria-label={labels.search}
-            placeholder={labels.searchPlaceholder}
-            autoComplete="off"
-            spellCheck={false}
-            className="h-full min-w-0 flex-1 border-0 px-0"
-          />
-        </div>
+        <SearchableSelectorSearch
+          autoFocus
+          aria-label={labels.search}
+          placeholder={labels.searchPlaceholder}
+          autoComplete="off"
+          spellCheck={false}
+        />
 
         <SearchableSelectorEmpty>{labels.noSearchResults}</SearchableSelectorEmpty>
-        <SearchableSelectorList className="min-h-0">
+        <SearchableSelectorList>
           {(workspace: WorkspaceSelectorOption) => (
-            <SearchableSelectorItem
-              key={workspace.id}
-              value={workspace}
-              className="min-h-9 gap-2.5 rounded-lg px-2.5 pe-9 text-sm"
-              title={workspace.rootPath}
-            >
+            <SearchableSelectorItem key={workspace.id} value={workspace} title={workspace.rootPath}>
               {workspace.icon ?? (
-                <FolderIcon aria-hidden="true" className="size-4 text-muted-foreground" />
+                <FolderIcon
+                  aria-hidden="true"
+                  className="size-(--icon-size-md) text-muted-foreground"
+                />
               )}
               <span className="min-w-0 flex-1">
                 <span className="block truncate">{workspace.name}</span>
@@ -202,7 +199,7 @@ export function WorkspaceSelector({
           )}
         </SearchableSelectorList>
 
-        {footer}
+        {footer ? <div className="shrink-0">{footer}</div> : null}
       </SearchableSelectorContent>
     </SearchableSelector>
   );

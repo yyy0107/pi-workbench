@@ -328,7 +328,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
               <span className="min-w-0 flex-1 truncate text-start">{selectedWorkspaceLabel}</span>
               <ChevronDownIcon className="text-muted-foreground size-3.5" />
             </SettingsDropdownTrigger>
-            <SettingsDropdownContent align="end" side="bottom" className="max-h-72">
+            <SettingsDropdownContent align="end" side="bottom">
               <DropdownMenuRadioGroup
                 value={workspaceFilter}
                 onValueChange={(value) => {

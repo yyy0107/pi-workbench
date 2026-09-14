@@ -105,7 +105,11 @@ function ReviewSurfaceHeaderContent({
           </span>
           <ChevronDownIcon />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-max" data-workspace-review="">
+        <DropdownMenuContent
+          data-workspace-review=""
+          reserveScrollbarSpace={false}
+          limitHeight={false}
+        >
           <DropdownMenuRadioGroup value={selection} onValueChange={select}>
             <DropdownMenuRadioItem value="unstaged">
               {t("extensions.workspaceReview.scope.unstaged")}

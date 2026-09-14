@@ -80,7 +80,7 @@ function AvailableSideChatThreadMenuItem({ threadId, closeMenu }: ThreadMenuSlot
   return (
     <>
       <DropdownMenuSeparator />
-      <DropdownMenuItem disabled={pending} className="gap-2.5 px-2.5" onClick={openSideChat}>
+      <DropdownMenuItem disabled={pending} onClick={openSideChat}>
         {pending ? (
           <LoaderCircleIcon aria-hidden="true" className="animate-spin" />
         ) : (

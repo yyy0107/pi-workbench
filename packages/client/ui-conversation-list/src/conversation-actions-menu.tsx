@@ -115,16 +115,10 @@ export function ConversationActionsMenu({
         >
           <MoreHorizontalIcon aria-hidden="true" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="start"
-          side="bottom"
-          sideOffset={4}
-          className="w-64 p-2 [&_[data-slot=dropdown-menu-item]]:min-h-[var(--dropdown-control-height)]"
-        >
+        <DropdownMenuContent align="start" side="bottom" sideOffset={4}>
           {threadActions.setPinned ? (
             <DropdownMenuItem
               disabled={pendingAction !== undefined}
-              className="gap-2.5 px-2.5"
               onClick={() => void togglePinned()}
             >
               {pendingAction === "pin" ? (
@@ -140,7 +134,6 @@ export function ConversationActionsMenu({
           {threadActions.rename ? (
             <DropdownMenuItem
               disabled={pendingAction !== undefined}
-              className="gap-2.5 px-2.5"
               onClick={() => {
                 setRenameTitle(title ?? "");
                 setRenameFailed(false);
@@ -154,7 +147,6 @@ export function ConversationActionsMenu({
           {threadActions.archive ? (
             <DropdownMenuItem
               disabled={pendingAction !== undefined}
-              className="gap-2.5 px-2.5"
               onClick={() => void archiveConversation()}
             >
               {pendingAction === "archive" ? (

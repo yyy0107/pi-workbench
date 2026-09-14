@@ -184,7 +184,7 @@ export function BrowserAddressBar({
           </InputGroupAddon>
         ) : null}
       </InputGroup>
-      <SearchableSelectorContent className="w-[max(var(--anchor-width),20rem)]">
+      <SearchableSelectorContent>
         <SearchableSelectorStatus>
           {t(
             loading

@@ -592,7 +592,6 @@ function ThreadTokenUsage() {
                           <SettingsDropdownRadioItem
                             key={mode}
                             value={mode}
-                            className="py-1 text-xs"
                             disabled={isRunning || contextPolicy.status === "saving" || !remoteId}
                           >
                             {t(`extensions.tokenUsage.contextBudgetModes.${mode}`)}

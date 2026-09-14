@@ -9,7 +9,6 @@ import {
   GitForkIcon,
   LoaderCircleIcon,
   PlusIcon,
-  SearchIcon,
   TriangleAlertIcon,
 } from "lucide-react";
 import {
@@ -23,7 +22,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import { Button } from "@workbench/ui";
+import { Button, menuItemBaseStyles } from "@workbench/ui";
 import {
   Dialog,
   DialogContent,
@@ -40,7 +39,7 @@ import {
   SearchableSelectorEmpty,
   SearchableSelectorGroup,
   SearchableSelectorGroupLabel,
-  SearchableSelectorInput,
+  SearchableSelectorSearch,
   SearchableSelectorItem,
   SearchableSelectorList,
   SearchableSelectorTrigger,
@@ -319,27 +318,26 @@ function GitBranchSelector({
           align="start"
           side="bottom"
           sideOffset={6}
-          className="grid max-h-[min(336px,var(--available-height))] w-80 max-w-[calc(100vw-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] rounded-2xl p-0 shadow-xl ring-1 ring-foreground/15"
+          reserveScrollbarSpace={repository.branches.length > 8}
         >
-          <div className="flex h-11 items-center gap-2 border-b px-3">
-            <SearchIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-            <SearchableSelectorInput
-              autoFocus
-              aria-label={t("extensions.gitBranch.searchLabel")}
-              placeholder={t("extensions.gitBranch.searchPlaceholder")}
-              autoComplete="off"
-              spellCheck={false}
-              className="h-full min-w-0 flex-1 border-0 px-0"
-            />
-          </div>
+          <SearchableSelectorSearch
+            autoFocus
+            aria-label={t("extensions.gitBranch.searchLabel")}
+            placeholder={t("extensions.gitBranch.searchPlaceholder")}
+            autoComplete="off"
+            spellCheck={false}
+          />
 
-          <div className="flex min-h-0 flex-col p-1">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             {!repository.branch && !query.trim() ? (
               <div
                 aria-disabled="true"
-                className="text-muted-foreground flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-sm opacity-70"
+                className={cn(menuItemBaseStyles, "mx-1 text-muted-foreground opacity-70")}
               >
-                <GitBranchIcon aria-hidden="true" className="size-4 text-muted-foreground" />
+                <GitBranchIcon
+                  aria-hidden="true"
+                  className="size-(--icon-size-md) text-muted-foreground"
+                />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{headLabel}</span>
                   {repository.changedFileCount > 0 ? (
@@ -357,27 +355,19 @@ function GitBranchSelector({
                 ? t("extensions.gitBranch.noSearchResults")
                 : t("extensions.gitBranch.noBranches")}
             </SearchableSelectorEmpty>
-            <SearchableSelectorList className="max-h-none min-h-0 flex-1 p-0">
+            <SearchableSelectorList>
               <SearchableSelectorGroup items={repository.branches}>
-                <SearchableSelectorGroupLabel className="px-2.5 py-1.5 text-sm">
+                <SearchableSelectorGroupLabel>
                   {t("extensions.gitBranch.branches")}
                 </SearchableSelectorGroupLabel>
                 <SearchableSelectorCollection>
                   {(branch: string) => {
                     const current = branch === repository.branch;
                     return (
-                      <SearchableSelectorItem
-                        key={branch}
-                        value={branch}
-                        disabled={busy}
-                        className={cn(
-                          "gap-2.5 rounded-lg px-2.5 pe-9 text-sm",
-                          current && repository.changedFileCount > 0 ? "min-h-14" : "min-h-9",
-                        )}
-                      >
+                      <SearchableSelectorItem key={branch} value={branch} disabled={busy}>
                         <GitBranchIcon
                           aria-hidden="true"
-                          className="size-4 text-muted-foreground"
+                          className="size-(--icon-size-md) text-muted-foreground"
                         />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate">{branch}</span>
@@ -392,7 +382,7 @@ function GitBranchSelector({
                         {switchingBranch === branch ? (
                           <LoaderCircleIcon
                             aria-hidden="true"
-                            className="absolute end-2 size-4 animate-spin motion-reduce:animate-none"
+                            className="absolute end-2 size-(--icon-size-md) animate-spin motion-reduce:animate-none"
                           />
                         ) : null}
                       </SearchableSelectorItem>
@@ -403,12 +393,12 @@ function GitBranchSelector({
             </SearchableSelectorList>
           </div>
 
-          <div className="border-t p-1">
+          <div className="shrink-0 border-t p-1">
             <Button
               type="button"
               variant="ghost"
               disabled={busy}
-              className="min-h-9 w-full justify-start gap-2.5 rounded-lg px-2.5 text-sm"
+              className={cn(menuItemBaseStyles, "h-auto w-full justify-start font-normal")}
               onClick={() => {
                 setMenuOpen(false);
                 setBranchName("");
@@ -416,21 +406,27 @@ function GitBranchSelector({
                 setCreateOpen(true);
               }}
             >
-              <PlusIcon aria-hidden="true" className="size-4 text-muted-foreground" />
+              <PlusIcon
+                aria-hidden="true"
+                className="size-(--icon-size-md) text-muted-foreground"
+              />
               {t("extensions.gitBranch.createAction")}
             </Button>
             <Button
               type="button"
               variant="ghost"
               disabled={busy}
-              className="min-h-9 w-full justify-start gap-2.5 rounded-lg px-2.5 text-sm"
+              className={cn(menuItemBaseStyles, "h-auto w-full justify-start font-normal")}
               onClick={() => {
                 setMenuOpen(false);
                 setGraphMounted(true);
                 setGraphOpen(true);
               }}
             >
-              <GitForkIcon aria-hidden="true" className="size-4 text-muted-foreground" />
+              <GitForkIcon
+                aria-hidden="true"
+                className="size-(--icon-size-md) text-muted-foreground"
+              />
               {t("extensions.gitBranch.graph.action")}
             </Button>
           </div>

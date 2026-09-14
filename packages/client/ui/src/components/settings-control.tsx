@@ -103,68 +103,23 @@ function SettingsDropdownTrigger({
   );
 }
 
-function SettingsDropdownContent({
-  className,
-  ...props
-}: React.ComponentProps<typeof DropdownMenuContent>) {
-  return (
-    <DropdownMenuContent
-      data-slot="settings-dropdown-content"
-      className={cn(
-        "w-max min-w-[max(12rem,var(--anchor-width))] max-w-[min(18rem,calc(100vw-2rem))] rounded-xl",
-        className,
-      )}
-      {...props}
-    />
-  );
+// Settings retain their trigger and semantic slots while using the shared menu profile.
+function SettingsDropdownContent(props: React.ComponentProps<typeof DropdownMenuContent>) {
+  return <DropdownMenuContent data-slot="settings-dropdown-content" {...props} />;
 }
 
-function SettingsDropdownItem({
-  className,
-  ...props
-}: React.ComponentProps<typeof DropdownMenuItem>) {
-  return (
-    <DropdownMenuItem
-      data-slot="settings-dropdown-item"
-      className={cn(
-        "min-h-[var(--button-height-default)] gap-2 px-2.5 pt-[var(--control-content-padding-block-default-start)] pb-[var(--control-content-padding-block-default-end)]",
-        className,
-      )}
-      {...props}
-    />
-  );
+function SettingsDropdownItem(props: React.ComponentProps<typeof DropdownMenuItem>) {
+  return <DropdownMenuItem data-slot="settings-dropdown-item" {...props} />;
 }
 
-function SettingsDropdownRadioItem({
-  className,
-  ...props
-}: React.ComponentProps<typeof DropdownMenuRadioItem>) {
-  return (
-    <DropdownMenuRadioItem
-      data-slot="settings-dropdown-radio-item"
-      className={cn(
-        "min-h-[var(--button-height-default)] gap-2 pt-[var(--control-content-padding-block-default-start)] pr-8 pb-[var(--control-content-padding-block-default-end)] pl-2.5",
-        className,
-      )}
-      {...props}
-    />
-  );
+function SettingsDropdownRadioItem(props: React.ComponentProps<typeof DropdownMenuRadioItem>) {
+  return <DropdownMenuRadioItem data-slot="settings-dropdown-radio-item" {...props} />;
 }
 
-function SettingsDropdownCheckboxItem({
-  className,
-  ...props
-}: React.ComponentProps<typeof DropdownMenuCheckboxItem>) {
-  return (
-    <DropdownMenuCheckboxItem
-      data-slot="settings-dropdown-checkbox-item"
-      className={cn(
-        "min-h-[var(--button-height-default)] gap-2 pt-[var(--control-content-padding-block-default-start)] pr-8 pb-[var(--control-content-padding-block-default-end)] pl-2.5",
-        className,
-      )}
-      {...props}
-    />
-  );
+function SettingsDropdownCheckboxItem(
+  props: React.ComponentProps<typeof DropdownMenuCheckboxItem>,
+) {
+  return <DropdownMenuCheckboxItem data-slot="settings-dropdown-checkbox-item" {...props} />;
 }
 
 export {

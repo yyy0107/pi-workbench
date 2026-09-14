@@ -65,7 +65,7 @@ export function CommitSelection({
           {value ? ` · ${value.slice(0, 8)}` : ""}
         </span>
       </DropdownMenuTrigger>
-      <DropdownMenuContent data-workspace-review="" className="max-h-80 max-w-96 overflow-y-auto">
+      <DropdownMenuContent data-workspace-review="">
         <DropdownMenuRadioGroup value={value ?? ""} onValueChange={onChange}>
           {commits.map((commit) => (
             <DropdownMenuRadioItem key={commit.hash} value={commit.hash} title={commit.subject}>

@@ -340,11 +340,7 @@ export function SelectControl<Value extends string | number>({
         <span className="min-w-0 truncate">{optionLabel(value)}</span>
         <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
       </SettingsDropdownTrigger>
-      <SettingsDropdownContent
-        align="end"
-        side="bottom"
-        className="max-h-[min(20rem,var(--available-height))]"
-      >
+      <SettingsDropdownContent align="end" side="bottom">
         {options.map((option) => (
           <SettingsDropdownItem key={option} onClick={() => onChange(option)}>
             <span className="min-w-0 flex-1">{optionLabel(option)}</span>
@@ -499,7 +495,7 @@ export function AnimatedPreviewSelect<Value extends string>({
         )}
         <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
       </SettingsDropdownTrigger>
-      <SettingsDropdownContent align="end" side="bottom" className="min-w-64">
+      <SettingsDropdownContent align="end" side="bottom">
         <DropdownMenuRadioGroup
           value={value}
           aria-label={label}

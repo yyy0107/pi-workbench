@@ -71,11 +71,7 @@ function LocaleSelector({ compact = false }: { compact?: boolean }) {
           </>
         ) : null}
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align={compact ? "end" : "start"}
-        side={compact ? "bottom" : "top"}
-        className="w-48"
-      >
+      <DropdownMenuContent align={compact ? "end" : "start"} side={compact ? "bottom" : "top"}>
         <DropdownMenuRadioGroup
           value={locale}
           aria-label={selectLanguageLabel}
@@ -84,11 +80,7 @@ function LocaleSelector({ compact = false }: { compact?: boolean }) {
           }}
         >
           {SUPPORTED_LOCALES.map((option) => (
-            <DropdownMenuRadioItem
-              key={option}
-              value={option}
-              className="min-h-[var(--dropdown-control-height)] px-2.5 pt-[var(--control-content-padding-block-default-start)] pb-[var(--control-content-padding-block-default-end)]"
-            >
+            <DropdownMenuRadioItem key={option} value={option}>
               {localeLabel(option)}
             </DropdownMenuRadioItem>
           ))}

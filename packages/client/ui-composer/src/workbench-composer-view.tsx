@@ -353,38 +353,22 @@ export function ComposerAddMenuView({
           </TooltipIconButton>
         }
       />
-      <DropdownMenuContent
-        data-workbench-composer-popup=""
-        align="start"
-        side="top"
-        sideOffset={8}
-        className="w-64 p-1.5"
-      >
-        <DropdownMenuItem
-          className="h-[var(--dropdown-control-height)] gap-2.5 px-2.5"
-          disabled={!attachmentsEnabled}
-          onClick={onChooseAttachment}
-        >
+      <DropdownMenuContent data-workbench-composer-popup="" align="start" side="top" sideOffset={8}>
+        <DropdownMenuItem disabled={!attachmentsEnabled} onClick={onChooseAttachment}>
           <PaperclipIcon
             aria-hidden="true"
             className="text-muted-foreground aui-composer-icon-size-default"
           />
           <span>{labels.attachment}</span>
         </DropdownMenuItem>
-        <DropdownMenuItem
-          className="h-[var(--dropdown-control-height)] gap-2.5 px-2.5"
-          onClick={() => onInsertTrigger("@")}
-        >
+        <DropdownMenuItem onClick={() => onInsertTrigger("@")}>
           <AtSignIcon
             aria-hidden="true"
             className="text-muted-foreground aui-composer-icon-size-default"
           />
           <span>{labels.context}</span>
         </DropdownMenuItem>
-        <DropdownMenuItem
-          className="h-[var(--dropdown-control-height)] gap-2.5 px-2.5"
-          onClick={() => onInsertTrigger("/")}
-        >
+        <DropdownMenuItem onClick={() => onInsertTrigger("/")}>
           <SquareSlashIcon
             aria-hidden="true"
             className="text-muted-foreground aui-composer-icon-size-default"

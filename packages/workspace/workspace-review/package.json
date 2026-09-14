@@ -24,6 +24,7 @@
     "@workbench/markdown": "workspace:*",
     "@workbench/ui": "workspace:*",
     "@workbench/ui-file-presentation": "workspace:*",
+    "@workbench/ui-selectors": "workspace:*",
     "@workbench/ui-workspace": "workspace:*",
     "@workbench/workspace-files": "workspace:*",
     "diff": "8.0.4",

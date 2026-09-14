@@ -356,7 +356,7 @@ export function PromptUseDialog({
                 </span>
                 <ChevronDownIcon aria-hidden="true" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="max-h-64 overflow-y-auto">
+              <DropdownMenuContent>
                 <DropdownMenuRadioGroup value={destination} onValueChange={setDestination}>
                   {draftAvailable ? (
                     <DropdownMenuRadioItem value={`draft:${current.sessionId}`}>

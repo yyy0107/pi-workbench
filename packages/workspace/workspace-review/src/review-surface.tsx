@@ -4,13 +4,14 @@ import { reviewTranslationBundle } from "./i18n";
 import { useI18n } from "@workbench/i18n";
 
 import {
+  ArrowRightIcon,
   CheckIcon,
   ChevronDownIcon,
-  ChevronRightIcon,
   ChevronUpIcon,
   CopyIcon,
   FileCode2Icon,
   FileDiffIcon,
+  GitBranchIcon,
 } from "lucide-react";
 import {
   memo,
@@ -39,14 +40,21 @@ import {
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   useToastManager,
   PathEllipsis,
 } from "@workbench/ui";
+import {
+  SearchableSelector,
+  SearchableSelectorCollection,
+  SearchableSelectorContent,
+  SearchableSelectorEmpty,
+  SearchableSelectorGroup,
+  SearchableSelectorGroupLabel,
+  SearchableSelectorSearch,
+  SearchableSelectorItem,
+  SearchableSelectorList,
+  SearchableSelectorTrigger,
+} from "@workbench/ui-selectors";
 import { useClipboardCopy } from "@workbench/ui/hooks";
 import { FileTypeIcon } from "@workbench/ui-file-presentation/icons";
 import { workspaceAbsolutePath } from "@workbench/workspace-files";
@@ -468,38 +476,58 @@ function ReviewComparison({ surface, reviewRevision }: ReviewProps & { reviewRev
   return (
     <section data-workspace-review="" className="flex h-full min-h-0 flex-col text-foreground">
       {request.scope === "branch" && (
-        <div className="flex min-w-0 items-center border-b border-border px-2 py-1">
-          <span
-            className="min-w-0 truncate text-xs text-muted-foreground"
-            title={repository?.branch}
-          >
+        <div className="flex min-w-0 items-center gap-2 border-b border-border px-3 py-1 text-sm text-muted-foreground">
+          <span className="min-w-0 truncate" title={repository?.branch}>
             {repository?.branch}
           </span>
-          <ChevronRightIcon
-            aria-hidden
-            className="size-(--icon-size-sm) shrink-0 text-muted-foreground"
-          />
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<Button variant="ghost" className="min-w-0 shrink text-xs" />}
+          <ArrowRightIcon aria-hidden className="size-(--icon-size-sm) shrink-0" />
+          <SearchableSelector
+            items={repository?.branches ?? []}
+            value={request.revision ?? null}
+            onValueChange={(revision) => {
+              if (revision) reveal({ ...surface.params, revision });
+            }}
+          >
+            <SearchableSelectorTrigger
+              className="min-w-0 shrink border-0 [background:transparent] px-1 font-normal text-muted-foreground"
               aria-label={t("extensions.workspaceReview.compareBranch")}
+              title={request.revision}
             >
               <span className="truncate">{request.revision}</span>
-              <ChevronDownIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent data-workspace-review="" className="max-h-80 overflow-y-auto">
-              <DropdownMenuRadioGroup
-                value={request.revision}
-                onValueChange={(revision) => reveal({ ...surface.params, revision })}
-              >
-                {repository?.branches.map((branch) => (
-                  <DropdownMenuRadioItem key={branch} value={branch}>
-                    {branch}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </SearchableSelectorTrigger>
+            <SearchableSelectorContent
+              data-workspace-review=""
+              reserveScrollbarSpace={(repository?.branches.length ?? 0) > 8}
+            >
+              <SearchableSelectorSearch
+                aria-label={t("extensions.workspaceReview.branchSearch")}
+                placeholder={t("extensions.workspaceReview.branchSearch")}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <SearchableSelectorEmpty>
+                {t("extensions.workspaceReview.noMatchingBranches")}
+              </SearchableSelectorEmpty>
+              <SearchableSelectorList>
+                <SearchableSelectorGroup items={repository?.branches ?? []}>
+                  <SearchableSelectorGroupLabel>
+                    {t("extensions.workspaceReview.branches")}
+                  </SearchableSelectorGroupLabel>
+                  <SearchableSelectorCollection>
+                    {(branch: string) => (
+                      <SearchableSelectorItem key={branch} value={branch} title={branch}>
+                        <GitBranchIcon
+                          aria-hidden
+                          className="size-(--icon-size-md) text-muted-foreground"
+                        />
+                        <span className="min-w-0 flex-1 truncate">{branch}</span>
+                      </SearchableSelectorItem>
+                    )}
+                  </SearchableSelectorCollection>
+                </SearchableSelectorGroup>
+              </SearchableSelectorList>
+            </SearchableSelectorContent>
+          </SearchableSelector>
         </div>
       )}
       {isCommit && (
@@ -542,9 +570,9 @@ function ReviewComparison({ surface, reviewRevision }: ReviewProps & { reviewRev
             {!query.loading && !query.error && repository?.files.length === 0 && (
               <div
                 role="status"
-                className="flex flex-col items-center gap-2 p-6 text-center text-sm text-muted-foreground"
+                className="flex min-h-full flex-col items-center justify-center gap-3 p-6 text-center text-base text-muted-foreground"
               >
-                <FileDiffIcon aria-hidden className="size-(--icon-size-lg)" />
+                <FileDiffIcon aria-hidden className="size-(--icon-size-xxl) shrink-0" />
                 {t(
                   repository.unrecorded
                     ? "extensions.workspaceReview.unrecorded"

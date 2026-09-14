@@ -641,7 +641,7 @@ export function AutomationTaskForm({
                           </Button>
                         }
                       />
-                      <DropdownMenuContent align="end" className="min-w-44 p-1.5">
+                      <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           disabled={!automation || Boolean(pendingAction)}
                           onClick={() => void setTaskEnabled(!automation?.enabled)}
@@ -1039,7 +1039,7 @@ export function AutomationTaskForm({
                                     </Button>
                                   }
                                 />
-                                <DropdownMenuContent align="end" className="min-w-40 p-1.5">
+                                <DropdownMenuContent align="end">
                                   <DropdownMenuItem
                                     onClick={() => {
                                       mainViews.close();

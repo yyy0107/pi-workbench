@@ -167,10 +167,7 @@ export function SelectorDropdownContent({
 }: React.ComponentProps<typeof DropdownMenuContent>) {
   return (
     <DropdownMenuContent
-      className={cn(
-        "w-72 min-w-0 max-w-[calc(100vw-8rem)] data-open:zoom-in-100 data-closed:zoom-out-100",
-        className,
-      )}
+      className={cn("data-open:zoom-in-100 data-closed:zoom-out-100", className)}
       style={{
         animationDuration: `${SELECTOR_DROPDOWN_REVEAL_DURATION_MS}ms`,
         animationDelay: "0ms",

@@ -274,7 +274,7 @@ const WorkspaceDirectorySection = memo(function WorkspaceDirectorySection({
                 >
                   <MoreHorizontalIcon />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="sidebar-menu w-max">
+                <DropdownMenuContent align="end" className="sidebar-menu">
                   <NewThreadButton
                     workspaceId={directory.id}
                     variant="menu"

@@ -1,11 +1,23 @@
 "use client";
 
 import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
-import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, SearchIcon } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@workbench/ui/utils";
-import { useWorkbenchPortalContainer, withTooltip } from "@workbench/ui";
+import {
+  menuItemBaseStyles,
+  menuScrollAreaStyles,
+  menuSurfaceStyles,
+  useWorkbenchPortalContainer,
+  withTooltip,
+  type MenuLayoutOptions,
+} from "@workbench/ui";
+
+const SelectorLayoutContext = React.createContext<Required<MenuLayoutOptions>>({
+  reserveScrollbarSpace: false,
+  limitHeight: true,
+});
 
 /**
  * Searchable single- or multi-value selector backed by Base UI Combobox.
@@ -58,8 +70,22 @@ function SearchableSelectorInput({ className, ...props }: ComboboxPrimitive.Inpu
   );
 }
 
+/** Fixed search row; the adjacent list owns scrolling. */
+function SearchableSelectorSearch({ className, ...props }: ComboboxPrimitive.Input.Props) {
+  return (
+    <div className="flex shrink-0 items-center gap-2 border-b border-border px-3">
+      <SearchIcon aria-hidden className="size-(--icon-size-md) shrink-0 text-muted-foreground" />
+      <SearchableSelectorInput
+        className={cn("min-w-0 flex-1 border-0 px-0", className)}
+        {...props}
+      />
+    </div>
+  );
+}
+
 /** Popup props plus the commonly configured anchor-positioning options. */
 type SearchableSelectorContentProps = ComboboxPrimitive.Popup.Props &
+  MenuLayoutOptions &
   Pick<ComboboxPrimitive.Positioner.Props, "align" | "alignOffset" | "side" | "sideOffset">;
 
 function SearchableSelectorContent({
@@ -67,38 +93,48 @@ function SearchableSelectorContent({
   alignOffset = 0,
   side = "bottom",
   sideOffset = 4,
+  reserveScrollbarSpace = false,
+  limitHeight = true,
   className,
   ...props
 }: SearchableSelectorContentProps) {
   const workbenchContainer = useWorkbenchPortalContainer();
   return (
-    <ComboboxPrimitive.Portal container={workbenchContainer}>
-      <ComboboxPrimitive.Positioner
-        className="isolate z-50 outline-none"
-        align={align}
-        alignOffset={alignOffset}
-        side={side}
-        sideOffset={sideOffset}
-      >
-        <ComboboxPrimitive.Popup
-          data-slot="searchable-selector-content"
-          className={cn(
-            "z-50 max-h-(--available-height) min-w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) overflow-clip rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 outline-none data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
-            className,
-          )}
-          {...props}
-        />
-      </ComboboxPrimitive.Positioner>
-    </ComboboxPrimitive.Portal>
+    <SelectorLayoutContext.Provider value={{ reserveScrollbarSpace, limitHeight }}>
+      <ComboboxPrimitive.Portal container={workbenchContainer}>
+        <ComboboxPrimitive.Positioner
+          className="isolate z-50 outline-none"
+          align={align}
+          alignOffset={alignOffset}
+          side={side}
+          sideOffset={sideOffset}
+        >
+          <ComboboxPrimitive.Popup
+            data-slot="searchable-selector-content"
+            className={cn(
+              menuSurfaceStyles,
+              "flex flex-col overflow-clip data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
+              !limitHeight && "max-h-none",
+              className,
+            )}
+            {...props}
+          />
+        </ComboboxPrimitive.Positioner>
+      </ComboboxPrimitive.Portal>
+    </SelectorLayoutContext.Provider>
   );
 }
 
 function SearchableSelectorList({ className, ...props }: ComboboxPrimitive.List.Props) {
+  const { reserveScrollbarSpace, limitHeight } = React.useContext(SelectorLayoutContext);
   return (
     <ComboboxPrimitive.List
       data-slot="searchable-selector-list"
       className={cn(
-        "max-h-72 overflow-y-auto overscroll-contain p-1 scroll-py-1 empty:p-0",
+        menuScrollAreaStyles,
+        "flex-1 p-1 scroll-py-1 empty:p-0",
+        limitHeight ? "max-h-72" : "max-h-none",
+        reserveScrollbarSpace && "[scrollbar-gutter:stable]",
         className,
       )}
       {...props}
@@ -145,7 +181,8 @@ function SearchableSelectorItem({ className, children, ...props }: ComboboxPrimi
     <ComboboxPrimitive.Item
       data-slot="searchable-selector-item"
       className={cn(
-        "relative flex cursor-default items-center gap-2 rounded-md px-2 pt-[var(--control-content-padding-block-compact-start)] pe-8 pb-[var(--control-content-padding-block-compact-end)] text-sm leading-[var(--control-text-line-height)]! outline-hidden select-none data-highlighted:[background:var(--control-state-background-selected)] data-highlighted:[color:var(--control-state-foreground-selected)] data-highlighted:**:[color:var(--control-state-foreground-selected)] data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--icon-size-md)]",
+        menuItemBaseStyles,
+        "pe-8 data-highlighted:[background:var(--control-state-background-selected)] data-highlighted:[color:var(--control-state-foreground-selected)] data-highlighted:**:[color:var(--control-state-foreground-selected)]",
         className,
       )}
       {...props}
@@ -211,6 +248,7 @@ export {
   SearchableSelectorItem,
   SearchableSelectorItemIndicator,
   SearchableSelectorList,
+  SearchableSelectorSearch,
   SearchableSelectorStatus,
   SearchableSelectorTrigger,
   SearchableSelectorValue,

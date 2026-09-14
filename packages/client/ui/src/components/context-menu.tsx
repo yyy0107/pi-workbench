@@ -3,7 +3,12 @@
 import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu";
 
 import { cn } from "../../lib/utils";
-import { menuItemStyles, menuPopupStyles, menuSeparatorStyles } from "./menu-styles";
+import {
+  menuItemStyles,
+  menuPopupStyles,
+  menuSeparatorStyles,
+  type MenuLayoutOptions,
+} from "./menu-styles";
 import { useWorkbenchPortalContainer } from "./workbench-portal-container";
 
 function ContextMenu({ ...props }: ContextMenuPrimitive.Root.Props) {
@@ -14,14 +19,24 @@ function ContextMenuTrigger({ ...props }: ContextMenuPrimitive.Trigger.Props) {
   return <ContextMenuPrimitive.Trigger data-slot="context-menu-trigger" {...props} />;
 }
 
-function ContextMenuContent({ className, ...props }: ContextMenuPrimitive.Popup.Props) {
+function ContextMenuContent({
+  className,
+  reserveScrollbarSpace = false,
+  limitHeight = true,
+  ...props
+}: ContextMenuPrimitive.Popup.Props & MenuLayoutOptions) {
   const workbenchContainer = useWorkbenchPortalContainer();
   return (
     <ContextMenuPrimitive.Portal container={workbenchContainer}>
       <ContextMenuPrimitive.Positioner className="isolate z-50 outline-none">
         <ContextMenuPrimitive.Popup
           data-slot="context-menu-content"
-          className={cn(menuPopupStyles, "min-w-36", className)}
+          className={cn(
+            menuPopupStyles,
+            reserveScrollbarSpace && "[scrollbar-gutter:stable]",
+            !limitHeight && "max-h-none",
+            className,
+          )}
           {...props}
         />
       </ContextMenuPrimitive.Positioner>

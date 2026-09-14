@@ -36,7 +36,6 @@ export function ContextTraceTrigger({ threadId: sessionId, closeMenu }: ThreadMe
 
   return (
     <DropdownMenuItem
-      className="gap-2.5 px-2.5"
       aria-controls={domIds.rightWorkspace}
       aria-expanded={contextTraceOpen}
       aria-label={label}

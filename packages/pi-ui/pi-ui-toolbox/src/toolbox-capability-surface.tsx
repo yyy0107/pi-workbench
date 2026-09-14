@@ -1197,13 +1197,13 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
                     className="size-(--icon-size-sm) shrink-0 opacity-70"
                   />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" side="bottom" className="w-72">
+                <DropdownMenuContent align="start" side="bottom">
                   <DropdownMenuGroup>
                     <DropdownMenuLabel>
                       {t("extensions.toolbox.packages.installLocation")}
                     </DropdownMenuLabel>
                     <DropdownMenuItem
-                      className="items-start py-2"
+                      className="items-start"
                       onClick={() => selectInstallTarget({ scope: "user" })}
                     >
                       <UserRoundIcon aria-hidden="true" className="mt-0.5" />
@@ -1236,7 +1236,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger
                       disabled={workspaces.length === 0}
-                      className="items-start py-2 data-disabled:pointer-events-none data-disabled:opacity-50"
+                      className="items-start data-disabled:pointer-events-none data-disabled:opacity-50"
                     >
                       <FolderIcon aria-hidden="true" className="mt-0.5" />
                       <span className="min-w-0 flex-1">
@@ -1252,7 +1252,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
                         </span>
                       </span>
                     </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-72">
+                    <DropdownMenuSubContent>
                       <DropdownMenuGroup>
                         <DropdownMenuLabel>
                           {t("extensions.toolbox.packages.installLocationProjects")}
@@ -1263,7 +1263,7 @@ function OtherCapabilityDetails({ params }: { params: ToolboxCapabilitySurfacePa
                           return (
                             <DropdownMenuItem
                               key={workspace.id}
-                              className="items-start py-2"
+                              className="items-start"
                               onClick={() =>
                                 selectInstallTarget({
                                   scope: "project",

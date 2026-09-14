@@ -4,6 +4,7 @@ import { Button, Collapsible, CollapsibleTrigger, CollapsibleContent } from "@wo
 import { reviewTranslationBundle } from "./i18n";
 import { reviewContextSections } from "../lib/review-context";
 import { memo, useMemo, useState, type ReactNode } from "react";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import type { WorkbenchHighlightedTokens } from "@workbench/code-highlighting/engine";
 import { tokenStyle } from "@workbench/code-highlighting";
 import { DiffContextSummary, numberedHunkLines, type DiffHunk } from "@workbench/code-highlighting";
@@ -61,6 +62,11 @@ function ReviewContextLines({ count, children }: { count: number; children: () =
             />
           }
         >
+          {open ? (
+            <ChevronDownIcon aria-hidden className="size-(--icon-size-sm)" />
+          ) : (
+            <ChevronRightIcon aria-hidden className="size-(--icon-size-sm)" />
+          )}
           {t("extensions.workspaceReview.unmodifiedLines", { count })}
         </CollapsibleTrigger>
       </div>

@@ -487,7 +487,7 @@ function AvailableFileSurfaceHeader({
                   >
                     <ChevronDownIcon aria-hidden="true" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-max max-w-(--available-width)">
+                  <DropdownMenuContent align="end">
                     <DropdownMenuGroup>
                       <DropdownMenuLabel>{menuLabel}</DropdownMenuLabel>
                       {id === "browser" ? (

@@ -66,6 +66,9 @@ export const messages = {
       unrecorded:
         "No recorded snapshots for this response or session. Snapshots are captured for new Agent runs.",
       compareBranch: "Compare with branch (merge base)",
+      branchSearch: "Search branches",
+      branches: "Branches",
+      noMatchingBranches: "No matching branches.",
       unsupported: "This comparison mode is not supported. Choose another scope.",
       binary: "Binary file — textual diff is unavailable.",
       binaryShort: "Binary",

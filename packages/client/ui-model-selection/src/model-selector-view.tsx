@@ -14,6 +14,7 @@ import {
   CollapsibleTrigger,
   Input,
   collapsePanel,
+  menuScrollAreaStyles,
   selectorValidationErrorStyles,
   withTooltip,
 } from "@workbench/ui";
@@ -70,7 +71,6 @@ const ModelMenuItem = memo(function ModelMenuItem({
       closeOnClick={false}
       disabled={disabled || model.unavailable}
       data-unavailable={model.unavailable || undefined}
-      className="mx-1 h-[var(--dropdown-control-height)] gap-2 px-2 pe-8"
     >
       {withTooltip(
         <span className="min-w-0 flex-1 truncate" title={model.name}>
@@ -93,7 +93,7 @@ function ModelSearch({
   onChange(value: string): void;
 }) {
   return (
-    <div className="flex h-10 items-center px-1">
+    <div className="flex shrink-0 items-center px-1 py-1">
       <div className="relative w-full">
         <SearchIcon className="text-muted-foreground pointer-events-none absolute start-2.5 top-1/2 size-[var(--input-control-icon-size)] -translate-y-1/2" />
         <Input
@@ -113,7 +113,7 @@ function ModelSearch({
 }
 
 function MenuCurrentValue({ children }: { children: React.ReactNode }) {
-  return <span className="text-muted-foreground ms-auto max-w-32 truncate">{children}</span>;
+  return <span className="text-muted-foreground ms-auto min-w-0 truncate">{children}</span>;
 }
 
 export function ModelSelector({
@@ -247,7 +247,7 @@ export function ModelSelector({
             onOpenChange={(open) => setExpandedSection(open ? "provider" : undefined)}
           >
             <CollapsibleContent className={collapsePanel}>
-              <div className="max-h-64 overflow-y-auto">
+              <div className={cn(menuScrollAreaStyles, "max-h-72")}>
                 <DropdownMenuRadioGroup
                   value={providerId ?? ""}
                   onValueChange={(nextProviderId) => {
@@ -262,7 +262,6 @@ export function ModelSelector({
                       value={id}
                       closeOnClick={false}
                       disabled={selectionLocked}
-                      className="h-[var(--dropdown-control-height)] px-2 pe-8"
                     >
                       {withTooltip(
                         <span className="min-w-0 flex-1 truncate" title={name}>
@@ -277,7 +276,7 @@ export function ModelSelector({
             <CollapsibleTrigger
               render={<DropdownMenuItem nativeButton render={<button />} closeOnClick={false} />}
               disabled={selectionLocked || !providers.length}
-              className="group h-[var(--dropdown-control-height)] w-full gap-3 px-2 data-panel-open:font-medium"
+              className="group w-full data-panel-open:font-medium"
             >
               <span>{labels.provider}</span>
               <MenuCurrentValue>
@@ -296,7 +295,7 @@ export function ModelSelector({
             onOpenChange={(open) => setExpandedSection(open ? "model" : undefined)}
           >
             <CollapsibleContent className={collapsePanel}>
-              <div data-model-selector-scroll className="relative max-h-80 overflow-y-auto">
+              <div className="flex max-h-72 min-h-0 flex-col overflow-hidden">
                 {!loadFailed && models.length > 0 ? (
                   <ModelSearch
                     value={modelQuery}
@@ -305,7 +304,7 @@ export function ModelSelector({
                     placeholder={labels.searchPlaceholder}
                   />
                 ) : null}
-                <div className="min-h-0 overflow-y-auto">
+                <div data-model-selector-scroll className={cn(menuScrollAreaStyles, "relative")}>
                   {!filteredModels.length ? (
                     <MenuStatus>{labels.noSearchResults}</MenuStatus>
                   ) : (
@@ -329,7 +328,7 @@ export function ModelSelector({
             <CollapsibleTrigger
               render={<DropdownMenuItem nativeButton render={<button />} closeOnClick={false} />}
               disabled={selectionLocked || !models.length}
-              className="group h-[var(--dropdown-control-height)] w-full gap-3 px-2 data-panel-open:font-medium"
+              className="group w-full data-panel-open:font-medium"
             >
               <span>{labels.model}</span>
               <MenuCurrentValue>{providerModel?.name ?? labels.select}</MenuCurrentValue>
@@ -347,7 +346,7 @@ export function ModelSelector({
               onOpenChange={(open) => setExpandedSection(open ? "effort" : undefined)}
             >
               <CollapsibleContent className={collapsePanel}>
-                <div className="max-h-64 overflow-y-auto">
+                <div className={cn(menuScrollAreaStyles, "max-h-72")}>
                   <DropdownMenuRadioGroup
                     value={selectedEffort ?? ""}
                     onValueChange={onEffortChange}
@@ -358,7 +357,6 @@ export function ModelSelector({
                         value={level.id}
                         closeOnClick={false}
                         disabled={selectionLocked}
-                        className="h-[var(--dropdown-control-height)] px-2 pe-8"
                       >
                         <span className="min-w-0 flex-1 truncate">{getEffortLabel(level)}</span>
                       </DropdownMenuRadioItem>
@@ -369,7 +367,7 @@ export function ModelSelector({
               <CollapsibleTrigger
                 render={<DropdownMenuItem nativeButton render={<button />} closeOnClick={false} />}
                 disabled={selectionLocked}
-                className="group h-[var(--dropdown-control-height)] w-full gap-3 px-2 data-panel-open:font-medium"
+                className="group w-full data-panel-open:font-medium"
               >
                 <span>{labels.reasoningEffort}</span>
                 <MenuCurrentValue>

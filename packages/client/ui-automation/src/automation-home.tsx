@@ -430,12 +430,8 @@ function AutomationCard({
           >
             <MoreHorizontalIcon aria-hidden="true" className="size-[var(--icon-size-md)]" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="bottom" sideOffset={4} className="min-w-48 p-1.5">
-            <DropdownMenuItem
-              className="min-h-9 gap-2 px-2.5"
-              disabled={Boolean(pendingAction)}
-              onClick={() => void onRunNow()}
-            >
+          <DropdownMenuContent align="end" side="bottom" sideOffset={4}>
+            <DropdownMenuItem disabled={Boolean(pendingAction)} onClick={() => void onRunNow()}>
               {pendingAction === "run" ? (
                 <RefreshCwIcon aria-hidden="true" className="animate-spin" />
               ) : (
@@ -448,7 +444,6 @@ function AutomationCard({
               )}
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="min-h-9 gap-2 px-2.5"
               disabled={Boolean(pendingAction)}
               onClick={() => void onSetEnabled(!automation.enabled)}
             >
@@ -465,14 +460,13 @@ function AutomationCard({
                   : "extensions.automations.automationHome.enable",
               )}
             </DropdownMenuItem>
-            <DropdownMenuItem className="min-h-9 gap-2 px-2.5" onClick={onOpen}>
+            <DropdownMenuItem onClick={onOpen}>
               <PencilIcon aria-hidden="true" />
               {t("extensions.automations.automationHome.editScheduledTask")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
-              className="min-h-9 gap-2 px-2.5"
               disabled={Boolean(pendingAction)}
               onClick={() => void onArchive()}
             >

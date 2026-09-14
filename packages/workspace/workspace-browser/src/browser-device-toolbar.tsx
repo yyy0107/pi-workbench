@@ -115,7 +115,7 @@ export function BrowserDeviceToolbar({
             {labels[preset as "responsive" | "phone" | "tablet" | "desktop"]}
             <ChevronDownIcon />
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56 max-w-[calc(100vw-2rem)]">
+          <DropdownMenuContent>
             <DropdownMenuRadioGroup
               aria-label={labels.dimensions}
               value={preset}

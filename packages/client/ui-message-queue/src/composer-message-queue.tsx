@@ -159,20 +159,20 @@ function ComposerQueueItem({
           >
             <MoreHorizontalIcon aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="bottom" sideOffset={4} className="min-w-36">
-            <DropdownMenuItem onClick={() => onEdit(queueItem.key)} className="gap-2">
+          <DropdownMenuContent align="end" side="bottom" sideOffset={4}>
+            <DropdownMenuItem onClick={() => onEdit(queueItem.key)}>
               <PencilIcon className="size-4" />
               <span>{t("extensions.messageQueue.edit")}</span>
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={!canMoveUp} onClick={onMoveUp} className="gap-2">
+            <DropdownMenuItem disabled={!canMoveUp} onClick={onMoveUp}>
               <ArrowUpIcon className="size-4" />
               <span>{t("extensions.messageQueue.moveUp")}</span>
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={!canMoveDown} onClick={onMoveDown} className="gap-2">
+            <DropdownMenuItem disabled={!canMoveDown} onClick={onMoveDown}>
               <ArrowDownIcon className="size-4" />
               <span>{t("extensions.messageQueue.moveDown")}</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onToggleQueueMode} className="gap-2">
+            <DropdownMenuItem onClick={onToggleQueueMode}>
               {queuePaused ? (
                 <ListRestartIcon className="size-4" />
               ) : (

@@ -1173,7 +1173,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                 </span>
                 <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
               </SettingsDropdownTrigger>
-              <SettingsDropdownContent align="start" side="bottom" className="max-h-72 p-0">
+              <SettingsDropdownContent align="start" side="bottom">
                 {providerGroups.map((group, groupIndex) => (
                   <div key={group.id} className="pb-1">
                     {groupIndex > 0 ? <DropdownMenuSeparator className="mx-0 my-0" /> : null}
@@ -1189,7 +1189,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                         <SettingsDropdownRadioItem
                           key={provider.provider}
                           value={provider.provider}
-                          className="mx-1"
                         >
                           <span className="min-w-0 flex-1 truncate">{provider.displayName}</span>
                         </SettingsDropdownRadioItem>
@@ -1451,7 +1450,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                     <PlusIcon />
                     {t("extensions.modelConfig.addModel")}
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-max">
+                  <DropdownMenuContent align="end">
                     <SettingsDropdownItem onClick={() => void openModelPicker()}>
                       {t("extensions.modelConfig.customizeModels")}
                     </SettingsDropdownItem>
@@ -1722,7 +1721,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                 {t("extensions.modelConfig.addProvider")}
               </span>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-max">
+            <DropdownMenuContent align="start">
               <SettingsDropdownItem
                 disabled={addableProviders.length === 0}
                 onClick={() => requestEditorChange(addProvider)}

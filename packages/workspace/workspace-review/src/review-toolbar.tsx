@@ -93,7 +93,12 @@ export function ReviewToolbar({
         >
           <EllipsisIcon />
         </DropdownMenuTrigger>
-        <DropdownMenuContent data-workspace-review="">
+        <DropdownMenuContent
+          data-workspace-review=""
+          align="end"
+          reserveScrollbarSpace={false}
+          limitHeight={false}
+        >
           <DropdownMenuItem onClick={() => toggle("wrap")}>
             <WrapTextIcon />
             {t(

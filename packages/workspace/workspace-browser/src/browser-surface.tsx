@@ -355,7 +355,7 @@ export function BrowserSurface({
           >
             <MoreVerticalIcon />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64 max-w-[calc(100vw-2rem)]">
+          <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setFinding(true)}>
               <SearchIcon />
               {t("extensions.workspaceBrowser.find")}

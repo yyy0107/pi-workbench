@@ -41,14 +41,11 @@ import {
 import { readFileLinkText, unsavedFileLinkContent } from "../lib/file-link-content";
 import { LocalAppIcon } from "./local-app-icon";
 
-const fileLinkMenuSpacing =
-  "p-[var(--control-content-padding-block-default)] [--control-content-padding-block-compact-start:var(--control-content-padding-block-default-start)] [--control-content-padding-block-compact-end:var(--control-content-padding-block-default-end)]";
-
 export function FileLinkContextMenu({ href, children }: { href: string; children: ReactElement }) {
   return (
     <ContextMenu>
       <ContextMenuTrigger render={children} />
-      <ContextMenuContent className={`w-max max-w-(--available-width) ${fileLinkMenuSpacing}`}>
+      <ContextMenuContent>
         <FileLinkMenuItems key={href} href={href} />
       </ContextMenuContent>
     </ContextMenu>
@@ -209,7 +206,7 @@ function FileLinkMenuItems({ href }: { href: string }) {
         <ContextMenuSubTrigger inset disabled={unavailable || !apps}>
           {t("workspaceFiles.openWithApps")}
         </ContextMenuSubTrigger>
-        <ContextMenuSubContent className={fileLinkMenuSpacing}>
+        <ContextMenuSubContent>
           {choices.map((app) => (
             <ContextMenuItem
               key={app.id}
