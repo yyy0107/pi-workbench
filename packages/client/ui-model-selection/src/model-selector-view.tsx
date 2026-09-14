@@ -221,12 +221,14 @@ export function ModelSelector({
         <SelectorDropdownContent
           aria-busy={selectionLocked}
           className={cn(
+            "w-72!",
             "[&_[data-checked]]:bg-accent [&_[data-checked]]:font-medium [&_[data-checked]]:text-accent-foreground",
             selectionLocked && "[&_[data-disabled]:not([data-unavailable])]:opacity-100",
           )}
           align="center"
           side="top"
           sideOffset={4}
+          limitHeight={false}
           collisionAvoidance={{ side: "none", align: "shift" }}
         >
           {selectionFailed || currentUnavailable ? (
