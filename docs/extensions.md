@@ -567,7 +567,7 @@ const contribution = context.workspace.register({
 - `icon`：由核心标签 Host 渲染；
 - `getResourceKey`：定义同一资源的去重规则；
 - `getDefaultScope`：决定实例跟随 thread、worktree、project 还是 application；
-- `render`：扩展拥有的 Surface 组件；需要代码分包时使用 `createLazyWorkspaceSurface()`，核心提供统一 Suspense fallback 和可重新执行 loader 的错误重试；
+- `render`：扩展拥有的 Surface 组件；需要代码分包时在模块作用域调用 `createLazyWorkspaceSurface()`，同一 renderer 共享首次加载及成功结果，核心提供统一 Suspense fallback；错误边界的重试递增 `loadRetryToken`，为该 Surface 重新执行失败的 loader，资源操作重试继续使用独立的 `retryToken`，避免加载重试触发保存；
 - `menuItem`：可选，挂载到核心加号菜单；
 - `runtime`：可选，在 AssistantRuntimeProvider 内挂载一次，用于监听 Agent 状态并打开或刷新该能力。
 

@@ -74,6 +74,7 @@ function SurfacePane({
   const domIds = useWorkbenchDomIds();
   const controller = useRightWorkspace();
   const [retryTokens, setRetryTokens] = useState<Readonly<Record<string, number>>>({});
+  const [loadRetryTokens, setLoadRetryTokens] = useState<Readonly<Record<string, number>>>({});
 
   return (
     <div className="relative size-full overflow-hidden">
@@ -140,7 +141,15 @@ function SurfacePane({
             inert={!isVisible ? true : undefined}
             className="size-full"
           >
-            <WorkspaceSurfaceBoundary surfaceId={surface.id}>
+            <WorkspaceSurfaceBoundary
+              surfaceId={surface.id}
+              onRetry={() => {
+                setLoadRetryTokens((current) => ({
+                  ...current,
+                  [surface.id]: (current[surface.id] ?? 0) + 1,
+                }));
+              }}
+            >
               <Suspense
                 fallback={
                   <div
@@ -157,6 +166,7 @@ function SurfacePane({
                     context={mountedContexts.get(surface.id) ?? context}
                     isVisible={isVisible}
                     retryToken={retryTokens[surface.id] ?? 0}
+                    loadRetryToken={loadRetryTokens[surface.id] ?? 0}
                   />
                 </SurfaceOwnerContext>
               </Suspense>

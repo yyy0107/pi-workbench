@@ -66,6 +66,8 @@ export interface WorkspaceSurfaceProps<
   isVisible: boolean;
   /** Increments when the host asks an error state to retry its last resource operation. */
   retryToken?: number;
+  /** Increments when the host retries a failed renderer load, independently of resource writes. */
+  loadRetryToken?: number;
 }
 
 export interface WorkspaceSurfaceMenuItemProps {

@@ -35,7 +35,8 @@ class SurfaceErrorBoundary extends Component<
 export function WorkspaceSurfaceBoundary({
   surfaceId,
   children,
-}: Readonly<{ surfaceId: string; children: ReactNode }>) {
+  onRetry,
+}: Readonly<{ surfaceId: string; children: ReactNode; onRetry?: () => void }>) {
   const { t } = useI18n(workspaceTranslationBundle);
   const reportError = useExtensionErrorReporter();
 
@@ -45,7 +46,16 @@ export function WorkspaceSurfaceBoundary({
       fallback={(retry) => (
         <div className="text-muted-foreground flex size-full flex-col items-center justify-center gap-3 p-8 text-center text-sm">
           <p>{t("rightWorkspace.status.error")}</p>
-          <Button type="button" variant="outline" size="sm" className="text-xs" onClick={retry}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="text-xs"
+            onClick={() => {
+              onRetry?.();
+              retry();
+            }}
+          >
             {t("rightWorkspace.status.retry")}
           </Button>
         </div>
