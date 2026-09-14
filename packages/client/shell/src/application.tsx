@@ -73,6 +73,7 @@ import {
 } from "@workbench/settings-runtime";
 import type { WorkbenchSettingsPort } from "@workbench/settings-runtime";
 import { ToastProvider } from "@workbench/ui";
+import { useScrollbarPosition } from "@workbench/ui/hooks";
 import { type WorkbenchShellProps } from "@workbench/ui-layout";
 import {
   createWorkspaceDirectoryStoreInstallation,
@@ -107,6 +108,7 @@ function RuntimeApplicationProviders({
 }>) {
   const connection = useRuntimeConnection();
   const [settings] = useState(() => createSettingsService(connection));
+  useScrollbarPosition();
 
   return (
     <WorkbenchSettingsProvider service={settings}>

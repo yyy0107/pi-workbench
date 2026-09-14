@@ -336,6 +336,9 @@
   --scrollbar-size: 8px;
   --scrollbar-hit-padding: 4px;
   --scrollbar-hit-size: calc(var(--scrollbar-size) + var(--scrollbar-hit-padding) * 2);
+  --scrollbar-button-length: max(var(--scrollbar-hit-size), calc(var(--form-control-height) / 2));
+  --scrollbar-arrow-size: var(--scrollbar-size);
+  --scrollbar-arrow-gap: calc(var(--scrollbar-hit-padding) * 0.75);
   --scrollbar-width: auto;
   --scrollbar-radius: min(var(--radius), calc(var(--scrollbar-size) / 4));
   --scrollbar-track: transparent;
@@ -381,6 +384,105 @@
   *::-webkit-scrollbar-track,
   *::-webkit-scrollbar-corner {
     background: var(--scrollbar-track);
+  }
+
+  /* Keep the thumb clear of both arrow buttons, including at either scroll limit. */
+  *::-webkit-scrollbar-track:vertical {
+    margin-top: var(--scrollbar-arrow-gap);
+    margin-bottom: var(--scrollbar-arrow-gap);
+  }
+
+  *::-webkit-scrollbar-track:horizontal {
+    margin-left: var(--scrollbar-arrow-gap);
+    margin-right: var(--scrollbar-arrow-gap);
+  }
+
+  /* Show only one native scroll button at each end, regardless of platform defaults. */
+  *::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-button:vertical:decrement:start,
+  *::-webkit-scrollbar-button:vertical:increment:end,
+  *::-webkit-scrollbar-button:horizontal:decrement:start,
+  *::-webkit-scrollbar-button:horizontal:increment:end {
+    --scrollbar-arrow-color: var(--scrollbar-thumb);
+    display: block;
+    width: var(--scrollbar-hit-size);
+    height: var(--scrollbar-hit-size);
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+
+  *::-webkit-scrollbar-button:vertical:decrement:start,
+  *::-webkit-scrollbar-button:vertical:increment:end {
+    height: var(--scrollbar-button-length);
+    background-size: var(--scrollbar-arrow-size) calc(var(--scrollbar-arrow-size) / 2);
+  }
+
+  *::-webkit-scrollbar-button:horizontal:decrement:start,
+  *::-webkit-scrollbar-button:horizontal:increment:end {
+    width: var(--scrollbar-button-length);
+    background-size: calc(var(--scrollbar-arrow-size) / 2) var(--scrollbar-arrow-size);
+  }
+
+  *::-webkit-scrollbar-button:vertical:decrement:start {
+    background-position: center bottom;
+    background-image: conic-gradient(
+      at 50% 0%,
+      transparent 135deg,
+      var(--scrollbar-arrow-color) 135deg 225deg,
+      transparent 225deg
+    );
+  }
+
+  *::-webkit-scrollbar-button:vertical:increment:end {
+    background-position: center top;
+    background-image: conic-gradient(
+      at 50% 100%,
+      var(--scrollbar-arrow-color) 45deg,
+      transparent 45deg 315deg,
+      var(--scrollbar-arrow-color) 315deg
+    );
+  }
+
+  *::-webkit-scrollbar-button:horizontal:decrement:start {
+    background-position: right center;
+    background-image: conic-gradient(
+      at 0% 50%,
+      transparent 45deg,
+      var(--scrollbar-arrow-color) 45deg 135deg,
+      transparent 135deg
+    );
+  }
+
+  *::-webkit-scrollbar-button:horizontal:increment:end {
+    background-position: left center;
+    background-image: conic-gradient(
+      at 100% 50%,
+      transparent 225deg,
+      var(--scrollbar-arrow-color) 225deg 315deg,
+      transparent 315deg
+    );
+  }
+
+  *::-webkit-scrollbar-button:decrement:start:hover,
+  *::-webkit-scrollbar-button:increment:end:hover {
+    --scrollbar-arrow-color: var(--scrollbar-thumb-hover);
+  }
+
+  *::-webkit-scrollbar-button:decrement:start:active,
+  *::-webkit-scrollbar-button:increment:end:active {
+    --scrollbar-arrow-color: var(--scrollbar-thumb-active);
+  }
+
+  /* Scroll position is supplied by useScrollbarPosition; :disabled is not an edge signal. */
+  *:not([data-scrollbar-scrolled-y])::-webkit-scrollbar-button:vertical:decrement:start {
+    --scrollbar-arrow-color: var(--scrollbar-thumb-hover);
   }
 
   *::-webkit-scrollbar-thumb {
