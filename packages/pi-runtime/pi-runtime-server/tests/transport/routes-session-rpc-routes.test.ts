@@ -209,6 +209,7 @@ test("validates prompt payloads and forwards transport provenance to the protoco
         sessionId: "session-1",
         mode: "queue",
         content: [{ type: "text", text: "Hello", ignored: true }],
+        clientMutation: { operationId: "operation-1", messageId: "message-1" },
         ignored: true,
       },
       "rpc-prompt",
@@ -224,10 +225,28 @@ test("validates prompt payloads and forwards transport provenance to the protoco
         sessionId: "session-1",
         mode: "queue",
         content: [{ type: "text", text: "Hello" }],
+        clientMutation: { operationId: "operation-1", messageId: "message-1" },
       },
       context: { rpcId: "rpc-prompt" },
     },
   ]);
+
+  const rejected = sessionRoutes.handle(
+    rpcRequest("session.prompt", {
+      sessionId: "session-1",
+      mode: "queue",
+      content: [{ type: "text", text: "Hello" }],
+      clientMutation: { operationId: "operation with space", messageId: "message-1" },
+    }),
+    "session.prompt",
+  );
+  assert.ok(rejected);
+  const rejectedBody = (await (await rejected).json()) as ServerResponse<never>;
+  assert.equal(rejectedBody.result.ok, false);
+  if (rejectedBody.result.ok) assert.fail("Expected invalid client mutation to fail.");
+  const details = rejectedBody.result.error.details as { issues: RpcIssue[] };
+  assert.deepEqual(details.issues[0]?.path, ["payload", "clientMutation", "operationId"]);
+  assert.equal(calls.length, 1);
 });
 
 test("keeps validation failures inside the RPC envelope before invoking the facade", async () => {

@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import workbenchPaths from "./workbench-paths.cjs";
 
@@ -161,6 +161,7 @@ export function createElectronLaunchConfiguration({
   environment = process.env,
   rendererOrigin,
   requireFromElectron = createRequire(path.join(paths.desktopElectronRoot, "package.json")),
+  tsxLoader,
 } = {}) {
   const origin = parseCanonicalDesktopRendererOrigin(rendererOrigin);
   if (!origin) throw stableError("Invalid Electron Desktop renderer origin.");
@@ -168,6 +169,14 @@ export function createElectronLaunchConfiguration({
   if (typeof executable !== "string" || !path.isAbsolute(executable)) {
     throw stableError("Electron development executable could not be resolved from its app.");
   }
+  const resolvedTsxLoader = tsxLoader ?? requireFromElectron.resolve("tsx");
+  if (typeof resolvedTsxLoader !== "string" || !path.isAbsolute(resolvedTsxLoader)) {
+    throw stableError("Electron development TypeScript loader could not be resolved from its app.");
+  }
+  const inheritedNodeOptions = environment.NODE_OPTIONS?.trim();
+  const nodeOptions = [inheritedNodeOptions, `--import=${pathToFileURL(resolvedTsxLoader).href}`]
+    .filter(Boolean)
+    .join(" ");
   return Object.freeze({
     command: executable,
     args: Object.freeze([paths.desktopElectronRoot]),
@@ -176,6 +185,7 @@ export function createElectronLaunchConfiguration({
       env: {
         ...scrubWorkbenchEnvironment(environment),
         NODE_ENV: "development",
+        NODE_OPTIONS: nodeOptions,
         WORKBENCH_DESKTOP_RENDERER_ORIGIN: origin,
       },
       detached: process.platform !== "win32",

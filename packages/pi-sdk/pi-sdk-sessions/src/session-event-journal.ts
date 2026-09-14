@@ -2,6 +2,7 @@ import type { SessionEvent } from "@workbench/pi-rpc-contracts/rpc";
 
 export const SESSION_EVENT_CUSTOM_TYPE = "workbench.session-event.v1";
 export const SESSION_EVENT_JOURNAL_CUSTOM_TYPE = "workbench.session-event-journal.v1";
+export const SESSION_CLIENT_MUTATION_CUSTOM_TYPE = "workbench.client-mutation.v1";
 
 const JOURNAL_VERSION = 1;
 
@@ -35,6 +36,21 @@ interface SessionEventJournalMarker {
   version: typeof JOURNAL_VERSION;
   legacyMessageCount: number;
 }
+
+export interface SessionClientMutationIdentity {
+  readonly operationId: string;
+  readonly messageId: string;
+}
+
+export type SessionClientMutationLookup = "absent" | "match" | "conflict";
+
+interface StoredSessionClientMutation {
+  readonly version: typeof JOURNAL_VERSION;
+  readonly operationId: string;
+  readonly messageId: string;
+}
+
+const CLIENT_MUTATION_IDENTIFIER = /^[\x21-\x7e]{1,128}$/u;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -77,6 +93,66 @@ function storedEvent(value: unknown): SessionEvent | undefined {
   } catch {
     return undefined;
   }
+}
+
+function storedClientMutation(value: unknown): StoredSessionClientMutation | undefined {
+  if (
+    !isRecord(value) ||
+    value.version !== JOURNAL_VERSION ||
+    typeof value.operationId !== "string" ||
+    typeof value.messageId !== "string" ||
+    !CLIENT_MUTATION_IDENTIFIER.test(value.operationId) ||
+    !CLIENT_MUTATION_IDENTIFIER.test(value.messageId)
+  ) {
+    return undefined;
+  }
+  return {
+    version: JOURNAL_VERSION,
+    operationId: value.operationId,
+    messageId: value.messageId,
+  };
+}
+
+function validateClientMutation(identity: SessionClientMutationIdentity): void {
+  if (
+    !CLIENT_MUTATION_IDENTIFIER.test(identity.operationId) ||
+    !CLIENT_MUTATION_IDENTIFIER.test(identity.messageId)
+  ) {
+    throw new TypeError("Client mutation identifiers must be 1-128 printable ASCII characters.");
+  }
+}
+
+export function findSessionClientMutation(
+  store: SessionEventJournalStore,
+  identity: SessionClientMutationIdentity,
+): SessionClientMutationLookup {
+  validateClientMutation(identity);
+  for (const entry of store.getBranch()) {
+    if (entry.type !== "custom" || entry.customType !== SESSION_CLIENT_MUTATION_CUSTOM_TYPE) {
+      continue;
+    }
+    const stored = storedClientMutation(entry.data);
+    if (!stored) continue;
+    if (stored.operationId === identity.operationId && stored.messageId === identity.messageId) {
+      return "match";
+    }
+    if (stored.operationId === identity.operationId || stored.messageId === identity.messageId) {
+      return "conflict";
+    }
+  }
+  return "absent";
+}
+
+export function appendSessionClientMutation(
+  store: SessionEventJournalStore,
+  identity: SessionClientMutationIdentity,
+): string {
+  validateClientMutation(identity);
+  return store.appendCustomEntry(SESSION_CLIENT_MUTATION_CUSTOM_TYPE, {
+    version: JOURNAL_VERSION,
+    operationId: identity.operationId,
+    messageId: identity.messageId,
+  } satisfies StoredSessionClientMutation);
 }
 
 function hasJournalMarker(entries: readonly SessionJournalEntry[]): boolean {

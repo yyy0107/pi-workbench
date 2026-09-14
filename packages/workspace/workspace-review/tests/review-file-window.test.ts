@@ -20,17 +20,17 @@ test("file count, line count, and pagination do not trigger single-file mode", (
 });
 
 test("only finite render durations at or above the budget trigger fallback", () => {
-  for (const duration of [-1, 0, 16, 99.99, NaN, Infinity]) {
+  for (const duration of [-1, 0, 16, 100, 1_499.99, NaN, Infinity]) {
     assert.equal(exceedsReviewRenderBudget(duration), false);
   }
-  for (const duration of [100, 101, 2_000]) {
+  for (const duration of [1_500, 1_501, 2_000]) {
     assert.equal(exceedsReviewRenderBudget(duration), true);
   }
 });
 
 test("a slow render switches even a small diff to its selected file", () => {
   const input = files(2);
-  const window = reviewFileWindow(input, undefined, 1, exceedsReviewRenderBudget(100));
+  const window = reviewFileWindow(input, undefined, 1, exceedsReviewRenderBudget(1_500));
   assert.equal(window.singleFile, true);
   assert.deepEqual(window.visibleFiles, [input[1]]);
   assert.equal(reviewFileWindow([], undefined, 0, true).singleFile, false);

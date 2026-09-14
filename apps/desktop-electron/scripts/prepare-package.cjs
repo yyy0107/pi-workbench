@@ -112,6 +112,8 @@ function createDesktopArtifactSupportBuildOptions({ paths, outfile }) {
 const PACKAGED_MAIN_LOCAL_EXTERNALS = Object.freeze([
   "desktop-services.cjs",
   "desktop-renderer-protocol.cjs",
+  "desktop-remote-control.cjs",
+  "direct-remote-listener.cjs",
   "packaged-runtime-lifecycle.cjs",
   "runtime-artifact-environment.cjs",
   "title-bar-overlay.cjs",
@@ -175,6 +177,36 @@ function createPackagedPreloadBuildOptions({ paths, outfile }) {
     platform: "node",
     sourcemap: false,
     target: "es2022",
+  };
+}
+
+function createPackagedRemoteControlBuildOptions({ paths, outfile }) {
+  return {
+    absWorkingDir: paths.repositoryRoot,
+    bundle: true,
+    entryPoints: [path.join(paths.desktopElectronSourceRoot, "desktop-remote-control.cjs")],
+    format: "cjs",
+    legalComments: "none",
+    metafile: true,
+    outfile,
+    platform: "node",
+    sourcemap: false,
+    target: "node24",
+  };
+}
+
+function createPackagedDirectListenerBuildOptions({ paths, outfile }) {
+  return {
+    absWorkingDir: paths.repositoryRoot,
+    bundle: true,
+    entryPoints: [path.join(paths.desktopElectronSourceRoot, "direct-remote-listener.cjs")],
+    format: "cjs",
+    legalComments: "none",
+    metafile: true,
+    outfile,
+    platform: "node",
+    sourcemap: false,
+    target: "node24",
   };
 }
 
@@ -261,6 +293,65 @@ function assertPackagedMainBuild(result) {
   }
 }
 
+function assertPackagedRemoteControlBuild(result) {
+  const externalImports = Object.values(result.metafile.outputs)
+    .flatMap((output) => output.imports)
+    .filter((item) => item.external)
+    .map((item) => item.path)
+    .filter((specifier) => !isBuiltin(specifier));
+  if (externalImports.length > 0) {
+    throw new Error(
+      `The packaged remote-control entry retained non-builtin imports: ${[...new Set(externalImports)].sort().join(", ")}.`,
+    );
+  }
+  const normalizedInputs = Object.keys(result.metafile.inputs).map((input) =>
+    input.replaceAll("\\", "/"),
+  );
+  const requiredInputs = [
+    "apps/desktop-electron/src/desktop-remote-control.cjs",
+    "packages/contracts/remote-control-contracts/src/direct-crypto.ts",
+    "packages/contracts/remote-control-contracts/src/direct-pairing.ts",
+    "packages/server/remote-control-direct-server/src/address-policy.ts",
+    "packages/server/remote-control-direct-server/src/authentication.ts",
+    "packages/server/remote-control-direct-server/src/gateway.ts",
+    "packages/pi-runtime/pi-runtime-remote-control/src/direct-frame-processor.ts",
+    "packages/pi-runtime/pi-runtime-remote-control/src/frame-processor.ts",
+    "packages/pi-runtime/pi-runtime-remote-control/src/operation-ledger.ts",
+    "packages/pi-runtime/pi-runtime-remote-control/src/sqlite-ledger.ts",
+  ];
+  if (requiredInputs.some((suffix) => !normalizedInputs.some((input) => input.endsWith(suffix)))) {
+    throw new Error("The packaged remote-control entry did not capture its production closure.");
+  }
+}
+
+function assertPackagedDirectListenerBuild(result) {
+  const optionalWsAccelerators = new Set(["bufferutil", "utf-8-validate"]);
+  const externalImports = Object.values(result.metafile.outputs)
+    .flatMap((output) => output.imports)
+    .filter((item) => item.external)
+    .map((item) => item.path)
+    .filter((specifier) => !isBuiltin(specifier));
+  const unexpectedImports = externalImports.filter(
+    (specifier) => !optionalWsAccelerators.has(specifier),
+  );
+  if (unexpectedImports.length > 0) {
+    throw new Error(
+      `The packaged direct listener retained non-builtin imports: ${[...new Set(unexpectedImports)].sort().join(", ")}.`,
+    );
+  }
+  const normalizedInputs = Object.keys(result.metafile.inputs).map((input) =>
+    input.replaceAll("\\", "/"),
+  );
+  for (const suffix of [
+    "apps/desktop-electron/src/direct-remote-listener.cjs",
+    "node_modules/ws/lib/websocket-server.js",
+  ]) {
+    if (!normalizedInputs.some((input) => input.endsWith(suffix))) {
+      throw new Error(`The packaged direct listener is missing ${suffix}.`);
+    }
+  }
+}
+
 function assertPackagedPreloadBuild(result) {
   const externalImports = Object.values(result.metafile.outputs)
     .flatMap((output) => output.imports)
@@ -324,6 +415,28 @@ async function buildDesktopServices({ paths, outfile, buildImpl = build } = {}) 
     .filter((item) => item.external && !isBuiltin(item.path));
   if (imports.some((item) => item.path !== "electron"))
     throw new Error("Desktop services retained an unbundled dependency.");
+}
+
+async function buildDesktopRemoteControl({ paths, outfile, buildImpl = build } = {}) {
+  const options = createPackagedRemoteControlBuildOptions({ paths, outfile });
+  const result = await buildImpl(options);
+  assertPackagedRemoteControlBuild(result);
+  const stats = lstatSync(outfile);
+  if (!stats.isFile() || stats.isSymbolicLink()) {
+    throw new Error("The packaged remote-control entry was not emitted as a regular file.");
+  }
+  return Object.freeze({ outfile, result });
+}
+
+async function buildDesktopDirectListener({ paths, outfile, buildImpl = build } = {}) {
+  const options = createPackagedDirectListenerBuildOptions({ paths, outfile });
+  const result = await buildImpl(options);
+  assertPackagedDirectListenerBuild(result);
+  const stats = lstatSync(outfile);
+  if (!stats.isFile() || stats.isSymbolicLink()) {
+    throw new Error("The packaged direct listener was not emitted as a regular file.");
+  }
+  return Object.freeze({ outfile, result });
 }
 
 async function buildPackagedMain({ paths, outfile, buildImpl = build } = {}) {
@@ -413,6 +526,8 @@ async function preparePackage({
   buildSupport = buildDesktopArtifactSupport,
   buildMain = buildPackagedMain,
   buildServices = buildDesktopServices,
+  buildRemoteControl = buildDesktopRemoteControl,
+  buildDirectListener = buildDesktopDirectListener,
   buildPreload = buildPackagedPreload,
   buildProcessLifecycle = buildServerProcessLifecycle,
   log = console.log,
@@ -459,9 +574,14 @@ async function preparePackage({
 
   for (const file of ELECTRON_RUNTIME_FILES) {
     if (
-      ["main.cjs", "preload.cjs", "server-process-lifecycle.cjs", "desktop-services.cjs"].includes(
-        file,
-      )
+      [
+        "main.cjs",
+        "preload.cjs",
+        "server-process-lifecycle.cjs",
+        "desktop-services.cjs",
+        "desktop-remote-control.cjs",
+        "direct-remote-listener.cjs",
+      ].includes(file)
     )
       continue;
     copyRegularFile(
@@ -473,6 +593,14 @@ async function preparePackage({
   await buildServices({
     paths,
     outfile: path.join(paths.electronAppStagingRoot, "electron", "desktop-services.cjs"),
+  });
+  await buildRemoteControl({
+    paths,
+    outfile: path.join(paths.electronAppStagingRoot, "electron", "desktop-remote-control.cjs"),
+  });
+  await buildDirectListener({
+    paths,
+    outfile: path.join(paths.electronAppStagingRoot, "electron", "direct-remote-listener.cjs"),
   });
   await buildMain({
     paths,
@@ -531,15 +659,21 @@ if (require.main === module) {
 module.exports = {
   assertPackagedMainBuild,
   assertPackagedPreloadBuild,
+  assertPackagedRemoteControlBuild,
+  assertPackagedDirectListenerBuild,
   assertDesktopArtifactSupportBuild,
   assertServerProcessLifecycleBuild,
   buildPackagedMain,
+  buildDesktopRemoteControl,
+  buildDesktopDirectListener,
   buildDesktopServices,
   buildPackagedPreload,
   buildDesktopArtifactSupport,
   buildServerProcessLifecycle,
   createPackagedMainBuildOptions,
   createPackagedPreloadBuildOptions,
+  createPackagedRemoteControlBuildOptions,
+  createPackagedDirectListenerBuildOptions,
   createDesktopArtifactSupportBuildOptions,
   createServerProcessLifecycleBuildOptions,
   preparePackage,

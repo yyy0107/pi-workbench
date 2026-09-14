@@ -3,6 +3,7 @@ import { conversationTranslationBundle } from "./i18n";
 import { useI18n } from "@workbench/i18n";
 
 import { Loader2Icon } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { useConversationNode } from "@workbench/agent-runtime-client";
 import type {
@@ -20,6 +21,12 @@ import {
   WorkbenchMessageSourceBlock,
   WorkbenchMessageToolBlock,
 } from "@workbench/ui-message-blocks/message-blocks";
+import { UserAttachmentGallery } from "@workbench/ui-message-blocks/user-attachment-gallery";
+
+import {
+  consecutiveAttachmentIndices,
+  messageAttachmentVisualKind,
+} from "../lib/message-presentation-policy";
 
 type MessageNode = UserMessageNode | AssistantMessageNode | SystemNode;
 
@@ -73,9 +80,40 @@ function DefaultBlock({
 }
 
 export function DefaultWorkbenchMessageParts({ node }: Readonly<{ node: MessageNode }>) {
-  return node.blocks.map((block, index) => (
-    <DefaultBlock key={block.key} node={node} block={block} index={index} />
-  ));
+  if (node.kind !== "user") {
+    return node.blocks.map((block, index) => (
+      <DefaultBlock key={block.key} node={node} block={block} index={index} />
+    ));
+  }
+
+  const content: ReactNode[] = [];
+  let index = 0;
+  while (index < node.blocks.length) {
+    const attachmentIndices = consecutiveAttachmentIndices(node.blocks, index);
+    if (attachmentIndices.length > 1) {
+      content.push(
+        <UserAttachmentGallery
+          key={`attachment-gallery:${node.blocks[index]?.key ?? index}`}
+          items={attachmentIndices.map((blockIndex) => ({
+            key: node.blocks[blockIndex]?.key ?? `attachment:${blockIndex}`,
+            kind: messageAttachmentVisualKind(node.blocks[blockIndex]) ?? "file",
+            content: node.blocks[blockIndex] ? (
+              <DefaultBlock node={node} block={node.blocks[blockIndex]} index={blockIndex} />
+            ) : null,
+          }))}
+        />,
+      );
+      index += attachmentIndices.length;
+      continue;
+    }
+
+    const block = node.blocks[index];
+    if (block) {
+      content.push(<DefaultBlock key={block.key} node={node} block={block} index={index} />);
+    }
+    index += 1;
+  }
+  return content;
 }
 
 export function WorkbenchMessageParts() {

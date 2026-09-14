@@ -1,4 +1,4 @@
-import { MessagesSquareIcon } from "lucide-react";
+import { MessagesSquareIcon, SmartphoneIcon } from "lucide-react";
 import type {
   ExtensionContext,
   Disposable,
@@ -6,6 +6,7 @@ import type {
 } from "@workbench/extension-sdk";
 import { defineSettingsGeneralMessage as defineMessage } from "./i18n";
 import { ConversationSettingsItem } from "./conversation-settings-item";
+import { RemoteDeviceSettingsItem } from "./remote-device-settings-item";
 
 /**
  * Registers the general settings contribution owned by this package.
@@ -35,5 +36,23 @@ export function registerGeneralSettings(
     ],
     component: ConversationSettingsItem,
   });
-  return [section, preferences];
+  const remoteDevicesSection = context.settings.registerSection({
+    id: "remote-devices",
+    title: defineMessage("extensions.settings.remoteDevices.title"),
+    description: defineMessage("extensions.settings.remoteDevices.description"),
+    icon: SmartphoneIcon,
+    group,
+    order: 1,
+  });
+  const remoteDevices = context.settings.registerItem({
+    sectionId: "remote-devices",
+    id: "remote-devices",
+    title: defineMessage("extensions.settings.remoteDevices.title"),
+    keywords: [
+      defineMessage("extensions.settings.remoteDevices.createPairing"),
+      defineMessage("extensions.settings.remoteDevices.pairedDevices"),
+    ],
+    component: RemoteDeviceSettingsItem,
+  });
+  return [section, preferences, remoteDevicesSection, remoteDevices];
 }

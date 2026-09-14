@@ -46,6 +46,34 @@ contextBridge.exposeInMainWorld(
     runtime: Object.freeze({
       bootstrap: () => ipcRenderer.sendSync(RUNTIME_BOOTSTRAP_CHANNEL),
     }),
+    remoteControl: Object.freeze({
+      describe: () => ipcRenderer.invoke("workbench:remote-control:describe"),
+      listInterfaces: () => ipcRenderer.invoke("workbench:remote-control:list-interfaces"),
+      updateConfiguration: (configuration) =>
+        ipcRenderer.invoke("workbench:remote-control:update-configuration", configuration),
+      createPairing: () => ipcRenderer.invoke("workbench:remote-control:create-pairing"),
+      getPairing: (pairingId) =>
+        ipcRenderer.invoke("workbench:remote-control:get-pairing", { pairingId }),
+      confirmPairing: (pairingId, safetyCode) =>
+        ipcRenderer.invoke("workbench:remote-control:confirm-pairing", {
+          pairingId,
+          safetyCode,
+        }),
+      rejectPairing: (pairingId) =>
+        ipcRenderer.invoke("workbench:remote-control:reject-pairing", { pairingId }),
+      cancelPairing: (pairingId) =>
+        ipcRenderer.invoke("workbench:remote-control:cancel-pairing", { pairingId }),
+      listDevices: () => ipcRenderer.invoke("workbench:remote-control:list-devices"),
+      revokeDevice: (deviceId, expectedRevision) =>
+        ipcRenderer.invoke("workbench:remote-control:revoke-device", {
+          deviceId,
+          expectedRevision,
+        }),
+      resetIdentity: () =>
+        ipcRenderer.invoke("workbench:remote-control:reset-identity", {
+          confirmation: "RESET",
+        }),
+    }),
     titleBar: Object.freeze({ setOverlay: setTitleBarOverlay }),
   }),
 );

@@ -21,7 +21,12 @@
     "@workbench/application-process": "workspace:*",
     "@workbench/artifact-policy": "workspace:*",
     "@workbench/artifact-reader": "workspace:*",
-    "electron-updater": "^6.8.9"
+    "@workbench/pi-rpc-client": "workspace:*",
+    "@workbench/pi-runtime-remote-control": "workspace:*",
+    "@workbench/remote-control-contracts": "workspace:*",
+    "@workbench/remote-control-direct-server": "workspace:*",
+    "electron-updater": "^6.8.9",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
@@ -32,8 +37,7 @@
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.12",
-    "typescript": "^7.0.2",
-    "ws": "^8.21.3"
+    "typescript": "^7.0.2"
   },
   "peerDependencies": {
     "electron": "^43.4.1"
@@ -55,6 +59,8 @@
       "package.json",
       "electron/desktop-services.cjs",
       "electron/desktop-renderer-protocol.cjs",
+      "electron/desktop-remote-control.cjs",
+      "electron/direct-remote-listener.cjs",
       "electron/main.cjs",
       "electron/packaged-runtime-lifecycle.cjs",
       "electron/preload.cjs",

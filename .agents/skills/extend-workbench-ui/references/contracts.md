@@ -1,837 +1,172 @@
 # Workbench Extension Contracts
 
-Use this reference to verify the current first-version public API before implementing an extension.
+Read only the section needed for the contribution being changed. Paths below are relative to the
+repository root. SDK declarations define available fields; Host and consumer code establish actual
+behavior. A target refactor contract is not evidence that all consumers have been updated.
 
-## Contents
+## Source map
 
-- [Public boundary](#public-boundary)
-- [Extension lifecycle](#extension-lifecycle)
-- [Toolbox catalog metadata](#toolbox-catalog-metadata)
-- [Slot contract](#slot-contract)
-- [Panel contract](#panel-contract)
-- [Command contract](#command-contract)
-- [Composer Command contract](#composer-command-contract)
-- [Settings contract](#settings-contract)
-- [Main View contract](#main-view-contract)
-- [Renderer contract](#renderer-contract)
-- [Opener contract](#opener-contract)
-- [RightWorkspace boundary](#rightworkspace-boundary)
-- [Pi runtime boundary](#pi-runtime-boundary)
-- [Services available to components](#services-available-to-components)
-- [Uniqueness and ordering](#uniqueness-and-ordering)
-- [Error isolation](#error-isolation)
+| Concern                                  | Authoritative source                                                                                                                        |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authoring and public exports             | `packages/extension-platform/extension-sdk/src/authoring.ts`, `src/index.ts`                                                                |
+| Extension context and lifecycle result   | `packages/extension-platform/extension-sdk/src/api/extension.ts`                                                                            |
+| Contribution fields                      | Matching file in `packages/extension-platform/extension-sdk/src/api/`                                                                       |
+| Activation and tracked registration      | `packages/extension-platform/extension-sdk/src/extension-manager.ts`, `packages/extension-platform/extension-host/src/extension-context.ts` |
+| Component hooks and allowed Host entries | `packages/extension-platform/extension-host/src/index.ts`, package `exports` and applicable boundary rules                                  |
+| Current installation order               | `packages/product/pi-workbench/src/extensions.ts` and its imported groups                                                                   |
 
-## Public boundary
-
-Import definitions and contribution contracts from the host-free authoring entry. Mounted client
-components import runtime hooks separately:
-
-```ts
-import {
-  defineExtension,
-  type CommandDefinition,
-  type ComposerSlotContext,
-  type PanelComponentProps,
-  type MainViewProps,
-  type WorkspaceActionsSlotContext,
-  type WorkspaceSurfaceDefinition,
-} from "@workbench/extension-sdk";
-import {
-  useCommandService,
-  useMainViewService,
-  useNavigationService,
-  usePanelService,
-  useSettingsRegistry,
-} from "@workbench/extension-host";
-```
-
-Source of truth:
-
-- `packages/extension-platform/extension-sdk/src/authoring.ts`
-- `packages/extension-platform/extension-sdk/src/index.ts`
-- `packages/extension-platform/extension-sdk/src/api/`
-- `packages/extension-platform/extension-host/src/index.ts`
-- `packages/extension-platform/extension-host/src/extension-context.ts`
-
-Business extensions import authoring definitions and contribution types from the SDK. Mounted
-components may import the explicit runtime hooks and Host-owned error types from the Host root, but
-must not import its internal composition entry, concrete registries, or services. The active Message
-Renderer and shared extension surfaces may use the explicitly allowlisted
-`hosts/renderer-host` and `hosts/extension-error-boundary` leaf entries. Main View and Workspace
-Surface registration are part of `ExtensionContext`; RightWorkspace controller hooks and Pi runtime
-remain separate public boundaries described below.
+API files: `slot.ts`, `sidebar-section.ts`, `panel.ts`, `command.ts`, `composer-command.ts`,
+`settings.ts`, `main-view.ts`, `renderer.ts`, `opener.ts`, `workspace-surface.ts`.
+Do not copy these complete interfaces into this reference.
 
 ## Extension lifecycle
 
-```ts
-interface ExtensionContext {
-  readonly slots: SlotRegistry;
-  readonly panels: PanelRegistry;
-  readonly commands: CommandRegistry;
-  readonly openers: OpenerRegistry;
-  readonly composerCommands: ComposerCommandRegistry;
-  readonly renderers: RendererRegistry;
-  readonly settings: SettingsRegistry;
-  readonly mainViews: MainViewRegistry;
-  readonly workspace: WorkspaceSurfaceRegistry;
-}
+Extensions are trusted, in-process, statically bundled contribution containers. `setup()` is
+synchronous; registrations are tracked for rollback and deactivation. External resources must have
+explicit disposal. Inspect the manager when changing cleanup or activation order, including failure
+partway through setup. Define objects outside render and keep installation references stable.
 
-type ExtensionSetupResult = void | Disposable | readonly Disposable[];
+A fixed product capability can be an extension. Package ownership, registry participation and
+user uninstallability are independent decisions. Follow the actual product installation path rather
+than assuming a catalog, persisted install state or optional metadata exists.
 
-interface WorkbenchExtension {
-  id: string;
-  name: string;
-  version: string;
-  toolbox?: ExtensionToolboxCapability;
-  setup(context: ExtensionContext): ExtensionSetupResult;
-}
-```
-
-`defineExtension()` preserves literal types; ExtensionManager performs runtime validation and activation. `setup()` is synchronous. Setup failure rolls back registrations. Deactivation disposes resources in reverse order.
-
-These extensions are trusted, in-process, statically bundled contribution containers. They are not
-third-party plugins and do not imply an Extension Host, permissions, or a stable external ABI.
-
-Distribution is separate from the contribution lifecycle. Fixed product capabilities live in the
-owning package's `src/extensions/builtin/` and enter its semantic extension groups. User-installable
-component bundles currently live in `packages/client/shell/src/extensions/installable/`, declare
-`toolbox.distribution: "installable"`, and enter the static
-`installableComponentExtensions` catalog. The application persists whether each catalog entry is
-installed and passes only installed entries to `ExtensionProvider`; uninstalling therefore invokes
-normal ExtensionManager deactivation and disposes every owned contribution. Catalog code remains
-statically bundled for safe reinstallation—there is no filesystem discovery or arbitrary runtime
-JavaScript loading.
-
-Define extension objects at module scope. ExtensionProvider compares object identity when synchronizing the static array.
-
-## Toolbox catalog metadata
-
-`WorkbenchExtension.toolbox` is optional discovery metadata for real React component contributions.
-It lets the Toolbox list, locate, preview, and—when the static catalog allows it—install a component
-extension. It does not register or activate a contribution; `setup()` must still register the same
-component against its actual public Registry.
-
-```ts
-interface ExtensionToolboxCapability {
-  kind: "component-extension";
-  distribution: "builtin" | "installable";
-  name: LocalizableText;
-  description?: LocalizableText;
-  entryFile: string;
-  contributions: readonly [ComponentExtensionContribution, ...ComponentExtensionContribution[]];
-}
-
-type ComponentExtensionContributionKind =
-  | "slot"
-  | "panel"
-  | "message-renderer"
-  | "message-block-renderer"
-  | "tool-renderer"
-  | "data-renderer"
-  | "settings-section"
-  | "settings-item"
-  | "main-view"
-  | "workspace-surface";
-
-interface ComponentExtensionContributionBase {
-  id: string;
-  surface: LocalizableText;
-  host?: string;
-  description?: LocalizableText;
-  preview: ComponentType;
-  sourceFiles: readonly [string, ...string[]];
-}
-```
-
-For `kind: "slot"`, `target` must be a real `WorkbenchSlot`; for `kind: "panel"`, it must be a
-`PanelLocation`; other kinds use their actual Registry key or host path. Keep `id`, `target`,
-`entryFile`, and `sourceFiles` aligned with the implementation. The preview is a no-props component
-that uses the real design system and renders representative states without invoking privileged
-runtime behavior. Use typed `defineMessage(...)` descriptors for user-visible metadata.
-
-An uninstallable entry belongs under
-`packages/client/shell/src/extensions/installable/<feature>/`, declares
-`distribution: "installable"`, and is listed in `installableComponentExtensions`. Fixed product
-features remain under their owner package's `src/extensions/builtin/` and enter that package's
-semantic extension groups; adding Toolbox metadata does not change that ownership boundary.
+Register immutable definitions; dispose and register a replacement instead of mutating registered
+snapshots. Stable identifiers are protocol values. Register localizable descriptors without resolving
+and caching translated strings during setup.
 
 ## Slot contract
 
-Available slots:
+Check `api/slot.ts` for typed names and props, then find the actual `SlotHost` mount and context.
+A declared legacy Slot can have no live host. Inspect responsive mounts before assuming one
+contribution is available on both desktop and mobile.
 
-```text
-header.left
-header.center
-header.right
-shell.background
-shell.overlay
-sidebar.brand
-sidebar.header
-sidebar.navigation
-sidebar.toolbox
-sidebar.workspace.actions
-sidebar.top
-sidebar.bottom
-sidebar.footer
-panel.right.add-menu
-panel.right.actions
-workspace.actions
-workspace.empty.actions
-thread.left
-thread.header
-thread.menu
-thread.before
-thread.after
-thread.right
-message.before
-message.after
-message.actions
-composer.before
-composer.header.left
-composer.header.right
-composer.actions.left
-composer.actions.right
-composer.after
-statusbar.left
-statusbar.right
-```
+- `shell.background` is a non-interactive background; do not cover content or intercept input.
+- `shell.overlay` places controlled floating surfaces in the shared global layer; the feature owns
+  open/close state and uses the owning Portal container.
+- `thread.menu` receives a thread ID and `closeMenu`; preserve menu semantics and close behavior.
+- `workspace.actions` and `workspace.empty.actions` are compact actions outside Surface lifecycle.
+  Persistent inspector content uses Workspace Surface registration.
+- `panel.right.*` does not provide a current right Panel host. Do not use it for new inspector UI.
 
-Context types:
+If adding a Slot, update its typed name/context and owning host together. Give it semantic placement
+rather than a feature-specific name. Feature implementation stays outside the generic host.
 
-```ts
-interface MessageSlotContext {
-  messageId: string;
-  role: "user" | "assistant" | "system";
-  isLast: boolean;
-}
+## Sidebar Section contract
 
-interface ComposerSlotContext {
-  isRunning: boolean;
-  isEmpty: boolean;
-}
+`api/sidebar-section.ts` defines `context.sidebarSections`. Use it for a complete destination;
+small heading or footer controls can use existing Slots. The host owns section selection, navigation
+and optional search chrome. The feature owns filtering and content and receives `mobile`,
+`searchQuery` and optional `onNavigate`.
 
-interface SidebarToolboxSlotContext {
-  searchQuery: string;
-}
-
-interface RightPanelAddMenuSlotContext {
-  activePanelId: string;
-  closeMenu(): void;
-}
-
-interface RightPanelActionsSlotContext {
-  activePanelId: string;
-}
-
-interface WorkspaceActionsSlotContext {
-  activeSurfaceId?: string;
-  isOpen: boolean;
-}
-
-interface WorkspaceEmptyActionsSlotContext {
-  isOpen: boolean;
-}
-
-interface ThreadMenuSlotContext {
-  threadId: string;
-  closeMenu(): void;
-}
-
-interface SlotPropsMap {
-  "shell.background": Record<never, never>;
-  "shell.overlay": Record<never, never>;
-  "sidebar.toolbox": SidebarToolboxSlotContext;
-  "panel.right.add-menu": RightPanelAddMenuSlotContext;
-  "panel.right.actions": RightPanelActionsSlotContext;
-  "workspace.actions": WorkspaceActionsSlotContext;
-  "workspace.empty.actions": WorkspaceEmptyActionsSlotContext;
-  "thread.left": { threadId?: string };
-  "thread.header": { threadId?: string };
-  "thread.menu": ThreadMenuSlotContext;
-  "thread.before": { threadId?: string };
-  "thread.after": { threadId?: string };
-  "thread.right": { threadId?: string };
-  "message.before": MessageSlotContext;
-  "message.after": MessageSlotContext;
-  "message.actions": MessageSlotContext;
-  "composer.before": ComposerSlotContext;
-  "composer.header.left": ComposerSlotContext;
-  "composer.header.right": ComposerSlotContext;
-  "composer.actions.left": ComposerSlotContext;
-  "composer.actions.right": ComposerSlotContext;
-  "composer.after": ComposerSlotContext;
-  // Other Header, Sidebar, and Statusbar slots use Record<never, never>.
-}
-```
-
-`thread.left` and `thread.right` render at full height beside the central Thread column. A
-contribution should define its own width; use a Panel instead when the surface needs host-managed
-resizing, tabs, or open/close state.
-
-`thread.menu` renders inside the current conversation's header overflow menu. Contributions receive
-the durable thread id and must call `closeMenu()` after starting or completing their action. Render
-menu-item semantics and include any separator owned by the contribution so an empty Slot leaves no
-orphaned chrome.
-
-Contribution shape:
-
-```ts
-interface SlotContribution<K extends WorkbenchSlot> {
-  id: string;
-  component: ComponentType<SlotPropsMap[K]>;
-  order?: number;
-}
-```
-
-Slot `order` defaults to `0`, sorts ascending, and preserves registration order for ties. Contribution id is unique within one Slot.
-
-`shell.background` mounts once beneath the Workbench content. Use it for non-interactive theme
-backgrounds, textures, and visual effects. Keep contributions pointer-inert and coordinate shared
-surface colors through theme variables rather than covering interactive content.
-
-`shell.overlay` mounts once in the Workbench global layer. Use it for controlled dialogs and other
-portal-backed floating surfaces that must be reachable from multiple responsive entry points. A
-feature owns the surface state and close behavior; the Slot host only provides global placement and
-error isolation.
-
-Sidebar positions are semantic:
-
-- `sidebar.brand`: replaceable product identity at the top of the sidebar;
-- `sidebar.header`: optional compact controls below the brand;
-- `sidebar.navigation`: optional navigation directly after the core section switcher;
-- `sidebar.toolbox`: the Toolbox section body, filtered with the host-owned `searchQuery`;
-- `sidebar.workspace.actions`: compact controls on the right side of the Workspace heading;
-- `sidebar.top`: contextual content above the core thread list;
-- `sidebar.bottom`: contextual content below the core thread list;
-- `sidebar.footer`: persistent bottom utilities.
-
-`sidebar.toolbox` is the compact root of the Toolbox section and receives `{ searchQuery: string }`.
-Keep category pages and long details out of the narrow sidebar: open a Main View to replace the
-conversation. Do not route toolbox management pages into RightWorkspace.
-
-The mobile conversation Sheet mounts `sidebar.workspace.actions`, but not `sidebar.brand`,
-`sidebar.header`, `sidebar.navigation`, `sidebar.top`, `sidebar.bottom`, or `sidebar.footer`. Add a
-suitable mobile `header.*` contribution when a desktop-only Sidebar contribution also needs a touch
-entry point.
-
-`panel.right.add-menu` and `panel.right.actions` remain declared for the legacy right PanelDock, but
-the current shell does not mount a right Panel host. Do not use them for new entry points. The
-current inspector toolbar mounts `workspace.actions`; contributions receive
-`{ activeSurfaceId?, isOpen }` and should render one compact, accessible control.
-`workspace.empty.actions` receives `{ isOpen }` and contributes a launch action only while the
-Inspector has no Surface. Inspector capabilities are registered separately through
-`context.workspace.register(...)`.
+The workspace thread list is implemented in `ui-conversation-list` and registered as a section.
+Core installation membership does not require moving that implementation back to Shell. Inspect
+`ui-sidebar` for shared chrome and the capability package for feature behavior.
 
 ## Panel contract
 
-```ts
-type PanelLocation = "left" | "right" | "bottom";
-
-interface PanelComponentProps {
-  panelId: string;
-  close(): void;
-}
-
-interface PanelTabComponentProps {
-  panelId: string;
-  isActive: boolean;
-}
-
-type PanelTabClassName = string | ((context: PanelTabComponentProps) => string | undefined);
-
-interface PanelTabClassNames {
-  root?: PanelTabClassName;
-  trigger?: PanelTabClassName;
-  closeButton?: PanelTabClassName;
-}
-
-interface PanelDefinition {
-  id: string;
-  title?: LocalizableText;
-  icon?: LucideIcon;
-  tabComponent?: ComponentType<PanelTabComponentProps>;
-  tabClassNames?: PanelTabClassNames;
-  component: ComponentType<PanelComponentProps>;
-  defaultLocation: PanelLocation;
-  defaultSize?: number;
-  minSize?: number;
-  maxSize?: number;
-}
-```
-
-Sizes are pixels. Registration only defines a Panel; it does not open it. A Panel must define either `title` or `tabComponent`. `title` accepts plain text or a typed i18n message descriptor created with `defineMessage`; built-in extensions should use a descriptor so the host resolves the current locale at render time. Static `title` and `icon` are the simple/default label. `tabComponent` and `tabClassNames` remain part of the compatibility contract for a tabbed Panel host.
-
-`tabClassNames` merges extension classes after the host defaults through `cn()`/`tailwind-merge`, so an extension can override the tab `root`, selection `trigger`, and `closeButton` without copying host behavior. Each entry may be a string or a pure function of `{ panelId, isActive }`. Class functions run during render and must not call React hooks; use `tabComponent` when render-time hooks are required. The root exposes `data-panel-id` and `data-state="active|inactive"` for variant selectors.
-
-Only one Panel is active per location. Size is stored per location, not per Panel, and is not persisted across reloads in v1. Although `PanelLocation` still includes `"right"`, the current shell mounts Panel hosts only for `"left"` and `"bottom"`; a Panel moved to `"right"` has no visible host. New persistent inspector content belongs in RightWorkspace. A fixed-location Panel should explicitly call `move(panelId, location)` before toggling so stale stored locations cannot hide it.
+Registration defines a Panel without opening it. Use the public Panel service or a Command for
+open/toggle; do not repeat title/close chrome inside its body. Although the type includes right,
+the current layout mounts left/bottom Panel hosts and uses Workspace Surfaces for the inspector.
+Inspect service location handling before changing fixed-location controls or persistence assumptions.
 
 ## Command contract
 
-```ts
-interface CommandDefinition {
-  id: string;
-  title: LocalizableText;
-  description?: LocalizableText;
-  category?: LocalizableText;
-  icon?: LucideIcon;
-  shortcut?: readonly string[];
-  run(context: CommandExecutionContext): void | Promise<void>;
-}
+Global Commands serve palette/shortcut/action use. Composer Commands represent structured entities
+compiled at submission; they are separate registries and lifecycles.
 
-interface CommandExecutionContext {
-  panels: {
-    open(panelId: string): void;
-    close(panelId: string): void;
-    toggle(panelId: string): void;
-    move(panelId: string, location: PanelLocation): void;
-  };
-  navigation: {
-    newThread(): void;
-    openThread(threadId: string): void;
-  };
-}
-```
+Check both Command shortcuts and standalone `keydown` listeners, including whether listeners reject
+extra modifiers. Registration order affects conflicts; do not deliberately rely on a collision.
+Command execution can reject: catch errors when calling it from an event handler.
 
-`LocalizableText` is either literal text or a typed descriptor from `defineMessage(...)`. Built-in extensions should register descriptors, not translated strings, so the command host can update immediately when the locale changes.
-
-Registered commands appear in the `Mod+K` palette. Shortcut tokens support `Mod`/`CmdOrCtrl`, Ctrl, Meta/Cmd, Alt/Option, Shift, and exactly one normal key. Modifier matching inside `CommandService` is exact. Shortcut conflicts resolve to the first registered command, so avoid conflicts explicitly.
-
-Also search standalone global `keydown` listeners outside `CommandService`. For example, the sidebar's `Mod+B` listener accepts `Mod+Shift+B` because it does not reject extra modifiers, so that combination would trigger both features.
-
-## Composer Command contract
-
-`context.composerCommands` registers structured entities compiled at Composer submit time. It is
-separate from the global `context.commands` action palette.
-
-```ts
-interface ComposerCommandOptions {
-  behavior: "modifier" | "context" | "transform" | "immediate";
-  effect?: ComposerCommandEffect;
-  exclusive?: boolean;
-  group?: string;
-  scope?: "message" | "segment";
-  argsSchema?: Readonly<Record<string, ComposerJsonValue>>;
-  argsBinding?: {
-    kind: "message-text";
-    field: string;
-    consumeText: boolean;
-  };
-  apply(draft: ComposerCommandRequestDraft, context: ComposerCommandApplyContext): void;
-}
-```
-
-The first argument-binding version accepts only `message-text`. A bound command must declare an
-`argsSchema`, be `exclusive: true`, and use message scope. Selection opens a structured parameter
-panel above the Composer; the bound field receives a multiline editor and other schema properties
-receive matching controls. Closing the panel retains the token, clicking the token reopens it, and
-deleting the token clears its values. Parameters compile directly into `command.args`, while all
-text typed after the token remains ordinary Agent request text. `consumeText` exists only for legacy
-client fallback. Historical canonical `command-argument` nodes remain supported.
+For Composer parameter bindings, inspect `api/composer-command.ts` and the existing compiler before
+changing scope, exclusivity, argument consumption or compatibility behavior. Read-only token display
+must not acquire editor state or compilation responsibilities.
 
 ## Settings contract
 
-The shared floating settings surface is composed from independently registered sections and feature-owned items:
+Sections provide navigation; items own preference UI and persistence. The settings host owns
+headings, search, scrolling and error isolation. An item can register before its section. Keep section
+IDs stable, item IDs scoped to their section, and shared group title descriptors consistent.
 
-```ts
-interface SettingsSectionDefinition {
-  id: string;
-  title: LocalizableText;
-  description?: LocalizableText;
-  icon?: LucideIcon;
-  headerAction?: ComponentType<SettingsSectionHeaderActionComponentProps>;
-  group?: {
-    id: string;
-    title: LocalizableText;
-  };
-  order?: number;
-}
-
-interface SettingsSectionHeaderActionComponentProps {
-  sectionId: string;
-}
-
-interface SettingsItemComponentProps {
-  sectionId: string;
-  itemId: string;
-}
-
-interface SettingsItemDefinition {
-  sectionId: string;
-  id: string;
-  title: LocalizableText;
-  description?: LocalizableText;
-  keywords?: readonly LocalizableText[];
-  component: ComponentType<SettingsItemComponentProps>;
-  order?: number;
-}
-
-interface SettingsRegistry {
-  registerSection(section: SettingsSectionDefinition): Disposable;
-  registerItem(item: SettingsItemDefinition): Disposable;
-  getSections(): readonly SettingsSectionDefinition[];
-  getItems(): readonly SettingsItemDefinition[];
-  subscribe(listener: () => void): () => void;
-}
-```
-
-Section ids are globally unique. Item ids are unique within one section. Sections that share a
-`group.id` render beneath one localizable navigation heading; use the same title descriptor for
-every occurrence of that group id. `headerAction` renders a feature-owned control beside the section
-content heading and receives the stable section id; the
-Settings Host owns its placement and error isolation. Sections and items sort by
-ascending `order`, preserving registration order for ties. An item may register before its target
-section so static extension activation order does not create a dependency. Item `title`, optional
-`description`, and optional `keywords` are resolved in the current locale and indexed by the shared
-settings search. A matching keyword is rendered as the precise result label; selecting a result
-opens its section and focuses the registered item. The settings Host owns
-navigation, headings, scrolling, separators, and error isolation; item components own their
-preference UI, state, and persistence.
-
-Use `useSettingsRegistry()` only in the shared settings Host or tooling that needs subscribed
-snapshots. Business extensions should register contributions synchronously in `setup()`.
+Registration accepts localizable metadata; resolve it at render time. Use subscribed registry hooks
+for host/tooling work, not as a replacement for synchronous feature registration.
 
 ## Main View contract
 
-Use a Main View for a full feature page that temporarily replaces the central conversation while
-preserving the Workbench shell and sidebar:
-
-```ts
-interface MainViewDefinition<P extends Record<string, unknown>> {
-  kind: string;
-  component: ComponentType<MainViewProps<P>>;
-}
-
-interface MainViewProps<P extends Record<string, unknown>> {
-  view: {
-    kind: string;
-    title: LocalizableText;
-    breadcrumbs?: readonly [
-      { label: LocalizableText; params?: P; closeView?: true },
-      ...{ label: LocalizableText; params?: P; closeView?: true }[],
-    ];
-    params: P;
-    revision: number;
-  };
-  close(): void;
-}
-
-context.mainViews.register({ kind: "example", component: ExampleMainView });
-mainViews.open({
-  kind: "example",
-  title: defineMessage("extensions.toolbox.packages.title"),
-  breadcrumbs: [
-    {
-      label: defineMessage("extensions.toolbox.title"),
-      params: { section: "catalog" },
-    },
-    { label: defineMessage("extensions.toolbox.packages.title") },
-  ],
-  params: { section: "catalog" },
-});
-```
-
-Call `useMainViewService()` from a mounted extension component. `open()` accepts registered kinds
-only and shallow-freezes feature-owned params. Every request increments `revision`, including
-requests for the active kind. `close()` restores the conversation; switching the core sidebar to
-Workspace, changing the conversation URL, or unregistering the definition also closes the active
-Main View.
-
-Every open request also supplies a `LocalizableText` title and may supply a non-empty `breadcrumbs`
-path ordered from parent to current page. The Workbench header resolves both at render time, so
-built-in extensions should pass `defineMessage(...)` descriptors instead of translated strings.
-Every ancestor breadcrumb must define either `params` or `closeView: true` and is rendered as a
-keyboard-accessible navigation button; omit both only for the current page. Selecting a `params`
-ancestor reopens the same Main View kind with its target params and the shortened breadcrumb path;
-selecting a `closeView` ancestor returns to the shell-level parent destination. Do not define both
-targets on one item or attach a target to the current item. When breadcrumbs are present, the
-shared header treats `title` as the current page label for metadata and fallback behavior. A Main
-View title replaces the conversation title only while that view is active.
-
-Main Views own their internal navigation, layout, and i18n. They do not provide URL routing,
-resource keys, persistent tabs, scopes, or keep-alive behavior. Use a Next.js route for URL identity
-and a Workspace Surface for a persistent, resource-scoped right Inspector.
+Use a Main View for transient central content. It does not provide URL identity, inspector resource
+keys or persistent tab restoration. Inspect `api/main-view.ts` for navigation/breadcrumb props and
+preserve the host's close behavior. Use a Workspace Surface for a persistent resource inspector.
 
 ## Renderer contract
 
-```ts
-type MessageRendererComponent = ComponentType<{ node: UserMessageNode | AssistantMessageNode }>;
-type ToolRendererComponent = ComponentType<{
-  node: UserMessageNode | AssistantMessageNode | SystemNode;
-  block: ToolCallBlock;
-  fallback: ReactNode;
-}>;
-type DataRendererComponent = ComponentType<{
-  node: UserMessageNode | AssistantMessageNode | SystemNode;
-  block: DataBlock;
-  fallback: ReactNode;
-}>;
+Inspect `api/renderer.ts`, the Host's `hosts/renderer-host.tsx`, and the actual message/timeline
+consumer. Preserve the matching order: predicate-matched block → exact tool/data name → caller
+fallback. Predicates must be pure and streaming-safe; the first match wins. One complete Message
+Renderer is active, while tool and data renderers have separate exact, case-sensitive name scopes.
 
-context.renderers.message.register({ id, component: MessageRenderer });
-context.renderers.blocks.register({ id, canRender, component: MessageBlockRenderer });
-context.renderers.tools.register(toolName, ToolRenderer);
-context.renderers.data.register(dataName, DataRenderer);
-context.renderers.toolPresentations.register(toolName, toolPresentation);
-context.renderers.dataPresentations.register(dataName, dataPresentation);
-```
+A Renderer displays an existing block. Backend capabilities define/expose/execute tools or emit data.
+Guard missing streaming arguments and unsuccessful statuses; preserve supplied fallback behavior.
+Prefer `node`/`block` props to parallel conversation state.
 
-The Message Renderer is a singleton contribution that receives the complete User/Assistant Node
-and owns its Block grouping and presentation. Only one
-can be active; without one, Workbench renders its minimal fallback. Tool and Data renderers compose
-under it through `RendererHost` and retain exact, case-sensitive name matching in separate
-uniqueness scopes. Predicate-matched Message Block renderers are tried in registration order; the
-first match wins. `RendererHost` receives the owning Node, Block, and existing fallback. Renderer
-APIs have no numeric `order` or `priority` field.
+Tool Presentation adds timeline behavior without replacing the detail renderer. Current SDK fields
+include labels, `resolve`, `summarize`, `disclosureController`, `summaryComponent`, `getExpandable`,
+`showCompletionIcon`, `group` and `getResourceStats`. Check the implementation of each consumer before
+assuming a new field is operational. In particular:
 
-Tool/Data presentation registries add timeline metadata without replacing the corresponding Block
-renderer. Tool presentations provide localizable active/completed labels, an icon, an optional pure
-stream-safe summary returning `LocalizableText`, and an optional disclosure controller. An optional
-`getActiveLabel` pure function may override the default active label when the running tool has
-distinct partial-argument-safe streaming phases. Data presentations can opt a named Data Block into the timeline and provide pure
-visibility/activity predicates. Names are exact, case-sensitive, and independently unique from the
-Tool/Data renderer registries.
+- Protocol parsing and tool-specific classification belong to the contribution owner (Pi for Pi
+  tools). Generic `ui-tool` consumes presentation contracts; do not add tool-name/argument guesses.
+- Summary components own their query area; generic tool chrome owns status and disclosure.
+- Resource statistics and resolver callbacks are pure. Preserve aggregation, status filtering and
+  default behavior at the consumer; a thrown callback must not break the whole timeline.
+- Summary component errors need the existing Host error boundary and fallback. Calling a React
+  component directly inside `try/catch` does not establish an error boundary.
+- Disclosure controllers may observe presentation state while details are collapsed; they must not
+  execute or mutate a tool call.
+- Compose alternative presentations under one registered tool owner. Inspect ordinary read and
+  skill-reading resolution before adding another `read` registration.
 
-Resolution order:
+For the current migration, consult `specs/006-ui-boundary-decoupling/contracts/public-boundaries.md`
+and its validation evidence for target defaults, grouping and fallback invariants. Keep this
+reference focused on durable contracts rather than task completion status.
 
-1. first predicate-matched Message Block Renderer;
-2. exact-name Tool/Data Renderer;
-3. fallback supplied by the active Message Renderer or Workbench safety renderer.
+## Opener and Workspace Surface contracts
 
-A Renderer only displays an existing Message Block. It does not define a tool, expose it to a model, execute it, or cause a Data Block to be emitted.
+Register resource routing with `context.openers` and a persistent inspector kind with
+`context.workspace`. Callers use public opener hooks from `@workbench/workspace-runtime/react` and
+handle rejection. Do not import another feature's component, store or private kind to open a resource.
 
-Tool arguments are partial during streaming. Handle `running`, `complete`, `incomplete`,
-`requires-action`, and `error`; use `argumentsText` while parsed `arguments` are incomplete. Tool
-execution, approval, and resume actions belong to the owning Runtime capability, not Renderer props.
+`api/workspace-surface.ts` owns authoring fields; `@workbench/workspace-runtime` and its `/react`
+entry own generic controllers, hooks and installation lifecycle. Inspect package exports and current
+consumers for visual/product adapters rather than assuming an application-local right-workspace path.
 
-`ToolPresentationDefinition.disclosureController` is an optional component mounted outside the
-tool-detail disclosure. It receives the current Tool Block, `running`, `open`, and the host-owned
-`onOpenChange`; use it when an extension-owned asynchronous presentation signal—such as a terminal
-waiting for input—must reveal a collapsed Tool Renderer. It is presentation-only: do not execute the
-tool, duplicate the detail UI, or mutate the Block from this controller.
-
-## Opener contract
-
-Use an Open Handler when one contribution needs to open a resource owned by another contribution.
-The caller submits a neutral resource descriptor; the owner translates it into its own Surface:
-
-```ts
-interface OpenableResource {
-  scheme: string;
-  path: string;
-  label?: string;
-}
-
-interface OpenResourceRequest {
-  resource: OpenableResource;
-  context: WorkspaceContext;
-  scope?: WorkspaceScope;
-  policy?: SurfaceOpenPolicy;
-}
-
-interface OpenHandlerDefinition {
-  id: string;
-  canOpen(request: OpenResourceRequest): number;
-  open(
-    request: OpenResourceRequest,
-    context: { surfaces: WorkspaceSurfaceOpenOperations },
-  ): string | void | Promise<string | void>;
-}
-```
-
-Register ownership synchronously with `context.openers.register(handler)`. A `canOpen()` score of
-zero means unsupported; the highest positive score wins and registration order breaks ties. Client
-components call `useOpenerService().open(request)` from `@workbench/workspace-runtime/react` and must
-handle rejection in event handlers. Setup never calls a React hook because the service injects
-`open/reveal` Surface operations only when executing the handler.
-
-Do not deep-import a sibling `<owner-package>/src/extensions/builtin/<feature>`. Promote genuinely
-shared capability contracts to a finite public entry in the owning workspace package, and use the
-Opener only for resource ownership/routing.
-
-## RightWorkspace boundary
-
-RightWorkspace is the generic inspector tab host mounted to the right of the Workbench. Concrete
-capabilities are Workspace Surface contributions registered through `ExtensionContext.workspace`.
-
-Source of truth:
-
-- `packages/extension-platform/extension-sdk/src/api/workspace-surface.ts`: public contribution, instance, scope, and registry contracts;
-- `packages/extension-platform/extension-sdk/src/registries/workspace-surface-registry.ts`: tracked capability registry;
-- `apps/web/src/components/right-workspace/index.ts`: Web application facade for product presentation only, including the
-  visual workspace, feedback forms/chrome, toggle, and product composition Provider;
-- `packages/workspace/workspace-runtime/src/index.ts`: finite public entry for generic
-  RightWorkspace controller/persistence ports, layout state, selectors, mount/split policy, tabs,
-  and resize preview. It does not re-export SDK authoring constants or Workspace Surface contracts;
-- `packages/workspace/workspace-runtime/src/`: implementation of those platform-independent
-  primitives; it must not import business extensions, Pi, Next, or a root alias;
-- `packages/workspace/workspace-runtime/src/workspace-controller.ts`: `open`, `reveal`, `focus`,
-  `close`, update, layout, restore, hydration arbitration, ordered persistence, and disposal. Product
-  settings/localStorage and catalog validation enter only through injected root-owned adapters;
-- `packages/workspace/workspace-runtime/src/react.ts`: finite `./right-workspace/react` entry for
-  generic context/hooks, immutable installation Provider, and Surface runtime host. Provider inputs
-  are installation-scoped and require a keyed remount to change; the entry exposes selector hooks,
-  not the internal environment or raw Store owner;
-- `packages/workspace/workspace-runtime/src/workspace-feedback-*.ts`: runtime-neutral feedback
-  store and immutable claim/CAS contract; it does not import an Agent Runtime;
-- `apps/web/src/components/right-workspace/right-workspace-provider.tsx`: Web product wrapper injecting settings,
-  legacy storage, catalog validation, application context, and opener construction. Product visual
-  presentation remains root-owned.
-
-Workspace Surface definitions, instances, scopes, registry, and authoring constants remain direct
-imports from `@workbench/extension-sdk`; Shell exports its controller and state contracts without
-re-exporting those SDK authoring contracts.
-
-Register a definition synchronously in setup:
-
-```ts
-const surface = context.workspace.register({
-  kind: "example",
-  icon: ExampleIcon,
-  cachePolicy: "keep-alive",
-  persistence: "persistent",
-  defaultPlacement: "primary",
-  allowDuplicateResources: false,
-  getResourceKey: (params, workspaceContext) =>
-    `example:${workspaceContext.projectId}:${params.id}`,
-  getDefaultScope: (_params, workspaceContext) => ({
-    type: "project",
-    key: workspaceContext.projectId ?? workspaceContext.applicationId,
-  }),
-  header: ExampleSurfaceHeader,
-  render: ExampleSurface,
-  menuItem: ExampleMenuItem,
-  runtime: ExampleRuntimeBridge,
-});
-```
-
-`kind` is globally unique. `menuItem` is rendered in the core add-surface menu and `runtime` is
-mounted once inside the application Runtime provider. Both are optional and owned by the extension.
-Registration is tracked and removed on rollback/deactivation.
-
-`cachePolicy` controls whether inactive content stays mounted. `persistence: "session"` excludes an
-instance from reload restoration; omission behaves as persistent. `defaultPlacement` defaults to
-`"primary"`. Unless `allowDuplicateResources` is true, opening the same `resourceKey` reveals or
-moves the existing instance instead of creating another one.
-
-`header` is optional active-primary chrome. The core mounts it once above both the primary and
-auxiliary panes, so feature-owned breadcrumbs or resource actions can span the complete inspector
-without the core knowing the feature kind. It is never persisted and is not rendered for an
-auxiliary-only Surface.
-
-`render` accepts a component. Use `createLazyWorkspaceSurface()` around a dynamic import for code
-splitting; `SurfaceHost` supplies the shared Suspense fallback, mounts the implementation on first
-activation, and recreates a rejected lazy loader when the user retries. Lightweight definitions are
-still registered synchronously at startup.
-
-RightWorkspace core treats `kind` as an opaque stable id. It does not contain capability maps,
-feature icons, domain services, or Agent tool mappings. Persisted instances survive while a
-definition is unavailable and render again if the extension returns. Use `useRightWorkspace()` and
-`useWorkspaceContext()` inside client contributions to open a registered kind; do not call hooks
-from setup.
-
-`RightWorkspaceController.setAuxiliaryOpen(boolean)` controls only the generic auxiliary-pane
-visibility. Hiding it preserves the active auxiliary Surface instance and its mounted state;
-explicitly focusing/opening an auxiliary Surface reveals it again, while a background reveal does
-not override the user's hidden choice. Extensions may use this generic layout action without
-importing or naming the contribution currently rendered in that pane.
-
-## Pi runtime boundary
-
-Generic UI belongs to Shell and consumes Workbench conversation projections and optional capability
-hooks from `@workbench/agent-runtime-client/context`. Its DTOs and errors come from Workbench
-contracts and `@workbench/agent-runtime-client/capabilities`. Missing capabilities hide entries or
-produce an unavailable state for restored UI; never branch on Runtime ID or install a fake capability.
-Shell, Core, and Extension SDK/Host must not import Pi packages or interpret Pi raw events/errors.
-
-For Pi-specific configuration, resources, and diagnostics inside Pi Contributions, read
-`packages/pi-runtime/integration.md` and verify exact shapes against:
-
-- `@workbench/pi-rpc-contracts/rpc` for unary RPC envelopes and payload/value types;
-- `@workbench/pi-rpc-contracts/stream` for mux/host WebSocket frames;
-- the owning `@workbench/pi-runtime-client/*` feature facade for browser-side RPC helpers and
-  subscribed state.
-
-Pi Client owns authoritative snapshots and deltas through the shared paired mux/host WebSocket
-connection; Pi Contributions use the public subscribed hooks and unary helpers. Do not issue raw `fetch()` calls, create a
-second WebSocket/SSE connection, duplicate payload interfaces, or treat HTTP `200` as business
-success without checking the RPC result envelope.
-
-`/api/pi/**`, legacy contracts, and `legacy-sse.ts` are compatibility paths, not the default for new
-features. Use one only when `packages/pi-runtime/integration.md` explicitly identifies a remaining exception (for
-example the current queue-pause compatibility command). If a required method is missing, extend the
-wire contracts, validation/router, domain service, client helper, and tests before wiring the UI.
-Do not infer unimplemented Harness APIs or bypass the trust boundary from a component.
-
-When the change reaches server-side SDK code, switch references instead of treating the browser
-runtime as the package API: use `$pi-coding-agent-sdk` for AgentSession, coding-agent extensions,
-resource loading, and `@earendil-works/pi-coding-agent`; use `$pi-ai-sdk` for model/provider/auth,
-message/tool schemas, image requests, streaming events, and direct `@earendil-works/pi-ai` work.
-Browser extensions consume the resulting Workbench capabilities, or Pi-specific facades inside Pi
-Contributions, through the same installed connection.
-
-## Services available to components
-
-Use hooks inside client components:
-
-```ts
-const panels = usePanelService();
-const commands = useCommandService();
-const navigation = useNavigationService();
-const settings = useSettingsRegistry();
-```
-
-PanelService provides:
-
-```text
-open, close, toggle, activate, move, collapse, expand, setSize
-isOpen, isCollapsed, getActivePanelId, getSize, getLocation
-```
-
-CommandService `execute(id)` returns a Promise. Catch rejection when invoking it from an event handler.
-
-`useSettingsRegistry()` is intended for the shared Settings host or subscribed tooling. Business
-extensions normally register sections/items synchronously through `context.settings`.
-
-RightWorkspace and `useOpenerService()` hooks come from `@workbench/workspace-runtime/react`, Workspace
-Surface/Open Handler registration comes from `context.workspace`/`context.openers`, and Pi hooks come
-from the relevant `@workbench/pi-runtime-client/*` feature facade.
-
-Use the Workbench Agent Runtime hooks for Session state. Message/Block renderers should prefer their
-Host-provided `node`/`block` props; do not mirror chat state in a separate extension store.
+A Surface owner keeps its kind, icon, resource key, scope, renderer, optional menu item, Runtime
+bridge and domain service together. Generic inspector code handles tabs, layout, restoration and
+feedback without feature-specific branches. Preserve opaque kinds, deduplication, scope, keep-alive,
+unavailable-definition restoration and installation-scoped Provider identity when changing wiring.
 
 ## Uniqueness and ordering
 
-```text
-Extension id          global within ExtensionManager
-Slot contribution id unique within one Slot
-Panel id              global within PanelRegistry
-Command id            global within CommandRegistry
-Composer command id   global within ComposerCommandRegistry
-Open handler id       global within OpenerRegistry
-Settings section id   global within SettingsRegistry
-Main view kind         global within MainViewRegistry
-Settings item id      unique within one settings section
-Message renderer      one active within Message RendererRegistry
-Message block renderer id global within MessageBlockRendererRegistry
-Tool renderer name    unique within Tool RendererRegistry
-Data renderer name    unique within Data RendererRegistry
-Tool presentation name unique within ToolPresentationRegistry
-Data presentation name unique within DataPresentationRegistry
-Workspace surface kind global within WorkspaceSurfaceRegistry
-```
+| Registration                                                                                                                      | Uniqueness scope                                 |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Extension                                                                                                                         | Extension manager                                |
+| Slot contribution                                                                                                                 | One Slot                                         |
+| Settings item                                                                                                                     | One settings section                             |
+| Complete Message Renderer                                                                                                         | One active renderer                              |
+| Tool/data renderer or presentation                                                                                                | Exact name within its own registry               |
+| Panel, Command, Composer Command, Sidebar Section, Settings section, Main View, Opener, Workspace Surface, matched block renderer | Stable ID/kind within the corresponding registry |
 
-Slots and Settings sections/items have numeric ordering. The combined active extension order
-(`builtinExtensions`, then installed entries from `installableComponentExtensions`) determines
-activation order, same-order ties across extension registrations, conflicting shortcut selection,
-and command display order within a category.
+Slot, Sidebar Section and Settings contributions have numeric `order`; Panel, Command and Renderer
+APIs do not have numeric priority. Preserve registration order for ties and predicate matching.
+Inspect current product groups before moving a definition: activation order can affect cross-feature
+behavior even if every ID stays the same.
 
-Slot, Panel, Command, Composer Command, Open Handler, Renderer/presentation, Settings, Main View, and
-Workspace Surface definitions are copied and shallow-frozen at registration. Dispose and register a
-replacement instead of mutating registered data.
+## Error isolation and runtime boundary
 
-## Error isolation
+Inspect the matching Host for render fallback and setup rollback. Public Host hooks are available to
+mounted components; Host assembly uses allowed leaf hosts. Do not import internal registries or the
+aggregate implementation into a feature. React boundaries do not catch event or arbitrary async errors.
 
-Slot, Panel, Settings item, Main View, Renderer, and Workspace Surface contributions receive separate
-React Error Boundaries. Setup failures are reported and rolled back. Palette/keyboard Command
-execution reports rejected Promises.
-
-React Error Boundaries do not catch event-handler errors or arbitrary asynchronous failures. Handle those locally or route them through the extension environment.
+Generic owners consume Workbench contracts and optional capabilities without Pi imports or Runtime
+ID branches. Pi-specific contributions use the facades named in `packages/pi-runtime/integration.md`; do not add
+raw endpoints, a second event stream or copied RPC types. Keep authoritative Session/editor state
+in its existing owner and privileged execution outside browser extensions.

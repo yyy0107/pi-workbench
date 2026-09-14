@@ -42,6 +42,7 @@ import { WorkbenchEmpty } from "./workbench-empty";
 import { ConversationList } from "@workbench/ui-conversation-messages/list";
 import { ConversationLayout } from "@workbench/ui-conversation-messages/layout";
 import { useWorkbenchConversationViewport } from "@workbench/ui-conversation-messages/viewport";
+import { ConversationSurfaceProvider } from "@workbench/ui-conversation-nodes/context";
 import { displayedAgentRunElapsedMs } from "../lib/workbench-thread-timing";
 
 const THREAD_VIEWPORT_MASK_IMAGE =
@@ -324,7 +325,9 @@ export function WorkbenchConversationContent({
               {isEmpty ? (
                 <WorkbenchEmpty>{hasDockedComposer ? null : emptyComposer}</WorkbenchEmpty>
               ) : null}
-              <ConversationList renderWorkingStatus={() => <AssistantWorkingStatus />} />
+              <ConversationSurfaceProvider value={rootDataSurface}>
+                <ConversationList renderWorkingStatus={() => <AssistantWorkingStatus />} />
+              </ConversationSurfaceProvider>
             </>
           )}
 

@@ -1,0 +1,60 @@
+{
+  "name": "@workbench/remote-control-direct-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "import": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./address-policy": {
+      "types": "./src/address-policy.ts",
+      "import": "./src/address-policy.ts",
+      "default": "./src/address-policy.ts"
+    },
+    "./gateway": {
+      "types": "./src/gateway.ts",
+      "import": "./src/gateway.ts",
+      "default": "./src/gateway.ts"
+    },
+    "./authentication": {
+      "types": "./src/authentication.ts",
+      "import": "./src/authentication.ts",
+      "default": "./src/authentication.ts"
+    },
+    "./ports": {
+      "types": "./src/ports.ts",
+      "import": "./src/ports.ts",
+      "default": "./src/ports.ts"
+    },
+    "./pairing-service": {
+      "types": "./src/pairing-service.ts",
+      "import": "./src/pairing-service.ts",
+      "default": "./src/pairing-service.ts"
+    },
+    "./socket-session": {
+      "types": "./src/socket-session.ts",
+      "import": "./src/socket-session.ts",
+      "default": "./src/socket-session.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/remote-control-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

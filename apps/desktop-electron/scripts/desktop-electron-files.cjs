@@ -1,5 +1,7 @@
 const ELECTRON_RUNTIME_FILES = Object.freeze([
   "desktop-renderer-protocol.cjs",
+  "desktop-remote-control.cjs",
+  "direct-remote-listener.cjs",
   "main.cjs",
   "desktop-services.cjs",
   "packaged-runtime-lifecycle.cjs",

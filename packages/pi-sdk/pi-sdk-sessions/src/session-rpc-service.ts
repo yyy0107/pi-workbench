@@ -356,6 +356,10 @@ function canonicalTimeZone(value: string): string | undefined {
   }
 }
 
+function validClientMutationIdentifier(value: string): boolean {
+  return /^[\x21-\x7e]{1,128}$/u.test(value);
+}
+
 export class SessionRpcService {
   private readonly workspaceStore: SessionRpcWorkspaceStore;
   private readonly execution: AgentExecutionPort;
@@ -1169,6 +1173,18 @@ export class SessionRpcService {
     input: SessionPromptInput,
     context: Readonly<{ rpcId?: string }> = {},
   ): Promise<SessionPromptValue> {
+    if (
+      input.clientMutation &&
+      (!validClientMutationIdentifier(input.clientMutation.operationId) ||
+        !validClientMutationIdentifier(input.clientMutation.messageId))
+    ) {
+      throw badRequest([
+        issue(
+          ["clientMutation"],
+          "Client mutation identifiers must be 1-128 printable ASCII characters.",
+        ),
+      ]);
+    }
     const clientTimeZone =
       input.clientTimeZone === undefined ? undefined : canonicalTimeZone(input.clientTimeZone);
     if (input.clientTimeZone !== undefined && clientTimeZone === undefined) {
@@ -1237,6 +1253,7 @@ export class SessionRpcService {
         provenance: {
           ...(context.rpcId === undefined ? {} : { requestId: context.rpcId }),
           ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
+          ...(input.clientMutation === undefined ? {} : { clientMutation: input.clientMutation }),
         },
       });
     } catch (error) {
@@ -1248,6 +1265,7 @@ export class SessionRpcService {
       ...(admission.kind === "queued" && admission.queueItemId !== undefined
         ? { queueItemId: admission.queueItemId }
         : {}),
+      ...(input.clientMutation === undefined ? {} : { messageId: input.clientMutation.messageId }),
     };
   }
 

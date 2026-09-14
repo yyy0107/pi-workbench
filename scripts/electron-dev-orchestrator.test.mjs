@@ -3,8 +3,10 @@ import { EventEmitter, once } from "node:events";
 import { createServer } from "node:http";
 import path from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 
 import {
+  createElectronLaunchConfiguration,
   parseElectronDevelopmentOptions,
   runElectronDevelopment,
   startManagedChild,
@@ -14,6 +16,43 @@ import { createWebRuntimeWatchLaunchConfiguration } from "./web-runtime-watch.mj
 import workbenchPaths from "./workbench-paths.cjs";
 
 const { createWorkbenchPaths } = workbenchPaths;
+
+test("registers the TypeScript source loader for Electron development", () => {
+  const paths = createWorkbenchPaths({ repositoryRoot: "/arbitrary/workbench" });
+  const electronExecutable = path.resolve("/virtual/electron");
+  const tsxLoader = path.resolve("/virtual/tsx-loader.mjs");
+  const requireFromElectron = Object.assign(
+    (specifier) => {
+      assert.equal(specifier, "electron");
+      return electronExecutable;
+    },
+    {
+      resolve(specifier) {
+        assert.equal(specifier, "tsx");
+        return tsxLoader;
+      },
+    },
+  );
+
+  const launch = createElectronLaunchConfiguration({
+    paths,
+    environment: {
+      NODE_OPTIONS: " --trace-warnings ",
+      WORKBENCH_STALE_VALUE: "discarded",
+    },
+    rendererOrigin: "http://127.0.0.1:3000",
+    requireFromElectron,
+  });
+
+  assert.equal(launch.command, electronExecutable);
+  assert.equal(
+    launch.options.env.NODE_OPTIONS,
+    `--trace-warnings --import=${pathToFileURL(tsxLoader).href}`,
+  );
+  assert.equal(launch.options.env.NODE_ENV, "development");
+  assert.equal(launch.options.env.WORKBENCH_DESKTOP_RENDERER_ORIGIN, "http://127.0.0.1:3000");
+  assert.equal("WORKBENCH_STALE_VALUE" in launch.options.env, false);
+});
 
 async function listenOnLoopback(server) {
   server.listen(0, "127.0.0.1");

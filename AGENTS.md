@@ -88,3 +88,5 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 当前已实施的 API/RPC 抽离为 `specs/007-api-rpc-extraction/plan.md`：新增 packages/transport/api（@workbench/api），按 contracts/errors/client/validation/server 提供明确入口，业务 DTO/handler、Host connection 与认证仍归原 owner。32 项任务已完成，基线为 Spec006 提交 383fe578；94 个库包，验证见同目录 validation.md；Spec006 完成记录保持。
 
 当前已实施的复用边界重构为 `specs/008-package-reuse-boundaries/plan.md`：来源、合同与任务见同目录 ownership-map.md、contracts/public-boundaries.md、tasks.md。基线 f95cc737，新增 ui-file-presentation/ui-workspace 两个真实能力包，共 96 个库包；工作区目录复用 workspace-server/catalog，合同复用 agent-runtime-contracts/workspace-catalog；Pi 会话优先包内分职责。继续不新增、不执行 UI/DOM/Hook 渲染或交互冒烟，非 UI 测试按精确白名单；Luna 负责独立能力、Sol 负责跨包与生命周期，主 Agent 负责共享依赖/配置和收口。实施结果以 validation.md 为准，不将 Spec007 的完成证据当成本期结果。
+
+当前移动远程控制规划为 `specs/013-mobile-remote-control/plan.md`，尚未实施。手机端选用 Expo SDK 57/React Native 0.86，产品 UI 归 `apps/mobile`；手机与 Electron 主进程中的 Pi 远控桥均主动连接独立 Relay，电脑仍是会话唯一事实来源。远控协议只允许多会话读取、创建、发文本、停止、重命名、置顶、归档及普通问题回答，禁止工具箱、终端、文件、浏览器、扩展、模型设置、敏感工具审批和原始 Runtime/Pi RPC。实施前先完成 Node/Expo RFC 9180 E2EE 兼容与安全阻塞验证；继续遵守不新增、不执行 UI/DOM/Hook 测试或 UI 交互冒烟的约束。

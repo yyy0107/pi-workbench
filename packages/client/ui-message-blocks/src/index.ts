@@ -1,5 +1,6 @@
 export * from "./file";
 export * from "./image";
+export * from "./user-attachment-gallery";
 export * from "./message-blocks";
 export * from "./message-source";
 export * from "./composer-command-response";

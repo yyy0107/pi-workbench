@@ -1,3 +1,5 @@
+import type { MessageFormatters } from "@workbench/i18n/runtime";
+
 export const messages = {
   workbench: {
     chat: {
@@ -101,6 +103,22 @@ export const messages = {
     },
   },
   chatContent: {
+    fileAttachment: {
+      openInWorkspace: ({ name }: { name: string }) => `Open ${name} in workspace`,
+    },
+    userAttachmentGallery: {
+      label: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `Attachments, ${number(count)} total`,
+      position: (
+        { current, total }: { current: number; total: number },
+        { number }: MessageFormatters,
+      ) => `${number(current)} of ${number(total)}`,
+      previous: "Previous attachment",
+      next: "Next attachment",
+      showAll: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `Show all ${number(count)}`,
+      collapse: "Collapse",
+    },
     userMessage: {
       showMore: "Show more",
       showLess: "Show less",

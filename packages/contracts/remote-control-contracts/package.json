@@ -1,0 +1,61 @@
+{
+  "name": "@workbench/remote-control-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./protocol": {
+      "types": "./src/protocol.ts",
+      "import": "./src/protocol.ts",
+      "default": "./src/protocol.ts"
+    },
+    "./codecs": {
+      "types": "./src/codecs.ts",
+      "import": "./src/codecs.ts",
+      "default": "./src/codecs.ts"
+    },
+    "./crypto": {
+      "types": "./src/crypto.ts",
+      "import": "./src/crypto.ts",
+      "default": "./src/crypto.ts"
+    },
+    "./direct-crypto": {
+      "types": "./src/direct-crypto.ts",
+      "import": "./src/direct-crypto.ts",
+      "default": "./src/direct-crypto.ts"
+    },
+    "./direct-pairing": {
+      "types": "./src/direct-pairing.ts",
+      "import": "./src/direct-pairing.ts",
+      "default": "./src/direct-pairing.ts"
+    },
+    "./legacy-codecs": {
+      "types": "./src/legacy-codecs.ts",
+      "import": "./src/legacy-codecs.ts",
+      "default": "./src/legacy-codecs.ts"
+    },
+    "./pairing": {
+      "types": "./src/pairing.ts",
+      "import": "./src/pairing.ts",
+      "default": "./src/pairing.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@hpke/core": "1.9.0",
+    "@workbench/core-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

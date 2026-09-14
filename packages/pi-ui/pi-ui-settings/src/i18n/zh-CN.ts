@@ -6,10 +6,15 @@ export const messages = {
         description:
           "在消息操作栏中提示明显的提示词缓存缺失，点击图标查看估算的额外费用。默认关闭。",
         noticeTitle: "提示词缓存缺失",
+        summary: "部分提示词未从缓存读取，因此本次请求可能产生额外费用。",
+        tokensLabel: "未命中缓存 token",
+        costLabel: "估算额外费用",
+        costUnavailableShort: "不可用",
         tokens: ({ tokens }: { tokens: string }) =>
           `之前已处理的 ${tokens} 个 token 未从缓存读取。`,
         cost: ({ cost }: { cost: string }) => `估算额外费用：${cost}`,
         costUnavailable: "额外费用不可用，或未报告价格差额。",
+        possibleCauses: "可能原因",
         modelChanged: "与上一次请求相比，模型已切换。",
         idle: ({ minutes }: { minutes: string }) =>
           `已空闲 ${minutes} 分钟，提供商的缓存可能已过期。`,

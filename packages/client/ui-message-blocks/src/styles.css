@@ -6,6 +6,103 @@
   font-weight: var(--workbench-content-font-weight, 400);
 }
 
+:where([data-slot="workbench-conversation"]) [data-slot="user-message-content"] {
+  --user-message-attachment-preview-max-size: calc(var(--control-hit-default) * 8);
+  --user-message-attachment-gallery-gap: calc(var(--control-hit-compact) / 3);
+}
+
+:where([data-slot="workbench-conversation"])
+  [data-slot="user-message-content"]
+  [data-slot="image-root"] {
+  max-width: min(100%, var(--user-message-attachment-preview-max-size));
+}
+
+:where([data-slot="workbench-conversation"])
+  [data-slot="user-message-content"]
+  [data-slot="image-preview"]
+  > img {
+  max-height: var(--user-message-attachment-preview-max-size);
+}
+
+:where([data-slot="workbench-conversation"]) [data-slot="user-attachment-gallery"] {
+  width: min(100%, var(--user-message-attachment-preview-max-size));
+}
+
+:where([data-slot="workbench-conversation"]) [data-slot="user-attachment-gallery"][data-expanded] {
+  width: min(
+    100%,
+    calc(
+      var(--user-message-attachment-preview-max-size) * 2 +
+        var(--user-message-attachment-gallery-gap)
+    )
+  );
+}
+
+:where([data-slot="workbench-conversation"]) [data-slot="user-attachment-gallery-items"] {
+  gap: var(--user-message-attachment-gallery-gap);
+}
+
+:where([data-slot="workbench-conversation"])
+  [data-slot="user-attachment-gallery"][data-expanded]
+  [data-slot="user-attachment-gallery-items"] {
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, calc(var(--user-message-attachment-preview-max-size) * 3 / 4)), 1fr)
+  );
+}
+
+:where([data-slot="workbench-conversation"])
+  [data-slot="user-attachment-gallery-item"]
+  [data-slot="image-root"] {
+  width: 100%;
+  max-width: 100%;
+}
+
+:where([data-slot="workbench-conversation"]) [data-slot="user-attachment-gallery-item"] {
+  aspect-ratio: 1;
+}
+
+:where([data-slot="workbench-conversation"])
+  [data-slot="user-attachment-gallery-item"][data-kind="image"]
+  :where(
+    [data-slot="user-attachment-reference"],
+    [data-slot="image-root"],
+    [data-slot="image-preview"]
+  ),
+:where([data-slot="workbench-conversation"])
+  [data-slot="user-attachment-gallery-item"][data-kind="image"]
+  .aui-image-zoom-trigger {
+  height: 100%;
+}
+
+:where([data-slot="workbench-conversation"])
+  [data-slot="user-attachment-gallery-item"][data-kind="image"]
+  [data-slot="image-preview"]
+  > img {
+  height: 100%;
+  max-height: 100%;
+}
+
+:where([data-slot="workbench-conversation"])
+  [data-slot="user-attachment-gallery-item"][data-kind="file"]
+  [data-slot="file-root"] {
+  max-width: calc(100% - var(--user-message-attachment-gallery-gap) * 2);
+}
+
+:where([data-slot="workbench-conversation"])
+  [data-slot="user-attachment-gallery-item"][data-kind="file"]
+  [data-slot="file-open-trigger"] {
+  width: calc(100% - var(--user-message-attachment-gallery-gap) * 2);
+}
+
+:where([data-slot="workbench-conversation"])
+  [data-slot="user-attachment-gallery-item"][data-kind="file"]
+  [data-slot="file-open-trigger"]
+  [data-slot="file-root"] {
+  width: 100%;
+  max-width: 100%;
+}
+
 @layer components {
   :where(
     [data-slot="file-download"],

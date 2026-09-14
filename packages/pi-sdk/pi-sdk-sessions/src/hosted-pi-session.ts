@@ -83,8 +83,10 @@ import { getInteractiveResponseRegistry as getInteractiveRegistry } from "./inte
 import { estimateSessionContextBreakdown } from "./session-context-breakdown";
 import { releaseSessionContextTrace, type SessionContextTrace } from "./session-context-trace";
 import {
+  appendSessionClientMutation,
   appendSessionEventJournal,
   createCanonicalSessionEvent,
+  findSessionClientMutation,
   initializeSessionEventJournal,
   readSessionEventJournal,
 } from "./session-event-journal";
@@ -1749,6 +1751,16 @@ export class HostedPiSession {
     return this.runQueueMutation(async () => {
       let submissionLeaseAcquired = false;
       try {
+        if (provenance?.clientMutation) {
+          const mutation = findSessionClientMutation(
+            this.session.sessionManager,
+            provenance.clientMutation,
+          );
+          if (mutation === "match") return { queued: false };
+          if (mutation === "conflict") {
+            throw new PiServerError("pi_client_mutation_conflict", 409);
+          }
+        }
         if (options.requireIdle && this.isBusy) {
           throw new PiServerError("pi_session_busy", 409);
         }
@@ -1797,6 +1809,9 @@ export class HostedPiSession {
         if (resolvedPrompt) {
           const queuedIntoActiveRun = this.hasActiveAgentRun;
           try {
+            if (provenance?.clientMutation) {
+              appendSessionClientMutation(this.session.sessionManager, provenance.clientMutation);
+            }
             if (queuedIntoActiveRun) {
               admission = {
                 queued: true,

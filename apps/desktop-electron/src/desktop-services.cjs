@@ -599,6 +599,377 @@ function createDesktopServices(
   };
 }
 
+function createDesktopDirectRemoteControlStore({ file, safeStorage, now = () => new Date() }) {
+  let operation = Promise.resolve();
+  const enqueue = (work) => {
+    const next = operation.then(work, work);
+    operation = next.catch(() => undefined);
+    return next;
+  };
+  const assertAvailable = () => {
+    if (
+      !safeStorage?.isEncryptionAvailable?.() ||
+      safeStorage.getSelectedStorageBackend?.() === "basic_text" ||
+      typeof safeStorage.encryptString !== "function" ||
+      typeof safeStorage.decryptString !== "function"
+    ) {
+      throw new Error("Remote control secure storage unavailable");
+    }
+  };
+  const readDocument = () => {
+    assertAvailable();
+    try {
+      const value = JSON.parse(fs.readFileSync(file, "utf8"));
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        throw new Error("Remote control direct store is invalid");
+      }
+      return value;
+    } catch (error) {
+      if (error.code === "ENOENT") return {};
+      throw error;
+    }
+  };
+  const writeDocument = (document) => {
+    assertAvailable();
+    if (Object.keys(document).length === 0) {
+      fs.rmSync(file, { force: true });
+      return;
+    }
+    fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+    fs.chmodSync(path.dirname(file), 0o700);
+    const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
+    try {
+      fs.writeFileSync(temporary, JSON.stringify(document), { mode: 0o600, flag: "wx" });
+      fs.chmodSync(temporary, 0o600);
+      fs.renameSync(temporary, file);
+      fs.chmodSync(file, 0o600);
+    } finally {
+      fs.rmSync(temporary, { force: true });
+    }
+  };
+  const encrypt = (value) => safeStorage.encryptString(JSON.stringify(value)).toString("base64");
+  const decrypt = (encoded, kind, allowArray = false) => {
+    if (encoded === undefined) return undefined;
+    if (typeof encoded !== "string" || encoded.length > 256 * 1024) {
+      throw new Error(`Remote control direct ${kind} is invalid`);
+    }
+    try {
+      const value = JSON.parse(safeStorage.decryptString(Buffer.from(encoded, "base64")));
+      if (!value || typeof value !== "object" || (!allowArray && Array.isArray(value))) {
+        throw new Error();
+      }
+      return value;
+    } catch {
+      throw new Error(`Remote control direct ${kind} is invalid`);
+    }
+  };
+  const identifier = (value) => typeof value === "string" && /^[\x21-\x7e]{1,128}$/u.test(value);
+  const timestamp = (value) =>
+    typeof value === "string" && value.length <= 40 && Number.isFinite(Date.parse(value));
+  const boundedText = (value) =>
+    typeof value === "string" && value.length > 0 && Buffer.byteLength(value, "utf8") <= 128;
+  const assertInstallation = (value) => {
+    if (
+      !value ||
+      Object.keys(value).sort().join("|") !==
+        [
+          "createdAt",
+          "displayName",
+          "encryptionKeyId",
+          "encryptionPrivateKey",
+          "encryptionPublicKey",
+          "fingerprint",
+          "machineId",
+        ]
+          .sort()
+          .join("|") ||
+      !identifier(value.machineId) ||
+      !boundedText(value.displayName) ||
+      !identifier(value.encryptionKeyId) ||
+      typeof value.encryptionPublicKey !== "string" ||
+      value.encryptionPublicKey.length < 1 ||
+      value.encryptionPublicKey.length > 4096 ||
+      typeof value.encryptionPrivateKey !== "string" ||
+      value.encryptionPrivateKey.length < 1 ||
+      value.encryptionPrivateKey.length > 4096 ||
+      typeof value.fingerprint !== "string" ||
+      value.fingerprint.length < 1 ||
+      value.fingerprint.length > 256 ||
+      !timestamp(value.createdAt)
+    ) {
+      throw new Error("Remote control direct installation is invalid");
+    }
+    return value;
+  };
+  const assertConfiguration = (value) => {
+    if (
+      !value ||
+      Object.keys(value).sort().join("|") !==
+        ["enabled", "port", "revision", "selectedInterfaceIds", "updatedAt"].sort().join("|") ||
+      typeof value.enabled !== "boolean" ||
+      !Number.isSafeInteger(value.port) ||
+      value.port < 1 ||
+      value.port > 65_535 ||
+      !Array.isArray(value.selectedInterfaceIds) ||
+      value.selectedInterfaceIds.length > 8 ||
+      new Set(value.selectedInterfaceIds).size !== value.selectedInterfaceIds.length ||
+      !value.selectedInterfaceIds.every(identifier) ||
+      !identifier(value.revision) ||
+      !timestamp(value.updatedAt)
+    ) {
+      throw new Error("Remote control direct configuration is invalid");
+    }
+    return value;
+  };
+  const allowedActions = [
+    "sessions.read",
+    "sessions.create",
+    "sessions.send",
+    "sessions.stop",
+    "sessions.organize",
+    "interactions.respond",
+  ];
+  const assertAuthorization = (value) => {
+    const required = [
+      "createdAt",
+      "deviceId",
+      "displayName",
+      "encryptionKeyFingerprint",
+      "encryptionKeyId",
+      "encryptionPublicKey",
+      "platform",
+      "revision",
+      "scope",
+      "signingKeyFingerprint",
+      "signingPublicKey",
+    ];
+    const optional = ["lastSeenAt", "revokedAt"];
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      required.some((key) => !Object.hasOwn(value, key)) ||
+      Object.keys(value).some((key) => !required.includes(key) && !optional.includes(key)) ||
+      !identifier(value.deviceId) ||
+      !boundedText(value.displayName) ||
+      !["ios", "android"].includes(value.platform) ||
+      !value.signingPublicKey ||
+      typeof value.signingPublicKey !== "object" ||
+      value.signingPublicKey.kty !== "EC" ||
+      value.signingPublicKey.crv !== "P-256" ||
+      typeof value.signingPublicKey.x !== "string" ||
+      typeof value.signingPublicKey.y !== "string" ||
+      typeof value.signingKeyFingerprint !== "string" ||
+      !identifier(value.encryptionKeyId) ||
+      typeof value.encryptionPublicKey !== "string" ||
+      typeof value.encryptionKeyFingerprint !== "string" ||
+      !Array.isArray(value.scope) ||
+      value.scope.length !== allowedActions.length ||
+      !value.scope.every((action, index) => action === allowedActions[index]) ||
+      !identifier(value.revision) ||
+      !timestamp(value.createdAt) ||
+      (value.lastSeenAt !== undefined && !timestamp(value.lastSeenAt)) ||
+      (value.revokedAt !== undefined && !timestamp(value.revokedAt))
+    ) {
+      throw new Error("Remote control direct authorization is invalid");
+    }
+    return value;
+  };
+  const assertAuthorizations = (value) => {
+    if (!Array.isArray(value) || value.length > 100) {
+      throw new Error("Remote control direct authorizations are invalid");
+    }
+    const result = value.map(assertAuthorization);
+    if (new Set(result.map((item) => item.deviceId)).size !== result.length) {
+      throw new Error("Remote control direct authorizations are invalid");
+    }
+    return result;
+  };
+  const defaultConfiguration = Object.freeze({
+    enabled: false,
+    port: 8787,
+    selectedInterfaceIds: [],
+    revision: "initial",
+    updatedAt: now().toISOString(),
+  });
+
+  return {
+    loadInstallation: () =>
+      enqueue(() => {
+        const value = decrypt(readDocument().directInstallation, "installation");
+        return value === undefined ? undefined : assertInstallation(value);
+      }),
+    saveInstallation: (value) =>
+      enqueue(() => {
+        const installation = assertInstallation(value);
+        const document = readDocument();
+        writeDocument({ ...document, directInstallation: encrypt(installation) });
+      }),
+    loadConfiguration: () =>
+      enqueue(() => {
+        const value = decrypt(readDocument().directConfiguration, "configuration");
+        return value === undefined ? { ...defaultConfiguration } : assertConfiguration(value);
+      }),
+    saveConfiguration: (value) =>
+      enqueue(() => {
+        const configuration = assertConfiguration(value);
+        const document = readDocument();
+        writeDocument({ ...document, directConfiguration: encrypt(configuration) });
+      }),
+    listAuthorizations: () =>
+      enqueue(() => {
+        const value = decrypt(readDocument().directAuthorizations, "authorizations", true);
+        return value === undefined ? [] : assertAuthorizations(value);
+      }),
+    replaceAuthorizations: (value) =>
+      enqueue(() => {
+        const authorizations = assertAuthorizations(value);
+        const document = readDocument();
+        writeDocument({ ...document, directAuthorizations: encrypt(authorizations) });
+      }),
+    reset: () =>
+      enqueue(() => {
+        const {
+          directInstallation: _installation,
+          directConfiguration: _configuration,
+          directAuthorizations: _authorizations,
+          ...document
+        } = readDocument();
+        writeDocument(document);
+      }),
+  };
+}
+
+function configureDesktopSecureStorageBackend(app, { platform = process.platform } = {}) {
+  if (platform !== "linux") return;
+  const commandLine = app?.commandLine;
+  if (
+    typeof commandLine?.hasSwitch !== "function" ||
+    typeof commandLine?.appendSwitch !== "function" ||
+    commandLine.hasSwitch("password-store")
+  ) {
+    return;
+  }
+  commandLine.appendSwitch("password-store", "gnome-libsecret");
+}
+
+function assertLoopbackRuntimeConnection(connection) {
+  if (
+    !connection ||
+    typeof connection.instanceId !== "string" ||
+    !connection.instanceId ||
+    typeof connection.httpOrigin !== "string" ||
+    typeof connection.accessToken !== "string" ||
+    !connection.accessToken
+  ) {
+    throw new Error("A loopback RuntimeConnection is required");
+  }
+  try {
+    const origin = new URL(connection.httpOrigin);
+    if (
+      origin.protocol !== "http:" ||
+      !["127.0.0.1", "[::1]"].includes(origin.hostname) ||
+      !origin.port ||
+      origin.username ||
+      origin.password ||
+      origin.pathname !== "/" ||
+      origin.search ||
+      origin.hash ||
+      origin.origin !== connection.httpOrigin
+    ) {
+      throw new Error();
+    }
+  } catch {
+    throw new Error("A loopback RuntimeConnection is required");
+  }
+}
+
+function createDesktopRemoteControlBridgeLifecycle({ createBridge, onUnavailable = () => {} }) {
+  if (typeof createBridge !== "function") throw new Error("Remote bridge factory is required");
+  if (typeof onUnavailable !== "function") {
+    throw new Error("Remote bridge unavailability reporter must be a function");
+  }
+  let operation = Promise.resolve();
+  let bridge;
+  let runtimeInstanceId;
+  let generation = 0;
+  let state = "idle";
+  const enqueue = (work) => {
+    const next = operation.then(work, work);
+    operation = next.catch(() => undefined);
+    return next;
+  };
+  const stopCurrent = async () => {
+    const current = bridge;
+    bridge = undefined;
+    runtimeInstanceId = undefined;
+    state = "idle";
+    await current?.stop();
+  };
+  const invokeCurrent = async (method, input) => {
+    if (!bridge || state !== "running") throw new Error("remote-control-unavailable");
+    if (method === "describe") return bridge.describe();
+    if (method === "listInterfaces") return bridge.listInterfaces();
+    if (method === "updateConfiguration") return bridge.updateConfiguration(input);
+    if (method === "createPairing") return bridge.createPairing();
+    if (method === "getPairing") {
+      if (typeof bridge.getPairing === "function") return bridge.getPairing(input.pairingId);
+      return bridge.currentPairing(input.pairingId);
+    }
+    if (method === "confirmPairing") {
+      return bridge.confirmPairing(input.pairingId, input.safetyCode);
+    }
+    if (method === "rejectPairing") return bridge.rejectPairing(input.pairingId);
+    if (method === "cancelPairing") return bridge.cancelPairing(input.pairingId);
+    if (method === "listDevices") return bridge.listDevices();
+    if (method === "revokeDevice") {
+      return bridge.revokeDevice(input.deviceId, input.expectedRevision);
+    }
+    if (method === "resetIdentity") return bridge.resetIdentity(input.confirmation);
+    throw new Error("invalid-remote-control-method");
+  };
+  return {
+    replaceRuntime(connection) {
+      return enqueue(async () => {
+        assertLoopbackRuntimeConnection(connection);
+        if (bridge && runtimeInstanceId === connection.instanceId) return;
+        await stopCurrent();
+        const nextGeneration = generation + 1;
+        let next;
+        try {
+          next = await createBridge({
+            runtimeConnection: connection,
+            generation: nextGeneration,
+          });
+          await next.start();
+        } catch (error) {
+          await next?.stop?.().catch(() => undefined);
+          state = "failed";
+          try {
+            onUnavailable(error);
+          } catch {
+            // Reporting cannot make an optional remote-control capability fatal to Workbench.
+          }
+          return;
+        }
+        bridge = next;
+        runtimeInstanceId = connection.instanceId;
+        generation = nextGeneration;
+        state = "running";
+      });
+    },
+    stop() {
+      return enqueue(stopCurrent);
+    },
+    invoke(method, input) {
+      return enqueue(() => invokeCurrent(method, input));
+    },
+    snapshot() {
+      return Object.freeze({ state, generation });
+    },
+  };
+}
+
 module.exports = {
   applyDesktopMotionPreference,
   runtimeHasActiveTasks,
@@ -608,4 +979,7 @@ module.exports = {
   applyRuntimeTerminalShell,
   proxyEnvironment,
   createDesktopServices,
+  createDesktopRemoteControlBridgeLifecycle,
+  createDesktopDirectRemoteControlStore,
+  configureDesktopSecureStorageBackend,
 };

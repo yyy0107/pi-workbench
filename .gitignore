@@ -29,13 +29,23 @@
 /.electron-build
 /dist-electron
 /release-assets
+/apps/mobile/.expo/
+/apps/mobile/android/
+/apps/mobile/ios/
+/apps/mobile/dist/
+/apps/remote-control-relay/dist/
 
 # misc
 .DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
 *.pem
 /.codex/
 /.pi/
 /.idea/
+/.vscode/
 
 # debug
 npm-debug.log*

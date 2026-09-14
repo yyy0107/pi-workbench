@@ -1,3 +1,4 @@
+import { createLocalizableMessageDescriptor as createCoreLocalizableMessageDescriptor } from "@workbench/core-contracts/localizable-text/internal";
 import type { LocalizableMessageDescriptor } from "./api/localizable-text";
 
 /** Concrete registries and lifecycle machinery for trusted host composition and tests. */
@@ -19,6 +20,7 @@ export function createLocalizableMessageDescriptor(
   key: string,
   values?: object,
 ): LocalizableMessageDescriptor {
-  const descriptor = values === undefined ? { key } : { key, values };
-  return Object.freeze(descriptor) as LocalizableMessageDescriptor;
+  return values === undefined
+    ? createCoreLocalizableMessageDescriptor(key)
+    : createCoreLocalizableMessageDescriptor(key, values);
 }

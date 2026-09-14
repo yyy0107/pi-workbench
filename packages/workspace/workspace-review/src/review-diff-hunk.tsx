@@ -1,11 +1,11 @@
 "use client";
 import { useI18n } from "@workbench/i18n";
-import { Button, Collapsible, CollapsibleTrigger, CollapsibleContent } from "@workbench/ui";
+import { Button } from "@workbench/ui";
 import { reviewTranslationBundle } from "./i18n";
 import { useReviewRenderTiming } from "./use-review-render-timing";
 import { reviewContextSections } from "../lib/review-context";
 import { memo, useMemo, useState, type ReactNode } from "react";
-import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import type { WorkbenchHighlightedTokens } from "@workbench/code-highlighting/engine";
 import { tokenStyle } from "@workbench/code-highlighting";
 import { DiffContextSummary, numberedHunkLines, type DiffHunk } from "@workbench/code-highlighting";
@@ -48,32 +48,35 @@ function decoratedText(
   });
 }
 
-function ReviewContextLines({ count, children }: { count: number; children: () => ReactNode }) {
+function ReviewContextLines({
+  count,
+  children,
+}: {
+  count: number;
+  children: (visibleCount: number) => ReactNode;
+}) {
   useReviewRenderTiming();
   const { t } = useI18n(reviewTranslationBundle);
-  const [open, setOpen] = useState(false);
+  const [expandedCount, setExpandedCount] = useState(0);
+  const visibleCount = Math.min(count, expandedCount);
+  const remainingCount = count - visibleCount;
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="review-context-toggle">
-        <CollapsibleTrigger
-          render={
-            <Button
-              variant="ghost"
-              data-selection="none"
-              className="w-full justify-start bg-muted/40 font-normal text-muted-foreground"
-            />
-          }
-        >
-          {open ? (
+    <>
+      {visibleCount > 0 && children(visibleCount)}
+      {remainingCount > 0 && (
+        <div className="review-context-toggle">
+          <Button
+            variant="ghost"
+            data-selection="none"
+            className="w-full justify-start bg-muted/40 font-normal text-muted-foreground"
+            onClick={() => setExpandedCount((visible) => Math.min(count, visible + 20))}
+          >
             <ChevronDownIcon aria-hidden className="size-(--icon-size-sm)" />
-          ) : (
-            <ChevronRightIcon aria-hidden className="size-(--icon-size-sm)" />
-          )}
-          {t("extensions.workspaceReview.unmodifiedLines", { count })}
-        </CollapsibleTrigger>
-      </div>
-      <CollapsibleContent>{open && children()}</CollapsibleContent>
-    </Collapsible>
+            {t("extensions.workspaceReview.unmodifiedLines", { count: remainingCount })}
+          </Button>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -138,7 +141,7 @@ export const ReviewDiffHunk = memo(function ReviewDiffHunk({
         {sections.map(({ start, end, collapsed }) =>
           collapsed ? (
             <ReviewContextLines key={start} count={end - start}>
-              {() => renderLines(start, end)}
+              {(visibleCount) => renderLines(start, start + visibleCount)}
             </ReviewContextLines>
           ) : (
             <div key={start}>{renderLines(start, end)}</div>

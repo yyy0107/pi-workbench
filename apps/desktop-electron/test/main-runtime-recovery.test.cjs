@@ -53,7 +53,14 @@ test("desktop keeps the window on Runtime failure and retries through the truste
       if (id === "./desktop-services.cjs")
         return {
           applyDesktopMotionPreference() {},
+          configureDesktopSecureStorageBackend() {},
           readDesktopSettings: () => ({ preferences: { hardwareAcceleration: true } }),
+          createDesktopDirectRemoteControlStore: () => ({}),
+          createDesktopRemoteControlBridgeLifecycle: () => ({
+            replaceRuntime: async () => {},
+            stop: async () => {},
+            invoke: async () => undefined,
+          }),
           createDesktopServices: () => ({
             environment: {},
             showRuntimeError: () => records.push("error"),
@@ -71,7 +78,13 @@ test("desktop keeps the window on Runtime failure and retries through the truste
           },
         };
       if (id === "./desktop-renderer-protocol.cjs")
-        return { createDesktopRendererProtocolHandler: () => () => {} };
+        return {
+          REMOTE_CONTROL_CHANNELS: {},
+          createDesktopRendererProtocolHandler: () => () => {},
+        };
+      if (id === "./desktop-remote-control.cjs")
+        return { createDesktopDirectRemoteControlBridgeGeneration: () => ({}) };
+      if (id === "./direct-remote-listener.cjs") return { createDirectRemoteListener: () => ({}) };
       return id.startsWith("./") ? require(path.join(__dirname, "../src", id)) : require(id);
     },
   });

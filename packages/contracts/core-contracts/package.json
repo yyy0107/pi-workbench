@@ -25,6 +25,16 @@
       "import": "./src/locale.ts",
       "default": "./src/locale.ts"
     },
+    "./localizable-text": {
+      "types": "./src/localizable-text.ts",
+      "import": "./src/localizable-text.ts",
+      "default": "./src/localizable-text.ts"
+    },
+    "./localizable-text/internal": {
+      "types": "./src/localizable-text-internal.ts",
+      "import": "./src/localizable-text-internal.ts",
+      "default": "./src/localizable-text-internal.ts"
+    },
     "./model-selection": {
       "types": "./src/model-selection.ts",
       "import": "./src/model-selection.ts",

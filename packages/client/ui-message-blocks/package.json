@@ -10,6 +10,7 @@
     ".": "./src/index.ts",
     "./file": "./src/file.tsx",
     "./image": "./src/image.tsx",
+    "./user-attachment-gallery": "./src/user-attachment-gallery.tsx",
     "./message-blocks": "./src/message-blocks.tsx",
     "./message-source": "./src/message-source.tsx",
     "./composer-command-response": "./src/composer-command-response.tsx",

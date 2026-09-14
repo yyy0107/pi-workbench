@@ -6,10 +6,15 @@ export const messages = {
         description:
           "Show significant prompt-cache misses and estimated extra costs in the message action bar. Disabled by default.",
         noticeTitle: "Prompt cache miss",
+        summary: "Some prompt content was not read from cache, so this request may cost more.",
+        tokensLabel: "Uncached tokens",
+        costLabel: "Extra cost (est.)",
+        costUnavailableShort: "Unavailable",
         tokens: ({ tokens }: { tokens: string }) =>
           `${tokens} previously processed tokens were not read from cache.`,
         cost: ({ cost }: { cost: string }) => `Estimated extra cost: ${cost}`,
         costUnavailable: "Extra cost is unavailable or no price difference was reported.",
+        possibleCauses: "Possible reasons",
         modelChanged: "The model changed since the previous request.",
         idle: ({ minutes }: { minutes: string }) =>
           `Idle for ${minutes} minutes; the provider cache may have expired.`,

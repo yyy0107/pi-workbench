@@ -12,20 +12,25 @@ import {
 
 import { workspaceFromCwd } from "@workbench/pi-sdk-resources/workspace-paths";
 
-const [sessionRpcModule, sessionHistoryModule, sessionModelContextModule] = await Promise.all([
-  import("@workbench/pi-sdk-sessions/session-rpc-service") as Promise<
-    typeof import("@workbench/pi-sdk-sessions/session-rpc-service")
-  >,
-  import("../../src/session-composition") as Promise<
-    typeof import("../../src/session-composition")
-  >,
-  import("../../src/session-composition") as Promise<
-    typeof import("../../src/session-composition")
-  >,
-]);
+const [sessionRpcModule, sessionHistoryModule, sessionModelContextModule, sessionJournalModule] =
+  await Promise.all([
+    import("@workbench/pi-sdk-sessions/session-rpc-service") as Promise<
+      typeof import("@workbench/pi-sdk-sessions/session-rpc-service")
+    >,
+    import("../../src/session-composition") as Promise<
+      typeof import("../../src/session-composition")
+    >,
+    import("../../src/session-composition") as Promise<
+      typeof import("../../src/session-composition")
+    >,
+    import("@workbench/pi-sdk-sessions/session-event-journal") as Promise<
+      typeof import("@workbench/pi-sdk-sessions/session-event-journal")
+    >,
+  ]);
 const { SessionRpcService, SessionRpcServiceError } = sessionRpcModule;
 const { createPiSessionHistoryService } = sessionHistoryModule;
 const { createPiSessionModelContextService } = sessionModelContextModule;
+const { appendSessionClientMutation, findSessionClientMutation } = sessionJournalModule;
 
 type PiSessionHistory = import("@workbench/pi-rpc-contracts/messages").PiSessionHistory;
 type ModelProviderGroup = import("@workbench/pi-rpc-contracts/rpc").ModelProviderGroup;
@@ -40,6 +45,8 @@ type SessionRpcWorkspaceStore =
   import("@workbench/pi-sdk-sessions/session-rpc-service").SessionRpcWorkspaceStore;
 type SessionRpcScratchStore =
   import("@workbench/pi-sdk-sessions/session-rpc-service").SessionRpcScratchStore;
+type SessionEventJournalStore =
+  import("@workbench/pi-sdk-sessions/session-event-journal").SessionEventJournalStore;
 
 const PNG_BASE64 = "iVBORw0KGgo=";
 
@@ -893,6 +900,79 @@ test("renames, prompts, queues, and cancels supported session operations", async
       content: [{ type: "text", text: "hello" }],
     }),
     { code: "invalid-time-zone", details: { value: "Mars/Olympus" } },
+  );
+});
+
+test("persists client mutation identity and does not prompt again after bridge reconstruction", async () => {
+  const entries: Array<{
+    id: string;
+    type: string;
+    customType?: string;
+    data?: unknown;
+  }> = [];
+  const journal: SessionEventJournalStore = {
+    getBranch: () => entries,
+    appendCustomEntry(customType, data) {
+      const id = `entry-${entries.length + 1}`;
+      entries.push({ id, type: "custom", customType, data: structuredClone(data) });
+      return id;
+    },
+  };
+  let promptEffects = 0;
+  let markerObservedBeforeEffect = false;
+  const execution = (): Partial<AgentExecutionPort> => ({
+    async submit(input) {
+      const identity = input.provenance?.clientMutation;
+      assert.ok(identity);
+      const existing = findSessionClientMutation(journal, identity);
+      if (existing === "match") return { kind: "started" };
+      if (existing === "conflict") {
+        throw new AgentExecutionError("prompt-rejected", "client mutation conflict");
+      }
+      appendSessionClientMutation(journal, identity);
+      markerObservedBeforeEffect = findSessionClientMutation(journal, identity) === "match";
+      promptEffects += 1;
+      return { kind: "started" };
+    },
+  });
+  const payload = {
+    sessionId: "session-1",
+    mode: "queue" as const,
+    content: [{ type: "text" as const, text: "send this once" }],
+    clientMutation: { operationId: "operation-1", messageId: "message-1" },
+  };
+
+  const firstBridge = harness({ execution: execution() });
+  assert.deepEqual(await firstBridge.service.prompt(payload), {
+    accepted: true,
+    queued: false,
+    messageId: "message-1",
+  });
+  assert.equal(markerObservedBeforeEffect, true);
+
+  const reconstructedBridge = harness({ execution: execution() });
+  assert.deepEqual(await reconstructedBridge.service.prompt(payload), {
+    accepted: true,
+    queued: false,
+    messageId: "message-1",
+  });
+  assert.equal(promptEffects, 1);
+  assert.equal(JSON.stringify(entries).includes("send this once"), false);
+
+  await assert.rejects(
+    reconstructedBridge.service.prompt({
+      ...payload,
+      clientMutation: { operationId: "operation-1", messageId: "message-2" },
+    }),
+    { code: "command-error" },
+  );
+  assert.equal(promptEffects, 1);
+  await assert.rejects(
+    reconstructedBridge.service.prompt({
+      ...payload,
+      clientMutation: { operationId: "operation with space", messageId: "message-3" },
+    }),
+    { code: "bad-request" },
   );
 });
 

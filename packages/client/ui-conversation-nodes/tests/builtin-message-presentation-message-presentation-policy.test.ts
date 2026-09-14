@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  consecutiveAttachmentIndices,
   defaultMessageDisclosureOpen,
   messageAttachmentReference,
+  messageAttachmentVisualKind,
   messageTextPresentation,
   visibleMessageBlocks,
   type MessagePresentationDisclosure,
@@ -41,6 +43,7 @@ const kinds: readonly MessagePresentationDisclosure[] = [
   "reasoning",
   "tool",
   "parallel-tools",
+  "file-changes",
 ];
 
 function disclosureDefaults(phase: MessagePresentationPhase) {
@@ -54,6 +57,7 @@ test("keeps the steps summary collapsed by default while a response is streaming
     reasoning: false,
     tool: false,
     "parallel-tools": false,
+    "file-changes": false,
   });
 });
 
@@ -64,6 +68,7 @@ test("keeps only the steps summary open for a segment interrupted by steering", 
     reasoning: false,
     tool: false,
     "parallel-tools": false,
+    "file-changes": false,
   });
 });
 
@@ -74,6 +79,7 @@ test("closes every disclosure after the response completes", () => {
     reasoning: false,
     tool: false,
     "parallel-tools": false,
+    "file-changes": false,
   });
 });
 
@@ -100,4 +106,24 @@ test("numbers image and PDF references independently in message order", () => {
   assert.equal(messageAttachmentReference(parts, 4), undefined);
   assert.deepEqual(messageAttachmentReference(parts, 5), { kind: "pdf", sequence: 2 });
   assert.equal(messageAttachmentReference(parts, 99), undefined);
+});
+
+test("groups consecutive file attachments without crossing other message parts", () => {
+  const parts = [
+    { kind: "text" },
+    { kind: "file", mediaType: "image/png" },
+    { kind: "file", mediaType: "application/pdf" },
+    { kind: "file", mediaType: "text/plain" },
+    { kind: "text" },
+    { kind: "file", mediaType: "image/gif" },
+    { kind: "file", mediaType: "application/zip" },
+  ];
+
+  assert.deepEqual(consecutiveAttachmentIndices(parts, 0), []);
+  assert.deepEqual(consecutiveAttachmentIndices(parts, 1), [1, 2, 3]);
+  assert.deepEqual(consecutiveAttachmentIndices(parts, 1, 2), [1]);
+  assert.deepEqual(consecutiveAttachmentIndices(parts, 4), []);
+  assert.deepEqual(consecutiveAttachmentIndices(parts, 5), [5, 6]);
+  assert.equal(messageAttachmentVisualKind(parts[1]), "image");
+  assert.equal(messageAttachmentVisualKind(parts[2]), "file");
 });

@@ -7,7 +7,14 @@ const {
   createDesktopServices,
   applyRuntimeTerminalShell,
   runtimeHasActiveTasks,
+  createDesktopRemoteControlBridgeLifecycle,
+  createDesktopDirectRemoteControlStore,
+  configureDesktopSecureStorageBackend,
 } = require("./desktop-services.cjs");
+const {
+  createDesktopDirectRemoteControlBridgeGeneration,
+} = require("./desktop-remote-control.cjs");
+const { createDirectRemoteListener } = require("./direct-remote-listener.cjs");
 const { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, session, shell } =
   electron;
 const {
@@ -19,11 +26,15 @@ const {
   DESKTOP_RENDERER_SCHEME,
   assertDesktopRendererDevelopmentResponse,
   createDesktopRendererProtocolHandler,
+  REMOTE_CONTROL_CHANNELS,
+  copyRemoteControlRequest,
+  copyRemoteControlResult,
 } = require("./desktop-renderer-protocol.cjs");
 const { getSystemFontFamilies } = require("./system-fonts.cjs");
 const { copyTitleBarOverlayOptions } = require("./title-bar-overlay.cjs");
 const { resolveDesktopArtifactSupport } = require("./runtime-artifact-environment.cjs");
 
+configureDesktopSecureStorageBackend(app);
 applyDesktopMotionPreference(app);
 
 const RUNTIME_BOOTSTRAP_CHANNEL = "workbench:runtime-bootstrap";
@@ -64,6 +75,37 @@ try {
 } catch (error) {
   desktopSettingsError = error;
 }
+const desktopRemoteControlDataDirectory = desktopSettings?.file
+  ? path.dirname(desktopSettings.file)
+  : process.cwd();
+const desktopRemoteControlStore = createDesktopDirectRemoteControlStore({
+  file: path.join(desktopRemoteControlDataDirectory, "remote-control-direct.json"),
+  safeStorage: electron.safeStorage,
+});
+const desktopRemoteControlListener = createDirectRemoteListener();
+const desktopRemoteControlBridge = createDesktopRemoteControlBridgeLifecycle({
+  onUnavailable(error) {
+    const reason =
+      error instanceof Error && error.message === "Remote control secure storage unavailable"
+        ? "secure storage is unavailable"
+        : "initialization failed";
+    console.error(`Desktop remote control is unavailable: ${reason}.`);
+  },
+  createBridge: ({ runtimeConnection, generation }) =>
+    createDesktopDirectRemoteControlBridgeGeneration({
+      runtimeConnection,
+      generation,
+      store: desktopRemoteControlStore,
+      listener: desktopRemoteControlListener,
+      displayName: app.getName?.(),
+      operationLedgerFile: path.join(
+        desktopRemoteControlDataDirectory,
+        "remote-control-direct-operations.sqlite",
+      ),
+      fetch: (url, options) => net.fetch(url, options),
+      WebSocket: globalThis.WebSocket,
+    }),
+});
 const desktopServices = desktopSettings
   ? createDesktopServices(electron, {
       settings: desktopSettings,
@@ -152,6 +194,15 @@ ipcMain.on(RUNTIME_BOOTSTRAP_CHANNEL, (event) => {
   event.returnValue = response;
 });
 
+for (const [method, channel] of Object.entries(REMOTE_CONTROL_CHANNELS)) {
+  ipcMain.handle(channel, async (event, payload) => {
+    if (!isTrustedMainFrameEvent(event)) throw new Error("untrusted-desktop-request");
+    const input = copyRemoteControlRequest(method, payload);
+    const result = await desktopRemoteControlBridge.invoke(method, input);
+    return copyRemoteControlResult(method, result);
+  });
+}
+
 function parseExplicitLoopbackOrigin(name) {
   const value = process.env[name]?.trim();
   try {
@@ -201,12 +252,13 @@ function isTrustedClipboardWrite(webContents, permission, requestingUrl, isMainF
   }
 }
 
-function stopWorkbenchRuntime() {
+async function stopWorkbenchRuntime() {
   runtimeReady = false;
   rendererRuntimeConnection = undefined;
+  await desktopRemoteControlBridge.stop();
   const sessionToStop = packagedRuntimeSession;
-  if (!sessionToStop) return runtimeStartupCleanup?.() ?? Promise.resolve();
-  return sessionToStop.stop().finally(() => {
+  if (!sessionToStop) return runtimeStartupCleanup?.();
+  await sessionToStop.stop().finally(() => {
     if (packagedRuntimeSession === sessionToStop) packagedRuntimeSession = undefined;
   });
 }
@@ -332,6 +384,7 @@ function startWorkbenchRuntime() {
         if (isQuitting) return;
         runtimeReady = false;
         rendererRuntimeConnection = undefined;
+        void desktopRemoteControlBridge.stop();
         console.error("Workbench Runtime exited unexpectedly.", error);
         desktopServices.showRuntimeError(error);
       },
@@ -376,6 +429,7 @@ async function restartWorkbenchRuntime() {
 
   runtimeReady = false;
   rendererRuntimeConnection = undefined;
+  await desktopRemoteControlBridge.stop();
   if (previousSession) await previousSession.drainForRestart();
   if (packagedRuntimeSession === previousSession) packagedRuntimeSession = undefined;
   if (isQuitting) return;
@@ -391,6 +445,7 @@ async function restartWorkbenchRuntime() {
   }
   if (app.isPackaged) installPackagedRendererProtocol(nextSession);
   rendererRuntimeConnection = nextSession.runtimeConnection;
+  await desktopRemoteControlBridge.replaceRuntime(rendererRuntimeConnection);
   await desktopServices.synchronizeTerminalShell();
   runtimeReady = true;
 }
@@ -460,6 +515,7 @@ async function bootstrap() {
     return;
   }
   rendererRuntimeConnection = packagedRuntimeSession.runtimeConnection;
+  await desktopRemoteControlBridge.replaceRuntime(rendererRuntimeConnection);
   await desktopServices.synchronizeTerminalShell();
 
   const workbenchUrl = `${rendererOrigin}/`;

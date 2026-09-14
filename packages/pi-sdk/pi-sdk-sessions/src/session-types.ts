@@ -21,6 +21,10 @@ export const PROMPT_SOURCE_CUSTOM_TYPE = "workbench.prompt-source.v1";
 export interface PromptSubmissionProvenance {
   rpcId?: string;
   clientTimeZone?: string;
+  clientMutation?: Readonly<{
+    operationId: string;
+    messageId: string;
+  }>;
   composer?: WorkbenchComposerSubmission;
 }
 export interface PromptSubmissionResult {

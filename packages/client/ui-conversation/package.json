@@ -26,6 +26,7 @@
     "@workbench/ui": "workspace:*",
     "@workbench/ui-composer": "workspace:*",
     "@workbench/ui-conversation-messages": "workspace:*",
+    "@workbench/ui-conversation-nodes": "workspace:*",
     "get-east-asian-width": "1.6.0",
     "lucide-react": "^1.29.0"
   },

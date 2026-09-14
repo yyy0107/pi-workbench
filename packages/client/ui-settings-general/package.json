@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./i18n": "./src/i18n/index.ts",
     "./locale-selector-extension": "./src/locale-selector-extension.ts",
-    "./conversation-settings-item": "./src/conversation-settings-item.tsx"
+    "./conversation-settings-item": "./src/conversation-settings-item.tsx",
+    "./remote-device-settings-item": "./src/remote-device-settings-item.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
@@ -18,13 +19,16 @@
     "@workbench/core-contracts": "workspace:*",
     "@workbench/extension-sdk": "workspace:*",
     "@workbench/i18n": "workspace:*",
+    "@workbench/services-client": "workspace:*",
     "@workbench/settings-runtime": "workspace:*",
     "@workbench/shell-context": "workspace:*",
     "@workbench/ui": "workspace:*",
-    "lucide-react": "^1.29.0"
+    "lucide-react": "^1.29.0",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "react": "^19.2.8",

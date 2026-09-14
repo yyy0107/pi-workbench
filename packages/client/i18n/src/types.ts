@@ -1,5 +1,5 @@
 import type { Locale } from "./config";
-import type { LocalizableMessageDescriptor } from "@workbench/extension-sdk";
+import type { LocalizableMessageDescriptor } from "@workbench/core-contracts/localizable-text";
 
 export type MessageVariables = Record<string, unknown>;
 

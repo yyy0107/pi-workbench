@@ -98,8 +98,10 @@ const browserTimers: PiConnectionTimers = {
 function defaultWebSocketFactory(path: string): PiWebSocket {
   if (typeof WebSocket === "undefined") throw new Error("WebSocket is unavailable.");
   let url = path;
-  if (typeof location !== "undefined") {
-    const resolved = new URL(path, location.href);
+  const browserLocation = (globalThis as { readonly location?: { readonly href: string } })
+    .location;
+  if (browserLocation) {
+    const resolved = new URL(path, browserLocation.href);
     resolved.protocol = resolved.protocol === "https:" ? "wss:" : "ws:";
     url = resolved.href;
   }

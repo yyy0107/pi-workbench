@@ -22,6 +22,7 @@ import {
   WorkbenchMessageSourceBlock,
   WorkbenchMessageToolBlock,
 } from "@workbench/ui-message-blocks/message-blocks";
+import { UserAttachmentGallery } from "@workbench/ui-message-blocks/user-attachment-gallery";
 import { ReasoningPanel } from "@workbench/ui-tool/reasoning-panel";
 import type { Source } from "@workbench/markdown";
 
@@ -41,7 +42,9 @@ import {
   useMessageDisclosure,
 } from "@workbench/ui-tool/message-disclosure-context";
 import {
+  consecutiveAttachmentIndices,
   messageAttachmentReference,
+  messageAttachmentVisualKind,
   visibleMessageBlocks,
 } from "../lib/message-presentation-policy";
 import { MessageToolTimeline } from "@workbench/ui-tool/message-tool-timeline";
@@ -190,6 +193,31 @@ function MessageBlockRange({
   let index = start;
 
   while (index < end) {
+    const attachmentIndices =
+      node.kind === "user" ? consecutiveAttachmentIndices(node.blocks, index, end) : [];
+    if (attachmentIndices.length > 1) {
+      content.push(
+        <UserAttachmentGallery
+          key={`attachment-gallery:${node.blocks[index]?.key ?? index}`}
+          items={attachmentIndices.map((blockIndex) => ({
+            key: node.blocks[blockIndex]?.key ?? `attachment:${blockIndex}`,
+            kind: messageAttachmentVisualKind(node.blocks[blockIndex]) ?? "file",
+            content: node.blocks[blockIndex] ? (
+              <PresentedBlock
+                node={node}
+                block={node.blocks[blockIndex]}
+                index={blockIndex}
+                inlineSourcePartIndices={citationLayout.inlineSourcePartIndices}
+                sources={citationLayout.byTextPart.get(blockIndex)}
+              />
+            ) : null,
+          }))}
+        />,
+      );
+      index += attachmentIndices.length;
+      continue;
+    }
+
     const grouped = groupedDataIdentity(node.blocks[index], presentations);
     if (grouped?.state.group) {
       const indices: number[] = [];

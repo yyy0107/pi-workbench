@@ -1,213 +1,104 @@
 ---
 name: extend-workbench-ui
-description: Add, modify, or review Workbench frontend extension contributions and their registration. Use also when deciding whether a requested UI capability belongs in an extension or a core owner.
+description: Add, modify, or review Workbench extension contributions, SDK/Host contracts, static installation groups, and contribution lifecycle. Skip ordinary component, styling, and capability-internal refactors that do not change these boundaries.
 ---
 
 # Extend Workbench UI
 
-Implement frontend features through the repository's typed, statically bundled extension platform while preserving Workbench browser/runtime boundaries.
+Connect feature-owned UI through Workbench's typed, statically bundled extension platform.
 
-## Load the right context
+## Choose the owner and contribution separately
 
-1. Follow the repository `AGENTS.md` and applicable nested instructions, reuse unchanged context already read, and preserve unrelated worktree changes.
-2. Read the relevant contribution section of [references/contracts.md](references/contracts.md) when adding or changing an extension API use or resolving a contract question. Copy-only and styling-only edits do not require reading the full contract reference.
-3. Use the matching example in [references/recipes.md](references/recipes.md) when an implementation pattern is needed; do not read unrelated recipes.
-4. Generic host/session/workspace/model UI uses Workbench contracts, projections, and capability hooks from `@workbench/agent-runtime-client/context`; inspect their owners before choosing an API. For Pi-specific configuration, resources, or diagnostics, read [`packages/pi-runtime/integration.md`](../../../packages/pi-runtime/integration.md) and inspect the named Pi contract/client entry. Do not infer APIs from legacy routes or a generic Harness reference.
-5. Use `$pi-coding-agent-sdk` when work reaches the server-side AgentSession, coding-agent extension, resource-loader, or `@earendil-works/pi-coding-agent` layer. Keep that SDK behind the Workbench Pi server boundary rather than importing it into browser components.
-6. Use `$pi-ai-sdk` when work directly uses `@earendil-works/pi-ai` models, providers, authentication, messages, tool schemas, image requests, or streaming events. Use both Pi SDK skills only when the task genuinely crosses both layers.
-7. Read `docs/extensions.md` only when the task asks for public documentation or a detailed tutorial.
-8. For browser conversation, thread, composer, message, or tool state, inspect the current owner under `packages/agent-runtime/**` and `packages/client/shell/**` before editing.
-9. The [assistant-ui migration](../../../docs/assistant-ui-removal-and-custom-runtime-plan.md) is complete. Follow the [Workbench/Pi ownership boundary](../../../docs/agent-runtime-pi-implementation-refactor-plan.md); do not reintroduce assistant-ui dependencies or public types.
-10. Route tool definition and execution through the owning Pi/backend capability. A Renderer registration alone does not define or execute a tool.
-11. If the task changes Next.js API, routing, rendering, configuration, or build behavior, read the relevant local guide in `node_modules/next/dist/docs/` before editing.
+A capability package owns implementation; an extension registers that capability with a host.
+Fixed core features can use extensions. User uninstallability is a separate product decision and
+must not be inferred from a package boundary or `defineExtension()`.
 
-## Decide the ownership boundary
+Follow the root and nearest `AGENTS.md`, then inspect the current owner, its public exports, and
+actual installation consumers. During a refactor, distinguish implemented code from target contracts
+and task completion evidence. Use the active plan for intended boundaries; verify API availability
+in source before using it. Do not restore an old directory or compatibility layer from a recipe.
 
-Implement the feature as an extension when it can be independently enabled or removed without breaking the core chat flow:
+- Feature implementation stays in its capability package, including its extension definition.
+- Shell assembles runtime-neutral capabilities and installation-scoped providers; `ui-layout` owns
+  layout presentation. A new host belongs to the package that owns the rendered surface.
+- SDK owns host-free contracts and the extension manager; Host integrates providers, services and
+  shared React hosts.
+- Product composition combines Shell and Pi groups. Generic client capabilities must not acquire
+  Pi imports or protocol-specific branches to support a new contribution.
 
-- Use a **Slot** for a small button, badge, control, or status indicator.
-- Use a **Panel** for a host-managed left or bottom surface. The current shell does not mount a right Panel host.
-- Use a **Command** for an action shared by the command palette, a shortcut, or UI controls.
-- Use a **Composer Command** for a structured command token that changes request compilation; it is separate from a global Command.
-- Use an **Opener** when one contribution needs to open a resource owned by another without importing its surface kind, component, or store.
-- Use a **Renderer** for a complete message presentation, a predicate-matched Message Block, an exact-name Tool/Data Block, or its timeline presentation metadata.
-- Use **Settings** for a navigation section or a feature-owned preference inside the shared floating settings surface.
-- Use a **Main View** for a transient feature page that replaces the central conversation without adding URL identity or persistent inspector state.
-- Use a **Workspace Surface** contribution for persistent inspector capabilities such as review, explorer, file, browser, and artifact views. RightWorkspace core owns only tabs, layout, scope restoration, persistence, status, and feedback chrome. `workspace.actions` remains its compact toolbar Slot for actions outside a Surface lifecycle.
-- Add **Toolbox metadata** only when a real component contribution should be discoverable and previewable in the component-extension catalog. Metadata describes a registered contribution; it does not activate one.
-- Combine contribution types inside one extension when they represent one feature.
+Use existing public contribution contracts:
 
-Keep the sidebar's New Conversation control and thread list in core. Register replaceable product
-identity in `sidebar.brand`, optional primary navigation in `sidebar.navigation`, workspace heading
-controls in `sidebar.workspace.actions`, the Toolbox section body in `sidebar.toolbox`, and persistent
-bottom utilities in `sidebar.footer`; use `sidebar.header`, `sidebar.top`, or `sidebar.bottom` only
-when their documented positions fit.
+| Need                                                                            | Contribution            |
+| ------------------------------------------------------------------------------- | ----------------------- |
+| Small control or indicator at a mounted location                                | Slot                    |
+| Complete sidebar destination with shared navigation/search chrome               | Sidebar Section         |
+| Host-managed left/bottom surface                                                | Panel                   |
+| Action shared by palette, shortcut or controls                                  | Command                 |
+| Structured token affecting Composer request compilation                         | Composer Command        |
+| Message body, matched block, exact tool/data body, or timeline metadata         | Renderer / Presentation |
+| Preference navigation or feature-owned preference UI                            | Settings section / item |
+| Transient central page without URL identity or persistent inspector tabs        | Main View               |
+| Resource-scoped inspector with tabs, restoration or keep-alive                  | Workspace Surface       |
+| Cross-feature resource opening without importing the destination implementation | Opener                  |
 
-Modify core layers instead when the task changes:
+Combine contributions that share a feature lifecycle. An ordinary reusable component or internal
+helper needs no registration. If no existing Slot fits, first establish a semantic typed host
+contract and its real mount; an SDK Slot declaration alone does not make UI visible.
 
-- a Next.js route or page assembly: `apps/web/src/app/`;
-- reusable shell structure, responsive layout, or a new insertion contract:
-  `packages/client/shell/src/`; application-only composition stays in `apps/web/src/workbench/`;
-- Inspector controller lifecycle, generic persistence, and runtime-neutral feedback claim store:
-  `@workbench/workspace-runtime`;
-- Inspector React context/hooks, immutable installation Provider, and generic Surface runtime host:
-  `@workbench/workspace-runtime/react`;
-- Inspector product settings/i18n/runtime adapters and visual presentation:
-  `apps/web/src/components/right-workspace/` plus `apps/web/src/workbench/providers/`;
-- a feature-owned inspector Surface, menu item, Runtime bridge, or single-feature domain service:
-  `packages/<domain>/<capability>/src/`;
-- a user-installable, statically trusted component contribution bundle:
-  `packages/client/shell/src/extensions/installable/<feature>/`;
-- a capability consumed by multiple contributions: promote its contract/adapter to the owning
-  workspace package's public capability module;
-- assistant runtime, persistence, transport, or adapters: the appropriate
-  `packages/agent-runtime/**` leaf or application composition Provider;
-- shared UI primitives: `packages/client/ui/src/components/`;
-- tool definition/execution or protocol behavior: the owning Workbench runtime or backend code.
+## Inspect only the relevant contract
 
-When no existing Slot fits, add a typed host Slot first, then register the feature against it. Do not invent an unknown Slot name inside a business extension.
+Read the matching section of [contracts.md](references/contracts.md) for lifecycle, matching,
+ordering, or host behavior. It links to authoritative source rather than duplicating full types.
+Use [recipes.md](references/recipes.md) when a concrete implementation or installation example helps.
+Do not load both references in full for a small contribution change.
 
-## Follow the implementation workflow
+For a contract change, inspect the SDK API, its Host implementation, public export chain, and directly
+affected consumers together. Business contributions use `@workbench/extension-sdk` and public hooks
+from `@workbench/extension-host`; host assembly uses the explicitly permitted leaf entries. Do not
+import registry internals or an aggregate Host implementation from a feature.
 
-### 1. Inspect before editing
+Runtime-neutral UI uses Workbench contracts and projections only where its owner permits them.
+For example, conversation nodes adapt Session state for message blocks; a block must not bypass
+explicit props by reading Session or Composer registries. Keep one authoritative conversation/editor
+state. Unsupported optional capabilities should hide their entry or show an unavailable restored UI.
 
-- Inspect `packages/extension-platform/extension-sdk/src/authoring.ts`, the relevant type under
-  `packages/extension-platform/extension-sdk/src/api/`, and runtime hooks in
-  `packages/extension-platform/extension-host/src/index.ts` when a mounted component needs Host state.
-- Inspect the owning package's extension groups, then the application composition in
-  `packages/product/pi-workbench/src/extensions.ts`.
-- Choose the closest builtin example:
-  - `connection-status`: minimal Slot;
-  - `token-usage`: derive the active browser conversation Runtime state;
-  - `workspace-review`, `workspace-explorer`, `workspace-file`, `workspace-browser`, and `workspace-artifact`: Workspace Surface contributions;
-  - `setting-model-config`: Pi-specific Settings section using its configuration facade;
-  - `terminal`: Workspace Surface, Command, `bash` Renderer, Runtime bridge, and mobile trigger;
-  - `workspace-file`: Workspace Surface plus a `file` Open Handler;
-  - `settings`: sidebar/header triggers, `shell.overlay`, Command, and extensible settings sections/items;
-  - `appearance`: Settings section/item plus `shell.background` contribution;
-  - `model-selector`: active model context plus default-model Settings integration;
-  - `toolbox`: `sidebar.toolbox` plus a Main View;
-  - `generative-ui`: installable Toolbox metadata plus a predicate-matched Message Block Renderer;
-  - `message-presentation`, `terminal`, and `image-understanding`: Message Renderer, Tool/Data Renderer, and timeline presentation patterns.
-- Check whether the requested id, shortcut, tool name, or data name already exists.
-- Search project-wide global `keydown` listeners before assigning a shortcut. Non-Command listeners may accept extra modifiers and still collide with an otherwise exact Command shortcut.
+For Pi-specific contributions, read [packages/pi-runtime/integration.md](../../../packages/pi-runtime/integration.md) and use
+its named client facade. Use `$pi-coding-agent-sdk` only when work reaches coding-agent sessions,
+extensions or resource loading; use `$pi-ai-sdk` for direct Pi model/provider/stream APIs. A frontend
+Renderer neither defines nor executes a model tool. Use `$ui-styling` for unresolved visual work.
 
-### 2. Create a cohesive feature directory
+## Register and install
 
-Prefer this layout for fixed Workbench features and omit files the feature does not need:
+1. Inspect the feature's existing extension and public exports. Search for the proposed stable ID,
+   renderer name and shortcut; include standalone global `keydown` listeners in shortcut checks.
+2. Define the extension once at module scope. Keep `setup()` synchronous and free of React hooks or
+   render-time side effects. Register component types, not React nodes. Return external listeners,
+   timers and subscriptions as Disposables; registry resources are tracked automatically, and may
+   also be returned explicitly to make ownership clear.
+3. Use the owner's typed `defineMessage(...)` descriptors for localizable registration fields.
+   Resolve component copy with shared i18n and the owner's bundle. Do not freeze translated strings
+   during setup; follow the nearest i18n instructions for dictionary placement.
+4. Export from the capability's public entry and add to the existing semantic group. Inspect
+   `packages/client/shell/src/extensions/builtin-extensions.ts`,
+   `@workbench/pi-ui-extensions/installation`, and
+   `packages/product/pi-workbench/src/extensions.ts` as applicable. Keep implementation in its owner;
+   membership in a Shell group does not make Shell the implementation owner.
+5. Preserve stable extension objects, group arrays, registration IDs and order. Check teardown and
+   remount implications when installation changes. Static registration does not imply an existing
+   user-installation catalog; verify such a product flow before extending it. Do not add runtime
+   discovery or arbitrary JavaScript loading as part of ordinary contribution work.
 
-```text
-packages/<domain>/<capability>/src/
-├── extension.ts
-├── <feature>-panel.tsx
-├── <feature>-trigger.tsx
-├── <feature>-command.ts
-├── <feature>-renderer.tsx
-└── index.ts
-```
+## Validate and report proportionally
 
-For a component extension that users can uninstall, use the same internal layout under
-`packages/client/shell/src/extensions/installable/<feature>/`, declare
-`toolbox.distribution: "installable"`, and add the stable extension object to
-`installableComponentExtensions`. Do not place an uninstallable feature under an owner package's
-`src/extensions/builtin/`.
+Check changed registration sites, uniqueness scopes, actual mounts, public imports, consumers,
+fallbacks and disposal paths. Handle rejected Promises in event handlers; React boundaries cannot
+catch arbitrary async errors. For tool rendering, account for partial arguments and all statuses.
 
-Add `"use client"` only to components or modules that use React hooks, events, browser APIs, or client-only Runtime hooks. Keep registration definitions free of render-time side effects.
+Use pnpm for targeted formatting/lint and owner typechecks; include affected consumers for public
+contract changes. Use relevant pure-logic tests and affected builds when needed. Follow current
+repository/plan exclusions: do not add or execute UI, DOM, Hook-rendering or Browser/Electron smoke
+tests during this refactor. Documentation-only edits need static and skill validation, not builds.
 
-### 3. Define and register the extension
-
-Define the extension once at module scope:
-
-```ts
-import { defineExtension } from "@workbench/extension-sdk";
-
-export const exampleExtension = defineExtension({
-  id: "workbench.example",
-  name: "Example",
-  version: "1.0.0",
-
-  setup(context) {
-    const contribution = context.slots.register("header.right", {
-      id: "workbench.example.header",
-      order: 50,
-      component: ExampleControl,
-    });
-
-    return contribution;
-  },
-});
-```
-
-Keep `setup()` synchronous. Do not call React hooks in it. Return every custom event listener, timer, subscription, or other external resource as a `Disposable`. Registry registrations are tracked automatically, but return them explicitly to make lifecycle ownership clear.
-
-### 4. Add to the correct static catalog
-
-Export a fixed feature from its local `index.ts` and add it to the owning package's semantic group.
-Shell groups live in `packages/client/shell/src/extensions/builtin-extensions.ts`; Pi groups live
-behind `@workbench/pi-ui-extensions/installation`. The Web application interleaves
-those groups only in
-`packages/product/pi-workbench/src/extensions.ts`. Export independently installable contributions from their capability package and assemble them in
-`packages/product/pi-workbench/src/extensions.ts`. Keep Shell-owned brand and sidebar extensions in
-`packages/client/shell/src/extensions/`. Each capability package has real `src/` implementation,
-consumed TypeScript helpers in `lib/`, and root `tests/`; src/lib each allow one child directory.
-
-Keep extension objects and catalog array references stable. Installation and uninstallation only
-change the application registry and active contributions; the trusted code remains statically
-bundled so it can be reinstalled. Do not add directory scanning, remote URL imports, arbitrary
-JavaScript loading, or runtime route registration.
-
-### 5. Validate proportionally
-
-Choose checks for the changed behavior, using pnpm only. For extension code, check the changed files and the owning package as applicable:
-
-```bash
-pnpm exec oxfmt --check <changed-files>
-pnpm exec oxlint <changed-code-files>
-pnpm --filter <owner-package-name> run typecheck
-```
-
-For public contract or composition changes, also check directly affected consumers. Use an affected app/package build when bundling, routing, or client/server behavior needs verification; reserve root `pnpm build` for artifact composition or cross-host compatibility that narrower checks cannot establish.
-For Pi transport or session behavior, run the relevant tests identified in `packages/pi-runtime/integration.md`. Documentation-only edits need static review, not TypeScript checks or builds. Once relevant checks pass, repeat them only after a further change or new evidence of a problem.
-
-## Enforce the guardrails
-
-- Import extension definitions and contribution contracts from `@workbench/extension-sdk`.
-  Mounted components may import public runtime hooks from `@workbench/extension-host`. Only the active
-  Message Renderer and shared extension surfaces use the explicitly allowlisted leaf Host entries;
-  never import the aggregate `@workbench/extension-host/hosts` entry or registry internals.
-- Keep uninstallable component extensions under
-  `packages/client/shell/src/extensions/installable/`, never an owner package's
-  `src/extensions/builtin/`.
-- Keep Toolbox component placement previews as a faithful, proportionally scaled reproduction of the current Workbench panorama (sidebar, header, conversation, composer, RightWorkspace, status bar, panels, and global overlays). Reuse the same design tokens and surface hierarchy, and highlight the exact typed target as a non-layout overlay instead of falling back to an abstract empty-box diagram.
-- In message placement previews, render concrete system, user, and assistant examples plus representative visible Block states (text, reasoning, tool, data, source, attachment, and error). Give `message.before`, `message.actions`, and `message.after` labeled role-specific examples while active so a valid message Slot never collapses into an invisible strip.
-- Never deep-import a sibling `<owner-package>/src/extensions/builtin/<feature>`; collaborate through a public Registry, Renderer, Command, Opener, or promoted Service.
-- Localize every new or changed user-visible string, including accessibility text, in co-located `en-US` and `zh-CN` dictionaries. Register `LocalizableText` with `defineMessage(...)` and resolve component copy through the shared i18n API.
-- Register component types, not pre-created React nodes.
-- Never call `register()` during React render.
-- Keep Extension, Panel, Command, Composer Command, Slot contribution, Message Block Renderer, exact-name Renderer/presentation, Settings section/item, Main View, Open Handler, and Workspace Surface identifiers within their documented uniqueness scopes.
-- Audit both registered Commands and standalone global keyboard listeners before choosing a shortcut.
-- Use `order` only for Slot and Settings contributions. Panel, Command, and Renderer APIs have no numeric priority.
-- Treat tool arguments as partial while streaming; guard missing fields and all status variants.
-- Do not duplicate messages, composer content, or `isRunning` in Zustand; derive them from the active Workbench Agent Runtime.
-- Do not repeat the Panel title bar or close chrome inside Panel content.
-- Do not assume registering a Panel opens it; use PanelService or a Command.
-- Do not target `defaultLocation: "right"` or `panel.right.*` for new features while the current shell uses RightWorkspace instead of a right Panel host.
-- Register inspector kinds only through `context.workspace.register(...)`; keep the kind, icon, resource key, default scope, renderer, optional menu item, Runtime bridge, and domain service in the owning extension.
-- Register cross-feature resource handlers through `context.openers.register(...)`; callers use `useOpenerService()` and handle Promise rejection.
-- Do not add feature-specific kind branches, icons, services, or Agent tool mappings back to
-  `apps/web/src/components/right-workspace/`.
-- Do not assume registering a Renderer exposes or executes a model tool.
-- Shell, Core, and Extension SDK/Host must not import Pi packages, parse Pi raw events, or handle `PiApiError`. Generic UI consumes Workbench projections, optional capability hooks, and `WorkbenchAgentCapabilityError`; hide unsupported entries or show an unavailable state for restored UI, without Runtime ID branches or fake capabilities.
-- Only Pi-specific contributions use the narrow `@workbench/pi-runtime-client/*` facades described in `packages/pi-runtime/integration.md`. Do not call raw endpoints, open another event stream, or copy RPC payload types. Treat `/api/pi/**` as compatibility-only unless the README names an exception. Route server-side coding-agent work through `$pi-coding-agent-sdk` and direct Pi model/provider/stream work through `$pi-ai-sdk`.
-- Handle rejected Promises in event handlers; React Error Boundaries do not catch event or arbitrary async errors.
-- Keep API keys, secrets, and privileged execution out of frontend extensions.
-
-## Finish with an extension-focused handoff
-
-Report:
-
-- which contribution types were added;
-- where the extension is enabled;
-- user-visible entry points and shortcuts;
-- validation performed;
-- deliberate frontend-only limitations, especially persistence or missing backend/tool execution.
+Report the contribution/contract change, implementation owner, installation point, relevant entry
+points, checks performed and material unverified behavior. For a review, report findings instead of
+an implementation handoff.

@@ -31,6 +31,10 @@ export interface AgentExecutionPrompt {
 export interface AgentExecutionProvenance {
   readonly requestId?: string;
   readonly clientTimeZone?: string;
+  readonly clientMutation?: Readonly<{
+    operationId: string;
+    messageId: string;
+  }>;
 }
 
 export interface AgentPromptSubmission {

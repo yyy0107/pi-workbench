@@ -3,6 +3,7 @@ import { conversationTranslationBundle } from "./i18n";
 import { useI18n } from "@workbench/i18n";
 
 import { PastedTextAttachmentPreview } from "@workbench/ui-attachment";
+import { Button } from "@workbench/ui";
 
 import { useEffect, useState } from "react";
 
@@ -137,11 +138,14 @@ function ManagedFileAttachmentPreview({
   block,
   referenceLabel,
   readAttachment,
+  onOpenFile,
 }: Readonly<{
   block: FileBlock;
   referenceLabel?: string;
   readAttachment?: ManagedAttachmentReader;
+  onOpenFile?: (path: string) => void;
 }>) {
+  const { t } = useI18n(conversationTranslationBundle);
   const attachment = block.fileAttachment ?? block.imageAttachment!;
   const isImage = attachment.mediaType.startsWith("image/");
   const [source, setSource] = useState<string>();
@@ -162,22 +166,42 @@ function ManagedFileAttachmentPreview({
     };
   }, [attachment.id, isImage, readAttachment]);
 
-  const content =
-    isImage && source ? (
+  const fileCard = (
+    <File.Root>
+      <File.Icon mimeType={attachment.mediaType} />
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <File.Name>{block.name}</File.Name>
+        <File.Size bytes={attachment.bytes} className="text-xs" />
+      </div>
+    </File.Root>
+  );
+
+  const content = isImage ? (
+    source ? (
       <Image.Root>
         <Image.Zoom src={source} alt={block.name}>
           <Image.Preview src={source} alt={block.name} />
         </Image.Zoom>
       </Image.Root>
     ) : (
-      <File.Root>
-        <File.Icon mimeType={attachment.mediaType} />
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <File.Name>{block.name}</File.Name>
-          <File.Size bytes={attachment.bytes} className="text-xs" />
-        </div>
-      </File.Root>
-    );
+      fileCard
+    )
+  ) : onOpenFile ? (
+    <Button
+      type="button"
+      variant="ghost"
+      interaction="static"
+      data-slot="file-open-trigger"
+      aria-label={t("chatContent.fileAttachment.openInWorkspace", { name: block.name })}
+      title={t("chatContent.fileAttachment.openInWorkspace", { name: block.name })}
+      className="h-auto min-h-0 min-w-0 max-w-full justify-start p-0 text-start whitespace-normal"
+      onClick={() => onOpenFile(attachment.path)}
+    >
+      {fileCard}
+    </Button>
+  ) : (
+    fileCard
+  );
 
   if (!referenceLabel) return content;
   return (
@@ -195,11 +219,13 @@ export function WorkbenchMessageFileBlock({
   referenceLabel,
   assistant = false,
   readAttachment,
+  onOpenFile,
 }: Readonly<{
   block: FileBlock;
   referenceLabel?: string;
   assistant?: boolean;
   readAttachment?: ManagedAttachmentReader;
+  onOpenFile?: (path: string) => void;
 }>) {
   if (block.textAttachment)
     return <PastedTextAttachmentPreview attachment={block.textAttachment} />;
@@ -209,6 +235,7 @@ export function WorkbenchMessageFileBlock({
         block={block}
         referenceLabel={referenceLabel}
         readAttachment={readAttachment}
+        onOpenFile={onOpenFile}
       />
     );
   const mediaType = resolvedMediaType(block);

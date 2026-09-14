@@ -225,6 +225,11 @@ const composerSubmission: RpcValidator<WorkbenchComposerSubmission> = (value, pa
         issues: [{ code: "custom", path: [...path], message: "Invalid Composer submission." }],
       };
 };
+const clientMutationIdentifier = rpcRefine(
+  rpcString({ minLength: 1, maxLength: 128 }),
+  (value) => /^[\x21-\x7e]+$/u.test(value),
+  { message: "Client mutation identifiers must contain only printable ASCII characters." },
+);
 const sessionPromptPayload = rpcObject({
   sessionId: nonEmptyString,
   mode: rpcEnum(["queue", "steer"]),
@@ -232,6 +237,12 @@ const sessionPromptPayload = rpcObject({
     rpcUnion([promptTextContent, promptImageContent, promptAttachmentContent, promptFileContent]),
   ),
   clientTimeZone: rpcOptional(rpcString()),
+  clientMutation: rpcOptional(
+    rpcObject({
+      operationId: clientMutationIdentifier,
+      messageId: clientMutationIdentifier,
+    }),
+  ),
   composer: rpcOptional(composerSubmission),
 });
 const sessionAttachmentPayload = rpcObject({

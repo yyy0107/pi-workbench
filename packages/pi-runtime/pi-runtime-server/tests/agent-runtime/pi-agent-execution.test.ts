@@ -65,7 +65,11 @@ test("maps the neutral prompt and provenance to Pi without leaking Pi into the p
         ],
         composer,
       },
-      provenance: { requestId: "rpc-1", clientTimeZone: "Asia/Shanghai" },
+      provenance: {
+        requestId: "rpc-1",
+        clientTimeZone: "Asia/Shanghai",
+        clientMutation: { operationId: "operation-1", messageId: "message-1" },
+      },
     }),
     { kind: "queued", queueItemId: "queue-1" },
   );
@@ -91,6 +95,7 @@ test("maps the neutral prompt and provenance to Pi without leaking Pi into the p
         provenance: {
           rpcId: "rpc-1",
           clientTimeZone: "Asia/Shanghai",
+          clientMutation: { operationId: "operation-1", messageId: "message-1" },
           composer,
         },
       },
@@ -169,6 +174,7 @@ test("normalizes Pi execution failures to stable Agent error codes", async () =>
     ["pi_steer_unavailable", "steer-unavailable"],
     ["pi_model_image_unsupported", "image-input-unsupported"],
     ["pi_composer_command_conflict", "prompt-rejected"],
+    ["pi_client_mutation_conflict", "prompt-rejected"],
     ["unexpected", "internal"],
   ] as const;
 

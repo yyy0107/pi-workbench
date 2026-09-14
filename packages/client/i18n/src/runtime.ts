@@ -1,11 +1,9 @@
 import { isRecord, readMessage, mergeCatalog } from "../lib/catalog-tree";
 import type {
   LocalizableMessageDescriptor,
-  LocalizableText as ExtensionLocalizableText,
-} from "@workbench/extension-sdk";
-// The catalog runtime is the sole translation boundary allowed to construct the SDK's branded
-// descriptors. Keeping the constructor internal prevents business modules from forging them.
-import { createLocalizableMessageDescriptor } from "@workbench/extension-sdk/internal";
+  LocalizableText as CoreLocalizableText,
+} from "@workbench/core-contracts/localizable-text";
+import { createLocalizableMessageDescriptor } from "@workbench/core-contracts/localizable-text/internal";
 
 import { validateTranslationBundle } from "./bundle";
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type Locale } from "./config";
@@ -20,9 +18,86 @@ import type {
 } from "./types";
 
 type CatalogRecord = Readonly<Record<string, unknown>>;
+type CanonicalRelativeTimeUnit =
+  | "year"
+  | "quarter"
+  | "month"
+  | "week"
+  | "day"
+  | "hour"
+  | "minute"
+  | "second";
 
 const resolveMessageDescriptor = Symbol("workbench.i18n.resolve-message-descriptor");
 const validateMessageDescriptor = Symbol("workbench.i18n.validate-message-descriptor");
+
+function canonicalRelativeTimeUnit(unit: Intl.RelativeTimeFormatUnit): CanonicalRelativeTimeUnit {
+  return unit.endsWith("s")
+    ? (unit.slice(0, -1) as CanonicalRelativeTimeUnit)
+    : (unit as CanonicalRelativeTimeUnit);
+}
+
+function fallbackRelativeTime(
+  locale: Locale,
+  value: number,
+  unitInput: Intl.RelativeTimeFormatUnit,
+): string {
+  const unit = canonicalRelativeTimeUnit(unitInput);
+  const normalizedValue = Object.is(value, -0) ? 0 : value;
+  const magnitude = Math.abs(normalizedValue);
+  const number =
+    typeof Intl.NumberFormat === "function"
+      ? new Intl.NumberFormat(locale).format(magnitude)
+      : String(magnitude);
+
+  if (locale === "zh-CN") {
+    const automatic: Partial<Record<CanonicalRelativeTimeUnit, readonly [string, string, string]>> =
+      {
+        second: ["刚刚", "现在", "马上"],
+        day: ["昨天", "今天", "明天"],
+        week: ["上周", "本周", "下周"],
+        month: ["上个月", "本月", "下个月"],
+        quarter: ["上季度", "本季度", "下季度"],
+        year: ["去年", "今年", "明年"],
+      };
+    const automaticValue = automatic[unit];
+    if (
+      automaticValue &&
+      (normalizedValue === -1 || normalizedValue === 0 || normalizedValue === 1)
+    ) {
+      return automaticValue[normalizedValue + 1]!;
+    }
+    const labels: Record<CanonicalRelativeTimeUnit, string> = {
+      year: "年",
+      quarter: "个季度",
+      month: "个月",
+      week: "周",
+      day: "天",
+      hour: "小时",
+      minute: "分钟",
+      second: "秒",
+    };
+    return normalizedValue < 0 ? `${number}${labels[unit]}前` : `${number}${labels[unit]}后`;
+  }
+
+  const automatic: Partial<Record<CanonicalRelativeTimeUnit, readonly [string, string, string]>> = {
+    second: ["just now", "now", "in a moment"],
+    day: ["yesterday", "today", "tomorrow"],
+    week: ["last week", "this week", "next week"],
+    month: ["last month", "this month", "next month"],
+    quarter: ["last quarter", "this quarter", "next quarter"],
+    year: ["last year", "this year", "next year"],
+  };
+  const automaticValue = automatic[unit];
+  if (
+    automaticValue &&
+    (normalizedValue === -1 || normalizedValue === 0 || normalizedValue === 1)
+  ) {
+    return automaticValue[normalizedValue + 1]!;
+  }
+  const label = `${unit}${magnitude === 1 ? "" : "s"}`;
+  return normalizedValue < 0 ? `${number} ${label} ago` : `in ${number} ${label}`;
+}
 
 export interface DescriptorTranslate {
   readonly [resolveMessageDescriptor]: (descriptor: LocalizableMessageDescriptor) => string;
@@ -32,7 +107,7 @@ export interface DescriptorTranslate {
 export type Translate = ((key: string, values?: object) => string) & DescriptorTranslate;
 
 /** Catalog-neutral input accepted from extension contracts. Descriptors remain opaque in source. */
-export type LocalizableText = ExtensionLocalizableText;
+export type LocalizableText = CoreLocalizableText;
 
 export interface WorkbenchI18nRuntime extends I18nRuntime<Translate> {
   isLocalizableText(value: unknown): value is LocalizableText;
@@ -70,12 +145,16 @@ function composeCatalogs(
 }
 
 function createFormatters(locale: Locale): MessageFormatters {
+  const relativeTimeFormatter =
+    typeof Intl.RelativeTimeFormat === "function"
+      ? new Intl.RelativeTimeFormat(locale, { numeric: "auto" })
+      : undefined;
   return {
     date: (value, options) => new Intl.DateTimeFormat(locale, options).format(value),
     number: (value, options) => new Intl.NumberFormat(locale, options).format(value),
     plural: (value, options) => new Intl.PluralRules(locale, options).select(value),
     relativeTime: (value, unit) =>
-      new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(value, unit),
+      relativeTimeFormatter?.format(value, unit) ?? fallbackRelativeTime(locale, value, unit),
   };
 }
 

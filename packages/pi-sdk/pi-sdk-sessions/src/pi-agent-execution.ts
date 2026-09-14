@@ -52,6 +52,7 @@ const PI_EXECUTION_ERROR_CODE_MAP: Readonly<Record<string, AgentExecutionErrorCo
   pi_command_not_found: "prompt-rejected",
   pi_composer_command_conflict: "prompt-rejected",
   pi_composer_command_args_invalid: "prompt-rejected",
+  pi_client_mutation_conflict: "prompt-rejected",
   pi_skill_read_tool_unavailable: "prompt-rejected",
   "text-attachment-unavailable": "prompt-rejected",
   "text-attachment-invalid": "prompt-rejected",
@@ -144,6 +145,9 @@ export function createPiAgentExecution(
             ...(input.provenance?.clientTimeZone === undefined
               ? {}
               : { clientTimeZone: input.provenance.clientTimeZone }),
+            ...(input.provenance?.clientMutation === undefined
+              ? {}
+              : { clientMutation: input.provenance.clientMutation }),
             ...(input.prompt.composer === undefined ? {} : { composer: input.prompt.composer }),
           },
         );

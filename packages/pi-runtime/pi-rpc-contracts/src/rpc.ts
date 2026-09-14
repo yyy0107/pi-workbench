@@ -1978,11 +1978,17 @@ export type SessionPromptContent =
       attachmentId?: string;
     };
 
+export interface SessionClientMutationIdentity {
+  operationId: string;
+  messageId: string;
+}
+
 export interface SessionPromptPayload {
   sessionId: string;
   mode: "queue" | "steer";
   content: SessionPromptContent[];
   clientTimeZone?: string;
+  clientMutation?: SessionClientMutationIdentity;
   composer?: WorkbenchComposerSubmission;
 }
 
@@ -1990,6 +1996,7 @@ export interface SessionPromptValue {
   accepted: true;
   queued: boolean;
   queueItemId?: string;
+  messageId?: string;
   command?: { kind: "success"; text?: string };
 }
 

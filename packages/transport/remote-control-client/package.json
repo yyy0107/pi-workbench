@@ -1,0 +1,80 @@
+{
+  "name": "@workbench/remote-control-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./cursor": {
+      "types": "./src/cursor.ts",
+      "import": "./src/cursor.ts",
+      "default": "./src/cursor.ts"
+    },
+    "./connection": {
+      "types": "./src/connection.ts",
+      "import": "./src/connection.ts",
+      "default": "./src/connection.ts"
+    },
+    "./endpoint-policy": {
+      "types": "./src/endpoint-policy.ts",
+      "import": "./src/endpoint-policy.ts",
+      "default": "./src/endpoint-policy.ts"
+    },
+    "./profiles": {
+      "types": "./src/profiles.ts",
+      "import": "./src/profiles.ts",
+      "default": "./src/profiles.ts"
+    },
+    "./ports": {
+      "types": "./src/ports.ts",
+      "import": "./src/ports.ts",
+      "default": "./src/ports.ts"
+    },
+    "./conversation": {
+      "types": "./src/conversation.ts",
+      "import": "./src/conversation.ts",
+      "default": "./src/conversation.ts"
+    },
+    "./operations": {
+      "types": "./src/operations.ts",
+      "import": "./src/operations.ts",
+      "default": "./src/operations.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "import": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./session-management": {
+      "types": "./src/session-management.ts",
+      "import": "./src/session-management.ts",
+      "default": "./src/session-management.ts"
+    },
+    "./recovery": {
+      "types": "./src/recovery.ts",
+      "import": "./src/recovery.ts",
+      "default": "./src/recovery.ts"
+    },
+    "./synchronization": {
+      "types": "./src/synchronization.ts",
+      "import": "./src/synchronization.ts",
+      "default": "./src/synchronization.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/remote-control-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

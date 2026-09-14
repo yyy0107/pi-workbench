@@ -29,6 +29,7 @@ import { TooltipIconButton } from "@workbench/ui";
 import { formatAdaptiveDuration } from "@workbench/i18n/duration";
 
 import { useWorkbenchNavigation } from "@workbench/shell-context/navigation";
+import { useConversationSurface } from "@workbench/ui-conversation-nodes/context";
 import { Button } from "@workbench/ui";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@workbench/ui";
 
@@ -168,6 +169,7 @@ function AssistantActions({ node, isLast }: Readonly<{ node: ConversationNode; i
   const isRunning = useSessionState((snapshot) => snapshot.isRunning);
   const reportError = useExtensionErrorReporter();
   const navigation = useWorkbenchNavigation();
+  const isTemporarySideChat = useConversationSurface() === "side-chat-conversation";
   const stateToken = readWorkbenchMessageStateToken(node.presentation?.custom?.workbenchStateToken);
   const [forkState, setForkState] = useState<"idle" | "pending" | "failed">("idle");
   const forkConversation = useCallback(async () => {
@@ -203,7 +205,7 @@ function AssistantActions({ node, isLast }: Readonly<{ node: ConversationNode; i
 
   return (
     <div className="flex items-center">
-      {stateToken && session.actions.fork ? (
+      {!isTemporarySideChat && stateToken && session.actions.fork ? (
         <TooltipIconButton
           tooltip={forkTooltip}
           type="button"

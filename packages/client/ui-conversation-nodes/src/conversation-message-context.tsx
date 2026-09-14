@@ -3,6 +3,10 @@
 import { createContext, useContext, type PropsWithChildren } from "react";
 import type { MessageActionVisibilityMessage } from "../lib/message-action-visibility";
 
+const ConversationSurfaceContext = createContext("thread");
+export const ConversationSurfaceProvider = ConversationSurfaceContext.Provider;
+export const useConversationSurface = () => useContext(ConversationSurfaceContext);
+
 const ConversationStructureContext = createContext<
   readonly Pick<MessageActionVisibilityMessage, "role" | "steering" | "steerInterrupted">[]
 >([]);

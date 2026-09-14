@@ -1,0 +1,10 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Workbench 远程控制",
+    "NSCameraUsageDescription": "允许 Workbench 远程控制扫描电脑端配对二维码。",
+    "NSLocalNetworkUsageDescription": "允许 Workbench 远程控制直接连接局域网中的电脑。"
+  },
+  "android": {
+    "app_name": "Workbench 远程控制"
+  }
+}

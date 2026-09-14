@@ -10,6 +10,7 @@ export interface WorkbenchDesktopBridge {
   readonly systemFonts?: unknown;
   readonly lifecycle?: unknown;
   readonly runtime?: unknown;
+  readonly remoteControl?: unknown;
   readonly titleBar?: unknown;
 }
 

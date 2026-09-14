@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import type { useI18n } from "../src/provider";
 import {
@@ -67,6 +68,25 @@ test("duplicate identities, conflicting keys and locale mismatch fail before ins
   );
 });
 
+test("formats relative time when the host does not provide Intl.RelativeTimeFormat", () => {
+  const descriptor = Object.getOwnPropertyDescriptor(Intl, "RelativeTimeFormat");
+  Object.defineProperty(Intl, "RelativeTimeFormat", { configurable: true, value: undefined });
+  try {
+    const english = createI18n("en-US");
+    const chinese = createI18n("zh-CN");
+    assert.equal(english.relativeTime(0, "second"), "now");
+    assert.equal(english.relativeTime(-15, "minute"), "15 minutes ago");
+    assert.equal(english.relativeTime(-1.5, "hour"), "1.5 hours ago");
+    assert.equal(english.relativeTime(1, "day"), "tomorrow");
+    assert.equal(chinese.relativeTime(0, "second"), "现在");
+    assert.equal(chinese.relativeTime(-15, "minute"), "15分钟前");
+    assert.equal(chinese.relativeTime(-1.5, "hour"), "1.5小时前");
+    assert.equal(chinese.relativeTime(1, "day"), "明天");
+  } finally {
+    if (descriptor) Object.defineProperty(Intl, "RelativeTimeFormat", descriptor);
+  }
+});
+
 // Compile-only API checks: this function is never invoked and mounts no UI.
 function typedBundleHookContract(readI18n: typeof useI18n) {
   const local = readI18n(bundle);
@@ -84,3 +104,16 @@ function typedBundleHookContract(readI18n: typeof useI18n) {
   local.t("fixture.count", { total: 2 });
 }
 void typedBundleHookContract;
+
+test("supports the full React 19.2 line while its isolated tests match the Expo React", async () => {
+  const packageJson = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  ) as {
+    peerDependencies: { react: string };
+    devDependencies: { react: string; "react-dom": string };
+  };
+
+  assert.equal(packageJson.peerDependencies.react, ">=19.2.0 <20");
+  assert.equal(packageJson.devDependencies.react, "19.2.3");
+  assert.equal(packageJson.devDependencies["react-dom"], "19.2.3");
+});

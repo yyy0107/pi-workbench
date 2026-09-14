@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createRuntimeFetch } from "@workbench/runtime-transport-client";
-import { createHostClient } from "../src/host";
+import { createHostClient, readDesktopRemoteControlPort } from "../src/host";
 
 test("directory picking forwards per-call cancellation through the installed transport", async () => {
   const installedController = new AbortController();
@@ -56,4 +56,28 @@ test("facade calls without options keep the Host default carrier", async (t) => 
     });
   });
   assert.equal(await pickHostDirectory(), "/default-project");
+});
+
+test("accepts only the narrow local desktop remote-control capability", async () => {
+  const calls: unknown[] = [];
+  const port = readDesktopRemoteControlPort({
+    createPairing: async (options: unknown) => (calls.push(["create", options]), {}),
+    getPairing: async (pairingId: string) => (calls.push(["get", pairingId]), undefined),
+    confirmPairing: async (pairingId: string, safetyCode: string) => (
+      calls.push(["confirm", pairingId, safetyCode]),
+      {}
+    ),
+    rejectPairing: async (pairingId: string) => void calls.push(["reject", pairingId]),
+    cancelPairing: async (pairingId: string) => void calls.push(["cancel", pairingId]),
+    listDevices: async () => (calls.push(["list"]), []),
+    revokeDevice: async (deviceId: string, revision: string) => (
+      calls.push(["revoke", deviceId, revision]),
+      {}
+    ),
+  });
+  assert.ok(port);
+  await port.listDevices();
+  await port.cancelPairing("pairing-1");
+  assert.deepEqual(calls, [["list"], ["cancel", "pairing-1"]]);
+  assert.equal(readDesktopRemoteControlPort({ listDevices: async () => [] }), undefined);
 });

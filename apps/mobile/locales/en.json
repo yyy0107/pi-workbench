@@ -1,0 +1,10 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Workbench Remote",
+    "NSCameraUsageDescription": "Allow Workbench Remote to scan a desktop pairing QR code.",
+    "NSLocalNetworkUsageDescription": "Allow Workbench Remote to connect directly to computers on your local network."
+  },
+  "android": {
+    "app_name": "Workbench Remote"
+  }
+}

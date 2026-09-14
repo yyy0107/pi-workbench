@@ -16,6 +16,8 @@ const { createWorkbenchPaths } = require("../../../scripts/workbench-paths.cjs")
 const { ELECTRON_RUNTIME_FILES } = require("../scripts/desktop-electron-files.cjs");
 const {
   buildDesktopArtifactSupport,
+  buildDesktopRemoteControl,
+  buildDesktopDirectListener,
   buildDesktopServices,
   buildPackagedMain,
   buildPackagedPreload,
@@ -97,7 +99,7 @@ test("fresh staging rejects a symlink root without following it", (t) => {
   assert.equal(readFileSync(path.join(outside, "sentinel"), "utf8"), "keep\n");
 });
 
-test("bundles finite packaged support, main, preload, and process cleanup", async (t) => {
+test("bundles finite packaged support, remote control, main, preload, and process cleanup", async (t) => {
   const output = temporaryRepository(t, "workbench-electron-bundles-");
   const paths = createWorkbenchPaths();
   const support = await buildDesktopArtifactSupport({
@@ -105,6 +107,14 @@ test("bundles finite packaged support, main, preload, and process cleanup", asyn
     outfile: path.join(output, "desktop-artifact-support.cjs"),
   });
   await buildDesktopServices({ paths, outfile: path.join(output, "desktop-services.cjs") });
+  const remoteControl = await buildDesktopRemoteControl({
+    paths,
+    outfile: path.join(output, "desktop-remote-control.cjs"),
+  });
+  const directListener = await buildDesktopDirectListener({
+    paths,
+    outfile: path.join(output, "direct-remote-listener.cjs"),
+  });
   const main = await buildPackagedMain({ paths, outfile: path.join(output, "main.cjs") });
   const preload = await buildPackagedPreload({ paths, outfile: path.join(output, "preload.cjs") });
   const cleanup = await buildServerProcessLifecycle({
@@ -129,6 +139,15 @@ test("bundles finite packaged support, main, preload, and process cleanup", asyn
   assert.doesNotMatch(
     readFileSync(cleanup.outfile, "utf8"),
     /@workbench\/runtime-transport-server/u,
+  );
+  assert.doesNotMatch(readFileSync(remoteControl.outfile, "utf8"), /@workbench\//u);
+  assert.doesNotMatch(readFileSync(directListener.outfile, "utf8"), /require\(["']ws["']\)/u);
+  assert.ok(
+    Object.keys(remoteControl.result.metafile.inputs).some((item) =>
+      item
+        .replaceAll("\\", "/")
+        .endsWith("packages/pi-runtime/pi-runtime-remote-control/src/frame-processor.ts"),
+    ),
   );
 });
 
@@ -193,6 +212,12 @@ test("stages only admitted renderer and Runtime artifacts", async (t) => {
     },
     async buildServices({ outfile }) {
       writeFile(outfile, "services\n");
+    },
+    async buildRemoteControl({ outfile }) {
+      writeFile(outfile, "remote-control\n");
+    },
+    async buildDirectListener({ outfile }) {
+      writeFile(outfile, "direct-listener\n");
     },
     async buildMain({ outfile }) {
       writeFile(outfile, "main\n");

@@ -1,0 +1,87 @@
+{
+  "name": "@workbench/pi-runtime-remote-control",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./conversation-projection": {
+      "types": "./src/conversation-projection.ts",
+      "import": "./src/conversation-projection.ts",
+      "default": "./src/conversation-projection.ts"
+    },
+    "./command-adapter": {
+      "types": "./src/command-adapter.ts",
+      "import": "./src/command-adapter.ts",
+      "default": "./src/command-adapter.ts"
+    },
+    "./operation-ledger": {
+      "types": "./src/operation-ledger.ts",
+      "import": "./src/operation-ledger.ts",
+      "default": "./src/operation-ledger.ts"
+    },
+    "./operation-service": {
+      "types": "./src/operation-service.ts",
+      "import": "./src/operation-service.ts",
+      "default": "./src/operation-service.ts"
+    },
+    "./runtime-monitor": {
+      "types": "./src/runtime-monitor.ts",
+      "import": "./src/runtime-monitor.ts",
+      "default": "./src/runtime-monitor.ts"
+    },
+    "./projection": {
+      "types": "./src/projection.ts",
+      "import": "./src/projection.ts",
+      "default": "./src/projection.ts"
+    },
+    "./session-catalog": {
+      "types": "./src/session-catalog.ts",
+      "import": "./src/session-catalog.ts",
+      "default": "./src/session-catalog.ts"
+    },
+    "./snapshot-service": {
+      "types": "./src/snapshot-service.ts",
+      "import": "./src/snapshot-service.ts",
+      "default": "./src/snapshot-service.ts"
+    },
+    "./frame-processor": {
+      "types": "./src/frame-processor.ts",
+      "import": "./src/frame-processor.ts",
+      "default": "./src/frame-processor.ts"
+    },
+    "./direct-frame-processor": {
+      "types": "./src/direct-frame-processor.ts",
+      "import": "./src/direct-frame-processor.ts",
+      "default": "./src/direct-frame-processor.ts"
+    },
+    "./sqlite-ledger": {
+      "types": "./src/sqlite-ledger.ts",
+      "import": "./src/sqlite-ledger.ts",
+      "default": "./src/sqlite-ledger.ts"
+    },
+    "./workspace-projection": {
+      "types": "./src/workspace-projection.ts",
+      "import": "./src/workspace-projection.ts",
+      "default": "./src/workspace-projection.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/pi-rpc-client": "workspace:*",
+    "@workbench/remote-control-contracts": "workspace:*",
+    "@workbench/runtime-transport-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

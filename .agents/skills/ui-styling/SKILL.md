@@ -10,7 +10,7 @@ metadata:
 
 # Workbench UI Styling
 
-Follow the repository `AGENTS.md` and reuse the existing Shell component and appearance system. This skill covers Workbench implementation, including shared tokens and component states. Product extensions and their registration use `extend-workbench-ui`; specific UX questions can use `ui-ux-pro-max` when project conventions leave a decision unresolved.
+Follow the repository `AGENTS.md` and reuse the existing Shell component and appearance system. This skill covers Workbench implementation, including shared tokens and component states. Extension contributions, public contracts, and registration use `extend-workbench-ui`; ordinary component styling does not require that skill. Specific UX questions can use `ui-ux-pro-max` when project conventions leave a decision unresolved.
 
 ## Find the existing owner
 
@@ -18,7 +18,7 @@ For new controls or layout/visual/interaction changes, inspect only the relevant
 
 - `packages/client/ui/src/components/`: shared primitives and variants; use the owning package's public exports instead of copying implementations.
 - `packages/client/ui/src/tokens.css`: shared semantic Tailwind mappings and control tokens; `packages/client/shell/src/styles.css` assembles shared and regional styles.
-- `packages/client/shell/src/extensions/builtin/appearance/`: appearance settings and their style derivation when the change touches them.
+- `packages/client/ui-theme/src/`: appearance settings and their style derivation when the change touches them.
 - The feature's co-located CSS: regional layout and tokens. Reuse unchanged context already read.
 
 Use `WorkspaceSelector` from `@workbench/ui-selectors` for workspace/project selection, and its `SelectorDropdown` or the `@workbench/ui` `DropdownMenu` composition for rich generic selection. Sidebar primitives live in `@workbench/ui-sidebar/primitives`; resize and disclosure live in `@workbench/ui-resize` and `@workbench/ui-disclosure`. Keep overlays in the owning Shell Portal container and preserve the scope markers needed by their styles. Localize changed product and accessibility copy through the shared i18n API.

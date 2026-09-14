@@ -6,9 +6,12 @@ const journalModule =
   (await import("@workbench/pi-sdk-sessions/session-event-journal")) as typeof import("@workbench/pi-sdk-sessions/session-event-journal");
 const {
   appendSessionEventJournal,
+  appendSessionClientMutation,
   createCanonicalSessionEvent,
+  findSessionClientMutation,
   initializeSessionEventJournal,
   readSessionEventJournal,
+  SESSION_CLIENT_MUTATION_CUSTOM_TYPE,
   SESSION_EVENT_CUSTOM_TYPE,
   SESSION_EVENT_JOURNAL_CUSTOM_TYPE,
 } = journalModule;
@@ -105,4 +108,40 @@ test("JSON-unsafe values and journal write failures do not corrupt the committed
   assert.deepEqual(readSessionEventJournal(store), [
     { ...messageEvent(0, "one"), entryId: "entry-1" },
   ]);
+});
+
+test("client mutation identity survives reopen and rejects operation or message reuse", () => {
+  const store = new MemoryJournal();
+  const identity = { operationId: "operation-1", messageId: "message-1" };
+
+  assert.equal(findSessionClientMutation(store, identity), "absent");
+  const entryId = appendSessionClientMutation(store, identity);
+  assert.equal(entryId, "entry-1");
+  assert.equal(store.entries[0]?.customType, SESSION_CLIENT_MUTATION_CUSTOM_TYPE);
+  assert.deepEqual(store.entries[0]?.data, { ...identity, version: 1 });
+
+  assert.equal(findSessionClientMutation(store, identity), "match");
+  assert.equal(
+    findSessionClientMutation(store, { ...identity, messageId: "message-2" }),
+    "conflict",
+  );
+  assert.equal(
+    findSessionClientMutation(store, { ...identity, operationId: "operation-2" }),
+    "conflict",
+  );
+  assert.equal(
+    findSessionClientMutation(store, {
+      operationId: "operation-2",
+      messageId: "message-2",
+    }),
+    "absent",
+  );
+  assert.throws(
+    () =>
+      appendSessionClientMutation(store, {
+        operationId: "operation with space",
+        messageId: "message-3",
+      }),
+    /printable ASCII/,
+  );
 });

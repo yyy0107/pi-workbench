@@ -1,3 +1,5 @@
+import type { MessageFormatters } from "@workbench/i18n/runtime";
+
 export const messages = {
   workbench: {
     chat: {
@@ -90,6 +92,22 @@ export const messages = {
     },
   },
   chatContent: {
+    fileAttachment: {
+      openInWorkspace: ({ name }: { name: string }) => `在工作区中打开 ${name}`,
+    },
+    userAttachmentGallery: {
+      label: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `附件，共 ${number(count)} 个`,
+      position: (
+        { current, total }: { current: number; total: number },
+        { number }: MessageFormatters,
+      ) => `${number(current)} / ${number(total)}`,
+      previous: "上一个附件",
+      next: "下一个附件",
+      showAll: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `展开全部 ${number(count)} 个`,
+      collapse: "收起",
+    },
     userMessage: {
       showMore: "显示更多",
       showLess: "收起",

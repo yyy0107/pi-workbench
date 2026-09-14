@@ -1,0 +1,49 @@
+{
+  "name": "@workbench/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start --dev-client",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "export": "expo export --platform all --output-dir dist",
+    "export:production": "NODE_ENV=production expo export --platform all --output-dir dist",
+    "expo:check": "expo install --check --pnpm",
+    "doctor": "expo-doctor .",
+    "android:release": "NODE_ENV=production node scripts/build-android-release.mjs",
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
+    "@react-native-community/netinfo": "12.0.1",
+    "@workbench/i18n": "workspace:*",
+    "@workbench/remote-control-client": "workspace:*",
+    "@workbench/remote-control-contracts": "workspace:*",
+    "expo": "~57.0.22",
+    "expo-build-properties": "~57.0.17",
+    "expo-camera": "~57.0.5",
+    "expo-constants": "~57.0.18",
+    "expo-font": "~57.0.4",
+    "expo-linking": "~57.0.10",
+    "expo-router": "~57.0.21",
+    "expo-secure-store": "~57.0.4",
+    "expo-sqlite": "~57.0.3",
+    "expo-status-bar": "~57.0.1",
+    "expo-system-ui": "~57.0.4",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-nitro-modules": "0.37.1",
+    "react-native-quick-base64": "3.0.1",
+    "react-native-quick-crypto": "1.1.6",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "~19.2.2",
+    "expo-doctor": "1.20.4",
+    "typescript": "~6.0.3"
+  }
+}
