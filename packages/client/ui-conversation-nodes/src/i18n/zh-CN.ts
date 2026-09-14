@@ -83,6 +83,31 @@ export const messages = {
         pdf: ({ index }: { index: number }, { number }: MessageFormatters) =>
           `PDF ${number(index)}`,
       },
+      fileChanges: {
+        openDiff: ({ name }: { name: string }) => `查看 ${name} 的完整差异`,
+        openDiffFailed: ({ name }: { name: string }) => `无法打开 ${name} 的完整差异，请重试。`,
+
+        summary: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `${number(count)} 个文件已更改`,
+        undo: "撤销",
+        undoing: "正在撤销",
+        redo: "重做",
+        redoing: "正在重做",
+        undoLabel: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `撤销 ${number(count)} 个文件的更改`,
+        undoSucceeded: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `已撤销 ${number(count)} 个文件的更改`,
+        undoFailed: "无法撤销这些更改。它们可能与工作区中更新的工作发生冲突。",
+        redoLabel: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `重做 ${number(count)} 个文件的更改`,
+        redoSucceeded: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `已重做 ${number(count)} 个文件的更改`,
+        redoFailed: "无法重做这些更改。文件可能与更新的工作发生冲突。",
+        review: "审查",
+        reviewTitle: "审查更改",
+        open: "打开",
+        openFailed: ({ name }: { name: string }) => `无法打开 ${name}`,
+      },
       continuedTurn: ({ continuedAt }: { continuedAt: string }) => `在 ${continuedAt} 继续`,
       completedTurn: ({
         completedAt,

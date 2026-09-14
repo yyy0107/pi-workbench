@@ -17,6 +17,7 @@ import {
   type WorkspaceFileService,
 } from "@workbench/workspace-server/files";
 import { createWorkspaceGitService } from "@workbench/workspace-server/git";
+import { createWorkspaceFileChangeService } from "@workbench/workspace-server/file-changes";
 import {
   createLocalFileContentHandler,
   createWorkspaceFileContentHandler,
@@ -24,6 +25,7 @@ import {
 import { LocalFileService } from "@workbench/workspace-server/local-files";
 import {
   createWorkspaceFileRpcRoutes,
+  createWorkspaceFileChangeRpcRoutes,
   createLocalFileRpcRoutes,
   createWorkspaceGitRpcRoutes,
 } from "@workbench/workspace-server/rpc";
@@ -291,6 +293,11 @@ function createInstalledPiServer(
     mutateWorkspace: mutatePiWorkspace,
     resolveReviewSnapshots: resolvePiReviewSnapshots,
   });
+  const workspaceFileChanges = createWorkspaceFileChangeService({
+    resolveWorkspaceRoot: resolvePiWorkspaceRoot,
+    mutateWorkspace: mutatePiWorkspace,
+    resolveSnapshots: resolvePiReviewSnapshots,
+  });
   const terminalShell = createTerminalShellPreference();
   const toolTerminalSessions = new ToolTerminalSessionManager({ getShell: terminalShell.getShell });
   const browser = new BrowserManager();
@@ -306,6 +313,7 @@ function createInstalledPiServer(
   const domainErrors = { projectDomainError: projectRpcDomainError };
   const routeGroups = [
     createWorkspaceGitRpcRoutes({ service: workspaceGit, ...domainErrors }),
+    createWorkspaceFileChangeRpcRoutes({ service: workspaceFileChanges, ...domainErrors }),
     createWorkspaceFileRpcRoutes({ service: workspaceFiles, ...domainErrors }),
     createLocalFileRpcRoutes({ service: localFiles, ...domainErrors }),
     createAutomationRpcRoutes({ service: automation, ...domainErrors }),

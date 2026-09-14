@@ -2,6 +2,7 @@ import type { OpenHandlerDefinition } from "@workbench/extension-sdk";
 import {
   fileWorkspaceContext,
   workspaceRelativePath,
+  workspaceAbsolutePath,
   type FileWorkspaceService,
   type FileDiffService,
   type LocalFileSession,
@@ -58,13 +59,38 @@ export function createFileOpenHandler(
         fileSession.source === "local"
           ? { scope: targetScope, session: fileSession }
           : fileWorkspaceContext(targetScope, fileSession);
+      const requestedDiff = parseFileDiffMetadata(resource.metadata);
+      // Complete snapshots do not depend on the current file still existing at this path.
+      if (requestedDiff && resource.metadata?.snapshotOnly === true && withinWorkspace) {
+        const relativePath = workspaceRelativePath(rootPath, resource.path);
+        const absolutePath = workspaceAbsolutePath(rootPath, relativePath);
+        const diff = diffs.upsert(absolutePath, requestedDiff);
+        return surfaces.reveal({
+          kind: "file",
+          title: resource.label ?? fileName(resource.path),
+          params: {
+            ...fileSession,
+            absolutePath,
+            relativePath,
+            name: fileName(resource.path),
+            // Diff snapshots contain decoded text; preserve normal editor selection without a live stat.
+            encoding: "utf-8",
+            viewMode: "diff",
+            diffId: diff.id,
+            diffCycle: diff.cycle,
+          },
+          context,
+          scope: targetScope,
+          status: "ready",
+          policy: policy ?? "reveal",
+        });
+      }
       const descriptor = await files.describeFile(fileContext, resource.path);
       if (fileSession.source === "local")
         fileSession = { source: "local", rootPath: parentPath(descriptor.path) };
       const relativePath =
         descriptor.relativePath ??
         (fileSession.source === "local" ? fileName(descriptor.path) : undefined);
-      const requestedDiff = parseFileDiffMetadata(resource.metadata);
       const diff = requestedDiff ? diffs.upsert(descriptor.path, requestedDiff) : undefined;
       return surfaces.reveal({
         kind: "file",

@@ -19,6 +19,8 @@ import {
   fileWorkspaceContext,
   openFileLink,
 } from "@workbench/workspace-files";
+import { localAppFileKindFor, fileOpenSelectors } from "@workbench/workspace-files/open-apps";
+import type { WorkbenchLocalApp } from "@workbench/runtime-contracts/runtime-capabilities";
 import { createFileOpenHandler } from "../src/file-opener";
 import { fileSurfaceDefinition } from "../src/extension";
 
@@ -186,5 +188,97 @@ test("local links reveal the existing File surface outside a project and preserv
   assert.equal(store.getState().surfaces[image!]?.params.encoding, null);
   assert.equal(store.getState().surfaces[image!]?.params.viewMode, "preview");
   assert.deepEqual(metadataCalls, ["/external/a.md", "/external/a.png"]);
+  controller.dispose();
+});
+
+test("deleted snapshot opens without a live file and source reuses its file tab", async () => {
+  let describes = 0;
+  const files = new BufferedFileWorkspaceService({
+    listDirectory: async () => assert.fail("No directory read"),
+    readFile: async () => assert.fail("No content read during opening"),
+    writeFile: async () => assert.fail("No writes"),
+    contentUrl: () => "/content/file.ts",
+    describeFile: async (request) => {
+      describes++;
+      return {
+        ...request,
+        absolutePath: "/workspace/file.ts",
+        name: "file.ts",
+        mediaType: "text/plain",
+        encoding: "utf-8",
+        version: "v1",
+        size: 4,
+        modifiedAt: 1,
+      };
+    },
+  });
+  const registry = new WorkspaceSurfaceRegistryImpl();
+  registry.register(fileSurfaceDefinition);
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, registry, {
+    validateLocalizableText: isLocalizableText,
+  });
+  const handlers = new OpenerRegistryImpl();
+  const diffs = new MemoryFileDiffService();
+  handlers.register(createFileOpenHandler(files, diffs));
+  const opener = new DefaultOpenerService(handlers, controller);
+  const context = {
+    applicationId: "test",
+    threadId: "thread",
+    projectId: "workspace",
+    rootPath: "/workspace",
+  };
+  const resource = {
+    scheme: "workspace-file",
+    path: "file.ts",
+    metadata: {
+      viewMode: "diff",
+      diffId: "snapshot-file",
+      snapshotOnly: true,
+      lines: [{ kind: "removed", text: "old" }],
+    },
+  };
+  const id = await opener.open({ resource, context, policy: "force-focus" });
+  assert.equal(describes, 0, "Deleted snapshot must not depend on the current file");
+  assert.equal(store.getState().surfaces[id!]?.params.viewMode, "diff");
+  assert.equal(diffs.get("snapshot-file")?.path, "/workspace/file.ts");
+  const params = store.getState().surfaces[id!].params;
+  assert.equal(params.encoding, "utf-8");
+  for (const path of ["/workspace/app.py", "/workspace/file.ts", "/workspace/Makefile"]) {
+    const kind = localAppFileKindFor(path, undefined, params.encoding as "utf-8");
+    assert.equal(kind, "text");
+    const editor: WorkbenchLocalApp = {
+      id: "editor",
+      name: "Editor",
+      kind: "editor",
+      supportedFileKinds: ["text"],
+    };
+    const preferenceKey = path.endsWith(".py")
+      ? "extension:py"
+      : path.endsWith(".ts")
+        ? "extension:ts"
+        : "kind:text";
+    const selectors = fileOpenSelectors([editor], path, kind, { [preferenceKey]: "editor" });
+    assert.equal(selectors[0]?.primaryApp?.id, "editor");
+    assert.deepEqual(selectors[0]?.apps, [editor]);
+  }
+
+  // The existing View source action updates this surface, preserving file identity and drafts.
+  controller.update(id!, {
+    params: {
+      ...store.getState().surfaces[id!].params,
+      viewMode: "source",
+      diffId: undefined,
+      diffCycle: undefined,
+    },
+  });
+  assert.equal(store.getState().surfaces[id!]?.params.viewMode, "source");
+  assert.equal(await openFileLink(opener, context, "file.ts"), id);
+  assert.equal(describes, 1);
+  assert.deepEqual(store.getState().surfaceOrder, [id]);
+  await assert.rejects(
+    opener.open({ resource: { ...resource, path: "/outside/file.ts" }, context }),
+    /outside the workspace/,
+  );
   controller.dispose();
 });

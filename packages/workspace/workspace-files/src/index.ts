@@ -50,3 +50,5 @@ export { FileLink, FileLinkContextMenu } from "./file-link-component";
 export * from "../lib/file-classification";
 export * from "../lib/file-link-content";
 export * from "../lib/asset-module-url";
+
+export { readWorkspaceFileDiffResource } from "./file-diff-resource";

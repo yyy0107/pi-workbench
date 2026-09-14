@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { PI_CONVERSATION_EVENT_CUSTOM_TYPE } from "@workbench/pi-rpc-contracts/messages";
+import {
+  WORKBENCH_FILE_CHANGE_SET_CUSTOM_TYPE,
+  WORKBENCH_FILE_CHANGE_SET_PRESENTATION_KEY,
+} from "@workbench/agent-runtime-contracts/file-changes";
 import { piHistoryToThreadMessages } from "../src/messages";
 
 import {
@@ -10,6 +14,81 @@ import {
   piSummaryFromSessionListItem,
   WORKBENCH_SESSION_SUMMARY_PROJECTION,
 } from "../src/session-rpc-projection";
+
+test("projects a raw workspace change entry from the canonical session history", () => {
+  const changeSet = {
+    version: 1 as const,
+    id: "change-1",
+    threadId: "session-1",
+    createdAt: 2_000,
+    files: [{ path: "src/example.ts", kind: "modified" as const, additions: 3, deletions: 1 }],
+    totalFiles: 1,
+    additions: 3,
+    deletions: 1,
+    undoAvailable: true,
+  };
+  const history = piHistoryFromSessionEvents("session-1", {
+    events: [
+      {
+        event: {
+          type: "message_end",
+          seq: 0,
+          time: 1_000,
+          entryId: "assistant-event",
+          data: {
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text: "Done" }],
+              stopReason: "stop",
+              timestamp: 900,
+            },
+          },
+        },
+      },
+      {
+        event: {
+          type: "entry_appended",
+          seq: 1,
+          time: 2_100,
+          entryId: "append-event",
+          data: {
+            entry: {
+              type: "custom",
+              customType: WORKBENCH_FILE_CHANGE_SET_CUSTOM_TYPE,
+              data: {
+                id: changeSet.id,
+                timestamp: changeSet.createdAt,
+                before: "before-object",
+                after: "after-object",
+                changeSet,
+              },
+              id: "change-entry",
+              parentId: "assistant-event",
+              timestamp: "1970-01-01T00:00:02.000Z",
+            },
+          },
+        },
+      },
+    ],
+    hasMore: false,
+  });
+
+  assert.deepEqual(history.context.entryIds, ["assistant-event", "change-entry"]);
+  assert.deepEqual(history.context.entrySeqs, [0, 1]);
+  assert.deepEqual(history.context.entryCompletedAts, [1_000, 2_000]);
+  assert.deepEqual(history.context.messages[1], {
+    role: "custom",
+    customType: WORKBENCH_FILE_CHANGE_SET_CUSTOM_TYPE,
+    content: "",
+    display: true,
+    details: { changeSet },
+    timestamp: 2_000,
+  });
+
+  const [message] = piHistoryToThreadMessages(history);
+  assert.equal(message?.role, "assistant");
+  assert.deepEqual(message?.metadata.custom[WORKBENCH_FILE_CHANGE_SET_PRESENTATION_KEY], changeSet);
+});
 
 test("restores delivered steer identity from durable queue events without marking follow-ups or removed prompts", () => {
   const message = (role: "assistant" | "user", text: string) => ({

@@ -1493,6 +1493,9 @@ importers:
       '@workbench/ui-disclosure':
         specifier: workspace:*
         version: link:../ui-disclosure
+      '@workbench/ui-file-presentation':
+        specifier: workspace:*
+        version: link:../ui-file-presentation
       '@workbench/ui-input-trigger':
         specifier: workspace:*
         version: link:../ui-input-trigger
@@ -1505,6 +1508,12 @@ importers:
       '@workbench/ui-tool':
         specifier: workspace:*
         version: link:../ui-tool
+      '@workbench/ui-workspace':
+        specifier: workspace:*
+        version: link:../ui-workspace
+      '@workbench/workspace-files':
+        specifier: workspace:*
+        version: link:../../workspace/workspace-files
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)

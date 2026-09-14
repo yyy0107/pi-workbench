@@ -32,6 +32,11 @@ import type {
 } from "@workbench/pi-rpc-contracts/messages";
 import { stripWorkspaceFeedbackContext } from "@workbench/agent-runtime-client/prompt-feedback";
 import {
+  parseWorkbenchFileChangeSet,
+  WORKBENCH_FILE_CHANGE_SET_CUSTOM_TYPE,
+  WORKBENCH_FILE_CHANGE_SET_PRESENTATION_KEY,
+} from "@workbench/agent-runtime-contracts/file-changes";
+import {
   createWorkbenchParallelToolPresentationMetadata,
   createWorkbenchReasoningPresentationMetadata,
 } from "@workbench/agent-runtime-client/message-presentation-metadata";
@@ -1203,6 +1208,26 @@ export function piHistoryToThreadMessages(
                 },
               };
             }
+          }
+        } else if (message.customType === WORKBENCH_FILE_CHANGE_SET_CUSTOM_TYPE) {
+          const changeSet = parseWorkbenchFileChangeSet(
+            (message.details as { changeSet?: unknown } | undefined)?.changeSet,
+          );
+          const assistantIndex = messages.findLastIndex(
+            (candidate) => candidate.role === "assistant",
+          );
+          const assistant = assistantIndex < 0 ? undefined : messages[assistantIndex];
+          if (changeSet && assistant?.role === "assistant") {
+            messages[assistantIndex] = {
+              ...assistant,
+              metadata: {
+                ...assistant.metadata,
+                custom: {
+                  ...assistant.metadata.custom,
+                  [WORKBENCH_FILE_CHANGE_SET_PRESENTATION_KEY]: changeSet,
+                },
+              },
+            };
           }
         } else if (isWorkbenchComposerCommandResponseCustomType(message.customType)) {
           const details = parseWorkbenchComposerCommandResponseDetails(message.details);

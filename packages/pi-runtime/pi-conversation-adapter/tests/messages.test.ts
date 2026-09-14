@@ -7,6 +7,10 @@ import {
   type PiSessionHistory,
 } from "@workbench/pi-rpc-contracts/messages";
 import {
+  WORKBENCH_FILE_CHANGE_SET_CUSTOM_TYPE,
+  WORKBENCH_FILE_CHANGE_SET_PRESENTATION_KEY,
+} from "@workbench/agent-runtime-contracts/file-changes";
+import {
   applyToolExecutionUpdate,
   appendPiContextTraceAssistantPart,
   appendMessageToPiPrompt,
@@ -1915,6 +1919,50 @@ test("preserves conversation event metadata on system messages", () => {
     tokensBefore: 90_000,
     estimatedTokensAfter: 12_000,
   });
+});
+
+test("projects a workspace FileChangeSet onto the preceding assistant message", () => {
+  const changeSet = {
+    version: 1 as const,
+    id: "change-1",
+    threadId: "session",
+    createdAt: 2_000,
+    files: [{ path: "src/example.ts", kind: "modified" as const, additions: 3, deletions: 1 }],
+    totalFiles: 1,
+    additions: 3,
+    deletions: 1,
+    undoAvailable: true,
+  };
+  const messages = piHistoryToThreadMessages({
+    sessionId: "session",
+    context: {
+      entryIds: ["assistant", "change-1"],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        {
+          role: "assistant",
+          timestamp: 1_000,
+          content: [{ type: "text", text: "Done" }],
+          stopReason: "stop",
+        },
+        {
+          role: "custom",
+          customType: WORKBENCH_FILE_CHANGE_SET_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: { changeSet },
+        },
+      ],
+    },
+  });
+
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0]?.role, "assistant");
+  assert.deepEqual(
+    messages[0]?.metadata.custom[WORKBENCH_FILE_CHANGE_SET_PRESENTATION_KEY],
+    changeSet,
+  );
 });
 
 test("normalizes a persisted Pi built-in command outcome as an Agent response", () => {

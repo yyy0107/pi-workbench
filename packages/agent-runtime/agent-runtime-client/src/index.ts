@@ -23,6 +23,7 @@ export {
   type WorkbenchRuntimeHostCapability,
   type WorkbenchScratchSessionCapability,
   type WorkbenchWorkspaceCapability,
+  type WorkbenchWorkspaceFileChangesCapability,
   type WorkbenchWorkspaceFileStreamOptions,
 } from "./environment/capabilities";
 export {

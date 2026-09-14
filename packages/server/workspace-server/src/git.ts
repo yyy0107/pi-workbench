@@ -1,4 +1,11 @@
-export { GitReviewSnapshots, type GitReviewSnapshot } from "./git-review-snapshots";
+export {
+  GitReviewSnapshotConflictError,
+  GitReviewSnapshotIsolationError,
+  GitReviewSnapshots,
+  restoreGitReviewSnapshot,
+  type GitReviewCapture,
+  type GitReviewSnapshot,
+} from "./git-review-snapshots";
 import { execFile, type ExecFileException } from "node:child_process";
 import { createHash } from "node:crypto";
 import { devNull } from "node:os";

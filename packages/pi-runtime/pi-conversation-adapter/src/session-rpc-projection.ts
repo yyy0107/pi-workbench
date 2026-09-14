@@ -28,6 +28,10 @@ import {
   appendWorkspaceFeedbackContext,
   type PromptFeedbackItem,
 } from "@workbench/agent-runtime-client/prompt-feedback";
+import {
+  parseWorkbenchFileChangeSet,
+  WORKBENCH_FILE_CHANGE_SET_CUSTOM_TYPE,
+} from "@workbench/agent-runtime-contracts/file-changes";
 
 export const WORKBENCH_SESSION_SUMMARY_PROJECTION = "workbench.piSessionSummary";
 
@@ -350,6 +354,34 @@ export function piHistoryFromSessionEvents(
           updatedAt: event.time,
           ...(firstAssistantTokenAt === undefined ? {} : { firstTokenAt: firstAssistantTokenAt }),
         };
+      }
+    }
+
+    if (event.type === "entry_appended") {
+      const entry = record(data?.entry);
+      const entryData = record(entry?.data);
+      const changeSet =
+        entry?.type === "custom" && entry.customType === WORKBENCH_FILE_CHANGE_SET_CUSTOM_TYPE
+          ? parseWorkbenchFileChangeSet(entryData?.changeSet)
+          : undefined;
+      if (changeSet) {
+        const persistedAt = Date.parse(stringValue(entry?.timestamp) ?? "");
+        const timestamp = Number.isFinite(persistedAt) ? persistedAt : event.time;
+        pushMessage(
+          {
+            role: "custom",
+            customType: WORKBENCH_FILE_CHANGE_SET_CUSTOM_TYPE,
+            content: "",
+            display: true,
+            details: { changeSet },
+            timestamp,
+          },
+          stringValue(entry?.id) ?? eventId,
+          timestamp,
+          undefined,
+          event.seq,
+        );
+        continue;
       }
     }
 

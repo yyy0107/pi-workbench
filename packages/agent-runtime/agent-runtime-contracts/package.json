@@ -30,6 +30,11 @@
       "import": "./src/conversation.ts",
       "default": "./src/conversation.ts"
     },
+    "./file-changes": {
+      "types": "./src/file-changes.ts",
+      "import": "./src/file-changes.ts",
+      "default": "./src/file-changes.ts"
+    },
     "./message-metadata": {
       "types": "./src/message-metadata.ts",
       "import": "./src/message-metadata.ts",

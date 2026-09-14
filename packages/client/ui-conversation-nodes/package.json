@@ -34,10 +34,13 @@
     "@workbench/ui": "workspace:*",
     "@workbench/ui-composer": "workspace:*",
     "@workbench/ui-disclosure": "workspace:*",
+    "@workbench/ui-file-presentation": "workspace:*",
     "@workbench/ui-input-trigger": "workspace:*",
     "@workbench/ui-message-blocks": "workspace:*",
     "@workbench/ui-todo": "workspace:*",
     "@workbench/ui-tool": "workspace:*",
+    "@workbench/ui-workspace": "workspace:*",
+    "@workbench/workspace-files": "workspace:*",
     "lucide-react": "^1.29.0"
   },
   "devDependencies": {

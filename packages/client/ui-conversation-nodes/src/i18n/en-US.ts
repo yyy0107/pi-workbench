@@ -92,6 +92,32 @@ export const messages = {
         pdf: ({ index }: { index: number }, { number }: MessageFormatters) =>
           `PDF ${number(index)}`,
       },
+      fileChanges: {
+        openDiff: ({ name }: { name: string }) => `Open full diff for ${name}`,
+        openDiffFailed: ({ name }: { name: string }) =>
+          `Could not open the full diff for ${name}. Try again.`,
+
+        summary: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `${number(count)} ${count === 1 ? "file" : "files"} changed`,
+        undo: "Undo",
+        undoing: "Undoing",
+        redo: "Redo",
+        redoing: "Redoing",
+        undoLabel: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `Undo changes to ${number(count)} ${count === 1 ? "file" : "files"}`,
+        undoSucceeded: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `Undid changes to ${number(count)} ${count === 1 ? "file" : "files"}`,
+        undoFailed: "Could not undo these changes. They may overlap with newer workspace work.",
+        redoLabel: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `Redo changes to ${number(count)} ${count === 1 ? "file" : "files"}`,
+        redoSucceeded: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `Redid changes to ${number(count)} ${count === 1 ? "file" : "files"}`,
+        redoFailed: "Could not redo these changes. A file may overlap with newer work.",
+        review: "Review",
+        reviewTitle: "Review changes",
+        open: "Open",
+        openFailed: ({ name }: { name: string }) => `Could not open ${name}`,
+      },
       continuedTurn: ({ continuedAt }: { continuedAt: string }) => `Continued at ${continuedAt}`,
       completedTurn: ({
         completedAt,

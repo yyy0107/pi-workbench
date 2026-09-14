@@ -441,7 +441,7 @@ function ReviewComparison({ surface, reviewRevision }: ReviewProps & { reviewRev
     () => ({
       workspaceId: surface.params.repositoryId,
       scope: surface.params.reviewScope,
-      revision: surface.params.reviewScope === "last-turn" ? undefined : surface.params.revision,
+      revision: surface.params.revision,
       baseRevision: surface.params.baseRevision,
       sessionId: surface.params.sessionId ?? context.threadId,
     }),

@@ -15,6 +15,11 @@
       "import": "./src/files.ts",
       "default": "./src/files.ts"
     },
+    "./file-changes": {
+      "types": "./src/file-changes.ts",
+      "import": "./src/file-changes.ts",
+      "default": "./src/file-changes.ts"
+    },
     "./git": {
       "types": "./src/git.ts",
       "import": "./src/git.ts",

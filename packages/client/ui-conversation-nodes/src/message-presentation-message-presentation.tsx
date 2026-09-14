@@ -45,6 +45,7 @@ import {
   visibleMessageBlocks,
 } from "../lib/message-presentation-policy";
 import { MessageToolTimeline } from "@workbench/ui-tool/message-tool-timeline";
+import { MessageFileChangesCard } from "./message-file-changes";
 import {
   dataTimelineState,
   type DataTimelineState,
@@ -336,6 +337,7 @@ export function WorkbenchMessagePresentation({ node: sourceNode }: MessageRender
           presentations={dataPresentations}
           groupParallelTools={groupParallelTools}
         />
+        {finalMessage ? <MessageFileChangesCard node={node} /> : null}
       </MessageDisclosureProvider>
     );
   }
@@ -360,6 +362,7 @@ export function WorkbenchMessagePresentation({ node: sourceNode }: MessageRender
         presentations={dataPresentations}
         groupParallelTools={groupParallelTools}
       />
+      <MessageFileChangesCard node={node} />
     </MessageDisclosureProvider>
   );
 }

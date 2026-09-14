@@ -16,6 +16,10 @@ import type {
   WorkbenchWorkspaceFileWriteRequest as WorkspaceFileWritePayload,
   WorkbenchWorkspaceGitStatus as WorkspaceGitStatus,
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
+import type {
+  WorkbenchFileChangeMutationRequest,
+  WorkbenchFileChangeMutationResult,
+} from "@workbench/agent-runtime-contracts/file-changes";
 import { callServiceRpc, capabilityCall } from "./errors";
 import type { RpcCallOptions } from "./errors";
 import { fetchFileContent, streamFileText, type StreamFileTextOptions } from "./file-content";
@@ -110,11 +114,31 @@ export function createWorkspaceGitBranch(
   return callServiceRpc("workspace.git.createBranch", payload, options);
 }
 
+export function undoWorkspaceFileChanges(
+  payload: WorkbenchFileChangeMutationRequest,
+  options?: RpcCallOptions,
+): Promise<WorkbenchFileChangeMutationResult> {
+  return callServiceRpc("workspace.fileChanges.undo", payload, options);
+}
+
+export function redoWorkspaceFileChanges(
+  payload: WorkbenchFileChangeMutationRequest,
+  options?: RpcCallOptions,
+): Promise<WorkbenchFileChangeMutationResult> {
+  return callServiceRpc("workspace.fileChanges.redo", payload, options);
+}
+
 export function createWorkspaceClient(
   rpcOptions: Readonly<RpcCallOptions> = {},
 ): WorkbenchServicesCapabilities["workspace"] {
   const options = Object.freeze({ ...rpcOptions });
   return Object.freeze({
+    fileChanges: Object.freeze({
+      undo: (request: WorkbenchFileChangeMutationRequest) =>
+        capabilityCall(() => undoWorkspaceFileChanges(request, options)),
+      redo: (request: WorkbenchFileChangeMutationRequest) =>
+        capabilityCall(() => redoWorkspaceFileChanges(request, options)),
+    }),
     listFiles: (request) => capabilityCall(() => listWorkspaceFiles(request, options)),
     searchFiles: (request, requestOptions) =>
       capabilityCall(() => searchWorkspaceFiles(request, { ...options, ...requestOptions })),

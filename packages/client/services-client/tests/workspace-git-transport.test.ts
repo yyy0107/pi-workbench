@@ -45,3 +45,39 @@ test("Git diff uses the installation transport and forwards cancellation and com
   const client = createWorkspaceClient({ transport });
   assert.deepEqual(await client.readGitDiff(request, { signal }), expected);
 });
+
+test("workspace FileChangeSet undo and redo use generic workspace RPC methods", async () => {
+  const methods: string[] = [];
+  const request = { workspaceId: "workspace", threadId: "thread", changeSetId: "change" };
+  const transport = createRuntimeFetch(
+    {
+      kind: "desktop-sidecar",
+      protocolVersion: 1,
+      httpOrigin: "http://127.0.0.1:41273",
+      instanceId: "file-changes",
+      accessToken: "fixture-token",
+    },
+    async (_url, init) => {
+      const body = JSON.parse(String(init?.body));
+      methods.push(body.method);
+      assert.deepEqual(body.payload, request);
+      return Response.json({
+        type: "server-response",
+        rpcId: body.rpcId,
+        result: {
+          ok: true,
+          value: {
+            applied: true,
+            direction: body.method.endsWith("undo") ? "undo" : "redo",
+            merged: false,
+          },
+        },
+      });
+    },
+  );
+  const fileChanges = createWorkspaceClient({ transport }).fileChanges;
+  assert.ok(fileChanges);
+  assert.equal((await fileChanges.undo(request)).direction, "undo");
+  assert.equal((await fileChanges.redo(request)).direction, "redo");
+  assert.deepEqual(methods, ["workspace.fileChanges.undo", "workspace.fileChanges.redo"]);
+});

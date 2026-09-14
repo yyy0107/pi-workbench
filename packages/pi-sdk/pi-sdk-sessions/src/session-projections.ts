@@ -23,6 +23,7 @@ import {
   type AutomationSessionOrigin,
 } from "@workbench/automation-contracts";
 import { isWorkbenchComposerCommandResponseCustomType } from "@workbench/core-contracts/composer/request";
+import { WORKBENCH_FILE_CHANGE_SET_CUSTOM_TYPE } from "@workbench/agent-runtime-contracts/file-changes";
 
 import type { SessionEvent, SessionResumeState } from "@workbench/pi-rpc-contracts/rpc";
 import {
@@ -566,7 +567,10 @@ export function firstUserText(messages: readonly unknown[]): string {
 export const HISTORICAL_IMAGE_OMISSION_PREFIX = "[Workbench omitted historical image";
 export const TOOL_TIMING_CUSTOM_TYPE = "workbench.tool-timing.v1";
 export function isWorkbenchDisplayOnlyCustomType(customType: string): boolean {
-  return isWorkbenchComposerCommandResponseCustomType(customType);
+  return (
+    isWorkbenchComposerCommandResponseCustomType(customType) ||
+    customType === WORKBENCH_FILE_CHANGE_SET_CUSTOM_TYPE
+  );
 }
 export function searchableMessageText(candidate: unknown): string {
   if (!isRecord(candidate) || (candidate.role !== "user" && candidate.role !== "assistant")) {

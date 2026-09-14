@@ -236,6 +236,10 @@ function AvailableFileSurface({
       setDescriptor(undefined);
       return;
     }
+    if (viewMode === "diff") {
+      controller.update(surface.id, { status: "ready", statusMessage: undefined });
+      return;
+    }
     if (initialDescriptor) {
       setDescriptor(initialDescriptor);
       controller.update(surface.id, { status: "ready", statusMessage: undefined });
@@ -274,6 +278,7 @@ function AvailableFileSurface({
     retryToken,
     surface.id,
     surface.params.relativePath,
+    viewMode,
   ]);
 
   useEffect(() => {
@@ -405,16 +410,6 @@ function AvailableFileSurface({
     );
   }
 
-  if (!descriptor) {
-    return (
-      <div className="text-muted-foreground flex h-full items-center justify-center p-8 text-center text-sm">
-        {surface.status === "loading"
-          ? t("extensions.workspaceFile.loading")
-          : t("extensions.workspaceFile.unavailable")}
-      </div>
-    );
-  }
-
   if (viewMode === "diff") {
     const diff = surface.params.diffId ? diffs.get(surface.params.diffId) : undefined;
     if (!diff) {
@@ -426,15 +421,26 @@ function AvailableFileSurface({
       );
     }
 
+    const name = surface.params.name ?? path.split(/[\\/]/).at(-1) ?? path;
     return (
       <section className="flex h-full min-h-0 flex-col">
         <FileDiffViewer
           key={surface.params.diffCycle ?? diff.cycle}
-          ariaLabel={t("extensions.workspaceFile.source", { name: descriptor.name })}
-          name={descriptor.name}
+          ariaLabel={t("extensions.workspaceFile.source", { name })}
+          name={name}
           lines={diff.lines}
         />
       </section>
+    );
+  }
+
+  if (!descriptor) {
+    return (
+      <div className="text-muted-foreground flex h-full items-center justify-center p-8 text-center text-sm">
+        {surface.status === "loading"
+          ? t("extensions.workspaceFile.loading")
+          : t("extensions.workspaceFile.unavailable")}
+      </div>
     );
   }
 

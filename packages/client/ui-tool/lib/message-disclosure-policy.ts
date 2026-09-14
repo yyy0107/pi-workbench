@@ -3,7 +3,8 @@ export type MessagePresentationDisclosure =
   | "steps"
   | "reasoning"
   | "tool"
-  | "parallel-tools";
+  | "parallel-tools"
+  | "file-changes";
 
 export type MessagePresentationPhase = "streaming" | "steered" | "completed";
 
@@ -16,6 +17,7 @@ const DEFAULT_OPEN: Readonly<
     reasoning: false,
     tool: false,
     "parallel-tools": false,
+    "file-changes": false,
   },
   steered: {
     "completed-turn": false,
@@ -23,6 +25,7 @@ const DEFAULT_OPEN: Readonly<
     reasoning: false,
     tool: false,
     "parallel-tools": false,
+    "file-changes": false,
   },
   completed: {
     "completed-turn": false,
@@ -30,6 +33,7 @@ const DEFAULT_OPEN: Readonly<
     reasoning: false,
     tool: false,
     "parallel-tools": false,
+    "file-changes": false,
   },
 };
 

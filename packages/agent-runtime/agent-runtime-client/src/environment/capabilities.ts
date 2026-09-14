@@ -25,6 +25,10 @@ import type {
   WorkbenchWorkspaceGitLog,
   WorkbenchWorkspaceGitStatus,
 } from "@workbench/agent-runtime-contracts/runtime-capabilities";
+import type {
+  WorkbenchFileChangeMutationRequest,
+  WorkbenchFileChangeMutationResult,
+} from "@workbench/agent-runtime-contracts/file-changes";
 import type { AutomationProtocol } from "@workbench/automation-contracts";
 import type { ModelSelection } from "@workbench/core-contracts/model-selection";
 import type {
@@ -101,7 +105,14 @@ export interface WorkbenchWorkspaceFileStreamOptions extends WorkbenchCapability
   onChunk(chunk: WorkbenchWorkspaceFileTextChunk): void;
 }
 
+export interface WorkbenchWorkspaceFileChangesCapability {
+  undo(request: WorkbenchFileChangeMutationRequest): Promise<WorkbenchFileChangeMutationResult>;
+  redo(request: WorkbenchFileChangeMutationRequest): Promise<WorkbenchFileChangeMutationResult>;
+}
+
 export interface WorkbenchWorkspaceCapability {
+  /** Optional because older and remote workspace hosts may not expose snapshot-backed mutation. */
+  readonly fileChanges?: WorkbenchWorkspaceFileChangesCapability;
   createWorkspace(rootPath: string): Promise<WorkbenchWorkspaceCreation>;
   listFiles(
     request: WorkbenchWorkspaceFilesListRequest,
