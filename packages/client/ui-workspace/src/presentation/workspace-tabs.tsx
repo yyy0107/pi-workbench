@@ -297,6 +297,21 @@ export function WorkspaceTabs() {
         tabWidthReleaseTimer.current = null;
       }
 
+      const closesLastTab =
+        surfaces.length === 1 &&
+        closedSurfaceIds.length === 1 &&
+        closedSurfaceIds[0] === surfaces[0]?.id;
+      if (closesLastTab) {
+        // There is no remaining tab layout to animate. Commit immediately so the
+        // panel collapse starts in the same render as the last tab disappears.
+        cancelTabAnimations();
+        cancelTabWidthAnimations();
+        for (const animation of closingTabAnimations.current.values()) animation.cancel();
+        closingTabAnimations.current.clear();
+        close();
+        return;
+      }
+
       const layouts = captureTabLayouts();
       previousTabLayouts.current = layouts;
       for (const [surfaceId, layout] of layouts) {
@@ -385,6 +400,7 @@ export function WorkspaceTabs() {
       captureTabLayouts,
       reduceMotion,
       scheduleTabWidthRelease,
+      surfaces,
     ],
   );
   const requestCloseWithTabAnimation = useCallback(
