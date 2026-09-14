@@ -2,6 +2,7 @@
 import { useI18n } from "@workbench/i18n";
 import { Button, Collapsible, CollapsibleTrigger, CollapsibleContent } from "@workbench/ui";
 import { reviewTranslationBundle } from "./i18n";
+import { useReviewRenderTiming } from "./use-review-render-timing";
 import { reviewContextSections } from "../lib/review-context";
 import { memo, useMemo, useState, type ReactNode } from "react";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
@@ -48,6 +49,7 @@ function decoratedText(
 }
 
 function ReviewContextLines({ count, children }: { count: number; children: () => ReactNode }) {
+  useReviewRenderTiming();
   const { t } = useI18n(reviewTranslationBundle);
   const [open, setOpen] = useState(false);
   return (
@@ -84,6 +86,7 @@ export const ReviewDiffHunk = memo(function ReviewDiffHunk({
   options: ReviewDisplayOptions;
   tokens?: WorkbenchHighlightedTokens;
 }) {
+  useReviewRenderTiming();
   const { t } = useI18n(reviewTranslationBundle);
   const sections = useMemo(() => reviewContextSections(hunk.lines), [hunk.lines]);
   const words = useMemo(

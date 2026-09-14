@@ -3,11 +3,13 @@ import { reviewTranslationBundle } from "./i18n";
 import { useI18n } from "@workbench/i18n";
 
 import { ChevronDownIcon } from "lucide-react";
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 import type { WorkbenchWorkspaceGitDiffRequest } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
 import { defineReviewMessage as defineMessage } from "./i18n";
+
+import { useWorkbenchWorkspaceCapability } from "@workbench/agent-runtime-client/context";
 
 import { useRightWorkspace } from "@workbench/ui-workspace/react";
 import {
@@ -16,9 +18,11 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workbench/ui";
 import { ReviewToolbar } from "./review-toolbar";
+import { CommitSubmenu } from "./commit-selection";
 import { defaultReviewDisplayOptions } from "../lib/review-options";
 import { useGitDiff } from "./use-git-diff";
 import { useGitReviewService } from "./git-review-service";
@@ -32,8 +36,28 @@ function ReviewSurfaceHeaderContent({
   refresh,
   reviewRevision,
 }: ReviewProps & { refresh(): void; reviewRevision: number }) {
-  const { t } = useI18n(reviewTranslationBundle);
+  const { t, number } = useI18n(reviewTranslationBundle);
   const controller = useRightWorkspace();
+  const workspace = useWorkbenchWorkspaceCapability();
+  const [isGitRepository, setGitRepository] = useState<boolean>();
+  useEffect(() => {
+    const controller = new AbortController();
+    setGitRepository(undefined);
+    if (workspace) {
+      // Session snapshots can return diff data even outside a Git repository.
+      // Only the workspace status identifies which Git scopes are available.
+      void workspace
+        .describeGit(surface.params.repositoryId, { signal: controller.signal })
+        .then((status) => {
+          if (!controller.signal.aborted) setGitRepository(status.repository);
+        })
+        .catch(() => {
+          // Keep Git-only actions hidden until the workspace can be verified.
+          if (!controller.signal.aborted) setGitRepository(undefined);
+        });
+    }
+    return () => controller.abort();
+  }, [workspace, surface.params.repositoryId, reviewRevision]);
   const isCommit =
     surface.params.reviewScope === "commit" || surface.params.reviewScope === "range";
   const options = { ...defaultReviewDisplayOptions, ...surface.params.displayOptions };
@@ -62,6 +86,25 @@ function ReviewSurfaceHeaderContent({
     );
   const query = useGitDiff(request, supported, `${surface.resourceKey}:${reviewRevision}`);
   const repository = query.data?.repository ? query.data : undefined;
+  const summaryLabel = isCommit
+    ? (surface.params.revisionSubject ?? surface.params.revision?.slice(0, 8))
+    : surface.params.reviewScope === "branch"
+      ? surface.params.revision
+      : undefined;
+  const { loading, error, loadMore } = query;
+  useEffect(() => {
+    if (summaryLabel && repository?.nextOffset !== undefined && !loading && !error) loadMore();
+  }, [summaryLabel, repository?.nextOffset, loading, error, loadMore]);
+  const totals = useMemo(() => {
+    if (!repository || repository.nextOffset !== undefined || loading || error) return undefined;
+    return repository.files.reduce(
+      (sum, file) => ({
+        additions: sum.additions + (file.additions ?? 0),
+        deletions: sum.deletions + (file.deletions ?? 0),
+      }),
+      { additions: 0, deletions: 0 },
+    );
+  }, [repository, loading, error]);
   const filesExpanded = surface.params.filesExpanded === true;
   const selection = surface.params.reviewScope;
   const reveal = (params: ReviewSurfaceParams) => {
@@ -83,7 +126,7 @@ function ReviewSurfaceHeaderContent({
     reveal({
       repositoryId: surface.params.repositoryId,
       reviewScope: branch ? "branch" : (value as ReviewSurfaceParams["reviewScope"]),
-      sessionId: context.threadId,
+      sessionId: request.sessionId,
       displayOptions: options,
       ...(branch ? { revision: target } : {}),
     });
@@ -96,12 +139,16 @@ function ReviewSurfaceHeaderContent({
     >
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={<Button variant="ghost" className="w-fit min-w-0 shrink px-2.5 font-normal" />}
+          render={<Button variant="ghost" className="w-fit shrink-0 px-2.5 font-normal" />}
           aria-label={t("extensions.workspaceReview.scopeLabel")}
           title={repository?.branch}
         >
           <span className="truncate">
-            {t(`extensions.workspaceReview.scope.${surface.params.reviewScope}`)}
+            {t(
+              surface.params.reviewScope === "commit"
+                ? "extensions.workspaceReview.committed"
+                : `extensions.workspaceReview.scope.${surface.params.reviewScope}`,
+            )}
           </span>
           <ChevronDownIcon />
         </DropdownMenuTrigger>
@@ -111,22 +158,71 @@ function ReviewSurfaceHeaderContent({
           limitHeight={false}
         >
           <DropdownMenuRadioGroup value={selection} onValueChange={select}>
-            <DropdownMenuRadioItem value="unstaged">
-              {t("extensions.workspaceReview.scope.unstaged")}
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="staged">
-              {t("extensions.workspaceReview.scope.staged")}
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="branch" disabled={!repository?.branches.length}>
-              {t("extensions.workspaceReview.scope.branch")}
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="last-turn" disabled={!context.threadId}>
+            <DropdownMenuRadioItem value="last-turn" disabled={!request.sessionId}>
               {t("extensions.workspaceReview.scope.last-turn")}
             </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="session" disabled={!request.sessionId}>
+              {t("extensions.workspaceReview.scope.session")}
+            </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
+          {isGitRepository === true && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup value={selection} onValueChange={select}>
+                <DropdownMenuRadioItem value="unstaged">
+                  {t("extensions.workspaceReview.scope.unstaged")}
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="staged">
+                  {t("extensions.workspaceReview.scope.staged")}
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
+              <CommitSubmenu
+                workspaceId={surface.params.repositoryId}
+                value={
+                  surface.params.reviewScope === "commit" ? surface.params.revision : undefined
+                }
+                onChange={(revision, commit) =>
+                  reveal({
+                    repositoryId: surface.params.repositoryId,
+                    reviewScope: "commit",
+                    revision,
+                    revisionSubject: commit.subject,
+                    sessionId: request.sessionId,
+                    displayOptions: options,
+                  })
+                }
+              />
+              <DropdownMenuRadioGroup value={selection} onValueChange={select}>
+                <DropdownMenuRadioItem value="branch" disabled={!repository?.branches.length}>
+                  {t("extensions.workspaceReview.scope.branch")}
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
-      <div className="ms-auto flex min-w-0 items-center gap-1 text-muted-foreground">
+      {summaryLabel && (
+        <div className="flex min-w-0 items-center gap-2 text-sm">
+          <span className="min-w-0 truncate text-muted-foreground" title={summaryLabel}>
+            {summaryLabel}
+          </span>
+          {totals && (
+            <span
+              className="flex shrink-0 gap-1 tabular-nums"
+              aria-label={t("extensions.workspaceReview.lineChanges", totals)}
+            >
+              <span className="text-success-foreground" aria-hidden>
+                +{number(totals.additions)}
+              </span>
+              <span className="text-danger-foreground" aria-hidden>
+                −{number(totals.deletions)}
+              </span>
+            </span>
+          )}
+        </div>
+      )}
+      <div className="ms-auto flex shrink-0 items-center gap-1 text-muted-foreground">
         <ReviewToolbar
           request={request}
           options={options}
