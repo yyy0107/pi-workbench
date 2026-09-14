@@ -365,7 +365,7 @@ const ReviewFile = memo(function ReviewFile({
                 variant="ghost"
                 data-selection="none"
                 data-frame="none"
-                className="min-w-0 flex-1 shrink justify-start gap-2 text-sm font-normal"
+                className="h-[calc(var(--button-height-default)+var(--spacing))] min-w-0 flex-1 shrink justify-start gap-2 text-sm font-normal"
               />
             }
             title={displayPath}
