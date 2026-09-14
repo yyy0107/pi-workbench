@@ -14,7 +14,10 @@ const {
 const {
   createDesktopDirectRemoteControlBridgeGeneration,
 } = require("./desktop-remote-control.cjs");
-const { createDirectRemoteListener } = require("./direct-remote-listener.cjs");
+const {
+  createDirectRemoteListener,
+  createOriginBoundWebSocketFactory,
+} = require("./direct-remote-listener.cjs");
 const { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, session, shell } =
   electron;
 const {
@@ -103,7 +106,7 @@ const desktopRemoteControlBridge = createDesktopRemoteControlBridgeLifecycle({
         "remote-control-direct-operations.sqlite",
       ),
       fetch: (url, options) => net.fetch(url, options),
-      WebSocket: globalThis.WebSocket,
+      webSocketFactory: createOriginBoundWebSocketFactory(runtimeConfiguration.rendererOrigin),
     }),
 });
 const desktopServices = desktopSettings

@@ -6,8 +6,23 @@ const {
   MAXIMUM_SOCKET_BUFFER_BYTES,
   createDirectSocketAdapter,
   createDirectRemoteListener,
+  createOriginBoundWebSocketFactory,
   listDirectNetworkInterfaces,
 } = require("../src/direct-remote-listener.cjs");
+
+test("binds the desktop Runtime WebSocket client to the admitted renderer origin", () => {
+  const constructed = [];
+  class FakeWebSocket {
+    constructor(url, options) {
+      constructed.push([url, options]);
+    }
+  }
+  const factory = createOriginBoundWebSocketFactory("http://127.0.0.1:3000", FakeWebSocket);
+  factory("ws://127.0.0.1:38185/api/events.mux");
+  assert.deepEqual(constructed, [
+    ["ws://127.0.0.1:38185/api/events.mux", { origin: "http://127.0.0.1:3000" }],
+  ]);
+});
 
 const networkInterfaces = () => ({
   eth0: [

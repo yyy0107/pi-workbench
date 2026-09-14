@@ -1,7 +1,7 @@
 const { createHash } = require("node:crypto");
 const http = require("node:http");
 const os = require("node:os");
-const { WebSocketServer } = require("ws");
+const { WebSocket, WebSocketServer } = require("ws");
 
 const PAIRING_PROTOCOL = "workbench.remote.pairing.v1";
 const AUTHENTICATED_PROTOCOL = "workbench.remote.direct.v1";
@@ -9,6 +9,13 @@ const SUPPORTED_PROTOCOLS = new Set([PAIRING_PROTOCOL, AUTHENTICATED_PROTOCOL]);
 const MAXIMUM_SOCKET_BUFFER_BYTES = 1024 * 1024;
 const MAXIMUM_FRAME_BYTES = 256 * 1024;
 const SOCKET_BACKPRESSURE_TIMEOUT_MS = 10_000;
+
+function createOriginBoundWebSocketFactory(rendererOrigin, WebSocketImpl = WebSocket) {
+  if (typeof rendererOrigin !== "string" || typeof WebSocketImpl !== "function") {
+    throw new Error("Desktop Runtime WebSocket configuration is invalid.");
+  }
+  return (url) => new WebSocketImpl(url, { origin: rendererOrigin });
+}
 
 function interfaceId(name, family, address) {
   return `interface-${createHash("sha256")
@@ -317,6 +324,7 @@ module.exports = {
   MAXIMUM_SOCKET_BUFFER_BYTES,
   PAIRING_PROTOCOL,
   SOCKET_BACKPRESSURE_TIMEOUT_MS,
+  createOriginBoundWebSocketFactory,
   createDirectSocketAdapter,
   createDirectRemoteListener,
   listDirectNetworkInterfaces,

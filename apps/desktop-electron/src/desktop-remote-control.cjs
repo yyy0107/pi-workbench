@@ -125,11 +125,11 @@ async function createDesktopDirectRemoteControlBridgeGeneration(options) {
       onOperationAccepted: (request) => runtimeMonitor?.noteOperationAccepted(request.command),
     });
     await frameProcessor.initialize();
-    if (options.WebSocket) {
+    if (options.webSocketFactory) {
       runtimeMonitor = createDesktopRemoteRuntimeMonitor({
         machineId: installation.machineId,
         runtimeConnection: options.runtimeConnection,
-        webSocketFactory: (url) => new options.WebSocket(url),
+        webSocketFactory: options.webSocketFactory,
         frameProcessor,
         readSessionCatalog: () => commandRuntime.readSessionCatalog(),
       });
