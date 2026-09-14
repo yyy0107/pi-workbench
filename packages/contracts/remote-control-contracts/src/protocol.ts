@@ -473,7 +473,65 @@ export interface RemoteToolCallV1 {
   readonly truncated: boolean;
 }
 
+/**
+ * The safe, bounded subset of Workbench's canonical conversation block contract that may cross a
+ * paired remote connection. File/source blocks and arbitrary presentation metadata are excluded.
+ */
+export type RemoteConversationBlockV1 =
+  | {
+      readonly kind: "text";
+      readonly key: string;
+      readonly text: string;
+      readonly truncated?: boolean;
+    }
+  | {
+      readonly kind: "reasoning";
+      readonly key: string;
+      readonly text: string;
+      readonly status?: "running" | "complete" | "incomplete";
+      readonly truncated?: boolean;
+    }
+  | {
+      readonly kind: "tool-call";
+      readonly key: string;
+      readonly callId: string;
+      readonly toolName: string;
+      readonly argumentsText: string;
+      readonly status: "running" | "complete" | "incomplete" | "error";
+      readonly result?: RemoteJsonValue;
+      readonly error?: { readonly code: string; readonly message: string };
+      readonly truncated: boolean;
+    }
+  | {
+      readonly kind: "data";
+      readonly key: string;
+      /** Only explicitly allowlisted Workbench data names are projected by the desktop bridge. */
+      readonly name: string;
+      readonly data: RemoteJsonValue;
+    }
+  | {
+      readonly kind: "error";
+      readonly key: string;
+      readonly error: { readonly code: string; readonly message: string };
+    };
+
+/** Canonical conversation-node projection consumed by the same message renderer as desktop. */
+export interface RemoteConversationNodeV1 {
+  readonly type: "conversation-node";
+  readonly itemId: string;
+  readonly createdAt: string;
+  readonly kind: "user" | "assistant" | "system" | "command" | "compaction" | "error";
+  readonly blocks?: readonly RemoteConversationBlockV1[];
+  readonly status?: "running" | "complete" | "incomplete" | "error";
+  readonly name?: string;
+  readonly input?: string;
+  readonly output?: string;
+  readonly summary?: string;
+  readonly error?: { readonly code: string; readonly message: string };
+}
+
 export type RemoteConversationItemV1 =
+  | RemoteConversationNodeV1
   | {
       readonly type: "user-message";
       readonly itemId: string;

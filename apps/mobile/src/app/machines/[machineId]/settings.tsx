@@ -169,7 +169,11 @@ export default function MachineConnectionSettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]}>
-      <ScrollView contentContainerStyle={styles.page}>
+      <ScrollView
+        automaticallyAdjustKeyboardInsets
+        contentContainerStyle={styles.page}
+        keyboardShouldPersistTaps="handled"
+      >
         <Pressable
           accessibilityRole="button"
           onPress={() => router.back()}
@@ -265,7 +269,10 @@ export default function MachineConnectionSettingsScreen() {
                         onPress={() => openEndpointEditor(endpoint.endpointId)}
                         style={({ pressed }) => [
                           styles.endpointButton,
-                          { borderColor: palette.border, opacity: busy ? 0.4 : pressed ? 0.65 : 1 },
+                          {
+                            borderColor: palette.border,
+                            opacity: busy ? 0.4 : pressed ? 0.65 : 1,
+                          },
                         ]}
                       >
                         <Text style={[styles.endpointButtonText, { color: palette.foreground }]}>

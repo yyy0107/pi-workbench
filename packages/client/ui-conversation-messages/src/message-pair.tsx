@@ -4,7 +4,7 @@ import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@workbench/ui/utils";
 
-import { mutedPaper } from "@workbench/ui";
+import { mutedPaper } from "@workbench/ui/surface";
 import { StreamingText } from "@workbench/ui-message-blocks/streaming-text";
 
 export interface MessagePairProps extends Omit<ComponentProps<"div">, "children"> {

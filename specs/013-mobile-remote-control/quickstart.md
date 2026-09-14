@@ -125,7 +125,7 @@ Each new library package has real `src/` and `lib/` code, public exports, indepe
 
 Add static dependency checks for:
 
-- `apps/mobile` cannot depend on `@workbench/ui-*`, Shell, Electron, extension host, toolbox, `agent-runtime-client`, Pi Runtime client/adapter, or local Runtime contracts.
+- `apps/mobile` may depend on `@workbench/ui-remote-conversation` only through its dedicated Expo DOM entry. Every other `@workbench/ui-*` package plus Shell, Electron, extension host, toolbox, `agent-runtime-client`, Pi Runtime client/adapter, and local Runtime contracts remains forbidden.
 - `remote-control-contracts` cannot depend on React, Node services, Pi RPC, Runtime transport, or apps.
 - Relay server/app cannot depend on Pi, Electron, desktop client/UI, or unrestricted session contracts.
 - Desktop bridge cannot deep-import private Pi server/registry/StreamHub or any `apps/*` source.

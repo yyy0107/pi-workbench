@@ -4,7 +4,7 @@ import { useI18n } from "@workbench/i18n";
 
 import { CheckIcon, CircleXIcon, CopyIcon, MaximizeIcon, MinimizeIcon } from "lucide-react";
 
-import { TooltipIconButton } from "@workbench/ui";
+import { TooltipIconButton } from "@workbench/ui/tooltip-icon-button";
 import { useClipboardCopy } from "@workbench/ui/hooks";
 
 import { cn } from "@workbench/ui/utils";

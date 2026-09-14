@@ -8,6 +8,7 @@
   ],
   "exports": {
     ".": "./src/index.ts",
+    "./message-pair": "./src/message-pair.tsx",
     "./list": "./src/conversation-list.tsx",
     "./layout": "./src/conversation-layout.tsx",
     "./scroll-state": "./src/thread-scroll-state.tsx",

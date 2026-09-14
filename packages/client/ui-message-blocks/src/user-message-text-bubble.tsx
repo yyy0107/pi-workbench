@@ -4,7 +4,7 @@ import { useI18n } from "@workbench/i18n";
 
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
-import { Button } from "@workbench/ui";
+import { Button } from "@workbench/ui/button";
 
 import { useDisclosureScrollLock } from "@workbench/ui-disclosure";
 

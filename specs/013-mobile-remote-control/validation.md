@@ -884,3 +884,152 @@ No unexplained baseline failure remains. Unrelated pre-existing/user worktree ch
 - The local Android release APK proves compilation and native linkage; it is not represented as a store-signed/distribution-approved release.
 - Electron artifact-only packaging passed, but a full installed packaged-application execution smoke was not run.
 - No independent cryptographic audit, penetration test, privacy/legal assessment, or external security certification was performed.
+
+## T127–T130 — Shared desktop conversation presentation on mobile
+
+**Status**: PASS for implementation, static boundaries, pure model behavior, dependency compatibility, and Android production export. Physical-device visual and interaction behavior remains an explicit release gate.
+
+```text
+pnpm --filter @workbench/ui-remote-conversation typecheck
+PASS.
+
+pnpm --filter @workbench/mobile typecheck
+PASS.
+
+pnpm --filter @workbench/ui-remote-conversation test
+PASS — 2/2 pure projection/transcript tests.
+
+node --test scripts/check-remote-control-boundaries.test.mjs
+PASS — 4/4 tests.
+
+pnpm check:remote-control-boundaries
+PASS.
+
+pnpm check:workspace-dependencies
+PASS.
+
+pnpm check:package-structure
+PASS — 103 libraries, 605 test files, 0 tracked migration violations.
+
+pnpm --filter @workbench/mobile expo:check
+PASS — Expo SDK dependencies are current.
+
+EXPO_NO_BUNDLE_SPLITTING=1 NODE_ENV=production pnpm --dir apps/mobile exec expo export --platform android --output-dir dist
+PASS — native Android bundle plus embedded DOM conversation bundle exported.
+```
+
+The Expo SDK 57 exporter currently loses the generated shared `__common` asset while serializing this large isolated DOM component, so the app-local export scripts explicitly disable bundle splitting. Development Fast Refresh remains enabled. The export also reports that relative KaTeX font URLs are not copied into the DOM bundle; diagrams are disabled in this host and formula-font packaging remains a device release gate.
+
+`expo-doctor` passes 20/21 checks. Its duplicate-dependency check sees the desktop workspace packages' React/ReactDOM 19.2.8 development installs in addition to Expo's 19.2.3 pair. Metro explicitly resolves linked workspace imports to the mobile app's matching React and ReactDOM 19.2.3 entrypoints, and the production export passes, but the doctor warning is retained rather than represented as a pass.
+
+No UI/DOM/Hook render test or UI interaction smoke was added or run. The embedded surface has not yet been manually inspected on a physical phone for startup latency, memory pressure, scrolling, disclosure, copy/link behavior, accessibility traversal, keyboard coexistence, or formula rendering.
+
+### T131 — Expo DOM WebView teardown race
+
+**Status**: PASS for reproducible dependency patching, static validation, emulator development bundling, and Android production export. No UI interaction smoke was run.
+
+The SDK 57 DOM wrapper can issue an asynchronous `DomWebView.injectJavaScript` command while React is removing the corresponding native view. Android then rejects the command because its numeric React tag no longer resolves to a `DomWebView`, and the upstream imperative wrapper leaves that Promise unhandled. `patches/@expo__dom-webview@57.0.1.patch` settles native view commands and ignores only the exact destroyed-view error while continuing to report unrelated command failures. The mobile session screen also memoizes the DOM component, preserves the projected item array identity, and stabilizes the load-more callback and DOM options so ordinary native re-renders do not generate redundant property injection.
+
+```text
+pnpm install --frozen-lockfile
+PASS — the @expo/dom-webview 57.0.1 patch is reproducibly installed from pnpm-workspace.yaml.
+
+pnpm --filter @workbench/mobile typecheck
+PASS.
+
+pnpm --filter @workbench/mobile expo:check
+PASS — dependencies are current for Expo SDK 57.
+
+pnpm check:remote-control-boundaries
+PASS.
+
+EXPO_NO_BUNDLE_SPLITTING=1 NODE_ENV=production pnpm --dir apps/mobile exec expo export --platform android --output-dir dist
+PASS — Android bundle 1,627 modules; embedded DOM conversation bundle 6,584 modules; exported to dist.
+```
+
+The alternative `react-native-webview` backend was evaluated but not retained: it would require an unnecessary native client rebuild, and that build could not download Maven artifacts in this environment because the configured repository returned HTTP 403. The final fix uses the already-linked Expo native module and does not leave `react-native-webview` in the manifest or lockfile.
+
+### T132 — Expo DOM React renderer consistency
+
+**Status**: PASS for deterministic module resolution, emulator development bundling, static validation, and Android production export. No UI interaction smoke was run.
+
+The first shared conversation DOM development bundle failed before rendering because Metro resolved hook imports to the mobile app's React 19.2.3 but selected the desktop workspace's ReactDOM 19.2.8 for the DOM renderer. `extraNodeModules` alone is a fallback and did not override the nearer pnpm workspace copy. `apps/mobile/metro.config.cjs` now uses an explicit resolver mapping for React, the JSX runtime entrypoints, ReactDOM, and `react-dom/client`, while retaining package-root mappings for ordinary package resolution. The DOM bundle therefore uses the same React 19.2.3 pair required by Expo SDK 57.
+
+```text
+pnpm exec oxfmt --check apps/mobile/metro.config.cjs
+PASS.
+
+pnpm --filter @workbench/mobile typecheck
+PASS.
+
+pnpm --filter @workbench/mobile expo:check
+PASS — dependencies are current for Expo SDK 57.
+
+pnpm check:remote-control-boundaries
+PASS.
+
+EXPO_NO_BUNDLE_SPLITTING=1 NODE_ENV=production pnpm --dir apps/mobile exec expo export --platform android --output-dir dist
+PASS — Android bundle 1,627 modules; embedded DOM conversation bundle 6,578 modules; exported to dist.
+```
+
+After restarting Metro with an empty cache and opening the existing `Hello` session in the local emulator, the DOM bundle logged `Running application "main"` and remained free of the earlier `Invalid hook call`, `ErrorToastContainer`, and `WorkbenchSettingsProvider` failures. Metro remains active on port 8082 for subsequent Fast Refresh work.
+
+### T133–T134 — Canonical desktop conversation nodes and lifecycle de-duplication
+
+**Status**: PASS for canonical projection, closed protocol parsing, shared renderer integration, cache replacement, live authoritative refresh, type checks, and pure non-UI tests. Physical-device visual and interaction behavior remains an explicit release gate.
+
+The previous mobile surface reused selected desktop visual primitives but still reconstructed a separate transcript from simplified remote items. That discarded the desktop context-composition data blocks and could not retain the full canonical tool-call lifecycle. The desktop bridge now builds history with the same Pi conversation adapter used by the desktop runtime, projects a closed and UTF-8-bounded subset of those canonical nodes, and the mobile DOM surface mounts the real desktop conversation list/node/message/tool renderers through a minimal read-only runtime adapter. File/source blocks, arbitrary renderer metadata, credentials, and unrestricted Runtime/Pi RPC remain excluded.
+
+Live Pi lifecycle events are not treated as a second render model. The mobile session controller coalesces those notifications into an authoritative history re-read, ensuring tool arguments, bounded raw results, reasoning, and context-composition summaries remain consistent with the desktop node model. Legacy cached item variants remain readable until the first successful replacement.
+
+```text
+pnpm --filter @workbench/remote-control-contracts typecheck
+pnpm --filter @workbench/remote-control-contracts test
+PASS — 37/37 tests.
+
+pnpm --filter @workbench/pi-runtime-remote-control typecheck
+pnpm --filter @workbench/pi-runtime-remote-control test
+PASS — 31/31 tests, including canonical node projection and lifecycle de-duplication.
+
+pnpm --filter @workbench/ui-remote-conversation typecheck
+pnpm --filter @workbench/ui-remote-conversation test
+PASS — 3/3 pure projection/rehydration tests.
+
+pnpm --filter @workbench/mobile typecheck
+pnpm --filter @workbench/mobile test
+PASS — 44/44 tests, including authoritative latest-page replacement and live canonical history refresh.
+
+pnpm check:remote-control-boundaries
+pnpm check:workspace-dependencies
+PASS — canonical Pi adapter is an explicit bridge-only dependency; the mobile app still imports desktop presentation only through the dedicated DOM boundary.
+
+EXPO_NO_BUNDLE_SPLITTING=1 NODE_ENV=production pnpm --dir apps/mobile exec expo export --platform android --output-dir dist
+PASS — Android bundle 1,627 modules; canonical shared conversation DOM bundle 6,997 modules; exported to dist.
+```
+
+The existing KaTeX relative-font asset warning remains unchanged; formula-font packaging is still a physical-device release gate. No UI/DOM/Hook render test or UI interaction smoke was added or run. Metro was reloaded to deliver the implementation, and the rebuilt desktop remote bridge reached ready state with both Pi event streams connected.
+
+### T135 — Remote read-only renderer environment
+
+**Status**: PASS for provider composition, optional-capability isolation, affected owner tests, type checks, boundary checks, development rebundle, and Android production export.
+
+The desktop message renderer requires a `WorkbenchAgentRuntimeEnvironment` even for read-only Composer-document presentation. The remote surface now provides a stable runtime ID, current thread ID, and an empty command catalog, while omitting workspace files, model controls, thread mutations, and other unsupported capabilities. The shared `WorkbenchMessagePresentation` exposes an explicit default-on `showFileChanges` option; only the remote renderer disables it, avoiding a fake `RightWorkspaceProvider` and preserving existing desktop behavior.
+
+```text
+pnpm --filter @workbench/ui-conversation-nodes typecheck
+pnpm --filter @workbench/ui-conversation-nodes test
+PASS — 39/39 tests.
+
+pnpm --filter @workbench/ui-remote-conversation typecheck
+pnpm --filter @workbench/ui-remote-conversation test
+PASS — 3/3 tests.
+
+pnpm --filter @workbench/mobile typecheck
+pnpm check:remote-control-boundaries
+PASS.
+
+EXPO_NO_BUNDLE_SPLITTING=1 NODE_ENV=production pnpm --dir apps/mobile exec expo export --platform android --output-dir dist
+PASS — Android and shared DOM bundles exported to dist; the unchanged KaTeX relative-font warning remains.
+```
+
+Metro completed a fresh Android reload and rebuilt the 6,997-module DOM surface without a subsequent provider error in its output. No UI/DOM/Hook render test or UI interaction smoke was added or run.

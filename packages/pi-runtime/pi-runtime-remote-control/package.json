@@ -76,6 +76,7 @@
     "test": "node ../../../scripts/run-typescript-tests.mjs --package"
   },
   "dependencies": {
+    "@workbench/pi-conversation-adapter": "workspace:*",
     "@workbench/pi-rpc-client": "workspace:*",
     "@workbench/remote-control-contracts": "workspace:*",
     "@workbench/runtime-transport-client": "workspace:*"

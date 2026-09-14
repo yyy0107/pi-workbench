@@ -123,6 +123,140 @@ test("projects visible AI text, tool inputs, and raw text outputs without hidden
   assert.equal(serialized.includes("content-available-on-desktop"), false);
 });
 
+test("projects each persisted journal message once from its terminal lifecycle event", () => {
+  const user = {
+    role: "user",
+    timestamp: 1_915_747_200_000,
+    content: [{ type: "text", text: "Hello" }],
+  };
+  const assistant = {
+    role: "assistant",
+    timestamp: 1_915_747_201_000,
+    content: [{ type: "text", text: "Hello! How can I help?" }],
+    stopReason: "stop",
+  };
+  const projected = projectRemoteConversationPage({
+    ...base,
+    entries: [
+      {
+        entryId: "user-start",
+        event: { type: "message_start", time: user.timestamp, data: { message: user } },
+      },
+      {
+        entryId: "user-end",
+        event: { type: "message_end", time: user.timestamp + 1, data: { message: user } },
+      },
+      {
+        entryId: "assistant-start",
+        event: {
+          type: "message_start",
+          time: assistant.timestamp,
+          data: { message: { ...assistant, content: [], stopReason: "pending" } },
+        },
+      },
+      {
+        entryId: "assistant-update",
+        event: {
+          type: "message_update",
+          time: assistant.timestamp + 1,
+          data: { message: assistant },
+        },
+      },
+      {
+        entryId: "assistant-end",
+        event: { type: "message_end", time: assistant.timestamp + 2, data: { message: assistant } },
+      },
+      {
+        entryId: "turn-end",
+        event: { type: "turn_end", time: assistant.timestamp + 3, data: { message: assistant } },
+      },
+    ],
+  });
+
+  assert.deepEqual(
+    projected.items.map((item) => ({
+      id: "itemId" in item ? item.itemId : item.interactionId,
+      type: item.type,
+    })),
+    [
+      { id: "user-end", type: "user-message" },
+      { id: "assistant-end", type: "assistant-message" },
+    ],
+  );
+});
+
+test("projects canonical desktop conversation nodes with tool timelines and context summaries", () => {
+  const projected = projectRemoteConversationPage({
+    ...base,
+    entries: [
+      {
+        key: "assistant-canonical",
+        kind: "assistant",
+        createdAt: 1_915_747_201_000,
+        status: "complete",
+        blocks: [
+          { key: "reasoning-1", kind: "reasoning", text: "Checked the repository." },
+          {
+            key: "context-1",
+            kind: "data",
+            name: "workbench.pi-context-trace-event",
+            data: {
+              version: 1,
+              promptInjection: "tools",
+              event: {
+                schemaVersion: 1,
+                traceId: "trace-1",
+                sessionId: "session-1",
+                activationId: "activation-1",
+                seq: 1,
+                time: 1_915_747_200_500,
+                kind: "prompt-composition",
+                promptResources: { tools: { active: ["read", "exec"] } },
+              },
+            },
+          },
+          {
+            key: "tool-1",
+            kind: "tool-call",
+            callId: "call-1",
+            toolName: "read",
+            argumentsText: '{"path":"README.md"}',
+            status: "complete",
+            result: { text: "raw output", details: { source: "runtime" } },
+          },
+          { key: "text-1", kind: "text", text: "Done." },
+          {
+            key: "file-1",
+            kind: "file",
+            name: "secret.txt",
+            source: "private-file-content",
+          },
+          { key: "data-private", kind: "data", name: "private.data", data: "private-data" },
+        ],
+      },
+    ],
+  });
+
+  assert.ok(parseRemoteConversationPageV1(projected));
+  assert.equal(projected.items.length, 1);
+  const item = projected.items[0];
+  assert.equal(item?.type, "conversation-node");
+  if (item?.type !== "conversation-node") return;
+  assert.equal(item.kind, "assistant");
+  assert.deepEqual(
+    item.blocks?.map((block) => block.kind),
+    ["reasoning", "data", "tool-call", "text"],
+  );
+  const tool = item.blocks?.find((block) => block.kind === "tool-call");
+  assert.equal(tool?.kind, "tool-call");
+  if (tool?.kind === "tool-call") {
+    assert.deepEqual(tool.result, { text: "raw output", details: { source: "runtime" } });
+  }
+  const serialized = JSON.stringify(item);
+  assert.equal(serialized.includes("private-file-content"), false);
+  assert.equal(serialized.includes("private-data"), false);
+});
+
 test("bounds a history page by 50 items and 192 KiB using UTF-8 bytes", () => {
   const projected = projectRemoteConversationPage({
     ...base,

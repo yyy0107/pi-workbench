@@ -72,6 +72,50 @@ test("merges bounded history pages and streaming deltas without duplicating item
   assert.equal(snapshot.nextHistoryCursor, undefined);
 });
 
+test("replaces a cached latest page when the authoritative refresh uses the same cursor", () => {
+  const state = createRemoteConversationState({ machineId: "machine-1", sessionId: "session-1" });
+  state.applyHistoryPage({
+    ...firstPage,
+    historyCursor: "latest",
+    items: [
+      {
+        type: "user-message",
+        itemId: "message-start",
+        createdAt: "2030-09-13T20:00:01.000Z",
+        text: "First",
+        state: "complete",
+      },
+      {
+        type: "user-message",
+        itemId: "message-end",
+        createdAt: "2030-09-13T20:00:01.000Z",
+        text: "First",
+        state: "complete",
+      },
+    ],
+  });
+  state.replaceHistoryPage({
+    ...firstPage,
+    historyCursor: "latest",
+    items: [
+      {
+        type: "user-message",
+        itemId: "message-end",
+        createdAt: "2030-09-13T20:00:01.000Z",
+        text: "First",
+        state: "complete",
+      },
+    ],
+  });
+
+  assert.deepEqual(
+    state
+      .snapshot()
+      .items.map((item) => ("itemId" in item ? item.itemId : item.interactionId)),
+    ["message-end"],
+  );
+});
+
 test("preserves tool calls while bounding a long streaming assistant message", () => {
   const state = createRemoteConversationState({ machineId: "machine-1", sessionId: "session-1" });
   state.applyHistoryPage({

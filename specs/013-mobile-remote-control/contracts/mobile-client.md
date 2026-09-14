@@ -13,7 +13,7 @@ The mobile app must not depend on:
 
 - `@workbench/agent-runtime-client`;
 - `@workbench/pi-runtime-client` or `@workbench/pi-conversation-adapter`;
-- any `@workbench/ui-*`, `@workbench/shell`, DOM, Lexical, Electron, extension host, or toolbox package;
+- any desktop UI package except the exact `@workbench/ui-remote-conversation` DOM presentation boundary; Shell, Lexical editing, Electron, extension host, toolbox, and every other `@workbench/ui-*` package remain forbidden;
 - local `@workbench/runtime-contracts` or a desktop-sidecar token;
 - private/deep package source paths.
 
@@ -129,18 +129,18 @@ The first release provides:
 - pair by QR or manual code and show safety code/desktop confirmation progress;
 - paired machine list/status and device-revoked/incompatible handling;
 - active session list, switch, create, rename, pin/unpin, and archive;
-- bounded conversation display with generic activity status;
+- bounded conversation display for every projected AI message, projected raw tool input/output, and generic activity status; the embedded presentation reuses desktop message, Markdown, tool-call, disclosure, and semantic-token primitives through `@workbench/ui-remote-conversation`;
 - text-only composer, send status, stop, and ordinary-question answer;
 - generic completion/failure/input-needed notifications;
 - explicit stale/offline/reconnecting states and per-session drafts/unread markers.
 
-It does not provide an empty or hidden placeholder for toolbox/terminal/files/editor/diff/browser/extensions/automation/model/provider/general settings. Those routes, commands, packages, and renderer types are absent from the mobile dependency graph.
+It does not provide an empty or hidden placeholder for toolbox/terminal/files/editor/diff/browser/extensions/automation/model/provider/general settings. The DOM boundary accepts only serializable `RemoteConversationItemV1` projection data and a bounded load-more native action; it does not receive a Runtime connection or expose those routes and commands.
 
 ## 8. i18n Contract
 
 Use the repository shared i18n runtime/config and an app-local mobile bundle with `en-US` and `zh-CN` key parity. Required keys include authentication, pairing, permission explanations, presence states, session actions, run states, stale/cache labels, operation outcomes, protocol upgrade, revocation, errors, notifications, and accessibility labels.
 
-The mobile app owns locale persistence/platform effects. It does not import the Shell i18n provider because that provider manipulates DOM/cookies and registers desktop bundles. A dependency check verifies one React instance compatible with the Expo app.
+The mobile app owns locale persistence/platform effects. Its isolated DOM component uses the shared DOM-neutral `I18nProvider` with only the presentation bundles exported by `@workbench/ui-remote-conversation`; it does not import the Shell i18n provider or desktop bundle registry. The Metro resolver pins linked workspace sources to Expo's app-local React runtime.
 
 ## 9. Local Data and Privacy
 
@@ -154,7 +154,7 @@ The mobile app owns locale persistence/platform effects. It does not import the 
 ## 10. Static and Non-UI Verification
 
 - App-local typecheck resolves Expo's supported React/TypeScript and no duplicate React/RN.
-- Dependency rules reject desktop UI, Shell, Pi Runtime client, agent Runtime client, Electron, extension, toolbox, and local Runtime contracts.
+- Dependency rules permit `@workbench/ui-remote-conversation` only from the dedicated `remote-conversation.dom.tsx` entry and reject every other desktop UI import plus Shell, Pi Runtime client, agent Runtime client, Electron, extension, toolbox, and local Runtime contracts.
 - Pure state tests cover lifecycle, backoff, cursor duplicate/gap/epoch, snapshot transaction, stale-state action disablement, operation uncertainty, draft preservation, and push dedupe.
 - Storage tests cover migrations, bound parameters, multibyte limits, LRU/retention, installation-sentinel cleanup, and adapter failures.
 - i18n key/parameter parity validates both base locales.

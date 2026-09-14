@@ -3,7 +3,7 @@ import { markdownTranslationBundle } from "./i18n";
 import { useI18n } from "@workbench/i18n";
 
 import { useContext, useEffect, useId, useMemo, useState } from "react";
-import { MarkdownCodeBlock } from "@workbench/code-highlighting";
+import { MarkdownCodeBlock } from "@workbench/code-highlighting/markdown-code-block";
 import { MarkdownFenceContext } from "./workbench-markdown";
 
 import { useAppearancePreferences } from "@workbench/appearance";

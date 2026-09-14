@@ -154,6 +154,24 @@ export function createRemoteConversationState(input: {
       projectionCursor = newestCursor(projectionCursor, page.projectionCursor);
       settleVisibleOperations();
     },
+    replaceHistoryPage(page: RemoteConversationPageV1): void {
+      if (!parseRemoteConversationPageV1(page) || page.sessionId !== input.sessionId) {
+        throw new Error("conversation_page_invalid");
+      }
+      if (
+        projectionCursor?.epoch === page.projectionCursor.epoch &&
+        BigInt(projectionCursor.offset) > BigInt(page.projectionCursor.offset)
+      ) {
+        return;
+      }
+      items = Object.freeze([...page.items]);
+      loadedHistoryCursors.clear();
+      loadedHistoryCursors.add(page.historyCursor);
+      nextHistoryCursor = page.nextCursor;
+      sessionRevision = page.sessionRevision;
+      projectionCursor = newestCursor(projectionCursor, page.projectionCursor);
+      settleVisibleOperations();
+    },
     applyMessageDelta(delta: {
       readonly sessionId: string;
       readonly streamId: string;

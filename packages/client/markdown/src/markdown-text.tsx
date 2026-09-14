@@ -18,13 +18,13 @@ import {
   type ReactNode,
 } from "react";
 import { WorkbenchMarkdown, type MarkdownComponents } from "./workbench-markdown";
-import { WorkbenchCodeBlockBody } from "@workbench/code-highlighting";
+import { WorkbenchCodeBlockBody } from "@workbench/code-highlighting/workbench-code-block";
 
 import { type CodeTheme } from "@workbench/appearance";
 import { InlineCitation, type Source } from "./inline-citation";
 import { useClipboardCopy } from "@workbench/ui/hooks";
 
-import { Button } from "@workbench/ui";
+import { Button } from "@workbench/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -32,7 +32,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@workbench/ui";
+} from "@workbench/ui/dialog";
 import { cn } from "@workbench/ui/utils";
 import { MermaidCode } from "./mermaid-code";
 import { MarkdownFileLink, MarkdownLinkIcon } from "./markdown-link-icons";
@@ -60,6 +60,8 @@ export type MarkdownTextProps = Omit<ComponentProps<"div">, "children"> & {
   readonly preserveWhitespace?: boolean;
   readonly preprocess?: (text: string) => string;
   readonly resetParagraphMargins?: boolean;
+  /** Hosts without an installed appearance/settings environment can disable Mermaid rendering. */
+  readonly renderDiagrams?: boolean;
   readonly smooth?: boolean;
 };
 
@@ -284,7 +286,7 @@ function ConfiguredMarkdownText({
   text,
   defer = false,
   ...props
-}: MarkdownTextProps & Readonly<{ text: string; renderDiagrams?: boolean }>) {
+}: MarkdownTextProps & Readonly<{ text: string }>) {
   const deferredText = useDeferredValue(text);
   return <RenderedMarkdownText {...props} text={defer ? deferredText : text} />;
 }
@@ -303,7 +305,7 @@ const RenderedMarkdownText = memo(function RenderedMarkdownText({
   smooth = false,
   text,
   ...props
-}: MarkdownTextProps & Readonly<{ text: string; renderDiagrams?: boolean }>) {
+}: MarkdownTextProps & Readonly<{ text: string }>) {
   const { t } = useI18n(markdownTranslationBundle);
   const labels = useMemo(
     () => ({

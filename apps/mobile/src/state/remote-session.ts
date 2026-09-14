@@ -78,6 +78,9 @@ export function createMobileRemoteSession(options: {
   let runState: RemoteRunStateV1 = options.initialRunState ?? "idle";
   let errorCode: string | undefined;
   let readMarker: string | undefined;
+  let disposed = false;
+  let refreshAgain = false;
+  let authoritativeRefresh: Promise<void> | undefined;
 
   const snapshot = (): MobileRemoteSessionSnapshot =>
     Object.freeze({
@@ -146,8 +149,36 @@ export function createMobileRemoteSession(options: {
     notify();
   };
 
+  const refreshAuthoritativeHistory = (): Promise<void> => {
+    if (disposed || !options.remote) return Promise.resolve();
+    if (authoritativeRefresh) {
+      refreshAgain = true;
+      return authoritativeRefresh;
+    }
+    authoritativeRefresh = (async () => {
+      do {
+        refreshAgain = false;
+        const page = await options.remote!.readHistory({
+          machineId: options.machineId,
+          sessionId: options.sessionId,
+        });
+        if (disposed) return;
+        conversation.replaceHistoryPage(page);
+        readMarker = page.sessionRevision;
+        stale = false;
+        errorCode = undefined;
+        await options.store.savePage(options.machineId, page);
+        await persistLocalState();
+      } while (refreshAgain && !disposed);
+    })().finally(() => {
+      authoritativeRefresh = undefined;
+    });
+    return authoritativeRefresh;
+  };
+
   const applyEvent = async (event: RemoteEventV1): Promise<void> => {
     const payload = event.payload;
+    let refreshConversation = false;
     if (payload.type === "operation.result") {
       await applyOperationResult(payload);
     } else if (payload.type === "session.runChanged" && payload.sessionId === options.sessionId) {
@@ -168,18 +199,25 @@ export function createMobileRemoteSession(options: {
             ? payload.interaction
             : undefined;
       if (item) {
-        const page: RemoteConversationPageV1 = {
-          sessionId: options.sessionId,
-          items: [item],
-          historyCursor: event.eventId,
-          sessionRevision: conversation.snapshot().sessionRevision ?? event.eventId,
-          projectionCursor: event.cursor,
-        };
-        conversation.applyHistoryPage(page);
-        await options.store.savePage(options.machineId, page);
+        if (item.type === "ordinary-question" || !options.remote) {
+          const page: RemoteConversationPageV1 = {
+            sessionId: options.sessionId,
+            items: [item],
+            historyCursor: event.eventId,
+            sessionRevision: conversation.snapshot().sessionRevision ?? event.eventId,
+            projectionCursor: event.cursor,
+          };
+          conversation.applyHistoryPage(page);
+          await options.store.savePage(options.machineId, page);
+        } else {
+          // Pi lifecycle events are not the desktop render model. Re-read the canonical history so
+          // tool calls, tool results, reasoning, and context-composition blocks stay lossless.
+          refreshConversation = true;
+        }
       }
     }
     conversation.advanceProjectionCursor(event.cursor);
+    if (refreshConversation) await refreshAuthoritativeHistory();
     stale = false;
     await persistOperations();
     notify();
@@ -288,7 +326,7 @@ export function createMobileRemoteSession(options: {
           machineId: options.machineId,
           sessionId: options.sessionId,
         });
-        conversation.applyHistoryPage(page);
+        conversation.replaceHistoryPage(page);
         readMarker = page.sessionRevision;
         conversation.setReady(true);
         stale = false;
@@ -447,6 +485,7 @@ export function createMobileRemoteSession(options: {
     },
     recoverOutcomes,
     dispose(): void {
+      disposed = true;
       unsubscribeRemote?.();
     },
   };

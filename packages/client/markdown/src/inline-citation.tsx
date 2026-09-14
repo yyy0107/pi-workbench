@@ -5,9 +5,9 @@ import { PreviewCard } from "@base-ui/react/preview-card";
 import { ExternalLinkIcon } from "lucide-react";
 
 import { cn } from "@workbench/ui/utils";
-import { useWorkbenchPortalContainer } from "@workbench/ui";
+import { useWorkbenchPortalContainer } from "@workbench/ui/portal-container";
 
-import { floating, mono } from "@workbench/ui";
+import { floating, mono } from "@workbench/ui/surface";
 
 export interface Source {
   domain: string;

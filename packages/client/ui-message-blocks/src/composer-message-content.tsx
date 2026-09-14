@@ -1,7 +1,7 @@
 "use client";
 import { conversationTranslationBundle } from "./i18n";
 import { useI18n } from "@workbench/i18n";
-import { MarkdownTextContent } from "@workbench/markdown";
+import { MarkdownTextContent } from "@workbench/markdown/render";
 import { ComposerCommandToken } from "@workbench/ui-input-trigger/tokens";
 import {
   COMPOSER_CONVERSATION_MENTION_TYPE,

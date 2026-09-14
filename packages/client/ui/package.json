@@ -8,6 +8,13 @@
   ],
   "exports": {
     ".": "./src/index.ts",
+    "./button": "./src/components/button.tsx",
+    "./collapsible": "./src/components/collapsible.tsx",
+    "./dialog": "./src/components/dialog.tsx",
+    "./portal-container": "./src/components/workbench-portal-container.tsx",
+    "./surface": "./src/components/surface.tsx",
+    "./tooltip": "./src/components/tooltip.tsx",
+    "./tooltip-icon-button": "./src/components/tooltip-icon-button.tsx",
     "./utils": "./src/utils.ts",
     "./clipboard": "./src/clipboard.ts",
     "./keyboard": "./src/keyboard-shortcut-owner.ts",

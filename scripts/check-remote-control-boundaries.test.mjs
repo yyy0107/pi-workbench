@@ -101,6 +101,7 @@ test("accepts the intended package dependency direction", () => {
           dependencies: {
             "@workbench/remote-control-client": "workspace:*",
             "@workbench/remote-control-contracts": "workspace:*",
+            "@workbench/ui-remote-conversation": "workspace:*",
             expo: "~57.0.22",
             react: "19.2.3",
             "react-native": "0.86.3",
@@ -123,11 +124,18 @@ test("accepts the intended package dependency direction", () => {
         "packages/pi-runtime/pi-runtime-remote-control/package.json",
         {
           dependencies: {
+            "@workbench/pi-conversation-adapter": "workspace:*",
             "@workbench/pi-rpc-client": "workspace:*",
             "@workbench/remote-control-contracts": "workspace:*",
             "@workbench/runtime-transport-client": "workspace:*",
           },
         },
+      ],
+    ]),
+    sources: new Map([
+      [
+        "apps/mobile/src/components/remote-conversation.dom.tsx",
+        'import { RemoteConversationSurface } from "@workbench/ui-remote-conversation"; import "@workbench/ui-remote-conversation/styles.css";',
       ],
     ]),
   });

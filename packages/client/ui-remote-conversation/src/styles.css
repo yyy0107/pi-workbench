@@ -1,0 +1,69 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "tw-shimmer";
+@import "@workbench/ui/tokens.css";
+@import "@workbench/ui/components.css";
+@import "@workbench/markdown/styles.css";
+@import "@workbench/ui-message-blocks/styles.css";
+@import "@workbench/ui-conversation-messages/styles.css";
+@import "@workbench/ui-conversation-nodes/styles.css";
+
+@source "./**/*.{ts,tsx}";
+@source "../../ui/src/**/*.{ts,tsx}";
+@source "../../ui-disclosure/src/**/*.{ts,tsx}";
+@source "../../ui-input-trigger/src/**/*.{ts,tsx}";
+@source "../../ui-message-blocks/src/**/*.{ts,tsx}";
+@source "../../ui-conversation-messages/src/**/*.{ts,tsx}";
+@source "../../ui-conversation-nodes/src/**/*.{ts,tsx}";
+@source "../../ui-tool/src/**/*.{ts,tsx}";
+@source "../../code-highlighting/src/**/*.{ts,tsx}";
+@source "../../markdown/src/**/*.{ts,tsx}";
+
+@custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
+@custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])));
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  @keyframes collapsible-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+    }
+  }
+
+  @keyframes collapsible-up {
+    from {
+      height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+textarea,
+input {
+  font: inherit;
+}

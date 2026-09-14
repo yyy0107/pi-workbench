@@ -4,7 +4,7 @@ import { type ComponentProps, useMemo } from "react";
 
 import { cn } from "@workbench/ui/utils";
 
-import { take } from "@workbench/code-highlighting";
+import { take } from "@workbench/code-highlighting/range";
 
 export interface Segment {
   text: string;

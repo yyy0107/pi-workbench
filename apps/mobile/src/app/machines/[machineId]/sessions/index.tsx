@@ -3,6 +3,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +25,10 @@ function firstParameter(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
 }
 
+const PROJECT_PREVIEW_COUNT = 2;
+const SESSION_PREVIEW_COUNT = 5;
+const LIST_EXPANSION_COUNT = 5;
+
 export default function SessionCatalogScreen() {
   const { date, relativeTime, t } = useI18n(mobileTranslationBundle);
   const app = useMobileApp();
@@ -39,6 +45,9 @@ export default function SessionCatalogScreen() {
   const [query, setQuery] = useState("");
   const [pinnedExpanded, setPinnedExpanded] = useState(true);
   const [expandedSessionId, setExpandedSessionId] = useState<string>();
+  const [visibleProjectCount, setVisibleProjectCount] = useState(PROJECT_PREVIEW_COUNT);
+  const [visiblePinnedCount, setVisiblePinnedCount] = useState(SESSION_PREVIEW_COUNT);
+  const [visibleRecentCount, setVisibleRecentCount] = useState(SESSION_PREVIEW_COUNT);
 
   const load = useCallback(async () => {
     if (!machineAvailable || !machineId) {
@@ -57,6 +66,17 @@ export default function SessionCatalogScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    setVisibleProjectCount(PROJECT_PREVIEW_COUNT);
+    setVisiblePinnedCount(SESSION_PREVIEW_COUNT);
+    setVisibleRecentCount(SESSION_PREVIEW_COUNT);
+  }, [machineId]);
+
+  useEffect(() => {
+    setVisiblePinnedCount(SESSION_PREVIEW_COUNT);
+    setVisibleRecentCount(SESSION_PREVIEW_COUNT);
+  }, [query]);
 
   const groups = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -155,7 +175,10 @@ export default function SessionCatalogScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]}>
-      <View style={styles.page}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.page}
+      >
         <View style={styles.header}>
           <MobileIconButton
             accessibilityLabel={t("mobile.common.back")}
@@ -267,7 +290,7 @@ export default function SessionCatalogScreen() {
           </View>
 
           <View accessibilityRole="list" style={styles.projectList}>
-            {projects.map((project) => (
+            {projects.slice(0, visibleProjectCount).map((project) => (
               <Pressable
                 key={project.workspaceId}
                 accessibilityLabel={project.displayName}
@@ -296,6 +319,19 @@ export default function SessionCatalogScreen() {
                 </Text>
               </Pressable>
             ))}
+            {projects.length > visibleProjectCount ? (
+              <Pressable
+                accessibilityLabel={t("mobile.sessions.showMore")}
+                accessibilityRole="button"
+                onPress={() => setVisibleProjectCount((count) => count + LIST_EXPANSION_COUNT)}
+                style={({ pressed }) => [styles.projectRow, { opacity: pressed ? 0.58 : 1 }]}
+              >
+                <MobileIcon color={palette.muted} name="chevron-down" size={27} />
+                <Text style={[styles.moreLabel, { color: palette.muted }]}>
+                  {t("mobile.sessions.showMore")}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
 
           {catalog?.stale ? (
@@ -333,6 +369,8 @@ export default function SessionCatalogScreen() {
             <View accessibilityRole="list" style={styles.list}>
               {groups.map((group) => {
                 const pinnedGroup = group.key === "pinned";
+                const visibleCount = pinnedGroup ? visiblePinnedCount : visibleRecentCount;
+                const visibleItems = group.items.slice(0, visibleCount);
                 return (
                   <View key={group.key} style={styles.group}>
                     {pinnedGroup ? (
@@ -367,7 +405,7 @@ export default function SessionCatalogScreen() {
                       </Text>
                     ) : null}
                     {(!pinnedGroup || pinnedExpanded) &&
-                      group.items.map((session) => {
+                      visibleItems.map((session) => {
                         const actionsExpanded = expandedSessionId === session.sessionId;
                         return (
                           <View
@@ -502,6 +540,27 @@ export default function SessionCatalogScreen() {
                           </View>
                         );
                       })}
+                    {(!pinnedGroup || pinnedExpanded) &&
+                    group.items.length > visibleItems.length ? (
+                      <Pressable
+                        accessibilityLabel={t("mobile.sessions.showMore")}
+                        accessibilityRole="button"
+                        onPress={() =>
+                          pinnedGroup
+                            ? setVisiblePinnedCount((count) => count + LIST_EXPANSION_COUNT)
+                            : setVisibleRecentCount((count) => count + LIST_EXPANSION_COUNT)
+                        }
+                        style={({ pressed }) => [
+                          styles.sessionShowMore,
+                          { opacity: pressed ? 0.58 : 1 },
+                        ]}
+                      >
+                        <Text style={[styles.showMoreText, { color: palette.muted }]}>
+                          {t("mobile.sessions.showMore")}
+                        </Text>
+                        <MobileIcon color={palette.muted} name="chevron-down" size={19} />
+                      </Pressable>
+                    ) : null}
                   </View>
                 );
               })}
@@ -560,7 +619,7 @@ export default function SessionCatalogScreen() {
             )}
           </Pressable>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -609,6 +668,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   projectLabel: { flexShrink: 1, fontSize: 20, letterSpacing: -0.2 },
+  moreLabel: { flexShrink: 1, fontSize: 16, fontWeight: "500", lineHeight: 22 },
   loadingRow: { alignItems: "center", flexDirection: "row", gap: 12, minHeight: 88 },
   staleBanner: { borderRadius: 16, gap: 4, marginVertical: 8, padding: 14 },
   staleText: { fontSize: 14, lineHeight: 20 },
@@ -637,6 +697,15 @@ const styles = StyleSheet.create({
   attentionDot: { borderRadius: 4, height: 8, width: 8 },
   sessionMore: { alignItems: "center", justifyContent: "center", minHeight: 48, width: 48 },
   actionTray: { paddingBottom: 14 },
+  sessionShowMore: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    gap: 4,
+    minHeight: 44,
+    paddingHorizontal: 4,
+  },
+  showMoreText: { fontSize: 15, fontWeight: "500", lineHeight: 20 },
   error: { fontSize: 13, lineHeight: 18, paddingBottom: 4 },
   bottomDock: {
     alignItems: "center",

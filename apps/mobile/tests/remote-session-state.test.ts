@@ -3,6 +3,7 @@ import test from "node:test";
 
 import type {
   RemoteConversationPageV1,
+  RemoteEventV1,
   RemoteOperationRequestV1,
 } from "@workbench/remote-control-contracts/protocol";
 
@@ -23,8 +24,8 @@ function page(offset: string): RemoteConversationPageV1 {
   };
 }
 
-function memoryCache(): MobileConversationCachePort {
-  let cachedPage: RemoteConversationPageV1 | undefined;
+function memoryCache(initialPage?: RemoteConversationPageV1): MobileConversationCachePort {
+  let cachedPage = initialPage;
   let draft = "";
   const operations = new Map<string, MobilePersistedOperation>();
   return {
@@ -37,6 +38,117 @@ function memoryCache(): MobileConversationCachePort {
     removeOperation: async (_machineId, operationId) => void operations.delete(operationId),
   };
 }
+
+test("replaces a cached duplicate lifecycle projection with the authoritative latest page", async () => {
+  const message = {
+    type: "user-message" as const,
+    createdAt: "2030-09-13T20:00:01.000Z",
+    text: "Hello",
+    state: "complete" as const,
+  };
+  const cached = {
+    ...page("1"),
+    items: [
+      { ...message, itemId: "message-start" },
+      { ...message, itemId: "message-end" },
+    ],
+  };
+  const session = createMobileRemoteSession({
+    machineId: "machine-1",
+    sessionId: "session-1",
+    store: createMobileConversationStore({
+      cache: memoryCache(cached),
+      clock: { now: () => new Date("2026-09-13T20:00:00.000Z") },
+    }),
+    remote: {
+      readHistory: async () => ({
+        ...page("1"),
+        items: [{ ...message, itemId: "message-end" }],
+      }),
+      submit: async () => undefined,
+    },
+    clock: { now: () => new Date("2026-09-13T20:00:00.000Z") },
+    createOperationId: () => "operation-1",
+  });
+
+  await session.initialize(true);
+
+  assert.deepEqual(
+    session.snapshot().items.map((item) => ("itemId" in item ? item.itemId : item.interactionId)),
+    ["message-end"],
+  );
+});
+
+test("re-reads canonical desktop nodes instead of appending a simplified live lifecycle item", async () => {
+  let listener: ((payload: RemoteEventV1) => void) | undefined;
+  let reads = 0;
+  const canonicalPage: RemoteConversationPageV1 = {
+    ...page("2"),
+    items: [
+      {
+        type: "conversation-node",
+        itemId: "assistant-1",
+        createdAt: "2030-09-13T20:00:01.000Z",
+        kind: "assistant",
+        status: "complete",
+        blocks: [
+          {
+            kind: "tool-call",
+            key: "tool-1",
+            callId: "call-1",
+            toolName: "read",
+            argumentsText: '{"path":"README.md"}',
+            status: "complete",
+            result: "contents",
+            truncated: false,
+          },
+        ],
+      },
+    ],
+  };
+  const session = createMobileRemoteSession({
+    machineId: "machine-1",
+    sessionId: "session-1",
+    store: createMobileConversationStore({
+      cache: memoryCache(),
+      clock: { now: () => new Date("2026-09-13T20:00:00.000Z") },
+    }),
+    remote: {
+      readHistory: async () => (++reads === 1 ? page("1") : canonicalPage),
+      submit: async () => undefined,
+      subscribe: (_machineId, next) => {
+        listener = next as (payload: RemoteEventV1) => void;
+        return () => void (listener = undefined);
+      },
+    },
+    clock: { now: () => new Date("2026-09-13T20:00:00.000Z") },
+    createOperationId: () => "operation-1",
+  });
+
+  await session.initialize(true);
+  listener?.({
+    type: "sync.event",
+    eventId: "event-2",
+    cursor: { epoch: "epoch-1", offset: "2" },
+    createdAt: "2030-09-13T20:00:01.000Z",
+    payload: {
+      type: "session.messageAppended",
+      sessionId: "session-1",
+      item: {
+        type: "assistant-message",
+        itemId: "legacy-assistant-1",
+        createdAt: "2030-09-13T20:00:01.000Z",
+        text: "simplified",
+        state: "complete",
+      },
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(reads, 2);
+  assert.deepEqual(session.snapshot().items, canonicalPage.items);
+  session.dispose();
+});
 
 test("coordinates accepted, terminal, applied cursor, disconnect, and explicit retry only", async () => {
   const submitted: RemoteOperationRequestV1[] = [];

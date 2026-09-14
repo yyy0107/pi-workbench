@@ -364,7 +364,7 @@ Join:   T106 → T108
 
 - E2EE 门失败：停止，不自动改用 TLS-only。
 - 无法在权威 session owner 中证明 send idempotency：停止 US2 send，不以 bridge 内存去重代替。
-- 任一协议/投影出现 terminal、file、browser、tool approval、tool args/result、extension、model settings 或 raw Runtime fallback：任务失败，不以 UI 隐藏作为修复。
+- 任一协议/投影出现 terminal、file、browser、tool approval、extension、model settings 或 raw Runtime fallback：任务失败，不以 UI 隐藏作为修复。工具输入和原始结果仅允许通过已实现的显式、有界、截断并加密的 `RemoteToolCallV1` / `tool-result` 投影传输。
 - 需要外部部署、EAS 上传、商店签名或生产凭据：记录 gate 并请求单独授权，不在本任务清单内执行。
 - UI/DOM/Hook 测试或 UI 交互冒烟：继续保持不新增、不运行，只做静态审查并记录真实设备 gate。
 
@@ -378,6 +378,18 @@ Join:   T106 → T108
 - 任务不得修改现有稳定扩展 ID、本机 Runtime credential 语义或会话持久化格式，除 T055 明确的向后兼容 idempotency 扩展。
 - 实施时每次编辑继续读取目标目录最近的 `AGENTS.md`；若使用 UI 样式或 Pi SDK 能力，按触发规则读取对应 skill。
 - 完成标记必须附验证证据；基线或环境阻塞需要准确记录，不能把未执行项写成通过。
+
+## Phase 10: Shared Conversation Presentation
+
+- [x] T127 新增 `@workbench/ui-remote-conversation`，把封闭的 `RemoteConversationItemV1` 投影适配到电脑端共享的消息对、用户消息、Markdown、工具调用和折叠策略；普通问题与输入框继续由原生层负责
+- [x] T128 用 `apps/mobile/src/components/remote-conversation.dom.tsx` 替换 React Native 消息/工具转录重写，并删除不再使用的 `activity-summary.tsx` 与 `tool-transcript.tsx`
+- [x] T129 收紧远控边界检查：手机只允许从专用 DOM 入口导入 `@workbench/ui-remote-conversation`，继续拒绝其他桌面 UI、Shell、Runtime、扩展与工具箱入口
+- [x] T130 完成共享包与 mobile 类型检查、纯转录模型测试、远控边界测试、Expo 依赖检查、包结构检查和 Android production export；不新增、不运行 UI/DOM/Hook 测试或交互冒烟
+- [x] T131 修复 Expo SDK 57 DOM WebView 在属性注入与原生视图卸载竞态中的未处理 Promise：稳定 DOM 组件及其属性，并用锁定的 `@expo/dom-webview` pnpm 补丁只忽略已销毁视图错误；验证补丁可重装且 Android/DOM production export 通过
+- [x] T132 修复共享对话 DOM bundle 混用移动端 React 19.2.3 与桌面 ReactDOM 19.2.8 导致的白屏：在 mobile Metro 解析器中强制 React、JSX runtime 与 ReactDOM client 使用应用内同版本入口，并验证开发 bundle 无 invalid-hook 崩溃且 Android/DOM production export 通过
+- [x] T133 修复历史读取同时投影 `message_start` 与 `message_end` 导致的用户/AI 重复消息；手机初始化以权威最新页替换旧缓存，而不是把同一生命周期再次合并
+- [x] T134 将远控历史切换到电脑端相同的 `piHistoryFromSessionEvents → piHistoryToThreadMessages → conversationNodesFromPiConversation` 标准节点管线，并让移动 DOM 直接挂载 `ConversationList`、`ConversationNodeSeat`、`WorkbenchMessage` 与共享工具块呈现；协议只传输经过白名单、有界处理的文本、推理、工具输入/原始结果和上下文组成摘要，实时生命周期事件触发标准历史回读
+- [x] T135 补齐共享消息呈现所需的只读 `WorkbenchAgentRuntimeEnvironmentProvider`，并给电脑端 `WorkbenchMessagePresentation` 增加显式 `showFileChanges` 可选能力；移动远程扩展关闭依赖右侧工作区的文件变更入口，但继续复用相同的用户消息、AI 消息、工具、推理和上下文呈现
 
 ## Workbench 项目约定
 

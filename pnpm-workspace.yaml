@@ -28,3 +28,4 @@ allowBuilds:
 
 patchedDependencies:
   "@earendil-works/pi-coding-agent@0.85.1": patches/@earendil-works__pi-coding-agent@0.85.1.patch
+  "@expo/dom-webview@57.0.1": patches/@expo__dom-webview@57.0.1.patch

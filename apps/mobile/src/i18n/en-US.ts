@@ -103,6 +103,7 @@ export const messages = {
       pinnedGroup: "Pinned",
       pinnedEmpty: "No pinned sessions",
       recentGroup: "Recent",
+      showMore: "Show more",
       untitled: "Untitled session",
       searchPlaceholder: "Search…",
       searchEmpty: "No sessions match your search.",

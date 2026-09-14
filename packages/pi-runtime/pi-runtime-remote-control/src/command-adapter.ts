@@ -4,6 +4,7 @@ import {
   archivePiWorkspaceSession,
   cancelPiRpcSession,
   createPiRpcSession,
+  fetchPiRpcSessionContextTracePromptParts,
   fetchPiRpcSessionHistory,
   listPiArchivedWorkspaceSessions,
   listPiRpcSessions,
@@ -14,6 +15,9 @@ import {
   setPiWorkspaceSessionPinned,
   type PiHttpTransport,
 } from "@workbench/pi-rpc-client/api";
+import { conversationNodesFromPiConversation } from "@workbench/pi-conversation-adapter/projection";
+import { piHistoryToThreadMessages } from "@workbench/pi-conversation-adapter/messages";
+import { piHistoryFromSessionEvents } from "@workbench/pi-conversation-adapter/rpc";
 import { canonicalJson } from "@workbench/remote-control-contracts/codecs";
 import type {
   RemoteCommandV1,
@@ -238,7 +242,26 @@ export function createPiRpcRemoteCommandRuntime(
     return state;
   };
   return {
-    history: (input) => fetchPiRpcSessionHistory(input, { transport }),
+    async history(input) {
+      const [history, promptParts] = await Promise.all([
+        fetchPiRpcSessionHistory(input, { transport }),
+        fetchPiRpcSessionContextTracePromptParts(
+          { sessionId: input.sessionId },
+          { transport },
+        ).catch(() => ({ parts: [] })),
+      ]);
+      const piHistory = piHistoryFromSessionEvents(input.sessionId, history);
+      const messages = piHistoryToThreadMessages(
+        piHistory,
+        undefined,
+        undefined,
+        promptParts.parts,
+      );
+      return {
+        events: conversationNodesFromPiConversation(messages),
+        hasMore: history.hasMore,
+      };
+    },
     prompt: (input, rpcId) => promptPiRpcSession(input, rpcId, { transport }),
     cancel: (input) => cancelPiRpcSession(input, { transport }),
     answerQuestion: (input) => respondPiRpc(input, { transport }),

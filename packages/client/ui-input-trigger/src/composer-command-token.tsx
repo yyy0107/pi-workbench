@@ -1,7 +1,7 @@
 "use client";
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@workbench/ui/utils";
-import { withTooltip } from "@workbench/ui";
+import { withTooltip } from "@workbench/ui/tooltip";
 
 export function ComposerCommandToken({
   icon,

@@ -2,11 +2,11 @@
 
 import type { ReactNode } from "react";
 import { CheckIcon, ChevronRightIcon, CircleXIcon, type LucideIcon } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@workbench/ui";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@workbench/ui/collapsible";
 import { cn } from "@workbench/ui/utils";
-import { collapsePanel, field, mono, ShimmerLabel } from "@workbench/ui";
+import { collapsePanel, field, mono, ShimmerLabel } from "@workbench/ui/surface";
 import { useDisclosureScrollLock } from "@workbench/ui-disclosure";
-import { withTooltip } from "@workbench/ui";
+import { withTooltip } from "@workbench/ui/tooltip";
 
 export interface ToolCallProps {
   label: string;

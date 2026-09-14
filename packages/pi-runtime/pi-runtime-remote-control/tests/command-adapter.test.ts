@@ -105,6 +105,7 @@ function harness() {
         events: [
           {
             event: {
+              type: "message_end",
               entryId: "message-1",
               time: Date.parse("2026-09-13T20:00:00.000Z"),
               data: { message: { role: "assistant", content: "Safe answer" } },

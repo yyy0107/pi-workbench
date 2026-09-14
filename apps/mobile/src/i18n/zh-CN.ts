@@ -95,6 +95,7 @@ export const messages = {
       pinnedGroup: "置顶",
       pinnedEmpty: "暂无置顶会话",
       recentGroup: "最近",
+      showMore: "展示更多",
       untitled: "未命名会话",
       searchPlaceholder: "搜索…",
       searchEmpty: "没有符合搜索条件的会话。",

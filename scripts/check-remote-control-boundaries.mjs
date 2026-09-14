@@ -17,10 +17,21 @@ const REMOTE_ROOTS = [
 ];
 
 const BRIDGE_ALLOWED_WORKBENCH_DEPENDENCIES = new Set([
+  "@workbench/pi-conversation-adapter",
   "@workbench/pi-rpc-client",
   "@workbench/remote-control-contracts",
   "@workbench/runtime-transport-client",
 ]);
+const MOBILE_DOM_CONVERSATION_PACKAGE = "@workbench/ui-remote-conversation";
+const MOBILE_DOM_CONVERSATION_ENTRY = "apps/mobile/src/components/remote-conversation.dom.tsx";
+
+function isAllowedMobileDomConversationImport(filename, specifier) {
+  return (
+    filename === MOBILE_DOM_CONVERSATION_ENTRY &&
+    (specifier === MOBILE_DOM_CONVERSATION_PACKAGE ||
+      specifier === `${MOBILE_DOM_CONVERSATION_PACKAGE}/styles.css`)
+  );
+}
 
 function workspacePackageName(specifier) {
   if (!specifier.startsWith("@workbench/")) return undefined;
@@ -90,6 +101,7 @@ function manifestViolations(filename, manifest) {
       }
       if (
         workbenchName &&
+        workbenchName !== MOBILE_DOM_CONVERSATION_PACKAGE &&
         /(?:^@workbench\/ui|shell|agent-runtime-client|pi-runtime-client|pi-conversation-adapter|extension|toolbox|runtime-contracts|terminal|browser)/u.test(
           workbenchName,
         )
@@ -112,6 +124,7 @@ function sourceViolations(filename, source) {
     }
     if (
       filename.startsWith("apps/mobile/") &&
+      !isAllowedMobileDomConversationImport(filename, specifier) &&
       /@workbench\/(?:ui(?:-|\/|$)|shell|agent-runtime-client|pi-runtime-client|pi-conversation-adapter|extension|pi-ui-toolbox|runtime-contracts|terminal|browser)/u.test(
         specifier,
       )

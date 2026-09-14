@@ -296,7 +296,10 @@ function MessageBlockRange({
   return content;
 }
 
-export function WorkbenchMessagePresentation({ node: sourceNode }: MessageRendererProps) {
+export function WorkbenchMessagePresentation({
+  node: sourceNode,
+  showFileChanges = true,
+}: MessageRendererProps & { readonly showFileChanges?: boolean }) {
   const steeredTurn = useSteeredTurn();
   const { t, date, locale } = useI18n(conversationTranslationBundle);
   const { showReasoning, showTodos, groupParallelTools } = useConversationPreferences(
@@ -365,7 +368,7 @@ export function WorkbenchMessagePresentation({ node: sourceNode }: MessageRender
           presentations={dataPresentations}
           groupParallelTools={groupParallelTools}
         />
-        {finalMessage ? <MessageFileChangesCard node={node} /> : null}
+        {showFileChanges && finalMessage ? <MessageFileChangesCard node={node} /> : null}
       </MessageDisclosureProvider>
     );
   }
@@ -390,7 +393,7 @@ export function WorkbenchMessagePresentation({ node: sourceNode }: MessageRender
         presentations={dataPresentations}
         groupParallelTools={groupParallelTools}
       />
-      <MessageFileChangesCard node={node} />
+      {showFileChanges ? <MessageFileChangesCard node={node} /> : null}
     </MessageDisclosureProvider>
   );
 }

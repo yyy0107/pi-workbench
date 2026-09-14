@@ -1,28 +1,25 @@
 import { useI18n } from "@workbench/i18n";
-import type { RemoteRunStateV1 } from "@workbench/remote-control-contracts/protocol";
+import type {
+  RemoteConversationItemV1,
+  RemoteRunStateV1,
+} from "@workbench/remote-control-contracts/protocol";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
-  ScrollView,
   StyleSheet,
   Text,
+  useColorScheme,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { MobileActivitySummary } from "../../../../components/activity-summary.tsx";
 import { MobileIcon, MobileIconButton } from "../../../../components/mobile-icon.tsx";
 import { MobileOrdinaryQuestion } from "../../../../components/ordinary-question.tsx";
+import RemoteConversationDom from "../../../../components/remote-conversation.dom.tsx";
 import { MobileRunControls } from "../../../../components/run-controls.tsx";
 import { MobileTextComposer } from "../../../../components/text-composer.tsx";
-import {
-  MobileToolCallTranscript,
-  MobileToolResultTranscript,
-} from "../../../../components/tool-transcript.tsx";
 import { mobileConversationConnectionStatus } from "../../../../features/conversation.ts";
 import { mobileTranslationBundle } from "../../../../i18n/index.ts";
 import { useMobileApp } from "../../../../state/mobile-app.tsx";
@@ -39,13 +36,15 @@ const RUN_STATES: ReadonlySet<string> = new Set([
   "stopped",
   "failed",
 ]);
+const EMPTY_CONVERSATION_ITEMS: readonly RemoteConversationItemV1[] = Object.freeze([]);
+const StableRemoteConversationDom = memo(RemoteConversationDom);
 
 function parameter(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
 }
 
 export default function ConversationScreen() {
-  const { t } = useI18n(mobileTranslationBundle);
+  const { locale, t } = useI18n(mobileTranslationBundle);
   const app = useMobileApp();
   const router = useRouter();
   const parameters = useLocalSearchParams<{
@@ -62,6 +61,7 @@ export default function ConversationScreen() {
   const rawRunState = parameter(parameters.runState);
   const runState = (RUN_STATES.has(rawRunState) ? rawRunState : "idle") as RemoteRunStateV1;
   const palette = useMobilePalette();
+  const dark = useColorScheme() === "dark";
   const machine = app.machines.items.find((item) => item.machineId === machineId);
   const [controller, setController] =
     useState<ReturnType<typeof app.openConversation>["session"]>();
@@ -106,18 +106,25 @@ export default function ConversationScreen() {
     stale: t("mobile.connection.stale"),
     "outcome-checking": t("mobile.connection.outcomechecking"),
   }[connectionStatus];
-  const safely = async (operation: () => Promise<unknown>) => {
+  const pendingQuestion = snapshot?.items.findLast(
+    (item): item is Extract<RemoteConversationItemV1, { type: "ordinary-question" }> =>
+      item.type === "ordinary-question",
+  );
+  const safely = useCallback(async (operation: () => Promise<unknown>) => {
     try {
       await operation();
     } catch {
       // The controller exposes a localized, bounded state instead of raw transport errors.
     }
-  };
+  }, []);
+  const loadMore = useCallback(async () => {
+    if (controller) await safely(() => controller.loadMore());
+  }, [controller, safely]);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
         <View style={styles.page}>
@@ -204,114 +211,30 @@ export default function ConversationScreen() {
             </View>
           ) : null}
 
-          <ScrollView
-            contentContainerStyle={styles.messages}
-            keyboardShouldPersistTaps="handled"
-            style={styles.scroller}
-          >
-            {loading ? (
-              <View accessibilityRole="progressbar" style={styles.loadingRow}>
-                <ActivityIndicator color={palette.accent} />
-                <Text style={{ color: palette.muted }}>{t("mobile.common.loading")}</Text>
-              </View>
-            ) : !snapshot ? (
-              <Text style={[styles.empty, { color: palette.muted }]}>
-                {t("mobile.conversation.loadError")}
-              </Text>
-            ) : (
-              <>
-                {snapshot.nextHistoryCursor ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={!snapshot.ready}
-                    onPress={() => void safely(() => controller!.loadMore())}
-                    style={({ pressed }) => [styles.loadMore, { opacity: pressed ? 0.62 : 1 }]}
-                  >
-                    <Text style={[styles.loadMoreText, { color: palette.muted }]}>
-                      {t("mobile.conversation.loadOlder")}
-                    </Text>
-                    <MobileIcon color={palette.muted} name="chevron-up" size={17} />
-                  </Pressable>
-                ) : null}
-                {snapshot.items.length === 0 ? (
-                  <Text style={[styles.empty, { color: palette.muted }]}>
-                    {t("mobile.conversation.empty")}
-                  </Text>
-                ) : null}
-                {snapshot.items.map((item) => {
-                  if (item.type === "ordinary-question") {
-                    return (
-                      <MobileOrdinaryQuestion
-                        key={item.interactionId}
-                        colors={palette}
-                        interaction={item}
-                        onAnswer={(answers) =>
-                          safely(() => controller!.answerQuestion(item, answers))
-                        }
-                        ready={snapshot.ready}
-                      />
-                    );
-                  }
-                  if (item.type === "activity-summary") {
-                    return <MobileActivitySummary key={item.itemId} colors={palette} item={item} />;
-                  }
-                  if (item.type === "tool-result") {
-                    return (
-                      <MobileToolResultTranscript key={item.itemId} item={item} palette={palette} />
-                    );
-                  }
-                  if (item.type === "system-status") {
-                    if (item.status === "content-available-on-desktop") return null;
-                    return (
-                      <Text key={item.itemId} style={[styles.system, { color: palette.muted }]}>
-                        {item.status === "stopped"
-                          ? t("mobile.conversation.stopped")
-                          : t("mobile.conversation.failed")}
-                      </Text>
-                    );
-                  }
-                  if (item.type === "user-message") {
-                    return (
-                      <View
-                        key={item.itemId}
-                        style={[styles.userMessage, { backgroundColor: palette.userSurface }]}
-                      >
-                        <Text selectable style={[styles.body, { color: palette.foreground }]}>
-                          {item.text}
-                        </Text>
-                        {item.textTruncated ? (
-                          <Text style={[styles.truncated, { color: palette.warningText }]}>
-                            {t("mobile.conversation.messageTruncated")}
-                          </Text>
-                        ) : null}
-                      </View>
-                    );
-                  }
-                  return (
-                    <View key={item.itemId} style={styles.assistantMessage}>
-                      {item.text ? (
-                        <Text selectable style={[styles.body, { color: palette.foreground }]}>
-                          {item.text}
-                        </Text>
-                      ) : null}
-                      {item.textTruncated ? (
-                        <Text style={[styles.truncated, { color: palette.warningText }]}>
-                          {t("mobile.conversation.messageTruncated")}
-                        </Text>
-                      ) : null}
-                      {item.toolCalls?.map((call) => (
-                        <MobileToolCallTranscript
-                          key={call.toolCallId}
-                          call={call}
-                          palette={palette}
-                        />
-                      ))}
-                    </View>
-                  );
-                })}
-              </>
-            )}
-          </ScrollView>
+          <StableRemoteConversationDom
+            dark={dark}
+            dom={remoteConversationDomProps}
+            hasMore={Boolean(snapshot?.nextHistoryCursor)}
+            items={snapshot?.items ?? EMPTY_CONVERSATION_ITEMS}
+            loadFailed={!loading && !snapshot}
+            loading={loading}
+            locale={locale}
+            onLoadMore={loadMore}
+            palette={palette}
+            ready={snapshot?.ready ?? false}
+            sessionId={sessionId}
+          />
+
+          {pendingQuestion?.type === "ordinary-question" && snapshot && controller ? (
+            <MobileOrdinaryQuestion
+              colors={palette}
+              interaction={pendingQuestion}
+              onAnswer={(answers) =>
+                safely(() => controller.answerQuestion(pendingQuestion, answers))
+              }
+              ready={snapshot.ready}
+            />
+          ) : null}
 
           {snapshot && controller ? (
             <MobileTextComposer
@@ -362,27 +285,8 @@ const styles = StyleSheet.create({
   staleBanner: { borderRadius: 14, marginTop: 8, padding: 11 },
   staleText: { fontSize: 13, lineHeight: 18 },
   scroller: { flex: 1 },
-  messages: { flexGrow: 1, gap: 20, paddingBottom: 24, paddingTop: 20 },
-  loadingRow: { alignItems: "center", flexDirection: "row", gap: 10, minHeight: 80 },
-  loadMore: {
-    alignItems: "center",
-    alignSelf: "center",
-    flexDirection: "row",
-    gap: 6,
-    justifyContent: "center",
-    minHeight: 48,
-  },
-  loadMoreText: { fontSize: 14, fontWeight: "600" },
-  empty: { fontSize: 15, lineHeight: 22, paddingVertical: 24 },
-  userMessage: {
-    alignSelf: "flex-end",
-    borderRadius: 22,
-    maxWidth: "86%",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  assistantMessage: { alignSelf: "stretch", gap: 12 },
-  body: { fontSize: 17, lineHeight: 27 },
-  truncated: { fontSize: 12, lineHeight: 17, marginTop: 4 },
-  system: { alignSelf: "center", fontSize: 13, lineHeight: 18, paddingVertical: 4 },
 });
+
+const remoteConversationDomProps = Object.freeze({
+  style: styles.scroller,
+}) satisfies import("expo/dom").DOMProps;

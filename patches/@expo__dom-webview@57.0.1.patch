@@ -1,0 +1,64 @@
+diff --git a/src/DomWebView.tsx b/src/DomWebView.tsx
+index 3a07ac938325385dc7e314f0e6d557068bc6f622..7cd62d2bccce79482bede9fccdf1c0fb052935ee 100644
+--- a/src/DomWebView.tsx
++++ b/src/DomWebView.tsx
+@@ -7,6 +7,44 @@ import { webviewStyles } from './styles';
+ 
+ const { resolveAssetSource } = Image;
+ 
++function isDestroyedDomWebView(error: unknown): boolean {
++  let current = error;
++  const visited = new Set<unknown>();
++  while (current && !visited.has(current)) {
++    visited.add(current);
++    const message = current instanceof Error ? current.message : String(current);
++    if (
++      message.includes('Unable to find the class expo.modules.webview.DomWebView view with tag')
++    ) {
++      return true;
++    }
++    current =
++      typeof current === 'object' && current !== null && 'cause' in current
++        ? (current as { cause?: unknown }).cause
++        : undefined;
++  }
++  return false;
++}
++
++function invokeNativeViewCommand(command: () => void): void {
++  try {
++    const pending = command() as unknown;
++    if (pending && typeof (pending as PromiseLike<unknown>).then === 'function') {
++      void Promise.resolve(pending).catch((error) => {
++        // React may dispose the native view between the ref read and the async Expo command.
++        // That teardown race is expected; keep reporting every other native command failure.
++        if (!isDestroyedDomWebView(error)) {
++          console.error('[expo-dom-webview] Native view command failed.', error);
++        }
++      });
++    }
++  } catch (error) {
++    if (!isDestroyedDomWebView(error)) {
++      throw error;
++    }
++  }
++}
++
+ type NativeWebViewProps = Omit<DomWebViewProps, 'containerStyle' | 'injectedJavaScriptObject'> & {
+   injectedJavaScriptObject: string;
+ };
+@@ -22,9 +60,11 @@ const WebView = React.forwardRef<DomWebViewRef, DomWebViewProps>(
+     React.useImperativeHandle(
+       ref,
+       () => ({
+-        scrollTo: (params) => viewRef.current?.scrollTo(params),
+-        injectJavaScript: (script: string) => viewRef.current?.injectJavaScript(script),
+-        reload: () => viewRef.current?.reload(),
++        scrollTo: (params) =>
++          invokeNativeViewCommand(() => viewRef.current?.scrollTo(params)),
++        injectJavaScript: (script: string) =>
++          invokeNativeViewCommand(() => viewRef.current?.injectJavaScript(script)),
++        reload: () => invokeNativeViewCommand(() => viewRef.current?.reload()),
+       }),
+       []
+     );

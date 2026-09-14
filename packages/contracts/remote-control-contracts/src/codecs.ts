@@ -780,6 +780,103 @@ export function parseRemoteConversationItemV1(
 ): RemoteConversationItemV1 | undefined {
   if (!isRemotePlainObject(value) || typeof value.type !== "string") return undefined;
   switch (value.type) {
+    case "conversation-node": {
+      const validError = (candidate: unknown) =>
+        isRemotePlainObject(candidate) &&
+        hasOnlyKeys(candidate, ["code", "message"]) &&
+        isBoundedString(candidate.code, REMOTE_PROTOCOL_LIMITS.titleBytes) &&
+        isBoundedString(candidate.message, REMOTE_PROTOCOL_LIMITS.activitySummaryBytes);
+      const validBlock = (candidate: unknown) => {
+        if (!isRemotePlainObject(candidate) || typeof candidate.kind !== "string") return false;
+        if (!isRemoteIdentifier(candidate.key)) return false;
+        switch (candidate.kind) {
+          case "text":
+            return (
+              hasOnlyKeys(candidate, ["kind", "key", "text"], ["truncated"]) &&
+              isBoundedString(candidate.text, REMOTE_PROTOCOL_LIMITS.assistantTextBytes) &&
+              (candidate.truncated === undefined || typeof candidate.truncated === "boolean")
+            );
+          case "reasoning":
+            return (
+              hasOnlyKeys(candidate, ["kind", "key", "text"], ["status", "truncated"]) &&
+              isBoundedString(candidate.text, REMOTE_PROTOCOL_LIMITS.assistantTextBytes, {
+                allowEmpty: true,
+              }) &&
+              (candidate.status === undefined ||
+                ["running", "complete", "incomplete"].includes(String(candidate.status))) &&
+              (candidate.truncated === undefined || typeof candidate.truncated === "boolean")
+            );
+          case "tool-call":
+            return (
+              hasOnlyKeys(
+                candidate,
+                ["kind", "key", "callId", "toolName", "argumentsText", "status", "truncated"],
+                ["result", "error"],
+              ) &&
+              isRemoteIdentifier(candidate.callId) &&
+              isBoundedString(candidate.toolName, REMOTE_PROTOCOL_LIMITS.titleBytes) &&
+              isBoundedString(candidate.argumentsText, REMOTE_PROTOCOL_LIMITS.toolArgumentsBytes, {
+                allowEmpty: true,
+              }) &&
+              ["running", "complete", "incomplete", "error"].includes(String(candidate.status)) &&
+              typeof candidate.truncated === "boolean" &&
+              (candidate.result === undefined ||
+                isJsonValueWithinLimits(candidate.result, {
+                  maximumBytes: REMOTE_PROTOCOL_LIMITS.toolOutputBytes,
+                })) &&
+              (candidate.error === undefined || validError(candidate.error))
+            );
+          case "data":
+            return (
+              hasOnlyKeys(candidate, ["kind", "key", "name", "data"]) &&
+              candidate.name === "workbench.pi-context-trace-event" &&
+              isJsonValueWithinLimits(candidate.data, {
+                maximumBytes: REMOTE_PROTOCOL_LIMITS.toolArgumentsBytes,
+              })
+            );
+          case "error":
+            return hasOnlyKeys(candidate, ["kind", "key", "error"]) && validError(candidate.error);
+          default:
+            return false;
+        }
+      };
+      if (
+        !hasOnlyKeys(
+          value,
+          ["type", "itemId", "createdAt", "kind"],
+          ["blocks", "status", "name", "input", "output", "summary", "error"],
+        ) ||
+        !isRemoteIdentifier(value.itemId) ||
+        !isRemoteTimestamp(value.createdAt) ||
+        !["user", "assistant", "system", "command", "compaction", "error"].includes(
+          String(value.kind),
+        ) ||
+        (value.blocks !== undefined &&
+          (!Array.isArray(value.blocks) ||
+            value.blocks.length > 128 ||
+            !value.blocks.every(validBlock))) ||
+        (value.status !== undefined &&
+          !["running", "complete", "incomplete", "error"].includes(String(value.status))) ||
+        (value.name !== undefined &&
+          !isBoundedString(value.name, REMOTE_PROTOCOL_LIMITS.titleBytes)) ||
+        (value.input !== undefined &&
+          !isBoundedString(value.input, REMOTE_PROTOCOL_LIMITS.toolArgumentsBytes, {
+            allowEmpty: true,
+          })) ||
+        (value.output !== undefined &&
+          !isBoundedString(value.output, REMOTE_PROTOCOL_LIMITS.toolOutputBytes, {
+            allowEmpty: true,
+          })) ||
+        (value.summary !== undefined &&
+          !isBoundedString(value.summary, REMOTE_PROTOCOL_LIMITS.activitySummaryBytes)) ||
+        (value.error !== undefined && !validError(value.error)) ||
+        (value.kind === "assistant" && value.status === undefined) ||
+        (value.kind === "error" && value.error === undefined)
+      ) {
+        return undefined;
+      }
+      break;
+    }
     case "user-message":
       if (
         !hasOnlyKeys(value, ["type", "itemId", "createdAt", "text", "state"], ["textTruncated"]) ||
