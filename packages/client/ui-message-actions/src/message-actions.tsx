@@ -162,7 +162,7 @@ function BranchPicker({ node }: Readonly<{ node: ConversationNode }>) {
   );
 }
 
-function AssistantActions({ node }: Readonly<{ node: ConversationNode }>) {
+function AssistantActions({ node, isLast }: Readonly<{ node: ConversationNode; isLast: boolean }>) {
   const { t } = useI18n(uiMessageActionsTranslationBundle);
   const session = useConversationSession();
   const isRunning = useSessionState((snapshot) => snapshot.isRunning);
@@ -192,6 +192,7 @@ function AssistantActions({ node }: Readonly<{ node: ConversationNode }>) {
         ? t("extensions.messageActions.forkConversationFailed")
         : t("extensions.messageActions.forkConversation");
   const retry = () => {
+    if (!isLast || isRunning) return;
     void session.actions.retry?.(node.key).catch((error) => {
       reportError(error, {
         source: "slot",
@@ -212,7 +213,7 @@ function AssistantActions({ node }: Readonly<{ node: ConversationNode }>) {
           <SplitIcon className="rotate-90" />
         </TooltipIconButton>
       ) : null}
-      {session.actions.retry ? (
+      {isLast && session.actions.retry ? (
         <TooltipIconButton
           tooltip={t("extensions.messageActions.regenerateResponse")}
           type="button"
@@ -236,7 +237,7 @@ export function MessageActions({ messageId, role, isLast }: MessageSlotContext) 
     <>
       {role === "assistant" ? (
         <>
-          <AssistantActions node={node} />
+          <AssistantActions node={node} isLast={isLast} />
           {showPerformance ? <MessagePerformance node={node} /> : null}
         </>
       ) : null}
