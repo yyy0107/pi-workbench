@@ -386,7 +386,8 @@ export default function SessionCatalogScreen() {
                               >
                                 <View style={styles.sessionTitleRow}>
                                   <Text
-                                    numberOfLines={2}
+                                    ellipsizeMode="tail"
+                                    numberOfLines={1}
                                     style={[styles.sessionTitle, { color: palette.foreground }]}
                                   >
                                     {sessionTitle(session)}
@@ -629,7 +630,7 @@ const styles = StyleSheet.create({
   sessionMain: { flex: 1, gap: 8, justifyContent: "center", paddingVertical: 12 },
   sessionTitleRow: { alignItems: "flex-start", flexDirection: "row", gap: 12 },
   sessionTitle: { flex: 1, fontSize: 17, fontWeight: "500", lineHeight: 23 },
-  updatedAt: { fontSize: 14, lineHeight: 22 },
+  updatedAt: { flexShrink: 0, fontSize: 14, lineHeight: 22 },
   sessionMetaRow: { alignItems: "center", flexDirection: "row", gap: 6 },
   workspace: { flexShrink: 1, fontSize: 13, lineHeight: 18 },
   runState: { fontSize: 13, lineHeight: 18, marginLeft: "auto" },

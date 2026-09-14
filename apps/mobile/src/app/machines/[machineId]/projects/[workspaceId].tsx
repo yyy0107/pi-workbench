@@ -211,6 +211,7 @@ export default function ProjectSessionsScreen() {
                   style={({ pressed }) => [styles.item, { opacity: pressed ? 0.58 : 1 }]}
                 >
                   <Text
+                    ellipsizeMode="tail"
                     numberOfLines={1}
                     style={[styles.sessionTitle, { color: palette.foreground }]}
                   >
