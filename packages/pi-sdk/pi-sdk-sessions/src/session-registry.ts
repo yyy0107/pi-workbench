@@ -136,6 +136,7 @@ import {
   readSessionEventJournal,
 } from "./session-event-journal";
 import { ensureSessionPersistence, reconcileInterruptedSession } from "./session-interruption";
+import { appendSessionTitleOrigin, persistGeneratedSessionTitle } from "./session-title";
 
 import { validateWorkspace, workspaceFromCwd } from "@workbench/pi-sdk-resources/workspace-paths";
 import { getProjectTrustService } from "@workbench/pi-sdk-resources/trust";
@@ -949,7 +950,10 @@ export function createPiSessionRegistry(dependencies: PiSessionRuntimeDependenci
 
       const promoted = SessionManager.forkFrom(current.filePath, current.cwd);
       const promotedPath = promoted.getSessionFile();
-      if (title?.trim()) promoted.appendSessionInfo(title.trim());
+      if (title?.trim()) {
+        promoted.appendSessionInfo(title.trim());
+        appendSessionTitleOrigin(promoted, "explicit");
+      }
       let host: HostedPiSession;
       try {
         host = await createHost(promoted);
@@ -1156,6 +1160,13 @@ export function createPiSessionRegistry(dependencies: PiSessionRuntimeDependenci
     };
     return { summary, info: sessionManagerInfo(manager, summary) };
   }
+  function backfillSessionTitle(manager: SessionManager): boolean {
+    const messages = manager
+      .getEntries()
+      .filter((entry) => entry.type === "message")
+      .map((entry) => entry.message);
+    return persistGeneratedSessionTitle(manager, firstUserText(messages)) !== undefined;
+  }
   function configuredSessionCacheKey(): string {
     return path.join(getAgentDir(), "sessions");
   }
@@ -1297,8 +1308,9 @@ export function createPiSessionRegistry(dependencies: PiSessionRuntimeDependenci
   }
   function refreshChangedSessionFiles(
     registry: SessionCatalogRegistryView,
-    fingerprints: ReadonlyMap<string, string>,
-  ): void {
+    fingerprints: Map<string, string>,
+  ): boolean {
+    let titleBackfilled = false;
     for (const file of registry.persisted.fingerprints.keys()) {
       if (fingerprints.has(file)) continue;
       removeCachedSessionFile(registry, file);
@@ -1310,6 +1322,7 @@ export function createPiSessionRegistry(dependencies: PiSessionRuntimeDependenci
       removeCachedSessionFile(registry, file);
       try {
         const manager = SessionManager.open(file);
+        const currentTitleBackfilled = backfillSessionTitle(manager);
         const { info, summary } = persistedMetadataFromManager(
           manager,
           running.has(manager.getSessionId()),
@@ -1317,6 +1330,11 @@ export function createPiSessionRegistry(dependencies: PiSessionRuntimeDependenci
         if (!info) continue;
         registry.persisted.sessions.set(info.id, info);
         registry.persisted.summaries.set(summary.id, summary);
+        if (currentTitleBackfilled) {
+          const fileMetadata = statSync(file);
+          fingerprints.set(file, `${fileMetadata.size}:${fileMetadata.mtimeMs}`);
+          titleBackfilled = true;
+        }
       } catch {
         // A malformed or concurrently removed file is excluded until a later fingerprint change.
       }
@@ -1326,6 +1344,40 @@ export function createPiSessionRegistry(dependencies: PiSessionRuntimeDependenci
     for (const [file, fingerprint] of fingerprints) {
       registry.persisted.fingerprints.set(file, fingerprint);
     }
+    return titleBackfilled;
+  }
+  function backfillCachedSessionTitles(
+    registry: SessionCatalogRegistryView,
+    fingerprints: Map<string, string>,
+  ): boolean {
+    let changed = false;
+    const running = new Set(runningSessionIds());
+    for (const info of [...registry.persisted.sessions.values()]) {
+      if (
+        info.name !== undefined ||
+        !deriveSessionDisplayTitle(info.firstMessage) ||
+        !existsSync(info.path)
+      ) {
+        continue;
+      }
+      if (registry.live.sessions.get(info.id)?.isAlive) continue;
+      try {
+        const manager = SessionManager.open(info.path);
+        if (!backfillSessionTitle(manager)) continue;
+        const metadata = persistedMetadataFromManager(manager, running.has(info.id));
+        if (!metadata.info) continue;
+        registry.persisted.sessions.set(info.id, metadata.info);
+        registry.persisted.summaries.set(info.id, metadata.summary);
+        const fileMetadata = statSync(info.path);
+        const fingerprint = `${fileMetadata.size}:${fileMetadata.mtimeMs}`;
+        registry.persisted.fingerprints.set(info.path, fingerprint);
+        fingerprints.set(info.path, fingerprint);
+        changed = true;
+      } catch {
+        // A malformed or concurrently removed file remains eligible for a later refresh.
+      }
+    }
+    return changed;
   }
   function hydratePersistedSessionCache(
     registry: SessionCatalogRegistryView,
@@ -1386,27 +1438,57 @@ export function createPiSessionRegistry(dependencies: PiSessionRuntimeDependenci
       for (const host of registry.live.sessions.values()) {
         if (host.isAlive) cacheHostedSession(registry, host, fingerprints);
       }
+      let backfilledTitles = registry.persisted.cacheReady
+        ? backfillCachedSessionTitles(registry, fingerprints)
+        : false;
       if (
         registry.persisted.cacheReady &&
         fingerprintsMatch(registry.persisted.fingerprints, fingerprints)
       ) {
+        if (backfilledTitles) await persistSessionCatalogIndex(registry, cacheKey);
         return;
       }
       if (registry.persisted.cacheReady) {
-        refreshChangedSessionFiles(registry, fingerprints);
+        backfilledTitles = refreshChangedSessionFiles(registry, fingerprints) || backfilledTitles;
       } else {
         const persisted = await SessionManager.listAll();
         if (registry.persisted.cacheKey !== cacheKey) return;
         const running = new Set(runningSessionIds());
-        const nextSessions = new Map(persisted.map((session) => [session.id, session]));
         const sessionOrigins = await Promise.all(
           persisted.map((session) => readSessionOrigins(session.path)),
         );
+        const nextMetadata = persisted.map((session, index) => {
+          if (
+            session.name !== undefined ||
+            !deriveSessionDisplayTitle(session.firstMessage) ||
+            !existsSync(session.path)
+          ) {
+            return {
+              info: session,
+              summary: persistedSummary(session, running.has(session.id), sessionOrigins[index]),
+            };
+          }
+          try {
+            const manager = SessionManager.open(session.path);
+            const titleBackfilled = backfillSessionTitle(manager);
+            const metadata = persistedMetadataFromManager(manager, running.has(session.id));
+            if (titleBackfilled) {
+              const fileMetadata = statSync(session.path);
+              fingerprints.set(session.path, `${fileMetadata.size}:${fileMetadata.mtimeMs}`);
+            }
+            return metadata;
+          } catch {
+            return {
+              info: session,
+              summary: persistedSummary(session, running.has(session.id), sessionOrigins[index]),
+            };
+          }
+        });
+        const nextSessions = new Map(
+          nextMetadata.flatMap(({ info }) => (info ? [[info.id, info] as const] : [])),
+        );
         const nextSummaries = new Map(
-          persisted.map((session, index) => [
-            session.id,
-            persistedSummary(session, running.has(session.id), sessionOrigins[index]),
-          ]),
+          nextMetadata.map(({ summary }) => [summary.id, summary] as const),
         );
         registry.persisted.sessions.clear();
         for (const [id, info] of nextSessions) registry.persisted.sessions.set(id, info);
@@ -1424,7 +1506,7 @@ export function createPiSessionRegistry(dependencies: PiSessionRuntimeDependenci
         if (host.isAlive) cacheHostedSession(registry, host);
       }
       registry.persisted.cacheReady = true;
-      if (indexStatus !== "memory") {
+      if (indexStatus !== "memory" || backfilledTitles) {
         await persistSessionCatalogIndex(registry, cacheKey);
       }
     })().finally(() => {
@@ -1761,6 +1843,7 @@ export function createPiSessionRegistry(dependencies: PiSessionRuntimeDependenci
     );
     if (initialized.error !== undefined) throw initialized.error;
     manager.appendSessionInfo(normalized);
+    appendSessionTitleOrigin(manager, "explicit");
     const event = createCanonicalSessionEvent(
       { type: "session_info_changed", name: normalized || undefined },
       initialized.events.length,

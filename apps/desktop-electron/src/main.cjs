@@ -1,4 +1,5 @@
 const path = require("node:path");
+const { hostname } = require("node:os");
 
 const electron = require("electron");
 const {
@@ -100,7 +101,8 @@ const desktopRemoteControlBridge = createDesktopRemoteControlBridgeLifecycle({
       generation,
       store: desktopRemoteControlStore,
       listener: desktopRemoteControlListener,
-      displayName: app.getName?.(),
+      displayName: hostname(),
+      legacyDisplayName: app.getName?.(),
       operationLedgerFile: path.join(
         desktopRemoteControlDataDirectory,
         "remote-control-direct-operations.sqlite",

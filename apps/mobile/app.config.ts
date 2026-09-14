@@ -18,6 +18,7 @@ const config: ExpoConfig = {
       "expo-build-properties",
       {
         android: {
+          minSdkVersion: 24,
           usesCleartextTraffic: true,
         },
       },

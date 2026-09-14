@@ -37,6 +37,7 @@ export default function SessionCatalogScreen() {
   const [creating, setCreating] = useState(false);
   const [createFailed, setCreateFailed] = useState(false);
   const [query, setQuery] = useState("");
+  const [pinnedExpanded, setPinnedExpanded] = useState(true);
   const [expandedSessionId, setExpandedSessionId] = useState<string>();
 
   const load = useCallback(async () => {
@@ -80,7 +81,23 @@ export default function SessionCatalogScreen() {
     ];
   }, [catalog?.items, query, t]);
 
+  const projects = useMemo(() => {
+    const workspaces = new Map<
+      string,
+      { readonly workspaceId: string; readonly displayName: string }
+    >();
+    for (const session of catalog?.items ?? []) {
+      if (session.workspace) workspaces.set(session.workspace.workspaceId, session.workspace);
+    }
+    return [...workspaces.values()].sort((left, right) =>
+      left.displayName.localeCompare(right.displayName),
+    );
+  }, [catalog?.items]);
+
   const visibleSessionCount = groups.reduce((total, group) => total + group.items.length, 0);
+
+  const sessionTitle = (session: NonNullable<typeof catalog>["items"][number]) =>
+    session.title ?? t("mobile.sessions.untitled");
 
   const openSession = (session: NonNullable<typeof catalog>["items"][number]) =>
     router.push({
@@ -88,7 +105,7 @@ export default function SessionCatalogScreen() {
       params: {
         machineId,
         sessionId: session.sessionId,
-        title: session.title,
+        title: sessionTitle(session),
         runState: session.runState,
         workspaceName: session.workspace?.displayName ?? "",
       },
@@ -183,6 +200,7 @@ export default function SessionCatalogScreen() {
                 key={item.machineId}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
+                hitSlop={4}
                 onPress={() =>
                   router.replace({
                     pathname: "/machines/[machineId]/sessions",
@@ -207,7 +225,7 @@ export default function SessionCatalogScreen() {
                 <MobileIcon
                   color={selected ? palette.accentText : palette.foreground}
                   name="desktop-outline"
-                  size={20}
+                  size={16}
                 />
                 <Text
                   numberOfLines={1}
@@ -223,31 +241,63 @@ export default function SessionCatalogScreen() {
           })}
         </ScrollView>
 
-        <View style={styles.listHeading}>
-          <Text
-            accessibilityRole="header"
-            style={[styles.sectionTitle, { color: palette.foreground }]}
-          >
-            {t("mobile.sessions.title")}
-          </Text>
-          <Pressable
-            accessibilityLabel={t("mobile.common.retry")}
-            accessibilityRole="button"
-            accessibilityState={{ busy: loading, disabled: loading || !machine }}
-            disabled={loading || !machine}
-            hitSlop={4}
-            onPress={() => void load()}
-            style={({ pressed }) => [styles.refreshButton, { opacity: pressed ? 0.58 : 1 }]}
-          >
-            <MobileIcon color={palette.muted} name="refresh" size={21} />
-          </Pressable>
-        </View>
-
         <ScrollView
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={styles.screenContent}
           keyboardShouldPersistTaps="handled"
           style={styles.scroller}
         >
+          <View style={styles.listHeading}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.sectionTitle, { color: palette.foreground }]}
+            >
+              {t("mobile.sessions.title")}
+            </Text>
+            <Pressable
+              accessibilityLabel={t("mobile.common.retry")}
+              accessibilityRole="button"
+              accessibilityState={{ busy: loading, disabled: loading || !machine }}
+              disabled={loading || !machine}
+              hitSlop={4}
+              onPress={() => void load()}
+              style={({ pressed }) => [styles.refreshButton, { opacity: pressed ? 0.58 : 1 }]}
+            >
+              <MobileIcon color={palette.muted} name="refresh" size={21} />
+            </Pressable>
+          </View>
+
+          <View accessibilityRole="list" style={styles.projectList}>
+            {projects.map((project) => (
+              <Pressable
+                key={project.workspaceId}
+                accessibilityLabel={project.displayName}
+                accessibilityRole="button"
+                onPress={() =>
+                  router.push({
+                    pathname: "/machines/[machineId]/projects/[workspaceId]",
+                    params: {
+                      machineId,
+                      workspaceId: project.workspaceId,
+                      projectName: project.displayName,
+                    },
+                  })
+                }
+                style={({ pressed }) => [
+                  styles.projectRow,
+                  { backgroundColor: pressed ? palette.subtleSurface : "transparent" },
+                ]}
+              >
+                <MobileIcon color={palette.foreground} name="folder-outline" size={27} />
+                <Text
+                  numberOfLines={1}
+                  style={[styles.projectLabel, { color: palette.foreground }]}
+                >
+                  {project.displayName}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
           {catalog?.stale ? (
             <View
               accessibilityLiveRegion="polite"
@@ -281,149 +331,179 @@ export default function SessionCatalogScreen() {
             </Text>
           ) : (
             <View accessibilityRole="list" style={styles.list}>
-              {groups.map((group) =>
-                group.items.length === 0 ? null : (
+              {groups.map((group) => {
+                const pinnedGroup = group.key === "pinned";
+                return (
                   <View key={group.key} style={styles.group}>
-                    <Text style={[styles.groupTitle, { color: palette.foreground }]}>
-                      {group.title}
-                    </Text>
-                    {group.items.map((session) => {
-                      const actionsExpanded = expandedSessionId === session.sessionId;
-                      return (
-                        <View
-                          key={session.sessionId}
-                          style={[styles.sessionItem, { borderBottomColor: palette.border }]}
-                        >
-                          <View style={styles.sessionLine}>
-                            <Pressable
-                              accessibilityLabel={`${t("mobile.sessions.openLabel")}: ${session.title}`}
-                              accessibilityRole="button"
-                              onPress={() => openSession(session)}
-                              style={({ pressed }) => [
-                                styles.sessionMain,
-                                { opacity: pressed ? 0.58 : 1 },
-                              ]}
-                            >
-                              <View style={styles.sessionTitleRow}>
-                                <Text
-                                  numberOfLines={2}
-                                  style={[styles.sessionTitle, { color: palette.foreground }]}
-                                >
-                                  {session.title}
-                                </Text>
-                                <Text style={[styles.updatedAt, { color: palette.muted }]}>
-                                  {updatedLabel(session.updatedAt)}
-                                </Text>
-                              </View>
-                              <View style={styles.sessionMetaRow}>
-                                {session.workspace ? (
-                                  <>
-                                    <MobileIcon
-                                      color={palette.muted}
-                                      name="folder-outline"
-                                      size={15}
+                    {pinnedGroup ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: pinnedExpanded }}
+                        onPress={() => setPinnedExpanded((expanded) => !expanded)}
+                        style={({ pressed }) => [
+                          styles.groupHeading,
+                          { opacity: pressed ? 0.58 : 1 },
+                        ]}
+                      >
+                        <Text style={[styles.groupTitle, { color: palette.foreground }]}>
+                          {group.title}
+                        </Text>
+                        <MobileIcon
+                          color={palette.muted}
+                          name={pinnedExpanded ? "chevron-down" : "chevron-forward"}
+                          size={23}
+                        />
+                      </Pressable>
+                    ) : (
+                      <View style={styles.groupHeading}>
+                        <Text style={[styles.groupTitle, { color: palette.foreground }]}>
+                          {group.title}
+                        </Text>
+                      </View>
+                    )}
+                    {pinnedGroup && pinnedExpanded && group.items.length === 0 ? (
+                      <Text style={[styles.pinnedEmpty, { color: palette.muted }]}>
+                        {t("mobile.sessions.pinnedEmpty")}
+                      </Text>
+                    ) : null}
+                    {(!pinnedGroup || pinnedExpanded) &&
+                      group.items.map((session) => {
+                        const actionsExpanded = expandedSessionId === session.sessionId;
+                        return (
+                          <View
+                            key={session.sessionId}
+                            style={[styles.sessionItem, { borderBottomColor: palette.border }]}
+                          >
+                            <View style={styles.sessionLine}>
+                              <Pressable
+                                accessibilityLabel={`${t("mobile.sessions.openLabel")}: ${sessionTitle(session)}`}
+                                accessibilityRole="button"
+                                onPress={() => openSession(session)}
+                                style={({ pressed }) => [
+                                  styles.sessionMain,
+                                  { opacity: pressed ? 0.58 : 1 },
+                                ]}
+                              >
+                                <View style={styles.sessionTitleRow}>
+                                  <Text
+                                    numberOfLines={2}
+                                    style={[styles.sessionTitle, { color: palette.foreground }]}
+                                  >
+                                    {sessionTitle(session)}
+                                  </Text>
+                                  <Text style={[styles.updatedAt, { color: palette.muted }]}>
+                                    {updatedLabel(session.updatedAt)}
+                                  </Text>
+                                </View>
+                                <View style={styles.sessionMetaRow}>
+                                  {session.workspace ? (
+                                    <>
+                                      <MobileIcon
+                                        color={palette.muted}
+                                        name="folder-outline"
+                                        size={15}
+                                      />
+                                      <Text
+                                        numberOfLines={1}
+                                        style={[styles.workspace, { color: palette.muted }]}
+                                      >
+                                        {session.workspace.displayName}
+                                      </Text>
+                                    </>
+                                  ) : null}
+                                  <Text style={[styles.runState, { color: palette.muted }]}>
+                                    {runLabel(session.runState)}
+                                  </Text>
+                                  {session.attention !== "none" ? (
+                                    <View
+                                      accessibilityLabel={t("mobile.sessions.unread")}
+                                      style={[
+                                        styles.attentionDot,
+                                        {
+                                          backgroundColor:
+                                            session.attention === "failed"
+                                              ? palette.danger
+                                              : palette.success,
+                                        },
+                                      ]}
                                     />
-                                    <Text
-                                      numberOfLines={1}
-                                      style={[styles.workspace, { color: palette.muted }]}
-                                    >
-                                      {session.workspace.displayName}
-                                    </Text>
-                                  </>
-                                ) : null}
-                                <Text style={[styles.runState, { color: palette.muted }]}>
-                                  {runLabel(session.runState)}
-                                </Text>
-                                {session.attention !== "none" ? (
-                                  <View
-                                    accessibilityLabel={t("mobile.sessions.unread")}
-                                    style={[
-                                      styles.attentionDot,
-                                      {
-                                        backgroundColor:
-                                          session.attention === "failed"
-                                            ? palette.danger
-                                            : palette.success,
-                                      },
-                                    ]}
-                                  />
-                                ) : null}
-                              </View>
-                            </Pressable>
-                            <Pressable
-                              accessibilityLabel={t("mobile.sessions.actions")}
-                              accessibilityRole="button"
-                              accessibilityState={{ expanded: actionsExpanded }}
-                              hitSlop={4}
-                              onPress={() =>
-                                setExpandedSessionId((current) =>
-                                  current === session.sessionId ? undefined : session.sessionId,
-                                )
-                              }
-                              style={({ pressed }) => [
-                                styles.sessionMore,
-                                { opacity: pressed ? 0.58 : 1 },
-                              ]}
-                            >
-                              <MobileIcon
-                                color={palette.muted}
-                                name="ellipsis-horizontal"
-                                size={22}
-                              />
-                            </Pressable>
-                          </View>
-                          {actionsExpanded ? (
-                            <View style={styles.actionTray}>
-                              <MobileSessionActions
-                                canMutate={catalog.canMutate}
-                                colors={palette}
-                                onArchive={async () => {
-                                  try {
-                                    await app.archiveSession({
-                                      machineId,
-                                      sessionId: session.sessionId,
-                                      expectedEntityRevision: session.entityRevision,
-                                    });
-                                  } finally {
-                                    setExpandedSessionId(undefined);
-                                    await load();
-                                  }
-                                }}
-                                onRename={async (title) => {
-                                  try {
-                                    await app.renameSession({
-                                      machineId,
-                                      sessionId: session.sessionId,
-                                      title,
-                                      expectedEntityRevision: session.entityRevision,
-                                    });
-                                  } finally {
-                                    await load();
-                                  }
-                                }}
-                                onSetPinned={async (pinned) => {
-                                  try {
-                                    await app.setSessionPinned({
-                                      machineId,
-                                      sessionId: session.sessionId,
-                                      pinned,
-                                      expectedEntityRevision: session.entityRevision,
-                                    });
-                                  } finally {
-                                    setExpandedSessionId(undefined);
-                                    await load();
-                                  }
-                                }}
-                                session={session}
-                              />
+                                  ) : null}
+                                </View>
+                              </Pressable>
+                              <Pressable
+                                accessibilityLabel={t("mobile.sessions.actions")}
+                                accessibilityRole="button"
+                                accessibilityState={{ expanded: actionsExpanded }}
+                                hitSlop={4}
+                                onPress={() =>
+                                  setExpandedSessionId((current) =>
+                                    current === session.sessionId ? undefined : session.sessionId,
+                                  )
+                                }
+                                style={({ pressed }) => [
+                                  styles.sessionMore,
+                                  { opacity: pressed ? 0.58 : 1 },
+                                ]}
+                              >
+                                <MobileIcon
+                                  color={palette.muted}
+                                  name="ellipsis-horizontal"
+                                  size={22}
+                                />
+                              </Pressable>
                             </View>
-                          ) : null}
-                        </View>
-                      );
-                    })}
+                            {actionsExpanded ? (
+                              <View style={styles.actionTray}>
+                                <MobileSessionActions
+                                  canMutate={catalog.canMutate}
+                                  colors={palette}
+                                  onArchive={async () => {
+                                    try {
+                                      await app.archiveSession({
+                                        machineId,
+                                        sessionId: session.sessionId,
+                                        expectedEntityRevision: session.entityRevision,
+                                      });
+                                    } finally {
+                                      setExpandedSessionId(undefined);
+                                      await load();
+                                    }
+                                  }}
+                                  onRename={async (title) => {
+                                    try {
+                                      await app.renameSession({
+                                        machineId,
+                                        sessionId: session.sessionId,
+                                        title,
+                                        expectedEntityRevision: session.entityRevision,
+                                      });
+                                    } finally {
+                                      await load();
+                                    }
+                                  }}
+                                  onSetPinned={async (pinned) => {
+                                    try {
+                                      await app.setSessionPinned({
+                                        machineId,
+                                        sessionId: session.sessionId,
+                                        pinned,
+                                        expectedEntityRevision: session.entityRevision,
+                                      });
+                                    } finally {
+                                      setExpandedSessionId(undefined);
+                                      await load();
+                                    }
+                                  }}
+                                  session={session}
+                                />
+                              </View>
+                            ) : null}
+                          </View>
+                        );
+                      })}
                   </View>
-                ),
-              )}
+                );
+              })}
             </View>
           )}
         </ScrollView>
@@ -498,15 +578,15 @@ const styles = StyleSheet.create({
   machineRail: { gap: 10, paddingBottom: 20, paddingTop: 8 },
   machinePill: {
     alignItems: "center",
-    borderRadius: 26,
+    borderRadius: 20,
     flexDirection: "row",
-    gap: 9,
-    height: 52,
-    maxWidth: 240,
-    paddingHorizontal: 18,
+    gap: 6,
+    height: 40,
+    maxWidth: 200,
+    paddingHorizontal: 12,
   },
-  presenceDot: { borderRadius: 4, height: 8, width: 8 },
-  machineName: { flexShrink: 1, fontSize: 16, fontWeight: "700" },
+  presenceDot: { borderRadius: 3, height: 6, width: 6 },
+  machineName: { flexShrink: 1, fontSize: 14, fontWeight: "700" },
   listHeading: {
     alignItems: "center",
     flexDirection: "row",
@@ -516,14 +596,34 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 25, fontWeight: "700", letterSpacing: -0.35 },
   refreshButton: { alignItems: "center", height: 48, justifyContent: "center", width: 48 },
   scroller: { flex: 1 },
-  listContent: { flexGrow: 1, paddingBottom: 24 },
+  screenContent: { paddingBottom: 24 },
+  projectList: { gap: 2, marginBottom: 28 },
+  projectRow: {
+    alignItems: "center",
+    borderRadius: 14,
+    flexDirection: "row",
+    gap: 14,
+    minHeight: 54,
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+  },
+  projectLabel: { flexShrink: 1, fontSize: 20, letterSpacing: -0.2 },
   loadingRow: { alignItems: "center", flexDirection: "row", gap: 12, minHeight: 88 },
   staleBanner: { borderRadius: 16, gap: 4, marginVertical: 8, padding: 14 },
   staleText: { fontSize: 14, lineHeight: 20 },
   empty: { fontSize: 16, lineHeight: 24, paddingVertical: 32 },
   list: { gap: 28 },
   group: { gap: 2 },
-  groupTitle: { fontSize: 20, fontWeight: "700", marginBottom: 8, marginTop: 10 },
+  groupHeading: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+    marginTop: 10,
+    minHeight: 36,
+  },
+  groupTitle: { fontSize: 20, fontWeight: "700" },
+  pinnedEmpty: { fontSize: 14, lineHeight: 20, paddingBottom: 12, paddingHorizontal: 4 },
   sessionItem: { borderBottomWidth: StyleSheet.hairlineWidth },
   sessionLine: { alignItems: "stretch", flexDirection: "row", minHeight: 82 },
   sessionMain: { flex: 1, gap: 8, justifyContent: "center", paddingVertical: 12 },

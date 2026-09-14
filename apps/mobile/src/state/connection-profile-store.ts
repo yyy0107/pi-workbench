@@ -153,7 +153,12 @@ export function createMobileConnectionProfileStore(options: {
         );
       });
     },
-    noteEndpointSuccess(machineId: string, endpointId: string, at = new Date()): Promise<void> {
+    noteEndpointSuccess(
+      machineId: string,
+      endpointId: string,
+      at = new Date(),
+      displayName?: string,
+    ): Promise<void> {
       return enqueue(async () => {
         const current = (await options.persistence.list()).find(
           (profile) => profile.machineId === machineId,
@@ -171,6 +176,7 @@ export function createMobileConnectionProfileStore(options: {
         ]);
         await options.persistence.save({
           ...preferred,
+          ...(displayName ? { displayName } : {}),
           connectionState: "ready",
           lastSeenAt: at.toISOString(),
           endpoints: preferred.endpoints.map((endpoint) =>

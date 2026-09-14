@@ -32,6 +32,7 @@ import {
   sessionResumeStateFromBranch,
 } from "./session-resume";
 import { deriveSessionDisplayTitle } from "@workbench/pi-runtime-adapters/sessions";
+import { SESSION_TITLE_ORIGIN_CUSTOM_TYPE, sessionTitleOriginMarker } from "./session-title";
 import {
   MANAGED_IMAGE_MEDIA_TYPES,
   type ManagedFileAttachment,
@@ -508,6 +509,12 @@ export function sessionOriginsFromEntries(entries: readonly SessionEntry[]): Ses
 }
 export function sessionModifiedAt(source: SessionTimestampSource): Date {
   const branch = source.getBranch();
+  const generatedTitleInfoIds = new Set(
+    branch.flatMap((entry) => {
+      const marker = sessionTitleOriginMarker(entry);
+      return marker?.origin === "generated" && entry.parentId ? [entry.parentId] : [];
+    }),
+  );
   let expectedSequence = 0;
   let modifiedTime: number | undefined;
   for (const entry of branch) {
@@ -516,7 +523,13 @@ export function sessionModifiedAt(source: SessionTimestampSource): Date {
       expectedSequence += 1;
       modifiedTime = Math.max(modifiedTime ?? Number.NEGATIVE_INFINITY, canonical.time);
     }
-    const meaningful = meaningfulEntryTime(entry);
+    const meaningful =
+      (entry.type === "session_info" &&
+        entry.id !== undefined &&
+        generatedTitleInfoIds.has(entry.id)) ||
+      (entry.type === "custom" && entry.customType === SESSION_TITLE_ORIGIN_CUSTOM_TYPE)
+        ? undefined
+        : meaningfulEntryTime(entry);
     if (meaningful) {
       modifiedTime = Math.max(modifiedTime ?? Number.NEGATIVE_INFINITY, meaningful.getTime());
     }

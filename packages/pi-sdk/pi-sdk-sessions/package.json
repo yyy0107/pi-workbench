@@ -29,6 +29,7 @@
     "./session-resume": "./src/session-resume.ts",
     "./session-rpc-service": "./src/session-rpc-service.ts",
     "./session-runtime-dependencies": "./src/session-runtime-dependencies.ts",
+    "./session-title": "./src/session-title.ts",
     "./system-prompt-placeholders": "./src/system-prompt-placeholders.ts",
     "./usage-statistics-aggregation": "./src/usage-statistics-aggregation.ts",
     "./usage-statistics-store": "./src/usage-statistics-store.ts",

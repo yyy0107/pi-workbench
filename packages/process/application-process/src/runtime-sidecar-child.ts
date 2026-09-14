@@ -4,11 +4,11 @@ import {
   type ChildProcessWithoutNullStreams,
   type SpawnOptionsWithoutStdio,
 } from "node:child_process";
-import { createStreamingSecretRedactor } from "../lib/streaming-secret-redactor";
+import { createStreamingSecretRedactor } from "../lib/streaming-secret-redactor.ts";
 export {
   createStreamingSecretRedactor,
   type StreamingSecretRedactor,
-} from "../lib/streaming-secret-redactor";
+} from "../lib/streaming-secret-redactor.ts";
 import type { Writable } from "node:stream";
 
 import type { RuntimeArtifactManifest } from "@workbench/runtime-contracts/runtime-artifact-manifest";

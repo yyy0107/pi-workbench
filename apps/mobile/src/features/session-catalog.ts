@@ -59,8 +59,8 @@ function parseSession(value: unknown): RemoteSessionSummaryV1 | undefined {
   if (
     Object.keys(item).some((key) => !allowed.has(key)) ||
     !isIdentifier(item.sessionId) ||
-    typeof item.title !== "string" ||
-    byteLength(item.title) > 512 ||
+    (item.title !== undefined &&
+      (typeof item.title !== "string" || !item.title || byteLength(item.title) > 512)) ||
     typeof item.updatedAt !== "string" ||
     !Number.isFinite(Date.parse(item.updatedAt)) ||
     typeof item.pinned !== "boolean" ||

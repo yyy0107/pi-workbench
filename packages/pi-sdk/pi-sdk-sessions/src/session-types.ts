@@ -57,6 +57,8 @@ export interface ReadonlyPromptQueueSnapshot {
   readonly followUp: readonly PiQueuedPrompt[];
 }
 export interface SessionTimestampEntry {
+  id?: string;
+  parentId?: string | null;
   type?: string;
   timestamp: string;
   customType?: string;

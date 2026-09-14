@@ -31,13 +31,15 @@ async function createDesktopDirectRemoteControlBridgeGeneration(options) {
     import("@workbench/pi-rpc-client/api"),
   ]);
   const epoch = `runtime-${options.generation ?? 0}-${require("node:crypto").randomUUID()}`;
+  const installationDisplayName = () =>
+    options.displayName?.trim() || require("node:os").hostname() || "Workbench";
 
   const createInstallation = async () => {
     const keys = await cryptoModule.generateDirectHpkeKeyPair();
     const publicKey = Buffer.from(keys.publicKey).toString("base64url");
     const value = {
       machineId: `machine-${require("node:crypto").randomUUID()}`,
-      displayName: options.displayName?.trim() || require("node:os").hostname() || "Workbench",
+      displayName: installationDisplayName(),
       encryptionKeyId: `desktop-key-${require("node:crypto").randomUUID()}`,
       encryptionPublicKey: publicKey,
       encryptionPrivateKey: Buffer.from(keys.privateKey).toString("base64url"),
@@ -46,6 +48,23 @@ async function createDesktopDirectRemoteControlBridgeGeneration(options) {
     };
     await options.store.saveInstallation(value);
     return value;
+  };
+
+  const loadInstallation = async () => {
+    const current = await options.store.loadInstallation();
+    if (!current) return createInstallation();
+    const legacyDisplayName = options.legacyDisplayName?.trim();
+    const displayName = installationDisplayName();
+    if (
+      legacyDisplayName &&
+      current.displayName === legacyDisplayName &&
+      displayName !== legacyDisplayName
+    ) {
+      const migrated = { ...current, displayName };
+      await options.store.saveInstallation(migrated);
+      return migrated;
+    }
+    return current;
   };
 
   const selectedAddresses = async (nextConfiguration) => {
@@ -198,7 +217,7 @@ async function createDesktopDirectRemoteControlBridgeGeneration(options) {
   return {
     async start() {
       if (started) return;
-      installation = (await options.store.loadInstallation()) ?? (await createInstallation());
+      installation = await loadInstallation();
       configuration = await options.store.loadConfiguration();
       try {
         await startBusiness();

@@ -967,6 +967,16 @@ Pi `SessionManager` 管理 JSONL session。进程内的 session registry 为正�
 重建新增或变化的文件；索引缺失、损坏或版本不匹配时才回退到 `SessionManager.listAll()`。列表和
 `session.search` 共享这一份目录数据，因此搜索不会再次全量扫描所有 JSONL。
 
+会话显示标题的单一事实来源是 Pi JSONL 中的 `SessionInfo.name`。首条用户消息完成持久化后，
+Hosted Session 使用统一的 `deriveSessionDisplayTitle()` 规则生成一次标题，通过
+`appendSessionInfo()` 写回正式名称，并追加 `workbench.session-title-origin.v1` 标记；自动生成记录为
+`generated`，用户重命名记录为 `explicit`。自动逻辑只填充缺失名称，任何已有名称（包括没有来源标记
+的旧会话）都保守地保留，因此后续消息不会覆盖用户标题。会话目录索引刷新会对“缺少名称但已有首条
+消息”的历史 JSONL 做一次兼容回填，并同步更新 fingerprint 与持久索引；没有消息的空白会话保持无
+标题。自动标题元数据不改变会话的活动时间。`session.list`、远程安全投影和手机 SQLite 摘要只传递、
+缓存正式 title，不在读取阶段访问 `firstMessage` 或根据 session id 造标题；缺少 title 时由各端使用
+本地化的“未命名会话”占位，且不会把占位文案写回 JSONL。
+
 Workbench 在 Pi JSONL 中保存 canonical event journal。每个 `SessionEvent` 都包含稳定递增的
 `seq`、epoch-millisecond `time` 和原始 `data`，因此 cold history 和 live mux 使用同一事件
 序列。`session.history` 按完整消息组分页，避免把 `message_start` / `message_end` 组从中间切开。

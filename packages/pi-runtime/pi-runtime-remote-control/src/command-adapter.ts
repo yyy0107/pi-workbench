@@ -50,7 +50,7 @@ export class RemoteCommandAdapterError extends Error {
 
 export interface RemoteManagedSessionState {
   readonly sessionId: string;
-  readonly title: string;
+  readonly title?: string;
   readonly pinned: boolean;
   readonly archived: boolean;
   readonly entityRevision: string;
@@ -128,16 +128,16 @@ function projectionRecord(value: unknown): Readonly<Record<string, unknown>> | u
 function projectedTitle(item: {
   readonly sessionId: string;
   readonly projections?: { readonly values: Readonly<Record<string, unknown>> };
-}): string {
+}): string | undefined {
   const projection = projectionRecord(item.projections?.values["workbench.piSessionSummary"]);
   return typeof projection?.name === "string" && projection.name.length > 0
     ? projection.name
-    : `Session ${item.sessionId.slice(0, 8)}`;
+    : undefined;
 }
 
 function entityRevision(input: {
   readonly sessionId: string;
-  readonly title: string;
+  readonly title?: string;
   readonly pinned: boolean;
   readonly archived: boolean;
   readonly updatedAt: number;
@@ -174,7 +174,7 @@ export function projectPiRpcRemoteSessionCatalog(input: {
     return {
       sessionId: item.sessionId,
       ...(workspace ? { workspaceId: workspace.workspaceId } : {}),
-      title,
+      ...(title === undefined ? {} : { title }),
       updatedAt,
       pinned: pinnedValue,
       archived: archivedValue,
@@ -186,7 +186,7 @@ export function projectPiRpcRemoteSessionCatalog(input: {
           : ("idle" as const),
       entityRevision: entityRevision({
         sessionId: item.sessionId,
-        title,
+        ...(title === undefined ? {} : { title }),
         pinned: pinnedValue,
         archived: archivedValue,
         updatedAt: item.updatedAt,
@@ -217,12 +217,12 @@ export function createPiRpcRemoteCommandRuntime(
     const archived = archivedCatalog.sessionIds.includes(sessionId);
     return Object.freeze({
       sessionId,
-      title,
+      ...(title === undefined ? {} : { title }),
       pinned,
       archived,
       entityRevision: entityRevision({
         sessionId,
-        title,
+        ...(title === undefined ? {} : { title }),
         pinned,
         archived,
         updatedAt: item.updatedAt,

@@ -137,9 +137,11 @@ import {
   textOnlyModelContext,
   isRecord,
   historyFromManager,
+  firstUserText,
   TOOL_TIMING_CUSTOM_TYPE,
   storedCanonicalEvent,
 } from "./session-projections";
+import { appendSessionTitleOrigin, persistGeneratedSessionTitle } from "./session-title";
 
 export interface HostedPiSessionPorts {
   readHistory(sessionId: string): Promise<PiSessionHistory>;
@@ -246,6 +248,22 @@ export class HostedPiSession {
       const eventTime = Date.now();
       this.contextTrace.observeAgentEvent(event);
       const transientMessageUpdate = event.type === "message_update";
+      if (
+        event.type === "message_end" &&
+        isRecord(event.message) &&
+        event.message.role === "user"
+      ) {
+        try {
+          const manager = this.session.sessionManager;
+          persistGeneratedSessionTitle(
+            manager,
+            firstUserText(manager.buildSessionContext().messages) ||
+              agentMessageText(event.message),
+          );
+        } catch (error) {
+          console.error("[workbench-pi] first-message session title persistence failed", error);
+        }
+      }
       if (!transientMessageUpdate) this.touch();
       if (event.type === "tool_execution_start") {
         this.toolStartedAtById.set(event.toolCallId, eventTime);
@@ -2394,6 +2412,7 @@ export class HostedPiSession {
   rename(name: string): number {
     const previousSequence = this.sequence;
     this.session.setSessionName(name);
+    appendSessionTitleOrigin(this.session.sessionManager, "explicit");
     if (this.sequence <= previousSequence) {
       throw new PiServerError("pi_session_event_journal_unavailable", 500);
     }

@@ -257,6 +257,7 @@ export function createDirectAuthenticationService(options: {
             protocolVersion: 1,
             connectionId,
             machineId: options.installation.machineId,
+            machineDisplayName: options.installation.displayName,
             deviceId: authorization.deviceId,
             authorizationRevision: authorization.revision,
             epoch: options.epoch,

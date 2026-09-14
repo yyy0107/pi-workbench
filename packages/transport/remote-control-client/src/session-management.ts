@@ -43,8 +43,8 @@ function validSummary(value: RemoteSessionSummaryV1): boolean {
   return (
     IDENTIFIER.test(value.sessionId) &&
     IDENTIFIER.test(value.entityRevision) &&
-    value.title.length > 0 &&
-    remoteUtf8ByteLength(value.title) <= 512 &&
+    (value.title === undefined ||
+      (value.title.length > 0 && remoteUtf8ByteLength(value.title) <= 512)) &&
     Number.isFinite(Date.parse(value.updatedAt)) &&
     value.updatedAt.endsWith("Z") &&
     typeof value.pinned === "boolean" &&

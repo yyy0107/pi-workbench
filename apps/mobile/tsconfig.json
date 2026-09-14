@@ -3,7 +3,18 @@
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "strict": true,
-    "types": ["react", "react-native", "node"]
+    "types": [
+      "react",
+      "react-native",
+      "node"
+    ]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
 }

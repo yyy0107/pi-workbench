@@ -217,11 +217,19 @@ test("strictly parses direct challenge, authentication, and acknowledgement", ()
     protocolVersion: 1,
     connectionId: "connection-1",
     machineId: "machine-1",
+    machineDisplayName: "Workbench desktop",
     deviceId: "phone-1",
     authorizationRevision: "revision-1",
     epoch: "epoch-1",
   } as const;
   assert.deepEqual(parseDirectSocketAuthenticatedV1(acknowledgement), acknowledgement);
+  assert.equal(
+    parseDirectSocketAuthenticatedV1({
+      ...acknowledgement,
+      machineDisplayName: "界".repeat(200),
+    }),
+    undefined,
+  );
   assert.equal(
     parseDirectSocketAuthenticatedV1({ ...acknowledgement, leaseGeneration: "legacy" }),
     undefined,

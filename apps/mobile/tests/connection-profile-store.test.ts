@@ -78,10 +78,16 @@ test("promotes the last successful address and records bounded freshness", async
   await value.store.save(original);
   const tailscale = original.endpoints[1]!;
   const reachedAt = new Date("2030-09-13T20:02:00.000Z");
-  await value.store.noteEndpointSuccess(original.machineId, tailscale.endpointId, reachedAt);
+  await value.store.noteEndpointSuccess(
+    original.machineId,
+    tailscale.endpointId,
+    reachedAt,
+    "wy-ubuntu",
+  );
 
   const changed = await value.store.get(original.machineId);
   assert.equal(changed?.connectionState, "ready");
+  assert.equal(changed?.displayName, "wy-ubuntu");
   assert.equal(changed?.preferredEndpointId, tailscale.endpointId);
   assert.equal(changed?.lastSeenAt, reachedAt.toISOString());
   assert.equal(changed?.endpoints[0]?.lastSucceededAt, reachedAt.toISOString());

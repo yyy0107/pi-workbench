@@ -54,7 +54,11 @@ interface MobileAppContextValue {
   readonly machines: MobileMachineCatalogSnapshot & { readonly loading: boolean };
   refreshMachines(): Promise<void>;
   loadSessions(machineId: string): Promise<MobileSessionCatalogSnapshot>;
-  createSession(input: { readonly machineId: string; readonly title?: string }): Promise<string>;
+  createSession(input: {
+    readonly machineId: string;
+    readonly title?: string;
+    readonly workspaceId?: string;
+  }): Promise<string>;
   renameSession(input: {
     readonly machineId: string;
     readonly sessionId: string;
@@ -265,7 +269,12 @@ export function MobileAppProvider({ children }: Readonly<{ children: ReactNode }
         machineId,
         machineReady: protocolReady(machineId),
       });
-      if (!snapshot.stale) markMachineOnline(machineId);
+      if (!snapshot.stale && machinesFeature.current) {
+        const refreshedMachines = await machinesFeature.current.load();
+        setMachines({ ...refreshedMachines, loading: false });
+      } else if (!snapshot.stale) {
+        markMachineOnline(machineId);
+      }
       return snapshot;
     },
     [markMachineOnline, protocolReady],
@@ -287,7 +296,11 @@ export function MobileAppProvider({ children }: Readonly<{ children: ReactNode }
   );
 
   const createSession = useCallback(
-    async (input: { readonly machineId: string; readonly title?: string }) => {
+    async (input: {
+      readonly machineId: string;
+      readonly title?: string;
+      readonly workspaceId?: string;
+    }) => {
       if (!sessionCatalogFeature.current) throw new Error("session_control_unavailable");
       return sessionCatalogFeature.current.create(input);
     },

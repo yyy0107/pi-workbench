@@ -3538,7 +3538,7 @@ test("replaces the optimistic assistant with a durable prompt failure inside the
   assert.equal(internals.activeAssistantMessageId, undefined);
 });
 
-test("records a terminal accepted prompt without leaving the thread list running", (t) => {
+test("records a terminal accepted prompt without inventing a thread-list title", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
@@ -3550,7 +3550,7 @@ test("records a terminal accepted prompt without leaving the thread list running
   manager.notePrompt("remote-session", "Describe this image", false);
 
   assert.equal(manager.getThreadCustom("remote-session")?.piRunning, false);
-  assert.equal(manager.getThreadListItemSnapshot("remote-session")?.title, "Describe this image");
+  assert.equal(manager.getThreadListItemSnapshot("remote-session")?.title, undefined);
 });
 
 test("updates a built-in command response from running to success without a silent gap", (t) => {
@@ -3747,7 +3747,7 @@ test("applies rich host session deltas to the Headless thread list", (t) => {
     listed.threads.map((thread) => thread.threadId),
     [initial.id],
   );
-  assert.equal(listed.threads[0]?.title, "Realtime title");
+  assert.equal(listed.threads[0]?.title, undefined);
 
   const renamed = summary({ name: "Renamed elsewhere" });
   internals.handleHostFrame(

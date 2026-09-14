@@ -157,6 +157,7 @@ export interface DirectSocketAuthenticatedV1 {
   readonly protocolVersion: 1;
   readonly connectionId: string;
   readonly machineId: string;
+  readonly machineDisplayName: string;
   readonly deviceId: string;
   readonly authorizationRevision: string;
   readonly epoch: string;
@@ -443,7 +444,7 @@ export interface RemoteSessionSummaryV1 {
     readonly workspaceId: string;
     readonly displayName: string;
   };
-  readonly title: string;
+  readonly title?: string;
   readonly updatedAt: string;
   readonly pinned: boolean;
   readonly archived: boolean;

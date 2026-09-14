@@ -46,7 +46,12 @@ interface MobileTransportSecureStore {
 
 interface MobileTransportProfileStore {
   get(machineId: string): Promise<DirectConnectionProfile | undefined>;
-  noteEndpointSuccess(machineId: string, endpointId: string, at?: Date): Promise<void>;
+  noteEndpointSuccess(
+    machineId: string,
+    endpointId: string,
+    at?: Date,
+    displayName?: string,
+  ): Promise<void>;
 }
 
 interface MobileTransportLifecycle {
@@ -445,10 +450,10 @@ export function createMobileRemoteTransport(options: {
 
     const connectEndpoint = async (
       endpoint: DirectConnectionProfile["endpoints"][number],
-    ): Promise<void> => {
+    ): Promise<string> => {
       const nextSocket = new WebSocketImpl(endpointUrl(endpoint), [SOCKET_SUBPROTOCOL]);
       socket = nextSocket;
-      await new Promise<void>((resolve, reject) => {
+      return new Promise<string>((resolve, reject) => {
         let challengeAccepted = false;
         let authenticated = false;
         let settled = false;
@@ -539,7 +544,7 @@ export function createMobileRemoteTransport(options: {
                   state = "ready";
                   settled = true;
                   clearTimeout(timer);
-                  resolve();
+                  resolve(acknowledgement.machineDisplayName);
                   return;
                 }
                 const error = parseRemoteErrorV1(value);
@@ -571,7 +576,6 @@ export function createMobileRemoteTransport(options: {
           if (!authenticated) fail(new Error("network_error"));
         });
       });
-      await options.profileStore.noteEndpointSuccess(machineId, endpoint.endpointId, clock.now());
     };
 
     return {
@@ -605,8 +609,15 @@ export function createMobileRemoteTransport(options: {
           let lastError: Error = new Error("network_error");
           for (const endpoint of endpoints) {
             try {
-              await connectEndpoint(endpoint);
+              const displayName = await connectEndpoint(endpoint);
               await recover();
+              await options.profileStore.noteEndpointSuccess(
+                machineId,
+                endpoint.endpointId,
+                clock.now(),
+                displayName,
+              );
+              profile = { ...profile, displayName };
               return;
             } catch (error) {
               lastError = asError(error);

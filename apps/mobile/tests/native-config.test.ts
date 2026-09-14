@@ -8,13 +8,22 @@ test("declares only the direct local-network transport exceptions required by ea
     config.plugins?.find(
       (
         plugin,
-      ): plugin is [string, { readonly android?: { readonly usesCleartextTraffic?: boolean } }] =>
+      ): plugin is [
+        string,
+        {
+          readonly android?: {
+            readonly minSdkVersion?: number;
+            readonly usesCleartextTraffic?: boolean;
+          };
+        },
+      ] =>
         Array.isArray(plugin) && plugin[0] === "expo-build-properties",
     ),
     [
       "expo-build-properties",
       {
         android: {
+          minSdkVersion: 24,
           usesCleartextTraffic: true,
         },
       },

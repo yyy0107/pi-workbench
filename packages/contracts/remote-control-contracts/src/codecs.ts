@@ -456,6 +456,7 @@ export function parseDirectSocketAuthenticatedV1(
       "protocolVersion",
       "connectionId",
       "machineId",
+      "machineDisplayName",
       "deviceId",
       "authorizationRevision",
       "epoch",
@@ -465,6 +466,7 @@ export function parseDirectSocketAuthenticatedV1(
     value.protocolVersion !== REMOTE_CONTROL_PROTOCOL_VERSION ||
     !isRemoteIdentifier(value.connectionId) ||
     !isRemoteIdentifier(value.machineId) ||
+    !isBoundedString(value.machineDisplayName, 128) ||
     !isRemoteIdentifier(value.deviceId) ||
     !isRemoteIdentifier(value.authorizationRevision) ||
     !isRemoteIdentifier(value.epoch) ||
@@ -970,20 +972,12 @@ function parseRemoteSessionSummaryV1(value: unknown): boolean {
     !isRemotePlainObject(value) ||
     !hasOnlyKeys(
       value,
-      [
-        "sessionId",
-        "title",
-        "updatedAt",
-        "pinned",
-        "archived",
-        "attention",
-        "runState",
-        "entityRevision",
-      ],
-      ["workspace"],
+      ["sessionId", "updatedAt", "pinned", "archived", "attention", "runState", "entityRevision"],
+      ["workspace", "title"],
     ) ||
     !isRemoteIdentifier(value.sessionId) ||
-    !isBoundedString(value.title, REMOTE_PROTOCOL_LIMITS.titleBytes) ||
+    (value.title !== undefined &&
+      !isBoundedString(value.title, REMOTE_PROTOCOL_LIMITS.titleBytes)) ||
     !isRemoteTimestamp(value.updatedAt) ||
     typeof value.pinned !== "boolean" ||
     typeof value.archived !== "boolean" ||

@@ -72,7 +72,7 @@ export function sanitizeSessionCatalogEntry(
     !source ||
     typeof source.sessionId !== "string" ||
     !ASCII_IDENTIFIER.test(source.sessionId) ||
-    !boundedText(source.title, 512) ||
+    (source.title !== undefined && !boundedText(source.title, 512)) ||
     typeof source.updatedAt !== "string" ||
     !source.updatedAt.endsWith("Z") ||
     !Number.isFinite(Date.parse(source.updatedAt)) ||
@@ -92,7 +92,7 @@ export function sanitizeSessionCatalogEntry(
   return {
     sessionId: source.sessionId,
     ...(workspace ? { workspace } : {}),
-    title: source.title,
+    ...(source.title === undefined ? {} : { title: source.title as string }),
     updatedAt: source.updatedAt,
     pinned: source.pinned,
     archived: source.archived,

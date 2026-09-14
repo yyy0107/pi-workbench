@@ -93,6 +93,7 @@ test("uses a credential-free direct URL and sends signed challenge authenticatio
       protocolVersion: 1,
       connectionId: "connection-1",
       machineId: "machine-1",
+      machineDisplayName: "Studio Mac",
       deviceId: "phone-1",
       authorizationRevision: "revision-1",
       epoch: "epoch-1",

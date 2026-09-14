@@ -36,6 +36,7 @@ test("accepts canonical uint64 duplicate/exact-next/gap/epoch cursor coordinates
 });
 
 test("strictly parses bounded contiguous event and snapshot frames", () => {
+  const { title: _title, ...untitledSession } = session;
   const event = {
     type: "sync.event",
     eventId: "event-8",
@@ -66,6 +67,14 @@ test("strictly parses bounded contiguous event and snapshot frames", () => {
     baseCursor: { epoch: "epoch-1", offset: "8" },
   } as const;
   assert.deepEqual(parseRemoteSnapshotChunkV1(chunk), chunk);
+  assert.deepEqual(parseRemoteSnapshotChunkV1({ ...chunk, sessions: [untitledSession] }), {
+    ...chunk,
+    sessions: [untitledSession],
+  });
+  assert.equal(
+    parseRemoteSnapshotChunkV1({ ...chunk, sessions: [{ ...session, title: "" }] }),
+    undefined,
+  );
   assert.deepEqual(parseRemoteSnapshotCompleteV1(complete), complete);
   assert.equal(parseRemoteSnapshotChunkV1({ ...chunk, partIndex: 2 }), undefined);
   assert.equal(

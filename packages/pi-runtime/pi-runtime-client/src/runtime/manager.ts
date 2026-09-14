@@ -1910,9 +1910,7 @@ export class PiSessionManager implements AgentRuntime {
   }
 
   private summaryTitle(summary: PiSessionSummary): string {
-    return (
-      deriveSessionDisplayTitle(summary.name) || deriveSessionDisplayTitle(summary.firstMessage)
-    );
+    return deriveSessionDisplayTitle(summary.name);
   }
 
   private scratchSummary(sessionId: string): PiSessionSummary | undefined {

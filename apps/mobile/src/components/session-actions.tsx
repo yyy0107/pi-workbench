@@ -33,7 +33,7 @@ export function MobileSessionActions({
 }>) {
   const { t } = useI18n(mobileTranslationBundle);
   const [renaming, setRenaming] = useState(false);
-  const [title, setTitle] = useState(session.title);
+  const [title, setTitle] = useState(session.title ?? "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<"conflict" | "failed">();
 

@@ -30,6 +30,14 @@ test("projects raw Pi RPC catalog rows without leaking paths or unknown fields",
           running: true,
           waitingForUserInput: true,
           blank: false,
+          projections: {
+            asOfSeq: 9,
+            values: {
+              "workbench.piSessionSummary": {
+                firstMessage: "请修复手机端会话列表标题",
+              },
+            },
+          },
         },
         {
           sessionId: "session-archived",
@@ -75,7 +83,7 @@ test("projects raw Pi RPC catalog rows without leaking paths or unknown fields",
       },
       {
         sessionId: "session-waiting",
-        title: "Session session-",
+        title: undefined,
         pinned: false,
         runState: "waiting-for-input",
         attention: "input-needed",
@@ -85,6 +93,7 @@ test("projects raw Pi RPC catalog rows without leaking paths or unknown fields",
   );
   assert.equal(JSON.stringify(value).includes("/private"), false);
   assert.equal(JSON.stringify(value).includes("secret-preset"), false);
+  assert.equal(JSON.stringify(value).includes("firstMessage"), false);
 });
 
 function harness() {

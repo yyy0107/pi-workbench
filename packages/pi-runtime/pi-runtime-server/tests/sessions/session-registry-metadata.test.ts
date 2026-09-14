@@ -37,6 +37,7 @@ const {
   getOrStartSession,
   getScratchSessionRecord,
   listSessions,
+  listSessionFiles,
   messagesHaveImages,
   promoteScratchSession,
   regenerateSession,
@@ -57,6 +58,8 @@ const {
   (await import("../../src/session-composition/registry")) as typeof import("../../src/session-composition/registry");
 const { appendSessionEventJournal, initializeSessionEventJournal, SESSION_EVENT_CUSTOM_TYPE } =
   (await import("@workbench/pi-sdk-sessions/session-event-journal")) as typeof import("@workbench/pi-sdk-sessions/session-event-journal");
+const { sessionTitleOriginFromEntries } =
+  (await import("@workbench/pi-sdk-sessions/session-title")) as typeof import("@workbench/pi-sdk-sessions/session-title");
 const { createStreamHub, STREAM_HUB_SYMBOL } = (await import(
   new URL("../../src/streams/stream-hub.ts", import.meta.url).href
 )) as typeof import("../../src/streams/stream-hub");
@@ -2038,6 +2041,41 @@ test("read-only journal migration does not refresh a cold session's modified tim
   assert.equal(after.modified, before.modified);
 });
 
+test("backfills a missing formal title from the first message during catalog refresh", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-session-title-backfill-"));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
+  t.after(async () => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
+    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
+    await rm(root, { recursive: true, force: true });
+  });
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const manager = SessionManager.create(cwd, undefined, { id: "title-backfill" });
+  manager.appendMessage({
+    role: "user",
+    content: "请检查移动端的会话标题",
+    timestamp: Date.parse("2026-09-13T20:00:00.000Z"),
+  });
+  manager.appendMessage(assistantMessage("已检查", Date.parse("2026-09-13T20:00:01.000Z")));
+  const sessionFile = manager.getSessionFile();
+  assert.ok(sessionFile);
+  assert.equal(manager.getSessionName(), undefined);
+
+  const first = (await listSessions()).sessions.find(({ id }) => id === "title-backfill");
+  assert.equal(first?.name, "请检查移动端的会话标题");
+
+  const persisted = SessionManager.open(sessionFile);
+  assert.equal(persisted.getSessionName(), "请检查移动端的会话标题");
+  assert.equal(sessionTitleOriginFromEntries(persisted.getEntries()), "generated");
+});
+
 test("discovers sibling assistant branches with stable shared user events", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-session-branches-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -2084,7 +2122,7 @@ test("discovers sibling assistant branches with stable shared user events", asyn
   const second = appendAssistantBranch("Second answer", 3);
   const branches = await getSessionEventBranches("assistant-branches");
 
-  assert.equal(branches.headLeafId, second.leafId);
+  assert.equal(branches.headLeafId, branches.items[0]?.leafId);
   assert.equal(branches.items.length, 2);
   assert.deepEqual(
     branches.items.map((branch) => branch.events[0]?.event.entryId),
@@ -2252,6 +2290,7 @@ test("lists sessions by creation time instead of modified activity", async (t) =
   });
 
   const listed = await listSessions();
+  await listSessionFiles();
   assert.deepEqual(
     listed.sessions.map((session) => session.id),
     ["newer-idle", "older-active"],
@@ -2604,6 +2643,12 @@ test("publishes a background prompt user message over mux and waits for its assi
   await userWasPublished;
 
   assert.equal(completed, false, "the background caller must still wait for the assistant turn");
+  assert.equal(host.summary().name, "Automation user prompt");
+  assert.equal(
+    sessionTitleOriginFromEntries(host.session.sessionManager.getEntries()),
+    "generated",
+    "the first persisted user message must create the formal title before the run completes",
+  );
   const userEvents = muxFrames.flatMap((frame) => {
     if (frame.payload.type !== "session/event") return [];
     const data = frame.payload.event.data as { message?: { role?: string; content?: unknown } };
@@ -2774,6 +2819,8 @@ test("cold rename publishes its canonical event and retains the same lastSeq", a
   }
   assert.equal(changedFrame.payload.sessionId, "cold-rename");
   assert.equal(changedFrame.payload.summary.name, "Renamed while cold");
+  const renamedManager = SessionManager.open(manager.getSessionFile()!);
+  assert.equal(sessionTitleOriginFromEntries(renamedManager.getEntries()), "explicit");
 
   const reconnectFrames: ServerRequest<MuxStreamPayload>[] = [];
   const reconnectSubscription = hub.subscribe("mux", {
@@ -3506,6 +3553,7 @@ test("keeps scratch sessions hidden, releases their files, and promotes them exp
   assert.equal(promoted.workspaceId, "workspace-1");
   assert.equal(getScratchSessionRecord(second.host.id), undefined);
   const listed = await listSessions();
+  await listSessionFiles();
   assert.equal(
     listed.sessions.some((session) => session.id === second.host.id),
     false,

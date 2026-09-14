@@ -311,6 +311,43 @@ test("keeps the direct listener disabled by default and creates pairing only aft
   assert.ok(installation?.encryptionPrivateKey);
 });
 
+test("migrates the legacy product label to the desktop hostname without rotating identity", async () => {
+  const original = {
+    machineId: "machine-1",
+    displayName: "Pi Workbench",
+    encryptionKeyId: "desktop-key-1",
+    encryptionPublicKey: "public-key",
+    encryptionPrivateKey: "private-key",
+    fingerprint: "sha256:fingerprint",
+    createdAt: "2026-09-13T12:00:00.000Z",
+  };
+  let installation = original;
+  const generation = await createDesktopDirectRemoteControlBridgeGeneration({
+    displayName: "wy-ubuntu",
+    legacyDisplayName: "Pi Workbench",
+    store: {
+      loadInstallation: async () => installation,
+      saveInstallation: async (value) => void (installation = value),
+      loadConfiguration: async () => ({
+        enabled: false,
+        port: 8787,
+        selectedInterfaceIds: [],
+        revision: "initial",
+        updatedAt: "2026-09-13T12:00:00.000Z",
+      }),
+      listAuthorizations: async () => [],
+      replaceAuthorizations: async () => {},
+    },
+    listener: { listInterfaces: async () => [] },
+  });
+
+  await generation.start();
+  assert.deepEqual(installation, { ...original, displayName: "wy-ubuntu" });
+  assert.equal(installation.machineId, original.machineId);
+  assert.equal(installation.encryptionPrivateKey, original.encryptionPrivateKey);
+  await generation.stop();
+});
+
 test("copies only the local renderer pairing/device contract and rejects secret-shaped results", () => {
   assert.deepEqual(
     copyRemoteControlRequest("confirmPairing", {

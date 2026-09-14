@@ -109,6 +109,7 @@ test("falls back from LAN to Tailscale, signs the pinned challenge, and exchange
   const urls: string[] = [];
   const requests: string[] = [];
   const successfulEndpoints: string[] = [];
+  const synchronizedDisplayNames: string[] = [];
   const session: RemoteSessionSummaryV1 = {
     sessionId: "session-1",
     title: "Direct session",
@@ -237,6 +238,7 @@ test("falls back from LAN to Tailscale, signs the pinned challenge, and exchange
           protocolVersion: 1,
           connectionId: "connection-1",
           machineId: profile.machineId,
+          machineDisplayName: "wy-ubuntu",
           deviceId: identity.deviceId,
           authorizationRevision: profile.authorizationRevision,
           epoch: "epoch-1",
@@ -303,8 +305,10 @@ test("falls back from LAN to Tailscale, signs the pinned challenge, and exchange
     },
     profileStore: {
       get: async () => profile,
-      noteEndpointSuccess: async (_machineId, endpointId) =>
-        void successfulEndpoints.push(endpointId),
+      noteEndpointSuccess: async (_machineId, endpointId, _at, displayName) => {
+        successfulEndpoints.push(endpointId);
+        if (displayName) synchronizedDisplayNames.push(displayName);
+      },
     },
     projection: memoryProjection(),
     lifecycle: {
@@ -336,6 +340,7 @@ test("falls back from LAN to Tailscale, signs the pinned challenge, and exchange
   assert.deepEqual(urls, [endpointUrl(LAN_ENDPOINT), endpointUrl(TAILSCALE_ENDPOINT)]);
   assert.deepEqual(requests.slice(0, 2), ["sync.recover", "session.catalog.read"]);
   assert.equal(successfulEndpoints[0], profile.endpoints[1]?.endpointId);
+  assert.deepEqual(synchronizedDisplayNames, ["wy-ubuntu"]);
 
   assert.equal(
     (
